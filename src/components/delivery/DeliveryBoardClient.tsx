@@ -15,6 +15,7 @@ import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
+import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
 import { useRealtimeBroadcast } from "@/components/providers/RealtimeProvider";
 import { ORDERS_BROADCAST_EVENT, ordersTopic, type OrderChangedPayload } from "@/hooks/useOrdersRealtime";
 import { useDeliveryActionQueue } from "@/hooks/useDeliveryActionQueue";
@@ -33,6 +34,7 @@ export function DeliveryBoardClient({
   const t = useTranslations("delivery");
   const scope = useMarketScope();
   const market = role === "super_admin" ? scope.marketId : marketId;
+  const { active: whatsappActive, known: whatsappKnown } = useWhatsAppAvailability(market);
 
   const [withDone, setWithDone] = useState(false);
   const params = new URLSearchParams({
@@ -112,6 +114,9 @@ export function DeliveryBoardClient({
       targetHours={board?.target_hours ?? DEFAULT_TARGET_HOURS}
       role={role}
       marketCode={code}
+      marketId={market}
+      whatsappActive={whatsappActive}
+      whatsappKnown={whatsappKnown}
       marketLabel={t(`board.markets.${code}`)}
       tz={marketTimezone(market)}
       locale={locale}

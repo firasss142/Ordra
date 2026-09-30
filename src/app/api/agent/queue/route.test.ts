@@ -367,4 +367,37 @@ describe("GET /api/agent/queue", () => {
       expect(json.closedCounts.all).toBe(1);
     });
   });
+
+  // Prototype whatsapp-agent-v1.html, queue row: « WhatsApp · produit » under
+  // the name, « a répondu · produit » while a reply is unread.
+  test("stamps each row with its WhatsApp conversation and unread replies", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+    const rows = [
+      { id: "o-wa", status: "pending", callback_scheduled_at: null, created_at: "2026-04-10T10:00:00Z", updated_at: "2026-04-10T10:00:00Z" },
+      { id: "o-none", status: "pending", callback_scheduled_at: null, created_at: "2026-04-09T10:00:00Z", updated_at: "2026-04-09T10:00:00Z" },
+    ];
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "whatsapp_conversations") return queryChainList({ data: [{ current_order_id: "o-wa", unread_count: 2 }], error: null });
+      if (table === "orders") return queryChainList({ data: rows, error: null });
+      return queryChainList({ data: [], error: null });
+    });
+    const json = await (await GET(createRequest())).json();
+    const byId = Object.fromEntries((json.allOrders as { id: string; wa_conversation: boolean; wa_unread: number }[]).map((o) => [o.id, o]));
+    expect(byId["o-wa"]).toMatchObject({ wa_conversation: true, wa_unread: 2 });
+    expect(byId["o-none"]).toMatchObject({ wa_conversation: false, wa_unread: 0 });
+  });
+
+  test("a failed WhatsApp read leaves the queue intact", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "whatsapp_conversations") return queryChainList({ data: [], error: { message: "relation does not exist" } });
+      if (table === "orders") return queryChainList({ data: [{ id: "o-1", status: "pending", callback_scheduled_at: null, created_at: "2026-04-10T10:00:00Z", updated_at: "2026-04-10T10:00:00Z" }], error: null });
+      return queryChainList({ data: [], error: null });
+    });
+    const res = await GET(createRequest());
+    expect(res.status).toBe(200);
+    expect((await res.json()).allOrders[0]).toMatchObject({ id: "o-1", wa_conversation: false, wa_unread: 0 });
+  });
 });

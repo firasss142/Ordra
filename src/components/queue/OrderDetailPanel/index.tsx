@@ -47,6 +47,7 @@ import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Plus, AlertTriangle, Merge } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
+import { panelShellClasses, type PanelVariant } from "./shell";
 import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from "@/lib/order-permissions";
 import { fetcher } from "@/lib/swr-config";
 import { isEditableTarget } from "@/lib/dom";
@@ -75,6 +76,7 @@ import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
 import { compareCarriers } from "@/lib/carriers/carrier-comparison";
 import { CarrierComparisonCard } from "../CarrierComparisonCard";
 import type { Role } from "@/types";
+import { PanelBackBar } from "./PanelBackBar";
 import { PanelHeader } from "./PanelHeader";
 import { CustomerHero } from "./CustomerHero";
 import { ActionFooter } from "./ActionFooter";
@@ -85,6 +87,13 @@ import { HistoryTimeline } from "./HistoryTimeline";
 import { AlertBanners } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
+import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
+import { useWhatsAppThread } from "@/hooks/useWhatsAppThread";
+import { useWhatsAppTemplates } from "@/hooks/useWhatsAppTemplates";
+import { MessageThread } from "@/components/whatsapp/MessageThread";
+import { WhatsAppComposer } from "@/components/whatsapp/WhatsAppComposer";
+import { resolveOrderVariables } from "@/lib/whatsapp/render";
+import { toWhatsAppE164 } from "@/lib/whatsapp/phone";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
 import { useOrderPresence } from "@/hooks/useOrderPresence";
@@ -236,7 +245,7 @@ export interface CallTerminatedContext {
    * knows how the call ended, so the agent is not asked the same question
    * twice. Omitted means the full outcome picker.
    */
-  flow?: "option_select" | "reject_flow" | "callback_expanded" | "confirm_now";
+  flow?: "option_select" | "reject_flow" | "callback_expanded" | "confirm_now" | "no_answer_now";
 }
 
 interface OrderDetailPanelProps {
@@ -263,6 +272,14 @@ interface OrderDetailPanelProps {
    * cancelled or hard-deleted by a manager.
    */
   onTerminatedByManager?: (kind: "cancelled" | "deleted") => void;
+  /**
+   * Where the panel sits. "overlay" is the original slide-over; "side" puts it
+   * in the page grid beside the list on desktop (rev 2). Only the shell
+   * changes — everything inside is identical.
+   */
+  variant?: PanelVariant;
+  /** Open on a given tab — the bell's "a répondu sur WhatsApp" lands on Messages. */
+  initialTab?: PanelTab;
 }
 
 /**
@@ -358,6 +375,8 @@ export function OrderDetailPanel({
   fallbackOrder,
   onReassignedAway,
   onTerminatedByManager,
+  variant = "overlay",
+  initialTab,
 }: OrderDetailPanelProps) {
   const t = useTranslations("orders.detail");
   const ts = useTranslations("orders.statuses");
@@ -518,7 +537,7 @@ export function OrderDetailPanel({
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   // Articles opens by default — it is the section that changes most.
-  const [tab, setTab] = useState<PanelTab>("items");
+  const [tab, setTab] = useState<PanelTab>(initialTab ?? "items");
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -678,6 +697,32 @@ export function OrderDetailPanel({
   useEffect(() => {
     setAddProductOpen(false);
   }, [order?.id]);
+
+  // ── WhatsApp (business number) ──
+  // The tab and the hero button are always there once we know whether the
+  // market is connected — "show it disabled" was the owner's call
+  // (2026-09-25): not connected, the tab explains why and offers today's
+  // wa.me link; connected, it is the thread and the composer.
+  const { active: whatsappActive, known: whatsappKnown } = useWhatsAppAvailability(order?.market_id ?? null);
+  const whatsappThread = useWhatsAppThread(order ? { order_id: order.id, market_id: order.market_id } : null);
+  const { templates: whatsappTemplates } = useWhatsAppTemplates(whatsappActive && order ? order.market_id : null);
+  const whatsappUnread = whatsappThread.unread;
+  const markWhatsAppRead = whatsappThread.markRead;
+  useEffect(() => {
+    if (tab === "messages" && whatsappUnread > 0) void markWhatsAppRead();
+  }, [tab, whatsappUnread, markWhatsAppRead]);
+  const whatsappState: "active" | "not_connected" | "opted_out" | null = !whatsappKnown
+    ? null
+    : !whatsappActive
+      ? "not_connected"
+      : whatsappThread.thread?.conversation?.opted_out_at
+        ? "opted_out"
+        : "active";
+  const whatsappFallbackHref = useMemo(() => {
+    if (!order) return null;
+    const e164 = toWhatsAppE164(order.customer_phone, isLibyaOrder ? "ly" : "tn");
+    return e164 ? `https://wa.me/${e164}` : null;
+  }, [order, isLibyaOrder]);
 
   const runCommit = useCallback(
     async (updates: Record<string, unknown>) => {
@@ -1179,17 +1224,20 @@ export function OrderDetailPanel({
             status: order.status,
             marketId: order.market_id,
             attemptsCount: order.attempts_count ?? 0,
-            // The three outcome buttons name the ending; everything else opens
-            // the picker. `rescheduleCallback` deliberately lands on the
-            // callback step — that is the whole point of the action.
+            // Each of the four buttons names its ending, so each carries the
+            // agent straight to it — nothing re-asks the question the button
+            // just answered. `rescheduleCallback` deliberately lands on the
+            // callback step; only `changeStatus` opens the plain picker.
             flow:
               kind === "confirm"
                 ? "confirm_now"
-                : kind === "reject"
-                  ? "reject_flow"
-                  : kind === "callback" || kind === "rescheduleCallback"
-                    ? "callback_expanded"
-                    : undefined,
+                : kind === "endCall"
+                  ? "no_answer_now"
+                  : kind === "reject"
+                    ? "reject_flow"
+                    : kind === "callback" || kind === "rescheduleCallback"
+                      ? "callback_expanded"
+                      : undefined,
           });
           return;
         case "uploadToCarrier":
@@ -1238,22 +1286,43 @@ export function OrderDetailPanel({
     ],
   );
 
+  const shell = panelShellClasses(variant);
+
+  /**
+   * Take the agent to the city field. It lives in the Livraison tab, so the
+   * tab has to change before the field can be scrolled to — and the frame in
+   * between is why this waits: `scrollIntoView` on a `hidden` panel goes
+   * nowhere.
+   */
+  function resolveCity() {
+    setTab("shipping");
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>('[data-field="city"]')
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
+    });
+  }
+
   return (
     // Every InlineField below reports keystrokes through this, so the presence
     // "is typing" bubble reacts to the typing rather than to the save.
     <TypingActivityProvider onActivity={noteTyping}>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 z-40 bg-ink-primary/40"
-        onClick={(e) => {
-          // Only close on a direct click on the overlay surface itself —
-          // portaled overflow menus and centered sheets bubble through here.
-          if (e.target === e.currentTarget) onClose();
-        }}
-      />
+      {/* Overlay — only in the slide-over variant. Beside the list there is no
+          scrim: the point is that the queue stays readable. */}
+      {shell.overlay && (
+        <div
+          className={shell.overlay}
+          onClick={(e) => {
+            // Only close on a direct click on the overlay surface itself —
+            // portaled overflow menus and centered sheets bubble through here.
+            if (e.target === e.currentTarget) onClose();
+          }}
+        />
+      )}
 
       {/* Panel */}
-      <div className="fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
+      <div className={shell.panel}>
         {wasTakenOver && (
           <OrderTakeoverScreen
             releasedByName={takenOverBy}
@@ -1263,6 +1332,13 @@ export function OrderDetailPanel({
             }}
           />
         )}
+
+        {/* ── Back bar, phone only ─────────────────────────────── */}
+        <PanelBackBar
+          name={order?.customer_name ?? ""}
+          locale={locale}
+          onClose={onClose}
+        />
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <PanelHeader
@@ -1333,6 +1409,9 @@ export function OrderDetailPanel({
                   onCommitPhone2={(v) => runCommit({ customer_phone_2: v })}
                   onCopyPhone={() => { void handleCopyPhone(); }}
                   phoneCopied={phoneCopied}
+                  whatsappState={whatsappState}
+                  whatsappUnread={whatsappUnread}
+                  onWhatsApp={() => setTab("messages")}
                   validatePhone={(v) => {
                     const trimmed = v.trim();
                     if (trimmed === "") return t("invalidPhone");
@@ -1343,7 +1422,10 @@ export function OrderDetailPanel({
                 />
               </div>
 
-              {/* ── The four facts checked before anything else ── */}
+              {/* ── The four facts checked before anything else ──
+                  On a phone the Messages tab needs the height: the prototype
+                  drops the grid there. */}
+              <div className={tab === "messages" ? "max-lg:hidden" : undefined}>
               <OrderFacts
                 total={order.total_price}
                 currencyCode={displayCurrency}
@@ -1354,7 +1436,9 @@ export function OrderDetailPanel({
                 itemCount={orderItems.length}
                 agentName={order.assigned_agent_name ?? null}
                 carrierName={assignedCarrierName}
+                onResolveCity={canEdit ? resolveCity : undefined}
               />
+              </div>
 
             </div>
 
@@ -1362,19 +1446,23 @@ export function OrderDetailPanel({
               active={tab}
               onChange={setTab}
               historyCount={order.history?.length ?? 0}
+              showMessages={whatsappKnown}
+              messagesCount={whatsappUnread}
             />
 
             {/* ── The only scrolling region ───────────────────────── */}
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-[18px]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 <div role="tabpanel" hidden={tab !== "items"}>
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col">
                   {/* ── Product must-know + catalogue mismatches ── */}
+                  <div className="empty:hidden [&>*]:mx-[18px] [&>*]:mt-3 max-lg:[&>*]:mx-3.5">
                   <ProductBriefBanner
                     brief={productSheet.data?.product?.agent_brief ?? null}
                     tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
                     checks={productSheet.data?.checks ?? []}
                     onOpenSheet={() => openProductSheet()}
                   />
+                  </div>
 
                   <OrderItemsCard
                         items={orderItems}
@@ -1398,7 +1486,7 @@ export function OrderDetailPanel({
                         onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
                         onOpenProductSheet={(productId) => openProductSheet(productId)}
                         renderAddProduct={() => (
-                          <div className="flex flex-wrap items-center gap-2">
+                          <>
                             <AddProductTrigger
                               orderId={order.id}
                               marketId={order.market_id}
@@ -1418,20 +1506,20 @@ export function OrderDetailPanel({
                               <button
                                 type="button"
                                 onClick={() => setMergeOpen(true)}
-                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-subtle px-2.5 text-[13px] font-medium text-ink-secondary transition-colors hover:border-line-strong hover:text-ink-primary"
+                                className="flex h-[38px] w-full items-center justify-center gap-2 rounded-[8px] border border-oms-border-strong bg-oms-surface text-[14px] font-semibold text-oms-ink-1 transition-colors duration-fast hover:bg-oms-sunken"
                               >
-                                <Merge size={13} strokeWidth={2} aria-hidden="true" />
+                                <Merge size={16} strokeWidth={2} aria-hidden="true" />
                                 {tMerge("action")}
                               </button>
                             )}
-                          </div>
+                          </>
                         )}
                   />
                   </div>
                 </div>
 
                 <div role="tabpanel" hidden={tab !== "shipping"}>
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 p-[18px] max-lg:p-3.5">
                   {/* Delivery facts — address, city, carrier, tracking, note */}
                   <CustomerCard
                     address={order.customer_address}
@@ -1492,13 +1580,51 @@ export function OrderDetailPanel({
                 </div>
 
                 <div role="tabpanel" hidden={tab !== "history"}>
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 p-[18px] max-lg:p-3.5">
                     <HistoryTimeline
                       entries={order.history}
                       historyLocale={historyLocale === "ar" ? "ar" : "fr"}
                     />
                   </div>
                 </div>
+
+                {whatsappKnown && (
+                  <div role="tabpanel" hidden={tab !== "messages"} className="flex min-h-full flex-col bg-[#F9FAFB]">
+                    <div className="flex-1">
+                      <MessageThread
+                        messages={whatsappThread.thread?.messages ?? []}
+                        conversation={whatsappThread.thread?.conversation ?? null}
+                        onRetry={whatsappActive ? (m) => void whatsappThread.retry(m) : undefined}
+                      />
+                    </div>
+                    <WhatsAppComposer
+                      className="sticky bottom-0"
+                      target={{ order_id: order.id }}
+                      thread={whatsappThread.thread}
+                      loadError={Boolean(whatsappThread.error)}
+                      fallbackHref={whatsappFallbackHref}
+                      templates={whatsappTemplates}
+                      variables={resolveOrderVariables({
+                        order_number: order.external_id,
+                        customer_name: order.customer_name,
+                        customer_address: order.customer_address,
+                        customer_city: order.customer_city,
+                        product_name: order.product_name,
+                        total_price: order.total_price,
+                        currency: displayCurrency,
+                        tracking_number: order.tracking_number,
+                        carrier_name: assignedCarrierName,
+                        agent_name: order.assigned_agent_name ?? null,
+                      })}
+                      defaultLanguage={isLibyaOrder ? "ar" : "fr"}
+                      templateSet="agent"
+                      onThreadChanged={() => void whatsappThread.mutate()}
+                      onCall={() => {
+                        window.location.href = `tel:${order.customer_phone}`;
+                      }}
+                    />
+                  </div>
+                )}
 
             </div>
           </>
@@ -1556,23 +1682,6 @@ export function OrderDetailPanel({
               dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
               cancelingSchedule={cancelingSchedule}
               onCancelSchedule={handleCancelSchedule}
-              // A missing city stops the carrier upload. Worth saying out
-              // loud on any order that still has somewhere to go — not on
-              // one that is already finished.
-              cityUnmatched={
-                !order.customer_city?.trim() && !TERMINAL_STATUSES.has(order.status)
-              }
-              onResolveCity={() => {
-                // The city lives in the Livraison tab — switch to it first,
-                // or the scroll target is inside a `hidden` panel.
-                setTab("shipping");
-                requestAnimationFrame(() => {
-                  document
-                    .querySelector<HTMLElement>('[data-field="city"]')
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
-                });
-              }}
             />
           </div>
         )}
@@ -1583,6 +1692,7 @@ export function OrderDetailPanel({
             actions={panelActions}
             primaryPending={reopening || returningToPool || cancelingSchedule || recovering}
             onInvoke={invokeAction}
+            showNavHint={variant === "side"}
           />
         )}
       </div>
@@ -1810,6 +1920,13 @@ export function OrderDetailPanel({
         market={isLibyaOrder ? "ly" : "tn"}
         locale={locale === "ar" ? "ar" : "fr"}
         onOpenProduct={(productId) => setProductSheetProductId(productId)}
+        orderId={order?.id ?? null}
+        customerName={order?.customer_name ?? null}
+        whatsappActive={whatsappActive}
+        whatsappKnown={whatsappKnown}
+        customerOptedOut={Boolean(whatsappThread.thread?.conversation?.opted_out_at)}
+        customerLanguage={whatsappThread.thread?.customer_language ?? (isLibyaOrder ? "ar" : "fr")}
+        onWhatsAppSent={() => void whatsappThread.mutate()}
       />
     </TypingActivityProvider>
   );
@@ -1847,11 +1964,11 @@ function AddProductTrigger({
         onClick={() => onOpenChange(!open)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        // Reads as the empty slot for the next line, so it sits at the same
-        // left edge as the product thumbs rather than as a page-wide control.
-        className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-oms-border-strong text-[12.5px] font-semibold text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:bg-oms-accent-bg hover:text-oms-accent-ink"
+        // One of the two ways to change what was ordered; they read as a pair
+        // under the receipt, at the capture's width and weight.
+        className="flex h-[38px] w-full items-center justify-center gap-2 rounded-[8px] border border-oms-border-strong bg-oms-surface text-[14px] font-semibold text-oms-ink-1 transition-colors duration-fast hover:bg-oms-sunken"
       >
-        <Plus size={12} strokeWidth={2} aria-hidden="true" />
+        <Plus size={16} strokeWidth={2} aria-hidden="true" />
         {label}
       </button>
       {open && (

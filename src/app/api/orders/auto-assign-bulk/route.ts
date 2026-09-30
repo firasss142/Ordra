@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { fetchAgentCapacity } from "@/lib/orders/agent-capacity";
-import { selectAgent } from "@/lib/orders/auto-assignment";
+import { planAssignments } from "@/lib/orders/auto-assignment";
+import { isReadyForOrders } from "@/lib/orders/agent-readiness";
+import {
+  buildPercentageContext,
+  fetchAgentShares,
+} from "@/lib/orders/auto-assignment-orchestrator";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import type { AssignmentConfig } from "@/lib/orders/auto-assignment-types";
 
@@ -109,78 +114,102 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const agents = await fetchAgentCapacity(supabase, marketId);
-  if (agents.length === 0) {
-    return NextResponse.json({
-      data: {
-        assigned: [] as AssignedEntry[],
-        skipped: (orders as Array<{ id: string }>).map((o) => ({
-          order_id: o.id,
-          reason: "no_agents" as const,
-        })),
-      },
-    });
-  }
+  const allAgents = await fetchAgentCapacity(supabase, marketId);
+
+  // Readiness gates every algorithm, the bulk button included: a manager
+  // pressing "auto-assigner" should not scatter work across people who have
+  // not said they are working. Manual single assignment is the escape hatch
+  // for handing an order to a specific person regardless.
+  const now = new Date();
+  const agents = allAgents.filter((a) => isReadyForOrders(a, now));
 
   const assigned: AssignedEntry[] = [];
   const skipped: SkippedEntry[] = [];
-  let runningConfig: AssignmentConfig = (ruleRow.config ?? null) as AssignmentConfig;
 
-  for (const order of orders as Array<{
+  type OrderRow = {
     id: string;
     market_id: string;
     product_id: string | null;
     customer_city: string | null;
     status: string;
     assigned_to: string | null;
-  }>) {
+  };
+
+  // An order someone already took is not a candidate; report it and keep it
+  // out of the plan so it cannot consume another agent's share.
+  //
+  // This partition runs BEFORE the no-agents check on purpose. The other way
+  // round, an order that was already assigned came back as `no_agents`, which
+  // is not why it was skipped — and "why did this order not get assigned" is
+  // exactly the question this endpoint has to answer honestly.
+  const placeable: OrderRow[] = [];
+  for (const order of orders as OrderRow[]) {
     if (order.status !== "pending" || order.assigned_to !== null) {
       skipped.push({ order_id: order.id, reason: "already_assigned" });
       continue;
     }
+    placeable.push(order);
+  }
 
-    const decision = selectAgent(
-      {
-        id: order.id,
-        market_id: order.market_id,
-        product_id: order.product_id,
-        customer_city: order.customer_city,
-      },
-      agents,
-      algorithm,
-      runningConfig
-    );
-
-    if (!decision) {
+  if (agents.length === 0) {
+    for (const order of placeable) {
       skipped.push({ order_id: order.id, reason: "no_agents" });
-      continue;
     }
+    return NextResponse.json({ data: { assigned, skipped } });
+  }
 
+  const context =
+    algorithm === "percentage"
+      ? buildPercentageContext(allAgents, await fetchAgentShares(supabase, marketId))
+      : undefined;
+
+  // planAssignments carries BOTH counters forward between orders. The loop
+  // this replaced advanced queue_size only, so a deficit-based algorithm read
+  // the same assigned_today every iteration and put the whole batch on one
+  // agent.
+  const plan = planAssignments(
+    placeable.map((o) => ({
+      id: o.id,
+      market_id: o.market_id,
+      product_id: o.product_id,
+      customer_city: o.customer_city,
+    })),
+    agents,
+    algorithm,
+    (ruleRow.config ?? null) as AssignmentConfig,
+    context,
+    now
+  );
+
+  for (const orderId of plan.leftover) {
+    skipped.push({ order_id: orderId, reason: "no_agents" });
+  }
+
+  for (const entry of plan.assignments) {
     const { error: rpcErr } = await supabase.rpc("assign_order", {
-      p_order_id: order.id,
-      p_agent_id: decision.agent_id,
+      p_order_id: entry.order_id,
+      p_agent_id: entry.agent_id,
       p_actor_id: actor.id,
       p_actor_type: "manager",
     });
 
     if (rpcErr) {
-      skipped.push({ order_id: order.id, reason: "error" });
+      skipped.push({ order_id: entry.order_id, reason: "error" });
       continue;
     }
 
-    assigned.push({ order_id: order.id, agent_id: decision.agent_id });
-    runningConfig = decision.updated_config;
-
-    // Also update in-memory queue_size so next iteration considers it
-    const agent = agents.find((a) => a.id === decision.agent_id);
-    if (agent) agent.queue_size += 1;
+    assigned.push({ order_id: entry.order_id, agent_id: entry.agent_id });
   }
 
-  // Persist final rule config once
-  if (runningConfig !== ruleRow.config) {
+  // Persist the cursor once, and only when the algorithm actually keeps one.
+  // This used to write `decision.updated_config` unconditionally, so a single
+  // `workload` run — which is stateless and returns null — overwrote
+  // assignment_rules.config with null and destroyed the stored round-robin,
+  // product or region cursor.
+  if (plan.updated_config !== null && plan.updated_config !== ruleRow.config) {
     await supabase
       .from("assignment_rules")
-      .update({ config: runningConfig })
+      .update({ config: plan.updated_config })
       .eq("market_id", marketId);
   }
 

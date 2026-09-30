@@ -43,6 +43,25 @@ describe("PanelHeader — SLA chip", () => {
     expect(chip).toHaveTextContent("SLA 2h");
   });
 
+  it("states the age and the target on one line, as one pill", () => {
+    const chip = renderHeader().getByTestId("panel-sla");
+    // It used to stack a 12.5px figure over a 9.5px caption, which read as a
+    // badge of its own rather than as the one number the agent is chasing.
+    expect(chip.className).toContain("rounded-pill");
+    expect(chip.className).not.toContain("flex-col");
+  });
+
+  it("never overrides the text direction on the age", () => {
+    // `formatOrderAge` returns the unit in the reader's own script; an LTR
+    // override reorders the Arabic letters and the chip reads as gibberish.
+    expect(renderHeader().getByTestId("panel-sla")).not.toHaveAttribute("dir");
+  });
+
+  it("fills the pill with its state, rather than outlining it", () => {
+    renderHeader({ now: new Date("2026-08-14T12:00:00.000Z") });
+    expect(screen.getByTestId("panel-sla").className).toContain("bg-oms-bad-bg");
+  });
+
   it("marks a breach once the target is passed", () => {
     renderHeader({ now: new Date("2026-08-14T12:00:00.000Z") });
 

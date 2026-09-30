@@ -2,17 +2,18 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, Clock, NotebookText, Phone, Truck, X } from "lucide-react";
+import { Building2, Clock, Info, NotebookText, Phone, Truck, X } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { OUTCOMES_BY_ACTION, NOTE_MAX, type AgentActionType } from "@/lib/delivery/actions";
 import { inTwoHours, tomorrowAt } from "@/lib/delivery/schedule";
 import { suggestedReminder, type Reminder } from "@/lib/delivery/presentation";
 import { buildWaLink, renderTemplate, suggestTemplate, TEMPLATE_KEYS, type CustomerLang, type TemplateKey } from "@/lib/delivery/whatsapp-templates";
 import type { QueuedBody } from "@/hooks/useDeliveryActionQueue";
+import { WhatsAppLiveSheet } from "./WhatsAppLiveSheet";
 import { WhatsAppIcon } from "./ui";
 
 /** Bottom sheet on mobile, centred dialog on desktop — one frame for both. */
-function SheetFrame({ title, onClose, closeBoxed = false, children }: {
+export function SheetFrame({ title, onClose, closeBoxed = false, children }: {
   title: string; onClose: () => void; closeBoxed?: boolean; children: React.ReactNode;
 }) {
   const t = useTranslations("delivery");
@@ -146,11 +147,39 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
   );
 }
 
-export function WhatsAppSheet({ row, market, onClose, onSent }: {
+export function WhatsAppSheet({ row, market, marketId = null, whatsappActive = false, whatsappKnown = false, onClose, onSent }: {
   row: WorklistRow; market: "ly" | "tn";
+  /** The market's uuid, needed by the live sheet's hooks. */
+  marketId?: string | null;
+  /**
+   * True when the market has a connected business number: the sheet then
+   * sends for real and records its own ledger row. False keeps today's wa.me
+   * link, so a market that is not connected yet loses nothing.
+   */
+  whatsappActive?: boolean;
+  /** Known and not active → the wa.me sheet says the market is not connected first (prototype, state `noconfig`). */
+  whatsappKnown?: boolean;
+  onClose: () => void; onSent: (body: QueuedBody) => void;
+}) {
+  if (whatsappActive && marketId) {
+    return <WhatsAppLiveSheet row={row} market={market} marketId={marketId} onClose={onClose} onSent={onSent} />;
+  }
+  return <WhatsAppLinkSheet row={row} market={market} notConnected={whatsappKnown} onClose={onClose} onSent={onSent} />;
+}
+
+/**
+ * The wa.me path. Once we know the market has no connected number, the grey
+ * banner says so first and the link becomes the white outline « Ouvrir
+ * WhatsApp » of the prototype — the message still leaves from the agent's
+ * phone, and the action is still logged.
+ */
+function WhatsAppLinkSheet({ row, market, notConnected = false, onClose, onSent }: {
+  row: WorklistRow; market: "ly" | "tn";
+  notConnected?: boolean;
   onClose: () => void; onSent: (body: QueuedBody) => void;
 }) {
   const t = useTranslations("delivery");
+  const tWa = useTranslations("whatsapp");
   const [lang, setLang] = useState<CustomerLang>(market === "ly" ? "ar" : "fr");
   const [key, setKey] = useState<TemplateKey>(() => suggestTemplate(row));
 
@@ -167,12 +196,21 @@ export function WhatsAppSheet({ row, market, onClose, onSent }: {
 
   return (
     <SheetFrame title={t("wa.title")} onClose={onClose} closeBoxed>
+      {notConnected && (
+        <div role="status" className="mb-3.5 flex items-start gap-2.5 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-[13px] py-[11px] text-[13.5px] leading-[1.45] text-[#374151]">
+          <Info size={17} className="mt-px shrink-0" aria-hidden="true" />
+          <div>
+            <b className="mb-px block font-bold">{tWa("composer.noConfig")}</b>
+            {tWa("composer.noConfigSub")}
+          </div>
+        </div>
+      )}
       <div className="mb-4 flex justify-center">
         <div className="inline-flex rounded-full bg-[#F3F4F6] p-[3px]">
           {(["ar", "fr"] as CustomerLang[]).map((l) => (
             <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
               className={`h-[34px] rounded-full px-[26px] text-sm ${lang === l ? "bg-white font-semibold text-[#111827] shadow-[0_0_0_1px_#D1D5DB]" : "text-[#6B7280]"}`}>
-              {l === "ar" ? "العربية" : "Français"}
+              {tWa(`composer.lang.${l}`)}
             </button>
           ))}
         </div>
@@ -198,8 +236,9 @@ export function WhatsAppSheet({ row, market, onClose, onSent }: {
 
       {link ? (
         <a href={link} target="_blank" rel="noopener noreferrer"
+          data-variant={notConnected ? "outline" : "solid"}
           onClick={() => onSent({ action_type: "whatsapp_customer", outcome: "sent", note: null, next_action_at: null, template_key: key })}
-          className="flex h-[52px] items-center justify-center gap-2.5 rounded-[10px] bg-[#1E8E5A] text-[17px] font-semibold text-white">
+          className={`flex h-[52px] items-center justify-center gap-2.5 rounded-[10px] text-[17px] font-semibold ${notConnected ? "border border-[#D1D5DB] bg-white text-[#111827] hover:bg-[#F9FAFB]" : "bg-[#1E8E5A] text-white"}`}>
           <WhatsAppIcon size={22} />{t("wa.open")}
         </a>
       ) : (

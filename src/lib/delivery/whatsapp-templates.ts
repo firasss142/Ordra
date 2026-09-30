@@ -7,8 +7,8 @@
  * interface language, so a French-speaking agent could not produce the Arabic
  * message a Libyan customer needs.
  */
-import { normalizePhone } from "@/lib/leads/phone";
 import type { MarketCode } from "@/lib/markets";
+import { toWhatsAppE164 } from "@/lib/whatsapp/phone";
 
 export const TEMPLATE_KEYS = [
   "before_delivery",
@@ -66,18 +66,14 @@ export function templateText(key: TemplateKey, lang: CustomerLang, vars: Templat
   return renderTemplate(key, lang, vars).map((p) => p.text).join("");
 }
 
-const COUNTRY: Record<MarketCode, { code: string; digits: number }> = {
-  ly: { code: "218", digits: 9 },
-  tn: { code: "216", digits: 8 },
-};
-
-/** The number wa.me wants: country code + subscriber digits, no plus. */
+/**
+ * The number wa.me wants: country code + subscriber digits, no plus.
+ * A wrapper since the Cloud API landed: `toWhatsAppE164` is the one builder
+ * (src/lib/whatsapp/phone.ts), so the wa.me fallback and the business-number
+ * send can never disagree about a customer's number.
+ */
 export function toE164(phone: string | null | undefined, market: MarketCode): string | null {
-  if (!phone) return null;
-  const national = normalizePhone(phone);
-  const { code, digits } = COUNTRY[market];
-  if (!new RegExp(`^[0-9]{${digits}}$`).test(national)) return null;
-  return code + national;
+  return toWhatsAppE164(phone, market);
 }
 
 export function buildWaLink(phone: string | null | undefined, market: MarketCode, text: string): string | null {

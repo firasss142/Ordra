@@ -81,6 +81,24 @@ describe("GET /api/prospects/console", () => {
     expect(body.agents).toHaveLength(1);
   });
 
+  // The campaign sheet and card tell the business-number story from this one
+  // payload (20260925170000): no second request for the pacing, the body to
+  // resubmit, the audience to reopen, or the marketing-cap skips.
+  test("a business-number campaign's whatsapp object reaches the screen whole, still in one round trip", async () => {
+    as("m", "market_manager", LY);
+    const whatsapp = {
+      launch_status: "launched", language: "ar", template_status: "APPROVED", template_name: "ordra_camp_x2_260924",
+      template_rejected_reason: null, queued: 56, sent: 40, delivered: 37, read: 29, replied: 6, failed: 1, skipped: 2,
+      skipped_marketing_cap: 1, status_at: "2026-09-24T08:00:00Z", launched_at: "2026-09-24T08:00:00Z",
+      rate: 60, window: "10-20", follow_up_hours: null, message: "مرحباً {nom}، ok.", image_url: null,
+      filter: { order_statuses: ["delivered"], product_ids: ["p1"] },
+    };
+    mockRpc.mockResolvedValue({ data: { ...PAYLOAD, campaigns: [{ ...PAYLOAD.campaigns[0], whatsapp }] }, error: null });
+    const body = await (await GET(req())).json();
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(body.campaigns[0].whatsapp).toEqual(whatsapp);
+  });
+
   test("the agent roster comes back ranked, worst-served first", async () => {
     as("m", "market_manager", LY);
     mockRpc.mockResolvedValue({

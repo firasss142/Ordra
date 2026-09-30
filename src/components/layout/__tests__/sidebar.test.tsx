@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
+import { SWRConfig } from "swr";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MarketScopeProvider } from "@/context/market-scope";
 
@@ -196,9 +197,25 @@ describe("Sidebar — sections", () => {
     expect(screen.queryByRole("link", { name: /Stock & inventaire/ })).not.toBeInTheDocument();
   });
 
-  it("hides SYSTÈME section from market_manager", () => {
+  it("shows SYSTÈME to market_manager with only Connexions and Paramètres, and the read-only note", () => {
+    // Owner's decision (prototype whatsapp-manager-v1, role=manager): the
+    // manager reaches Connexions and Paramètres to read them; Marchés and
+    // Journaux stay super_admin only.
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("button", { name: /Système/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Système/ }));
+    expect(screen.getByRole("link", { name: /^Connexions$/ })).toHaveAttribute("href", "/fr/system/connections");
+    expect(screen.getByRole("link", { name: /^Paramètres$/ })).toHaveAttribute("href", "/fr/system/settings");
+    expect(screen.queryByRole("link", { name: /^Marchés$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Journaux/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Lecture seule — les identifiants et les réglages sont modifiés par un super_admin."),
+    ).toBeInTheDocument();
+  });
+
+  it("gives super_admin no read-only note", () => {
+    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
+    fireEvent.click(screen.getByRole("button", { name: /Système/ }));
+    expect(screen.queryByText(/Lecture seule/)).not.toBeInTheDocument();
   });
 
   it("shows SYSTÈME section for super_admin", () => {
@@ -392,7 +409,9 @@ describe("Sidebar — badge on unassigned", () => {
 
 describe("Sidebar — agent role", () => {
   it("returns null for agent role", () => {
-    const { container } = render(
+    // Mounted like the app mounts it: inside the [locale] layout's
+    // MarketScopeProvider (the WhatsApp badge reads the scope).
+    const { container } = renderSidebar(
       <Sidebar user={agentUser} currentPath="/fr/queue" unassignedCount={0} />,
     );
     expect(container.firstChild).toBeNull();
@@ -486,3 +505,51 @@ describe("Sidebar — brand area", () => {
     expect(screen.getByRole("button", { name: /Marché/ })).toHaveTextContent(/Tunisie/);
   });
 });
+
+describe("Sidebar — Clients › Messages (WhatsApp)", () => {
+  const LY = "00000000-0000-0000-0000-000000000002";
+
+  function mockUnread(count: number) {
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/whatsapp/conversations/unread-count")) {
+        return { ok: true, json: async () => ({ count }) } as Response;
+      }
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as unknown as typeof fetch;
+  }
+
+  function renderFresh(ui: React.ReactElement, scope: "tn" | "ly" | "all" = "tn") {
+    return render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MarketScopeProvider initialScope={scope}>{ui}</MarketScopeProvider>
+      </SWRConfig>,
+    );
+  }
+
+  it("counts unread orphans in green, on the item and on the collapsed CLIENTS header", async () => {
+    mockUnread(3);
+    renderFresh(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    const header = screen.getByRole("button", { name: /Clients/ });
+    const pill = await within(header).findByText("3");
+    expect(pill).toHaveStyle({ backgroundColor: "var(--badge-success-bg)", color: "var(--badge-success-fg)" });
+    fireEvent.click(header);
+    const link = screen.getByRole("link", { name: /Messages/ });
+    expect(within(link).getByText("3")).toHaveStyle({ backgroundColor: "var(--badge-success-bg)" });
+  });
+
+  it("scopes the count to the market chosen in the sidebar for a super_admin", async () => {
+    mockUnread(2);
+    renderFresh(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />, "ly");
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(`/api/whatsapp/conversations/unread-count?market_id=${LY}`),
+    );
+  });
+
+  it("keeps Messages active on its Modèles page", () => {
+    pathnameMock = "/fr/messages/templates";
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/messages/templates" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /Messages/ })).toHaveAttribute("aria-current", "page");
+  });
+});
+

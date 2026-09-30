@@ -19,9 +19,15 @@ export interface CampaignsTabProps {
   locale: string;
   onDistribute: (campaign: CampaignResult) => void;
   onSee: (campaign: CampaignResult) => void;
+  onLaunch?: (campaign: CampaignResult) => void;
+  onCheckStatus?: (campaign: CampaignResult) => void;
+  onResubmit?: (campaign: CampaignResult) => void;
+  /** The console's clock and the market's zone, for « Lancée hier 10:00 ». */
+  now?: number;
+  tz?: string;
 }
 
-export function CampaignsTab({ campaigns, loss, marketCode, locale, onDistribute, onSee }: CampaignsTabProps) {
+export function CampaignsTab({ campaigns, loss, marketCode, locale, onDistribute, onSee, onLaunch, onCheckStatus, onResubmit, now, tz }: CampaignsTabProps) {
   const t = useTranslations("prospects.console");
   const tLost = useTranslations("prospects.lost");
 
@@ -51,6 +57,11 @@ export function CampaignsTab({ campaigns, loss, marketCode, locale, onDistribute
               locale={locale}
               onDistribute={onDistribute}
               onSee={onSee}
+              onLaunch={onLaunch}
+              onCheckStatus={onCheckStatus}
+              onResubmit={onResubmit}
+              now={now}
+              tz={tz}
             />
           ))
         )}

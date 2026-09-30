@@ -108,6 +108,20 @@ describe("CustomerHero — identity", () => {
     );
   });
 
+  it("makes calling the one filled control on the block", () => {
+    renderHero();
+    // Four controls used to sit at the same 30px weight — call, copy, call the
+    // second number, and the name itself. The capture ranks them: one green
+    // button, everything else a glyph.
+    expect(screen.getByRole("link", { name: /Appeler/ }).className).toContain("bg-brand");
+  });
+
+  it("keeps copying the number a glyph, not a button that competes with calling", () => {
+    renderHero();
+    const copy = screen.getByRole("button", { name: /Copier/ });
+    expect(copy.className).not.toContain("border");
+  });
+
   it("drops the call action once the order is terminal", () => {
     renderHero({ terminal: true });
 
@@ -118,4 +132,45 @@ describe("CustomerHero — identity", () => {
   // the facts grid, where OrderFacts.test.tsx owns its behaviour. Re-adding it
   // here would mean re-adding the props, which is the regression this absence
   // guards against.
+});
+
+describe("CustomerHero — WhatsApp (prototype whatsapp-agent-v1.html, hero)", () => {
+  it("connected: a green outline button beside the call CTA, with the unread count on its corner", () => {
+    const onWhatsApp = vi.fn();
+    renderHero({ onWhatsApp, whatsappState: "active", whatsappUnread: 2 });
+    const btn = screen.getByRole("button", { name: /^WhatsApp/ });
+    expect(btn).toHaveAttribute("data-state", "active");
+    expect(btn).toHaveTextContent("2");
+    expect(btn.querySelector('[data-icon="whatsapp"]')).not.toBeNull();
+    btn.click();
+    expect(onWhatsApp).toHaveBeenCalled();
+    // The call CTA is still the primary one, right beside it.
+    expect(screen.getByRole("link", { name: /Appeler/ })).toBeInTheDocument();
+  });
+
+  it("not connected: still there, muted, and it explains itself (owner decision: show it disabled)", () => {
+    const onWhatsApp = vi.fn();
+    renderHero({ onWhatsApp, whatsappState: "not_connected" });
+    const btn = screen.getByRole("button", { name: /^WhatsApp/ });
+    expect(btn).toHaveAttribute("data-state", "not_connected");
+    expect(btn).toHaveAttribute("title", "WhatsApp n'est pas connecté pour ce marché");
+    btn.click();
+    expect(onWhatsApp).toHaveBeenCalled();
+  });
+
+  it("opted out: greyed and inert, with the reason as its title", () => {
+    const onWhatsApp = vi.fn();
+    renderHero({ onWhatsApp, whatsappState: "opted_out" });
+    const btn = screen.getByRole("button", { name: /^WhatsApp/ });
+    expect(btn).toHaveAttribute("aria-disabled", "true");
+    expect(btn).toHaveAttribute("title", "Ce client a demandé à ne plus recevoir de messages");
+    btn.click();
+    expect(onWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("hides both actions on a terminal order", () => {
+    renderHero({ terminal: true, onWhatsApp: vi.fn(), whatsappState: "active" });
+    expect(screen.queryByRole("button", { name: /^WhatsApp/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Appeler/ })).not.toBeInTheDocument();
+  });
 });

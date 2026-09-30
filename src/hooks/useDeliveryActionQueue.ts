@@ -16,6 +16,12 @@ export const UNDO_WINDOW_MS = 5_000;
 
 export interface QueuedBody extends RecordedAction {
   template_key?: string | null;
+  /**
+   * The server already wrote this row (a WhatsApp send through the business
+   * number records its own delivery action). The row still moves on screen
+   * and the lists refresh, but nothing is POSTed and there is nothing to undo.
+   */
+  alreadyRecorded?: boolean;
 }
 
 export interface PendingAction {
@@ -110,6 +116,13 @@ export function useDeliveryActionQueue({
   const queue = useCallback(
     (row: WorklistRow, body: QueuedBody) => {
       flush();
+      if (body.alreadyRecorded) {
+        replaceRow(row.order_id, applyRecordedAction(row, body));
+        onSentRef.current?.(row.order_id);
+        if (worklistKey) mutate(worklistKey).catch(ignore);
+        mutate((k) => typeof k === "string" && k.startsWith(`/api/delivery/orders/${row.order_id}`)).catch(ignore);
+        return;
+      }
       const p: PendingAction = { orderId: row.order_id, body, before: row };
       replaceRow(row.order_id, applyRecordedAction(row, body));
       pendingRef.current = p;
@@ -123,7 +136,7 @@ export function useDeliveryActionQueue({
         }
       }, UNDO_WINDOW_MS);
     },
-    [flush, replaceRow, send],
+    [flush, replaceRow, send, mutate, worklistKey],
   );
 
   const undo = useCallback(() => {

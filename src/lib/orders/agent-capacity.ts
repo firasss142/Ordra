@@ -1,12 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TERMINAL_STATUSES } from "@/types/order-status";
+import { marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 import type { AvailableAgent } from "./auto-assignment-types";
 
+const AGENT_COLS = "id, is_active, deleted_at, last_seen_at, is_available, available_since";
+
 /**
- * Returns active agents for a market with their current queue_size (non-terminal orders)
- * and last_action_at (most recent order_history entry).
+ * Every agent a market could route to, with the counters the engines read.
  *
- * Shared by the auto-assignment orchestrator and the /api/agents/capacity endpoint.
+ * Deliberately does NOT filter on readiness, even though readiness now gates
+ * all automatic distribution. This function also feeds `/api/agents/capacity`,
+ * which is the manager's manual-assign rail — a manager must be able to hand
+ * an order to a specific person whether or not that person has declared
+ * themselves ready. The readiness filter belongs to the automatic callers
+ * (`tryAutoAssign`, the bulk route, the drain), which apply
+ * `isReadyForOrders`.
+ *
+ * Soft-deleted agents ARE excluded here: `assign_order` checks only
+ * `is_active`, so a deleted agent can still be assigned work today, and that
+ * omission should not be inherited by anything new.
  */
 export async function fetchAgentCapacity(
   adminClient: SupabaseClient,
@@ -14,9 +26,10 @@ export async function fetchAgentCapacity(
 ): Promise<AvailableAgent[]> {
   let q = adminClient
     .from("users")
-    .select("id")
+    .select(AGENT_COLS)
     .eq("role", "agent")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .is("deleted_at", null);
   if (marketId) {
     q = q.eq("market_id", marketId);
   }
@@ -48,6 +61,30 @@ export async function fetchAgentCapacity(
     }
   });
 
+  // Today's tally, for the percentage quota. Counted on the MARKET's local day
+  // (Tunisia UTC+1, Libya UTC+2 — they do not roll over together), and on
+  // `assigned_at` rather than `created_at`, so a manager's manual assignment
+  // at 15:00 of an order that arrived yesterday spends today's share. That is
+  // the decision: manual assignments count.
+  //
+  // One grouped read for the whole market, never one count per agent.
+  const dayStart = marketDayStartUtc(todayInMarket(marketId), marketId);
+  const assignedTodayByAgent: Record<string, number> = {};
+  if (dayStart) {
+    const { data: todayRows } = await adminClient
+      .from("orders")
+      .select("assigned_to")
+      .in("assigned_to", agentIds)
+      .gte("assigned_at", dayStart);
+
+    (todayRows ?? []).forEach((row: { assigned_to: string | null }) => {
+      if (row.assigned_to) {
+        assignedTodayByAgent[row.assigned_to] =
+          (assignedTodayByAgent[row.assigned_to] ?? 0) + 1;
+      }
+    });
+  }
+
   const { data: lastActionRows } = await adminClient
     .from("order_history")
     .select("actor_id, created_at")
@@ -61,9 +98,24 @@ export async function fetchAgentCapacity(
     }
   });
 
-  return agentRows.map((row: { id: string }) => ({
-    id: row.id,
-    queue_size: queueSizeByAgent[row.id] ?? 0,
-    last_action_at: lastActionByAgent[row.id] ?? null,
-  }));
+  return agentRows.map(
+    (row: {
+      id: string;
+      is_active: boolean;
+      deleted_at: string | null;
+      last_seen_at: string | null;
+      is_available: boolean | null;
+    }) => ({
+      id: row.id,
+      queue_size: queueSizeByAgent[row.id] ?? 0,
+      last_action_at: lastActionByAgent[row.id] ?? null,
+      assigned_today: assignedTodayByAgent[row.id] ?? 0,
+      // `?? false` so a market whose migration has not yet run reads as
+      // "nobody ready" rather than crashing — inert, not wrong.
+      is_available: row.is_available ?? false,
+      is_active: row.is_active,
+      deleted_at: row.deleted_at,
+      last_seen_at: row.last_seen_at,
+    })
+  );
 }

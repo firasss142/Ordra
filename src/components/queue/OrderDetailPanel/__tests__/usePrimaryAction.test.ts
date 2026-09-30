@@ -39,16 +39,16 @@ const inConfirmation = (status: string, overrides: Partial<PrimaryActionInputs> 
     }),
   );
 
-describe("resolvePanelActions — the three call outcomes", () => {
+describe("resolvePanelActions — the four call outcomes", () => {
   it("leads with confirm on pending", () => {
     const { primary } = inConfirmation("pending");
     expect(primary.kind).toBe("confirm");
     expect(primary.labelKey).toBe("actions.confirm");
   });
 
-  it("offers callback and reject beside it, in that order", () => {
+  it("offers the other three beside it, in that order", () => {
     const { outcomes } = inConfirmation("pending");
-    expect(outcomes?.map((o) => o.kind)).toEqual(["callback", "reject"]);
+    expect(outcomes?.map((o) => o.kind)).toEqual(["endCall", "callback", "reject"]);
   });
 
   it("marks reject as destructive so it never wears the confirm colour", () => {
@@ -56,11 +56,11 @@ describe("resolvePanelActions — the three call outcomes", () => {
     expect(outcomes?.find((o) => o.kind === "reject")?.destructive).toBe(true);
   });
 
-  it("offers the same three outcomes on every attempt_* status", () => {
+  it("offers the same outcomes on every attempt_* status", () => {
     for (const status of ["attempt_1", "attempt_2", "attempt_3"]) {
       const { primary, outcomes } = inConfirmation(status);
       expect(primary.kind).toBe("confirm");
-      expect(outcomes).toHaveLength(2);
+      expect(outcomes).toHaveLength(3);
     }
   });
 
@@ -68,11 +68,17 @@ describe("resolvePanelActions — the three call outcomes", () => {
     expect(inConfirmation("callback_scheduled").primary.kind).toBe("confirm");
   });
 
-  it("keeps the full call sheet one click away, since no-answer has no button", () => {
-    // "Sans réponse" is the outcome the three buttons dropped. It stays
-    // reachable through the overflow rather than disappearing.
-    const { overflow } = inConfirmation("pending");
-    expect(overflow[0].kind).toBe("endCall");
+  it("gives no-answer a button of its own rather than burying it in the menu", () => {
+    // A call that nobody picked up is the commonest ending of all, and it was
+    // the one outcome that took two clicks. The panel now states all four.
+    const { outcomes, overflow } = inConfirmation("pending");
+    expect(outcomes?.map((o) => o.kind)).toContain("endCall");
+    expect(overflow.map((o) => o.kind)).not.toContain("endCall");
+  });
+
+  it("leaves an agent's menu empty, so the panel shows four buttons and no ⋯", () => {
+    const { overflow } = inConfirmation("pending", { canReturnToPool: false });
+    expect(overflow).toHaveLength(0);
   });
 
   it("offers no outcomes once the call is behind us", () => {

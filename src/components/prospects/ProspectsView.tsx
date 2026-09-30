@@ -17,6 +17,7 @@ import type { ProspectRow } from "@/lib/prospects/types";
 import { ProspectRowCard } from "./ProspectRow";
 import { ProspectDetailPanel, ProspectDetailScreen, type DetailHandlers } from "./ProspectDetail";
 import { OutcomeSheet, type OutcomeDraft } from "./OutcomeSheet";
+import { ProspectWhatsAppSheet } from "./ProspectWhatsAppSheet";
 import { Money, OUTLINE_BTN, PRIMARY_BTN, TONE } from "./ui";
 import type { Role } from "@/types";
 
@@ -30,6 +31,11 @@ export interface ProspectsViewProps {
   role: Role;
   /** null for a super_admin who has not chosen a market yet. */
   marketCode: "ly" | "tn" | null;
+  /** The market's uuid and whether its WhatsApp business number is live. */
+  marketId?: string | null;
+  whatsappActive?: boolean;
+  /** The market's connection is known (answered or failed) — not connected is then shown, not hidden. */
+  whatsappKnown?: boolean;
   tz: string;
   locale: string;
   now: number;
@@ -68,6 +74,7 @@ export function ProspectsView(props: ProspectsViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [outcomeFor, setOutcomeFor] = useState<ProspectRow | null>(null);
+  const [waFor, setWaFor] = useState<ProspectRow | null>(null);
 
   const all = rows ?? [];
   const counts = useMemo(() => countBuckets(all), [all]);
@@ -101,6 +108,14 @@ export function ProspectsView(props: ProspectsViewProps) {
   const handlers: DetailHandlers = {
     onCall: (row) => { window.location.href = `tel:${row.customer_phone}`; },
     onWhatsApp: (row) => {
+      // The sheet once the connection is known: it sends from the business
+      // number, or says the market is not connected and offers wa.me. Before
+      // that, the agent's own phone as always.
+      if (props.marketId && (props.whatsappActive || props.whatsappKnown)) {
+        select(row);
+        setWaFor(row);
+        return;
+      }
       window.open(`https://wa.me/${digits(row.customer_phone)}`, "_blank", "noopener");
     },
     onOutcome: (row) => setOutcomeFor(row),
@@ -109,6 +124,14 @@ export function ProspectsView(props: ProspectsViewProps) {
       if (row.converted_order_id) window.location.href = `/${locale}/orders/${row.converted_order_id}`;
     },
   };
+
+  const waState: "active" | "not_connected" | null = !props.marketId
+    ? null
+    : props.whatsappActive
+      ? "active"
+      : props.whatsappKnown
+        ? "not_connected"
+        : null;
 
   const act = useCallback((row: ProspectRow) => {
     select(row);
@@ -236,12 +259,16 @@ export function ProspectsView(props: ProspectsViewProps) {
               // Only a hot prospect's age and an overdue callback's lateness
               // move with the clock. Every other bucket gets a frozen value so
               // memo() actually holds across the minute tick.
-              now={TIME_SENSITIVE.has(row.bucket) ? now : 0}
+              // …and a WhatsApp line (« a répondu il y a 12 min », « envoyé hier »)
+              // is worded from the clock too.
+              now={TIME_SENSITIVE.has(row.bucket) || row.wa_replied_at || row.wa_sent_at ? now : 0}
               market={market}
               locale={locale}
               tz={tz}
               onSelect={select}
               onAct={act}
+              whatsappState={waState}
+              onWhatsApp={handlers.onWhatsApp}
             />
           ))}
         </div>
@@ -312,6 +339,10 @@ export function ProspectsView(props: ProspectsViewProps) {
             onConvert(row);
           }}
         />
+      ) : null}
+
+      {waFor && props.marketId && (props.whatsappActive || props.whatsappKnown) ? (
+        <ProspectWhatsAppSheet row={waFor} market={market} marketId={props.marketId} onClose={() => setWaFor(null)} />
       ) : null}
 
       {notice ? (

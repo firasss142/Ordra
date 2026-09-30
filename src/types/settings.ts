@@ -3,7 +3,8 @@ export type AssignmentAlgorithm =
   | "round_robin"
   | "workload"
   | "product_based"
-  | "region_based";
+  | "region_based"
+  | "percentage";
 
 export const AssignmentAlgorithm = {
   manual: "manual" as const,
@@ -11,6 +12,7 @@ export const AssignmentAlgorithm = {
   workload: "workload" as const,
   product_based: "product_based" as const,
   region_based: "region_based" as const,
+  percentage: "percentage" as const,
 };
 
 export interface ShiftConfig {
@@ -185,6 +187,41 @@ export interface MarketSettings {
   goal_min_rate?: number;
   goal_conf_per_hour?: number;
   goal_team_weekly_conf?: number;
+
+  // ── WhatsApp — automatic lifecycle notifications ──
+  // Read by the `whatsapp_enqueue_lifecycle` trigger (SQL) and the outbox
+  // drain. Every key defaults OFF: a market sends nothing until a manager
+  // turns the master switch and at least one event on.
+  /** Master switch. Off = no event enqueues, whatever the toggles below say. */
+  whatsapp_lifecycle_enabled?: boolean;
+  whatsapp_event_could_not_reach?: boolean;
+  whatsapp_event_shipped?: boolean;
+  whatsapp_event_out_for_delivery?: boolean;
+  whatsapp_event_last_chance?: boolean;
+  whatsapp_event_delivered?: boolean;
+  /** Language for a customer no agent has chosen one for. Unset = the market's language. */
+  whatsapp_default_language?: "ar" | "fr";
+  /** "HH-HH" in the market's local time ("10-20"). Outside it a send waits. Empty = always. */
+  whatsapp_send_window?: string;
+}
+
+export const WHATSAPP_EVENT_SETTING_KEYS = [
+  "whatsapp_event_could_not_reach",
+  "whatsapp_event_shipped",
+  "whatsapp_event_out_for_delivery",
+  "whatsapp_event_last_chance",
+  "whatsapp_event_delivered",
+] as const;
+
+/** "HH-HH", 0 ≤ start < end ≤ 24 — the same shape as a campaign's wa_window. */
+export function isValidSendWindow(value: unknown): boolean {
+  if (value === undefined || value === "") return true;
+  if (typeof value !== "string") return false;
+  const m = /^(\d{1,2})-(\d{1,2})$/.exec(value.trim());
+  if (!m) return false;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  return start >= 0 && start <= 23 && end >= 1 && end <= 24 && start < end;
 }
 
 /** Applied per market until someone sets a real one in Réglages. */
@@ -252,6 +289,13 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   goal_min_rate: 40,
   goal_conf_per_hour: 3,
   goal_team_weekly_conf: 150,
+  // WhatsApp: everything off until a manager decides otherwise.
+  whatsapp_lifecycle_enabled: false,
+  whatsapp_event_could_not_reach: false,
+  whatsapp_event_shipped: false,
+  whatsapp_event_out_for_delivery: false,
+  whatsapp_event_last_chance: false,
+  whatsapp_event_delivered: false,
 };
 
 /**
@@ -310,6 +354,14 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "goal_min_rate",
   "goal_conf_per_hour",
   "goal_team_weekly_conf",
+  "whatsapp_lifecycle_enabled",
+  "whatsapp_event_could_not_reach",
+  "whatsapp_event_shipped",
+  "whatsapp_event_out_for_delivery",
+  "whatsapp_event_last_chance",
+  "whatsapp_event_delivered",
+  "whatsapp_default_language",
+  "whatsapp_send_window",
 ];
 
 export interface CarrierConfig {
@@ -329,6 +381,7 @@ const VALID_ALGORITHMS = new Set<string>([
   "workload",
   "product_based",
   "region_based",
+  "percentage",
 ]);
 
 const VALID_AFTER_MAX_ATTEMPTS = new Set<string>(["reject", "flag", "none"]);
@@ -516,6 +569,20 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (!isValidOptionalNumber(s.goal_min_rate, 0, 100)) return false;
   if (!isValidOptionalNumber(s.goal_conf_per_hour, 0, 10_000)) return false;
   if (!isValidOptionalInt(s.goal_team_weekly_conf, 0, 1_000_000)) return false;
+
+  // WhatsApp
+  for (const key of [
+    "whatsapp_lifecycle_enabled",
+    "whatsapp_event_could_not_reach",
+    "whatsapp_event_shipped",
+    "whatsapp_event_out_for_delivery",
+    "whatsapp_event_last_chance",
+    "whatsapp_event_delivered",
+  ]) {
+    if (!isValidOptionalBoolean(s[key])) return false;
+  }
+  if (s.whatsapp_default_language !== undefined && s.whatsapp_default_language !== "ar" && s.whatsapp_default_language !== "fr") return false;
+  if (!isValidSendWindow(s.whatsapp_send_window)) return false;
 
   return true;
 }

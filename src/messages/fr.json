@@ -142,7 +142,9 @@
       "logs": "Journaux",
       "investors": "Investisseurs",
       "controlRoom": "Salle de contrôle",
-      "deliveryWorklist": "Suivi livraison"
+      "deliveryWorklist": "Suivi livraison",
+      "messages": "Messages",
+      "connexions": "Connexions"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -1442,7 +1444,8 @@
       "navHintNav": "pour passer d'une commande à l'autre",
       "navHintEnterKey": "Entrée",
       "navHintCall": "pour appeler",
-      "factCityResolve": "Définir la ville"
+      "factCityResolve": "Définir la ville",
+      "tabMessages": "Messages"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -1751,7 +1754,12 @@
     "overdueMinutes": "dû il y a {minutes} min",
     "overdueHours": "dû il y a {hours} h",
     "overdueDays": "dû il y a {days} j",
-    "newToast": "Nouvelle notification"
+    "newToast": "Nouvelle notification",
+    "whatsapp_inbound": "Réponse WhatsApp",
+    "agoNow": "à l'instant",
+    "agoMinutes": "il y a {minutes} min",
+    "agoHours": "il y a {hours} h",
+    "agoDays": "il y a {days} j"
   },
   "queue": {
     "search": {
@@ -3944,7 +3952,7 @@
     "commissions": {
       "tab": "Commissions",
       "title": "Commissions",
-      "description": "Ce qu'un agent gagne par commande livrée. Un changement ne touche jamais les commandes déjà livrées.",
+      "description": "Ce qu'un agent gagne par commande livrée. Seules comptent les commandes téléversées après l'activation de sa commission. Un changement ne touche jamais les commandes déjà livrées.",
       "enabledLabel": "Commissions activées",
       "enabledHint": "Éteint : plus aucune commission n'est calculée pour les commandes livrées à partir de la date choisie. Les soldes déjà acquis restent visibles et payables.",
       "enabledFor": "Activées pour {market}",
@@ -5047,7 +5055,7 @@
         "netNote": "net · {toPay} à payer",
         "settingsLink": "Taux · Paramètres →",
         "export": "Exporter CSV",
-        "footer": "Une commission naît quand une commande confirmée par l'agent atteint « livrée » ; rien ne la réduit. Le relevé est en écriture seule : une erreur se corrige par une écriture inverse, jamais par une suppression.",
+        "footer": "Une commission naît quand une commande confirmée par l'agent atteint « livrée », à condition qu'elle ait été téléversée après l'activation de sa commission ; rien ne la réduit. Le relevé est en écriture seule : une erreur se corrige par une écriture inverse, jamais par une suppression.",
         "empty": "Aucun agent."
       },
       "method": {
@@ -5129,10 +5137,13 @@
     "dayDelivered": "{n, plural, =0 {0 livrée} one {# livrée} other {# livrées}}",
     "dayCorrections": "{n, plural, one {# correction} other {# corrections}}",
     "correctionNote": "commande {id} n'était pas livrée",
+    "correctionNoteBeforeStart": "commande {id} téléversée avant l'activation de ta commission",
+    "reasonBeforeStart": "téléversée avant l'activation de ta commission",
+    "reasonNotDelivered": "n'était plus livrée",
     "paymentReceived": "Paiement reçu",
     "adjustment": "Ajustement",
     "empty": "Rien pour l'instant — ta première commission apparaît quand une commande que tu as confirmée est livrée.",
-    "rule": "Une commande compte le jour où le transporteur la marque livrée.",
+    "rule": "Une commande compte le jour où le transporteur la marque livrée — si tu l'as téléversée après l'activation de ta commission.",
     "disabledTitle": "Les commissions ne sont pas activées pour ton compte.",
     "disabledHint": "Ton responsable peut les activer dans les paramètres.",
     "loadError": "Impossible de charger tes commissions.",
@@ -5856,7 +5867,8 @@
       "campaign": "Campagne",
       "winback": "Retour à récupérer",
       "converted": "Commande {ref}",
-      "converted_plain": "Convertie"
+      "converted_plain": "Convertie",
+      "replied": "a répondu"
     },
     "subs": {
       "hot_whatsapp": "Message WhatsApp reçu, pas encore répondu",
@@ -5868,7 +5880,9 @@
       "retry": "Essayer un autre numéro ou une autre heure",
       "campaign": "Client d'une campagne de recontact",
       "winback": "Le colis est revenu",
-      "converted": "Dans ta file, bucket Convertis"
+      "converted": "Dans ta file, bucket Convertis",
+      "replied": "a répondu il y a {ago}",
+      "waSent": "{campaign} · envoyé {when}"
     },
     "moves": {
       "call": "Appeler",
@@ -6188,7 +6202,36 @@
         "none": "Aucune campagne pour l'instant.",
         "rule": "Règle",
         "ruleDesc": "Dernier agent qui a confirmé ce client, sinon tour de rôle.",
-        "capDesc": "Plafond par agent et par jour, pour qu'une campagne ne noie pas une file."
+        "capDesc": "Plafond par agent et par jour, pour qu'une campagne ne noie pas une file.",
+        "tpl": "Modèle",
+        "queued": "En file",
+        "sentApi": "Envoyés",
+        "delivered": "Remis",
+        "read": "Lus",
+        "repliedApi": "Réponses",
+        "failed": "Échecs",
+        "ready": "Prête à lancer",
+        "launchedAt": "Lancée {when}",
+        "ts": {
+          "APPROVED": "Approuvé",
+          "PENDING": "En attente",
+          "REJECTED": "Refusé",
+          "PAUSED": "Suspendu",
+          "DISABLED": "Désactivé",
+          "DRAFT": "Non soumis",
+          "DELETED": "Supprimé",
+          "UNKNOWN": "Inconnu"
+        },
+        "fromOrdra": "Depuis le numéro Ordra",
+        "cap": "· {n} cap marketing",
+        "nProspects": "{n} prospects",
+        "perHour": "{n}/h",
+        "winV": "{start}–{end} h",
+        "when": {
+          "today": "aujourd'hui {time}",
+          "yesterday": "hier {time}",
+          "date": "le {date} à {time}"
+        }
       },
       "f": {
         "agent": "Tous les agents",
@@ -6341,8 +6384,8 @@
         "t": "Nouvelle campagne",
         "steps": {
           "audience": "Audience",
-          "channel": "Message",
-          "dist": "Répartition"
+          "channel": "Canal",
+          "dist": "Distribution"
         },
         "tmplT": "Partir d'un modèle",
         "tmpl": {
@@ -6356,7 +6399,8 @@
           "orders": "Commandes",
           "client": "Client",
           "guard": "Garde-fous",
-          "size": "Taille"
+          "size": "Taille",
+          "customer": "Client"
         },
         "add": "Ajouter une condition",
         "saveTmpl": "Enregistrer comme modèle",
@@ -6464,18 +6508,18 @@
         "waVars": "Insérer",
         "waImg": "Joindre la photo du produit",
         "waWho": "Qui envoie",
-        "waAgent": "L'agent, depuis son WhatsApp",
-        "waAgentD": "Le prospect arrive dans sa file avec le message prêt : un geste et il part de son numéro.",
-        "waApi": "Automatique · WhatsApp Business",
-        "waApiD": "Envoi sans intervention de l'agent.",
-        "waApiOff": "non connecté",
-        "waWindow": "Créneau d'envoi",
-        "waRate": "Rythme",
+        "waAgent": "Depuis le téléphone de l'agent",
+        "waAgentD": "Lien wa.me prérempli dans la file de l'agent, un geste par prospect.",
+        "waApi": "Depuis le numéro Ordra",
+        "waApiD": "WhatsApp Business : envoi cadencé, statut de remise, réponses dans Ordra. Le message doit être un modèle approuvé par Meta.",
+        "waApiOff": "Non connecté",
+        "waWindow": "Plage d'envoi",
+        "waRate": "Cadence",
         "waRateD": "{n} messages / h / agent — au-delà, WhatsApp bloque le numéro.",
-        "waThen": "Sans réponse après",
-        "waThenD": "l'agent appelle, avec le script ci-dessous.",
+        "waThen": "Appeler si pas de réponse après",
+        "waThenD": "heures",
         "hours": "h",
-        "waPrev": "Aperçu",
+        "waPrev": "Ce que le client verra",
         "waReply": "Oui, c'est encore dispo ?",
         "waReplyCap": "réponse type · l'agent la voit dans sa file",
         "script": "Script d'appel",
@@ -6497,7 +6541,85 @@
         "go": "Créer et répartir {n}",
         "ok": "Campagne créée · {n} prospects répartis",
         "waOk": "Campagne créée · {n} messages en file d'envoi",
-        "none": "Aucun client ne correspond. Élargissez une condition."
+        "none": "Aucun client ne correspond. Élargissez une condition.",
+        "waLang": "Langue",
+        "waTplBody": "Corps du message (modèle marketing)",
+        "waVars2": "Variables",
+        "waCount": "{n} / 1024",
+        "waRule": "Ne commencez ni ne finissez par une variable — Meta refuse le modèle.",
+        "waRuleBad": "Le corps commence ou finit par une variable : Meta va refuser.",
+        "waRuleUnknown": "Variable inconnue : seules {nom} {produit} {ville} {remise} sont remplies.",
+        "waRuleNoText": "Le message doit contenir du texte en plus des variables.",
+        "waImgUrl": "URL publique de l'image (https)",
+        "waFooter": "Répondez STOP pour ne plus recevoir nos messages.",
+        "waApiOn": "Connecté",
+        "waRateApi": "messages / heure, toute la campagne",
+        "submit": "Soumettre le modèle à Meta",
+        "tstPending": "En attente d'approbation Meta",
+        "tstPendingD": "Modèle « {name} » soumis {ago}. Vous pourrez lancer la campagne dès l'approbation ; tant que cette page reste ouverte, le statut se met à jour tout seul et vous serez prévenu ici.",
+        "tstApproved": "Modèle approuvé {ago}",
+        "tstApprovedD": "La campagne peut partir. {n} prospects, {rate} messages par heure entre {start} h et {end} h : dernier envoi vers {eta}.",
+        "tstRejected": "Modèle refusé par Meta",
+        "tstRejectedD": "{reason} — corrigez le texte : une nouvelle version ({version}) sera soumise.",
+        "checkStatus": "Vérifier le statut",
+        "launch": "Lancer la campagne",
+        "launched": "Campagne lancée · {n} messages en file",
+        "resubmit": "Modifier et resoumettre",
+        "waApiOffD": "WhatsApp n'est pas connecté pour ce marché.",
+        "waApiOffAdmin": "Connectez-le dans Système › Connexions.",
+        "waFrom": "Ordra {market}",
+        "market": {
+          "ly": "Libye",
+          "tn": "Tunisie"
+        },
+        "waReplyApi": "Oui",
+        "waReplyApiCap": "Une réponse ouvre la fenêtre de 24 h : l'agent peut alors écrire librement.",
+        "waImgHead": "Image en en-tête",
+        "waImgSub": "Photo produit · en-tête du modèle",
+        "waImgChange": "Changer",
+        "waImgPick": "Choisissez la photo d'un produit",
+        "waImgNone": "Aucun produit de ce marché n'a de photo : collez un lien public.",
+        "waImgLink": "Image par lien",
+        "close": "Fermer",
+        "tstApprovedDAny": "La campagne peut partir. {n} prospects, {rate} messages par heure : dernier envoi vers {eta}.",
+        "tstApprovedShort": "La campagne peut partir.",
+        "tstNoReason": "Meta n'a pas donné de motif",
+        "tstDraft": "Le modèle n'a pas atteint Meta",
+        "tstDraftD": "La soumission n'a pas abouti. Vérifiez le texte, puis soumettez-le à nouveau.",
+        "ago": {
+          "now": "à l'instant",
+          "min": "il y a {n} min",
+          "h": "il y a {n} h",
+          "d": "il y a {n} j"
+        },
+        "eta": {
+          "today": "{time} aujourd'hui",
+          "tomorrow": "{time} demain",
+          "later": "{time} dans {n} jours"
+        },
+        "etaDay": {
+          "today": "aujourd'hui",
+          "tomorrow": "demain",
+          "later": "dans {n} jours"
+        },
+        "sum": {
+          "aud": "Audience",
+          "rate": "Cadence",
+          "win": "Plage",
+          "eta": "Fin estimée",
+          "rateV": "{n} / h",
+          "winV": "{start} – {end} h",
+          "always": "Toute la journée"
+        },
+        "checked": {
+          "PENDING": "Toujours en attente chez Meta",
+          "APPROVED": "Modèle approuvé : la campagne peut partir",
+          "REJECTED": "Modèle refusé par Meta",
+          "other": "Statut Meta : {status}"
+        },
+        "flipApproved": "« {name} » : modèle approuvé, la campagne peut partir",
+        "flipRejected": "« {name} » : modèle refusé par Meta",
+        "resubmitted": "Nouvelle version soumise à Meta"
       },
       "cmp": {
         "t": "Tunisie et Libye côte à côte",
@@ -6538,7 +6660,13 @@
         "tomorrow": "Demain matin",
         "custom": "Autre moment"
       }
-    }
+    },
+    "waWhen": {
+      "today": "aujourd'hui",
+      "yesterday": "hier",
+      "days": "il y a {n} j"
+    },
+    "waSquare": "WhatsApp"
   },
   "agentAvailability": {
     "toggleLabel": "Je prends des commandes",
@@ -6549,5 +6677,439 @@
     "staleSub": "Session inactive",
     "pausedSub": "Aucune nouvelle",
     "released": "{count} commande(s) rendue(s) au pool"
+  },
+  "whatsapp": {
+    "button": "WhatsApp",
+    "tabMessages": "Messages",
+    "thread": {
+      "empty": "Aucun message avec ce client.",
+      "emptySub": "Le premier envoi passe forcément par un modèle approuvé.",
+      "auto": "Automatique",
+      "template": "Modèle",
+      "you": "Vous",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "optedOut": "Le client a demandé à ne plus recevoir de messages · {date}",
+      "undeliverable": "Ce numéro n'est pas sur WhatsApp",
+      "retry": "Réessayer",
+      "failedCode": "Meta {code}",
+      "image": "Image",
+      "unsupported": "Message non pris en charge",
+      "daysAgo": "Il y a {count} jours"
+    },
+    "status": {
+      "queued": "en file",
+      "sent": "envoyé",
+      "delivered": "remis",
+      "read": "lu",
+      "failed": "échec",
+      "received": "reçu"
+    },
+    "events": {
+      "could_not_reach": "Injoignable",
+      "shipped": "Expédié",
+      "out_for_delivery": "En livraison",
+      "last_chance": "Dernière chance",
+      "delivered": "Livré"
+    },
+    "templates": {
+      "before_delivery": "Avant livraison",
+      "courier_no_answer": "Livreur n'a pas pu joindre",
+      "delayed_confirm_time": "Confirmer la date",
+      "returning_last_chance": "Dernière chance",
+      "address_check": "Vérifier l'adresse",
+      "product_share": "Fiche produit",
+      "prospect_follow_up": "Relance",
+      "could_not_reach": "Injoignable",
+      "shipped": "Expédié",
+      "out_for_delivery": "En livraison",
+      "last_chance": "Dernière chance",
+      "delivered": "Livré"
+    },
+    "composer": {
+      "windowOpen": "Fenêtre ouverte jusqu'à {time}",
+      "windowClosed": "Fenêtre fermée · modèles uniquement",
+      "windowNever": "Le client n'a jamais écrit · modèles uniquement",
+      "free": "Texte libre",
+      "placeholder": "Écrire au client…",
+      "send": "Envoyer",
+      "sending": "Envoi…",
+      "sent": "Envoyé",
+      "chars": "{count} / 1000",
+      "varsHint": "Les variables sont remplies depuis la commande — rien à saisir.",
+      "noTemplates": "Aucun modèle approuvé dans cette langue. Demandez au responsable de synchroniser les modèles.",
+      "optedOut": "Ce client a demandé à ne plus recevoir de messages",
+      "optedOutSub": "Il a répondu « {text} » le {date}. WhatsApp exige de respecter ce choix ; appelez-le plutôt.",
+      "undeliverable": "Ce numéro n'est pas sur WhatsApp",
+      "undeliverableSub": "Meta a refusé la livraison (code 131026). Appelez le client ou corrigez le numéro.",
+      "noConfig": "WhatsApp n'est pas connecté pour ce marché",
+      "noConfigSub": "Demandez à l'administrateur de connecter le numéro dans Système › Connexions. En attendant, le lien wa.me ouvre WhatsApp sur votre téléphone.",
+      "noPhone": "Aucun numéro WhatsApp utilisable pour ce client.",
+      "failed": "L'envoi a échoué",
+      "failedMeta": "Meta {code} · {reason}",
+      "retry": "Réessayer",
+      "callInstead": "Appeler",
+      "lang": {
+        "ar": "العربية",
+        "fr": "Français"
+      },
+      "windowOpenTomorrow": "Fenêtre ouverte jusqu'à demain {time}",
+      "loadError": "Impossible de charger les messages WhatsApp.",
+      "langGroup": "Langue du client",
+      "templatesGroup": "Modèles"
+    },
+    "errors": {
+      "131000": "erreur temporaire côté WhatsApp, réessayez",
+      "131026": "ce numéro n'est pas sur WhatsApp",
+      "131047": "la fenêtre de 24 h est fermée, utilisez un modèle",
+      "131049": "limite marketing atteinte pour ce client aujourd'hui",
+      "190": "jeton invalide — prévenez l'administrateur",
+      "window_closed": "la fenêtre de 24 h est fermée, utilisez un modèle",
+      "opted_out": "ce client a demandé à ne plus recevoir de messages",
+      "undeliverable": "ce numéro n'est pas sur WhatsApp",
+      "config_inactive": "WhatsApp n'est pas connecté pour ce marché",
+      "invalid_phone": "numéro invalide",
+      "template_unavailable": "aucun modèle approuvé dans cette langue",
+      "not_owner": "cette commande ne vous est pas assignée",
+      "not_found": "commande introuvable",
+      "graph_failed": "Meta a refusé l'envoi",
+      "generic": "réessayez dans un instant"
+    },
+    "sheet": {
+      "send": "Envoyer",
+      "sentAfter": "Consigné dans la fiche · statut mis à jour en direct",
+      "close": "Fermer",
+      "open": "Ouvrir WhatsApp",
+      "fallbackHint": "En attendant, le lien wa.me ouvre WhatsApp sur votre téléphone.",
+      "chooseTemplate": "Choisir le modèle",
+      "messageText": "Texte du message",
+      "sentLive": "Envoyé depuis le numéro de l'entreprise · statut mis à jour en direct"
+    },
+    "product": {
+      "send": "Envoyer sur WhatsApp",
+      "sentTo": "Envoyé à {name}",
+      "howText": "Fenêtre ouverte : envoyé comme image + légende.",
+      "howTemplate": "Hors fenêtre de 24 h : envoyé via le modèle approuvé « Fiche produit », image en en-tête."
+    },
+    "notif": {
+      "replied": "{name} a répondu sur WhatsApp"
+    },
+    "prospects": {
+      "replied": "a répondu",
+      "repliedAgo": "a répondu {ago}"
+    },
+    "trace": {
+      "row": "WhatsApp · {label} · {time}",
+      "timeline": "WhatsApp · {label}"
+    }
+  },
+  "whatsappAdmin": {
+    "common": {
+      "readOnly": "Lecture seule — les identifiants et les réglages sont modifiés par un super_admin.",
+      "never": "jamais",
+      "loading": "Chargement…",
+      "close": "Fermer",
+      "ago": {
+        "now": "à l'instant",
+        "m": "il y a {n} min",
+        "h": "il y a {n} h",
+        "d": "il y a {n} j"
+      },
+      "goToConnections": "Ouvrir Système › Connexions",
+      "language": {
+        "fr": "Français",
+        "ar": "العربية",
+        "en": "English"
+      }
+    },
+    "nav": {
+      "conversations": "Conversations",
+      "templates": "Modèles",
+      "switchLabel": "Messages WhatsApp"
+    },
+    "overview": {
+      "sub": "Cloud API · {connected}/{markets} marché(s) relié(s)",
+      "realtime": "temps réel"
+    },
+    "connections": {
+      "title": "WhatsApp Business — Cloud API",
+      "sub": "Un numéro par marché, un portefeuille Meta par marché. Les identifiants sont vérifiés auprès de Meta avant d'être chiffrés.",
+      "status": {
+        "connected": "Connecté",
+        "notConnected": "Non connecté",
+        "unverified": "Connecté · non vérifié",
+        "paused": "En pause",
+        "authFailed": "Jeton invalide"
+      },
+      "noNumber": "Aucun numéro relié",
+      "notConnectedBody": "Une fois relié : relance des tentatives sans réponse, notification d'expédition avec numéro de suivi, envois des agents depuis le numéro de l'entreprise, réponses des clients sur la commande.",
+      "health": {
+        "quality": "Qualité",
+        "tier": "Palier",
+        "templates": "Modèles",
+        "webhook": "Dernier webhook",
+        "auto": "Envois automatiques : {state}"
+      },
+      "quality": {
+        "GREEN": "verte",
+        "YELLOW": "orange",
+        "RED": "rouge",
+        "NA": "pas encore de données"
+      },
+      "tierOf": "{n} destinataires / 24 h",
+      "tierUnlimited": "illimité",
+      "verifOk": "entreprise vérifiée",
+      "verifPending": "vérification d'entreprise en cours",
+      "tpl": {
+        "approved": "{n} approuvés",
+        "pending": "{n} en attente",
+        "rejectedOne": "{n} refusé",
+        "rejectedMany": "{n} refusés"
+      },
+      "auto": {
+        "off": "désactivés (Paramètres)",
+        "cronOff": "cron inactif — prévenez l'administrateur",
+        "of": "dernière passe {time} · {n} en file"
+      },
+      "fields": {
+        "waba": "WABA ID",
+        "pnid": "Phone number ID",
+        "app": "App ID",
+        "token": "Jeton d'accès",
+        "tokenForm": "Jeton d'accès (System User)",
+        "secret": "App secret",
+        "verify": "Verify token",
+        "gv": "Version Graph",
+        "rate": "Débit automatique",
+        "keep": "{label} — laisser vide pour conserver"
+      },
+      "rateOf": "{n} msg/s",
+      "systemUser": "System User · permanent",
+      "copy": "Copier {field}",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "revealFailed": "Verify token illisible",
+      "actions": {
+        "test": "Tester",
+        "edit": "Modifier",
+        "pause": "Mettre en pause",
+        "resume": "Reprendre",
+        "connect": "Connecter",
+        "save": "Vérifier et enregistrer",
+        "saving": "Vérification auprès de Meta…",
+        "cancel": "Annuler",
+        "generate": "Générer"
+      },
+      "formHint": "Rien n'est stocké tant que Meta n'a pas répondu à un appel de test avec ces valeurs.",
+      "saveFailed": "La vérification auprès de Meta a échoué.",
+      "saved": "Vérifié auprès de Meta et enregistré (chiffré)",
+      "lastTest": "Dernier test · {when}",
+      "stages": {
+        "credentials": "Identifiants",
+        "phone": "Numéro",
+        "waba": "Compte WhatsApp (WABA)",
+        "subscription": "Abonnement de l'app",
+        "webhook": "Webhook"
+      },
+      "stageStatus": {
+        "ok": "ok",
+        "warning": "avertissement",
+        "failed": "échec",
+        "skipped": "ignoré"
+      },
+      "detail": {
+        "credentials_ok": "déchiffrés, jeton système permanent",
+        "credentials_decrypt_failed": "Identifiants illisibles — ENCRYPTION_KEY a probablement changé. Saisissez-les à nouveau.",
+        "phone_registered": "{name} · {phone} · enregistré",
+        "phone_unregistered": "{name} · {phone} · statut {status} — le numéro n'est pas enregistré sur la Cloud API (définissez le PIN de vérification en deux étapes dans WhatsApp Manager).",
+        "graph_auth": "Jeton refusé (code {code}). Générez un nouveau jeton System User.",
+        "graph_throttle": "Meta limite les appels en ce moment — l'identifiant est bon, réessayez dans quelques minutes.",
+        "graph_error": "{message}",
+        "waba_counts": "{total} modèles · {approved} approuvés",
+        "waba_pending": "{n} en attente",
+        "waba_rejected": "{n} refusés",
+        "waba_unreadable": "WABA {waba} illisible avec ce jeton — {cause}",
+        "subscription_ok": "l'app reçoit les événements de ce WABA",
+        "subscription_fixed": "abonnement absent — corrigé automatiquement",
+        "webhook_min": "dernier événement il y a {n} min",
+        "webhook_h": "dernier événement il y a {n} h",
+        "webhook_stale": "dernier événement il y a {n} j — vérifiez l'URL de rappel et l'abonnement aux champs dans l'app Meta",
+        "webhook_never": "aucun événement reçu — envoyez un message test au numéro depuis un téléphone, puis relancez le test"
+      },
+      "hook": {
+        "title": "Webhook — à coller dans l'app Meta",
+        "sub": "Une seule URL pour les deux applications : Ordra reconnaît le marché par le numéro qui a reçu l'événement.",
+        "url": "URL de rappel",
+        "verify": "Verify token · {market}",
+        "fields": "Champs à abonner",
+        "note": "Ordra répond 401 à toute requête dont la signature ne correspond pas à l'app secret du marché."
+      }
+    },
+    "templates": {
+      "title": "Modèles WhatsApp",
+      "sub": "Ce que Meta a approuvé, et quel événement chaque modèle sert",
+      "sync": "Synchroniser depuis Meta",
+      "create": "Créer les modèles Ordra",
+      "info": "« Créer les modèles Ordra » soumet le catalogue en un clic, en arabe et en français, et associe chaque modèle à son événement. Meta approuve en général en quelques minutes, jusqu'à 24 h sur un compte neuf.",
+      "cols": {
+        "name": "Modèle",
+        "lang": "Langue",
+        "category": "Catégorie",
+        "status": "Statut",
+        "event": "Événement",
+        "vars": "Variables",
+        "sync": "Synchro"
+      },
+      "category": {
+        "UTILITY": "Utilitaire",
+        "MARKETING": "Marketing",
+        "AUTHENTICATION": "Authentification"
+      },
+      "status": {
+        "APPROVED": "Approuvé",
+        "PENDING": "En attente",
+        "REJECTED": "Refusé",
+        "PAUSED": "Suspendu",
+        "DISABLED": "Désactivé",
+        "DELETED": "Supprimé",
+        "DRAFT": "Brouillon",
+        "UNKNOWN": "Inconnu"
+      },
+      "event": {
+        "none": "— (agent)",
+        "could_not_reach": "Injoignable",
+        "shipped": "Expédié",
+        "out_for_delivery": "En livraison",
+        "last_chance": "Dernière chance",
+        "delivered": "Livré",
+        "campaign": "Campagne"
+      },
+      "campaignChip": "Campagne · {name}",
+      "eventAria": "Événement de {name} {lang}",
+      "vars": {
+        "name": "nom",
+        "carrier": "transporteur",
+        "tracking": "suivi",
+        "amount": "montant",
+        "order_ref": "n° commande",
+        "courier": "livreur",
+        "address": "adresse",
+        "product": "produit",
+        "discount": "remise",
+        "city": "ville",
+        "agent": "agent"
+      },
+      "imageHeader": "En-tête image",
+      "marketGroup": "Marché",
+      "empty": "Aucun modèle pour ce marché.",
+      "emptyHint": "« Créer les modèles Ordra » soumet le catalogue complet.",
+      "notConnected": "WhatsApp n'est pas connecté pour ce marché : Meta ne détient encore aucun modèle, rien ne peut être synchronisé ni créé.",
+      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un super_admin relie le numéro dans Système › Connexions.",
+      "synced": "Synchronisé · {total} modèles, {updated} mis à jour",
+      "syncedNew": "{n} nouveaux",
+      "syncedGone": "{n} disparus",
+      "created": "{n} modèles soumis à Meta · approbation en attente",
+      "createdNone": "Rien à soumettre · le catalogue est déjà chez Meta",
+      "createdFailed": "{n} refusés : {list}",
+      "callFailed": "L'appel à Meta a échoué.",
+      "mapRefused": "Association refusée.",
+      "deleteRefused": "Suppression refusée.",
+      "confirmDelete": "Supprimer {name} chez Meta (toutes les langues) ?",
+      "drawer": {
+        "reason": "Motif de refus Meta",
+        "preview": "Aperçu",
+        "json": "Composants envoyés à Meta",
+        "fix": "Corriger et resoumettre (v{n})",
+        "delete": "Supprimer",
+        "sender": "Ordra {market}",
+        "dialog": "Modèle {name}"
+      }
+    },
+    "settings": {
+      "card": "Notifications WhatsApp automatiques",
+      "cardSub": "Un message part quand la commande atteint l'un de ces états. Chaque événement se coupe indépendamment.",
+      "master": "Notifications automatiques",
+      "masterHint": "Interrupteur général : coupé, aucun événement n'envoie, quels que soient les réglages ci-dessous.",
+      "events": {
+        "could_not_reach": {
+          "label": "Injoignable",
+          "hint": "Après la première tentative sans réponse, une seule fois par commande."
+        },
+        "shipped": {
+          "label": "Expédié",
+          "hint": "Numéro de suivi au scan de sortie. Darb envoie déjà son SMS en Libye."
+        },
+        "out_for_delivery": {
+          "label": "En livraison",
+          "hint": "« Le livreur passe aujourd'hui, gardez votre téléphone allumé. »"
+        },
+        "last_chance": {
+          "label": "Dernière chance",
+          "hint": "Livraison retardée ou colis en retour : « répondez aujourd'hui »."
+        },
+        "delivered": {
+          "label": "Livré",
+          "hint": "Remerciement une fois le colis remis."
+        }
+      },
+      "tpl": {
+        "ok": "modèle approuvé",
+        "pend": "en attente d'approbation",
+        "none": "aucun modèle approuvé"
+      },
+      "on": "Activé",
+      "off": "Désactivé",
+      "lang": "Langue par défaut",
+      "langHint": "Pour un client dont la langue n'a pas encore été choisie par un agent.",
+      "window": "Plage d'envoi",
+      "windowHint": "En dehors, les messages attendent le lendemain matin. Darb synchronise la nuit ; personne ne doit être réveillé à 3 h.",
+      "windowInvalid": "Format attendu : HH-HH, début avant fin (ex. 10-20).",
+      "windowUnit": "h · {tz}",
+      "warnUnverified": "Le numéro est connecté mais l'entreprise n'est pas encore vérifiée : 250 destinataires par 24 h. Activez un seul événement pour commencer, puis les autres une fois la qualité verte.",
+      "warnMissing": "Aucun modèle approuvé {language} pour « {event} ».",
+      "inLanguage": {
+        "fr": "en français",
+        "ar": "en arabe"
+      },
+      "noConfigTitle": "WhatsApp n'est pas connecté pour ce marché",
+      "noConfig": "Connectez d'abord WhatsApp dans Système › Connexions. Les réglages ci-dessous seront appliqués dès que ce sera fait.",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "reset": "Réinitialiser ce groupe",
+      "warnMissingTail": "L'événement restera en file jusqu'à l'approbation — rien n'est perdu, rien ne part.",
+      "warnMissingTailMany": "Ces événements resteront en file jusqu'à l'approbation — rien n'est perdu, rien ne part."
+    },
+    "inbox": {
+      "title": "Messages",
+      "sub": "Conversations WhatsApp sans commande ni prospect rattaché",
+      "tabs": {
+        "orphans": "À rattacher",
+        "all": "Toutes"
+      },
+      "empty": {
+        "orphans": "Aucune conversation à rattacher.",
+        "all": "Aucune conversation."
+      },
+      "pick": "Choisissez une conversation.",
+      "pickMarket": "Choisissez un marché pour voir ses conversations.",
+      "notConnected": "WhatsApp n'est pas connecté pour ce marché : aucun message n'arrive ici tant que le numéro n'est pas relié.",
+      "anchoredOrder": "Rattachée à une commande",
+      "anchoredLead": "Rattachée à un prospect",
+      "alreadyAnchored": "Cette conversation est déjà rattachée.",
+      "claimRefused": "Rattachement refusé.",
+      "leadRefused": "Création du prospect refusée.",
+      "placeholder": "Répondre au client…",
+      "attach": {
+        "label": "Rattacher à",
+        "placeholder": "Chercher une commande ou un prospect par nom ou numéro…",
+        "createLead": "Créer un prospect",
+        "searching": "Recherche…",
+        "none": "Aucun résultat.",
+        "order": "commande",
+        "lead": "prospect",
+        "noName": "(sans nom)",
+        "action": "Rattacher à"
+      }
+    }
   }
 }

@@ -9,6 +9,12 @@ import {
   type AudiencePreview,
   type Condition,
 } from "@/lib/prospects/audience";
+import { createAdminClient } from "@/lib/supabase/server";
+import { loadConfigForMarket } from "@/lib/whatsapp/config";
+import { createWhatsAppClient } from "@/lib/whatsapp/client";
+import { buildCampaignTemplate, campaignTemplateName, validateCampaignBody } from "@/lib/whatsapp/campaign-template";
+import { submitCampaignTemplate } from "@/lib/whatsapp/templates";
+import { uploadHeaderImage } from "@/lib/whatsapp/campaign-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +55,9 @@ interface Body {
   wa_follow_up_hours?: number | null;
   script_fr?: string | null;
   script_ar?: string | null;
+  /** api sender only: the template's language and its optional header image. */
+  wa_language?: "ar" | "fr";
+  wa_image_url?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -122,6 +131,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_sender" }, { status: 400 });
   }
 
+  // Sent from the business number: the message becomes a Meta MARKETING
+  // template. Its rules are checked here, and the market must have a live
+  // number, before a row exists.
+  const apiSend = channel !== "call" && sender === "api";
+  const waLanguage: "ar" | "fr" | null = apiSend ? (body.wa_language === "ar" ? "ar" : "fr") : null;
+  const waImageUrl = apiSend && typeof body.wa_image_url === "string" && body.wa_image_url.trim() ? body.wa_image_url.trim() : null;
+  let apiCfg: Awaited<ReturnType<typeof loadConfigForMarket>> = null;
+  if (apiSend) {
+    const bodyErrors = validateCampaignBody(waMessage);
+    if (bodyErrors.length > 0) {
+      return NextResponse.json({ error: "invalid_wa_message", errors: bodyErrors }, { status: 400 });
+    }
+    if (waImageUrl && !/^https:\/\//i.test(waImageUrl)) {
+      return NextResponse.json({ error: "invalid_image_url" }, { status: 400 });
+    }
+    apiCfg = await loadConfigForMarket(createAdminClient(), marketId);
+    if (!apiCfg || apiCfg.status !== "active" || apiCfg.decryptFailed) {
+      return NextResponse.json({ error: "whatsapp_not_connected" }, { status: 409 });
+    }
+  }
+
   const { data: created, error: insertError } = await supabase
     .from("prospect_campaigns")
     .insert({
@@ -139,6 +169,7 @@ export async function POST(req: NextRequest) {
       wa_rate: numberOrNull(body.wa_rate),
       wa_follow_up_hours: channel === "wa_call" ? numberOrNull(body.wa_follow_up_hours) : null,
       created_by: actor.id,
+      ...(apiSend ? { wa_language: waLanguage, wa_image_url: waImageUrl, wa_launch_status: "pending_template" } : {}),
     })
     .select("id")
     .single();
@@ -154,6 +185,46 @@ export async function POST(req: NextRequest) {
   }
 
   const campaignId = (created as { id: string }).id;
+
+  // Business-number campaigns do NOT run yet: the template goes to Meta and
+  // the launch route spawns the prospects once it is approved. Putting names
+  // in agents' queues for a message that cannot leave is the wrong order.
+  if (apiSend && apiCfg) {
+    try {
+      const admin = createAdminClient();
+      const client = createWhatsAppClient(apiCfg);
+      const handle = waImageUrl ? await uploadHeaderImage(client, waImageUrl) : null;
+      const built = buildCampaignTemplate({ body: waMessage, language: waLanguage!, headerHandle: handle });
+      const templateName = campaignTemplateName(name);
+      const submitted = await submitCampaignTemplate(admin, apiCfg, client, {
+        campaignId,
+        name: templateName,
+        language: waLanguage!,
+        components: built.components,
+        bodyText: built.bodyText,
+        variables: built.variables,
+        footerText: built.footerText,
+        headerFormat: handle ? "IMAGE" : null,
+      });
+      await admin.from("prospect_campaigns").update({ wa_template_id: submitted.templateId }).eq("id", campaignId);
+      return NextResponse.json({
+        id: campaignId,
+        inserted: 0,
+        skipped: 0,
+        wa_launch_status: "pending_template",
+        template_id: submitted.templateId,
+        template_name: templateName,
+        template_status: submitted.status,
+      });
+    } catch (err) {
+      // The campaign row stays as a draft the manager can resubmit from the list.
+      await createAdminClient().from("prospect_campaigns").update({ wa_launch_status: "draft" }).eq("id", campaignId);
+      return NextResponse.json(
+        { id: campaignId, error: "template_submit_failed", message: err instanceof Error ? err.message : "Meta injoignable" },
+        { status: 502 },
+      );
+    }
+  }
 
   // Creating and running are one act for the manager: a campaign that exists
   // but has produced nobody is not something they asked for.

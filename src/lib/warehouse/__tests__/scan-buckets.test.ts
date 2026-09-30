@@ -67,8 +67,8 @@ describe("linesOf", () => {
   it("uses the order's own lines when it has them", () => {
     const r = row({
       items: [
-        { product_id: "p1", product_name: "Dumbbell", variant_label: "5 kg", quantity: 2, image_url: null },
-        { product_id: "p2", product_name: "Corde", variant_label: null, quantity: 1, image_url: null },
+        { product_id: "p1", product_name: "Dumbbell", variant_id: null, variant_label: "5 kg", quantity: 2, image_url: null },
+        { product_id: "p2", product_name: "Corde", variant_id: null, variant_label: null, quantity: 1, image_url: null },
       ],
     });
     expect(linesOf(r).map((l) => `${l.product_name}×${l.quantity}`)).toEqual(["Dumbbell×2", "Corde×1"]);
@@ -77,7 +77,7 @@ describe("linesOf", () => {
   it("falls back to the denormalised single line when there are no item rows", () => {
     const r = row({ product_name: "Livre", quantity: 3, items: [] });
     expect(linesOf(r)).toEqual([
-      { product_id: "p1", product_name: "Livre", variant_label: null, quantity: 3, image_url: null },
+      { product_id: "p1", product_name: "Livre", variant_id: null, variant_label: null, quantity: 3, image_url: null },
     ]);
   });
 
@@ -94,8 +94,8 @@ describe("isMixed", () => {
       isMixed(
         row({
           items: [
-            { product_id: "p1", product_name: "A", variant_label: "S", quantity: 1, image_url: null },
-            { product_id: "p1", product_name: "A", variant_label: "M", quantity: 1, image_url: null },
+            { product_id: "p1", product_name: "A", variant_id: null, variant_label: "S", quantity: 1, image_url: null },
+            { product_id: "p1", product_name: "A", variant_id: null, variant_label: "M", quantity: 1, image_url: null },
           ],
         }),
       ),
@@ -104,8 +104,8 @@ describe("isMixed", () => {
       isMixed(
         row({
           items: [
-            { product_id: "p1", product_name: "A", variant_label: null, quantity: 1, image_url: null },
-            { product_id: "p2", product_name: "B", variant_label: null, quantity: 1, image_url: null },
+            { product_id: "p1", product_name: "A", variant_id: null, variant_label: null, quantity: 1, image_url: null },
+            { product_id: "p2", product_name: "B", variant_id: null, variant_label: null, quantity: 1, image_url: null },
           ],
         }),
       ),
@@ -133,8 +133,8 @@ describe("bucketize — product mode", () => {
       id: "mix",
       product_id: "p1",
       items: [
-        { product_id: "p1", product_name: "Dumbbell", variant_label: null, quantity: 1, image_url: null },
-        { product_id: "p2", product_name: "Corde", variant_label: null, quantity: 1, image_url: null },
+        { product_id: "p1", product_name: "Dumbbell", variant_id: null, variant_label: null, quantity: 1, image_url: null },
+        { product_id: "p2", product_name: "Corde", variant_id: null, variant_label: null, quantity: 1, image_url: null },
       ],
     });
     const buckets = bucketize([row({ product_id: "p1" }), mixed], ly.mode, ly.market);
@@ -148,8 +148,8 @@ describe("bucketize — product mode", () => {
     const mix = () =>
       row({
         items: [
-          { product_id: "p1", product_name: "A", variant_label: null, quantity: 1, image_url: null },
-          { product_id: "p2", product_name: "B", variant_label: null, quantity: 1, image_url: null },
+          { product_id: "p1", product_name: "A", variant_id: null, variant_label: null, quantity: 1, image_url: null },
+          { product_id: "p2", product_name: "B", variant_id: null, variant_label: null, quantity: 1, image_url: null },
         ],
       });
     const buckets = bucketize([mix(), mix(), mix(), row({ product_id: "p9", product_name: "Seul" })], ly.mode, ly.market);

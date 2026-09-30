@@ -356,3 +356,40 @@ describe("ProductSheetDrawer — sharing with the customer", () => {
     expect(screen.queryByText("Lien copié")).not.toBeInTheDocument();
   });
 });
+
+describe("ProductSheetDrawer — WhatsApp from the business number (prototype whatsapp-agent-v1.html, screen `product`)", () => {
+  const live = { orderId: "o-1", customerName: "Mahmoud Senoussi", whatsappActive: true, whatsappKnown: true } as const;
+
+  it("sends the image, then shows who got it, the caption, how it went, and a tick", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: { id: "m", kind: "image", status: "sent" } }), { status: 201 }));
+    renderDrawer(live);
+    const send = screen.getByRole("button", { name: /Envoyer sur WhatsApp/ });
+    expect(send.querySelector('[data-icon="whatsapp"]')).not.toBeNull();
+    fireEvent.click(send);
+    const card = await screen.findByTestId("product-wa-sent");
+    expect(card).toHaveTextContent("Envoyé à Mahmoud Senoussi");
+    expect(card).toHaveTextContent("Biovera 250ml");
+    expect(card).toHaveTextContent("Fenêtre ouverte : envoyé comme image + légende.");
+    expect(card.querySelector('[data-status="sent"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Envoyé à Mahmoud/ })).toBeInTheDocument();
+  });
+
+  it("a refusal reads in the agent's words, with Meta's code", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "graph_failed", code: 131026, kind: "undeliverable" }), { status: 502 }));
+    renderDrawer(live);
+    fireEvent.click(screen.getByRole("button", { name: /Envoyer sur WhatsApp/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("L'envoi a échoué · Meta 131026 · ce numéro n'est pas sur WhatsApp");
+  });
+
+  it("opted out: the button is disabled and the reason is shown", () => {
+    renderDrawer({ ...live, customerOptedOut: true });
+    expect(screen.getByRole("button", { name: /Envoyer sur WhatsApp/ })).toBeDisabled();
+    expect(screen.getByText("Ce client a demandé à ne plus recevoir de messages")).toBeInTheDocument();
+  });
+
+  it("not connected: the banner, and « Ouvrir WhatsApp » stays the wa.me link", () => {
+    renderDrawer({ orderId: "o-1", whatsappActive: false, whatsappKnown: true });
+    expect(screen.getByText("WhatsApp n'est pas connecté pour ce marché")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ouvrir WhatsApp/ }).getAttribute("href")).toContain("https://wa.me/21624850880");
+  });
+});

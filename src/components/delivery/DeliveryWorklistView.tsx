@@ -23,6 +23,11 @@ export interface DeliveryWorklistViewProps {
   scorecard: DeliveryScorecard | null;
   role: Role;
   marketCode: "ly" | "tn";
+  /** The market's uuid and whether its WhatsApp business number is live. */
+  marketId?: string | null;
+  whatsappActive?: boolean;
+  /** Whether the market's connection is known yet — the not-connected banner waits for it. */
+  whatsappKnown?: boolean;
   tz: string;
   locale: string;
   now: number;
@@ -65,7 +70,7 @@ function matches(row: WorklistRow, q: string): boolean {
  * action queue come in as props, so every state of the page is testable.
  */
 export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
-  const { rows: rawRows, error, onRetry, scorecard, role, marketCode, tz, locale, now, pending, notice, onQueue, onUndo, onDismissNotice, onNeedDone } = props;
+  const { rows: rawRows, error, onRetry, scorecard, role, marketCode, marketId = null, whatsappActive = false, whatsappKnown = false, tz, locale, now, pending, notice, onQueue, onUndo, onDismissNotice, onNeedDone } = props;
   const t = useTranslations("delivery");
   const [bucket, setBucket] = useState<Bucket | "all">("all");
   const [query, setQuery] = useState("");
@@ -146,7 +151,12 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
     onQueue(row, { action_type: q.actionType, outcome: q.outcome, note: null, next_action_at: next, template_key: null });
   }, [now, tz, onQueue]);
 
-  const sheetRow = sheet ? byId(sheet.orderId) : null;
+  // The sheet keeps the row it opened on: a send can move the row to another
+  // bucket, and the live sheet must stay up on its « Envoyé » state.
+  const sheetRowSnapshot = useRef<WorklistRow | null>(null);
+  const sheetRowLive = sheet ? byId(sheet.orderId) : null;
+  if (sheetRowLive) sheetRowSnapshot.current = sheetRowLive;
+  const sheetRow = sheet ? (sheetRowLive ?? (sheetRowSnapshot.current?.order_id === sheet.orderId ? sheetRowSnapshot.current : null)) : null;
   const inFlight = counts.all - counts.done;
   const showAgent = role !== "agent";
   const handlers = { onLogAction: openAction, onWhatsApp: openWhatsApp, onDialed: (row: WorklistRow) => openAction(row), onQuick };
@@ -301,7 +311,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
       <aside className="hidden lg:sticky lg:top-4 lg:block lg:h-[calc(100vh-96px)]">
         <div role="region" aria-label={t("detail.title")} className="h-full">
           {selected ? (
-            <DeliveryDetailPanel row={selected} market={marketCode} locale={locale} tz={tz} now={now} onClose={() => setSelectedId(null)} {...handlers} />
+            <DeliveryDetailPanel row={selected} market={marketCode} locale={locale} tz={tz} now={now} marketId={marketId} whatsappActive={whatsappActive} whatsappKnown={whatsappKnown} onClose={() => setSelectedId(null)} {...handlers} />
           ) : (
             <div className="grid h-full place-items-center rounded-xl border border-[#E5E7EB] bg-white p-10 text-center text-[#6B7280]">{t("pick")}</div>
           )}
@@ -318,9 +328,10 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
           onSubmit={(body) => { onQueue(sheetRow, body); setSheet(null); }} />
       )}
       {sheet?.kind === "wa" && sheetRow && (
-        <WhatsAppSheet key={sheet.orderId} row={sheetRow} market={marketCode}
+        <WhatsAppSheet key={sheet.orderId} row={sheetRow} market={marketCode} marketId={marketId} whatsappActive={whatsappActive} whatsappKnown={whatsappKnown}
           onClose={() => setSheet(null)}
-          onSent={(body) => { onQueue(sheetRow, body); setSheet(null); }} />
+          // A real send keeps the sheet open on « Envoyé » + « Fermer » (prototype); the wa.me path closes as before.
+          onSent={(body) => { onQueue(sheetRow, body); if (!body.alreadyRecorded) setSheet(null); }} />
       )}
 
       {(pending || notice) && (

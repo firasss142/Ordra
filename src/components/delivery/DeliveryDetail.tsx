@@ -6,6 +6,7 @@ import { Calendar, CalendarCheck, CheckCircle2, ChevronDown, ChevronLeft, Chevro
 import type { WorklistRow } from "@/lib/delivery/types";
 import { formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
+import { DeliveryMessages } from "./DeliveryMessages";
 import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
@@ -36,6 +37,10 @@ interface Props extends DetailHandlers {
   locale: string;
   tz: string;
   now: number;
+  /** The market's uuid and whether its WhatsApp business number is live. */
+  marketId?: string | null;
+  whatsappActive?: boolean;
+  whatsappKnown?: boolean;
 }
 
 function useCreated(locale: string, tz: string) {
@@ -105,7 +110,7 @@ function PanelMenu({ row, done, onClose, onLogAction, onWhatsApp }: { row: Workl
 }
 
 /** Desktop side panel. */
-export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onLogAction, onWhatsApp, onDialed, onQuick }: Props & { onClose: () => void }) {
+export function DeliveryDetailPanel({ row, market, locale, tz, now, marketId = null, whatsappActive = false, whatsappKnown = false, onClose, onLogAction, onWhatsApp, onDialed, onQuick }: Props & { onClose: () => void }) {
   const t = useTranslations("delivery");
   const tStatus = useTranslations("orders.statuses");
   const label = useSituationLabel();
@@ -214,7 +219,10 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
         <Money amount={row.total_price} market={market} locale={locale} className="shrink-0 text-[18px] font-bold text-[#111827]" />
       </div>
 
-      <DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} />
+      <DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} waStatus={row.wa_last?.status ?? null} />
+      {(whatsappActive || whatsappKnown) && marketId && (
+        <DeliveryMessages orderId={row.order_id} marketId={marketId} onOpenSheet={() => onWhatsApp(row)} />
+      )}
     </div>
   );
 }

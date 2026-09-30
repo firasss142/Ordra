@@ -117,3 +117,98 @@ describe("OrderStatusBadge", () => {
     });
   });
 });
+
+describe("OrderStatusBadge — a rejection says why", () => {
+  // "Rejeté" in red was the label on 28% of rows and answered nothing. The
+  // badge takes the resolved reason and spends its one readable field on it.
+  it("shows the reason instead of the word 'Rejeté'", () => {
+    render(
+      <OrderStatusBadge
+        status="rejected"
+        label="Rejeté"
+        locale="fr"
+        rejection={{ hue: "amber", text: "Faux n°" }}
+      />,
+    );
+
+    expect(screen.getByText("Faux n°")).toBeInTheDocument();
+    expect(screen.queryByText("Rejeté")).toBeNull();
+  });
+
+  it("wears the group's hue, not the blanket red of 'rejected'", () => {
+    render(
+      <OrderStatusBadge
+        status="rejected"
+        label="Rejeté"
+        locale="fr"
+        rejection={{ hue: "amber", text: "Faux n°" }}
+      />,
+    );
+
+    expect(screen.getByTestId("order-status")).toHaveAttribute(
+      "data-hue",
+      "amber",
+    );
+  });
+
+  it("falls back to plain red when the reason is unknown", () => {
+    render(<OrderStatusBadge status="rejected" label="Rejeté" locale="fr" />);
+
+    const badge = screen.getByTestId("order-status");
+    expect(badge).toHaveAttribute("data-hue", "red");
+    expect(screen.getByText("Rejeté")).toBeInTheDocument();
+  });
+
+  // A screen reader hears the full sentence; the column shows the short one.
+  it("names both the state and the reason to a screen reader", () => {
+    render(
+      <OrderStatusBadge
+        status="rejected"
+        label="Rejeté"
+        locale="fr"
+        rejection={{ hue: "amber", text: "Faux n°" }}
+      />,
+    );
+
+    expect(screen.getByTestId("order-status")).toHaveAccessibleName(
+      "Rejeté — Faux n°",
+    );
+  });
+
+  it("ignores a rejection payload on a status that is not a rejection", () => {
+    render(
+      <OrderStatusBadge
+        status="delivered"
+        label="Livrée"
+        locale="fr"
+        rejection={{ hue: "amber", text: "Faux n°" }}
+      />,
+    );
+
+    expect(screen.getByText("Livrée")).toBeInTheDocument();
+    expect(screen.getByTestId("order-status")).toHaveAttribute(
+      "data-hue",
+      "green",
+    );
+  });
+
+  // The column is 120px. A note an agent typed is not bounded by anything.
+  it("keeps a long reason on one line", () => {
+    render(
+      <OrderStatusBadge
+        status="rejected"
+        label="Rejeté"
+        locale="fr"
+        rejection={{
+          hue: "neutral",
+          text: "il a dit qu'il rappellerait la semaine prochaine",
+        }}
+      />,
+    );
+
+    const text = screen.getByText(
+      "il a dit qu'il rappellerait la semaine prochaine",
+    );
+    expect(text.className).toContain("truncate");
+  });
+});

@@ -3,10 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { fetchAgentCapacity } from "@/lib/orders/agent-capacity";
+import { isReadyForOrders } from "@/lib/orders/agent-readiness";
 
 export const dynamic = "force-dynamic";
 
-const USER_COLS = "id, full_name, avatar_url, is_active, last_seen_at, market_id";
+const USER_COLS =
+  "id, full_name, avatar_url, is_active, last_seen_at, market_id, is_available, available_since";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -91,6 +93,25 @@ export async function GET(req: NextRequest) {
     })
   );
 
+  // The configured split, so the rail can show progress against target rather
+  // than a bare count. Absent when the market does not use percentages.
+  const sharesById = new Map<string, number>();
+  if (!isAllMarkets && marketId) {
+    const { data: shareRows } = await supabase
+      .from("agent_distribution_shares")
+      .select("agent_id, share_pct")
+      .eq("market_id", marketId);
+    for (const row of (shareRows ?? []) as Array<{
+      agent_id: string;
+      share_pct: number | string;
+    }>) {
+      const pct = typeof row.share_pct === "string" ? Number(row.share_pct) : row.share_pct;
+      if (Number.isFinite(pct)) sharesById.set(row.agent_id, pct);
+    }
+  }
+
+  const now = new Date();
+
   const data = (agentRows ?? []).map(
     (a: {
       id: string;
@@ -98,6 +119,8 @@ export async function GET(req: NextRequest) {
       avatar_url: string | null;
       is_active: boolean;
       last_seen_at: string | null;
+      is_available: boolean | null;
+      available_since: string | null;
     }) => {
       const cap = capacityById.get(a.id);
       const met = metricsById.get(a.id);
@@ -111,6 +134,14 @@ export async function GET(req: NextRequest) {
         last_action_at: cap?.last_action_at ?? null,
         confirmation_rate: met?.confirmation_rate ?? 0,
         actioned_count: met?.actioned_count ?? 0,
+        is_available: a.is_available ?? false,
+        available_since: a.available_since,
+        assigned_today: cap?.assigned_today ?? 0,
+        share_pct: sharesById.get(a.id) ?? null,
+        // The declaration and the heartbeat together — what the distributor
+        // checks. Shown separately from `is_available` so a manager can tell
+        // "took a break" apart from "laptop is shut".
+        receiving_orders: cap ? isReadyForOrders(cap, now) : false,
       };
     }
   );

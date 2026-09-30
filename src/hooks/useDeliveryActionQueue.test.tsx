@@ -85,6 +85,27 @@ describe("useDeliveryActionQueue", () => {
     expect(result.current.queue.pending?.orderId).toBe("o2");
   });
 
+  it("an action the server already recorded moves the row and refreshes, but is never POSTed", async () => {
+    const onSent = vi.fn();
+    const cache = new Map();
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <SWRConfig value={{ provider: () => cache, dedupingInterval: 0, fetcher: () => initial }}>{children}</SWRConfig>
+    );
+    const { result } = renderHook(
+      () => ({ list: useSWR<WorklistResponse>(KEY), queue: useDeliveryActionQueue({ worklistKey: KEY, onSent }) }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.list.data).toBeDefined());
+    act(() => {
+      result.current.queue.queue(initial.rows[0], { action_type: "whatsapp_customer", outcome: "sent", note: null, next_action_at: null, template_key: "before_delivery", alreadyRecorded: true });
+    });
+    expect(result.current.list.data?.rows[0].last_action_type).toBe("whatsapp_customer");
+    expect(result.current.queue.pending).toBeNull();
+    expect(onSent).toHaveBeenCalledWith("o1");
+    await act(async () => { await vi.advanceTimersByTimeAsync(UNDO_WINDOW_MS + 10); });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("a refused write restores the row and reports the failure", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 409, json: () => Promise.resolve({ error: "out_of_scope" }) }));
     const onFailed = vi.fn();

@@ -20,6 +20,7 @@ interface ItemRow {
   order_id: string;
   product_id: string | null;
   product_name: string;
+  variant_id: string | null;
   variant_label: string | null;
   quantity: number;
 }
@@ -46,7 +47,7 @@ export async function attachOrderLines<T extends { id: string }>(
     const items = await fetchAllRows<ItemRow>(
       supabase
         .from("order_items")
-        .select("order_id, product_id, product_name, variant_label, quantity")
+        .select("order_id, product_id, product_name, variant_id, variant_label, quantity")
         .in("order_id", ids)
         .order("created_at", { ascending: true }),
     );
@@ -68,6 +69,7 @@ export async function attachOrderLines<T extends { id: string }>(
       const line: OrderLine = {
         product_id: item.product_id,
         product_name: item.product_name,
+        variant_id: item.variant_id ?? null,
         variant_label: item.variant_label,
         quantity: item.quantity,
         image_url: item.product_id ? (images.get(item.product_id) ?? null) : null,

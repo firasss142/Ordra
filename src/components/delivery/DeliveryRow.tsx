@@ -4,6 +4,7 @@ import { memo } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Clock, MapPin, Package, Phone, RotateCcw, Truck, Check } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
+import { StatusGlyph } from "@/components/whatsapp/StatusGlyph";
 import { formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
 import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel, useSituationSub, useWhen } from "./ui";
 
@@ -38,6 +39,7 @@ function product(row: WorklistRow) {
  */
 function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, onSelect, onMove, onWhatsApp }: DeliveryRowProps) {
   const t = useTranslations("delivery");
+  const tWa = useTranslations("whatsapp");
   const label = useSituationLabel();
   const sub = useSituationSub();
   const when = useWhen(now, tz, locale);
@@ -52,6 +54,14 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
   const p = product(row);
   const moved = row.latest_event_at ?? new Date(now - (row.hours_on_status ?? 0) * 3_600_000).toISOString();
   const moveLabel = t(`moves.${m.kind}`);
+  const waTrace =
+    row.wa_last && Date.parse(row.wa_last.at) >= Date.parse(moved)
+      ? {
+          label: row.wa_last.template_key && tWa.has(`templates.${row.wa_last.template_key}`) ? tWa(`templates.${row.wa_last.template_key}`) : tWa("thread.template"),
+          time: new Intl.DateTimeFormat(locale === "ar" ? "ar-LY" : "fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date(row.wa_last.at)),
+          status: row.wa_last.status,
+        }
+      : null;
   const phones = [row.customer_phone, row.customer_phone_2].filter(Boolean).map(formatPhone).join(" · ");
   const act = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -79,9 +89,19 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       <div className="col-start-1 row-start-1 flex min-w-0 flex-col items-start lg:col-start-1 lg:row-start-1">
         <Chip tone={s.tone} icon={SitIcon}>{label(s)}</Chip>
         <div className="mt-1 hidden text-[13px] text-[#6B7280] [unicode-bidi:plaintext] lg:block">{sub(s)}</div>
-        <div className="mt-0.5 hidden items-center gap-1 text-[13px] text-[#6B7280] lg:flex">
-          <Clock size={13} aria-hidden /><span>{when(moved)}</span>
-        </div>
+        {waTrace ? (
+          // The business number wrote since the parcel last moved: the row says
+          // so, with the message's live status (prototype whatsapp-agent-v1.html).
+          <div data-testid="row-wa-trace" className="mt-0.5 hidden items-center gap-[5px] text-[13px] font-semibold text-[#14532D] lg:flex">
+            <WhatsAppIcon size={13} className="text-[#15803D]" />
+            <span>{tWa("trace.row", { label: waTrace.label, time: waTrace.time })}</span>
+            <StatusGlyph status={waTrace.status} />
+          </div>
+        ) : (
+          <div className="mt-0.5 hidden items-center gap-1 text-[13px] text-[#6B7280] lg:flex">
+            <Clock size={13} aria-hidden /><span>{when(moved)}</span>
+          </div>
+        )}
       </div>
 
       {/* Détails du colis */}

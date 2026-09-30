@@ -6,6 +6,7 @@ import { Clock, FileText, MessageCircle, NotebookPen, Phone, Truck } from "lucid
 import { useDeliveryTimeline } from "@/hooks/useDeliveryTimeline";
 import type { TimelineEntry } from "@/lib/delivery/types";
 import { useWhen, type IconComponent } from "./ui";
+import { StatusGlyph } from "@/components/whatsapp/StatusGlyph";
 
 type Filter = "all" | "mine" | "carrier";
 
@@ -22,9 +23,14 @@ const glyph = (e: TimelineEntry): IconComponent => {
  * what people recorded, newest first, with three filters.
  */
 export function DeliveryTimeline({
-  orderId, locale, tz, now, compact = false,
-}: { orderId: string; locale: string; tz: string; now: number; compact?: boolean }) {
+  orderId, locale, tz, now, compact = false, waStatus = null,
+}: {
+  orderId: string; locale: string; tz: string; now: number; compact?: boolean;
+  /** Live status of the parcel's latest WhatsApp message — ticks the newest WhatsApp entry (prototype). */
+  waStatus?: string | null;
+}) {
   const t = useTranslations("delivery");
+  const tWa = useTranslations("whatsapp");
   const tStatus = useTranslations("orders.statuses");
   const when = useWhen(now, tz, locale);
   const [filter, setFilter] = useState<Filter>("all");
@@ -34,6 +40,7 @@ export function DeliveryTimeline({
     filter === "mine" ? e.source === "action" && e.mine : filter === "carrier" ? e.source === "carrier" || e.source === "remark" : true,
   );
   const items = compact ? shown.slice(0, 5) : shown;
+  const newestWhatsApp = timeline.find((e) => e.source === "action" && e.kind === "whatsapp_customer")?.id ?? null;
 
   const actor = (e: TimelineEntry) =>
     e.source === "order" ? t("timeline.system") : e.source === "action" ? (e.mine ? t("timeline.you") : e.actor ?? t("timeline.system")) : e.actor;
@@ -41,6 +48,10 @@ export function DeliveryTimeline({
     if (e.source === "order") return tStatus.has(e.kind) ? tStatus(e.kind) : e.kind;
     if (e.source === "remark") return `${e.actor ?? t("timeline.courier_message")} (${t("detail.carrier")})`;
     if (e.source === "carrier") return e.text ?? e.kind;
+    // A WhatsApp send names what was sent (prototype whatsapp-agent-v1.html).
+    if (e.kind === "whatsapp_customer" && e.template_key && tWa.has(`templates.${e.template_key}`)) {
+      return tWa("trace.timeline", { label: tWa(`templates.${e.template_key}`) });
+    }
     const type = t.has(`sheet.types.${e.kind}`) ? t(`sheet.types.${e.kind}`) : t.has(`timeline.${e.kind}`) ? t(`timeline.${e.kind}`) : e.kind;
     const outcome = e.outcome && t.has(`sheet.outcomes.${e.outcome}`) ? t(`sheet.outcomes.${e.outcome}`) : "";
     return outcome ? `${type} · ${outcome}` : type;
@@ -84,6 +95,7 @@ export function DeliveryTimeline({
         <ol className="mt-2">
           {items.map((e, i) => {
             const Glyph = glyph(e);
+            const ticked = Boolean(waStatus) && e.kind === "whatsapp_customer" && e.id === newestWhatsApp;
             return (
               <li key={`${e.source}-${e.id}`} className="relative grid grid-cols-[12px_auto_20px_minmax(0,1fr)] items-start gap-x-2.5 py-1.5">
                 {i < items.length - 1 && <span aria-hidden className="absolute bottom-[-6px] start-[5px] top-[18px] w-px bg-[#E5E7EB]" />}
@@ -91,7 +103,10 @@ export function DeliveryTimeline({
                 <span className="min-w-[46px] whitespace-nowrap pt-0.5 text-[13px] tabular-nums text-[#6B7280]">{when(e.at, true)}</span>
                 <Glyph size={16} aria-hidden className="mt-0.5 text-[#6B7280]" />
                 <span className="min-w-0">
-                  <b className="block truncate text-[13.5px] font-semibold text-[#111827] [unicode-bidi:plaintext]">{title(e)}</b>
+                  <b className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold text-[#111827]">
+                    <span className="truncate [unicode-bidi:plaintext]">{title(e)}</span>
+                    {ticked && <StatusGlyph status={waStatus!} />}
+                  </b>
                   {detail(e) && <span className="block truncate text-[12.5px] text-[#6B7280] [unicode-bidi:plaintext]">{detail(e)}</span>}
                 </span>
               </li>

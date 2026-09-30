@@ -10,16 +10,20 @@ import { TERMINAL_STATUSES } from "@/types/order-status";
 function client(queueRows: Array<{ assigned_to: string | null }>) {
   const orders: Record<string, ReturnType<typeof vi.fn>> = {};
   const ordersChain: Record<string, unknown> = {};
-  ["select", "in", "not", "eq", "neq"].forEach((m) => {
+  ["select", "in", "not", "eq", "neq", "is"].forEach((m) => {
     orders[m] = vi.fn().mockReturnValue(ordersChain);
     ordersChain[m] = orders[m];
   });
   ordersChain.then = (fn: (v: unknown) => unknown) =>
     Promise.resolve({ data: queueRows, error: null }).then(fn);
+  // The day tally is a second orders query ending in `.gte(assigned_at…)`; it
+  // must not resolve to the queue rows or every order would count twice.
+  orders.gte = vi.fn().mockResolvedValue({ data: [], error: null });
+  ordersChain.gte = orders.gte;
 
   const passthrough = (rows: unknown) => {
     const c: Record<string, unknown> = {};
-    ["select", "eq", "in"].forEach((m) => { c[m] = vi.fn().mockReturnValue(c); });
+    ["select", "eq", "in", "is"].forEach((m) => { c[m] = vi.fn().mockReturnValue(c); });
     c.order = vi.fn().mockResolvedValue({ data: rows, error: null });
     return c;
   };
@@ -64,8 +68,8 @@ describe("fetchAgentCapacity", () => {
 
     const result = await fetchAgentCapacity(supabase, "m-1");
 
-    expect(result).toEqual([
-      { id: "agent-1", queue_size: 2, last_action_at: null },
+    expect(result).toMatchObject([
+      { id: "agent-1", queue_size: 2, last_action_at: null, assigned_today: 0 },
     ]);
   });
 });

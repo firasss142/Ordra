@@ -18,6 +18,7 @@ vi.mock("next-intl", () => ({
     };
     return resolve;
   },
+  useLocale: () => "fr",
 }));
 
 vi.mock("@/context/market-scope", () => ({

@@ -14,6 +14,7 @@ import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
+import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
 import { marketIdToCode, marketTimezone } from "@/lib/markets";
 import { applyOutcome, type Bucket } from "@/lib/prospects/worklist";
 import type { ProspectRow, ProspectsResponse } from "@/lib/prospects/types";
@@ -36,6 +37,7 @@ export function ProspectsClient({
   const router = useRouter();
   const scope = useMarketScope();
   const market = role === "super_admin" ? scope.marketId : marketId;
+  const { active: whatsappActive, known: whatsappKnown } = useWhatsAppAvailability(market);
 
   const params = new URLSearchParams({
     ...(role === "super_admin" && market ? { market_id: market } : {}),
@@ -172,6 +174,9 @@ export function ProspectsClient({
       onRetry={() => void mutate()}
       role={role}
       marketCode={market ? (marketIdToCode(market) ?? "tn") : null}
+      marketId={market}
+      whatsappActive={whatsappActive}
+      whatsappKnown={whatsappKnown}
       tz={market ? marketTimezone(market) : "Africa/Tripoli"}
       locale={locale}
       now={now}

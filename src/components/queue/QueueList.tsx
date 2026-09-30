@@ -160,34 +160,32 @@ export function QueueList({
   return (
     <div
       data-has-selection={hasSelection || undefined}
-      className={["px-4 pt-3 sm:px-5", hasSelection ? "pb-24" : "pb-10"].join(" ")}
+      className={["px-3 pt-3 sm:px-5", hasSelection ? "pb-24" : "pb-10"].join(" ")}
     >
       {/* Rows sit in one banded shell rather than as separate floating cards:
           twelve boxes stacked with a gap read as a form, a single ruled list
           reads as a list. No overflow-hidden — the row's hover notes have to be
           able to escape the shell. */}
-      <div className="rounded-xl border border-agent-outline-variant bg-agent-surface">
-        {/* Two adjacent time columns are a guessing game unlabelled. This costs
+      <div className="lg:rounded-xl lg:border lg:border-agent-outline-variant lg:bg-agent-surface">
+        {/* Four labels over four columns. Unlabelled, an elapsed time and a
+            call count sitting side by side are a guessing game; this costs
             34px once instead of ambiguity on every row. */}
         <div
           role="row"
           aria-hidden="true"
           className={[
-            "grid items-center rounded-t-xl border-b border-agent-outline-variant",
-            "bg-agent-surface-low py-2",
+            "hidden lg:grid h-[34px] items-center rounded-t-xl border-b border-agent-outline-variant",
+            "bg-agent-surface-low",
             QUEUE_ROW_GRID,
             QUEUE_ROW_SPACING,
-            "text-[10px] font-bold tracking-[0.08em] text-agent-ink-3",
+            "text-[13px] font-semibold text-agent-ink-3",
           ].join(" ")}
         >
           <span />
-          <span />
-          <span>{t("columns.customer")}</span>
-          <span className="hidden lg:block">{t("columns.age")}</span>
-          <span className="hidden lg:block">{t("columns.lastAction")}</span>
-          <span className="hidden lg:block">{t("columns.status")}</span>
-          <span className="text-end">{t("columns.amount")}</span>
-          <span />
+          <span className="ps-[56px]">{t("columns.customer")}</span>
+          <span>{t("columns.activity")}</span>
+          <span>{t("columns.age")}</span>
+          <span>{t("columns.amount")}</span>
         </div>
 
         {orders.map((order) => (

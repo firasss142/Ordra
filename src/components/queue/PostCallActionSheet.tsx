@@ -11,7 +11,9 @@ import {
   PhoneOff,
   ChevronRight,
   Check,
+  Info,
 } from "lucide-react";
+import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { isValidPair } from "@/lib/orders/rejection-taxonomy";
@@ -76,11 +78,25 @@ interface PostCallActionSheetProps {
   maxAttempts?: number;
   attemptsCount?: number;
   /**
-   * Step to open on. `confirm_now` is not a screen: it fires the confirmation
-   * immediately and lands on the carrier picker, for callers whose own UI
-   * already asked how the call ended.
+   * Step to open on. `confirm_now` and `no_answer_now` are not screens: they
+   * carry out that ending immediately, for callers whose own UI already asked
+   * how the call ended — the panel's footer names all four, so re-asking would
+   * be making the agent say it twice.
    */
-  initialFlow?: Flow | "confirm_now";
+  initialFlow?: Flow | "confirm_now" | "no_answer_now";
+  /**
+   * What the sheet is about, echoed under its title. The caller already has
+   * the row it opened the sheet from, so this costs no fetch; omitted, the
+   * echo simply stays out.
+   */
+  order?: {
+    customerName: string;
+    productName: string;
+    quantity: number;
+    amount: number;
+    currency: string;
+    imageUrl: string | null;
+  };
   onClose: () => void;
   onSuccess: (result: ActionResult) => void;
 }
@@ -99,35 +115,43 @@ type Flow =
   // "Programmer" — show the date/time picker.
   | "schedule_after_confirm";
 
-// Each call-result option carries the semantic color of the status it sets:
-// confirm→success, reject→critical, callback→warning, no-answer→neutral. The
-// color lives on the leading icon disc only — the card itself stays white so
-// the screen reads calm, per the design system's "color communicates status,
-// never decorates" rule. The disc also tints to its status background on hover.
-const optionCardClasses =
-  "group flex w-full items-center gap-3 p-3.5 rounded-xl border border-line-strong bg-surface-card text-start transition-colors duration-fast hover:bg-surface-hover disabled:bg-[#F3F4F6] disabled:text-ink-muted disabled:cursor-not-allowed";
-
+// Each call-result option carries the colour of the status it sets:
+// confirm→brand, reject→critical, callback→warning, no-answer→neutral. The
+// whole card is tinted rather than just its icon: on a phone these four are
+// the only thing on screen, they are read under call pressure, and a column
+// of four white cards makes the reader parse four sentences to find the one
+// they already decided on before opening the sheet.
 type OptionTone = "success" | "critical" | "warning" | "neutral";
 
-// disc = resting icon-circle fill + text; hover deepens the fill a touch.
-const OPTION_TONE: Record<OptionTone, { disc: string; icon: string }> = {
+const OPTION_TONE: Record<OptionTone, { body: string; tile: string; title: string; hint: string }> = {
   success: {
-    disc: "bg-status-successBg group-hover:bg-status-success/15",
-    icon: "text-status-success",
+    body: "border-brand/35 bg-brand-tint hover:bg-brand-bg",
+    tile: "bg-brand text-white",
+    title: "text-oms-ok",
+    hint: "text-oms-ok",
   },
   critical: {
-    disc: "bg-status-criticalBg group-hover:bg-status-critical/15",
-    icon: "text-status-critical",
+    body: "border-oms-bad/30 bg-oms-bad-bg hover:bg-oms-bad/10",
+    tile: "bg-oms-bad/15 text-oms-bad",
+    title: "text-oms-bad",
+    hint: "text-oms-bad",
   },
   warning: {
-    disc: "bg-status-warningBg group-hover:bg-status-warning/15",
-    icon: "text-status-warning",
+    body: "border-oms-warn/45 bg-oms-warn-bg hover:bg-oms-warn/15",
+    tile: "bg-oms-warn text-white",
+    title: "text-oms-warn-ink",
+    hint: "text-oms-warn-ink",
   },
   neutral: {
-    disc: "bg-status-neutralBg group-hover:bg-ink-muted/15",
-    icon: "text-ink-secondary",
+    body: "border-oms-border-strong bg-oms-surface hover:bg-oms-sunken",
+    tile: "bg-oms-sunken text-oms-ink-2",
+    title: "text-oms-ink-1",
+    hint: "text-oms-ink-2",
   },
 };
+
+const optionCardClasses =
+  "group flex min-h-[74px] w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-start transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-60";
 
 const submitButtonClasses =
   "inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl bg-ink-primary text-white text-[14px] font-semibold transition-colors duration-fast hover:bg-[#2A2A2A] disabled:opacity-50 disabled:cursor-not-allowed";
@@ -147,6 +171,7 @@ function OptionCard({
   icon,
   label,
   hint,
+  required,
   onClick,
   disabled,
   dimmed,
@@ -155,6 +180,8 @@ function OptionCard({
   icon: React.ReactNode;
   label: string;
   hint: string;
+  /** Marks an option that cannot complete without a further choice. */
+  required?: string;
   onClick: () => void;
   disabled?: boolean;
   dimmed?: boolean;
@@ -165,34 +192,36 @@ function OptionCard({
   return (
     <button
       type="button"
-      className={optionCardClasses}
+      className={`${optionCardClasses} ${toneStyle.body}`}
       disabled={disabled}
       aria-disabled={dimmed}
       onClick={onClick}
     >
       <span
         className={[
-          "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-fast group-disabled:opacity-50",
-          toneStyle.disc,
-          toneStyle.icon,
+          "flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[10px] transition-colors duration-fast group-disabled:opacity-50",
+          toneStyle.tile,
         ].join(" ")}
       >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[14px] font-semibold text-ink-primary group-disabled:text-ink-muted">
-          {label}
-        </span>
-        <span className="mt-0.5 block text-[13px] font-normal text-ink-secondary group-disabled:text-ink-muted">
+        <span className={`block text-[15px] font-bold ${toneStyle.title}`}>{label}</span>
+        <span className={`mt-0.5 block text-[12.5px] font-normal ${toneStyle.hint}`}>
           {hint}
         </span>
+        {required ? (
+          <span className="mt-1 inline-flex h-5 items-center rounded-[6px] border border-oms-bad px-[7px] text-[11.5px] font-bold text-oms-bad">
+            {required}
+          </span>
+        ) : null}
       </span>
       <ChevronRight
-        size={16}
+        size={18}
         strokeWidth={2}
         aria-hidden="true"
         className={[
-          "flex-shrink-0 text-ink-muted transition-transform duration-fast",
+          "flex-shrink-0 text-oms-ink-3 transition-transform duration-fast",
           // Chevron points "forward into the flow"; under RTL that's leftward.
           isRtl
             ? "-scale-x-100 group-hover:-translate-x-0.5"
@@ -210,6 +239,7 @@ export function PostCallActionSheet({
   maxAttempts = 3,
   attemptsCount = 0,
   initialFlow,
+  order,
   onClose,
   onSuccess,
 }: PostCallActionSheetProps) {
@@ -217,10 +247,12 @@ export function PostCallActionSheet({
   const tDup = useTranslations("duplicateOrder.uploadGuard");
   const tCov = useTranslations("dispatch.coverage");
   const panelRef = useRef<HTMLDivElement>(null);
-  // `confirm_now` has no screen of its own: the sheet shows the outcome list
-  // with the confirm option already in flight, then flips to the carrier step.
+  // The two "now" flows have no screen of their own: the sheet shows the
+  // outcome list with that option already in flight.
   const [flow, setFlow] = useState<Flow>(
-    initialFlow && initialFlow !== "confirm_now" ? initialFlow : "option_select",
+    initialFlow && initialFlow !== "confirm_now" && initialFlow !== "no_answer_now"
+      ? initialFlow
+      : "option_select",
   );
   const [loading, setLoading] = useState(false);
   // Which option is mid-flight on the option_select screen. Used purely for
@@ -473,6 +505,19 @@ export function PostCallActionSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialFlow]);
 
+  // Same contract as the auto-confirm above, for the footer's fourth button.
+  // One POST, guarded by a ref rather than a dependency list: a duplicate
+  // /no-answer would be a second attempt recorded against a live order, and at
+  // the ceiling it is what tips an order into auto-rejection.
+  const autoNoAnswerFired = useRef(false);
+  useEffect(() => {
+    if (initialFlow !== "no_answer_now") return;
+    if (autoNoAnswerFired.current) return;
+    autoNoAnswerFired.current = true;
+    void submitNoAnswer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFlow]);
+
   // ── CONFIRM submit ───────────────────────────────────────────────
   // After confirm succeeds, we flip the sheet into the post-confirm carrier
   // picker instead of closing. The agent can then upload immediately, schedule,
@@ -697,7 +742,7 @@ export function PostCallActionSheet({
   return (
     <>
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-primary/50"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-primary/50 max-lg:items-end"
       onClick={onClose}
     >
       <FocusTrap
@@ -710,18 +755,24 @@ export function PostCallActionSheet({
           ref={panelRef}
           tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
-          className="relative z-50 bg-surface-card rounded-card w-[480px] max-w-[90vw] max-h-[85vh] overflow-y-auto shadow-floating"
+          className="relative z-50 max-h-[85vh] w-[480px] max-w-[90vw] overflow-y-auto rounded-card bg-surface-card shadow-floating max-lg:max-h-[88vh] max-lg:w-full max-lg:max-w-none max-lg:rounded-b-none max-lg:rounded-t-[22px]"
         >
+          {/* The handle says "this came up from the bottom edge and goes back
+              down there". Phone only — a centred modal has no bottom edge. */}
+          <div className="flex justify-center pt-2 lg:hidden">
+            <span aria-hidden="true" className="h-1 w-9 rounded-pill bg-oms-border-strong" />
+          </div>
+
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-line-subtle">
+          <div className="flex items-start justify-between gap-3 border-b border-line-subtle px-5 py-3.5 max-lg:px-3.5">
             <div>
-              <span className="text-[16px] font-semibold text-ink-primary">
+              <span className="block text-[19px] font-bold text-ink-primary">
                 {t("callResult")}
               </span>
               <span
                 className={[
-                  "block text-[14px] font-semibold mt-0.5",
-                  atMax ? "text-status-critical" : "text-ink-secondary",
+                  "mt-0.5 block text-[13px] tabular-nums",
+                  atMax ? "font-semibold text-status-critical" : "text-oms-ink-3",
                 ].join(" ")}
               >
                 {t("attemptCounter", {
@@ -733,14 +784,42 @@ export function PostCallActionSheet({
             <button
               type="button"
               onClick={onClose}
-              className="text-[14px] text-ink-secondary hover:text-ink-primary transition-colors duration-fast"
+              className="-me-2 inline-flex h-11 min-w-[44px] items-center justify-center px-2 text-[15px] font-semibold text-brand transition-colors duration-fast hover:text-brand-hover"
             >
               {t("cancel")}
             </button>
           </div>
 
+          {/* Which order this is about. On a phone the sheet covers the list
+              it was opened from, so without this the four choices are about
+              an order the agent can no longer see. */}
+          {order && (
+            <div
+              data-testid="call-result-order"
+              className="flex items-center gap-3 border-b border-line-subtle px-5 py-3 max-lg:px-3.5"
+            >
+              <ProductAvatar
+                imageUrl={order.imageUrl}
+                productName={order.productName}
+                size={44}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-bold text-oms-ink-1">
+                  {order.customerName}
+                </div>
+                <div className="truncate text-[13px] text-oms-ink-2">{order.productName}</div>
+              </div>
+              <span className="flex flex-shrink-0 items-baseline gap-1 text-[15px] font-bold text-oms-ink-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-oms-ink-3">
+                  {order.currency}
+                </span>
+                <span className="tabular-nums">{(Number(order.amount) || 0).toFixed(2)}</span>
+              </span>
+            </div>
+          )}
+
           {/* Body */}
-          <div className="p-5">
+          <div className="p-5 max-lg:px-3.5 max-lg:pb-3.5 max-lg:pt-3">
             {error && (
               <div className="px-3 py-2 mb-3 bg-status-criticalBg border border-status-critical/30 rounded-md text-[13px] text-status-critical">
                 {error}
@@ -796,6 +875,7 @@ export function PostCallActionSheet({
                   icon={<XCircle size={18} strokeWidth={2} aria-hidden="true" />}
                   label={t("rejected")}
                   hint={atMax ? t("rejectedHintMax") : t("rejectedHint")}
+                  required={atMax ? undefined : t("rejectedRequired")}
                   onClick={() => {
                     setFlow("reject_flow");
                     if (atMax) {
@@ -839,6 +919,11 @@ export function PostCallActionSheet({
                     )}
                   </div>
                 )}
+
+                <p className="m-0 flex items-center justify-center gap-1.5 pb-1 pt-0.5 text-center text-[12.5px] text-oms-ink-3">
+                  <Info size={14} strokeWidth={2} aria-hidden="true" className="flex-none" />
+                  {t("callResultFootnote")}
+                </p>
               </div>
             )}
 
@@ -1123,6 +1208,7 @@ export function PostCallActionSheet({
                 </button>
 
                 <RejectionReasonSelect
+                  marketId={marketId}
                   defaultGroup={atMax ? "injoignable" : undefined}
                   onSelect={(group, sub, note) => {
                     setRejectionReason(group);

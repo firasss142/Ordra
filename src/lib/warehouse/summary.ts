@@ -125,6 +125,18 @@ export interface WarehouseSummary {
 export interface OrderLine {
   product_id: string | null;
   product_name: string;
+  /**
+   * WHICH variant, by identity.
+   *
+   * `variant_label` is a SNAPSHOT of the text at order time: rename "Grand" to
+   * "Large" and every open parcel keeps showing the old word, with nothing to
+   * say it is the same shelf. Two lines sharing a label — or two variants with
+   * none — are indistinguishable by it. The label stays because it is what the
+   * agent sold and history must say so; identity comes from here.
+   *
+   * Null on a parcel that predates variants, and on any line sold without one.
+   */
+  variant_id: string | null;
   variant_label: string | null;
   quantity: number;
   image_url: string | null;

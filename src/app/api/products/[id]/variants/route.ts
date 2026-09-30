@@ -35,16 +35,33 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  /*
+   * The two axes, both of them. An 'attribute' variant carries its own stock,
+   * cost and SKU; a 'pack' tier carries none of those and multiplies the
+   * quantity instead. Listing only the pack columns is how the product screen
+   * ended up unable to show a size at all.
+   *
+   * AGENTS NEVER RECEIVE COST. What a product costs us is none of their
+   * business, and this is the only route reading a variant that lets them
+   * through — everything else refuses the agent before it gets near a cost
+   * column. The boundary has to live here, in the column list: PostgreSQL
+   * grants are per POSTGRES role (`authenticated`), which agent,
+   * market_manager and super_admin all share, so revoking `unit_cogs` in the
+   * database would take it from the super admin too and the product screen
+   * would die on "permission denied".
+   *
+   * They keep what they need to offer a tier mid-call: the label, the price,
+   * and whether there is any left.
+   */
+  const AGENT_VARIANT_COLUMNS =
+    "id, product_id, kind, label, quantity, display_price, current_stock, is_active";
+  const FULL_VARIANT_COLUMNS =
+    "id, product_id, kind, label, sku, quantity, unit_cogs, display_price, " +
+    "current_stock, damaged_return_count, is_active";
+
   const { data: variants, error } = await supabase
     .from("product_variants")
-    .select(
-      // The two axes, both of them. An 'attribute' variant carries its own
-      // stock, cost and SKU; a 'pack' tier carries none of those and multiplies
-      // the quantity instead. Listing only the pack columns is how the product
-      // screen ended up unable to show a size at all.
-      "id, product_id, kind, label, sku, quantity, unit_cogs, display_price, " +
-        "current_stock, damaged_return_count, is_active",
-    )
+    .select(role === "agent" ? AGENT_VARIANT_COLUMNS : FULL_VARIANT_COLUMNS)
     .eq("product_id", id)
     .order("label", { ascending: true });
 

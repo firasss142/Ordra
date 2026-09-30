@@ -801,6 +801,7 @@ export function OrdersPageClient({
           rows={rows}
           locale={locale}
           currencyCode={currencyCode}
+          marketId={effectiveMarketId}
           agents={agents}
           selectedIds={selectedIds}
           highlightedIds={highlightedIds}

@@ -10,19 +10,33 @@
  * hundred. So the exclusions are drawn and named — a manager who reads "4"
  * must be able to see why, or they will assume the tool is broken.
  *
- * Design: prototypes/prospects-manager-v1.html (campaignSheet).
+ * Sent from the business number (« Depuis le numéro Ordra »), the message is
+ * a Meta MARKETING template. Submitting it does not close the sheet: it
+ * returns to the Canal step and follows the template — pending, approved
+ * (summary + « Lancer la campagne »), rejected (reason + « Modifier et
+ * resoumettre ») — via `campaign`. See CampaignTemplateStatus.tsx.
+ *
+ * Design: prototypes/prospects-manager-v1.html (campaignSheet),
+ * prototypes/whatsapp-manager-v1.html?screen=campagne (api sender).
  */
-import { useMemo } from "react";
+import { useId, useMemo, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Check, Image as ImageIcon, Info, Phone, Plus, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, Image as ImageIcon, Info, Pencil, Phone, Plus, Send, ShieldCheck, X } from "lucide-react";
+import {
+  CAMPAIGN_VARIABLES, campaignFooterText, previewCampaignBody, validateCampaignBody,
+} from "@/lib/whatsapp/campaign-template";
 import {
   CONDITION_GROUP, FIXED_KINDS, conditionsOf, defaultCondition, periodDays,
   type AudiencePreview, type Condition, type ConditionError, type ConditionKind, type TemplateKey,
 } from "@/lib/prospects/audience";
+import type { CampaignResult } from "@/lib/prospects/console";
+import { WhatsAppGlyph } from "@/components/whatsapp/WhatsAppGlyph";
 import { WhatsAppIcon } from "../ui";
 import {
-  Avatar, CARD, DARK, Field, fmt, Hint, INPUT, OUTLINE, PRIMARY, Sheet, Toggle,
+  Avatar, DARK, Field, fmt, Hint, INPUT, OUTLINE, PRIMARY, Sheet, Toggle,
 } from "./ui";
+import { CampaignSummary, TemplateBanner, templatePhase } from "./CampaignTemplateStatus";
 
 export type Channel = "call" | "wa" | "wa_call";
 
@@ -36,6 +50,10 @@ export interface CampaignDraft {
   waMessage: string;
   waImage: boolean;
   waSender: "agent" | "api";
+  /** api sender: the template's language and its optional header image (public https). */
+  waLanguage: "ar" | "fr";
+  /** api sender: the header image, shown only while `waImage` (« Image en en-tête ») is on. */
+  waImageUrl: string;
   waWindow: string;
   waRate: number;
   waFollowUpHours: number;
@@ -52,7 +70,7 @@ export interface CampaignSheetProps {
   previewing: boolean;
   errors: ConditionError[];
   agents: { id: string; name: string; open_leads: number }[];
-  products: { id: string; name: string }[];
+  products: CampaignProduct[];
   cities: string[];
   busy: boolean;
   error: string | null;
@@ -60,6 +78,27 @@ export interface CampaignSheetProps {
   onClose: () => void;
   locale: string;
   now: number;
+  /** True when the market's WhatsApp business number is live: enables « Depuis le numéro Ordra ». */
+  whatsappActive?: boolean;
+  /** super_admin: the « not connected » explanation links to Système › Connexions. */
+  canConnectWhatsApp?: boolean;
+  /** The name the customer sees on the business number (Meta's verified name). */
+  whatsappName?: string | null;
+  marketCode?: "ly" | "tn";
+  /** The market's clock, for « Fin estimée ». */
+  tz?: string;
+  /** A business-number campaign already submitted: the sheet follows its template at Meta. */
+  campaign?: CampaignResult | null;
+  onCheckStatus?: () => void;
+  onLaunch?: () => void;
+  onResubmit?: () => void;
+}
+
+/** A product the header-image picker can offer: the console's products, with their photo when they have one. */
+export interface CampaignProduct {
+  id: string;
+  name: string;
+  image_url?: string | null;
 }
 
 const TEMPLATE_KEYS: TemplateKey[] = ["rebuy", "winback", "vip", "lapsed", "custom"];
@@ -72,12 +111,30 @@ const EX_COLOURS: Record<string, string> = {
 export function CampaignSheet(props: CampaignSheetProps) {
   const {
     draft, onDraft, preview, previewing, errors, agents, products, cities,
-    busy, error, onConfirm, onClose, locale, now,
+    busy, error, onConfirm, onClose, locale, now, whatsappActive = false,
+    canConnectWhatsApp = false, whatsappName = null, marketCode = "tn",
+    tz = marketCode === "ly" ? "Africa/Tripoli" : "Africa/Tunis",
+    campaign = null, onCheckStatus, onLaunch, onResubmit,
   } = props;
+  const apiSend = draft.channel !== "call" && draft.waSender === "api";
+  const apiBodyErrors = apiSend ? validateCampaignBody(draft.waMessage) : [];
   const t = useTranslations("prospects.console");
 
   const net = preview?.net ?? 0;
-  const step = draft.step;
+  // Following a submitted template: the sheet stays on Canal, whatever step
+  // the draft was left on.
+  const wa = campaign?.whatsapp ?? null;
+  const phase = wa ? templatePhase(wa) : null;
+  const step = phase ? 2 : draft.step;
+  const correcting = phase === "rejected" || phase === "draft";
+  const plan = {
+    audience: net,
+    rate: wa?.rate ?? draft.waRate,
+    window: wa?.window ?? draft.waWindow,
+    tz,
+    now,
+    counting: previewing && !preview,
+  };
 
   const errorFor = (kind: ConditionKind) => errors.find((e) => e.kind === kind);
 
@@ -102,13 +159,13 @@ export function CampaignSheet(props: CampaignSheetProps) {
   const canNext = step === 1
     ? net > 0 && errors.length === 0
     : step === 2
-      ? draft.name.trim() !== "" && (draft.channel === "call" || draft.waMessage.trim() !== "")
+      ? draft.name.trim() !== "" && (draft.channel === "call" || draft.waMessage.trim() !== "") && (!apiSend || (apiBodyErrors.length === 0 && whatsappActive))
       : draft.agentIds.length > 0;
 
   return (
     <Sheet
       wide
-      title={t("cb.t")}
+      title={phase && campaign ? campaign.name : t("cb.t")}
       sub={
         <span className="inline-flex items-center gap-1.5 text-[13px]">
           {(["audience", "channel", "dist"] as const).map((k, i) => {
@@ -135,26 +192,49 @@ export function CampaignSheet(props: CampaignSheetProps) {
           <span className="text-[13px] text-[#6B7280]">
             <b className="font-semibold tabular-nums text-[#111827]">{fmt(net, locale)}</b> {t("cb.counter")}
           </span>
-          {step > 1 ? (
-            <button type="button" onClick={() => onDraft({ step: (step - 1) as 1 | 2 })}
-              className={`ms-auto h-11 px-4 text-[14px] ${OUTLINE}`}>
-              {t("cb.back")}
-            </button>
+          {phase ? (
+            <>
+              <button type="button" onClick={onClose} className={`ms-auto h-11 px-4 text-[14px] ${OUTLINE}`}>
+                {t("cb.close")}
+              </button>
+              {correcting ? (
+                <button type="button" disabled={busy || !onResubmit || !whatsappActive || apiBodyErrors.length > 0} onClick={onResubmit}
+                  className={`h-11 min-w-[190px] px-4 text-[14px] ${PRIMARY}`}>
+                  <Pencil size={16} aria-hidden />
+                  {t("cb.resubmit")}
+                </button>
+              ) : phase !== "launched" ? (
+                <button type="button" disabled={busy || phase !== "approved" || !onLaunch} onClick={onLaunch}
+                  className={`h-11 min-w-[190px] px-4 text-[14px] ${PRIMARY}`}>
+                  <Send size={16} aria-hidden />
+                  {t("cb.launch")}
+                </button>
+              ) : null}
+            </>
           ) : (
-            <button type="button" onClick={onClose} className={`ms-auto h-11 px-4 text-[14px] ${OUTLINE}`}>
-              {t("panel.cancel")}
-            </button>
-          )}
-          {step < 3 ? (
-            <button type="button" disabled={!canNext} onClick={() => onDraft({ step: (step + 1) as 2 | 3 })}
-              className={`h-11 min-w-[130px] px-4 text-[14px] ${PRIMARY}`}>
-              {t("cb.next")}
-            </button>
-          ) : (
-            <button type="button" disabled={busy || !canNext} onClick={onConfirm}
-              className={`h-11 min-w-[190px] px-4 text-[14px] ${DARK}`}>
-              {t("cb.go", { n: fmt(Math.min(net, draft.agentIds.length * draft.cap), locale) })}
-            </button>
+            <>
+              {step > 1 ? (
+                <button type="button" onClick={() => onDraft({ step: (step - 1) as 1 | 2 })}
+                  className={`ms-auto h-11 px-4 text-[14px] ${OUTLINE}`}>
+                  {t("cb.back")}
+                </button>
+              ) : (
+                <button type="button" onClick={onClose} className={`ms-auto h-11 px-4 text-[14px] ${OUTLINE}`}>
+                  {t("panel.cancel")}
+                </button>
+              )}
+              {step < 3 ? (
+                <button type="button" disabled={!canNext} onClick={() => onDraft({ step: (step + 1) as 2 | 3 })}
+                  className={`h-11 min-w-[130px] px-4 text-[14px] ${PRIMARY}`}>
+                  {t("cb.next")}
+                </button>
+              ) : (
+                <button type="button" disabled={busy || !canNext} onClick={onConfirm}
+                  className={`h-11 min-w-[190px] px-4 text-[14px] ${DARK}`}>
+                  {apiSend ? t("cb.submit") : t("cb.go", { n: fmt(Math.min(net, draft.agentIds.length * draft.cap), locale) })}
+                </button>
+              )}
+            </>
           )}
         </>
       }
@@ -302,8 +382,17 @@ export function CampaignSheet(props: CampaignSheetProps) {
         </div>
       ) : null}
 
+      {wa ? (
+        <TemplateBanner wa={wa} now={now} plan={plan} locale={locale} busy={busy} onCheckStatus={onCheckStatus} />
+      ) : null}
+
       {step === 2 ? (
-        <ChannelStep draft={draft} onDraft={onDraft} preview={preview} agents={agents} locale={locale} />
+        <ChannelStep
+          draft={draft} onDraft={onDraft} preview={preview} agents={agents} products={products} locale={locale}
+          marketCode={marketCode} whatsappActive={whatsappActive} canConnectWhatsApp={canConnectWhatsApp} whatsappName={whatsappName}
+          lock={!phase ? "none" : correcting ? "setup" : "all"}
+          aside={phase === "approved" ? <CampaignSummary plan={plan} locale={locale} /> : null}
+        />
       ) : null}
 
       {step === 3 ? (
@@ -559,19 +648,53 @@ function ConditionEditor({
   }
 }
 
-/** Step 2: how the prospects are contacted, and with what words. */
+/** A label bound to its control by id, with an optional hint the control is described by. */
+function FieldBox({ id, label, hint, children }: { id: string; label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="text-[13px] font-semibold text-[#111827]">{label}</label>
+      {children}
+      {hint ? <span id={`${id}-hint`} className="text-[12px] text-[#6B7280]">{hint}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * Step 2: how the prospects are contacted, and with what words.
+ *
+ * Order and copy follow prototypes/whatsapp-manager-v1.html (campagne): the
+ * channel, name and offer, « Qui envoie », then the body beside « Ce que le
+ * client verra ». `lock` freezes what can no longer change: everything while
+ * Meta reviews or after approval ("all"), and the set-up — channel, name,
+ * sender — when a rejected template is being corrected ("setup").
+ */
 function ChannelStep({
-  draft, onDraft, preview, agents, locale,
+  draft, onDraft, preview, agents, products, locale, marketCode, whatsappActive = false,
+  canConnectWhatsApp = false, whatsappName, lock = "none", aside,
 }: {
   draft: CampaignDraft;
   onDraft: (p: Partial<CampaignDraft>) => void;
   preview: AudiencePreview | null;
   agents: { id: string; name: string }[];
+  products: CampaignProduct[];
   locale: string;
+  marketCode: "ly" | "tn";
+  whatsappActive?: boolean;
+  canConnectWhatsApp?: boolean;
+  whatsappName?: string | null;
+  lock?: "none" | "setup" | "all";
+  /** Under the preview: the summary once the template is approved. */
+  aside?: React.ReactNode;
 }) {
   const t = useTranslations("prospects.console");
+  const tWa = useTranslations("whatsapp");
+  const uid = useId();
+  const [picking, setPicking] = useState(false);
   const sender = agents.find((a) => a.id === draft.agentIds[0])?.name ?? agents[0]?.name ?? "—";
   const sample = preview?.sample[0];
+  const apiSend = draft.channel !== "call" && draft.waSender === "api";
+  const apiErrors = apiSend ? validateCampaignBody(draft.waMessage) : [];
+  const apiPreview = apiSend ? previewCampaignBody(draft.waMessage, draft.waLanguage) : [];
 
   const rendered = draft.waMessage
     .replace(/\{name\}/g, sample?.name ?? "—")
@@ -579,160 +702,309 @@ function ChannelStep({
     .replace(/\{offer\}/g, draft.offer || "—");
 
   const insert = (token: string) => onDraft({ waMessage: `${draft.waMessage}${token}` });
+  const apiTokens = Object.keys(CAMPAIGN_VARIABLES).map((k) => `{${k}}`);
+  const ruleKey = apiErrors.includes("starts_with_variable") || apiErrors.includes("ends_with_variable")
+    ? "cb.waRuleBad"
+    : apiErrors.includes("unknown_variable")
+      ? "cb.waRuleUnknown"
+      : apiErrors.includes("no_text")
+        ? "cb.waRuleNoText"
+        : "cb.waRule";
+  const ruleBad = ruleKey !== "cb.waRule";
+
+  // The header image: the campaign's product photo when it has one. Products
+  // come from what the console already shows; a public link is only offered
+  // when none of them has a photo.
+  const withImage = products.filter((p) => p.image_url);
+  const campaignProductIds = draft.conditions.flatMap((c) => (c.kind === "product" ? c.productIds : []));
+  const campaignProduct = withImage.find((p) => campaignProductIds.includes(p.id)) ?? null;
+  const chosenProduct = withImage.find((p) => p.image_url === draft.waImageUrl) ?? null;
+  const headerOn = apiSend ? draft.waImage && draft.waImageUrl.trim() !== "" : draft.waImage;
+  const imageDefault = (): Partial<CampaignDraft> =>
+    draft.waImage && !draft.waImageUrl && campaignProduct?.image_url ? { waImageUrl: campaignProduct.image_url } : {};
+
+  const setupLocked = lock !== "none";
+  const who = whatsappName?.trim() || t("cb.waFrom", { market: t(`cb.market.${marketCode}`) });
 
   return (
-    <div className="flex flex-col gap-3.5">
-      <Field label={t("cb.chanT")}>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {(["call", "wa", "wa_call"] as const).map((k) => {
-            const on = draft.channel === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={on}
-                onClick={() => onDraft({ channel: k })}
-                className={`flex flex-col items-start gap-1 rounded-lg border px-3.5 py-3 text-start transition-colors ${
-                  on ? "border-[1.5px] border-[#15803D] bg-[#F1FAF4]" : "border-[#D1D5DB] bg-white hover:bg-[#F9FAFB]"
-                }`}
-              >
-                <b className="flex items-center gap-2 text-[14px] font-bold text-[#111827]">
-                  {k === "call"
-                    ? <Phone size={18} aria-hidden className={on ? "text-[#15803D]" : "text-[#6B7280]"} />
-                    : <WhatsAppIcon size={18} className={on ? "text-[#16A34A]" : "text-[#6B7280]"} />}
-                  {t(`cb.chan.${k}`)}
-                </b>
-                <span className="text-[12.5px] leading-[1.35] text-[#6B7280]">{t(`cb.chanD.${k}`)}</span>
-              </button>
-            );
-          })}
+    <fieldset disabled={lock === "all"} className="m-0 flex min-w-0 flex-col gap-3.5 border-0 p-0">
+      <fieldset disabled={setupLocked} className="m-0 flex min-w-0 flex-col gap-3.5 border-0 p-0">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span id={`${uid}-chan`} className="text-[13px] font-semibold text-[#111827]">{t("cb.chanT")}</span>
+          <div role="group" aria-labelledby={`${uid}-chan`} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {(["call", "wa", "wa_call"] as const).map((k) => {
+              const on = draft.channel === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => onDraft({ channel: k })}
+                  className={`flex flex-col items-start gap-1 rounded-lg border px-3.5 py-3 text-start transition-colors disabled:cursor-not-allowed ${
+                    on ? "border-[1.5px] border-[#15803D] bg-[#F1FAF4]" : "border-[#D1D5DB] bg-white hover:bg-[#F9FAFB] disabled:hover:bg-white"
+                  }`}
+                >
+                  <b className="flex items-center gap-2 text-[14px] font-bold text-[#111827]">
+                    {k === "call"
+                      ? <Phone size={18} aria-hidden className={on ? "text-[#15803D]" : "text-[#6B7280]"} />
+                      : <WhatsAppGlyph size={18} className={on ? "text-[#16A34A]" : "text-[#6B7280]"} />}
+                    {t(`cb.chan.${k}`)}
+                  </b>
+                  <span className="text-[12.5px] leading-[1.35] text-[#6B7280]">{t(`cb.chanD.${k}`)}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </Field>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={t("cb.name")}>
-          <input className={INPUT} value={draft.name} onChange={(e) => onDraft({ name: e.target.value })} />
-        </Field>
-        <Field label={t("cb.offer")}>
-          <input className={INPUT} value={draft.offer} onChange={(e) => onDraft({ offer: e.target.value })} />
-        </Field>
-      </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label={t("cb.name")}>
+            <input className={`${INPUT} disabled:bg-[#F9FAFB]`} value={draft.name} onChange={(e) => onDraft({ name: e.target.value })} />
+          </Field>
+          <Field label={t("cb.offer")}>
+            <input className={`${INPUT} disabled:bg-[#F9FAFB]`} value={draft.offer} onChange={(e) => onDraft({ offer: e.target.value })} />
+          </Field>
+        </div>
+
+        {draft.channel !== "call" ? (
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span id={`${uid}-who`} className="text-[13px] font-semibold text-[#111827]">{t("cb.waWho")}</span>
+            <div role="radiogroup" aria-labelledby={`${uid}-who`} className="flex flex-col gap-1.5">
+              {(["agent", "api"] as const).map((m) => {
+                const on = draft.waSender === m;
+                const unavailable = m === "api" && !whatsappActive;
+                return (
+                  <label key={m} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 ${
+                    on ? "border-[#15803D] bg-[#F1FAF4]" : "border-[#D1D5DB] bg-white"
+                  } ${unavailable ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                    <input
+                      type="radio" name={`${uid}-sender`} checked={on} disabled={unavailable}
+                      onChange={() => onDraft(m === "api" ? { waSender: "api", ...imageDefault() } : { waSender: "agent" })}
+                      className="mt-0.5 accent-[#15803D]"
+                    />
+                    <span className={`min-w-0 ${unavailable ? "opacity-70" : ""}`}>
+                      <b className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-[#111827]">
+                        {t(m === "agent" ? "cb.waAgent" : "cb.waApi")}
+                        {m === "api" ? (
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold ${
+                            whatsappActive ? "bg-[#F1F8F5] text-[#008060]" : "bg-[#F6F6F7] text-[#6D7175]"
+                          }`}>
+                            <i aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {whatsappActive ? t("cb.waApiOn") : t("cb.waApiOff")}
+                          </span>
+                        ) : null}
+                      </b>
+                      <span className="block text-[12.5px] text-[#374151]">
+                        {t(m === "agent" ? "cb.waAgentD" : "cb.waApiD")}
+                      </span>
+                      {unavailable ? (
+                        <span className="mt-1 block text-[12.5px] font-medium text-[#6D7175]">
+                          {t("cb.waApiOffD")}
+                          {canConnectWhatsApp ? (
+                            <>
+                              {" "}
+                              <Link href={`/${locale}/system/connections?tab=services`} className="font-semibold text-[#15803D] underline underline-offset-2">
+                                {t("cb.waApiOffAdmin")}
+                              </Link>
+                            </>
+                          ) : null}
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </fieldset>
 
       {draft.channel !== "call" ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
-          <div className="flex flex-col gap-3">
-            <Field label={t("cb.waMsg")}>
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor={`${uid}-body`} className="text-[13px] font-semibold text-[#111827]">
+                  {apiSend ? t("cb.waTplBody") : t("cb.waMsg")}
+                </label>
+                {apiSend ? (
+                  <div role="group" aria-label={t("cb.waLang")} className="ms-auto inline-flex rounded-full bg-[#F3F4F6] p-[3px]">
+                    {(["ar", "fr"] as const).map((l) => (
+                      <button key={l} type="button" aria-pressed={draft.waLanguage === l} onClick={() => onDraft({ waLanguage: l })}
+                        lang={l}
+                        className={`h-[28px] rounded-full px-3.5 text-[13px] ${draft.waLanguage === l ? "bg-white font-semibold text-[#111827] shadow-[0_0_0_1px_#D1D5DB]" : "text-[#6B7280]"}`}>
+                        {tWa(`composer.lang.${l}`)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <textarea
+                id={`${uid}-body`}
                 value={draft.waMessage}
                 onChange={(e) => onDraft({ waMessage: e.target.value })}
                 dir="auto"
-                className={`${INPUT} h-auto min-h-[120px] py-2 [unicode-bidi:plaintext]`}
+                maxLength={apiSend ? 1024 : undefined}
+                className={`${INPUT} h-auto min-h-[120px] py-2 [unicode-bidi:plaintext] disabled:bg-[#F9FAFB]`}
               />
-            </Field>
+            </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[12.5px] text-[#6B7280]">{t("cb.waVars")}</span>
-              {["{name}", "{agent}", "{offer}"].map((v) => (
+              <span className="text-[12.5px] text-[#6B7280]">{apiSend ? t("cb.waVars2") : t("cb.waVars")}</span>
+              {(apiSend ? apiTokens : ["{name}", "{agent}", "{offer}"]).map((v) => (
                 <button key={v} type="button" onClick={() => insert(v)}
                   className="h-[26px] rounded-full border border-[#E5E7EB] bg-[#F3F4F6] px-2.5 font-mono text-[12px] text-[#374151] hover:bg-[#E5E7EB]">
                   {v}
                 </button>
               ))}
+              {apiSend ? <span className="ms-auto text-[12px] tabular-nums text-[#6B7280]">{t("cb.waCount", { n: draft.waMessage.length })}</span> : null}
             </div>
+            {apiSend ? (
+              <p role={ruleBad ? "alert" : undefined} className={`m-0 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px] ${ruleBad ? "border border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]" : "bg-[#F3F4F6] text-[#374151]"}`}>
+                {ruleBad ? <AlertTriangle size={14} aria-hidden className="mt-px shrink-0" /> : <Info size={14} aria-hidden className="mt-px shrink-0" />}
+                {/* The tokens in these sentences are literal, not ICU arguments. */}
+                {t(ruleKey, { nom: "{nom}", produit: "{produit}", ville: "{ville}", remise: "{remise}" })}
+              </p>
+            ) : null}
 
-            <label className="inline-flex cursor-pointer items-center gap-2 text-[13.5px] text-[#111827]">
-              <input type="checkbox" checked={draft.waImage} onChange={(e) => onDraft({ waImage: e.target.checked })}
-                className="h-4 w-4 accent-[#15803D]" />
-              <ImageIcon size={15} aria-hidden className="text-[#6B7280]" />
-              {t("cb.waImg")}
-            </label>
+            {apiSend ? (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button" role="switch" aria-checked={draft.waImage}
+                  onClick={() => onDraft(draft.waImage ? { waImage: false } : { waImage: true, ...(draft.waImageUrl ? {} : campaignProduct?.image_url ? { waImageUrl: campaignProduct.image_url } : {}) })}
+                  className="inline-flex w-fit items-center gap-2 text-[13.5px] text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <i aria-hidden className={`relative h-5 w-[34px] shrink-0 rounded-full transition-colors ${draft.waImage ? "bg-[#15803D]" : "bg-[#CBD0D6]"}`}>
+                    <i className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-[inset-inline-start] ${draft.waImage ? "start-[16px]" : "start-0.5"}`} />
+                  </i>
+                  <ImageIcon size={15} aria-hidden className="text-[#6B7280]" />
+                  {t("cb.waImgHead")}
+                </button>
 
-            <Field label={t("cb.waWho")}>
-              <div className="flex flex-col gap-1.5">
-                {(["agent", "api"] as const).map((m) => {
-                  const on = draft.waSender === m;
-                  return (
-                    <label key={m} className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 ${
-                      on ? "border-[#15803D] bg-[#F1FAF4]" : "border-[#D1D5DB] bg-white"
-                    }`}>
-                      <input type="radio" name="wa-sender" checked={on} onChange={() => onDraft({ waSender: m })}
-                        className="mt-0.5 accent-[#15803D]" />
-                      <span className="min-w-0">
-                        <b className="flex items-center gap-2 text-[13.5px] font-semibold text-[#111827]">
-                          {t(m === "agent" ? "cb.waAgent" : "cb.waApi")}
-                          {m === "api" ? (
-                            <span className="rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[11.5px] font-medium text-[#6B7280]">
-                              {t("cb.waApiOff")}
-                            </span>
-                          ) : null}
-                        </b>
-                        <span className="text-[12.5px] text-[#374151]">
-                          {t(m === "agent" ? "cb.waAgentD" : "cb.waApiD")}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
+                {draft.waImage && draft.waImageUrl && !picking ? (
+                  <div data-testid="wa-image-pick" className="flex items-center gap-2.5 rounded-lg border border-dashed border-[#C9CCCF] p-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a product photo from our own storage, shown as-is */}
+                    <img src={draft.waImageUrl} alt="" className="h-[42px] w-14 shrink-0 rounded-md border border-[#E1E3E5] bg-white object-cover" />
+                    <span className="min-w-0 flex-1 text-[13px] text-[#111827]">
+                      <span className="block truncate [unicode-bidi:plaintext]">{chosenProduct?.name ?? t("cb.waImgLink")}</span>
+                      <small className="block text-[12px] text-[#6B7280]">{t("cb.waImgSub")}</small>
+                    </span>
+                    {withImage.length > 0 ? (
+                      <button type="button" onClick={() => setPicking(true)} className={`h-8 px-2.5 text-[12.5px] ${OUTLINE}`}>
+                        {t("cb.waImgChange")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {draft.waImage && withImage.length > 0 && (picking || !draft.waImageUrl) ? (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[12px] text-[#6B7280]">{t("cb.waImgPick")}</span>
+                    <div className="grid max-h-[180px] grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-[#E5E7EB] p-1 sm:grid-cols-2">
+                      {withImage.map((p) => (
+                        <button key={p.id} type="button" aria-pressed={draft.waImageUrl === p.image_url}
+                          onClick={() => { onDraft({ waImageUrl: p.image_url! }); setPicking(false); }}
+                          className={`flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] ${
+                            draft.waImageUrl === p.image_url ? "bg-[#F1FAF4] font-semibold text-[#15803D]" : "text-[#111827] hover:bg-[#F9FAFB]"
+                          }`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element -- thumbnail of a product photo */}
+                          <img src={p.image_url!} alt="" className="h-8 w-10 shrink-0 rounded border border-[#E1E3E5] object-cover" />
+                          <span className="truncate [unicode-bidi:plaintext]">{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {draft.waImage && withImage.length === 0 ? (
+                  <FieldBox id={`${uid}-img`} label={t("cb.waImgUrl")} hint={t("cb.waImgNone")}>
+                    <input id={`${uid}-img`} aria-describedby={`${uid}-img-hint`} value={draft.waImageUrl}
+                      onChange={(e) => onDraft({ waImageUrl: e.target.value })} placeholder="https://…" inputMode="url" dir="ltr" className={INPUT} />
+                  </FieldBox>
+                ) : null}
               </div>
-            </Field>
+            ) : (
+              <label className="inline-flex cursor-pointer items-center gap-2 text-[13.5px] text-[#111827]">
+                <input type="checkbox" checked={draft.waImage} onChange={(e) => onDraft({ waImage: e.target.checked })}
+                  className="h-4 w-4 accent-[#15803D]" />
+                <ImageIcon size={15} aria-hidden className="text-[#6B7280]" />
+                {t("cb.waImg")}
+              </label>
+            )}
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <Field label={t("cb.waWindow")}>
-                <select value={draft.waWindow} onChange={(e) => onDraft({ waWindow: e.target.value })} className={INPUT}>
+              <FieldBox id={`${uid}-win`} label={t("cb.waWindow")}>
+                <select id={`${uid}-win`} value={draft.waWindow} onChange={(e) => onDraft({ waWindow: e.target.value })} className={`${INPUT} disabled:bg-[#F9FAFB]`}>
                   {WINDOWS.map((w) => <option key={w} value={w}>{w} h</option>)}
                 </select>
-              </Field>
-              <Field label={t("cb.waRate")} hint={t("cb.waRateD", { n: draft.waRate })}>
-                <input type="number" min={5} max={120} value={draft.waRate} className={INPUT}
+              </FieldBox>
+              <FieldBox id={`${uid}-rate`} label={t("cb.waRate")} hint={apiSend ? t("cb.waRateApi") : t("cb.waRateD", { n: draft.waRate })}>
+                <input id={`${uid}-rate`} aria-describedby={`${uid}-rate-hint`} type="number" min={5} max={120} value={draft.waRate}
+                  className={`${INPUT} tabular-nums disabled:bg-[#F9FAFB]`}
                   onChange={(e) => onDraft({ waRate: Number(e.target.value) || 5 })} />
-              </Field>
+              </FieldBox>
               {draft.channel === "wa_call" ? (
-                <Field label={t("cb.waThen")} hint={t("cb.waThenD")}>
-                  <input type="number" min={1} max={96} value={draft.waFollowUpHours} className={INPUT}
+                <FieldBox id={`${uid}-then`} label={t("cb.waThen")} hint={t("cb.waThenD")}>
+                  <input id={`${uid}-then`} aria-describedby={`${uid}-then-hint`} type="number" min={1} max={96} value={draft.waFollowUpHours}
+                    disabled={setupLocked}
+                    className={`${INPUT} tabular-nums disabled:bg-[#F9FAFB]`}
                     onChange={(e) => onDraft({ waFollowUpHours: Number(e.target.value) || 1 })} />
-                </Field>
+                </FieldBox>
               ) : null}
             </div>
           </div>
 
           {/* What the customer will actually see. */}
-          <Field label={t("cb.waPrev")}>
-            <div className="flex min-h-[200px] flex-col gap-1.5 rounded-xl bg-[#E5DDD5] px-3 pb-3 pt-3.5">
-              <div className="flex items-center gap-2 text-[12.5px] text-[#374151]">
-                <Avatar name={sender} size="sm" />
-                <b className="font-semibold">{sender}</b>
-                <span className="ms-auto text-[11px] text-[#6B7280]">10:42</span>
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-[13px] font-semibold text-[#111827]">{t("cb.waPrev")}</span>
+              <div className="flex min-h-[200px] flex-col gap-1.5 rounded-xl bg-[#E5DDD5] px-3 pb-3 pt-3.5">
+                <div className="flex items-center gap-2 text-[12.5px] text-[#374151]">
+                  <Avatar name={apiSend ? who : sender} size="sm" />
+                  <b className="font-semibold [unicode-bidi:plaintext]">{apiSend ? who : sender}</b>
+                  <span aria-hidden className="ms-auto text-[11px] text-[#6B7280]">10:42</span>
+                </div>
+                {headerOn ? (
+                  apiSend ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- the exact header image Meta will show
+                    <img data-testid="wa-campaign-preview-image" src={draft.waImageUrl} alt=""
+                      className="aspect-[4/3] w-[70%] rounded-t-[10px] border border-b-0 border-[#CBEBC3] bg-white object-cover" />
+                  ) : (
+                    <div aria-hidden className="aspect-[4/3] w-[70%] rounded-t-[10px] border border-b-0 border-[#CBEBC3] bg-white" />
+                  )
+                ) : null}
+                <p dir={apiSend ? (draft.waLanguage === "ar" ? "rtl" : "ltr") : undefined} data-testid="wa-campaign-preview" className={`relative m-0 w-[70%] whitespace-pre-wrap border border-[#CBEBC3] bg-[#DCF8C6] px-2.5 pb-4 pt-2 text-[13.5px] leading-[1.5] [unicode-bidi:plaintext] ${
+                  headerOn ? "rounded-b-[10px]" : "rounded-e-[10px] rounded-bs-[10px] rounded-be-[10px]"
+                }`}>
+                  {apiSend
+                    ? (apiPreview.length > 0 ? apiPreview.map((part, i) => part.variable ? <mark key={i} className="rounded bg-[#B5E7B0] px-0.5 text-inherit">{part.text}</mark> : <span key={i}>{part.text}</span>) : "…")
+                    : (rendered || "…")}
+                  {apiSend ? <span className="mt-1.5 block text-[12px] text-[#6B7280]">{campaignFooterText(draft.waLanguage)}</span> : null}
+                  <span aria-hidden className="absolute bottom-1 end-2 text-[10.5px] text-[#5B7A57]">10:42 ✓✓</span>
+                </p>
+                <p className="m-0 self-end rounded-[10px] rounded-te-[2px] bg-white px-2.5 py-2 text-[13.5px] text-[#111827]">
+                  {apiSend ? t("cb.waReplyApi") : t("cb.waReply")}
+                  <small className="mt-1 block text-[11px] text-[#6B7280]">{apiSend ? t("cb.waReplyApiCap") : t("cb.waReplyCap")}</small>
+                </p>
               </div>
-              {draft.waImage ? (
-                <div aria-hidden className="aspect-[4/3] w-[70%] rounded-t-[10px] border border-b-0 border-[#CBEBC3] bg-white" />
-              ) : null}
-              <p className={`relative m-0 w-[70%] whitespace-pre-wrap border border-[#CBEBC3] bg-[#DCF8C6] px-2.5 pb-4 pt-2 text-[13.5px] leading-[1.5] [unicode-bidi:plaintext] ${
-                draft.waImage ? "rounded-b-[10px]" : "rounded-e-[10px] rounded-bs-[10px] rounded-be-[10px]"
-              }`}>
-                {rendered || "…"}
-                <span aria-hidden className="absolute bottom-1 end-2 text-[10.5px] text-[#5B7A57]">10:42 ✓✓</span>
-              </p>
-              <p className="m-0 self-end rounded-[10px] rounded-te-[2px] bg-white px-2.5 py-2 text-[13.5px] text-[#111827]">
-                {t("cb.waReply")}
-                <small className="mt-1 block text-[11px] text-[#6B7280]">{t("cb.waReplyCap")}</small>
-              </p>
             </div>
-          </Field>
+            {aside}
+          </div>
         </div>
       ) : null}
 
       {draft.channel !== "wa" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <fieldset disabled={setupLocked} className="m-0 grid min-w-0 grid-cols-1 gap-3 border-0 p-0 sm:grid-cols-2">
           <Field label={draft.channel === "wa_call" ? t("cb.scriptFollow") : t("cb.script")}>
             <textarea value={draft.scriptFr} onChange={(e) => onDraft({ scriptFr: e.target.value })}
               className={`${INPUT} h-auto min-h-[96px] py-2`} placeholder={t("cb.scriptFr")} />
           </Field>
-          <Field label={t("cb.scriptAr")} hint={t("cb.scriptHint")}>
+          <Field label={t("cb.scriptAr")} hint={t("cb.scriptHint", { name: "{name}", agent: "{agent}" })}>
             <textarea value={draft.scriptAr} onChange={(e) => onDraft({ scriptAr: e.target.value })} dir="rtl"
               className={`${INPUT} h-auto min-h-[96px] py-2`} />
           </Field>
-        </div>
+        </fieldset>
       ) : null}
-    </div>
+    </fieldset>
   );
 }
 

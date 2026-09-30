@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
+import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
 import { useRealtimeBroadcast } from "@/components/providers/RealtimeProvider";
 import { ORDERS_BROADCAST_EVENT, ordersTopic, type OrderChangedPayload } from "@/hooks/useOrdersRealtime";
 import { useDeliveryActionQueue } from "@/hooks/useDeliveryActionQueue";
@@ -28,6 +29,7 @@ export function DeliveryWorklistClient({
   const t = useTranslations("delivery");
   const scope = useMarketScope();
   const market = role === "super_admin" ? scope.marketId : marketId;
+  const { active: whatsappActive, known: whatsappKnown } = useWhatsAppAvailability(market);
 
   // Parcels that closed in the last 24 h are 42% of the Libyan list and need
   // nothing done to them, so the first paint leaves them in the database. The
@@ -95,6 +97,9 @@ export function DeliveryWorklistClient({
       scorecard={score?.data ?? null}
       role={role}
       marketCode={marketIdToCode(market) ?? "tn"}
+      marketId={market}
+      whatsappActive={whatsappActive}
+      whatsappKnown={whatsappKnown}
       tz={marketTimezone(market)}
       locale={locale}
       now={now}

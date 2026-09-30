@@ -73,6 +73,11 @@ export function linesOf(row: RunRow): OrderLine[] {
     {
       product_id: row.product_id,
       product_name: row.product_name,
+      // The denormalised row on `orders` carries a variant LABEL but no
+      // variant id — `WarehouseOrderRow` never selected one, and a parcel that
+      // predates `order_items` has none to select. Null is the honest answer
+      // here; identity only exists on real `order_items` lines.
+      variant_id: null,
       variant_label: row.variant_label,
       quantity: row.quantity,
       image_url: row.product_image_url ?? null,
@@ -80,7 +85,21 @@ export function linesOf(row: RunRow): OrderLine[] {
   ];
 }
 
-/** Two sizes of the same product is one rack; two products is a mixed parcel. */
+/**
+ * Two sizes of the same product is one rack; two products is a mixed parcel.
+ *
+ * RE-EXAMINED 2026-09-25, now that variants are real and multi-line parcels
+ * are about to become common — and the rule STANDS, for a better reason than
+ * it was written with. It was set when sizes were faked as separate products,
+ * which would have made every two-size parcel "mixed". Now a size is a variant
+ * of one product, so two of them genuinely ARE one rack: bucketing by
+ * `product_id` sends the picker to exactly one place.
+ *
+ * Keying on the variant instead would push every two-size parcel into the
+ * mixed bucket and throw that away. The picker does not lose the detail:
+ * `RunParcel` renders every line with its own `variant_label`, so "Grand ×2,
+ * Petit ×1" is on screen either way.
+ */
 export function isMixed(row: RunRow): boolean {
   const lines = linesOf(row);
   if (lines.length < 2) return false;

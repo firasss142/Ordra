@@ -35,6 +35,9 @@
     },
     "src/app/api/darb-assabil/sync-batch/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/whatsapp-outbox/route.ts": {
+      "maxDuration": 60
     }
   }
 }

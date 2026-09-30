@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { TeamPageHeader, TeamCard } from "./Card";
 import { LiveTiles } from "./LiveTiles";
 import { AgentRoster, useRelativeLabel } from "./AgentRoster";
+import { AgentReadinessPanel } from "./AgentReadinessPanel";
 import { BlockedOrdersCard } from "./BlockedOrdersCard";
 import { UpcomingCallbacksCard } from "./UpcomingCallbacksCard";
 import { AgentDrawer } from "./AgentDrawer";
@@ -148,6 +149,12 @@ export function TeamLiveWorkspace({ marketId, locale, tz, role }: Props) {
           </TeamCard>
 
           <LiveTiles live={live} locale={locale} lastSeenCaption={lastSeenCaption} />
+
+          {/* Sits above the roster because it answers the question that now
+              comes first: is anyone receiving work at all? Readiness made
+              "this order went nowhere" possible, and without this the pool
+              grows unseen until the next morning. */}
+          <AgentReadinessPanel marketId={marketId} canForceOff={!!role} />
 
           <AgentRoster
             view={view}

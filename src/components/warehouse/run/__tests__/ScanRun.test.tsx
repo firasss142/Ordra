@@ -93,8 +93,8 @@ describe("choosing what to hold", () => {
     const mixed = row({
       id: "mix",
       items: [
-        { product_id: "p1", product_name: "Dumbbell", variant_label: null, quantity: 1, image_url: null },
-        { product_id: "p2", product_name: "Corde", variant_label: null, quantity: 1, image_url: null },
+        { product_id: "p1", product_name: "Dumbbell", variant_id: null, variant_label: null, quantity: 1, image_url: null },
+        { product_id: "p2", product_name: "Corde", variant_id: null, variant_label: null, quantity: 1, image_url: null },
       ],
     });
     renderRun([red1, mixed]);
@@ -147,9 +147,9 @@ describe("working a batch", () => {
     const mixed = row({
       id: "mix",
       items: [
-        { product_id: "p1", product_name: "Dumbbell", variant_label: "5 kg", quantity: 2, image_url: null },
-        { product_id: "p2", product_name: "Corde", variant_label: null, quantity: 1, image_url: null },
-        { product_id: "p3", product_name: "Tapis", variant_label: null, quantity: 3, image_url: null },
+        { product_id: "p1", product_name: "Dumbbell", variant_id: null, variant_label: "5 kg", quantity: 2, image_url: null },
+        { product_id: "p2", product_name: "Corde", variant_id: null, variant_label: null, quantity: 1, image_url: null },
+        { product_id: "p3", product_name: "Tapis", variant_id: null, variant_label: null, quantity: 3, image_url: null },
       ],
     });
     renderRun([mixed]);

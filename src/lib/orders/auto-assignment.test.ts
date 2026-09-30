@@ -19,7 +19,18 @@ function makeOrder(overrides: Partial<AssignableOrder> = {}): AssignableOrder {
 }
 
 function makeAgent(id: string, queue_size = 0, last_action_at: string | null = null): AvailableAgent {
-  return { id, queue_size, last_action_at };
+  // Ready by default: these suites predate readiness and are about selection,
+  // not eligibility. Readiness has its own suite in agent-readiness.test.ts.
+  return {
+    id,
+    queue_size,
+    last_action_at,
+    assigned_today: 0,
+    is_available: true,
+    is_active: true,
+    deleted_at: null,
+    last_seen_at: new Date().toISOString(),
+  };
 }
 
 // ============================================================

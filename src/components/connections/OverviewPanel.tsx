@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import useSWR from "swr";
+import { useTranslations } from "next-intl";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { computeHealthState, formatRelative, type HealthState } from "@/components/settings/storefronts/HealthBadge";
@@ -19,7 +20,7 @@ interface CaRow {
 interface SyncRow { source: string; label: string; cadence: string; last_run_at: string | null; runs_24h: number; }
 interface Overview {
   storefronts: SfRow[]; carriers: CaRow[];
-  services: { meta_accounts: number };
+  services: { meta_accounts: number; whatsapp: { connected: number; active: number; markets: number } };
   automations: SyncRow[];
   kpis: {
     events_24h: number; errors_24h: number; error_rate: number; webhooks_24h: number;
@@ -70,6 +71,12 @@ function minutesAgo(iso: string | null): number | null {
 export function OverviewPanel({ onNavigate }: Props) {
   const { data, isLoading } = useSWR<{ data: Overview }>("/api/connections/overview", fetcher, { refreshInterval: 60_000 });
   const ov = data?.data;
+  // Only the WhatsApp row is translated so far (whatsappAdmin namespace);
+  // the rest of this panel is still hardcoded French.
+  const tWa = useTranslations("whatsappAdmin");
+  const wa = ov?.services.whatsapp;
+  const waConnected = wa?.connected ?? 0;
+  const waActive = wa?.active ?? 0;
 
   const sf = useMemo(() => (ov?.storefronts ?? []).map((s) => ({
     s, health: computeHealthState({
@@ -178,7 +185,15 @@ export function OverviewPanel({ onNavigate }: Props) {
           <Group title="Services tiers" meta={`${ov?.services.meta_accounts ?? 0} compte(s) Meta`} onAll={() => onNavigate("services")}>
             <Row icon="globe" name="Meta Ads" sub={`${ov?.services.meta_accounts ?? 0} compte(s) · dépenses par campagne`} mode="sync" tone={(ov?.services.meta_accounts ?? 0) > 0 ? "success" : "neutral"} label={(ov?.services.meta_accounts ?? 0) > 0 ? "Connecté" : "Non connecté"} right="par heure" />
             <Row icon="sheet" name="Google Sheets" sub="compte de service · sources feuille" mode="sync" tone="success" label="Connecté" right={formatRelative(syncs.find((a) => a.source === "google-sheets-sync")?.last_run_at ?? null)} />
-            <Row icon="chat" name="WhatsApp Business" sub="Cloud API · même app Meta" mode="—" tone="neutral" label="Non connecté" right="—" />
+            <Row
+              icon="chat"
+              name="WhatsApp Business"
+              sub={tWa("overview.sub", { connected: waConnected, markets: wa?.markets ?? 2 })}
+              mode={waConnected > 0 ? "api" : "—"}
+              tone={waActive > 0 ? "success" : waConnected > 0 ? "warning" : "neutral"}
+              label={tWa(`connections.status.${waActive > 0 ? "connected" : waConnected > 0 ? "paused" : "notConnected"}`)}
+              right={waConnected > 0 ? tWa("overview.realtime") : "—"}
+            />
           </Group>
         </div>
 

@@ -1,4 +1,4 @@
-import { normalizeLibyanPhone } from "@/lib/carriers/phone";
+import { toWhatsAppE164 } from "@/lib/whatsapp/phone";
 
 /**
  * Phone numbers are stored in LOCAL form — Tunisian 8-digit, Libyan
@@ -10,57 +10,17 @@ import { normalizeLibyanPhone } from "@/lib/carriers/phone";
 
 export type MarketCode = "tn" | "ly";
 
-const DIAL_CODE: Record<MarketCode, string> = { tn: "216", ly: "218" };
 
-/** National significant digits, i.e. after the trunk zero and dial code. */
-const NATIONAL_LENGTH: Record<MarketCode, number> = { tn: 8, ly: 9 };
 
+/**
+ * A wrapper since the Cloud API landed: `toWhatsAppE164` is the one builder
+ * (src/lib/whatsapp/phone.ts). Kept for its callers; goes in Phase 7.
+ */
 export function toWhatsappNumber(
   phone: string | null | undefined,
   market: MarketCode,
 ): string | null {
-  if (!phone || !phone.trim()) return null;
-
-  const code = DIAL_CODE[market];
-  if (!code) return null;
-
-  // Libya has a real validator already (mobile prefixes are constrained);
-  // reuse it rather than re-deriving the rules here.
-  if (market === "ly") {
-    try {
-      const local = normalizeLibyanPhone(phone); // 09XXXXXXXX
-      return code + local.slice(1);
-    } catch {
-      return null;
-    }
-  }
-
-  let digits = phone.replace(/[^\d+]/g, "");
-
-  let international = false;
-  if (digits.startsWith("+")) {
-    international = true;
-    digits = digits.slice(1);
-  } else if (digits.startsWith("00")) {
-    international = true;
-    digits = digits.slice(2);
-  }
-  digits = digits.replace(/\D/g, "");
-  if (!digits) return null;
-
-  if (!international) {
-    // A bare "216…" of exactly the right total length is already
-    // international; anything else is national and needs the code prepended.
-    if (digits.startsWith(code) && digits.length === code.length + NATIONAL_LENGTH[market]) {
-      international = true;
-    } else {
-      digits = code + digits.replace(/^0+/, "");
-    }
-  }
-
-  if (digits.length !== code.length + NATIONAL_LENGTH[market]) return null;
-
-  return digits;
+  return toWhatsAppE164(phone, market);
 }
 
 /** Full wa.me deep link, or null when the number cannot be normalized. */

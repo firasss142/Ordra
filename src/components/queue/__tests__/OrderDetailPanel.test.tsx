@@ -53,6 +53,21 @@ vi.mock("@/hooks/useOrderDetailRealtime", () => ({
   useOrderDetailRealtime: () => {},
 }));
 
+// The WhatsApp thread subscribes to realtime too; the availability and
+// templates hooks read SWR keys this suite does not stub. Inert here — the
+// Messages tab has its own suites (components/whatsapp).
+let waAvailability: { availability: null; active: boolean; known: boolean; isLoading: boolean } = { availability: null, active: false, known: false, isLoading: false };
+let waThread: Record<string, unknown> | null = null;
+vi.mock("@/hooks/useWhatsAppThread", () => ({
+  useWhatsAppThread: () => ({ thread: waThread, unread: 0, isLoading: false, error: null, mutate: vi.fn(), markRead: vi.fn(), retry: vi.fn() }),
+}));
+vi.mock("@/hooks/useWhatsAppAvailability", () => ({
+  useWhatsAppAvailability: () => waAvailability,
+}));
+vi.mock("@/hooks/useWhatsAppTemplates", () => ({
+  useWhatsAppTemplates: () => ({ templates: [], isLoading: false, mutate: vi.fn() }),
+}));
+
 // Spy on DexpressStatusSection so we can assert its mount + props without
 // pulling in the SWR fetcher chain it owns.
 const dexpressSectionSpy = vi.fn();
@@ -149,6 +164,24 @@ describe("OrderDetailPanel", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    waAvailability = { availability: null, active: false, known: false, isLoading: false };
+    waThread = null;
+  });
+
+  // Owner decision 2026-09-25: a market without a connected number shows
+  // WhatsApp DISABLED, not hidden (prototype whatsapp-agent-v1.html, state
+  // `noconfig`, with the wa.me link as the way out).
+  it("market not connected: the WhatsApp button and the Messages tab are there, and the tab explains why with the wa.me link", () => {
+    waAvailability = { availability: null, active: false, known: true, isLoading: false };
+    waThread = { conversation: null, messages: [], phone_e164: "218912345678", customer_language: null, window_open: false, window_closes_at: null, config_active: false, config_status: null };
+    render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+
+    const btn = screen.getByRole("button", { name: /^واتساب/ });
+    expect(btn).toHaveAttribute("data-state", "not_connected");
+    fireEvent.click(btn);
+    expect(screen.getByRole("tab", { name: /الرسائل/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("واتساب غير موصول لهذا السوق")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /فتح واتساب/ })).toHaveAttribute("href", "https://wa.me/218912345678");
   });
 
   it("does not render a Google Maps link and shows Libya display currency", () => {

@@ -65,6 +65,8 @@ const apiRow: Record<string, unknown> = {
   dexpress_status_accepted: null,
   carrier_status_slug: "in_transit",
   carrier_status_synced_at: "2026-08-10T10:00:00Z",
+  wa_conversation: true,
+  wa_unread: 1,
 };
 
 describe("toQueueOrder", () => {

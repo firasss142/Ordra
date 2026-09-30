@@ -72,6 +72,16 @@ export async function GET(req: NextRequest) {
     runCount(admin.from("meta_ad_accounts").select("*", { count: "exact", head: true })),
   ]);
 
+  // WhatsApp: one config per market; "connected" is a row, "active" a row
+  // that can send. The credential columns are never selected here.
+  const waQuery = admin.from("whatsapp_configs").select("market_id, status");
+  const { data: waRows } = await (marketFilter ? waQuery.eq("market_id", marketFilter) : waQuery);
+  const whatsapp = {
+    connected: (waRows ?? []).length,
+    active: (waRows ?? []).filter((r) => (r as { status: string }).status === "active").length,
+    markets: marketFilter ? 1 : (marketsRes.data ?? []).length,
+  };
+
   const codeByMarket = new Map((marketsRes.data ?? []).map((m) => [m.id as string, m.code as string]));
   const storefronts = (sfRes.data ?? []) as Record<string, unknown>[];
   const carriers = (caRes.data ?? []) as Record<string, unknown>[];
@@ -133,7 +143,7 @@ export async function GET(req: NextRequest) {
         events_24h: eventsByCode.get(String(c.code))?.events ?? 0,
         errors_24h: eventsByCode.get(String(c.code))?.errors ?? 0,
       })),
-      services: { meta_accounts: metaAccts },
+      services: { meta_accounts: metaAccts, whatsapp },
       automations,
       kpis: {
         events_24h: totalEvents24h,

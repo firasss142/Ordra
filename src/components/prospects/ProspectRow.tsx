@@ -17,6 +17,8 @@ import {
   useSituationLabel, useSituationSub,
 } from "./ui";
 import { useTranslations } from "next-intl";
+import { WhatsAppGlyph } from "@/components/whatsapp/WhatsAppGlyph";
+import { StatusGlyph } from "@/components/whatsapp/StatusGlyph";
 
 interface Props {
   row: Row;
@@ -34,9 +36,25 @@ interface Props {
   tz: string;
   onSelect: (row: Row) => void;
   onAct: (row: Row) => void;
+  /**
+   * The row's WhatsApp square (prototype whatsapp-agent-v1.html, screen
+   * `prospects`). null hides it (connection unknown); "not_connected" greys
+   * it but it still opens the sheet, which says why — the owner chose "show
+   * it disabled" over "hide it".
+   */
+  whatsappState?: "active" | "not_connected" | null;
+  onWhatsApp?: (row: Row) => void;
 }
 
-function ProspectRowInner({ row, selected, now, market, locale, tz, onSelect, onAct }: Props) {
+/** The day a message left, as a person says it: aujourd'hui, hier, il y a 3 j. */
+function dayDistance(iso: string, now: number, tz: string): number {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+  const a = Date.parse(fmt.format(new Date(iso)));
+  const b = Date.parse(fmt.format(new Date(now)));
+  return Math.max(0, Math.round((b - a) / 86_400_000));
+}
+
+function ProspectRowInner({ row, selected, now, market, locale, tz, onSelect, onAct, whatsappState = null, onWhatsApp }: Props) {
   const t = useTranslations("prospects");
   const situationLabel = useSituationLabel(tz, locale);
   const situationSub = useSituationSub();
@@ -46,7 +64,23 @@ function ProspectRowInner({ row, selected, now, market, locale, tz, onSelect, on
   const move = moveFor(row, now);
   const SitIcon = SIT_ICON[sit.key];
   const moveLabel = t(`moves.${move.kind}`);
-  const sub = situationSub(sit.sub);
+  const baseSub = situationSub(sit.sub);
+  // The customer spoke last on WhatsApp: that outranks the bucket's sentence —
+  // someone answered, and the agent should read it before anything else.
+  const replied = Boolean(row.wa_replied_at && (!row.wa_sent_at || Date.parse(row.wa_replied_at) >= Date.parse(row.wa_sent_at)));
+  const repliedAgo = replied ? Math.max(0, Math.round((now - Date.parse(row.wa_replied_at!)) / 60_000)) : null;
+  const repliedLine = repliedAgo !== null
+    ? t("subs.replied", { ago: repliedAgo < 60 ? t("minutes", { n: repliedAgo }) : repliedAgo < 60 * 48 ? t("hours", { n: Math.round(repliedAgo / 60) }) : t("days", { n: Math.round(repliedAgo / 1440) }) })
+    : null;
+  // Otherwise, a campaign message the business number sent: « Sérum · … · envoyé hier ✓✓ ».
+  const sentDays = !replied && row.wa_sent_at ? dayDistance(row.wa_sent_at, now, tz) : null;
+  const sentLine = sentDays !== null
+    ? t("subs.waSent", {
+        campaign: row.campaign_name ?? t("sit.campaign"),
+        when: sentDays === 0 ? t("waWhen.today") : sentDays === 1 ? t("waWhen.yesterday") : t("waWhen.days", { n: sentDays }),
+      })
+    : null;
+  const sub = baseSub;
 
   const act = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -99,14 +133,29 @@ function ProspectRowInner({ row, selected, now, market, locale, tz, onSelect, on
 
       {/* Situation */}
       <div className="col-span-2 col-start-1 row-start-2 mt-2 flex flex-col items-start lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:mt-0">
-        <Chip tone={tone} icon={SitIcon}>{situationLabel(sit)}</Chip>
-        {sub ? (
+        {replied ? (
+          <Chip tone={tone} icon={WhatsAppChipIcon}>{t("sit.replied")}</Chip>
+        ) : (
+          <Chip tone={tone} icon={SitIcon}>{situationLabel(sit)}</Chip>
+        )}
+        {repliedLine ? (
+          <span className="mt-1.5 inline-flex items-center gap-[5px] text-[13.5px] font-semibold text-[#14532D]">
+            <WhatsAppGlyph size={14} className="text-[#15803D]" />
+            {repliedLine}
+          </span>
+        ) : sentLine ? (
+          <span data-testid="prospect-wa-sent" className="mt-1.5 inline-flex min-w-0 items-center gap-1.5 text-[13.5px] text-[#6B7280]">
+            <span className="truncate [unicode-bidi:plaintext]">{sentLine}</span>
+            {row.wa_sent_status ? <StatusGlyph status={row.wa_sent_status} /> : null}
+          </span>
+        ) : sub ? (
           <span className="mt-1.5 line-clamp-1 text-[13.5px] text-[#6B7280] [unicode-bidi:plaintext]">{sub}</span>
         ) : null}
       </div>
 
-      {/* Move — a full-width tinted bar on the phone, an outlined pill on desktop. */}
-      <div className="col-span-2 col-start-1 row-start-3 mt-2.5 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0">
+      {/* Move — a full-width tinted bar on the phone, an outlined pill on desktop,
+          and the WhatsApp square beside it. */}
+      <div className="col-span-2 col-start-1 row-start-3 mt-2.5 flex items-center gap-2 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0">
         <button
           type="button"
           onClick={act}
@@ -123,6 +172,25 @@ function ProspectRowInner({ row, selected, now, market, locale, tz, onSelect, on
           <Phone size={17} aria-hidden className={`shrink-0 ${TONE[tone].icon}`} />
           <span className="truncate">{moveLabel}</span>
         </button>
+        {whatsappState && onWhatsApp ? (
+          <button
+            type="button"
+            aria-label={t("waSquare")}
+            data-state={whatsappState}
+            onClick={(e) => {
+              e.stopPropagation();
+              onWhatsApp(row);
+            }}
+            className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-lg border lg:h-11 lg:w-11 ${
+              whatsappState === "active" ? "border-[#BBF7D0] bg-white text-[#15803D] hover:bg-[#F0FDF4]" : "border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF]"
+            }`}
+          >
+            <WhatsAppGlyph size={18} />
+            {replied && whatsappState === "active" ? (
+              <span className="absolute -top-1.5 end-[-6px] grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#15803D] px-[5px] text-[11px] font-bold text-white shadow-[0_0_0_2px_#fff]">1</span>
+            ) : null}
+          </button>
+        ) : null}
       </div>
 
       {/* Value — only when a product says what it is worth. */}
@@ -140,6 +208,11 @@ function ProspectRowInner({ row, selected, now, market, locale, tz, onSelect, on
       </div>
     </div>
   );
+}
+
+/** The chip's icon slot takes an icon component; the WhatsApp mark sized like the others. */
+function WhatsAppChipIcon({ size = 14, className = "" }: { size?: number | string; className?: string }) {
+  return <WhatsAppGlyph size={Number(size) || 14} strokeWidth={2} className={className} />;
 }
 
 export const ProspectRowCard = memo(ProspectRowInner);

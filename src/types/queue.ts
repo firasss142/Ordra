@@ -43,6 +43,10 @@ export interface QueueOrder {
    * order nobody has called in three days would report "5 minutes ago".
    */
   last_action_at: string | null;
+  /** A WhatsApp conversation is anchored to this order (queue row mark). */
+  wa_conversation?: boolean;
+  /** Unread WhatsApp replies on it — the row then says « a répondu ». */
+  wa_unread?: number;
   repeat_kind: RepeatKind;
   prior_order_count: number;
   prior_lead_count: number;

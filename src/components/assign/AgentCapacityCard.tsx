@@ -87,6 +87,31 @@ export function AgentCapacityCard({
           <span title={t("agents.confirmationRate")}>
             {t("agents.rateShort", { pct: ratePct })}
           </span>
+          {/*
+            Manual assignment is deliberately still allowed to an agent who is
+            not taking orders — handing a specific order to a specific person
+            is exactly what this rail is for. But the manager should know they
+            are doing it, or the order lands in a queue nobody is watching.
+            The presence dot above answers "is their session alive", which is
+            a different question from "have they said they are working".
+          */}
+          {!agent.receiving_orders && (
+            <span
+              style={{ color: agent.is_available ? "#92400E" : "#6D7175" }}
+              title={
+                agent.is_available
+                  ? "Disponible mais session inactive — ne reçoit rien automatiquement"
+                  : "En pause — ne reçoit rien automatiquement"
+              }
+            >
+              {agent.is_available ? "session inactive" : "en pause"}
+            </span>
+          )}
+          {agent.share_pct !== null && (
+            <span title={`Part configurée : ${agent.share_pct} %`}>
+              {agent.assigned_today} auj. · {agent.share_pct}%
+            </span>
+          )}
         </div>
       </div>
       <button

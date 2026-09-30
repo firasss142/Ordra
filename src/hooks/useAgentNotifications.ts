@@ -22,11 +22,13 @@ export interface AgentNotificationOrder {
 export interface AgentNotification {
   id: string;
   order_id: string;
-  kind: "callback_due" | "attempt_due" | "dispatch_due";
+  kind: "callback_due" | "attempt_due" | "dispatch_due" | "whatsapp_inbound";
   due_at: string;
   read_at: string | null;
   created_at: string;
   order: AgentNotificationOrder | null;
+  /** whatsapp_inbound only: the customer's latest words, for the bell row. */
+  excerpt?: string | null;
 }
 
 export function useAgentNotifications(agentId: string | undefined) {

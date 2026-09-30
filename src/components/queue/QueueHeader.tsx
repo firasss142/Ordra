@@ -10,8 +10,10 @@ import {
   ChevronDown,
   Plus,
   RefreshCw,
+  Search,
   type LucideIcon,
 } from "lucide-react";
+import { useQueueSearch } from "@/context/queue-search";
 import { StatusIcon } from "@/components/shared/StatusIcon";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Popover } from "@/components/ui/Popover";
@@ -193,15 +195,33 @@ const FilterChip = forwardRef<
 });
 
 /** A shift readout, not navigation — so it gets no pill chrome. */
-function MeterCell({ label, value }: { label: string; value: string }) {
+function MeterCell({
+  label,
+  value,
+  sub,
+  trend,
+}: {
+  label: string;
+  value: string;
+  /** The window the figure covers. Without it a rate is not actionable. */
+  sub?: string;
+  /** Direction marker beside the value, when the figure has one. */
+  trend?: "down";
+}) {
   return (
-    <span className="flex flex-col items-end gap-px border-s border-agent-outline-variant px-4 first:border-s-0">
-      <span className="text-[15px] font-bold leading-tight tabular-nums text-agent-on-surface">
+    <span className="flex flex-col items-end gap-px border-s border-agent-outline-variant px-3.5 first:border-s-0">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[15px] font-bold leading-tight tabular-nums text-agent-on-surface">
         {value}
+        {trend === "down" && (
+          <span aria-hidden="true" className="text-[10px] text-oms-age-late">
+            ▼
+          </span>
+        )}
       </span>
-      <span className="whitespace-nowrap text-[10px] font-semibold tracking-[0.07em] text-agent-ink-3">
-        {label}
-      </span>
+      <span className="whitespace-nowrap text-[11.5px] text-agent-ink-3">{label}</span>
+      {sub && (
+        <span className="whitespace-nowrap text-[10.5px] text-agent-ink-3">{sub}</span>
+      )}
     </span>
   );
 }
@@ -225,6 +245,8 @@ export function QueueHeader({
   maxAttempts = 3,
 }: QueueHeaderProps) {
   const t = useTranslations("queue");
+  const tSearch = useTranslations("queue.search");
+  const { query: searchQuery, setQuery: setSearchQuery } = useQueueSearch();
   const tEnCours = useTranslations("queue.buckets.enCoursSubfilter");
   const tAttempt = useTranslations("queue.buckets.subfilter");
   const tClosed = useTranslations("queue.buckets.closedSubfilter");
@@ -302,27 +324,55 @@ export function QueueHeader({
 
   return (
     <div className="bg-agent-bg px-4 pt-4 sm:px-5 sm:pt-5">
-      {/* Title row — identity on the lead edge, shift readout and the single
-          filled CTA on the trail edge. */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <h1 className="truncate text-[20px] font-bold leading-tight tracking-[-0.015em] text-agent-on-surface">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+        <div className="order-1 flex min-w-0 items-center gap-3">
+          <h1 className="min-w-0 truncate text-[20px] font-bold leading-tight tracking-[-0.015em] text-agent-on-surface">
             {tShell("liveQueueTitle")}
           </h1>
-          <span className="hidden whitespace-nowrap text-[12.5px] text-agent-ink-3 sm:inline">
+          <span className="hidden items-center gap-2 whitespace-nowrap text-[12.5px] text-agent-ink-3 sm:inline-flex">
             {agentName
               ? tShell("liveQueueSubtitleWithName", { name: agentName })
               : tShell("liveQueueSubtitle")}
+            <span
+              aria-hidden="true"
+              className="inline-block h-2 w-2 shrink-0 rounded-full bg-hue-green-edge"
+            />
           </span>
         </div>
 
-        <div className="ms-auto flex items-center gap-3">
+        {/* Filtering this list, not searching across tabs — that is the navbar
+            field's job. Both write the one query the page filters on, so
+            whichever is on screen at a given width, the list agrees with it. */}
+        <label className="order-4 flex h-11 w-full items-center gap-2.5 rounded-[10px] border border-agent-outline bg-agent-surface px-3.5 lg:order-2 lg:w-auto lg:min-w-[220px] lg:flex-[0_1_526px]">
+          <Search
+            size={18}
+            strokeWidth={2}
+            aria-hidden="true"
+            className="shrink-0 text-agent-ink-3"
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={tSearch("placeholder")}
+            aria-label={tSearch("aria")}
+            className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-agent-on-surface outline-none placeholder:text-agent-ink-3 [&::-webkit-search-cancel-button]:appearance-none"
+          />
+        </label>
+
+        <div className="order-2 ms-auto flex items-center gap-3 lg:order-3">
           <div className="hidden items-center md:flex">
             <MeterCell
               label={t("stats.confirmationRate")}
+              sub={t("stats.confirmationRateSub")}
               value={`${stats.confirmation_rate.toFixed(1)}%`}
+              trend="down"
             />
-            <MeterCell label={t("stats.actioned")} value={String(stats.actioned_count)} />
+            <MeterCell
+              label={t("stats.actioned")}
+              sub={t("stats.actionedSub")}
+              value={String(stats.actioned_count)}
+            />
             <MeterCell label={t("stats.assigned")} value={String(stats.assigned_count)} />
           </div>
 
@@ -330,30 +380,32 @@ export function QueueHeader({
             <button
               type="button"
               onClick={onNewOrder}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand px-4 text-[13.5px] font-bold text-white transition-colors duration-base hover:bg-brand-hover"
+              className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-brand px-4.5 text-[15px] font-bold text-white transition-colors duration-base hover:bg-brand-hover"
             >
               <Plus size={15} strokeWidth={2.5} aria-hidden="true" />
               <span>{tShell("newOrder")}</span>
             </button>
           )}
         </div>
-      </div>
 
-      {/* Level 1 — buckets. Segments rather than underline tabs, because the
-          queue nests a second and third level under this one and an underline
-          cannot show containment (§4.18). */}
-      <SegmentedTabs
-        role="tablist"
-        ariaLabel={t("title")}
-        value={selectedBucket}
-        onChange={(key) => onBucketChange(key as BucketKey)}
-        segments={TABS.map((tab) => ({
-          key: tab.key,
-          label: t(`buckets.${tab.labelKey}`),
-          count: bucketCount[tab.key],
-          icon: tab.icon,
-        }))}
-      />
+        {/* Level 1 — buckets. Segments rather than underline tabs, because the
+            queue nests a second and third level under this one and an underline
+            cannot show containment (§4.18). */}
+        <SegmentedTabs
+          role="tablist"
+          variant="outline"
+          className="order-3 w-full lg:order-4"
+          ariaLabel={t("title")}
+          value={selectedBucket}
+          onChange={(key) => onBucketChange(key as BucketKey)}
+          segments={TABS.map((tab) => ({
+            key: tab.key,
+            label: t(`buckets.${tab.labelKey}`),
+            count: bucketCount[tab.key],
+            icon: tab.icon,
+          }))}
+        />
+      </div>
 
       {/* Level 2 — sub-filters, in one permanent place whichever bucket is open.
           They used to render inline for en_cours and as a second row for

@@ -8,6 +8,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OrderRow } from "./OrderRow";
+import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
 import type { PresencePerson } from "./PresenceIndicator";
 
@@ -22,6 +23,12 @@ interface Props {
   rows: OrdersListRow[];
   locale: string;
   currencyCode: string;
+  /**
+   * Whose rejection taxonomy to read. Null when a super_admin is looking across
+   * markets — the badge then falls back to the bundled labels and the seeded
+   * hues, which is honest: there is no single market's wording to show.
+   */
+  marketId?: string | null;
   agents: Agent[];
   selectedIds: Set<string>;
   highlightedIds: Set<string>;
@@ -52,6 +59,7 @@ export function OrdersTable({
   rows,
   locale,
   currencyCode,
+  marketId = null,
   agents,
   selectedIds,
   highlightedIds,
@@ -77,6 +85,9 @@ export function OrdersTable({
 }: Props) {
   const t = useTranslations("orders");
   const tStatus = useTranslations("orders.statuses");
+  // One config read for the whole table; the callback is stable, so a memoised
+  // row is not repainted by this.
+  const rejectionOf = useRejectionBadge(marketId);
 
   const agentNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -187,6 +198,7 @@ export function OrdersTable({
                 agentAvatarUrl={
                   r.assigned_to ? agentById.get(r.assigned_to)?.avatar_url ?? null : null
                 }
+                rejection={rejectionOf(r)}
                 labels={{
                   status: tStatus(r.status),
                   unassigned: t("unassigned"),

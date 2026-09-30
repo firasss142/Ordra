@@ -19,8 +19,18 @@ import { AlertesSection } from "./general/AlertesSection";
 import { LivraisonSection } from "./general/LivraisonSection";
 import { TeamSection } from "./general/TeamSection";
 import { ObjectifsSection } from "./general/ObjectifsSection";
+import { RejectionReasonsSection } from "./general/RejectionReasonsSection";
+import { WhatsAppSection } from "./general/WhatsAppSection";
 
-type Group = "operations" | "livraison" | "alertes" | "team" | "objectifs" | "commissions";
+type Group =
+  | "operations"
+  | "livraison"
+  | "alertes"
+  | "team"
+  | "objectifs"
+  | "commissions"
+  | "rejets"
+  | "whatsapp";
 
 const GROUPS: { key: Group; label: string; description: string }[] = [
   { key: "operations", label: "Opérations", description: "Confirmation, réception, expédition, cycle de vie" },
@@ -29,6 +39,8 @@ const GROUPS: { key: Group; label: string; description: string }[] = [
   { key: "team", label: "Équipe", description: "Affectation, présence, heures ouvrées" },
   { key: "objectifs", label: "Objectifs", description: "Cibles de l'équipe" },
   { key: "commissions", label: "Commissions", description: "Ce qu'un agent gagne par commande livrée" },
+  { key: "rejets", label: "Motifs de rejet", description: "Pourquoi une commande n'aboutit pas, et sa couleur" },
+  { key: "whatsapp", label: "WhatsApp", description: "Notifications automatiques par événement" },
 ];
 
 interface Props {
@@ -132,6 +144,18 @@ export function GeneralSettingsGroups({
       "goal_team_weekly_conf",
     ],
     commissions: [],
+    // Not a MarketSettings group: it owns rows in rejection_reason_configs.
+    rejets: [],
+    whatsapp: [
+      "whatsapp_lifecycle_enabled",
+      "whatsapp_event_could_not_reach",
+      "whatsapp_event_shipped",
+      "whatsapp_event_out_for_delivery",
+      "whatsapp_event_last_chance",
+      "whatsapp_event_delivered",
+      "whatsapp_default_language",
+      "whatsapp_send_window",
+    ],
   };
 
   async function saveGroup(g: Group) {
@@ -240,6 +264,26 @@ export function GeneralSettingsGroups({
           onSave={() => saveGroup("objectifs")}
           onReset={() => resetGroup("objectifs")}
           saving={saving === "objectifs"}
+        />
+      )}
+
+      {/* Owns no MarketSettings key: it reads and writes
+          `rejection_reason_configs` through its own endpoints, so it carries no
+          Enregistrer button of its own — every edit saves on blur. */}
+      {group === "rejets" && (
+        <RejectionReasonsSection marketId={marketId} readOnly={readOnly} />
+      )}
+
+      {/* super_admin only: a market_manager reads the WhatsApp group but
+          changes none of it (owner's decision, prototype `parametres`,
+          role=manager) — every other group keeps its manager permissions. */}
+      {group === "whatsapp" && (
+        <WhatsAppSection
+          {...common}
+          readOnly={readOnly || role !== "super_admin"}
+          onSave={() => saveGroup("whatsapp")}
+          onReset={() => resetGroup("whatsapp")}
+          saving={saving === "whatsapp"}
         />
       )}
 

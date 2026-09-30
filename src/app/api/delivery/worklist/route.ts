@@ -145,11 +145,38 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // The row's WhatsApp trace (prototype whatsapp-agent-v1.html): the latest
+  // message the business number sent for each parcel — which template, its
+  // live status, when. Read with the user's client (RLS scopes it); a failed
+  // read, or a database without the WhatsApp tables yet, leaves no trace
+  // rather than failing the list.
+  const waLast = new Map<string, NonNullable<WorklistRow["wa_last"]>>();
+  const waResults = await Promise.all(
+    chunks(ids).map((slice) =>
+      supabase
+        .from("whatsapp_messages")
+        .select("order_id, status, created_at, template:whatsapp_templates(catalogue_key)")
+        .in("order_id", slice)
+        .eq("direction", "out")
+        .order("created_at", { ascending: false })
+        .limit(ITEMS_CHUNK * 20),
+    ),
+  );
+  for (const { data: msgs, error: waError } of waResults) {
+    if (waError) continue;
+    for (const m of (msgs ?? []) as { order_id: string | null; status: string; created_at: string; template: { catalogue_key: string | null } | { catalogue_key: string | null }[] | null }[]) {
+      if (!m.order_id || waLast.has(m.order_id)) continue;
+      const tpl = Array.isArray(m.template) ? m.template[0] : m.template;
+      waLast.set(m.order_id, { status: m.status, at: m.created_at, template_key: tpl?.catalogue_key ?? null });
+    }
+  }
+
   const rows: WorklistRow[] = raw.map(({ total_count: _ignored, ...r }) => ({
     ...r,
     reason_codes: r.reason_codes ?? [],
     risk_reasons: r.risk_reasons ?? [],
     items: itemsByOrder.get(r.order_id) ?? [],
+    wa_last: waLast.get(r.order_id) ?? null,
   }));
 
   return NextResponse.json({ rows, total, generated_at: new Date().toISOString() });

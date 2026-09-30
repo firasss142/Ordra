@@ -47,6 +47,10 @@ export interface DeliveryBoardViewProps {
   targetHours: number;
   role: Role;
   marketCode: "ly" | "tn";
+  /** The market's uuid and whether its WhatsApp business number is live. */
+  marketId?: string | null;
+  whatsappActive?: boolean;
+  whatsappKnown?: boolean;
   marketLabel: string;
   tz: string;
   locale: string;
@@ -330,7 +334,7 @@ export function DeliveryBoardView(props: DeliveryBoardViewProps) {
 
         <aside className="hidden lg:sticky lg:top-4 lg:block lg:h-[calc(100vh-120px)]">
           {selected ? (
-            <DeliveryDetailPanel row={selected} market={marketCode} locale={locale} tz={tz} now={now} onClose={() => setSelectedId(null)} {...handlers} />
+            <DeliveryDetailPanel row={selected} market={marketCode} locale={locale} tz={tz} now={now} marketId={props.marketId ?? null} whatsappActive={props.whatsappActive ?? false} whatsappKnown={props.whatsappKnown ?? false} onClose={() => setSelectedId(null)} {...handlers} />
           ) : (
             <DeliveryCockpit
               tab={tab} onTab={setTab} summary={summary} agent={openAgent}
@@ -366,8 +370,8 @@ export function DeliveryBoardView(props: DeliveryBoardViewProps) {
           onClose={() => setSheet(null)} onSubmit={(body) => { onQueue(sheetRow, body); setSheet(null); }} />
       )}
       {sheet?.kind === "wa" && sheetRow && (
-        <WhatsAppSheet key={sheet.orderId} row={sheetRow} market={marketCode}
-          onClose={() => setSheet(null)} onSent={(body) => { onQueue(sheetRow, body); setSheet(null); }} />
+        <WhatsAppSheet key={sheet.orderId} row={sheetRow} market={marketCode} marketId={props.marketId ?? null} whatsappActive={props.whatsappActive ?? false} whatsappKnown={props.whatsappKnown ?? false}
+          onClose={() => setSheet(null)} onSent={(body) => { onQueue(sheetRow, body); if (!body.alreadyRecorded) setSheet(null); }} />
       )}
       {sheet?.kind === "reassign" && (
         <ReassignSheet rows={reassignRows} agents={boards} market={marketCode} locale={locale}

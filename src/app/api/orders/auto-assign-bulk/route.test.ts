@@ -25,7 +25,7 @@ function createRequest(body: unknown) {
 
 function resolvable(resolvedValue: { data: unknown; error: unknown }) {
   const c: Record<string, unknown> = {};
-  const methods = ["select", "eq", "in", "not", "order", "update"];
+  const methods = ["select", "eq", "in", "not", "order", "update", "is", "gte"];
   for (const m of methods) c[m] = vi.fn().mockReturnValue(c);
   c.maybeSingle = vi.fn().mockResolvedValue(resolvedValue);
   c.single = vi.fn().mockResolvedValue(resolvedValue);
@@ -35,6 +35,14 @@ function resolvable(resolvedValue: { data: unknown; error: unknown }) {
 }
 
 const MANAGER = { role: "market_manager", market_id: "m-tn" };
+/** An agent who has declared themselves ready and is still beating. */
+const READY_AGENT = (id: string) => ({
+  id,
+  is_active: true,
+  deleted_at: null,
+  is_available: true,
+  last_seen_at: new Date().toISOString(),
+});
 const AGENT_ACTOR = { role: "agent", market_id: "m-tn" };
 
 beforeEach(() => {
@@ -106,7 +114,7 @@ describe("POST /api/orders/auto-assign-bulk", () => {
           actorDone = true;
           return resolvable({ data: MANAGER, error: null });
         }
-        return resolvable({ data: [{ id: "a1" }, { id: "a2" }], error: null });
+        return resolvable({ data: [READY_AGENT("a1"), READY_AGENT("a2")], error: null });
       }
       if (table === "orders") {
         return resolvable({
@@ -156,7 +164,7 @@ describe("POST /api/orders/auto-assign-bulk", () => {
           actorDone = true;
           return resolvable({ data: MANAGER, error: null });
         }
-        return resolvable({ data: [{ id: "a1" }], error: null });
+        return resolvable({ data: [READY_AGENT("a1")], error: null });
       }
       if (table === "orders") {
         return resolvable({

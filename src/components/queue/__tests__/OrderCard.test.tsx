@@ -292,17 +292,7 @@ describe("OrderCard", () => {
     expect(screen.getByTestId("order-age")).toHaveAttribute("data-tier", "settled");
   });
 
-  it("renders the price after the status sign (trailing edge of the card)", () => {
-    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    const price = screen.getByText("89.9");
-    const status = screen.getByText("Assigné");
-    // Price comes after status in DOM order → it's the last element on the row.
-    expect(
-      status.compareDocumentPosition(price) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
-  it("calls onCallTerminated when Appel terminé is clicked", async () => {
+  it("calls onCallTerminated when the row's call button is clicked", async () => {
     const user = userEvent.setup();
     const onCallTerminated = vi.fn();
     render(
@@ -312,9 +302,8 @@ describe("OrderCard", () => {
         onCallTerminated={onCallTerminated}
       />
     );
-    // Two instances exist (mobile icon-only + desktop labelled); both wire the
-    // same handler — click the first.
-    const button = screen.getAllByRole("button", { name: /appel terminé/i })[0];
+    // One instance, phone-only: the desktop row opens the panel instead.
+    const button = screen.getByRole("button", { name: /appel terminé/i });
     await user.click(button);
     expect(onCallTerminated).toHaveBeenCalledWith("order-1");
   });
@@ -393,56 +382,6 @@ describe("OrderCard", () => {
     expect(card.className).not.toContain("border-black/35");
   });
 
-  describe("last-action clock", () => {
-    it("reads as a dash — not as zero — when no agent has ever acted", () => {
-      render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-      const cell = screen.getByTestId("order-last-action");
-      expect(cell).toHaveAttribute("data-tier", "never");
-      expect(cell.textContent).toBe("—");
-    });
-
-    it("measures from the last agent action, independently of the order's age", () => {
-      vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-13T10:00:00Z"));
-      render(
-        <OrderCard
-          order={{
-            ...mockOrder,
-            status: "attempt_1",
-            attempt_count: 1,
-            last_action_at: "2026-04-13T08:00:00Z",
-          }}
-          maxAttempts={8}
-          onOpenDetail={() => {}}
-          onCallTerminated={() => {}}
-        />,
-      );
-      // Three days old, but touched two hours ago — not neglected.
-      expect(screen.getByTestId("order-age")).toHaveAttribute("data-tier", "late");
-      expect(screen.getByTestId("order-last-action").textContent).toBe("2h");
-      expect(screen.getByTestId("order-last-action")).toHaveAttribute("data-tier", "calm");
-    });
-
-    it("goes cold on an attempt left untouched with retries still available", () => {
-      vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-13T10:00:00Z"));
-      render(
-        <OrderCard
-          order={{
-            ...mockOrder,
-            status: "attempt_2",
-            attempt_count: 2,
-            last_action_at: "2026-04-11T09:00:00Z",
-          }}
-          maxAttempts={8}
-          onOpenDetail={() => {}}
-          onCallTerminated={() => {}}
-        />,
-      );
-      expect(screen.getByTestId("order-last-action")).toHaveAttribute("data-tier", "cold");
-    });
-  });
-
   it("calls onToggleSelect when checkbox is clicked without opening detail", async () => {
     const user = userEvent.setup();
     const onToggleSelect = vi.fn();
@@ -462,174 +401,9 @@ describe("OrderCard", () => {
     expect(onOpenDetail).not.toHaveBeenCalled();
   });
 
-  it("renders uploaded status with purple tone", () => {
-    render(
-      <OrderCard
-        order={{ ...mockOrder, status: "uploaded", customer_note: null }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    // Teal, not violet: uploaded is the first state actually with the carrier.
-    // Violet stays reserved for phase 1 outcomes that are still the agent's.
-    expect(screen.getByText("Téléchargé")).toBeInTheDocument();
-    expect(screen.getByTestId("queue-status")).toHaveAttribute("data-hue", "teal");
-  });
-
-  it("renders dispatched status as the 'En cours' (deposit) bucket pill", () => {
-    // The list pill now reflects the lifecycle bucket, not the raw OMS status.
-    // bucketFor() maps status='dispatched' → 'deposit' → cyan En cours pill.
-    // See plans/dexpress-list-status-bucket.md.
-    render(
-      <OrderCard
-        order={{ ...mockOrder, status: "dispatched", customer_note: null }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    expect(screen.getByText("En cours")).toBeInTheDocument();
-    expect(screen.getByTestId("queue-status")).toHaveAttribute("data-hue", "teal");
-  });
-
-  it("pending-acceptance Dexpress order shows 'Téléchargé' even with a Deposit-shaped slug", () => {
-    // Probe 2026-05-29 (tracking 1345233, 1345235): Dexpress reuses the
-    // AT_CUSTOMER slug for orders sitting in /merchant/pending-orders. The
-    // accepted=false flag overrides the bucket to 'uploaded' so the agent
-    // doesn't see "En cours" for orders Dexpress hasn't even acknowledged.
-    render(
-      <OrderCard
-        order={{
-          ...mockOrder,
-          status: "uploaded",
-          carrier_code: "dexpress",
-          dexpress_status_slug: "AT_CUSTOMER",
-          dexpress_status_accepted: false,
-          customer_note: null,
-        }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    expect(screen.getByText("Téléchargé")).toBeInTheDocument();
-    expect(screen.getByTestId("queue-status")).toHaveAttribute("data-hue", "teal");
-  });
-
-  it("renders rejected status with critical tone", () => {
-    render(
-      <OrderCard
-        order={{ ...mockOrder, status: "rejected", customer_note: null }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    expect(screen.getByText("Rejeté")).toBeInTheDocument();
-    const pill = screen.getByTestId("queue-status");
-    expect(pill).toHaveAttribute("data-hue", "red");
-    // Red, but quiet: rejection is a normal COD outcome on a quarter of orders,
-    // not an emergency on a quarter of orders.
-    expect(pill).toHaveAttribute("data-weight", "quiet");
-  });
-
-  it("states the rejection reason in the pill, with no hover needed", () => {
-    // This used to be a hover popover, which meant the one fact worth knowing
-    // about a rejected row was invisible while scanning — and the popover
-    // overlapped the rows beneath it.
-    render(
-      <OrderCard
-        order={{
-          ...mockOrder,
-          status: "rejected",
-          customer_note: null,
-          rejection_reason: "refus_client",
-          rejection_subreason: "achete_ailleurs",
-        }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    expect(screen.getByText("Ailleurs")).toBeInTheDocument();
-    // The word "Rejeté" is spent: red + the cross already say that.
-    expect(screen.queryByText("Rejeté")).not.toBeInTheDocument();
-    expect(screen.getByTestId("queue-status")).toHaveAttribute("data-hue", "red");
-  });
-
-  it("falls back to the group when no sub-reason was recorded", () => {
-    render(
-      <OrderCard
-        order={{
-          ...mockOrder,
-          status: "rejected",
-          customer_note: null,
-          rejection_reason: "refus_client",
-          rejection_subreason: null,
-        }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    expect(screen.getByText("Refus client")).toBeInTheDocument();
-  });
-
-  it("shows the free-text note for the 'autre' reason, which has no key", () => {
-    render(
-      <OrderCard
-        order={{
-          ...mockOrder,
-          status: "rejected",
-          customer_note: null,
-          rejection_reason: "autre",
-          rejection_subreason: null,
-          rejection_note: "Client injoignable depuis 3 jours",
-        }}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    expect(
-      screen.getByText("Client injoignable depuis 3 jours"),
-    ).toBeInTheDocument();
-  });
-
-  it("uses attempt_count when max attempts is configured above 3", () => {
-    render(
-      <OrderCard
-        order={{
-          ...mockOrder,
-          status: "attempt_3",
-          attempt_count: 4,
-          customer_note: null,
-        }}
-        maxAttempts={5}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    // attempt_3 is a cap, not a count — the counter comes from attempt_count.
-    expect(screen.getByTestId("queue-status")).toHaveAccessibleName("Tentative 4/5");
-    expect(screen.queryByText(/final/)).not.toBeInTheDocument();
-  });
-
-  it("does not show a redundant X/Y attempts count at max attempts", () => {
-    render(
-      <OrderCard
-        order={{
-          ...mockOrder,
-          status: "attempt_3",
-          attempt_count: 3,
-          customer_note: null,
-        }}
-        maxAttempts={3}
-        onOpenDetail={() => {}}
-        onCallTerminated={() => {}}
-      />,
-    );
-    // The counter lives in its own slot inside the pill, so the label never
-    // renders "Tentative 33/3".
-    expect(screen.queryByText("Tentative 3/3")).not.toBeInTheDocument();
-    expect(screen.getByTestId("queue-status")).toHaveAccessibleName("Tentative 3/3");
-    expect(screen.getByTestId("queue-status")).toHaveAttribute("data-weight", "loud");
-  });
-
+  // Rev 3 (2026-09-19): the call affordance is back on the row as a glyph, on
+  // phones only — the desktop row opens the panel and the outcome is recorded
+  // there. These rules say which statuses still have a call to record at all.
   describe("end-call affordance per status", () => {
     it("shows End call for a brand-new order with no note", () => {
       render(
@@ -693,46 +467,6 @@ describe("OrderCard", () => {
     });
   });
 
-  describe("status sign + phone prominence", () => {
-    it("renders a visible status sign for a new order", () => {
-      render(
-        <OrderCard
-          order={{ ...mockOrder, status: "pending", customer_note: null }}
-          onOpenDetail={() => {}}
-          onCallTerminated={() => {}}
-        />,
-      );
-      expect(screen.getByText("En attente")).toBeInTheDocument();
-    });
-
-  });
-
-  describe("status rail", () => {
-    // The leading-edge rail takes the row's own status hue, so the rail and the
-    // pill can never disagree — they read the same presentation map.
-    const railHue = () =>
-      (document.querySelector("[data-order-id='order-1'] span[aria-hidden='true']") as HTMLElement)
-        .className;
-
-    it.each([
-      ["pending", "hue-neutral-edge"],
-      ["attempt_1", "hue-amber-edge"],
-      ["confirmed", "hue-violet-edge"],
-      ["uploaded", "hue-teal-edge"],
-      ["delivered", "hue-green-edge"],
-      ["rejected", "hue-red-edge"],
-    ])("%s → %s", (status, expected) => {
-      render(
-        <OrderCard
-          order={{ ...mockOrder, status, customer_note: null }}
-          onOpenDetail={() => {}}
-          onCallTerminated={() => {}}
-        />,
-      );
-      expect(railHue()).toContain(expected);
-    });
-  });
-
   describe("deleted-anchor badge guard", () => {
     it("hides both the repeat-buyer and duplicate badges when the order is deleted", () => {
       const { container } = render(
@@ -769,5 +503,40 @@ describe("OrderCard", () => {
       expect(container.querySelector('[data-duplicate="true"]')).toBeNull();
       expect(container.querySelector("[data-repeat-kind]")).toBeNull();
     });
+  });
+});
+
+/**
+ * Revision 2 (2026-09-18) — the owner's rework of the row: product first, a
+ * flat status tag with an icon, two clocks, and no action button on desktop.
+ */
+describe("OrderCard — product-first row", () => {
+  it("still opens the detail panel when the row is clicked", async () => {
+    const onOpenDetail = vi.fn();
+    render(
+      <OrderCard order={mockOrder} onOpenDetail={onOpenDetail} onCallTerminated={() => {}} />,
+    );
+    await userEvent.click(screen.getByText("Ahmed Gharbi"));
+    expect(onOpenDetail).toHaveBeenCalledWith("order-1");
+  });
+
+});
+
+describe("OrderCard — WhatsApp line (prototype whatsapp-agent-v1.html, queue row)", () => {
+  it("marks a row with a WhatsApp conversation before the product", () => {
+    render(<OrderCard order={{ ...mockOrder, wa_conversation: true, wa_unread: 0 }} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    const mark = screen.getByTestId("queue-row-whatsapp");
+    expect(mark).toHaveTextContent("WhatsApp");
+    expect(mark.querySelector('[data-icon="whatsapp"]')).not.toBeNull();
+  });
+
+  it("says « a répondu » while a reply is unread", () => {
+    render(<OrderCard order={{ ...mockOrder, wa_conversation: true, wa_unread: 1 }} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.getByTestId("queue-row-whatsapp")).toHaveTextContent("a répondu");
+  });
+
+  it("no conversation, no mark", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.queryByTestId("queue-row-whatsapp")).toBeNull();
   });
 });

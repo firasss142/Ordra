@@ -27,6 +27,13 @@ export interface OrdersListRow {
   assigned_to: string | null;
   carrier_id: string | null;
   rejection_reason: string | null;
+  /**
+   * The specific reason, and the agent's own words for `autre`. Both are on the
+   * row because the status column shows *why* an order was rejected rather than
+   * the word "Rejeté" — see `useRejectionBadge`.
+   */
+  rejection_subreason: string | null;
+  rejection_note: string | null;
   carrier_barcode_deleted_at: string | null;
   carrier_barcode_deleted_carrier_code: string | null;
   callback_scheduled_at: string | null;

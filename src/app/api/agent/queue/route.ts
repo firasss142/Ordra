@@ -56,6 +56,38 @@ async function attachLastAgentAction(
   }
 }
 
+/**
+ * The queue row's WhatsApp mark (prototype whatsapp-agent-v1.html): does the
+ * order have a conversation anchored to it, and how many replies are unread.
+ * Read with the agent's own client — RLS lets an agent see only conversations
+ * anchored to their orders. A failed read (or a database without the WhatsApp
+ * tables yet) leaves every row unmarked rather than failing the queue.
+ */
+async function attachWhatsAppState(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  groups: Array<Array<Record<string, unknown> & { id: string }>>,
+): Promise<void> {
+  const rows = groups.flat();
+  for (const order of rows) {
+    order.wa_conversation = false;
+    order.wa_unread = 0;
+  }
+  const ids = rows.map((o) => o.id);
+  if (ids.length === 0) return;
+  const { data, error } = await supabase.from("whatsapp_conversations").select("current_order_id, unread_count").in("current_order_id", ids);
+  if (error) return;
+  const byOrder = new Map<string, number>();
+  for (const c of (data ?? []) as Array<{ current_order_id: string | null; unread_count: number | null }>) {
+    if (c.current_order_id) byOrder.set(c.current_order_id, (byOrder.get(c.current_order_id) ?? 0) + (c.unread_count ?? 0));
+  }
+  for (const order of rows) {
+    if (byOrder.has(order.id)) {
+      order.wa_conversation = true;
+      order.wa_unread = byOrder.get(order.id) ?? 0;
+    }
+  }
+}
+
 const ACTIVE_QUEUE_STATUSES = [
   "pending",
   "assigned",
@@ -204,10 +236,10 @@ export async function GET(_req: NextRequest) {
   // Only stamp rows we are about to send. When the closed list is withheld its
   // ids would otherwise widen the order_history lookup for nothing — 403 ids
   // instead of 26 in the measured worst case.
-  await attachLastAgentAction(
-    supabase,
-    includeClosed ? [allOrders, closedOrders] : [allOrders],
-  );
+  await Promise.all([
+    attachLastAgentAction(supabase, includeClosed ? [allOrders, closedOrders] : [allOrders]),
+    attachWhatsAppState(supabase, includeClosed ? [allOrders, closedOrders] : [allOrders]),
+  ]);
 
   const activeOrders = allOrders.filter((o) => {
     // confirmed (without carrier) stays in the active queue so the agent

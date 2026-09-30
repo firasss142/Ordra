@@ -10,6 +10,7 @@ import { ShiftConfigEditor } from "../ShiftConfigEditor";
 import { SectionShell, SettingField, inputClass, selectClass } from "./SectionShell";
 import { OptionCards } from "./OptionCards";
 import { SettingToggle } from "./SettingToggle";
+import { AgentSharesEditor } from "./AgentSharesEditor";
 
 const ALGORITHM_OPTIONS: {
   value: AssignmentAlgorithm;
@@ -29,6 +30,9 @@ const ALGORITHM_OPTIONS: {
     label: "Par région — bientôt disponible",
     available: false,
   },
+  // Implémenté, testé et actif. product_based/region_based sont eux aussi
+  // implémentés mais restent désactivés ici — incohérence connue, hors sujet.
+  { value: "percentage", label: "Par pourcentages", available: true },
 ];
 
 interface Props {
@@ -113,16 +117,31 @@ export function TeamSection({
           </div>
         </SettingField>
 
-        {values.assignment_algorithm !== "manual" && (
-          <div className="flex items-center gap-3 text-[13px] text-ink-primary">
-            <SettingToggle
-              on={values.active_agents_only ?? false}
-              onToggle={() => set("active_agents_only", !(values.active_agents_only ?? false))}
-              label="Agents actifs uniquement"
-              disabled={readOnly}
-            />
-            <span>N'affecter qu'aux agents en ligne ou inactifs — jamais hors ligne</span>
-          </div>
+        {/*
+          « Agents actifs uniquement » a été retiré ici. Son libellé promettait
+          « en ligne ou inactif — jamais hors ligne » alors que le code
+          regardait « a agi aujourd'hui », puis retombait silencieusement sur
+          TOUS les agents actifs quand personne ne qualifiait. La disponibilité
+          déclarée par l'agent (le bouton « Je prends des commandes ») est la
+          version honnête de la même intention, et elle s'applique à tous les
+          algorithmes. La clé reste lisible pour ne pas casser les lignes déjà
+          stockées.
+        */}
+        <p className="text-[13px] text-ink-secondary">
+          Quel que soit l&apos;algorithme, une commande ne part que vers un agent qui
+          s&apos;est déclaré disponible et dont la session est active. Si personne ne
+          l&apos;est, elle attend dans « à affecter ».
+        </p>
+
+        {values.assignment_algorithm === "percentage" && (
+          <SettingField
+            label="Répartition par agent"
+            marketId={marketId}
+            settingKey="assignment_algorithm"
+            hint="Le total doit faire exactement 100 %, et chaque agent actif doit avoir une valeur."
+          >
+            <AgentSharesEditor marketId={marketId} readOnly={readOnly} />
+          </SettingField>
         )}
       </SectionShell>
 

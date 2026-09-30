@@ -58,6 +58,8 @@ export interface WorklistRow {
   last_action_type: string | null;
   last_action_outcome: string | null;
   last_action_note: string | null;
+  /** The latest WhatsApp message the business number sent for this parcel (row trace). */
+  wa_last?: { status: string; at: string; template_key: string | null } | null;
   has_open_task: boolean;
   terminal_at: string | null;
   created_at: string | null;
@@ -87,6 +89,8 @@ export interface TimelineEntry {
   actor: string | null;
   /** True for rows written by the person looking at the page. */
   mine: boolean;
+  /** A WhatsApp action's template (« WhatsApp · Avant livraison »). */
+  template_key?: string | null;
 }
 
 /** get_delivery_agent_scorecard — the "85 % livraison 30 j · 6 sauvées" pill. */

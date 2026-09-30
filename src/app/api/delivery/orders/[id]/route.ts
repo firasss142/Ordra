@@ -67,7 +67,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       .limit(LIMIT),
     supabase
       .from("delivery_actions")
-      .select("id, action_type, outcome, note, actor_id, actor_type, created_at, actor:users(full_name)")
+      .select("id, action_type, outcome, note, actor_id, actor_type, created_at, template_key, actor:users(full_name)")
       .eq("order_id", params.id)
       .order("created_at", { ascending: false })
       .limit(LIMIT),

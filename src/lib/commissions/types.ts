@@ -84,7 +84,11 @@ export interface AgentHistoryOrder {
   city: string | null;
   amount: number;
   entry_type: "accrual" | "reversal";
+  /** reversal only — why the money was taken back (20260926132710) */
+  reason?: CommissionReversalReason | null;
 }
+
+export type CommissionReversalReason = "not_delivered" | "uploaded_before_activation";
 
 export type AgentHistoryItem =
   | { type: "day"; day: string; delivered: number; corrections: number; amount: number; orders: AgentHistoryOrder[] }

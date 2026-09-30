@@ -8,14 +8,14 @@
  *
  * Design: prototypes/prospects-manager-v1.html.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, FileUp, Grid2x2, Megaphone, List, Users, X } from "lucide-react";
 import type {
-  AgentLoadRanked, CampaignResult, ConsoleMetrics, Funnel, LossByReason,
+  AgentLoadRanked, CampaignResult, CampaignWhatsApp, ConsoleMetrics, Funnel, LossByReason,
 } from "@/lib/prospects/console";
 import type { AudiencePreview, Condition, ConditionError } from "@/lib/prospects/audience";
-import { conditionsOf, validateConditions } from "@/lib/prospects/audience";
+import { conditionsOf, fromFilterJson, validateConditions } from "@/lib/prospects/audience";
 import type { DistributionRule } from "@/lib/prospects/distribution";
 import type { ProspectRow } from "@/lib/prospects/types";
 import type { LeadLostReason } from "@/types/lead";
@@ -25,7 +25,7 @@ import { CampaignsTab } from "./CampaignsTab";
 import { TeamTab } from "./TeamTab";
 import { DistributeSheet, type DistributePlan } from "./DistributeSheet";
 import { AssignSheet, CloseSheet } from "./Sheets";
-import { CampaignSheet, type CampaignDraft } from "./CampaignSheet";
+import { CampaignSheet, type CampaignDraft, type CampaignProduct } from "./CampaignSheet";
 import { fmt, PRIMARY, OUTLINE, Tabs } from "./ui";
 
 export type ConsoleTab = "overview" | "pipeline" | "campaigns" | "team";
@@ -35,8 +35,21 @@ type SheetState =
   | { kind: "distribute"; leadIds: string[] | null; pool: number; label: string | null; agentIds: string[] | null }
   | { kind: "assign"; leadIds: string[] }
   | { kind: "close"; leadIds: string[] }
-  | { kind: "campaign" }
+  // `campaignId` set: the sheet follows a business-number campaign's template
+  // (after « Soumettre », « Modifier et resoumettre », or « Lancer » from a card).
+  // `override` is what the last submission told us, shown until the console's
+  // own data catches up with that template.
+  | { kind: "campaign"; campaignId?: string; override?: Partial<CampaignWhatsApp> }
   | null;
+
+/** What « Modifier et resoumettre » sends: the corrected template and the pacing. */
+export interface ResubmitPatch {
+  wa_message: string;
+  wa_language: "ar" | "fr";
+  wa_image_url: string | null;
+  wa_window: string;
+  wa_rate: number;
+}
 
 export interface ConsoleViewProps {
   metrics: ConsoleMetrics;
@@ -62,7 +75,7 @@ export interface ConsoleViewProps {
   query: string;
   onQuery: (q: string) => void;
 
-  products: { id: string; name: string }[];
+  products: CampaignProduct[];
   cities: string[];
   cap: number;
 
@@ -78,8 +91,19 @@ export interface ConsoleViewProps {
   onReopen: (leadId: string) => Promise<void>;
   onSaveLead: (id: string, patch: Partial<ProspectRow>) => Promise<void>;
   onPreviewAudience: (conditions: Condition[]) => Promise<AudiencePreview>;
-  onCreateCampaign: (draft: CampaignDraft) => Promise<{ inserted: number }>;
+  onCreateCampaign: (draft: CampaignDraft) => Promise<{
+    id?: string; inserted: number; wa_launch_status?: string; template_name?: string | null; template_status?: string | null;
+  }>;
   onImportCsv: () => void;
+  /** Business-number campaigns. */
+  whatsappActive?: boolean;
+  /** super_admin: « not connected » points at Système › Connexions. */
+  canConnectWhatsApp?: boolean;
+  /** The business number's display name, as the customer sees it. */
+  whatsappName?: string | null;
+  onLaunchCampaign?: (campaign: CampaignResult) => Promise<{ queued: number }>;
+  onCheckCampaignStatus?: (campaign: CampaignResult) => Promise<{ template_status: string }>;
+  onResubmitCampaign?: (campaign: CampaignResult, patch: ResubmitPatch) => Promise<{ template_name?: string | null; template_status?: string | null }>;
 
   marketCode: "ly" | "tn";
   tz: string;
@@ -87,7 +111,10 @@ export interface ConsoleViewProps {
   now: number;
 }
 
-const EMPTY_DRAFT = (now: number): CampaignDraft => ({
+/** A template in the market's language: Arabic in Libya, French in Tunisia. */
+const defaultLanguage = (marketCode: "ly" | "tn"): "ar" | "fr" => (marketCode === "ly" ? "ar" : "fr");
+
+const EMPTY_DRAFT = (now: number, marketCode: "ly" | "tn"): CampaignDraft => ({
   step: 1,
   template: "rebuy",
   conditions: conditionsOf("rebuy", now),
@@ -97,6 +124,8 @@ const EMPTY_DRAFT = (now: number): CampaignDraft => ({
   waMessage: "",
   waImage: true,
   waSender: "agent",
+  waLanguage: defaultLanguage(marketCode),
+  waImageUrl: "",
   waWindow: "10-20",
   waRate: 40,
   waFollowUpHours: 24,
@@ -106,6 +135,31 @@ const EMPTY_DRAFT = (now: number): CampaignDraft => ({
   cap: 20,
 });
 
+/** Reopen a business-number campaign on Canal, as it was submitted. */
+function draftFromCampaign(c: CampaignResult, now: number, marketCode: "ly" | "tn"): CampaignDraft {
+  const wa = c.whatsapp;
+  return {
+    ...EMPTY_DRAFT(now, marketCode),
+    step: 2,
+    template: "custom",
+    conditions: wa?.filter ? fromFilterJson(wa.filter, now) : conditionsOf("rebuy", now),
+    name: c.name,
+    offer: c.offer ?? "",
+    channel: c.channel && c.channel !== "call" ? c.channel : "wa",
+    waSender: "api",
+    waMessage: wa?.message ?? "",
+    waLanguage: wa?.language ?? defaultLanguage(marketCode),
+    waImage: Boolean(wa?.image_url),
+    waImageUrl: wa?.image_url ?? "",
+    waWindow: wa?.window ?? "10-20",
+    waRate: wa?.rate ?? 40,
+    waFollowUpHours: wa?.follow_up_hours ?? 24,
+  };
+}
+
+/** The template name a campaign's whatsapp object points at, for matching an override. */
+const templateOf = (c: CampaignResult | undefined) => c?.whatsapp?.template_name ?? null;
+
 export function ConsoleView(props: ConsoleViewProps) {
   const {
     metrics, funnel, loss, campaigns, agents, rows, total, truncated, isLoading, error, onRetry,
@@ -113,6 +167,8 @@ export function ConsoleView(props: ConsoleViewProps) {
     products, cities, cap,
     onPreviewDistribution, onDistribute, onAssign, onCloseLeads, onReopen, onSaveLead,
     onPreviewAudience, onCreateCampaign, onImportCsv,
+    whatsappActive = false, canConnectWhatsApp = false, whatsappName = null,
+    onLaunchCampaign, onCheckCampaignStatus, onResubmitCampaign,
     marketCode, tz, locale, now,
   } = props;
 
@@ -138,7 +194,7 @@ export function ConsoleView(props: ConsoleViewProps) {
   const [closeNote, setCloseNote] = useState("");
 
   // Campaign builder.
-  const [draft, setDraft] = useState<CampaignDraft>(() => EMPTY_DRAFT(now));
+  const [draft, setDraft] = useState<CampaignDraft>(() => EMPTY_DRAFT(now, marketCode));
   const [preview, setPreview] = useState<AudiencePreview | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
@@ -161,6 +217,72 @@ export function ConsoleView(props: ConsoleViewProps) {
     const id = setTimeout(() => setToast(null), 3600);
     return () => clearTimeout(id);
   }, [toast]);
+
+  // « Vous serez prévenu »: while the page is open the console refreshes
+  // (faster while a template is pending — ConsoleClient), and a campaign whose
+  // template moves from pending to approved or refused is announced here. The
+  // first load only records where things stand; it announces nothing.
+  const lastStatus = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    const seen = new Map<string, string>();
+    let flip: string | null = null;
+    for (const c of campaigns) {
+      const status = c.whatsapp?.launch_status;
+      if (!status) continue;
+      seen.set(c.id, status);
+      const before = lastStatus.current?.get(c.id);
+      if (before === "pending_template" && status === "ready") flip = t("cb.flipApproved", { name: c.name });
+      else if (before === "pending_template" && status === "rejected") flip = t("cb.flipRejected", { name: c.name });
+    }
+    lastStatus.current = seen;
+    if (flip) setToast(flip);
+  }, [campaigns, t]);
+
+  /** The campaign the open sheet follows, with what the last submission told us layered on top. */
+  const followed: CampaignResult | null = useMemo(() => {
+    if (sheet?.kind !== "campaign" || !sheet.campaignId) return null;
+    const live = campaigns.find((c) => c.id === sheet.campaignId);
+    const o = sheet.override;
+    // Once the console's data shows the template we submitted, it is the truth
+    // (it may already say approved); until then, the submission's answer is.
+    if (live?.whatsapp && (!o || templateOf(live) === (o.template_name ?? null))) return live;
+    const zero: CampaignWhatsApp = {
+      launch_status: "pending_template", language: draft.waLanguage, template_status: "PENDING", template_name: null,
+      template_rejected_reason: null, queued: 0, sent: 0, delivered: 0, read: 0, replied: 0, failed: 0, skipped: 0,
+      rate: draft.waRate, window: draft.waWindow,
+    };
+    return {
+      ...(live ?? {
+        id: sheet.campaignId, name: draft.name, offer: draft.offer || null, audience: 0, called: 0, converted: 0,
+        revenue: 0, created_at: new Date(now).toISOString(), channel: draft.channel, pool: 0,
+      }),
+      whatsapp: { ...zero, ...(live?.whatsapp ?? {}), template_rejected_reason: null, ...o },
+    };
+  }, [sheet, campaigns, draft.waLanguage, draft.waRate, draft.waWindow, draft.name, draft.offer, draft.channel, now]);
+
+  const openFollowing = useCallback((c: CampaignResult) => {
+    setDraft(draftFromCampaign(c, now, marketCode));
+    setPreview(null);
+    setSheetError(null);
+    setSheet({ kind: "campaign", campaignId: c.id });
+  }, [now, marketCode]);
+
+  /** A sheet action that keeps the sheet open: its error shows inside it. */
+  const act = useCallback(async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setSheetError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setSheetError(e instanceof Error ? e.message : t("toastSaved"));
+    } finally {
+      setBusy(false);
+    }
+  }, [t]);
+
+  const checkedMessage = useCallback((status: string) => (
+    ["PENDING", "APPROVED", "REJECTED"].includes(status) ? t(`cb.checked.${status}`) : t("cb.checked.other", { status })
+  ), [t]);
 
   // Escape clears the selection first, then the open row — the sheet handles
   // its own Escape, so this only fires behind it.
@@ -260,7 +382,7 @@ export function ConsoleView(props: ConsoleViewProps) {
           </button>
           <button
             type="button"
-            onClick={() => { setDraft(EMPTY_DRAFT(now)); setPreview(null); setSheetError(null); setSheet({ kind: "campaign" }); }}
+            onClick={() => { setDraft(EMPTY_DRAFT(now, marketCode)); setPreview(null); setSheetError(null); setSheet({ kind: "campaign" }); }}
             className={`h-10 px-3.5 text-[14px] ${PRIMARY}`}
           >
             <Megaphone size={16} aria-hidden />
@@ -307,9 +429,14 @@ export function ConsoleView(props: ConsoleViewProps) {
 
       {tab === "campaigns" ? (
         <CampaignsTab
-          campaigns={campaigns} loss={loss} marketCode={marketCode} locale={locale}
+          campaigns={campaigns} loss={loss} marketCode={marketCode} locale={locale} now={now} tz={tz}
           onDistribute={(c) => openDistribute(null, c.pool ?? 0, c.name)}
           onSee={(c) => { onCampaignFilter(c.id); setTab("pipeline"); }}
+          // Launching sends hundreds of messages: the sheet shows the plan
+          // (audience, cadence, window, estimated end) before the button that does it.
+          onLaunch={onLaunchCampaign ? openFollowing : undefined}
+          onCheckStatus={onCheckCampaignStatus ? (c) => void run(async () => { const r = await onCheckCampaignStatus(c); return checkedMessage(r.template_status); }) : undefined}
+          onResubmit={onResubmitCampaign ? openFollowing : undefined}
         />
       ) : null}
 
@@ -395,15 +522,65 @@ export function ConsoleView(props: ConsoleViewProps) {
           cities={cities}
           busy={busy}
           error={sheetError}
-          onConfirm={() => void run(async () => {
-            const r = await onCreateCampaign(draft);
-            return draft.channel === "call"
-              ? t("cb.ok", { n: fmt(r.inserted, locale) })
-              : t("cb.waOk", { n: fmt(r.inserted, locale) });
-          })}
+          onConfirm={() => {
+            if (draft.channel !== "call" && draft.waSender === "api") {
+              // The template went to Meta: stay, back on Canal, and show what
+              // happens next instead of a toast that vanishes.
+              void act(async () => {
+                const r = await onCreateCampaign(draft);
+                if (!r.id) throw new Error(t("toastSaved"));
+                setDraft((d) => ({ ...d, step: 2 }));
+                setSheet({
+                  kind: "campaign", campaignId: r.id,
+                  override: {
+                    launch_status: "pending_template", template_name: r.template_name ?? null,
+                    template_status: r.template_status ?? "PENDING", status_at: new Date().toISOString(),
+                  },
+                });
+              });
+              return;
+            }
+            void run(async () => {
+              const r = await onCreateCampaign(draft);
+              return draft.channel === "call"
+                ? t("cb.ok", { n: fmt(r.inserted, locale) })
+                : t("cb.waOk", { n: fmt(r.inserted, locale) });
+            });
+          }}
           onClose={() => setSheet(null)}
           locale={locale}
           now={now}
+          whatsappActive={whatsappActive}
+          canConnectWhatsApp={canConnectWhatsApp}
+          whatsappName={whatsappName}
+          marketCode={marketCode}
+          tz={tz}
+          campaign={followed}
+          onCheckStatus={followed && onCheckCampaignStatus ? () => void act(async () => {
+            const r = await onCheckCampaignStatus(followed);
+            setToast(checkedMessage(r.template_status));
+          }) : undefined}
+          onLaunch={followed && onLaunchCampaign ? () => void run(async () => {
+            const r = await onLaunchCampaign(followed);
+            return t("cb.launched", { n: fmt(r.queued, locale) });
+          }) : undefined}
+          onResubmit={followed && onResubmitCampaign ? () => void act(async () => {
+            const r = await onResubmitCampaign(followed, {
+              wa_message: draft.waMessage.trim(),
+              wa_language: draft.waLanguage,
+              wa_image_url: draft.waImage && draft.waImageUrl.trim() ? draft.waImageUrl.trim() : null,
+              wa_window: draft.waWindow,
+              wa_rate: draft.waRate,
+            });
+            setSheet({
+              kind: "campaign", campaignId: followed.id,
+              override: {
+                launch_status: "pending_template", template_name: r.template_name ?? null,
+                template_status: r.template_status ?? "PENDING", status_at: new Date().toISOString(),
+              },
+            });
+            setToast(t("cb.resubmitted"));
+          }) : undefined}
         />
       ) : null}
 

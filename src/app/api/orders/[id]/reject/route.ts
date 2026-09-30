@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { validateTransition } from "@/lib/order-engine";
 import type { OrderStatus, RejectionReason } from "@/types/order-status";
 import { isValidPair, REJECTION_GROUPS } from "@/lib/orders/rejection-taxonomy";
+import {
+  buildRejectionTree,
+  validateRejectionPair,
+} from "@/lib/orders/rejection-config";
 import { getActor } from "@/lib/auth/actor";
 import {
   actorTypeFor,
@@ -41,23 +45,65 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // A group on its own is not an answer. Requiring the pair is what stops the
-  // new taxonomy decaying back into the old one, where the vaguest option was
-  // always the fastest way to close the sheet.
-  if (!isValidPair(body.rejection_reason ?? "", body.rejection_subreason ?? null)) {
+  // The taxonomy is per-market data now, so validation reads it rather than a
+  // compiled-in list: a sub-reason a manager adds this morning has to work this
+  // afternoon, and one they retire has to stop working immediately.
+  //
+  // The market comes from the ORDER, not from the actor — a super_admin rejects
+  // orders in markets they do not belong to.
+  const { data: orderMarket } = await supabase
+    .from("orders")
+    .select("market_id")
+    .eq("id", id)
+    .single();
+
+  if (!orderMarket) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  const { data: configRows } = await supabase
+    .from("rejection_reason_configs")
+    .select("*")
+    .eq("market_id", orderMarket.market_id);
+
+  // `activeOnly`: validation is about what may be chosen now. History keeps
+  // rendering retired reasons, but nothing new may be written with one.
+  const tree = buildRejectionTree(configRows ?? [], { activeOnly: true });
+
+  const group = body.rejection_reason ?? "";
+  const sub = body.rejection_subreason ?? null;
+
+  // An empty table means the migration has not run yet — the code can deploy
+  // ahead of it. Falling back to the compiled taxonomy keeps rejections working
+  // through that window instead of refusing every one of them.
+  const valid =
+    tree.length > 0
+      ? validateRejectionPair(tree, group, sub)
+      : isValidPair(group, sub);
+
+  if (!valid) {
+    const offered =
+      tree.length > 0
+        ? tree.map((g) => g.key).join(", ")
+        : REJECTION_GROUPS.join(", ");
     return NextResponse.json(
       {
         error:
-          `Invalid rejection reason. Group must be one of: ${REJECTION_GROUPS.join(", ")}` +
-          ", with a sub-reason belonging to it (none for 'autre').",
+          `Invalid rejection reason. Group must be one of: ${offered}` +
+          ", with an active sub-reason belonging to it.",
       },
       { status: 400 }
     );
   }
 
-  if (body.rejection_reason === "autre" && !body.rejection_note?.trim()) {
+  // Which groups demand a free-text note is configuration too, not the literal
+  // string "autre" — a market may well name its escape hatch something else.
+  const needsNote =
+    tree.find((g) => g.key === group)?.requiresNote ?? group === "autre";
+
+  if (needsNote && !body.rejection_note?.trim()) {
     return NextResponse.json(
-      { error: "rejection_note is required when rejection_reason is 'autre'" },
+      { error: `rejection_note is required when rejection_reason is '${group}'` },
       { status: 400 }
     );
   }

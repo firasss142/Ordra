@@ -7,12 +7,13 @@ import { useRouter } from "next/navigation";
 import { Bell, BellRing, X } from "lucide-react";
 import { useAgentNotifications } from "@/hooks/useAgentNotifications";
 import type { AgentNotification } from "@/hooks/useAgentNotifications";
+import { WhatsAppGlyph } from "@/components/whatsapp/WhatsAppGlyph";
 
 interface NotificationBellProps {
   agentId: string;
 }
 
-type Kind = "callback_due" | "attempt_due" | "dispatch_due";
+type Kind = "callback_due" | "attempt_due" | "dispatch_due" | "whatsapp_inbound";
 
 // Semantic palette, ordered by what the agent owes and to whom: a callback is a
 // promise made to a customer for a specific time; an attempt is a softer
@@ -40,21 +41,44 @@ const KIND_STYLE: Record<
     barBg: "rgba(110, 86, 207, 0.10)",
     toastAccent: "#B5A3F5",
   },
+  // A customer wrote back on WhatsApp: the channel's own green, so the bell
+  // says "someone answered" before the agent reads a word.
+  whatsapp_inbound: {
+    dot: "#1E8E5A",
+    badgeBg: "#1E8E5A",
+    barBg: "rgba(30, 142, 90, 0.10)",
+    toastAccent: "#7BE0A6",
+  },
 };
 
-// Pick the most-urgent unread to drive the badge color and shake.
-// callback_due > attempt_due > dispatch_due > (no unread).
+// Pick the unread that drives the badge color and shake. A customer who wrote
+// back comes first — someone is waiting on the other end, and the prototype
+// (whatsapp-agent-v1.html, state `unread`) turns the badge WhatsApp green —
+// then callback_due > attempt_due > dispatch_due.
 function pickHighestKind(notifs: AgentNotification[]): Kind | null {
+  let hasCallback = false;
   let hasAttempt = false;
   let hasDispatch = false;
   for (const n of notifs) {
     if (n.read_at) continue;
-    if (n.kind === "callback_due") return "callback_due";
+    if (n.kind === "whatsapp_inbound") return "whatsapp_inbound";
+    if (n.kind === "callback_due") hasCallback = true;
     if (n.kind === "attempt_due") hasAttempt = true;
     if (n.kind === "dispatch_due") hasDispatch = true;
   }
+  if (hasCallback) return "callback_due";
   if (hasAttempt) return "attempt_due";
   return hasDispatch ? "dispatch_due" : null;
+}
+
+/** "il y a 2 min" — how long ago the customer wrote, not when something is due. */
+function relativeAgo(iso: string, now: number): { key: "agoNow" | "agoMinutes" | "agoHours" | "agoDays"; values: Record<string, number> } {
+  const minutes = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000));
+  if (minutes < 1) return { key: "agoNow", values: {} };
+  if (minutes < 60) return { key: "agoMinutes", values: { minutes } };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return { key: "agoHours", values: { hours } };
+  return { key: "agoDays", values: { days: Math.floor(hours / 24) } };
 }
 
 interface RelativeTimeParts {
@@ -93,8 +117,10 @@ function NotificationBellInner({ agentId }: NotificationBellProps) {
   const { notifications, unreadCount, markRead, markAllRead } = useAgentNotifications(agentId);
 
   const openOrder = useCallback(
-    (orderId: string) => {
-      router.push(`/${locale}/queue?openOrderId=${orderId}`);
+    (orderId: string, kind?: Kind) => {
+      // A reply opens the panel straight on its Messages tab.
+      const tab = kind === "whatsapp_inbound" ? "&tab=messages" : "";
+      router.push(`/${locale}/queue?openOrderId=${orderId}${tab}`);
     },
     [router, locale],
   );
@@ -242,6 +268,8 @@ function NotificationBellInner({ agentId }: NotificationBellProps) {
           </span>
           {unreadCount > 0 && (
             <span
+              data-badge
+              data-kind={dominantKind ?? undefined}
               className={dominantKind ? "notif-badge-pulse" : undefined}
               style={{
                 position: "absolute",
@@ -329,17 +357,18 @@ function NotificationBellInner({ agentId }: NotificationBellProps) {
                   {t(showAll ? "emptyAll" : "empty")}
                 </div>
               ) : (
-                displayNotifications.map((notif) => (
-                  <NotificationRow
-                    key={notif.id}
-                    notif={notif}
-                    onView={() => {
-                      if (!notif.read_at) markRead(notif.id);
-                      setOpen(false);
-                      openOrder(notif.order_id);
-                    }}
-                  />
-                ))
+                displayNotifications.map((notif) => {
+                  const onView = () => {
+                    if (!notif.read_at) markRead(notif.id);
+                    setOpen(false);
+                    openOrder(notif.order_id, notif.kind as Kind);
+                  };
+                  return notif.kind === "whatsapp_inbound" ? (
+                    <WhatsAppNotificationRow key={notif.id} notif={notif} onView={onView} />
+                  ) : (
+                    <NotificationRow key={notif.id} notif={notif} onView={onView} />
+                  );
+                })
               )}
             </div>
 
@@ -375,8 +404,9 @@ function NotificationBellInner({ agentId }: NotificationBellProps) {
           onView={() => {
             markRead(toastNotif.id);
             const orderId = toastNotif.order_id;
+            const kind = toastNotif.kind as Kind;
             setToastNotif(null);
-            openOrder(orderId);
+            openOrder(orderId, kind);
           }}
           onClose={() => setToastNotif(null)}
         />
@@ -391,6 +421,38 @@ function formatProduct(notif: AgentNotification, fallback: string): string {
   if (name && variant) return `${name} · ${variant}`;
   if (name) return name;
   return fallback;
+}
+
+/**
+ * A customer wrote back on WhatsApp. Prototype whatsapp-agent-v1.html, the
+ * bell's new row kind: a green tile with the WhatsApp mark, « {client} a
+ * répondu sur WhatsApp », their words as the sub-line, and how long ago. The
+ * whole row opens the order on its Messages tab.
+ */
+function WhatsAppNotificationRow({ notif, onView }: { notif: AgentNotification; onView: () => void }) {
+  const t = useTranslations("notifications");
+  const tWa = useTranslations("whatsapp");
+  const isUnread = !notif.read_at;
+  const customer = notif.order?.customer_name?.trim() || t("unknownCustomer");
+  const sub = notif.excerpt?.trim() || formatProduct(notif, t("whatsapp_inbound"));
+  const ago = relativeAgo(notif.created_at, Date.now());
+  return (
+    <button
+      type="button"
+      data-testid="notif-whatsapp"
+      onClick={onView}
+      className={`grid w-full grid-cols-[36px_1fr_auto] items-start gap-2.5 border-b border-[#E5E7EB] px-3.5 py-[11px] text-start hover:bg-[#F9FAFB] ${isUnread ? "bg-[#F0FDF4]" : ""}`}
+    >
+      <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#DCFCE7] text-[#15803D]">
+        <WhatsAppGlyph size={17} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[13.5px] font-semibold leading-[1.3] text-[#111827]">{tWa("notif.replied", { name: customer })}</span>
+        <span className="mt-0.5 block truncate text-[12.5px] text-[#6B7280] [unicode-bidi:plaintext]">{sub}</span>
+      </span>
+      <span className="whitespace-nowrap text-[11.5px] text-[#6B7280]">{t(ago.key, ago.values)}</span>
+    </button>
+  );
 }
 
 function NotificationRow({

@@ -4,9 +4,20 @@ const mockRpc = vi.fn();
 const mockIn = vi.fn();
 const mockOrdersIn = vi.fn();
 // The route reads two tables by id; each gets its own result.
-const mockFrom = vi.fn((table: string) => ({
-  select: () => ({ in: (...a: unknown[]) => (table === "orders" ? mockOrdersIn(...a) : mockIn(...a)) }),
-}));
+const mockWa = vi.fn();
+const mockFrom = vi.fn((table: string) => {
+  if (table === "whatsapp_messages") {
+    // .select().in().eq().order().limit() → the latest outgoing messages
+    const chain: Record<string, unknown> = {};
+    chain.select = () => chain;
+    chain.in = () => chain;
+    chain.eq = () => chain;
+    chain.order = () => chain;
+    chain.limit = () => mockWa();
+    return chain;
+  }
+  return { select: () => ({ in: (...a: unknown[]) => (table === "orders" ? mockOrdersIn(...a) : mockIn(...a)) }) };
+});
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     rpc: (...args: unknown[]) => mockRpc(...args),
@@ -32,6 +43,7 @@ beforeEach(() => {
   mockRpc.mockResolvedValue({ data: [], error: null });
   mockIn.mockResolvedValue({ data: [], error: null });
   mockOrdersIn.mockResolvedValue({ data: [], error: null });
+  mockWa.mockResolvedValue({ data: [], error: null });
 });
 
 describe("GET /api/delivery/worklist", () => {
@@ -204,5 +216,30 @@ describe("GET /api/delivery/worklist", () => {
     const body = await (await GET(req())).json();
     expect(body.total).toBe(0);
     expect(body.rows).toEqual([]);
+  });
+
+  // Prototype whatsapp-agent-v1.html, /delivery row: « WhatsApp · Avant livraison · 10:31 ✓✓ ».
+  test("each row carries its latest outgoing WhatsApp message: template, live status, time", async () => {
+    as("a1", "agent", LY);
+    mockRpc.mockResolvedValue({ data: [{ order_id: "o1", bucket: "act_now", reason_codes: [] }, { order_id: "o2", bucket: "act_now", reason_codes: [] }], error: null });
+    mockWa.mockResolvedValue({
+      data: [
+        { order_id: "o1", status: "read", created_at: "2026-09-25T10:31:00Z", template: { catalogue_key: "before_delivery" } },
+        { order_id: "o1", status: "delivered", created_at: "2026-09-24T09:00:00Z", template: null },
+      ],
+      error: null,
+    });
+    const json = await (await GET(req())).json();
+    expect(json.rows[0].wa_last).toEqual({ status: "read", at: "2026-09-25T10:31:00Z", template_key: "before_delivery" });
+    expect(json.rows[1].wa_last).toBeNull();
+  });
+
+  test("a failed WhatsApp read leaves the list whole", async () => {
+    as("a1", "agent", LY);
+    mockRpc.mockResolvedValue({ data: [{ order_id: "o1", bucket: "act_now", reason_codes: [] }], error: null });
+    mockWa.mockResolvedValue({ data: null, error: { message: "relation does not exist" } });
+    const res = await GET(req());
+    expect(res.status).toBe(200);
+    expect((await res.json()).rows[0].wa_last).toBeNull();
   });
 });

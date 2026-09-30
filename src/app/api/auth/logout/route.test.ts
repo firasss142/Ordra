@@ -3,6 +3,7 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 const mockSignOut = vi.fn();
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
@@ -11,6 +12,7 @@ vi.mock("@/lib/supabase/server", () => ({
       getUser: () => mockGetUser(),
     },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
 }));
 
@@ -36,6 +38,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetUser.mockResolvedValue({ data: { user: { id: "user-123" } } });
   mockFrom.mockImplementation(() => updateCapturingChain().chain);
+  mockRpc.mockResolvedValue({ data: { changed: true, released: 0 }, error: null });
 });
 
 describe("POST /api/auth/logout", () => {
@@ -91,5 +94,38 @@ describe("POST /api/auth/logout", () => {
     const res = await POST(createRequest());
     expect(res.status).toBe(200);
     expect(capture.updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("standing down on the way out", () => {
+  test("turns availability off so untouched orders go back to the pool", async () => {
+    // Nulling last_seen_at alone makes the agent stale for routing but leaves
+    // is_available true and releases nothing, so their untouched orders sit in
+    // a queue nobody is watching until the midnight reset.
+    mockSignOut.mockResolvedValue({ error: null });
+
+    await POST(createRequest());
+
+    expect(mockRpc).toHaveBeenCalledWith("set_agent_availability", {
+      p_agent_id: "user-123",
+      p_available: false,
+      p_actor_id: "user-123",
+      p_reason: "logout",
+    });
+  });
+
+  test("still signs out when the stand-down fails", async () => {
+    // Every manager and super_admin gets NOT_AN_AGENT here. Failing to log out
+    // because of it would be absurd.
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { code: "42501", details: '{"code":"NOT_AN_AGENT"}' },
+    });
+    mockSignOut.mockResolvedValue({ error: null });
+
+    const res = await POST(createRequest());
+
+    expect(res.status).toBe(200);
+    expect(mockSignOut).toHaveBeenCalled();
   });
 });

@@ -48,9 +48,11 @@ type Flow =
   | "option_select"
   | "reject_flow"
   | "callback_expanded"
-  // Not a screen: the sheet opens, fires the confirmation straight away and
-  // lands on the carrier step. Sent by the panel's "Confirmer" button.
-  | "confirm_now";
+  // Not screens: the sheet opens, carries out that ending straight away and
+  // shows the result. Sent by the panel's "Confirmer la commande" and
+  // "Pas de réponse" buttons, which have already asked the question.
+  | "confirm_now"
+  | "no_answer_now";
 
 const jsonFetcher = (url: string) =>
   fetch(url).then((r) => {
@@ -96,6 +98,8 @@ export function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     created_at: raw.created_at as string,
     assigned_at: (raw.assigned_at as string) ?? (raw.created_at as string),
     last_action_at: (raw.last_action_at as string | null) ?? null,
+    wa_conversation: Boolean(raw.wa_conversation),
+    wa_unread: (raw.wa_unread as number) ?? 0,
     repeat_kind: (raw.repeat_kind as QueueOrder["repeat_kind"]) ?? "none",
     prior_order_count: (raw.prior_order_count as number) ?? 0,
     prior_lead_count: (raw.prior_lead_count as number) ?? 0,
@@ -425,14 +429,29 @@ export function QueuePage() {
   // and strips the param so refresh doesn't re-open it. Used by the
   // NotificationBell's "Voir la commande" action.
   const openOrderIdParam = searchParams.get("openOrderId");
+  const openTabParam = searchParams.get("tab");
+  // The bell's "a répondu sur WhatsApp" opens straight on the Messages tab —
+  // for THAT order only. The panel is keyed per order, so a bare tab in page
+  // state would open every order picked afterwards on Messages too.
+  const [deepLinkTab, setDeepLinkTab] = useState<{ orderId: string; tab: "messages" } | null>(null);
   useEffect(() => {
     if (!openOrderIdParam) return;
     setSelectedOrderId(openOrderIdParam);
+    // Keep the same object when nothing changed: this effect can re-run on
+    // every render, and a fresh object each time would re-render forever.
+    setDeepLinkTab((prev) =>
+      openTabParam === "messages"
+        ? prev?.orderId === openOrderIdParam
+          ? prev
+          : { orderId: openOrderIdParam, tab: "messages" }
+        : null,
+    );
     const params = new URLSearchParams(searchParams.toString());
     params.delete("openOrderId");
+    params.delete("tab");
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [openOrderIdParam, pathname, router, searchParams]);
+  }, [openOrderIdParam, openTabParam, pathname, router, searchParams]);
 
   const [initialFlow, setInitialFlow] = useState<Flow | undefined>(undefined);
   const [autoRejectedBanner, setAutoRejectedBanner] = useState(false);
@@ -662,8 +681,10 @@ export function QueuePage() {
       setSelectedOrderIds((prev) => (prev.size > 0 ? new Set() : prev));
     }
 
-    // If a detail panel is open, let its Escape key handling apply
-    if (s.selectedOrderId) return;
+    // The panel opens *beside* the list on a desktop, so ↑↓ keep walking the
+    // rows behind it and Enter keeps ending the call on the focused one — the
+    // panel's own footer prints that promise. Escape is still the panel's.
+    if (s.selectedOrderId && e.key === "Escape") return;
 
     if (s.orders.length === 0) return;
 
@@ -862,10 +883,33 @@ export function QueuePage() {
         </div>
       )}
 
+      {/* Rev 2 (2026-09-18): the panel opens beside the list on desktop, so the
+          two share a grid. With nothing open the list keeps the full width. */}
+      {/* The column always exists and is animated from 0 to its width, so
+          opening an order slides the list narrower instead of snapping it.
+          `minmax(0,…)` on the list keeps its own content from forcing a width. */}
+      <div
+        data-panel-open={selectedOrderId ? "true" : undefined}
+        className={[
+          "lg:grid lg:items-start",
+          "lg:[grid-template-columns:minmax(0,1fr)_0fr]",
+          "lg:[transition:grid-template-columns_220ms_cubic-bezier(0.4,0,0.2,1)]",
+          "lg:motion-reduce:transition-none",
+          selectedOrderId
+            ? "lg:[grid-template-columns:minmax(0,1fr)_560px] 2xl:[grid-template-columns:minmax(0,1fr)_600px]"
+            : "",
+        ].join(" ")}
+      >
       <QueueList
         presenceOn={managersOn}
         orders={displayedOrders}
-        onOpenDetail={setSelectedOrderId}
+        // Opening an order also moves the keyboard's place in the list, so
+        // ↑↓ carry on from the row that is open rather than from wherever the
+        // ring happened to be left. The panel's footer prints that promise.
+        onOpenDetail={(id) => {
+          setSelectedOrderId(id);
+          setFocusedOrderId(id);
+        }}
         onCallTerminated={handleCallTerminated}
         onRefresh={handleRefresh}
         stats={stats}
@@ -883,7 +927,9 @@ export function QueuePage() {
 
       <OrderDetailPanel
         key={selectedOrderId ?? "none"}
+        variant="side"
         orderId={selectedOrderId}
+        initialTab={deepLinkTab && deepLinkTab.orderId === selectedOrderId ? deepLinkTab.tab : undefined}
         fallbackOrder={
           selectedOrderId
             ? rawAllOrders.find((o) => o.id === selectedOrderId) ??
@@ -915,6 +961,7 @@ export function QueuePage() {
           });
         }}
       />
+      </div>
 
       {callTerminatedOrderId && activeOrder && (
         <PostCallActionSheet
@@ -934,6 +981,16 @@ export function QueuePage() {
           maxAttempts={maxAttempts}
           attemptsCount={activeOrder.attempt_count}
           initialFlow={initialFlow}
+          // The row the sheet was opened from, echoed under its title — on a
+          // phone the sheet covers that row.
+          order={{
+            customerName: activeOrder.customer_name,
+            productName: activeOrder.product_display_name || activeOrder.product_name,
+            quantity: activeOrder.quantity,
+            amount: activeOrder.total_price,
+            currency: activeOrder.currency,
+            imageUrl: activeOrder.product_image_url ?? null,
+          }}
           onClose={() => {
             setCallTerminatedOrderId(null);
             setActiveOrderSnapshot(null);

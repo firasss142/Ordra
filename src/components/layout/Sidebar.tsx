@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
+import { useOrphanUnreadCount } from "@/hooks/useOrphanConversations";
 import {
+  MessageCircle,
   BarChart3,
   Boxes,
   ChevronRight,
@@ -42,6 +44,7 @@ import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
 import { AlertsBell } from "@/components/alerts/AlertsBell";
 import { MarketScopeSwitcher } from "@/components/layout/MarketScopeSwitcher";
+import { useMarketScope } from "@/context/market-scope";
 import { getPermissionsForRole } from "@/lib/user-permissions";
 import { marketFlag } from "@/lib/markets";
 import type { AuthUser } from "@/types";
@@ -67,25 +70,26 @@ type NavSectionId =
   | "equipe"
   | "systeme";
 
-type BadgeTone = "neutral" | "warning" | "critical";
+type BadgeTone = "neutral" | "warning" | "critical" | "success";
 
 interface NavItemDef {
   /** i18n key under `nav.items.*` */
   key: string;
-  /**
-   * Hardcoded label that overrides the `nav.items.*` lookup. Used by the
-   * redesigned Système section for "Connexions", which has no i18n key yet:
-   * the message catalogs are owned by a parallel branch, so the key can't be
-   * added here without entangling the two. TODO: add `nav.items.connexions`
-   * and drop this.
-   */
-  labelText?: string;
   /** Full href relative to `/{locale}/`, may include query string */
   href: string;
   icon: LucideIcon;
   /** Prefetch hint — usually matches the base route segment */
   prefetchRoute?: string;
   showBadge?: boolean;
+  /** A second live count: unread orphan WhatsApp conversations (green). */
+  badgeSource?: "whatsapp";
+  /** Visible only to super_admin, even when its section is shown to others. */
+  superAdminOnly?: boolean;
+  /**
+   * Sub-pages that keep this item highlighted (relative to `/{locale}/`):
+   * Clients › Messages stays active on its Modèles page.
+   */
+  activeOn?: string[];
   /**
    * Permission key from user-permissions; the ITEM is hidden when the role
    * lacks it, even though its section stays visible. Needed since Stock &
@@ -102,6 +106,12 @@ interface NavSection {
   items: NavItemDef[];
   /** Visible only to super_admin */
   superAdminOnly?: boolean;
+  /**
+   * The admin block (Système): a divider before it and the « Admin » chip for
+   * super_admin; any other role that sees it reads it — the section carries
+   * the read-only note under its items.
+   */
+  admin?: boolean;
   /** Expanded by default on first mount */
   defaultExpanded?: boolean;
   /** Permission key from user-permissions; section hidden when role lacks it */
@@ -193,6 +203,9 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Users,
     items: [
       { key: "activeProspects", href: "leads", icon: Target, prefetchRoute: "leads" },
+      // WhatsApp replies nobody has claimed yet (managers + super_admin).
+      // Its Modèles page lives under it and keeps it highlighted.
+      { key: "messages", href: "messages", icon: MessageCircle, badgeSource: "whatsapp", activeOn: ["messages/templates"] },
     ],
   },
   {
@@ -213,15 +226,20 @@ const NAV_SECTIONS: readonly NavSection[] = [
   {
     id: "systeme",
     icon: Server,
-    superAdminOnly: true,
+    admin: true,
     // Four workspaces, matching the Système redesign. Storefronts, Transporteurs,
     // Correspondances and Intégrations are no longer separate nav entries — they
     // are tabs inside Connexions. Their old routes still redirect for bookmarks.
+    //
+    // A market_manager sees Connexions and Paramètres only, to read them
+    // (owner's decision, prototype whatsapp-manager-v1 role=manager): the
+    // pages already render read-only for that role. Marchés and Journaux stay
+    // super_admin only.
     items: [
-      { key: "marketsConfig", href: "system/markets", icon: Store, prefetchRoute: "markets" },
-      { key: "connexions", labelText: "Connexions", href: "system/connections", icon: Plug, prefetchRoute: "settings" },
+      { key: "marketsConfig", href: "system/markets", icon: Store, prefetchRoute: "markets", superAdminOnly: true },
+      { key: "connexions", href: "system/connections", icon: Plug, prefetchRoute: "settings" },
       { key: "generalSettings", href: "system/settings", icon: Settings, prefetchRoute: "settings" },
-      { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin" },
+      { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin", superAdminOnly: true },
     ],
   },
 ];
@@ -247,6 +265,15 @@ function splitHref(href: string): { path: string; search: string } {
  * /orders?preset=unassigned or /orders?open=<id> keep Commandes active.
  * Path-distinct siblings (/dashboard vs /dashboard/alerts) never double-activate.
  */
+/** Exact item match, or one of its declared sub-pages (`activeOn`). */
+function isNavItemActive(item: NavItemDef, locale: string, activePath: string, activeSearch: string): boolean {
+  if (isItemActive(`/${locale}/${item.href}`, activePath, activeSearch)) return true;
+  return (item.activeOn ?? []).some((p) => {
+    const path = `/${locale}/${p}`;
+    return activePath === path || activePath.startsWith(`${path}/`);
+  });
+}
+
 function isItemActive(itemHref: string, activePath: string, activeSearch: string): boolean {
   const { path: itemPath, search: itemSearch } = splitHref(itemHref);
   if (activePath !== itemPath) return false;
@@ -273,11 +300,7 @@ function findActiveSectionId(
   locale: string,
 ): NavSectionId | null {
   for (const section of sections) {
-    if (
-      section.items.some((item) =>
-        isItemActive(`/${locale}/${item.href}`, activePath, activeSearch),
-      )
-    ) {
+    if (section.items.some((item) => isNavItemActive(item, locale, activePath, activeSearch))) {
       return section.id;
     }
   }
@@ -305,6 +328,7 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
   const activePath = currentPath ?? pathname ?? "";
   const activeSearch = searchString ? `?${searchString}` : "";
   const t = useTranslations("nav");
+  const tWa = useTranslations("whatsappAdmin.common");
   const [menuOpen, setMenuOpen] = useState(false);
   const [userHovered, setUserHovered] = useState(false);
   const [logoutHovered, setLogoutHovered] = useState(false);
@@ -320,7 +344,9 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
     })
       .map((s) => {
         const items = s.items.filter(
-          (i) => !i.requiresPermission || perms.get(i.requiresPermission),
+          (i) =>
+            (!i.requiresPermission || perms.get(i.requiresPermission)) &&
+            (!i.superAdminOnly || user.role === "super_admin"),
         );
         return items.length === s.items.length ? s : { ...s, items };
       })
@@ -388,6 +414,13 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
     refreshInterval: 60000,
     revalidateOnFocus: false,
   });
+  // The WhatsApp badge follows the market chosen in the switcher for a
+  // super_admin (null = every market), and the manager's own market otherwise.
+  const { marketId: scopeMarketId } = useMarketScope();
+  const whatsappUnread = useOrphanUnreadCount(
+    user.role === "super_admin" ? scopeMarketId : user.market_id,
+    user.role === "super_admin" || user.role === "market_manager",
+  );
 
   if (user.role === "agent" || user.role === "warehouse_agent") {
     return null;
@@ -527,13 +560,17 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
         {visibleSections.map((section, idx) => {
           const expanded = expandedSections.has(section.id);
           const active = activeSectionId === section.id;
-          const showDividerBefore = section.superAdminOnly && idx > 0;
+          const showDividerBefore = (section.superAdminOnly || section.admin) && idx > 0;
           const sectionUnassignedBadge =
             section.items.some((i) => i.showBadge) && liveCount !== undefined
               ? liveCount
               : 0;
-          const sectionBadge = sectionUnassignedBadge > 0 ? sectionUnassignedBadge : undefined;
-          const sectionBadgeTone: BadgeTone = sectionUnassignedBadge > 0 ? "warning" : "neutral";
+          const sectionWhatsAppBadge = section.items.some((i) => i.badgeSource === "whatsapp") ? whatsappUnread : 0;
+          const sectionBadge =
+            sectionUnassignedBadge > 0 ? sectionUnassignedBadge : sectionWhatsAppBadge > 0 ? sectionWhatsAppBadge : undefined;
+          const sectionBadgeTone: BadgeTone =
+            sectionUnassignedBadge > 0 ? "warning" : sectionWhatsAppBadge > 0 ? "success" : "neutral";
+          const readOnlyNote = section.admin && user.role !== "super_admin";
 
           return (
             <div key={section.id}>
@@ -556,7 +593,11 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                 isRtl={isRtl}
                 badge={sectionBadge}
                 badgeTone={sectionBadgeTone}
-                adminLabel={section.superAdminOnly ? t("adminOnly") : undefined}
+                adminLabel={
+                  section.superAdminOnly || (section.admin && user.role === "super_admin")
+                    ? t("adminOnly")
+                    : undefined
+                }
                 ariaLabel={
                   expanded
                     ? t("a11y.collapseSection", { section: t(`sections.${section.id}`) })
@@ -577,15 +618,23 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                 >
                   {section.items.map((item) => {
                     const fullHref = `/${user.locale}/${item.href}`;
-                    const itemBadgeCount = item.showBadge ? liveCount : undefined;
-                    const itemBadgeTone: BadgeTone = item.showBadge ? "warning" : "neutral";
+                    const itemBadgeCount = item.showBadge
+                      ? liveCount
+                      : item.badgeSource === "whatsapp" && whatsappUnread > 0
+                        ? whatsappUnread
+                        : undefined;
+                    const itemBadgeTone: BadgeTone = item.showBadge
+                      ? "warning"
+                      : item.badgeSource === "whatsapp"
+                        ? "success"
+                        : "neutral";
                     return (
                       <li key={item.key}>
                         <SubNavItem
                           href={fullHref}
-                          label={item.labelText ?? t(`items.${item.key}`)}
+                          label={t(`items.${item.key}`)}
                           icon={item.icon}
-                          isActive={isItemActive(fullHref, activePath, activeSearch)}
+                          isActive={isNavItemActive(item, user.locale, activePath, activeSearch)}
                           badge={itemBadgeCount}
                           badgeTone={itemBadgeTone}
                           onPrefetch={() =>
@@ -597,6 +646,23 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                       </li>
                     );
                   })}
+                  {readOnlyNote && (
+                    <li>
+                      <p
+                        style={{
+                          margin: "6px 4px 0",
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          backgroundColor: "var(--sidebar-bg-elevated)",
+                          color: "var(--sidebar-text-secondary)",
+                          fontSize: "12px",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {tWa("readOnly")}
+                      </p>
+                    </li>
+                  )}
                 </ul>
               )}
             </div>
@@ -754,6 +820,7 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
 
 function badgeColors(tone: BadgeTone): { bg: string; fg: string } {
   if (tone === "critical") return { bg: "var(--badge-critical-bg)", fg: "var(--badge-critical-fg)" };
+  if (tone === "success") return { bg: "var(--badge-success-bg)", fg: "var(--badge-success-fg)" };
   if (tone === "warning") return { bg: "var(--badge-warning-bg)", fg: "var(--badge-warning-fg)" };
   return { bg: "var(--badge-neutral-bg)", fg: "var(--badge-neutral-fg)" };
 }

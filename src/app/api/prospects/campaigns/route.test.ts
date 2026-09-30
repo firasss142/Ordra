@@ -2,13 +2,21 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockRpc = vi.fn();
 const mockFrom = vi.fn();
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn().mockResolvedValue({
-    rpc: (...a: unknown[]) => mockRpc(...a),
-    from: (...a: unknown[]) => mockFrom(...a),
-  }),
-}));
 vi.mock("@/lib/auth/actor", () => ({ getActor: vi.fn() }));
+
+// The business-number branch. Kept inert for every other test: no config →
+// the branch never engages, and the agent-sent path is byte-for-byte as before.
+const mockLoadConfig = vi.fn();
+const mockSubmit = vi.fn();
+const mockAdminFrom = vi.fn();
+vi.mock("@/lib/whatsapp/config", () => ({ loadConfigForMarket: (...a: unknown[]) => mockLoadConfig(...a) }));
+vi.mock("@/lib/whatsapp/client", () => ({ createWhatsAppClient: () => ({}) }));
+vi.mock("@/lib/whatsapp/campaign-submit", () => ({ uploadHeaderImage: vi.fn().mockResolvedValue("4:h") }));
+vi.mock("@/lib/whatsapp/templates", () => ({ submitCampaignTemplate: (...a: unknown[]) => mockSubmit(...a) }));
+vi.mock("@/lib/supabase/server", async () => {
+  const actual = { createClient: vi.fn().mockResolvedValue({ rpc: (...a: unknown[]) => mockRpc(...a), from: (...a: unknown[]) => mockFrom(...a) }) };
+  return { ...actual, createAdminClient: () => ({ from: (...a: unknown[]) => mockAdminFrom(...a) }) };
+});
 
 import { POST } from "./route";
 import { getActor } from "@/lib/auth/actor";
@@ -236,5 +244,63 @@ describe("POST /api/prospects/campaigns", () => {
     );
     const json = await (await POST(req(body()))).json();
     expect(json.inserted).toBe(0);
+  });
+});
+
+describe("POST /api/prospects/campaigns — sent from the business number", () => {
+  const CFG = { id: "cfg", marketId: LY, status: "active", decryptFailed: false };
+  beforeEach(() => {
+    mockLoadConfig.mockResolvedValue(CFG);
+    mockSubmit.mockResolvedValue({ templateId: "tpl-row", metaTemplateId: "meta-1", status: "PENDING" });
+    mockAdminFrom.mockImplementation(() => {
+      const chain: Record<string, unknown> = {};
+      chain.update = vi.fn(() => chain);
+      chain.eq = vi.fn(() => Promise.resolve({ data: null, error: null }));
+      return chain;
+    });
+  });
+
+  test("submits the template and does NOT run the campaign", async () => {
+    as("m", "market_manager", LY);
+    const res = await POST(req(body({ channel: "wa", wa_sender: "api", wa_message: "Bonjour {nom}, {produit} à {remise} aujourd'hui.", wa_language: "fr", wa_window: "10-20", wa_rate: 60 })));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: NEW_CAMPAIGN, wa_launch_status: "pending_template", template_id: "tpl-row", template_status: "PENDING" });
+    expect(inserted).toMatchObject({ wa_sender: "api", wa_language: "fr", wa_launch_status: "pending_template" });
+    expect(mockRpc).not.toHaveBeenCalledWith("rpc_run_prospect_campaign", expect.anything());
+    const input = mockSubmit.mock.calls[0][3];
+    expect(input.variables).toEqual(["name", "product", "discount"]);
+    expect(input.name).toMatch(/^ordra_camp_rachat_serum_\d{6}$/);
+    expect(input.components.at(-1)).toEqual({ type: "FOOTER", text: "Répondez STOP pour ne plus recevoir nos messages." });
+  });
+
+  test("refuses a body Meta would refuse, before anything is written", async () => {
+    as("m", "market_manager", LY);
+    const res = await POST(req(body({ channel: "wa", wa_sender: "api", wa_message: "Bonjour, voici {produit}" })));
+    expect(res.status).toBe(400);
+    expect((await res.json()).errors).toContain("ends_with_variable");
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  test("409 when the market has no live number", async () => {
+    as("m", "market_manager", LY);
+    mockLoadConfig.mockResolvedValue(null);
+    const res = await POST(req(body({ channel: "wa", wa_sender: "api", wa_message: "Bonjour {nom}, ok." })));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("whatsapp_not_connected");
+  });
+
+  test("a Meta refusal at submission leaves a draft and says so", async () => {
+    as("m", "market_manager", LY);
+    mockSubmit.mockRejectedValue(new Error("(#100) Invalid parameter"));
+    const res = await POST(req(body({ channel: "wa", wa_sender: "api", wa_message: "Bonjour {nom}, ok." })));
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ id: NEW_CAMPAIGN, error: "template_submit_failed" });
+  });
+
+  test("the agent-sent WhatsApp path still runs the campaign at creation", async () => {
+    as("m", "market_manager", LY);
+    await POST(req(body({ channel: "wa", wa_sender: "agent", wa_message: "Bonjour {name}" })));
+    expect(mockRpc).toHaveBeenCalledWith("rpc_run_prospect_campaign", expect.anything());
+    expect(mockSubmit).not.toHaveBeenCalled();
   });
 });

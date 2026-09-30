@@ -9,27 +9,34 @@ import { useTranslations } from "next-intl";
  * log. Tabs only work here because the customer, phone, address and total stay
  * pinned above — an agent mid-call never switches tabs to read something aloud.
  */
-export type PanelTab = "items" | "shipping" | "history";
+export type PanelTab = "items" | "shipping" | "history" | "messages";
 
 interface Props {
   active: PanelTab;
   onChange: (tab: PanelTab) => void;
   /** Shown on the history tab so the log's size is visible without opening it. */
   historyCount?: number;
+  /**
+   * Unread WhatsApp replies. The tab appears only when the market has a
+   * business number (undefined hides it); the pill is the unread count.
+   */
+  messagesCount?: number;
+  showMessages?: boolean;
 }
 
-export function PanelTabs({ active, onChange, historyCount }: Props) {
+export function PanelTabs({ active, onChange, historyCount, messagesCount, showMessages = false }: Props) {
   const t = useTranslations("orders.detail");
-  const tabs: { key: PanelTab; label: string; count?: number }[] = [
+  const tabs: { key: PanelTab; label: string; count?: number; accent?: boolean }[] = [
     { key: "items", label: t("tabItems") },
     { key: "shipping", label: t("tabShipping") },
     { key: "history", label: t("tabHistory"), count: historyCount },
+    ...(showMessages ? [{ key: "messages" as const, label: t("tabMessages"), count: messagesCount, accent: true }] : []),
   ];
 
   return (
     <div
       role="tablist"
-      className="flex flex-shrink-0 gap-0.5 border-b border-oms-border px-3.5 pt-4"
+      className="flex h-[42px] flex-shrink-0 items-stretch gap-[26px] border-b border-oms-border px-[18px] max-lg:gap-5 max-lg:px-3.5"
     >
       {tabs.map((tab) => {
         const selected = tab.key === active;
@@ -41,22 +48,27 @@ export function PanelTabs({ active, onChange, historyCount }: Props) {
             aria-selected={selected}
             onClick={() => onChange(tab.key)}
             className={
-              "relative inline-flex items-center gap-1.5 whitespace-nowrap px-[11px] pb-[11px] pt-2 text-[13px] transition-colors duration-fast " +
+              "relative inline-flex items-center gap-[7px] whitespace-nowrap text-[15px] transition-colors duration-fast " +
               (selected
-                ? "font-[650] text-oms-ink-1"
-                : "font-medium text-oms-ink-3 hover:text-oms-ink-1")
+                ? "font-bold text-brand"
+                : "font-semibold text-oms-ink-2 hover:text-oms-ink-1")
             }
           >
             {tab.label}
             {typeof tab.count === "number" && tab.count > 0 && (
-              <span className="grid h-4 min-w-[16px] place-items-center rounded-pill bg-oms-sunken px-1 text-[10px] font-[650] tabular-nums text-oms-ink-3">
+              <span
+                data-testid={tab.accent ? "messages-unread" : undefined}
+                className={`grid h-5 min-w-[22px] place-items-center rounded-pill px-1.5 text-[12px] font-semibold tabular-nums ${
+                  tab.accent ? "bg-brand text-white" : "bg-oms-sunken text-oms-ink-2"
+                }`}
+              >
                 {tab.count}
               </span>
             )}
             {selected && (
               <span
                 aria-hidden="true"
-                className="absolute inset-x-2 -bottom-px h-[2px] rounded-pill bg-oms-accent"
+                className="absolute inset-x-0 -bottom-px h-[2px] bg-brand"
               />
             )}
           </button>

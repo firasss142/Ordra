@@ -55,3 +55,14 @@ describe("mergeTimeline", () => {
     expect(tl[0]).toMatchObject({ source: "order", kind: "scanned" });
   });
 });
+
+describe("mergeTimeline — WhatsApp actions name their template", () => {
+  test("carries the template key of a WhatsApp action through to the entry", () => {
+    const out = mergeTimeline({
+      history: [], events: [], conversation: [],
+      actions: [{ id: "w1", action_type: "whatsapp_customer", outcome: "sent", note: null, actor_id: "me", actor_type: "agent", actor_name: "Tasnim", created_at: "2026-09-25T10:31:00Z", template_key: "before_delivery" }],
+      viewerId: "me", lang: "fr",
+    });
+    expect(out[0]).toMatchObject({ kind: "whatsapp_customer", template_key: "before_delivery" });
+  });
+});

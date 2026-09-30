@@ -757,6 +757,25 @@
   }
 }
 
+/* The queue's side panel. The list re-flows to make room at the same time the
+   panel arrives, so the panel fades and settles rather than flying in from the
+   edge — a 16px translate on top of a column that is itself resizing reads as
+   two separate movements. Paired with the grid transition on the wrapper. */
+@keyframes panelSettle {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/* RTL mirrors nothing here: the motion is vertical on purpose. */
+[dir="rtl"] [class*="panelSettle"] {
+  animation-name: panelSettle;
+}
+
 /* Bulk-action floating bar entrance */
 @keyframes fadeInUp {
   from {

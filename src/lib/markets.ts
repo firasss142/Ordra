@@ -63,3 +63,22 @@ export function marketTimezone(marketId: string | null | undefined): string {
   const code = marketIdToCode(marketId);
   return code ? MARKET_TIMEZONE[code] : MARKET_TIMEZONE.tn;
 }
+
+/**
+ * International dial code per market — the ONLY place 216 / 218 live.
+ *
+ * Three builders used to hold their own copy (delivery templates, product
+ * share, carrier phone). WhatsApp addresses a customer by `<dial><national>`,
+ * so the number has to be built the same way on every screen, or the same
+ * customer is reachable from one and "invalid" from another.
+ */
+export const MARKET_DIAL_CODE: Record<MarketCode, string> = {
+  tn: "216",
+  ly: "218",
+};
+
+/** National significant digits, after the trunk zero and the dial code. */
+export const MARKET_NATIONAL_LENGTH: Record<MarketCode, number> = {
+  tn: 8,
+  ly: 9,
+};

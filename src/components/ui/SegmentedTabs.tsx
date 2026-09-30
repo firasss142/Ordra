@@ -42,6 +42,15 @@ interface Props {
   onChange: (key: string) => void;
   /** `md` = level 1 (buckets), `sm` = level 2 (sub-filters). */
   size?: "md" | "sm";
+  /**
+   * How the active segment is marked. "badge" moves the accent to the count
+   * (§4.18) and is what the warehouse consoles use. "outline" puts a brand
+   * border round the whole segment and tints the count instead — the agent
+   * queue's buckets, where the row sits on the page background rather than
+   * inside a panel and a bordered segment needs the stronger edge to read as
+   * chosen.
+   */
+  variant?: "badge" | "outline";
   role?: "tablist" | "group";
   ariaLabel: string;
   /** Rendered at the trailing edge of the row (e.g. a refresh control). */
@@ -64,6 +73,7 @@ export function SegmentedTabs({
   value,
   onChange,
   size = "md",
+  variant = "badge",
   role = "tablist",
   ariaLabel,
   trailing,
@@ -77,7 +87,7 @@ export function SegmentedTabs({
       aria-label={ariaLabel}
       className={[
         "custom-scrollbar flex items-center gap-2 overflow-x-auto",
-        "border-b border-agent-outline-variant pb-2",
+        variant === "outline" ? "" : "border-b border-agent-outline-variant pb-2",
         className,
       ].join(" ")}
     >
@@ -101,16 +111,21 @@ export function SegmentedTabs({
                 : "h-[30px] px-2.5 text-[12.5px]",
               "font-semibold whitespace-nowrap transition-colors duration-fast",
               active
-                ? "border-agent-outline bg-agent-surface text-agent-on-surface"
+                ? variant === "outline"
+                  ? "border-[1.5px] border-brand bg-agent-surface text-brand-deep"
+                  : "border-agent-outline bg-agent-surface text-agent-on-surface"
                 : "border-agent-outline-variant bg-agent-surface text-agent-on-surface-variant hover:border-agent-outline hover:text-agent-on-surface",
             ].join(" ")}
           >
             {Icon && (
               <Icon
-                size={size === "md" ? 15 : 13}
+                size={size === "md" ? 17 : 13}
                 strokeWidth={active ? 2.25 : 2}
                 aria-hidden="true"
-                className={active ? "shrink-0" : "shrink-0 opacity-60"}
+                className={[
+                  "shrink-0",
+                  active ? (variant === "outline" ? "text-brand" : "") : "opacity-60",
+                ].join(" ")}
               />
             )}
             {face && (
@@ -134,7 +149,9 @@ export function SegmentedTabs({
                   "text-[11px] font-bold tabular-nums transition-colors duration-fast",
                   // The one place the accent appears in this component (§4.18).
                   active
-                    ? "bg-brand text-white"
+                    ? variant === "outline"
+                      ? "bg-hue-green-fill-soft text-brand"
+                      : "bg-brand text-white"
                     : "bg-agent-surface-low text-agent-ink-3",
                 ].join(" ")}
               >

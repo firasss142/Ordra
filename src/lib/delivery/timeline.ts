@@ -36,6 +36,8 @@ export interface ActionRow {
   actor_type: string;
   actor_name: string | null;
   created_at: string;
+  /** The WhatsApp template an action sent, when it sent one. */
+  template_key?: string | null;
 }
 
 const join = (...parts: (string | null | undefined)[]) =>
@@ -80,6 +82,7 @@ export function mergeTimeline(input: {
       outcome: a.outcome,
       actor: a.actor_name,
       mine: a.actor_type !== "system" && a.actor_id === input.viewerId,
+      template_key: a.template_key ?? null,
     });
   }
 

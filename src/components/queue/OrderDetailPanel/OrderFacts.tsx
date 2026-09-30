@@ -35,6 +35,11 @@ interface Props {
    */
   agentName?: string | null;
   carrierName?: string | null;
+  /**
+   * Opens the city picker. Omitted where the reader cannot edit the order —
+   * the blocker is still reported, just without a door out of it.
+   */
+  onResolveCity?: () => void;
 }
 
 export function OrderFacts({
@@ -45,6 +50,7 @@ export function OrderFacts({
   address,
   agentName,
   carrierName,
+  onResolveCity,
 }: Props) {
   const t = useTranslations("orders.detail");
 
@@ -57,10 +63,21 @@ export function OrderFacts({
           {cityMissing ? (
             <span
               data-testid="fact-city-missing"
-              className="flex w-full items-center justify-between gap-2 rounded-[9px] border border-oms-warn px-[11px] py-[9px] text-[13px] font-[650] text-oms-warn-ink"
+              className="mt-0.5 flex w-full flex-col items-start gap-2 rounded-[8px] border border-oms-warn bg-oms-warn-bg px-[11px] py-[9px]"
             >
-              {t("factCityMissing")}
-              <AlertTriangle size={15} strokeWidth={2} aria-hidden="true" />
+              <span className="inline-flex items-center gap-[7px] text-[14px] font-bold text-oms-warn-ink">
+                <AlertTriangle size={16} strokeWidth={2.2} aria-hidden="true" />
+                {t("factCityMissing")}
+              </span>
+              {onResolveCity ? (
+                <button
+                  type="button"
+                  onClick={onResolveCity}
+                  className="h-[30px] whitespace-nowrap rounded-[7px] border border-oms-warn/50 bg-oms-surface px-3 text-[13px] font-semibold text-oms-warn-ink transition-colors duration-fast hover:bg-oms-warn/10"
+                >
+                  {t("factCityResolve")}
+                </button>
+              ) : null}
             </span>
           ) : (
             <span className="truncate">{city}</span>
@@ -83,7 +100,7 @@ export function OrderFacts({
       )}
 
       <Fact label={t("factTotal")}>
-        <span className="text-[16px] font-[650] tracking-[-0.02em] tabular-nums text-oms-ink-1">
+        <span className="text-[17px] font-bold tracking-[-0.02em] tabular-nums text-oms-ink-1">
           {(Number(total) || 0).toFixed(2)}
           <span className="ms-1 text-[10.5px] font-medium uppercase tracking-[0.05em] text-oms-ink-3">
             {currencyCode}
@@ -92,12 +109,12 @@ export function OrderFacts({
       </Fact>
 
       <Fact label={t("factItems")}>
-        <span className="tabular-nums">{itemCount}</span>
+        <span className="text-[15px] font-bold tabular-nums">{itemCount}</span>
       </Fact>
 
       {agentName !== undefined && (
         <Fact label={t("factAgent")}>
-          <AgentAvatar name={agentName} size={21} />
+          <AgentAvatar name={agentName} size={26} />
           <span className={`truncate ${agentName ? "" : "font-normal italic text-oms-ink-3"}`}>
             {agentName ?? t("unassigned")}
           </span>
@@ -107,10 +124,10 @@ export function OrderFacts({
       {carrierName !== undefined && (
         <Fact label={t("factCarrier")}>
           {carrierName ? (
-            <>
-              <CarrierMark name={carrierName} size={21} />
+            <span className="inline-flex h-[26px] min-w-0 items-center gap-[7px] rounded-[6px] bg-oms-sunken px-[9px] text-[12.5px] font-semibold text-oms-ink-2">
+              <CarrierMark name={carrierName} size={16} />
               <span className="truncate">{carrierName}</span>
-            </>
+            </span>
           ) : (
             <span className="font-normal text-oms-ink-3">—</span>
           )}
@@ -122,11 +139,9 @@ export function OrderFacts({
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="bg-surface-card px-[18px] py-[11px]">
-      <dt className="mb-1 text-[10.5px] font-[650] uppercase tracking-[0.085em] text-oms-ink-3">
-        {label}
-      </dt>
-      <dd className="m-0 flex min-w-0 items-center gap-1.5 text-[14px] font-semibold text-oms-ink-1">
+    <div className="bg-surface-card px-[18px] pb-3 pt-2.5 max-lg:px-3.5">
+      <dt className="text-[12.5px] text-oms-ink-3">{label}</dt>
+      <dd className="m-0 mt-[3px] flex min-w-0 items-center gap-1.5 text-[14px] font-semibold text-oms-ink-1">
         {children}
       </dd>
     </div>

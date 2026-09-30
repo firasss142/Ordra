@@ -37,6 +37,13 @@ function makeAgent(overrides: Partial<AgentCapacityRow> = {}): AgentCapacityRow 
     queue_size: 5,
     confirmation_rate: 0.72,
     actioned_count: 25,
+    // Readiness travels on this row now. Default to a working agent: these
+    // tests are about the card's capacity display, not eligibility.
+    is_available: true,
+    available_since: null,
+    assigned_today: 0,
+    share_pct: null,
+    receiving_orders: true,
     ...overrides,
   };
 }

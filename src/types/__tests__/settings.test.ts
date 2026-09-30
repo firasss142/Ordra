@@ -19,9 +19,26 @@ describe("MARKET_SETTINGS_KEYS", () => {
 });
 
 describe("AssignmentAlgorithm", () => {
-  it("has exactly 5 values", () => {
+  it("has exactly 6 values", () => {
     const values = Object.values(AssignmentAlgorithm);
-    expect(values).toHaveLength(5);
+    expect(values).toHaveLength(6);
+  });
+
+  it("contains percentage", () => {
+    expect(AssignmentAlgorithm.percentage).toBe("percentage");
+  });
+
+  it("accepts percentage as a market setting", () => {
+    // The union, the const and VALID_ALGORITHMS have to agree. Miss the last
+    // one and isValidMarketSettings — a whole-object validator — rejects the
+    // ENTIRE settings payload with a 400, taking every unrelated field on the
+    // page down with it.
+    expect(
+      isValidMarketSettings({
+        ...DEFAULT_MARKET_SETTINGS,
+        assignment_algorithm: "percentage",
+      }),
+    ).toBe(true);
   });
 
   it("contains manual", () => {

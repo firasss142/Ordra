@@ -65,6 +65,11 @@ export interface ProspectRow {
   updated_at: string;
   /** Last entry in lead_history: what moved this row, and when. */
   last_touch_at: string | null;
+  /** WhatsApp from the business number: when we last wrote, when they last answered. */
+  wa_sent_at?: string | null;
+  wa_replied_at?: string | null;
+  /** Live status of the latest message the business number sent (sent/delivered/read/failed). */
+  wa_sent_status?: string | null;
 }
 
 export interface ProspectsResponse {

@@ -46,5 +46,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ data: data ?? [] });
+  const rows = (data ?? []) as Array<Record<string, unknown> & { order_id: string; kind: string }>;
+
+  // The bell's WhatsApp row quotes the customer: attach the latest inbound
+  // message of each order with a whatsapp_inbound notification. RLS lets an
+  // agent read only their own orders' messages. A failed read leaves the
+  // excerpt empty rather than failing the bell.
+  const waOrderIds = Array.from(new Set(rows.filter((n) => n.kind === "whatsapp_inbound").map((n) => n.order_id)));
+  if (waOrderIds.length > 0) {
+    const excerpts = new Map<string, string>();
+    const { data: inbound, error: inboundError } = await supabase
+      .from("whatsapp_messages")
+      .select("order_id, body, created_at")
+      .eq("direction", "in")
+      .in("order_id", waOrderIds)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (!inboundError) {
+      for (const m of (inbound ?? []) as Array<{ order_id: string | null; body: string | null }>) {
+        if (m.order_id && m.body && !excerpts.has(m.order_id)) excerpts.set(m.order_id, m.body);
+      }
+    }
+    for (const n of rows) {
+      if (n.kind === "whatsapp_inbound") n.excerpt = excerpts.get(n.order_id) ?? null;
+    }
+  }
+
+  return NextResponse.json({ data: rows });
 }

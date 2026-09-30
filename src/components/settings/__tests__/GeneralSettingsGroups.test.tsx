@@ -4,10 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { GeneralSettingsGroups } from "../GeneralSettingsGroups";
 import { DEFAULT_MARKET_SETTINGS } from "@/types/settings";
+import frMessages from "@/messages/fr.json";
 
 // next/navigation — useSearchParams is read for the initial tab.
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+}));
+
+// The WhatsApp tab reads the market's connection and templates.
+vi.mock("@/hooks/useWhatsAppAvailability", () => ({
+  useWhatsAppAvailability: () => ({ availability: null, active: false, isLoading: false }),
+}));
+vi.mock("@/hooks/useWhatsAppTemplates", () => ({
+  useWhatsAppTemplates: () => ({ templates: [], isLoading: false, mutate: vi.fn() }),
 }));
 
 // CommissionsSection self-fetches; stub fetch so it doesn't hit the network.
@@ -21,6 +30,7 @@ beforeEach(() => {
 const messages = {
   nav: { markets: { tn: "Tunisie", ly: "Libye" } },
   settings: { commissions: {} },
+  whatsappAdmin: frMessages.whatsappAdmin,
 };
 
 const TN = "00000000-0000-0000-0000-000000000001";
@@ -82,5 +92,22 @@ describe("GeneralSettingsGroups (redesigned tabs)", () => {
   it("in readOnly mode the Opérations save button is absent", () => {
     mount("market_manager", true);
     expect(screen.queryByRole("button", { name: /Enregistrer/ })).not.toBeInTheDocument();
+  });
+
+  it("market_manager: the WhatsApp tab is read-only with its note, while Opérations keeps its save", async () => {
+    mount("market_manager");
+    expect(screen.getAllByRole("button", { name: /Enregistrer/ }).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("tab", { name: "WhatsApp" }));
+    expect(screen.getByText("Lecture seule — les identifiants et les réglages sont modifiés par un super_admin.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Enregistrer/ })).not.toBeInTheDocument();
+    for (const sw of screen.getAllByRole("switch")) expect(sw).toBeDisabled();
+  });
+
+  it("super_admin edits the WhatsApp tab", async () => {
+    mount("super_admin");
+    await userEvent.click(screen.getByRole("tab", { name: "WhatsApp" }));
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Notifications automatiques" })).toBeEnabled();
+    expect(screen.queryByText(/Lecture seule/)).not.toBeInTheDocument();
   });
 });

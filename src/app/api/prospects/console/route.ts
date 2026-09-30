@@ -77,9 +77,13 @@ export async function GET(req: NextRequest) {
     loss: LossByReason | null;
   };
 
+  // Campaigns sent from the business number carry a `whatsapp` object
+  // (template state + delivery funnel), built inside the same RPC.
+  const campaigns = payload.campaigns ?? [];
+
   return NextResponse.json({
     metrics: payload.metrics ?? EMPTY_METRICS,
-    campaigns: payload.campaigns ?? [],
+    campaigns,
     // Ranked once, here, so every surface reading this route agrees on who
     // needs help first and on what each agent's rate is.
     agents: agentLoad(payload.agents ?? []),

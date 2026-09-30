@@ -8,6 +8,7 @@ import type { Locale, Role } from "@/types";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
 import { useOrdersList, type OrdersListRow } from "@/hooks/useOrdersList";
+import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import { useOrdersRealtime } from "@/hooks/useOrdersRealtime";
 import {
   DEFAULT_FILTERS,
@@ -149,6 +150,9 @@ export function ArchivePageClient({
   );
 
   const { rows, mutate: mutateList } = useOrdersList({ filters });
+  // The Motif column showed the group — "Injoignable" for a wrong number and
+  // for a phone nobody answers alike. The sub-reason is the part worth reading.
+  const rejectionOf = useRejectionBadge(marketId || null);
   useOrdersRealtime({
     marketIds: marketId ? [marketId] : [],
     mutate: mutateList,
@@ -602,7 +606,8 @@ export function ArchivePageClient({
                     <StatusChip status={r.status} label={tStatus(r.status)} />
                   </Td>
                   <Td align="start" className="text-ink-secondary">
-                    {r.rejection_reason ? tReason(r.rejection_reason) : "—"}
+                    {rejectionOf(r)?.text ??
+                      (r.rejection_reason ? tReason(r.rejection_reason) : "—")}
                   </Td>
                   <Td className="tabular-nums text-ink-secondary">
                     {age === null ? "—" : t("days", { n: String(age) })}

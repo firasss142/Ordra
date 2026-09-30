@@ -39,6 +39,8 @@ const mockOrder: OrdersListRow = {
   assigned_to: "agent-1",
   carrier_id: null,
   rejection_reason: null,
+  rejection_subreason: null,
+  rejection_note: null,
   carrier_barcode_deleted_at: null,
   carrier_barcode_deleted_carrier_code: null,
   callback_scheduled_at: null,

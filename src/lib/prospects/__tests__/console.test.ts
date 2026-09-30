@@ -1,9 +1,10 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import {
   funnelWidths,
   conversionRate,
   trend,
   agentLoad,
+  consoleRefreshInterval,
   type CampaignResult,
   type AgentLoad,
 } from "../console";
@@ -107,5 +108,25 @@ describe("agentLoad", () => {
     const before = agents.map((a) => a.id);
     agentLoad(agents);
     expect(agents.map((a) => a.id)).toEqual(before);
+  });
+});
+
+/**
+ * « Vous serez prévenu » is only true if the console looks again while Meta
+ * decides: it refreshes every 30 s while any business-number template is
+ * pending, and at its usual 5 min otherwise.
+ */
+describe("consoleRefreshInterval", () => {
+  const c = (launch_status?: string) => ({
+    id: "c", name: "c", offer: null, audience: 0, called: 0, converted: 0, revenue: 0, created_at: "2026-09-25T00:00:00Z",
+    ...(launch_status ? { whatsapp: { launch_status, language: "ar", template_status: "PENDING", template_name: "t", template_rejected_reason: null, queued: 0, sent: 0, delivered: 0, read: 0, replied: 0, failed: 0, skipped: 0 } } : {}),
+  }) as CampaignResult;
+
+  it("polls fast while a template waits for Meta", () => {
+    expect(consoleRefreshInterval({ campaigns: [c(), c("pending_template")] })).toBe(30_000);
+  });
+  it("relaxes once nothing is pending, or before any data", () => {
+    expect(consoleRefreshInterval({ campaigns: [c("ready"), c("launched"), c()] })).toBe(300_000);
+    expect(consoleRefreshInterval(undefined)).toBe(300_000);
   });
 });

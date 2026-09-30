@@ -2,12 +2,22 @@
 
 import { StatusIcon } from "@/components/shared/StatusIcon";
 import { STATUS_HUE_TONE, STATUS_WEIGHT_FONT } from "@/components/shared/status-tone";
-import { presentStatus } from "@/lib/orders/status-presentation";
+import { presentStatus, type StatusHue } from "@/lib/orders/status-presentation";
 
 export interface OrderStatusBadgeProps {
   status: string;
   /** Already localised — this component does no lookup. */
   label: string;
+  /**
+   * Why this order was rejected, already resolved to a hue and a short phrase
+   * (see `lib/orders/rejection-presentation` and `useRejectionBadge`).
+   *
+   * When present on a `rejected` row it *replaces* both the colour and the
+   * word: the row is unmistakably a rejection from its cross glyph, so spending
+   * the one readable field on the word "Rejeté" said nothing that the icon had
+   * not already said. Ignored on any other status.
+   */
+  rejection?: { hue: StatusHue; text: string } | null;
   locale?: string;
   /** Truth for calls made; the status label stops counting at three. */
   attemptsCount?: number | null;
@@ -39,22 +49,31 @@ export interface OrderStatusBadgeProps {
 export function OrderStatusBadge({
   status,
   label,
+  rejection = null,
   attemptsCount,
   maxAttempts,
   compact = false,
   className = "",
 }: OrderStatusBadgeProps) {
-  const { hue, weight, icon, counter } = presentStatus(status, {
-    attemptsCount,
-    maxAttempts,
-  });
+  const base = presentStatus(status, { attemptsCount, maxAttempts });
+  const { weight, icon, counter } = base;
+
+  // Only `rejected` carries a reason. Guarding on the status rather than on the
+  // prop keeps a stale payload from recolouring a row that has since moved on.
+  const reason = status === "rejected" ? rejection : null;
+
+  const hue = reason?.hue ?? base.hue;
   const tone = STATUS_HUE_TONE[hue];
 
   // "Tentative 1" plus a "1/8" counter renders as "Tentative 11/8", which
   // reads as eleven-eighths. The counter is a better version of that trailing
   // number, so it replaces it rather than following it. Matching on a trailing
   // digit works for "Tentative 1" and "محاولة 1" alike.
-  const text = counter ? label.replace(/[\s ]*\d+$/, "") : label;
+  const text = reason
+    ? reason.text
+    : counter
+      ? label.replace(/[\s ]*\d+$/, "")
+      : label;
 
   // Reachable only on an attempt status, since that is the only kind that has
   // a counter to stand in for the word.
@@ -67,7 +86,15 @@ export function OrderStatusBadge({
       data-hue={hue}
       // One accessible phrase — a screen reader should hear "Tentative 2, 2/8",
       // not two disconnected fragments.
-      aria-label={counter ? `${text} ${counter}` : label}
+      // The column shows "Faux n°"; a screen reader hears the whole sentence,
+      // because "Faux n°" on its own never says the order was rejected.
+      aria-label={
+        reason
+          ? `${label} — ${reason.text}`
+          : counter
+            ? `${text} ${counter}`
+            : label
+      }
       className={[
         // The icon sits in a fixed 14px slot so every label in the column starts
         // at the same x. Pills used to run 48px to 82px wide, so the eye

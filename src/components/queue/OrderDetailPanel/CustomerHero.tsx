@@ -1,7 +1,8 @@
 "use client";
 
+import { WhatsAppGlyph } from "@/components/whatsapp/WhatsAppGlyph";
 import { useTranslations } from "next-intl";
-import { Phone as PhoneIcon, Copy, Check, Package, Undo2 } from "lucide-react";
+import { Phone as PhoneIcon, Copy, Check, Package, Plus, Undo2 } from "lucide-react";
 import { InlineField } from "@/components/ui/InlineField";
 import {
   classifyCustomerReliability,
@@ -46,6 +47,19 @@ export interface CustomerHeroProps {
   phoneCopied: boolean;
   /** Returns null to mean "valid" — same contract as InlineField. */
   validatePhone: (v: string) => string | null;
+  /**
+   * Opens the Messages tab. A secondary outline button beside the call CTA,
+   * never louder than it (prototype whatsapp-agent-v1.html, hero).
+   */
+  onWhatsApp?: () => void;
+  /**
+   * null hides the button (unknown yet). "not_connected" keeps it visible and
+   * muted — the owner chose "show it disabled" over "hide it" — and it still
+   * opens the tab, where the banner says why. "opted_out" is inert.
+   */
+  whatsappState?: "active" | "not_connected" | "opted_out" | null;
+  /** Unread replies, on the button's corner. */
+  whatsappUnread?: number;
 }
 
 /**
@@ -82,95 +96,143 @@ export function CustomerHero({
   onCopyPhone,
   phoneCopied,
   validatePhone,
+  onWhatsApp,
+  whatsappState = null,
+  whatsappUnread = 0,
 }: CustomerHeroProps) {
   const t = useTranslations("orders.detail");
+  const tWa = useTranslations("whatsapp");
 
   return (
-    <section className="px-[18px] pb-1 pt-5" aria-label={t("client")}>
-      <div className="flex items-start justify-between gap-3">
+    <section className="px-[18px] pb-3 pt-3.5 max-lg:px-3.5" aria-label={t("client")}>
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <span className="mb-[7px] block text-[10.5px] font-[650] uppercase tracking-[0.085em] text-oms-ink-3">
-            {t("client")}
-          </span>
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <span className="block text-[12.5px] text-oms-ink-3">{t("client")}</span>
 
-          <InlineField
-            value={name}
-            onCommit={(v) => onCommitName(v)}
-            displayMode
-            readOnly={!canEdit}
-            displayClassName={[
-              "text-[21px] font-[650] leading-[1.3] tracking-[-0.018em] [overflow-wrap:anywhere]",
-              terminal ? "text-oms-ink-2" : "text-oms-ink-1",
-            ].join(" ")}
-          />
-        </div>
+              <InlineField
+                value={name}
+                onCommit={(v) => onCommitName(v)}
+                displayMode
+                readOnly={!canEdit}
+                displayClassName={[
+                  "text-[22px] font-bold leading-[1.2] tracking-[-0.018em] [overflow-wrap:anywhere]",
+                  "max-lg:text-[20px]",
+                  terminal ? "text-oms-ink-2" : "text-oms-ink-1",
+                ].join(" ")}
+              />
+            </div>
 
-        <ReliabilityStrip stats={reliability ?? null} />
-      </div>
+            <ReliabilityStrip stats={reliability ?? null} />
+          </div>
 
-      {/* Number first, actions to the trailing edge — one control per job. */}
-      <div className="mt-3.5 flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <InlineField
-            value={phone}
-            onCommit={(v) => onCommitPhone(v.trim())}
-            validate={validatePhone}
-            type="tel"
-            displayMode
-            readOnly={!canEdit}
-            placeholder={t("fieldPhone")}
-            className="text-[16px] font-[650] tabular-nums tracking-[0.01em]"
-            displayClassName="text-[16px] font-[650] tabular-nums tracking-[0.01em] text-oms-ink-1"
-          />
+          {/* The number, with copying as a glyph on it rather than as a second
+              control the size of the one that places the call. */}
+          <div className="mt-1.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onCopyPhone}
+              aria-label={t("copyPhone")}
+              className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-[6px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
+            >
+              {phoneCopied ? (
+                <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+              ) : (
+                <Copy size={15} strokeWidth={2} aria-hidden="true" />
+              )}
+            </button>
+            <div className="min-w-0 flex-1">
+              <InlineField
+                value={phone}
+                onCommit={(v) => onCommitPhone(v.trim())}
+                validate={validatePhone}
+                type="tel"
+                displayMode
+                readOnly={!canEdit}
+                placeholder={t("fieldPhone")}
+                className="text-[15px] font-semibold tabular-nums tracking-[0.01em]"
+                displayClassName="text-[15px] font-semibold tabular-nums tracking-[0.01em] text-oms-ink-1"
+              />
+            </div>
+          </div>
+
+          {(phone2 || canEdit) && !terminal ? (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              {!phone2 && canEdit ? (
+                <Plus size={13} strokeWidth={2.4} aria-hidden="true" className="text-brand" />
+              ) : null}
+              <InlineField
+                value={phone2 ?? ""}
+                onCommit={(v) => onCommitPhone2(v || null)}
+                type="tel"
+                displayMode
+                readOnly={!canEdit}
+                // Empty + editable reads as "add one", not as a label for a missing field.
+                placeholder={canEdit ? (phone2 ? t("fieldPhone2") : t("addPhone2")) : ""}
+                displayClassName={
+                  phone2
+                    ? "text-[13px] tabular-nums text-oms-ink-2"
+                    : "text-[13px] font-semibold text-brand"
+                }
+              />
+              {phone2 ? (
+                <a
+                  href={`tel:${phone2}`}
+                  aria-label={`${t("callAction")} ${phone2}`}
+                  className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-oms-border text-oms-ink-2 transition-colors duration-fast hover:border-brand hover:text-brand"
+                >
+                  <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {!terminal && (
-          <a
-            href={`tel:${phone}`}
-            aria-label={`${t("callAction")} ${phone}`}
-            className="inline-flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-[8px] border border-oms-border bg-oms-surface px-[11px] text-[12px] font-semibold text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:bg-oms-accent-bg hover:text-oms-accent-ink"
-          >
-            <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
-            {t("callAction")}
-          </a>
-        )}
-        <button
-          type="button"
-          onClick={onCopyPhone}
-          aria-label={t("copyPhone")}
-          className="inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] border border-oms-border bg-oms-surface text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:bg-oms-accent-bg hover:text-oms-accent-ink"
-        >
-          {phoneCopied ? (
-            <Check size={13} strokeWidth={2.5} aria-hidden="true" />
-          ) : (
-            <Copy size={13} strokeWidth={2} aria-hidden="true" />
-          )}
-        </button>
-      </div>
-
-      {(phone2 || canEdit) && !terminal ? (
-        <div className="mt-2 flex items-center gap-2">
-          <InlineField
-            value={phone2 ?? ""}
-            onCommit={(v) => onCommitPhone2(v || null)}
-            type="tel"
-            displayMode
-            readOnly={!canEdit}
-            // Empty + editable reads as "add one", not as a label for a missing field.
-            placeholder={canEdit ? (phone2 ? t("fieldPhone2") : t("addPhone2")) : ""}
-            displayClassName="text-[13px] tabular-nums text-oms-ink-2"
-          />
-          {phone2 ? (
+          <div className="flex flex-shrink-0 items-center gap-2 self-center">
+            {whatsappState && onWhatsApp && (
+              <button
+                type="button"
+                data-state={whatsappState}
+                aria-disabled={whatsappState === "opted_out" || undefined}
+                title={
+                  whatsappState === "not_connected"
+                    ? tWa("composer.noConfig")
+                    : whatsappState === "opted_out"
+                      ? tWa("composer.optedOut")
+                      : undefined
+                }
+                onClick={() => {
+                  if (whatsappState !== "opted_out") onWhatsApp();
+                }}
+                aria-label={tWa("button")}
+                className={`relative inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[8px] border px-3.5 text-[14px] font-bold transition-colors duration-fast ${
+                  whatsappState === "active"
+                    ? "border-[#BBF7D0] bg-white text-[#15803D] hover:bg-[#F0FDF4]"
+                    : "border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF]"
+                } ${whatsappState === "opted_out" ? "cursor-not-allowed" : ""}`}
+              >
+                <WhatsAppGlyph size={17} strokeWidth={2} />
+                {tWa("button")}
+                {whatsappState === "active" && whatsappUnread > 0 && (
+                  <span className="absolute -top-[7px] end-[-7px] grid h-[19px] min-w-[19px] place-items-center rounded-full bg-[#15803D] px-[5px] text-[11px] font-bold tabular-nums text-white shadow-[0_0_0_2px_#fff]">
+                    {whatsappUnread}
+                  </span>
+                )}
+              </button>
+            )}
             <a
-              href={`tel:${phone2}`}
-              aria-label={`${t("callAction")} ${phone2}`}
-              className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-oms-border text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:text-oms-accent-ink"
+              href={`tel:${phone}`}
+              aria-label={`${t("callAction")} ${phone}`}
+              className="inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-[8px] bg-brand px-[18px] text-[15px] font-bold text-white transition-colors duration-fast hover:bg-brand-hover"
             >
-              <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
+              <PhoneIcon size={16} strokeWidth={2.2} aria-hidden="true" />
+              {t("callAction")}
             </a>
-          ) : null}
-        </div>
-      ) : null}
+          </div>
+        )}
+      </div>
 
       <span aria-hidden="true" data-is-libya={isLibyaOrder ? "1" : "0"} hidden />
     </section>

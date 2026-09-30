@@ -12,8 +12,12 @@ const messages = { agentCommissions: {
   inflight: "En cours", inflightCount: "{n} cmd", inflightEst: "≈ {amount} si livrées", lastPayout: "Dernier paiement", noPayout: "aucun",
   history: "Historique", historyHint: "par jour", dayDelivered: "{n, plural, =0 {0 livrée} one {# livrée} other {# livrées}}",
   dayCorrections: "{n, plural, one {# correction} other {# corrections}}", correctionNote: "commande {id} n'était pas livrée",
+  correctionNoteBeforeStart: "commande {id} téléversée avant l'activation de ta commission",
+  reasonBeforeStart: "téléversée avant l'activation de ta commission", reasonNotDelivered: "n'était plus livrée",
   paymentReceived: "Paiement reçu", adjustment: "Ajustement", empty: "Rien pour l'instant", rule: "règle",
   disabledTitle: "Les commissions ne sont pas activées pour ton compte.", disabledHint: "hint", loadError: "erreur", more: "Voir plus",
+  buckets: { all: "Tout", accrual: "Livrées", reversal: "Corrections", payout: "Paiements", adjustment: "Ajustements" },
+  cols: { type: "Type", detail: "Détail", date: "Date", amount: "Montant" },
 }, team: { commissions: { method: { cash: "espèces", bank_transfer: "virement", wallet: "wallet" } } } };
 
 const ME: AgentCommissions = {
@@ -61,9 +65,67 @@ describe("AgentCommissionsView", () => {
     expect(screen.getByText("Voir plus")).toBeTruthy();
   });
 
+  it("says why an order was taken back when it was uploaded before the commission started", () => {
+    mount({ ...ME, history: [
+      { type: "day", day: "2026-09-14", delivered: 1, corrections: 1, amount: 9, orders: [
+        { external_id: "LY-20001", product_name: "Dibio", city: "Tripoli", amount: 9, entry_type: "accrual", reason: null },
+        { external_id: "LY-20002", product_name: "Dibio", city: "Tripoli", amount: 9, entry_type: "accrual", reason: null },
+        { external_id: "LY-20002", product_name: "Dibio", city: "Tripoli", amount: -9, entry_type: "reversal", reason: "uploaded_before_activation" },
+      ] },
+      { type: "day", day: "2026-09-13", delivered: 0, corrections: 1, amount: -9, orders: [
+        { external_id: "LY-20003", product_name: "Dibio", city: "Sirte", amount: -9, entry_type: "reversal", reason: "uploaded_before_activation" },
+      ] },
+    ] });
+    // A correction-only day names the order and the real reason, not "n'était pas livrée".
+    expect(screen.getByText("commande #LY-20003 téléversée avant l'activation de ta commission")).toBeTruthy();
+    expect(screen.queryByText(/n'était pas livrée/)).toBeNull();
+    // A mixed day carries the reason under its count, and the expanded line says it too.
+    expect(screen.getByText("1 correction · téléversée avant l'activation de ta commission")).toBeTruthy();
+    fireEvent.click(screen.getByText("1 livrée"));
+    expect(screen.getByText(/#LY-20002 · Dibio · Tripoli · téléversée avant l'activation/)).toBeTruthy();
+  });
+
   it("explains a disabled account instead of showing zeros", () => {
     mount({ ...ME, enabled: false, balance: 0, history: [] });
     expect(screen.getByText(/ne sont pas activées/)).toBeTruthy();
     expect(screen.queryByText("À recevoir")).toBeNull();
+  });
+});
+
+/**
+ * Revision 2 (2026-09-18): the page takes the delivery page's charpente —
+ * a bucket strip by entry type over a ruled list with column heads.
+ */
+describe("AgentCommissionsView — entry-type buckets", () => {
+  it("offers one segment per entry type, with its count", () => {
+    mount();
+    const strip = screen.getByRole("tablist", { name: /Tout|Type/i });
+    expect(strip).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Livrées/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Corrections/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Paiements/ })).toBeTruthy();
+  });
+
+  it("filters the list down to the chosen entry type", () => {
+    mount();
+    expect(screen.getByText("Paiement reçu")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Livrées/ }));
+    // Only the accrual day survives; the payout and the correction day go.
+    expect(screen.queryByText("Paiement reçu")).toBeNull();
+    expect(screen.getByText("2 livrées")).toBeTruthy();
+  });
+
+  it("still expands a day to its orders once filtered", () => {
+    mount();
+    fireEvent.click(screen.getByRole("tab", { name: /Livrées/ }));
+    fireEvent.click(screen.getByText("2 livrées"));
+    expect(screen.getByText(/LY-10432/)).toBeTruthy();
+  });
+
+  it("marks each row with its entry type so the colour is not the only signal", () => {
+    mount();
+    const tags = screen.getAllByTestId("commission-entry");
+    expect(tags.length).toBeGreaterThan(0);
+    expect(tags.map((t) => t.getAttribute("data-entry"))).toContain("payout");
   });
 });

@@ -99,6 +99,34 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("PostCallActionSheet — which order this is about", () => {
+  it("echoes the order, so the sheet is not four choices about nothing", () => {
+    render(
+      <PostCallActionSheet
+        {...defaultProps}
+        order={{
+          customerName: "Om Al Quran Al Senussi",
+          productName: "Coran — grand format",
+          quantity: 1,
+          amount: 249,
+          currency: "LYD",
+          imageUrl: null,
+        }}
+      />,
+    );
+
+    const echo = screen.getByTestId("call-result-order");
+    expect(echo).toHaveTextContent("Om Al Quran Al Senussi");
+    expect(echo).toHaveTextContent("Coran — grand format");
+    expect(echo).toHaveTextContent("249");
+  });
+
+  it("leaves the echo out where the caller has nothing to echo", () => {
+    render(<PostCallActionSheet {...defaultProps} />);
+    expect(screen.queryByTestId("call-result-order")).toBeNull();
+  });
+});
+
 describe("PostCallActionSheet", () => {
   it("renders modal header with title and cancel button", () => {
     render(<PostCallActionSheet {...defaultProps} />);
@@ -160,6 +188,50 @@ describe("PostCallActionSheet", () => {
       "/api/orders/order-1/confirm",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("records the no-answer on open when the panel's button already said so", async () => {
+    // The panel footer's fourth button *is* "Pas de réponse". Opening a sheet
+    // that asks the same question again would be asking the agent to say it
+    // twice — the same reason `confirm_now` exists.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: { auto_rejected: false, new_status: "attempt_2", attempts_count: 2 },
+      }),
+    });
+
+    await act(async () => {
+      render(<PostCallActionSheet {...defaultProps} initialFlow="no_answer_now" />);
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/orders/order-1/no-answer",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("fires that POST once, not twice, however often React mounts the effect", async () => {
+    // Exactly one response is queued: a second POST would find none, which is
+    // the failure this test is about.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: { auto_rejected: false, new_status: "attempt_2", attempts_count: 2 },
+      }),
+    });
+
+    const { rerender } = render(
+      <PostCallActionSheet {...defaultProps} initialFlow="no_answer_now" />,
+    );
+    await act(async () => {
+      rerender(<PostCallActionSheet {...defaultProps} initialFlow="no_answer_now" />);
+    });
+
+    const noAnswerCalls = mockFetch.mock.calls.filter(
+      ([url]) => String(url).endsWith("/no-answer"),
+    );
+    expect(noAnswerCalls).toHaveLength(1);
   });
 
   it("switches to reject flow when Rejeté is clicked", () => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { OrderFacts } from "../OrderFacts";
 
@@ -46,6 +46,23 @@ describe("OrderFacts — destination", () => {
     renderFacts({ city: "   " });
 
     expect(screen.getByTestId("fact-city-missing")).toBeInTheDocument();
+  });
+
+  it("offers the way out of the blocker in the cell that reports it", () => {
+    // The banner above the buttons said the same thing three scroll-lengths
+    // from the field it is about. One statement, where the field is.
+    const onResolveCity = vi.fn();
+    renderFacts({ city: null, onResolveCity });
+
+    fireEvent.click(screen.getByRole("button", { name: "Définir la ville" }));
+    expect(onResolveCity).toHaveBeenCalled();
+  });
+
+  it("reports the blocker without the button when nothing can be done about it", () => {
+    renderFacts({ city: null });
+
+    expect(screen.getByTestId("fact-city-missing")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Définir la ville" })).toBeNull();
   });
 
   it("lets the address resolve its own direction, so an Arabic address reads right-to-left", () => {

@@ -13,6 +13,15 @@ export interface AgentCapacityRow {
   queue_size: number;
   confirmation_rate: number;
   actioned_count: number;
+  /** Declared "I take orders". Null-safe: false before the migration lands. */
+  is_available: boolean;
+  available_since: string | null;
+  /** Orders assigned to them today (market-local), manual ones included. */
+  assigned_today: number;
+  /** Their configured share of the day, or null when not using percentages. */
+  share_pct: number | null;
+  /** Declared AND beating — what the distributor actually checks. */
+  receiving_orders: boolean;
 }
 
 export function useAgentCapacity(marketId: string | null) {

@@ -6,6 +6,7 @@
  * Labels live in messages/*.json under `prospects.console`; this file only
  * produces figures.
  */
+import type { CampaignFilter } from "./audience";
 
 export interface CampaignResult {
   id: string;
@@ -23,6 +24,37 @@ export interface CampaignResult {
   channel?: "call" | "wa" | "wa_call";
   /** Of its audience, how many still have no agent. */
   pool?: number;
+  /** Business-number campaigns only (wa_sender = api). */
+  whatsapp?: CampaignWhatsApp;
+}
+
+export interface CampaignWhatsApp {
+  launch_status: "draft" | "pending_template" | "ready" | "launched" | "rejected";
+  language: "ar" | "fr" | null;
+  template_status: string | null;
+  template_name: string | null;
+  template_rejected_reason: string | null;
+  queued: number;
+  sent: number;
+  delivered: number;
+  read: number;
+  replied: number;
+  failed: number;
+  skipped: number;
+  /** Of `skipped`, the rows Meta refused under its per-user marketing cap (131049). */
+  skipped_marketing_cap?: number;
+  /** When launch_status last moved (submitted, approved, rejected, launched). 20260925170000. */
+  status_at?: string | null;
+  launched_at?: string | null;
+  /** Pacing: messages per hour for the whole campaign, and the « 10-20 » send window. */
+  rate?: number | null;
+  window?: string | null;
+  follow_up_hours?: number | null;
+  /** The body as the manager wrote it ({nom} {produit}…), for « Modifier et resoumettre ». */
+  message?: string | null;
+  image_url?: string | null;
+  /** The stored audience (filter_json), so the sheet can reopen on it. */
+  filter?: CampaignFilter | null;
 }
 
 export interface AgentLoad {
@@ -150,4 +182,15 @@ export function agentLoad(agents: AgentLoad[]): AgentLoadRanked[] {
       rate: a.calls_today > 0 ? Math.round((a.converted_today / a.calls_today) * 100) : null,
     }))
     .sort((a, b) => b.hot_waiting - a.hot_waiting || b.open_leads - a.open_leads);
+}
+
+/**
+ * How often the console re-reads itself. A business-number template waiting
+ * for Meta is the one thing on this page that changes on someone else's
+ * clock; while one is pending the page looks every 30 s, so an approval or a
+ * refusal (written by the webhook) is seen — and announced — within the
+ * minute. Otherwise the usual 5 minutes.
+ */
+export function consoleRefreshInterval(data: { campaigns?: CampaignResult[] } | undefined): number {
+  return data?.campaigns?.some((c) => c.whatsapp?.launch_status === "pending_template") ? 30_000 : 300_000;
 }

@@ -15,18 +15,20 @@ import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
+import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
 import { marketIdToCode, marketTimezone } from "@/lib/markets";
 import { toFilterJson, type AudiencePreview, type Condition } from "@/lib/prospects/audience";
 import type { DistributionRule } from "@/lib/prospects/distribution";
-import type {
-  AgentLoadRanked, CampaignResult, ConsoleMetrics, Funnel, LossByReason,
+import {
+  consoleRefreshInterval,
+  type AgentLoadRanked, type CampaignResult, type ConsoleMetrics, type Funnel, type LossByReason,
 } from "@/lib/prospects/console";
 import type { ProspectRow, ProspectsResponse } from "@/lib/prospects/types";
 import type { LeadLostReason } from "@/types/lead";
 import type { Role } from "@/types";
-import { ConsoleView } from "./ConsoleView";
+import { ConsoleView, type ResubmitPatch } from "./ConsoleView";
 import type { PipelineFilter } from "./PipelineTab";
-import type { CampaignDraft } from "./CampaignSheet";
+import type { CampaignDraft, CampaignProduct } from "./CampaignSheet";
 import type { DistributePlan } from "./DistributeSheet";
 
 interface ConsoleResponse {
@@ -76,6 +78,10 @@ export function ConsoleClient({
   const scope = useMarketScope();
   const t = useTranslations("prospects");
   const market = role === "super_admin" ? scope.marketId : marketId;
+  // An availability endpoint that errors (or a market with no WhatsApp tables
+  // yet) reads as "not connected": the hook leaves `active` false, and the
+  // sheet keeps « Depuis le numéro Ordra » visible but disabled, with why.
+  const { active: whatsappActive, availability } = useWhatsAppAvailability(market);
 
   const [filter, setFilter] = useState<PipelineFilter>("all");
   const [agentId, setAgentId] = useState<string | null>(null);
@@ -109,9 +115,11 @@ export function ConsoleClient({
     worklistKey, fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: true, keepPreviousData: true },
   );
+  // Every 5 minutes — every 30 s while a business-number template waits for
+  // Meta, so its approval or refusal shows (and is announced) within the minute.
   const { data: console_, error: consoleError, mutate: mutateConsole } = useSWR<ConsoleResponse>(
     consoleKey, fetcher,
-    { refreshInterval: 300_000, revalidateOnFocus: false, keepPreviousData: true },
+    { refreshInterval: consoleRefreshInterval, revalidateOnFocus: false, keepPreviousData: true },
   );
 
   // Durations only; a minute's resolution is enough.
@@ -238,18 +246,44 @@ export function ConsoleClient({
       wa_follow_up_hours: draft.waFollowUpHours,
       script_fr: draft.scriptFr || null,
       script_ar: draft.scriptAr || null,
+      wa_language: draft.waLanguage,
+      // The header image exists only while « Image en en-tête » is on.
+      wa_image_url: draft.waImage ? draft.waImageUrl.trim() || null : null,
     }), t("toast.failed"));
     await refresh();
-    return r as { inserted: number };
+    return r as { id?: string; inserted: number; wa_launch_status?: string; template_name?: string | null; template_status?: string | null };
   }, [post, marketBody, refresh, t]);
 
-  /** Products and cities the composer offers, taken from what is on screen. */
-  const products = useMemo(() => {
-    const seen = new Map<string, string>();
+  const onResubmitCampaign = useCallback(async (c: { id: string }, patch: ResubmitPatch) => {
+    const r = await post(`/api/prospects/campaigns/${c.id}/resubmit`, patch, t("toast.failed"));
+    await refresh();
+    return r as { template_name?: string | null; template_status?: string | null };
+  }, [post, refresh, t]);
+
+  const onLaunchCampaign = useCallback(async (c: { id: string }) => {
+    const r = await post(`/api/prospects/campaigns/${c.id}/launch`, {}, t("toast.failed"));
+    await refresh();
+    return r as { queued: number };
+  }, [post, refresh, t]);
+
+  const onCheckCampaignStatus = useCallback(async (c: { id: string }) => {
+    const r = await post(`/api/prospects/campaigns/${c.id}/template-status`, {}, t("toast.failed"));
+    await refresh();
+    return r as { template_status: string };
+  }, [post, refresh, t]);
+
+  /**
+   * Products and cities the composer offers, taken from what is on screen —
+   * with each product's photo, which the header-image picker offers.
+   */
+  const products = useMemo<CampaignProduct[]>(() => {
+    const seen = new Map<string, CampaignProduct>();
     for (const r of work?.rows ?? []) {
-      if (r.product_id && r.product_name) seen.set(r.product_id, r.product_name);
+      if (!r.product_id || !r.product_name) continue;
+      const prev = seen.get(r.product_id);
+      seen.set(r.product_id, { id: r.product_id, name: r.product_name, image_url: prev?.image_url || r.product_image_url || null });
     }
-    return [...seen].map(([id, name]) => ({ id, name }));
+    return [...seen.values()];
   }, [work?.rows]);
 
   const cities = useMemo(() => {
@@ -294,6 +328,12 @@ export function ConsoleClient({
       onSaveLead={onSaveLead}
       onPreviewAudience={onPreviewAudience}
       onCreateCampaign={onCreateCampaign}
+      whatsappActive={whatsappActive}
+      canConnectWhatsApp={role === "super_admin"}
+      whatsappName={availability?.verified_name ?? null}
+      onLaunchCampaign={onLaunchCampaign}
+      onCheckCampaignStatus={onCheckCampaignStatus}
+      onResubmitCampaign={onResubmitCampaign}
       onImportCsv={() => router.push(`/${locale}/leads?import=1`)}
       marketCode={marketIdToCode(market) ?? "tn"}
       tz={marketTimezone(market)}

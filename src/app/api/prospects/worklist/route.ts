@@ -194,6 +194,26 @@ export async function GET(req: NextRequest) {
     if (o.external_id) refByOrder.set(o.id, o.external_id);
   }
 
+  // WhatsApp traffic on these prospects (RLS: an agent sees only their own
+  // leads' messages, which is also all they need for the « a répondu » chip).
+  const leadIds = leads.map((l) => l.id as string);
+  const waByLead = new Map<string, { sent: string | null; sentStatus: string | null; replied: string | null }>();
+  if (leadIds.length > 0) {
+    const { data: waRows } = await supabase
+      .from("whatsapp_messages")
+      .select("lead_id, direction, status, created_at")
+      .in("lead_id", leadIds)
+      .order("created_at", { ascending: true });
+    for (const m of ((waRows ?? []) as { lead_id: string; direction: "in" | "out"; status: string | null; created_at: string }[])) {
+      const cur = waByLead.get(m.lead_id) ?? { sent: null, sentStatus: null, replied: null };
+      if (m.direction === "out") {
+        cur.sent = m.created_at;
+        cur.sentStatus = m.status;
+      } else cur.replied = m.created_at;
+      waByLead.set(m.lead_id, cur);
+    }
+  }
+
   const now = Date.now();
   const convertedCutoff = now - CONVERTED_WINDOW_DAYS * 86_400_000;
 
@@ -239,6 +259,9 @@ export async function GET(req: NextRequest) {
         created_at: l.created_at as string,
         updated_at: l.updated_at as string,
         last_touch_at: (l.updated_at as string) ?? null,
+        wa_sent_at: waByLead.get(l.id as string)?.sent ?? null,
+        wa_replied_at: waByLead.get(l.id as string)?.replied ?? null,
+        wa_sent_status: waByLead.get(l.id as string)?.sentStatus ?? null,
       };
 
       return { ...base, bucket: bucketOf(base, now, hotWindowMinutes) } as ProspectRow;

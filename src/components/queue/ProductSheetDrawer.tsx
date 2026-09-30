@@ -5,14 +5,20 @@ import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
   ArrowLeft,
+  Ban,
   Check,
+  CheckCheck,
   Copy,
   FlaskConical,
-  MessageCircle,
+  Info,
+  Loader2,
   ShieldAlert,
   SprayCan,
   X,
 } from "lucide-react";
+import { WhatsAppGlyph } from "@/components/whatsapp/WhatsAppGlyph";
+import { StatusGlyph } from "@/components/whatsapp/StatusGlyph";
+import { errorReasonKey } from "@/lib/whatsapp/compose";
 import { Sheet } from "@/components/ui/Sheet";
 import { buildWhatsappUrl, type MarketCode } from "@/lib/products/whatsapp";
 import type { SheetCheckSeverity } from "@/lib/products/sheet-checks";
@@ -34,6 +40,21 @@ export interface ProductSheetDrawerProps {
   locale: "fr" | "ar";
   /** Re-keys the sheet to a cross-sell alternative. */
   onOpenProduct?: (productId: string | null) => void;
+  /**
+   * When the market's WhatsApp business number is live, « Envoyer sur
+   * WhatsApp » sends the cover image from it (free-form inside the 24 h
+   * window, the approved « Fiche produit » template outside) instead of
+   * opening wa.me on the agent's phone. Needs the order to address it.
+   */
+  orderId?: string | null;
+  customerName?: string | null;
+  whatsappActive?: boolean;
+  /** The market's connection is known: not connected then shows the banner (owner decision: shown, not hidden). */
+  whatsappKnown?: boolean;
+  /** The customer asked for no more messages: the send is disabled and says why. */
+  customerOptedOut?: boolean;
+  customerLanguage?: "ar" | "fr";
+  onWhatsAppSent?: () => void;
 }
 
 const CHECK_TONE: Record<SheetCheckSeverity, string> = {
@@ -64,11 +85,23 @@ export function ProductSheetDrawer({
   market,
   locale,
   onOpenProduct,
+  orderId = null,
+  customerName = null,
+  whatsappActive = false,
+  whatsappKnown = false,
+  customerOptedOut = false,
+  customerLanguage,
+  onWhatsAppSent,
 }: ProductSheetDrawerProps) {
   const t = useTranslations("productSheet");
+  const tw = useTranslations("whatsapp");
 
   const [activeMedia, setActiveMedia] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [waState, setWaState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [waHow, setWaHow] = useState<"text" | "template" | null>(null);
+  const [waError, setWaError] = useState<{ error: string | null; code: number | null; kind: string | null } | null>(null);
+  const [waCaption, setWaCaption] = useState<string | null>(null);
 
   const productId = data?.product?.id;
 
@@ -76,6 +109,10 @@ export function ProductSheetDrawer({
   useEffect(() => {
     setActiveMedia(0);
     setCopied(false);
+    setWaState("idle");
+    setWaHow(null);
+    setWaError(null);
+    setWaCaption(null);
   }, [open, productId]);
 
   if (!open) return null;
@@ -99,6 +136,40 @@ export function ProductSheetDrawer({
           }),
         )
       : null;
+
+  async function handleWhatsAppSend() {
+    if (!product || !cover || !orderId || waState === "sending" || customerOptedOut) return;
+    setWaState("sending");
+    setWaError(null);
+    const caption = t("whatsappMessage", { name: product.name, price: price ?? "", currency, url: cover.url });
+    try {
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: { order_id: orderId },
+          language: customerLanguage ?? (market === "ly" ? "ar" : "fr"),
+          mode: "image",
+          image_url: cover.url,
+          caption,
+          product: { name: product.name, price, currency },
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setWaState("failed");
+        setWaError({ error: body?.error ?? null, code: typeof body?.code === "number" ? body.code : null, kind: body?.kind ?? null });
+        return;
+      }
+      setWaCaption(caption);
+      setWaHow(body?.data?.kind === "template" ? "template" : "text");
+      setWaState("sent");
+      onWhatsAppSent?.();
+    } catch {
+      setWaState("failed");
+      setWaError({ error: "generic", code: null, kind: null });
+    }
+  }
 
   async function handleCopy() {
     if (!cover) return;
@@ -280,6 +351,44 @@ export function ProductSheetDrawer({
         )}
       </div>
 
+      {/* After a send (prototype whatsapp-agent-v1.html, screen `product`):
+          who got it, the caption as sent, and how it went out. */}
+      {whatsappActive && waState === "sent" && (
+        <div role="status" data-testid="product-wa-sent" className="mx-4 mb-4 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] p-3">
+          <div className="flex items-center gap-2 text-[13.5px] font-bold text-[#14532D]">
+            <WhatsAppGlyph size={15} />
+            <span>{tw("product.sentTo", { name: customerName ?? "—" })}</span>
+            <StatusGlyph status="sent" />
+          </div>
+          {waCaption && <div className="mt-2 whitespace-pre-wrap text-[13px] leading-[1.5] text-[#374151] [unicode-bidi:plaintext]">{waCaption}</div>}
+          <div className="mt-2 text-[12px] text-[#6B7280]">{waHow === "template" ? tw("product.howTemplate") : tw("product.howText")}</div>
+        </div>
+      )}
+      {whatsappActive && waState === "failed" && waError && (
+        <p role="alert" className="mx-4 mb-2 rounded-[10px] border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 text-[13px] text-[#B91C1C]">
+          <b className="font-bold">{tw("composer.failed")}</b>
+          {" · "}
+          {waError.code
+            ? tw("composer.failedMeta", { code: waError.code, reason: tw(`errors.${errorReasonKey(waError)}` as Parameters<typeof tw>[0]) })
+            : tw(`errors.${errorReasonKey(waError)}` as Parameters<typeof tw>[0])}
+        </p>
+      )}
+      {whatsappActive && customerOptedOut && (
+        <div role="status" className="mx-4 mb-3 flex items-start gap-2.5 rounded-xl border border-[#FCD34D] bg-[#FFFBEB] px-[13px] py-[11px] text-[13.5px] text-[#B45309]">
+          <Ban size={17} className="mt-px shrink-0" aria-hidden="true" />
+          <b className="font-bold">{tw("composer.optedOut")}</b>
+        </div>
+      )}
+      {!whatsappActive && whatsappKnown && (
+        <div role="status" className="mx-4 mb-3 flex items-start gap-2.5 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] px-[13px] py-[11px] text-[13.5px] leading-[1.45] text-[#374151]">
+          <Info size={17} className="mt-px shrink-0" aria-hidden="true" />
+          <div>
+            <b className="mb-px block font-bold">{tw("composer.noConfig")}</b>
+            {tw("composer.noConfigSub")}
+          </div>
+        </div>
+      )}
+
       {/* Sticky footer — the editorial layout scrolls, so sharing must stay
           reachable without scrolling back up (§4.13 footer band). */}
       {!isLoading && !isError && product && cover && (
@@ -296,17 +405,36 @@ export function ProductSheetDrawer({
             )}
             {copied ? t("copied") : t("copyImage")}
           </button>
-          {whatsappUrl && (
+          {whatsappActive && orderId ? (
+            <button
+              type="button"
+              onClick={handleWhatsAppSend}
+              disabled={waState === "sending" || customerOptedOut}
+              data-state={waState}
+              className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-card text-[12px] font-bold transition-colors duration-fast disabled:cursor-not-allowed ${
+                customerOptedOut ? "bg-[#111111] text-white opacity-40" : waState === "sent" ? "border border-[#BBF7D0] bg-[#F0FDF4] text-[#14532D]" : "bg-[#111111] text-white hover:bg-[#2A2A2A]"
+              }`}
+            >
+              {waState === "sending" ? (
+                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+              ) : waState === "sent" ? (
+                <CheckCheck size={13} strokeWidth={2.4} aria-hidden="true" />
+              ) : (
+                <WhatsAppGlyph size={13} strokeWidth={2} />
+              )}
+              {waState === "sending" ? tw("composer.sending") : waState === "sent" ? tw("product.sentTo", { name: (customerName ?? "").split(" ")[0] || "—" }) : tw("product.send")}
+            </button>
+          ) : whatsappUrl ? (
             <a
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-card bg-ink-primary text-[12px] font-semibold text-white transition-colors duration-fast hover:bg-[#2A2A2A]"
             >
-              <MessageCircle size={12} strokeWidth={2} aria-hidden="true" />
-              {t("sendWhatsapp")}
+              <WhatsAppGlyph size={13} strokeWidth={2} />
+              {whatsappKnown ? tw("sheet.open") : t("sendWhatsapp")}
             </a>
-          )}
+          ) : null}
         </div>
       )}
     </Sheet>

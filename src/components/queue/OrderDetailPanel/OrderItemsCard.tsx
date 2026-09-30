@@ -111,13 +111,13 @@ export function OrderItemsCard({
         return (
           <div
             key={item.id}
-            className="group border-b border-oms-border py-3 first:pt-0 last:border-0"
+            className="group border-b border-oms-border px-[18px] py-3 last:border-0 max-lg:px-3.5"
           >
             <div className="flex items-start gap-3">
               <ProductAvatar
                 imageUrl={itemProduct?.image_url ?? null}
                 productName={item.product_name}
-                size={46}
+                size={56}
               />
 
               <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
@@ -139,7 +139,7 @@ export function OrderItemsCard({
                       placeholder={t("pickProduct")}
                       displayMode
                       readOnly={!canEdit}
-                      displayClassName={`text-[14px] font-semibold leading-[1.35] text-oms-ink-1 ${editableText}`}
+                      displayClassName={`text-[15px] font-bold leading-[1.35] text-oms-ink-1 ${editableText}`}
                     />
                   </div>
 
@@ -185,7 +185,7 @@ export function OrderItemsCard({
                     displayMode
                     readOnly={!canEdit}
                   />
-                  <span className="text-[12.5px] text-oms-ink-3" aria-hidden="true">
+                  <span className="text-[13.5px] text-oms-ink-3" aria-hidden="true">
                     ×
                   </span>
                   <InlineField
@@ -202,7 +202,7 @@ export function OrderItemsCard({
                     type="number"
                     displayMode
                     readOnly={!canEdit}
-                    displayClassName={`text-[12.5px] tabular-nums text-oms-ink-2 ${editableText}`}
+                    displayClassName={`text-[13.5px] tabular-nums text-oms-ink-2 ${editableText}`}
                   />
                   <span className="text-[11px] font-medium uppercase tracking-[0.04em] text-oms-ink-3">
                     {displayCurrency}
@@ -258,7 +258,7 @@ export function OrderItemsCard({
                   amount on this tab lands on one right edge. */}
               <Money
                 amount={item.line_total}
-                className="text-[14px] font-[650] text-oms-ink-1"
+                className="text-[15px] font-bold text-oms-ink-1"
               />
             </div>
           </div>
@@ -266,15 +266,21 @@ export function OrderItemsCard({
       })}
 
       {canEdit && renderAddProduct ? (
-        <div className="pt-3">{renderAddProduct()}</div>
+        <div className="flex flex-col gap-2 px-[18px] pt-3 max-lg:px-3.5">
+          {renderAddProduct()}
+        </div>
       ) : null}
 
       {/* Every value below sits in a 76px end-aligned column — the same one the
           line totals use — so the whole tab reads down a single spine. */}
-      <div className="mt-[18px] border-t border-oms-border pt-3.5">
-        <div className="flex items-baseline gap-3 py-[5px] text-[13px]">
+      <div className="mt-3 border-t border-oms-border px-[18px] pb-[18px] pt-3.5 max-lg:px-3.5">
+        <div className="flex items-baseline gap-3 py-[5px] text-[14px]">
           <span className="flex-1 text-oms-ink-2">{t("subtotal")}</span>
-          <Money testId="items-subtotal" amount={subtotal} className="text-oms-ink-1" />
+          <Money
+            testId="items-subtotal"
+            amount={subtotal}
+            className="text-[15px] font-bold text-oms-ink-1"
+          />
         </div>
 
         <div className="flex items-baseline gap-3 py-[5px] text-[13px]">
@@ -308,19 +314,19 @@ export function OrderItemsCard({
         )}
 
         <div className="mt-1.5 flex items-baseline gap-3 border-t border-oms-border pt-[11px]">
-          <span className="flex-1 text-[10.5px] font-[650] uppercase tracking-[0.085em] text-oms-ink-3">
-            {t("grandTotal")}
-          </span>
+          <span className="flex-1 text-[12.5px] text-oms-ink-3">{t("grandTotal")}</span>
           <Money
             testId="items-grand-total"
             amount={grandTotal}
             currency={displayCurrency}
-            className="text-[16px] font-[650] tracking-[-0.02em] text-oms-ink-1"
+            className="text-[17px] font-bold tracking-[-0.02em] text-oms-ink-1"
           />
         </div>
       </div>
 
-      {saveError && <div className="mt-1 text-[12px] text-oms-bad">{saveError}</div>}
+      {saveError && (
+        <div className="px-[18px] pb-2 text-[12px] text-oms-bad max-lg:px-3.5">{saveError}</div>
+      )}
     </div>
   );
 }

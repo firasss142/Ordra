@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { X, Check, RotateCcw, Copy } from "lucide-react";
+import { X, Check, RotateCcw, Copy, Clock } from "lucide-react";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 import { resolveSlaChip, type SlaState } from "@/lib/orders/sla";
@@ -10,11 +10,17 @@ import { formatDateTime } from "@/lib/format";
 import { ManagerPresenceMark } from "../ManagerPresenceMark";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
 
-/** Amber while it runs, red past the target, green once it was met. */
+/**
+ * Amber while it runs, red past the target, green once it was met.
+ *
+ * Filled, not outlined: the chip is the one thing in this bar an agent scans
+ * a column of open orders for, and an outline at 13px lost that race against
+ * the status badge beside it.
+ */
 const SLA_TONE: Record<SlaState, string> = {
-  running: "border-oms-warn text-oms-warn-ink",
-  breached: "border-oms-bad text-oms-bad",
-  met: "border-oms-ok text-oms-ok",
+  running: "bg-oms-warn-bg text-oms-warn-ink",
+  breached: "bg-oms-bad-bg text-oms-bad",
+  met: "bg-oms-ok-bg text-oms-ok",
 };
 
 export interface PanelHeaderProps {
@@ -102,7 +108,7 @@ export function PanelHeader({
 
   return (
     <div className="flex-shrink-0 border-b border-oms-border bg-oms-surface">
-      <div className="flex h-[50px] items-center gap-2.5 px-[18px]">
+      <div className="flex min-h-[46px] flex-wrap items-center gap-3 px-3.5 max-lg:py-2.5">
         <OrderStatusBadge
           status={status}
           label={statusLabel}
@@ -120,13 +126,12 @@ export function PanelHeader({
             data-testid="panel-sla"
             data-state={sla.state}
             title={formatDateTime(createdAt, locale)}
-            className={`inline-flex flex-none flex-col items-center justify-center rounded-[8px] border px-2 py-[3px] leading-[1.15] ${SLA_TONE[sla.state]}`}
+            className={`inline-flex h-[30px] flex-none items-center gap-[7px] whitespace-nowrap rounded-pill px-3 text-[13.5px] font-bold ${SLA_TONE[sla.state]}`}
           >
-            <b className="text-[12.5px] font-[650] tabular-nums">
-              {formatOrderAge(sla.minutes, locale)}
-            </b>
-            <span className="text-[9.5px] font-semibold tracking-[0.03em] text-oms-ink-3">
-              {t("slaTarget", { target: formatOrderAge(sla.targetMinutes, locale) })}
+            <Clock size={15} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
+            <span className="tabular-nums">{formatOrderAge(sla.minutes, locale)}</span>
+            <span className="font-semibold opacity-80">
+              · {t("slaTarget", { target: formatOrderAge(sla.targetMinutes, locale) })}
             </span>
           </span>
         ) : (
@@ -180,7 +185,14 @@ export function PanelHeader({
 
         {/* Reference and close sit at the trailing edge — chrome, not content. */}
         <span className="ms-auto flex flex-shrink-0 items-center gap-1">
-          <span className="text-[11px] tabular-nums tracking-[0.01em] text-oms-ink-3">
+          {/* `#` + digits is a Latin run: in an Arabic panel it otherwise
+              renders with the hash trailing the number. Safe to pin here —
+              unlike the age beside it, this string has no localised words in
+              it to reorder. */}
+          <span
+            dir="ltr"
+            className="text-[14px] tabular-nums tracking-[0.01em] text-oms-ink-2"
+          >
             #{short}
           </span>
           <button
@@ -188,21 +200,21 @@ export function PanelHeader({
             onClick={() => void copyReference()}
             aria-label={t("copyReference")}
             title={reference}
-            className="grid h-[26px] w-[26px] place-items-center rounded-[7px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
+            className="grid h-8 w-8 place-items-center rounded-[8px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
           >
             {copied ? (
-              <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+              <Check size={15} strokeWidth={2.5} aria-hidden="true" />
             ) : (
-              <Copy size={12} strokeWidth={2} aria-hidden="true" />
+              <Copy size={15} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
           <button
             type="button"
             onClick={onClose}
             aria-label={t("close")}
-            className="grid h-[26px] w-[26px] place-items-center rounded-[7px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
+            className="grid h-9 w-9 place-items-center rounded-[8px] text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1 max-lg:hidden"
           >
-            <X size={15} strokeWidth={2} aria-hidden="true" />
+            <X size={17} strokeWidth={2} aria-hidden="true" />
           </button>
         </span>
       </div>

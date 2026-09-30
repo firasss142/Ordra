@@ -13,6 +13,7 @@ import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-a
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 import { isTerminalStatus, type OrderStatus } from "@/types/order-status";
+import type { StatusHue } from "@/lib/orders/status-presentation";
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 import { PresenceIndicator, type PresencePerson } from "./PresenceIndicator";
@@ -34,6 +35,12 @@ interface Props {
   /** The assignee's photo, when the directory has one. */
   agentAvatarUrl?: string | null;
   currencyCode: string;
+  /**
+   * Why this order was rejected, resolved to a hue and a short phrase. Built
+   * once per table by `useRejectionBadge` rather than per row, so a thousand
+   * rows share one config read.
+   */
+  rejection?: { hue: StatusHue; text: string } | null;
   labels: {
     status: string;
     unassigned: string;
@@ -154,6 +161,7 @@ function Row({
   presencePersonOf,
   agentAvatarUrl,
   currencyCode,
+  rejection = null,
   labels,
   onToggleSelect,
   onOpen,
@@ -342,6 +350,7 @@ function Row({
             <OrderStatusBadge
               status={order.status}
               label={labels.status}
+              rejection={rejection}
               locale={locale}
               attemptsCount={order.attempts_count}
               maxAttempts={maxAttempts}
@@ -470,6 +479,8 @@ export const OrderRow = React.memo(Row, (prev, next) => {
     prev.labels.actions === next.labels.actions &&
     prev.labels.callbackOverdue === next.labels.callbackOverdue &&
     prev.labels.priorRejected === next.labels.priorRejected &&
+    prev.rejection?.text === next.rejection?.text &&
+    prev.rejection?.hue === next.rejection?.hue &&
     prevOverdue === nextOverdue
   );
 });
