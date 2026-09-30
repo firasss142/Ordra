@@ -24,6 +24,18 @@ vi.mock("next-intl", () => ({
   useLocale: () => "fr",
 }));
 
+vi.mock("@/hooks/useCustomerHistory", () => ({
+  useCustomerHistory: () => ({
+    detail: {
+      orders: [],
+      leads: [],
+      stats: { total_orders: 0, delivered_count: 0, returned_count: 0, rejected_count: 0, lifetime_value: 0 },
+    },
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 function sibling(o: Partial<SiblingOrder> = {}): SiblingOrder {
   return {
     id: "sib-1",
@@ -333,5 +345,27 @@ describe("DuplicateOrderBadge", () => {
     await waitFor(() =>
       expect(screen.getByText(/Échec de la suppression/)).toBeDefined(),
     );
+  });
+
+  it("opens the full customer history in the page, from the popover", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling()]}
+        hasUploadedSibling={false}
+        anchorOrderId="order-1"
+        anchorExternalId="13047"
+        customerPhone="0915489053"
+        {...ANCHOR_PROPS}
+      />,
+    );
+    openDialog(container);
+    fireEvent.click(screen.getByRole("button", { name: "Historique client" }));
+
+    const panel = screen.getByRole("dialog", { name: "Historique client" });
+    expect(panel).toHaveAttribute("aria-modal", "true");
+    expect(panel.textContent).toContain("0915489053");
+    // The hover popover hands over rather than stacking.
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
   });
 });

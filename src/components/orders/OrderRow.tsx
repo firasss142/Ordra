@@ -263,6 +263,8 @@ function Row({
                     priorRejectedCount={order.prior_rejected_count ?? 0}
                     currencyCode={currencyCode}
                     customerPhone={order.customer_phone}
+                    anchorExternalId={order.external_id}
+                    anchorQuantity={order.quantity}
                     anchorOrderId={order.id}
                     anchorStatus={order.status}
                     anchorCreatedAt={order.created_at}
@@ -289,6 +291,9 @@ function Row({
                     anchorCustomerAddress={order.customer_address}
                     anchorCustomerCity={order.customer_city}
                     currencyCode={currencyCode}
+                    customerPhone={order.customer_phone}
+                    anchorExternalId={order.external_id}
+                    anchorQuantity={order.quantity}
                     canDelete
                     onChange={onDuplicateChange}
                   />
