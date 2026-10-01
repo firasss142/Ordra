@@ -4,8 +4,8 @@ Since 2026-09-30, Meta spend is synced **per ad set per day**, and a campaign or
 ad set can be attributed to **one or several products**. Every change says whether it
 rewrites **all history** or applies **from a date**.
 
-- Plan: `plans/ad-spend-adset-mapping.md`
-- Prototype (the design source of truth): `prototypes/ad-spend-mapping-v1.html`
+- Plan: `plans/ad-spend-adset-mapping.md`; the drawer's v2 redesign: `plans/ad-spend-mapping-redesign-v2.md`
+- Prototype (the design source of truth): `prototypes/ad-spend-mapping-v2.html` (v1 is history)
 - Surrounding context (the break-even math, the cohort basis, the Meta sync): `docs/ad-spend.md`
 
 ---
@@ -112,24 +112,47 @@ Rules the sync keeps:
 
 | Route | What it does |
 |---|---|
-| `GET /api/meta/mapping` | The tree: catalogue, spend, the version in force, history, coverage, products with 30-day orders |
-| `POST /api/meta/mapping/preview` | Money moved per product, the target's own split with the orders behind it, and issued investor statements whose period it rewrites. Writes nothing |
+| `GET /api/meta/mapping` | The tree: catalogue, spend, the version in force, history, coverage, products with 30-day orders. **Whole history by default** (first spend or `adset_history_from` → today); `from_date`/`to_date` narrow only the `*_window` figures. Each node carries `spend_unattributed` (no product, not deliberately general); each campaign `spend_by_product` |
+| `POST /api/meta/mapping/preview` | Money moved per bucket — a product, `general` (deliberate market-level) or `none` (still waiting) — the target's own split with the orders behind it, and issued investor statements whose period it rewrites. Writes nothing |
 | `POST /api/meta/mapping` | `set_ad_spend_mapping`, then a rebuild of the previewed range. `pending_rebuild: true` = saved, and the amounts follow at the next sync |
 
 All three are super_admin only (`canViewFinanceSection`). The three RPCs are
 **service-role EXECUTE only**, and `p_actor_id` is recorded, never trusted.
 
-**Drawer** (`components/ad-spend/AdSpendMappingDrawer.tsx` + `mapping/`):
+**Drawer, v2 since 2026-10-01** ("Campagnes et produits",
+`components/ad-spend/AdSpendMappingDrawer.tsx` + `mapping/`):
 
-- Master–detail layout.
-- Filters: *À mapper* / *Actives* / *Toutes*.
-- The detail pane shows the node's KPIs, the daily bars, what it sells today, its ad
-  sets and the version timeline.
-- The editor has three steps (what, how it splits, from when), a live impact box, and
-  one Apply per change.
+- **One period, one count.** The drawer works on the whole history, never the page's
+  period: a mapping holds for all of it. A campaign is *to attribute*
+  (`needsAttribution` in `lib/ad-spend/mapping-view.ts`) when spend waits for a
+  product, or when it runs with nothing saying what it sells. The page's button
+  badge uses the same function on the same SWR entry. v1 counted every never-mapped
+  campaign (6) where 2 had spent (542 LYD).
+- One sentence at the top: the money waiting and how many campaigns it belongs to, or
+  "all attributed" plus the general spend; a meter of the share on products.
+- **List:** campaigns only, grouped À attribuer / En cours / En pause, with the
+  never-run ones folded. Search only, no filters. A row is a thumbnail, the
+  campaign, what it sells and what it spent since tracking began.
+- Opens on the campaign with the most money waiting (or the page's campaign), never
+  on an empty pane.
+- **Detail:** status pill, one sentence of spend, a slim strip, then "Ce qu'elle
+  vend" with the version in force in the card footer and the history behind a link.
+  Ad sets appear only when there are several (or one is attributed on its own). No
+  KPIs: Meta purchases and cost per purchase stay on the page's product table.
+- **Editor:** three plain questions (which products, how to split, from when). The
+  share is on each product row. General spend is a quiet link, not a first step. A cut
+  chart shows what a dated change leaves alone. Then the impact, product by product.
+  It starts from **all history** ("Depuis le début"). **Enregistrer stays grey while
+  nothing differs** (`isUnchanged`), and the footer says why. *Attribuer à part* (an
+  ad set) starts from a copy of the campaign's products; one switch sends it back to
+  following the campaign.
 - A **settled** investor statement in the range is flagged, with a "start the day
   after" button. It is a warning, not a lock: `investor_deal_statements.restatement_delta`
   exists for exactly this.
+- The date is a native date field. The app's `DatePicker` portals its calendar
+  outside the `Sheet`'s focus trap, and its Escape would also close the editor.
+- Arabic strings exist and pass the parity test. But a super_admin has no market, so
+  the middleware always serves French, and only a super_admin can open the drawer.
 
 **Page:** a product's breakdown lists campaigns → ad sets, with the share of the
 campaign it carries (`64 % · auto`), Meta purchases (`≈` when split) and cost per

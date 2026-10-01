@@ -18,6 +18,7 @@ import type {
   MappingTreeDTO,
   MappingVersionDTO,
   NodeSpend,
+  SpendBucket,
 } from "@/lib/ad-spend/mapping-types";
 import { clampToHistory, computeProjection, loadLiveVersions, loadOrderCounts } from "./rebuild";
 import { accountTimezone, loadFxRate } from "./sync";
@@ -220,12 +221,24 @@ function roundCoverage(c: CoverageDTO): CoverageDTO {
   return { total: r(c.total), attributed: r(c.attributed), market_level: r(c.market_level), unmapped: r(c.unmapped) };
 }
 
-function newSpend(): NodeSpend & { byDay: Map<string, number> } {
-  return { spend_window: 0, spend_life: 0, results_window: 0, first_day: null, last_day: null, daily: [], byDay: new Map() };
+function newSpend(): NodeSpend & { byDay: Map<string, number>; byProduct: Map<string, number> } {
+  return {
+    spend_window: 0,
+    spend_life: 0,
+    spend_unattributed: 0,
+    results_window: 0,
+    first_day: null,
+    last_day: null,
+    daily: [],
+    byDay: new Map(),
+    byProduct: new Map(),
+  };
 }
 
 function addSpend(n: ReturnType<typeof newSpend>, row: SpendRow, amount: number, inWindow: boolean) {
   n.spend_life += amount;
+  if (row.product_id) n.byProduct.set(row.product_id, (n.byProduct.get(row.product_id) ?? 0) + amount);
+  else if (row.allocation_basis !== "market_level") n.spend_unattributed += amount;
   if (amount > 0) {
     if (!n.first_day || row.period_start < n.first_day) n.first_day = row.period_start;
     if (!n.last_day || row.period_start > n.last_day) n.last_day = row.period_start;
@@ -242,6 +255,7 @@ function finishSpend(n: ReturnType<typeof newSpend>): NodeSpend {
   return {
     spend_window: r(n.spend_window),
     spend_life: r(n.spend_life),
+    spend_unattributed: r(n.spend_unattributed),
     results_window: n.results_window,
     first_day: n.first_day,
     last_day: n.last_day,
@@ -252,9 +266,15 @@ function finishSpend(n: ReturnType<typeof newSpend>): NodeSpend {
   };
 }
 
+/**
+ * `from`/`to` bound the "window" figures (spend_window, results_window, daily).
+ * Without them the window is the whole history — from the first recorded
+ * spend (or the account's ad-set history) to today — which is what the drawer
+ * shows: a mapping holds for all of it, so a page period has no place there.
+ */
 export async function loadMappingTree(
   admin: SupabaseClient,
-  q: { marketId: string; from: string; to: string; now?: Date },
+  q: { marketId: string; from?: string; to?: string; now?: Date },
 ): Promise<MappingTreeDTO> {
   const { data: accountData } = await admin
     .from("meta_ad_accounts")
@@ -356,16 +376,22 @@ export async function loadMappingTree(
     Object.assign(s, { name: row.name, status: row.effective_status, created_time: row.created_time });
   }
 
+  let lifeFrom: string | null = null;
+  for (const row of spendRows) {
+    if (row.external_campaign_id && (!lifeFrom || row.period_start < lifeFrom)) lifeFrom = row.period_start;
+  }
+  const historyFrom = accountRows.map((a) => a.adset_history_from).filter((d): d is string => !!d).sort()[0] ?? null;
+  const windowTo = q.to ?? today;
+  const windowFrom = q.from ?? [lifeFrom, historyFrom, windowTo].filter((d): d is string => !!d).sort()[0];
+
   const coverageWindow = emptyCoverage();
   const coverageLife = emptyCoverage();
-  let lifeFrom: string | null = null;
   for (const row of spendRows) {
     if (!row.external_campaign_id) continue;
     const amount = Number(row.amount) || 0;
-    const inWindow = row.period_start >= q.from && row.period_start <= q.to;
+    const inWindow = row.period_start >= windowFrom && row.period_start <= windowTo;
     addCoverage(coverageLife, row, amount);
     if (inWindow) addCoverage(coverageWindow, row, amount);
-    if (!lifeFrom || row.period_start < lifeFrom) lifeFrom = row.period_start;
 
     const c = campaignOf(row.external_campaign_id, row.ad_account_id ?? accountRows[0]?.ad_account_id ?? "");
     if (!c.name && row.campaign_name) c.name = row.campaign_name;
@@ -402,6 +428,9 @@ export async function loadMappingTree(
       ...finishSpend(c.spend),
       versions: own,
       current_id: current?.id ?? null,
+      spend_by_product: Object.fromEntries(
+        [...c.spend.byProduct.entries()].filter(([, v]) => v !== 0).map(([k, v]) => [k, fromMillimes(toMillimes(v))]),
+      ),
       adsets,
     };
   });
@@ -435,18 +464,12 @@ export async function loadMappingTree(
     history_from: a.adset_history_from,
   }));
 
-  const neverMapped = campaignNodes.filter((c) => c.versions.length === 0);
   return {
     accounts,
-    window: { from: q.from, to: q.to },
+    window: { from: windowFrom, to: windowTo },
     campaigns: campaignNodes,
     products: productDTOs,
     coverage: { window: roundCoverage(coverageWindow), life: roundCoverage(coverageLife), life_from: lifeFrom },
-    unmapped: {
-      campaigns: neverMapped.length,
-      spent_campaigns: neverMapped.filter((c) => c.spend_life > 0).length,
-      spend_life: fromMillimes(toMillimes(neverMapped.reduce((s, c) => s + c.spend_life, 0))),
-    },
   };
 }
 
@@ -517,13 +540,17 @@ export async function previewDraft(
     computeProjection(admin, { ...scope, versions: next }),
   ]);
 
-  // ── money moved, per product ──
-  const keys = new Set<string | null>([...before, ...after].map((r) => r.product_id));
-  const products = [...keys]
-    .map((k) => ({
-      product_id: k,
-      before: fromMillimes(sumBy(before, (r) => r.product_id === k)),
-      after: fromMillimes(sumBy(after, (r) => r.product_id === k)),
+  // ── money moved, per product — and, with no product, general vs waiting ──
+  const bucketOf = (r: AdSpendProjectionRow): SpendBucket =>
+    r.product_id ? "product" : r.allocation_basis === "market_level" ? "general" : "none";
+  const keyOf = (r: AdSpendProjectionRow) => r.product_id ?? `#${bucketOf(r)}`;
+  const keys = new Map<string, { product_id: string | null; bucket: SpendBucket }>();
+  for (const r of [...before, ...after]) keys.set(keyOf(r), { product_id: r.product_id, bucket: bucketOf(r) });
+  const products = [...keys.entries()]
+    .map(([k, id]) => ({
+      ...id,
+      before: fromMillimes(sumBy(before, (r) => keyOf(r) === k)),
+      after: fromMillimes(sumBy(after, (r) => keyOf(r) === k)),
     }))
     .filter((p) => p.before !== 0 || p.after !== 0)
     .sort((a, b) => b.after - b.before - (a.after - a.before));

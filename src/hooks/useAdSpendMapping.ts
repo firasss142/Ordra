@@ -3,18 +3,14 @@
 import useSWR from "swr";
 import type { MappingDraftBody, MappingPreviewDTO, MappingTreeDTO } from "@/lib/ad-spend/mapping-types";
 
-/** The mapping drawer's tree: catalogue, spend, mapping in force, history. */
-export function useAdSpendMapping(params: {
-  marketId: string;
-  fromDate: string;
-  toDate: string;
-  enabled?: boolean;
-}) {
+/**
+ * The mapping drawer's tree: catalogue, spend, mapping in force, history —
+ * over the whole history, not the page's period: a mapping holds for all of
+ * it, and one key means the page's badge and the drawer share one fetch.
+ */
+export function useAdSpendMapping(params: { marketId: string; enabled?: boolean }) {
   const enabled = params.enabled ?? true;
-  const key =
-    enabled && params.marketId
-      ? `/api/meta/mapping?market_id=${params.marketId}&from_date=${params.fromDate}&to_date=${params.toDate}`
-      : null;
+  const key = enabled && params.marketId ? `/api/meta/mapping?market_id=${params.marketId}` : null;
 
   const { data, error, isLoading, mutate } = useSWR<MappingTreeDTO>(
     key,

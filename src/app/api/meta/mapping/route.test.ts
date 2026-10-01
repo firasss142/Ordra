@@ -86,6 +86,19 @@ describe("GET /api/meta/mapping", () => {
     expect(data.window).toEqual({ from: "2026-07-08", to: "2026-09-30" });
     expect(data.accounts[0].ad_account_id).toBe(ACCT);
   });
+
+  test("without dates, covers the whole history — the drawer's one period", async () => {
+    const res = await GET(new NextRequest(`http://x/api/meta/mapping?market_id=${LY}`));
+    expect(res.status).toBe(200);
+    const { data } = await res.json();
+    // No spend recorded yet: the period starts where the ad-set history does.
+    expect(data.window.from).toBe("2026-05-23");
+  });
+
+  test("400s on a malformed date", async () => {
+    const res = await GET(new NextRequest(`http://x/api/meta/mapping?market_id=${LY}&from_date=yesterday`));
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("POST /api/meta/mapping", () => {
@@ -176,8 +189,8 @@ describe("POST /api/meta/mapping/preview", () => {
     const { data } = await res.json();
     // The unmapped 100 leaves market level for the product.
     expect(data.products).toEqual([
-      { product_id: P1, before: 0, after: 100 },
-      { product_id: null, before: 100, after: 0 },
+      { product_id: P1, bucket: "product", before: 0, after: 100 },
+      { product_id: null, bucket: "none", before: 100, after: 0 },
     ]);
   });
 

@@ -202,7 +202,55 @@ describe("loadMappingTree", () => {
     expect(tree.coverage.life).toEqual({ total: 1180.416, attributed: 661.416, market_level: 0, unmapped: 519 });
     expect(tree.coverage.window).toEqual({ total: 433.944, attributed: 433.944, market_level: 0, unmapped: 0 });
     expect(tree.coverage.life_from).toBe("2026-06-23");
-    expect(tree.unmapped).toEqual({ campaigns: 2, spent_campaigns: 1, spend_life: 519 });
+  });
+
+  it("says, per campaign, how much is still waiting for a product", async () => {
+    const { admin } = setup();
+    const tree = await loadMappingTree(admin, { marketId: LY, from: "2026-07-08", to: "2026-09-30", now: NOW });
+    const by = Object.fromEntries(tree.campaigns.map((c) => [c.id, c.spend_unattributed]));
+    expect(by).toEqual({ "C-RELAUNCH": 0, "C-BOXHERO": 519, "C-PETS": 0 });
+  });
+
+  it("does not count deliberate general spend as waiting", async () => {
+    const { admin } = setup({
+      ad_spend: [
+        spend({ external_campaign_id: "C-PETS", external_adset_id: "S-PETS", period_start: "2026-09-01", amount: 40, product_id: null, allocation_basis: "market_level" }),
+      ],
+    });
+    const tree = await loadMappingTree(admin, { marketId: LY, now: NOW });
+    expect(tree.campaigns.find((c) => c.id === "C-PETS")).toMatchObject({ spend_life: 40, spend_unattributed: 0 });
+  });
+
+  it("says what each product carried of a campaign, over its whole history", async () => {
+    const { admin } = setup({
+      ad_spend: [
+        spend({ period_start: "2026-08-11", amount: 300, product_id: "M", allocation_basis: "auto_orders" }),
+        spend({ period_start: "2026-08-11", amount: 100, product_id: "L", allocation_basis: "auto_orders" }),
+        spend({ period_start: "2026-06-01", amount: 60, product_id: "L", allocation_basis: "auto_orders" }),
+      ],
+    });
+    const tree = await loadMappingTree(admin, { marketId: LY, from: "2026-07-08", to: "2026-09-30", now: NOW });
+    expect(tree.campaigns[0].spend_by_product).toEqual({ M: 300, L: 160 });
+  });
+
+  it("without a window, spans the whole history: from where tracking began to today", async () => {
+    const { admin } = setup();
+    const tree = await loadMappingTree(admin, { marketId: LY, now: NOW });
+    // The account's ad-set history starts 23 May; the first spend is 23 June.
+    expect(tree.window).toEqual({ from: "2026-05-23", to: "2026-09-30" });
+    const relaunch = tree.campaigns[0];
+    expect(relaunch).toMatchObject({ spend_window: 661.416, spend_life: 661.416 });
+    expect(relaunch.daily).toEqual([["2026-07-06", 227.472], ["2026-08-11", 433.944]]);
+  });
+
+  it("without a window, reaches back to spend older than the ad-set history", async () => {
+    const { admin } = setup({
+      meta_ad_accounts: [
+        { ad_account_id: ACCT, market_id: LY, account_name: null, account_currency: "USD", account_timezone: "Africa/Tunis", last_synced_at: null, adset_history_from: "2026-07-01", is_active: true },
+      ],
+    });
+    const tree = await loadMappingTree(admin, { marketId: LY, now: NOW });
+    expect(tree.window.from).toBe("2026-06-23");
   });
 
   it("gives each product its last-30-day orders, and the account its rate and history", async () => {
@@ -244,6 +292,18 @@ describe("previewDraft — what a save will move, computed by the save's own cod
     expect(p.moved).toBeCloseTo(661.416 - l.after, 3);
     expect(p.shares.map((x) => [x.product_id, x.orders])).toEqual([["M", 84], ["S", 72], ["L", 17]]);
     expect(p.shares.reduce((a, x) => a + x.pct, 0)).toBeCloseTo(100, 6);
+  });
+
+  it("tells deliberate general spend apart from a product's margin", async () => {
+    const { admin } = setup();
+    const r = parseDraft(body({ kind: "market_level", split_mode: null, lines: [] }));
+    if (!r.ok) throw new Error(r.error);
+    const p = await previewDraft(admin, r.draft, account(), NOW);
+    expect(p.products).toEqual([
+      { product_id: null, bucket: "general", before: 0, after: 661.416 },
+      { product_id: "L", bucket: "product", before: 661.416, after: 0 },
+    ]);
+    expect(p.moved).toBe(661.416);
   });
 
   it("names the settled investor statement whose period the change rewrites", async () => {
