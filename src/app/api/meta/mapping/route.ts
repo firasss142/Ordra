@@ -9,7 +9,8 @@ import { accountTimezone } from "@/lib/meta-ads/sync";
 /**
  * Campaign / ad set → product(s), effective-dated. The drawer's two verbs.
  *
- * GET  the whole catalogue with its spend, the mapping in force and its history.
+ * GET  the whole catalogue with its spend, the mapping in force and its history
+ *      — over the whole history unless from_date/to_date narrow the window.
  * POST one change: which products, how to split, and from when. Saved through
  *      set_ad_spend_mapping (history kept, never edited), then ad_spend is
  *      rewritten for exactly the range /preview named — never before the
@@ -39,11 +40,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "market_id query parameter required" }, { status: 400 });
   }
 
-  const to = params.get("to_date") ?? new Date().toISOString().slice(0, 10);
-  const fromDefault = new Date(`${to}T00:00:00Z`);
-  fromDefault.setUTCDate(fromDefault.getUTCDate() - 83);
-  const from = params.get("from_date") ?? fromDefault.toISOString().slice(0, 10);
-  if (!ISO_DAY.test(from) || !ISO_DAY.test(to) || from > to) {
+  // No dates = the whole history, which is what the drawer asks for: a
+  // mapping holds for all of it.
+  const from = params.get("from_date") ?? undefined;
+  const to = params.get("to_date") ?? undefined;
+  if ((from && !ISO_DAY.test(from)) || (to && !ISO_DAY.test(to)) || (from && to && from > to)) {
     return NextResponse.json({ error: "from_date and to_date must be YYYY-MM-DD, in order" }, { status: 400 });
   }
 

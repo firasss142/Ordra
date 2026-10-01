@@ -1,0 +1,1158 @@
+<!doctype html>
+<!--
+  Campagnes et produits v2 — redesign of the ad-spend mapping drawer (v1 shipped 2026-09-30).
+  Owner's brief (2026-10-01): "not clear, a bit dense with unnecessary information — simplicity,
+  visual clearness, beautiful components, a simple experience, descriptive words."
+  Manager-facing (super_admin). REAL Libya data: campaigns, ad sets, mappings and daily LYD spend
+  read from prod on 2026-10-01 00:53 UTC (read-only); relaunch split computed day by day on real
+  orders (v1). Simulated: ?screen=done (both Boxhero campaigns set to general spend) and
+  ?screen=adset (QuranTadabr batch 2 shared with the Tahajjud Mushaf). Saving only updates memory.
+  URL presets: ?lang=fr|ar  ?screen=list|campaign|pick|edit|manual|date|adset|done  ?device=desktop|phone
+  Review notes: bottom of the page.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campagnes et produits — prototype v2</title>
+<style>
+  :root{
+    --bg:#F6F6F7; --surface:#FFFFFF; --sunken:#FAFAFB; --hover:#F6F6F7; --track:#F1F2F4;
+    --line:#E1E3E5; --line-subtle:#ECEEF0; --line-strong:#C9CCCF;
+    --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-line:#B7DEC4;
+    --success:#008060; --success-bg:#F1F8F5; --success-line:#CDE8DD;
+    --amber:#D97706; --amber-ink:#B45309; --amber-deep:#78350F; --amber-bg:#FEF3C7; --amber-band:#FFFBEB; --amber-line:#F5DFA0;
+    --critical-ink:#B42318; --critical-bg:#FFF4F4;
+    --chart:#8C9196; --sidebar:#0E1013;
+    --e-float:0 12px 40px rgba(16,24,40,.16),0 2px 6px rgba(16,24,40,.06);
+    --e-pop:0 10px 30px rgba(16,24,40,.14),0 0 0 1px rgba(16,24,40,.05);
+    /* split ramp — neutral: a split is a correction, never a verdict */
+    --s1:#1A1A1A; --s2:#5C6166; --s3:#9CA3AF; --s4:#C9CCCF; --s5:#E1E3E5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#2A2E33}
+  body{color:var(--ink-1);font-size:14px;line-height:1.45;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic",sans-serif;-webkit-font-smoothing:antialiased}
+  button,input{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0;text-align:inherit}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+  h1,h2,h3,h4,h5,p{margin:0}
+  svg{display:block;flex:none}
+  bdi{unicode-bidi:isolate}
+  .tnum{font-variant-numeric:tabular-nums}
+  .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+
+  /* ── studio bar (NOT part of the app) ── */
+  .pbar{position:sticky;top:0;z-index:500;background:#1F2328;color:#E6E8EB;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--brand)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar .grow{flex:1}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+
+  /* ── stage: a slice of the app ── */
+  .wrap{display:flex;justify-content:center}
+  .stage{position:relative;display:flex;width:100%;height:calc(100vh - var(--pbar,51px));min-height:640px;overflow:hidden;transform:translateZ(0);background:var(--bg)}
+  .stage.phone{width:390px;height:800px;min-height:0;margin:24px 0 40px;border-radius:28px;box-shadow:0 0 0 10px #0B0C0E,0 30px 80px rgba(0,0,0,.5)}
+  .sb{width:232px;flex:none;background:var(--sidebar);color:#9BA1A8;padding:14px 10px;font-size:13px}
+  .sb .brand{color:#fff;font-weight:700;font-size:15px;padding:4px 10px 14px;display:flex;align-items:center;gap:8px}
+  .sb .brand i{width:22px;height:22px;border-radius:6px;background:var(--brand);display:inline-block}
+  .sb .sec{padding:9px 10px 3px;font-size:12.5px;color:#DADDE1;font-weight:600}
+  .sb .it{display:block;padding:6px 10px;padding-inline-start:22px;border-radius:7px}
+  .sb .it.on{background:var(--brand);color:#fff;font-weight:600}
+  .phone .sb{display:none}
+  .main{flex:1;min-width:0;padding:24px 28px}
+  .pgh{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .pgh h2{font-size:24px;font-weight:700;letter-spacing:-.01em}
+  .pgh p{font-size:13.5px;color:var(--ink-2);margin-top:3px}
+  .pgh .grow{flex:1}
+  .skel{border-radius:12px;background:#fff;border:1px solid var(--line-subtle);margin-top:16px}
+
+  /* ── buttons ── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:600;border:1px solid var(--line-strong);background:#fff;white-space:nowrap}
+  .btn:hover{background:var(--hover)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{background:var(--brand-hover)}
+  .btn[disabled]{opacity:.42;cursor:not-allowed}
+  .btn.sm{height:28px;padding:0 10px;font-size:12.5px;border-radius:8px}
+  .btn.quiet{border-color:transparent;background:transparent;color:var(--ink-2)}
+  .btn.quiet:hover{background:var(--track);color:var(--ink-1)}
+  .cnt{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;font-size:11.5px;font-weight:700;background:var(--track);color:var(--ink-2)}
+  .cnt.warn{background:var(--amber-bg);color:var(--amber-ink)}
+
+  /* ── thumbnails ── */
+  .th{display:inline-block;flex:none;background:#EEF0F2 center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+  .th.off{filter:grayscale(1);opacity:.55}
+  .ph{display:inline-grid;place-items:center;flex:none;border-radius:10px;border:1.5px dashed var(--line-strong);color:var(--ink-3)}
+  .ph.warn{border-color:#E8B44A;color:var(--amber-ink);background:var(--amber-band)}
+  .ph.gen{border:0;background:var(--track);color:var(--ink-2)}
+  .stack{position:relative;flex:none;display:inline-block}
+  .stack .th{position:absolute;box-shadow:0 0 0 2px #fff}
+  .stack .th:first-child{top:0;inset-inline-start:0}
+  .stack .th:last-child{bottom:0;inset-inline-end:0}
+
+  /* ═════════ DRAWER ═════════ */
+  .backdrop{position:absolute;inset:0;background:rgba(26,26,26,.42);z-index:30}
+  .drawer{position:absolute;top:0;bottom:0;inset-inline-end:0;width:min(1080px,94%);background:var(--surface);box-shadow:var(--e-float);z-index:31;display:flex;flex-direction:column}
+  .phone .drawer{width:100%}
+
+  .dh{flex:none;display:flex;align-items:flex-start;gap:14px;padding:20px 24px 14px}
+  .dh h2{font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .dh p{font-size:13px;color:var(--ink-2);margin-top:3px}
+  .dh .grow{flex:1;min-width:0}
+  .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);white-space:nowrap;margin-top:7px}
+  .xbtn{width:34px;height:34px;border-radius:9px;color:var(--ink-2);display:grid;place-items:center;flex:none}
+  .xbtn:hover{background:var(--track);color:var(--ink-1)}
+  .phone .dh{padding:16px 16px 12px}
+  .phone .dh p,.phone .sync{display:none}
+
+  .status{flex:none;display:flex;align-items:center;gap:12px;margin:0 24px 16px;padding:11px 14px;border-radius:12px;font-size:13px;line-height:1.4}
+  .status.todo{background:var(--amber-band);border:1px solid var(--amber-line);color:var(--amber-deep)}
+  .status.done{background:var(--success-bg);border:1px solid var(--success-line);color:#05603A}
+  .status b{font-weight:650}
+  .status .sic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none}
+  .status.todo .sic{background:var(--amber-bg);color:var(--amber-ink)}
+  .status.done .sic{background:#D5EFE3;color:var(--success)}
+  .status .txt{flex:1;min-width:0}
+  .status .go{font-weight:650;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+  .status .sub{opacity:.8}
+  .meter{display:flex;align-items:center;gap:10px;font-size:12px;white-space:nowrap;color:inherit;opacity:.9}
+  .meter i{display:block;width:110px;height:6px;border-radius:3px;background:rgba(0,0,0,.08);overflow:hidden}
+  .meter i b{display:block;height:100%;border-radius:3px;background:var(--success)}
+  .phone .status{margin:0 16px 12px;flex-wrap:wrap}
+  .phone .meter{display:none}
+  .phone .editing .status{display:none}
+
+  .panes{flex:1;min-height:0;display:grid;grid-template-columns:372px 1fr;border-top:1px solid var(--line)}
+  .phone .panes{grid-template-columns:1fr}
+  .phone .panes[data-view=list] .rp,.phone .panes[data-view=detail] .lp{display:none}
+  .lp{display:flex;flex-direction:column;min-height:0;border-inline-end:1px solid var(--line)}
+  .rp{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0}
+
+  /* list */
+  .lsearch{flex:none;padding:12px 14px 4px}
+  .srch{position:relative;display:block}
+  .srch svg{position:absolute;top:10px;inset-inline-start:11px;color:var(--ink-3)}
+  .srch input{width:100%;height:36px;border:1px solid var(--line);border-radius:10px;padding-inline:34px 10px;font-size:13px;background:var(--sunken)}
+  .srch input:focus{outline:none;background:#fff;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+  .colh{flex:none;display:flex;justify-content:flex-end;padding:8px 22px 0;font-size:11.5px;color:var(--ink-3)}
+  .list{flex:1;overflow-y:auto;padding:0 8px 28px}
+  .gh{display:flex;align-items:center;gap:8px;padding:14px 10px 6px;font-size:12.5px;font-weight:650;color:var(--ink-2)}
+  .gh.todo{color:var(--amber-ink)}
+  .row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:9px 10px;border-radius:10px}
+  .row:hover{background:var(--hover)}
+  .row.sel{background:var(--brand-bg);box-shadow:inset 0 0 0 1px var(--brand-line)}
+  .rn{display:block;font-size:13.5px;font-weight:600}
+  .rl{display:block;font-size:12.5px;color:var(--ink-2);margin-top:1px}
+  .rl.warn{color:var(--amber-ink);font-weight:600}
+  .rl.muted{color:var(--ink-3)}
+  .ramt{font-size:13px;font-weight:600;white-space:nowrap}
+  .ramt small{font-size:11px;font-weight:500;color:var(--ink-2);margin-inline-start:3px}
+  .ramt.z{color:var(--ink-3);font-weight:500}
+  .never{display:flex;align-items:center;gap:8px;width:100%;margin-top:10px;padding:10px;border-radius:10px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .never:hover{background:var(--hover);color:var(--ink-1)}
+  .never svg{transition:transform .15s}
+  .never.open svg{transform:rotate(90deg)}
+  [dir=rtl] .never:not(.open) svg{transform:scaleX(-1)}
+  .none{padding:28px 18px;font-size:13px;color:var(--ink-2);text-align:center}
+
+  /* detail */
+  .dscroll{flex:1;overflow-y:auto;padding:24px 28px 36px}
+  .phone .dscroll{padding:16px 16px 28px}
+  .dwrap{max-width:660px;display:flex;flex-direction:column;gap:28px}
+  .back{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px 0 4px;padding-inline:4px 8px;margin-inline-start:-4px;border-radius:7px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .back:hover{background:var(--track);color:var(--ink-1)}
+  .pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:11px;font-size:12px;font-weight:600;background:var(--track);color:var(--ink-2)}
+  .pill i{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.live{background:var(--success-bg);color:var(--success)}
+  .hero h3{font-size:22px;font-weight:700;letter-spacing:-.015em;margin-top:10px;word-break:break-word}
+  .hero .meta{font-size:13.5px;color:var(--ink-2);margin-top:4px}
+  .hero .meta b{color:var(--ink-1);font-weight:650}
+  .spark{display:flex;align-items:flex-end;gap:1px;height:40px;margin-top:18px}
+  .spark i{flex:1;min-width:0;background:var(--ink-1);opacity:.82;border-radius:1.5px 1.5px 0 0}
+  .spark i.z{background:var(--line-subtle);opacity:1;height:2px}
+  .axis{position:relative;height:18px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-3)}
+  .axis span{position:absolute;top:3px;transform:translateX(-50%);white-space:nowrap}
+  [dir=rtl] .axis span{transform:translateX(50%)}
+
+  .blk{display:flex;flex-direction:column;gap:10px}
+  .bh{display:flex;align-items:center;gap:8px;min-height:28px}
+  .bh h4{font-size:15px;font-weight:650}
+  .bh .grow{flex:1}
+  .hint{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-top:-2px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .crow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line-subtle)}
+  .crow:first-child{border-top:0}
+  .crow .nm{flex:1;min-width:0}
+  .crow .nm b{display:block;font-size:14px;font-weight:600}
+  .crow .nm small{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+  .crow .pc{font-size:14px;font-weight:700;white-space:nowrap;text-align:end}
+  .crow .pc small{display:block;font-size:11.5px;font-weight:500;color:var(--ink-2)}
+  .minibar{display:block;width:72px;height:4px;border-radius:2px;background:var(--line-subtle);margin-top:5px;margin-inline-start:auto;overflow:hidden}
+  .minibar b{display:block;height:100%;background:var(--ink-1);border-radius:2px}
+  .cfoot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 14px;background:var(--sunken);border-top:1px solid var(--line-subtle);font-size:12px;color:var(--ink-2)}
+  .cfoot .grow{flex:1}
+  .cfoot button{font-weight:600;color:var(--ink-1)}
+  .cfoot button:hover{text-decoration:underline}
+  .card.warn{border-color:var(--amber-line);background:var(--amber-band)}
+  .ask{display:flex;gap:14px;align-items:flex-start;padding:16px}
+  .ask .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--track);color:var(--ink-2)}
+  .card.warn .ask .ic{background:var(--amber-bg);color:var(--amber-ink)}
+  .ask b{display:block;font-size:14px;font-weight:650}
+  .card.warn .ask b{color:var(--amber-deep)}
+  .ask p{font-size:13px;color:var(--ink-2);line-height:1.5;margin-top:2px}
+  .card.warn .ask p{color:#92400E}
+  .ask .btn{margin-top:12px}
+  .except{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2)}
+
+  .set{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:10px 14px;border-top:1px solid var(--line-subtle)}
+  .set:first-child{border-top:0}
+  .set b{display:block;font-size:13px;font-weight:600}
+  .set .sm{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);margin-top:2px;min-width:0}
+  .set .sa{font-size:13px;font-weight:600;white-space:nowrap}
+  .set .sa.z{color:var(--ink-3);font-weight:500}
+  .live-t{color:var(--success);font-weight:600;font-size:11.5px;margin-inline-start:6px}
+  .phone .set{grid-template-columns:minmax(0,1fr) auto}
+  .phone .set .sa{display:none}
+
+  .tl{padding:2px 14px 12px;border-top:1px solid var(--line-subtle)}
+  .tli{display:grid;grid-template-columns:14px 1fr;gap:10px;position:relative;padding-top:12px}
+  .tli::before{content:"";position:absolute;inset-inline-start:6px;top:28px;bottom:-12px;width:1px;background:var(--line)}
+  .tli:last-child::before{display:none}
+  .tli .bul{width:10px;height:10px;margin-top:4px;margin-inline-start:2px;border-radius:50%;border:2px solid var(--chart);background:#fff}
+  .tli.now .bul{border-color:var(--brand);background:var(--brand)}
+  .tli .w{font-size:12.5px;color:var(--ink-2)}
+  .tli .w b{color:var(--ink-1);font-weight:600}
+  .tli .what{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12.5px;min-width:0}
+  .tli.old .what{opacity:.55;text-decoration:line-through;text-decoration-color:var(--ink-3)}
+  .badge{font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:1px 6px;border-radius:4px;background:var(--brand-bg);color:var(--brand);margin-inline-start:6px}
+
+  /* editor */
+  .ed .kick{font-size:12.5px;color:var(--ink-2);margin-top:10px}
+  .ed h3{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-top:2px;word-break:break-word}
+  .q{display:flex;flex-direction:column;gap:12px}
+  .q + .q{padding-top:24px;border-top:1px solid var(--line-subtle)}
+  .q h4{font-size:15px;font-weight:650}
+  .plist{border:1px solid var(--line);border-radius:12px;background:#fff}
+  .pr{display:grid;grid-template-columns:40px minmax(0,1fr) auto 28px;gap:12px;align-items:center;padding:10px;padding-inline:12px 8px;border-top:1px solid var(--line-subtle)}
+  .pr:first-child{border-top:0}
+  .pr .pn b{display:block;font-size:13.5px;font-weight:600}
+  .pr .pn small{display:block;font-size:12px;color:var(--ink-2);margin-top:1px}
+  .sw{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:700;min-width:64px;justify-content:flex-end;white-space:nowrap}
+  .sw i{width:10px;height:10px;border-radius:3px}
+  .sw.m{color:var(--ink-3);font-weight:500}
+  .rm{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--ink-3)}
+  .rm:hover{background:var(--critical-bg);color:var(--critical-ink)}
+  .addrow{position:relative;border-top:1px solid var(--line-subtle)}
+  .plist.empty .addrow{border-top:0}
+  .addbtn{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;font-size:13.5px;font-weight:600;color:var(--brand);border-radius:0 0 11px 11px}
+  .plist.empty .addbtn{border-radius:11px}
+  .addbtn:hover{background:var(--hover)}
+  .addbtn .plus{width:40px;height:40px;border-radius:10px;border:1.5px dashed var(--brand-line);display:grid;place-items:center}
+  .alt{font-size:12.5px;color:var(--ink-2)}
+  .alt button{color:var(--ink-1);font-weight:600;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+  .alt button:hover{text-decoration-color:var(--ink-1)}
+
+  .pop{position:absolute;top:calc(100% + 6px);inset-inline-start:8px;width:min(440px,calc(100% - 16px));background:#fff;border-radius:12px;box-shadow:var(--e-pop);z-index:20;overflow:hidden}
+  .pop .ps{position:relative;padding:8px;border-bottom:1px solid var(--line-subtle)}
+  .pop .ps svg{position:absolute;top:18px;inset-inline-start:19px;color:var(--ink-3)}
+  .pop .ps input{width:100%;height:34px;border:1px solid var(--line);border-radius:8px;padding-inline:32px 10px;font-size:13px}
+  .pop .ps input:focus{outline:none;border-color:var(--brand)}
+  .pop .pl{max-height:300px;overflow-y:auto;padding:4px}
+  .pop .pg{font-size:11.5px;font-weight:650;color:var(--ink-3);padding:8px 8px 4px}
+  .po{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:7px 8px;border-radius:8px}
+  .po:hover{background:var(--hover)}
+  .po[disabled]{opacity:.5;cursor:default}
+  .po b{display:block;font-size:13px;font-weight:600}
+  .po small{display:block;font-size:11.5px;color:var(--ink-2)}
+  .po .o{font-size:12px;color:var(--ink-2);white-space:nowrap}
+
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;background:var(--track);border-radius:10px}
+  .seg button{height:32px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);text-align:center}
+  .seg button:hover{color:var(--ink-1)}
+  .seg button.on{background:#fff;color:var(--ink-1);box-shadow:0 1px 2px rgba(16,24,40,.08),0 0 0 1px rgba(16,24,40,.05)}
+  .sbar{display:flex;height:10px;gap:2px;border-radius:5px;overflow:hidden;background:var(--line-subtle)}
+  .sbar i{display:block;height:100%;transition:width .2s}
+  .desc{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+  .sumrow{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .sumrow .grow{flex:1}
+  .ok{color:var(--success);font-weight:600;display:inline-flex;align-items:center;gap:5px}
+  .ko{color:var(--critical-ink);font-weight:600}
+  .pct{display:inline-flex;align-items:center;height:32px;border:1px solid var(--line-strong);border-radius:8px;background:#fff}
+  .pct:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+  .pct input{width:46px;border:0;background:transparent;text-align:end;font-weight:650;font-size:13.5px;padding:0 2px 0 8px;font-variant-numeric:tabular-nums}
+  .pct input:focus{outline:none}
+  .pct span{padding:0 8px 0 2px;color:var(--ink-2);font-size:12.5px}
+
+  .scopes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .phone .scopes{grid-template-columns:1fr}
+  .opt{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer}
+  .opt:hover{border-color:var(--line-strong)}
+  .opt.on{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+  .rd{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line-strong);flex:none;margin-top:1px;display:grid;place-items:center}
+  .opt.on .rd{border-color:var(--brand)}
+  .opt.on .rd::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--brand)}
+  .opt b{display:block;font-size:13.5px;font-weight:600}
+  .opt .od{display:block;font-size:12.5px;color:var(--ink-2);margin-top:1px}
+  .opt input[type=date]{margin-top:8px;height:32px;border:1px solid var(--line-strong);border-radius:8px;padding:0 8px;font-size:13px;background:#fff}
+  .opt input[type=date]:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+
+  .cut{padding:14px 14px 10px;border:1px solid var(--line-subtle);border-radius:12px;background:var(--sunken)}
+  .cut .bars{position:relative;display:flex;align-items:flex-end;gap:1px;height:46px;margin-top:12px}
+  .cut .bars i{flex:1;min-width:0;background:var(--ink-1);border-radius:1.5px 1.5px 0 0}
+  .cut .bars i.old{background:var(--line-strong)}
+  .cut .bars i.z{background:transparent}
+  .cut .mark{position:absolute;top:-8px;bottom:0;border-inline-start:1.5px dashed var(--ink-1)}
+  .cut .mark span{position:absolute;top:-12px;inset-inline-start:5px;font-size:11px;font-weight:650;white-space:nowrap;background:var(--sunken);padding:0 3px}
+  .cut .cax{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-top:6px;padding-top:4px;border-top:1px solid var(--line)}
+  .cut .leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:8px}
+  .cut .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:6px;vertical-align:-1px}
+
+  .imp{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+  .ir{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line-subtle)}
+  .ir:first-child{border-top:0}
+  .ir .in{font-size:13px;font-weight:600}
+  .ir .iv{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+  .ir .iv b{color:var(--ink-1);font-weight:650}
+  .dl{font-size:12.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--track);white-space:nowrap;min-width:64px;text-align:center}
+  .phone .ir{grid-template-columns:28px minmax(0,1fr) auto}
+  .phone .ir .iv{display:none}
+  .note{display:flex;gap:10px;padding:12px 14px;border-top:1px solid var(--line-subtle);font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .note:first-child{border-top:0}
+  .note b{color:var(--ink-1);font-weight:650}
+  .note.warn{background:var(--amber-band);border-top-color:var(--amber-line);color:#92400E}
+  .note.warn b{color:var(--amber-deep)}
+  .note .btn{margin-top:8px;border-color:var(--amber-line);color:var(--amber-deep)}
+  .note.ok svg{color:var(--success)}
+
+  .efoot{flex:none;display:flex;align-items:center;gap:10px;padding:12px 28px;border-top:1px solid var(--line);background:#fff}
+  .efoot p{flex:1;min-width:0;font-size:13px;color:var(--ink-2)}
+  .efoot p b{color:var(--ink-1);font-weight:650}
+  .phone .efoot{padding:10px 16px;flex-wrap:wrap}
+  .phone .efoot p{flex-basis:100%}
+  .phone .efoot .btn{flex:1}
+
+  .swrow{display:flex;gap:12px;align-items:flex-start;width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .swrow:hover{border-color:var(--line-strong)}
+  .tg{flex:none;width:36px;height:20px;border-radius:10px;background:var(--line-strong);position:relative;margin-top:1px;transition:background .15s}
+  .tg::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:inset-inline-start .15s}
+  .swrow.on .tg{background:var(--brand)}
+  .swrow.on .tg::after{inset-inline-start:18px}
+  .swrow b{display:block;font-size:13.5px;font-weight:600}
+  .swrow small{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);margin-top:3px;min-width:0}
+
+  .toast{position:absolute;bottom:84px;left:50%;transform:translateX(-50%);background:var(--ink-1);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;display:flex;gap:8px;align-items:center;z-index:60;box-shadow:var(--e-float);white-space:nowrap}
+  .toast svg{color:#6EE7B7}
+
+  /* review notes (NOT part of the app) */
+  .notes{background:var(--bg);padding:10px 0 90px}
+  .notes .in{max-width:1080px;margin:0 auto;padding:0 28px}
+  .notes h2{font-size:18px;margin:28px 0 12px}
+  .ba{display:grid;grid-template-columns:28px 1fr 1fr;gap:0;background:#fff;border:1px solid var(--line-subtle);border-radius:12px;overflow:hidden;font-size:13px;line-height:1.55}
+  .ba > div{padding:11px 14px;border-top:1px solid var(--line-subtle)}
+  .ba > div:nth-child(-n+3){border-top:0}
+  .ba .h{font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;background:var(--sunken)}
+  .ba .k{color:var(--ink-3);font-weight:700;text-align:end;padding-inline-end:0}
+  .ba .b{color:var(--ink-2)}
+  .ba b{color:var(--ink-1);font-weight:650}
+  .n{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .n.q{border-inline-start-color:var(--amber)}
+  .n b{font-weight:650}
+  .n ul{margin:6px 0 0;padding-inline-start:20px}
+  .n code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--track);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div class="pbar" dir="ltr">
+  <span class="tag">Prototype</span>
+  <h1>Campagnes et produits · v2</h1>
+  <span class="src">Données réelles <b>Libye</b> — prod, lues le 1ᵉʳ oct. 2026 à 00:53 UTC</span>
+  <span class="grow"></span>
+  <span class="pctl">Langue <button data-p="lang" data-v="fr">FR</button><button data-p="lang" data-v="ar">AR</button></span>
+  <span class="pctl">Écran
+    <button data-p="screen" data-v="list">À l'ouverture</button><button data-p="screen" data-v="campaign">Campagne</button><button data-p="screen" data-v="pick">Choisir</button><button data-p="screen" data-v="edit">Plusieurs produits</button><button data-p="screen" data-v="manual">Fixes</button><button data-p="screen" data-v="date">Depuis une date</button><button data-p="screen" data-v="adset">Ensemble</button><button data-p="screen" data-v="done">Tout attribué</button></span>
+  <span class="pctl">Appareil <button data-p="device" data-v="desktop">Bureau</button><button data-p="device" data-v="phone">Téléphone</button></span>
+  <a href="#notes">Notes de revue ↓</a>
+</div>
+
+<div class="wrap"><div class="stage" id="stage"></div></div>
+
+<section class="notes" id="notes" dir="ltr"><div class="in">
+  <h2>Ce que la v1 faisait mal, et ce que la v2 change</h2>
+  <div class="ba">
+    <div class="h"></div><div class="h">v1 (en production)</div><div class="h">v2 (ce prototype)</div>
+    <div class="k">1</div><div class="b"><b>Le compte exagérait le travail.</b> « À mapper 6 » dans le tiroir, « 2 à mapper » sur le bouton de la page. 4 des 6 (Pets Glove test, Flash Quran LY, Spinner ly, Spinner dz) n'ont jamais dépensé un dinar.</div><div>Une campagne n'est <b>à attribuer</b> que si de l'argent attend un produit : 2 campagnes, 542 LYD. Les 4 autres vont dans « Jamais diffusées », repliées, sans orange. Le tiroir et la page disent le même chiffre.</div>
+    <div class="k">2</div><div class="b"><b>Deux périodes, deux pourcentages.</b> « Période · 100 % attribués » (en vert) à côté de « Depuis le 23 mai · 99,2 % » et de « 6 à mapper » (en orange). Le vert contredit l'orange.</div><div>Une seule phrase d'état, sur tout l'historique : « <b>542 LYD</b> dépensés par 2 campagnes ne comptent dans la marge d'aucun produit ». Une attribution vaut pour tout l'historique, donc la période de la page n'a plus rien à faire dans le tiroir.</div>
+    <div class="k">3</div><div class="b"><b>Deux mesures dans la même colonne.</b> Le montant de la période pour 6 lignes. Pour les autres, « — », avec « 9 783 LYD depuis le 23 mai » glissé dans la ligne grise. BoxLyLong (9 783) a dépensé plus que BoxLy (4 493 affichés), mais n'affiche rien.</div><div>Une colonne, un montant : <b>dépensé depuis le 23 mai</b>, le début du suivi. Les lignes se comparent d'un coup d'œil.</div>
+    <div class="k">4</div><div class="b"><b>Chaque ligne répétait la même chose.</b> « 1 ensemble · En pause » sur 11 lignes sur 15, et un point de statut qui redit le mot.</div><div>Le statut passe dans les <b>groupes</b> (À attribuer · En cours · En pause · Jamais diffusées). La ligne dit seulement : campagne, produit, montant. C'est la règle déjà validée sur la file des agents : le groupe nomme l'état, la ligne ne le répète pas.</div>
+    <div class="k">5</div><div class="b"><b>Les ensembles en double.</b> Ils étaient un arbre à chevrons dans la liste <i>et</i> une liste dans le détail. Les 25 ensembles réels suivent tous leur campagne.</div><div>La liste ne montre que des campagnes. Les ensembles sont dans le détail, et seulement quand la campagne en a plusieurs. Une campagne à un seul ensemble n'en parle pas.</div>
+    <div class="k">6</div><div class="b"><b>Quatre contrôles pour 15 lignes :</b> recherche, 3 filtres, « Masquer les jamais diffusées ».</div><div>La recherche seule. Les groupes font le tri.</div>
+    <div class="k">7</div><div class="b"><b>La moitié du tiroir vide à l'ouverture</b>, avec trois règles à lire avant de pouvoir faire quoi que ce soit.</div><div>Le tiroir s'ouvre <b>sur la première campagne à attribuer</b>, avec son bouton « Choisir le produit ». Chaque règle est dite là où elle sert : les ensembles, la répartition, la date.</div>
+    <div class="k">8</div><div class="b"><b>Le détail était une page d'analyse.</b> Identifiant Meta, objectif, date de création, 4 indicateurs (dont achats Meta et coût par achat, déjà sur la page), un graphique. Puis enfin la question.</div><div>Le nom, une phrase (« 16 696 LYD dépensés du 6 juil. au 4 sept. »), une frise discrète. Puis directement <b>« Ce qu'elle vend »</b>. Achats Meta et coût par achat restent sur la page, dans le tableau par produit.</div>
+    <div class="k">9</div><div class="b"><b>Un formulaire en trois étapes numérotées, dans un cadre noir.</b> La première question était « Un ou plusieurs produits / Dépense de marché », alors que c'est un produit 95 % du temps. Les parts étaient dans une légende séparée.</div><div>Trois questions en langage courant : <b>Quels produits vend-elle ? Comment partager sa dépense ? À partir de quand ?</b> Le cas rare (aucun produit précis) devient un lien discret. La part de chaque produit est écrite sur sa ligne.</div>
+    <div class="k">10</div><div class="b"><b>« À partir du » sans repère.</b> Une date seule dans un champ, sans voir ce qu'elle coupe.</div><div>La frise de la campagne montre la coupure : <b>gris = inchangé, noir = nouvelle attribution</b>. On voit tout de suite qu'un 1ᵉʳ août garde un seul jour de juillet.</div>
+    <div class="k">11</div><div class="b"><b>Le jargon.</b> « À mapper », « Niveau marché », « propre », « Attribuer autrement », « réattribués sur 72 j », « Appliquer l'attribution ».</div><div>« Sans produit », « À attribuer », « Dépense générale », « Attribuer à part », « <b>13 839 LYD changent de produit</b> », « Enregistrer ».</div>
+    <div class="k">12</div><div class="b"><b>« Appliquer » actif même quand rien ne change.</b></div><div>« Enregistrer » reste grisé tant que rien ne diffère, et la barre du bas dit pourquoi : il manque un produit, il manque 10 %, ou rien ne change.</div>
+    <div class="k">13</div><div class="b"><b>L'en-tête affichait le compte, le taux USD → LYD et la synchro</b>, dans une puce encadrée.</div><div>« Synchronisé il y a 21 min », en gris, seul. Le taux de change n'aide pas à choisir un produit.</div>
+  </div>
+
+  <h2>Décisions prises en expert</h2>
+  <div class="n"><b>La couleur ne sert qu'à l'état.</b> L'orange apparaît seulement quand de l'argent attend un produit. Le vert sert à « En cours » et à « tout est attribué ». Tout le reste est en noir et gris (§1 du design system). La répartition garde sa rampe de gris : un partage est une correction, pas un verdict.</div>
+  <div class="n"><b>« Attribuer à part » part d'une copie des produits de la campagne.</b> Le cas réel est « cet ensemble vend <i>aussi</i> autre chose » : on ajoute un produit plutôt que de tout reconstruire. Revenir à la campagne se fait avec un seul interrupteur.</div>
+  <div class="n"><b>La ligne sélectionnée est une pastille arrondie</b> (teinte verte et liseré), plus une barre latérale. C'est le même langage que les onglets doux déjà validés.</div>
+  <div class="n"><b>Sur téléphone</b>, la liste vient d'abord. Une ligne ouvre le détail, avec « ‹ Campagnes » pour revenir. Le bas de l'éditeur reste collé, et ses deux boutons prennent la largeur.</div>
+
+  <h2>Ce que ça change dans le code</h2>
+  <div class="n"><ul>
+    <li><b>Aucune migration, aucune RPC, aucun calcul ne change.</b> C'est l'écran seulement.</li>
+    <li><code>GET /api/meta/mapping</code> est demandé sur tout l'historique (<code>adset_history_from</code> → aujourd'hui) au lieu de la fenêtre de la page. <code>daily</code> couvre cette plage. Le compteur « à attribuer » est partout celui de la page (campagnes avec dépense sans produit).</li>
+    <li><code>MappingList</code> est réécrit : groupes, plus d'arbre ni de filtres. <code>MappingDetail</code> est allégé : plus d'indicateurs, d'identifiant, d'objectif ni de date de création. <code>MappingEditor</code> est réorganisé : la question « kind » disparaît, les parts sont sur les lignes, la frise montre la coupure, et « Enregistrer » est grisé quand rien ne change. Le <code>DatePicker</code> de l'app remplace le champ natif.</li>
+    <li>Les clés i18n fr/ar sont renommées, avec le test de parité.</li>
+  </ul></div>
+
+  <h2>Simulé dans ce prototype</h2>
+  <div class="n"><ul>
+    <li><b>« Tout attribué »</b> : les deux campagnes Boxhero passées en dépense générale. C'est un choix fictif, pour montrer l'état vert.</li>
+    <li><b>« Ensemble »</b> : le batch 2 de QuranTadabr, partagé avec le Mushaf Tahajjud. Aucun ensemble réel n'a sa propre attribution.</li>
+    <li>La répartition automatique est exacte pour la relaunch (jour par jour, sur les vraies commandes). Ailleurs, elle est approchée par les commandes des 12 dernières semaines. Les montants par ensemble sont au prorata de leur dépense en USD.</li>
+    <li>« Enregistrer » ne fait qu'une mise à jour locale. Rechargez pour repartir de zéro.</li>
+  </ul></div>
+</div></section>
+
+<script>
+/* ═══════════════ REAL DATA — Libya, prod, read 2026-10-01 00:53 UTC ═══════════════ */
+const IMG = "https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/";
+const P = {
+  Q:{name:"القرآن تدبر وعمل", sku:"qr-01", o12:576, o30:573, img:IMG+"7bfabff2-7f13-49b4-98df-b33db5ad235a/image.jpeg?v=1779580982768", deal:true},
+  D:{name:"كتاب الداء والدواء للإمام ابن القيم", sku:"DA2", o12:493, o30:490, img:IMG+"e907b151-0b2e-4b72-9d05-91e25621af4d/image.jpeg?v=1782262157700", deal:true},
+  H:{name:"كتاب الحفظ الميسر", sku:"hm-01", o12:375, o30:375, img:IMG+"25fc3a87-9c48-40ac-b2d1-5dddb3feb0d7/image.png?v=1787764975140"},
+  T:{name:"مصحف التهجد و قيام الليل", sku:"th-01", o12:176, o30:176, img:IMG+"6d394d37-ded2-495a-a58b-abd0e22248e9/image.png?v=1787764336145"},
+  M:{name:"دميه ملاكمه حجم متوسط", sku:null, o12:594, o30:90, img:IMG+"6f347bea-d5e7-4356-b233-6f47091564a2/image.jpeg?v=1779701175091"},
+  L:{name:"دميه ملاكمه حجم كبير", sku:null, o12:146, o30:21, img:IMG+"19d40d38-bfbe-4607-93e7-ba849eaf73d3/image.jpeg?v=1779701054235"},
+  S:{name:"دميه ملاكمه حجم صغير", sku:"box-wafra-shop", o12:213, o30:0, img:IMG+"24ef8174-5ce8-4843-b72a-e8ef2a73cd41/image.jpeg?v=1779382953553", deal:true},
+  X:{name:"أكمام تغطية للساعد والمعصم للمحجبات 🤍🧕", sku:"manches", o12:0, o30:0, img:IMG+"43d598f7-0691-4437-8004-6a3a32d6afb7/image.jpeg?v=1782262368165", inactive:true},
+};
+const RELAUNCH = "120248473038190687";
+const RUN_ORDERS = {M:606, S:238, L:150};          // orders per size on the relaunch's spend days
+const STATEMENT = {from:"05-20", to:"07-31"};       // investor statement n°1 — settled for Q, D, S
+
+/* daily LYD per campaign, ad_spend (source = meta), whole history */
+const DAILY = {"120236426064310687":[["05-23",344],["05-24",234],["05-25",200],["05-26",181],["05-27",178],["05-28",191],["05-29",191],["06-16",309],["06-17",294],["06-18",308],["06-19",283],["06-20",305],["06-21",303],["06-22",305],["06-23",298],["06-24",308],["06-25",320],["06-26",286],["06-27",295],["06-28",312],["06-29",199],["07-05",14],["07-06",385],["08-04",192],["08-05",532],["08-06",550],["08-07",464],["08-08",496],["08-09",383],["08-10",332],["08-11",291],["08-12",23],["08-13",381],["08-15",558],["08-16",290]],"120236801079970687":[["05-23",622],["05-24",416],["05-25",390],["05-26",323],["05-27",331],["05-28",366],["05-29",346],["06-14",385],["06-15",334],["06-16",306],["06-17",396],["06-18",512],["06-19",443],["06-20",481],["06-21",476],["06-22",490],["06-23",517],["06-24",519],["06-25",505],["06-26",426],["06-27",418],["06-28",484],["06-29",297]],"120237064561150687":[["06-18",415],["06-19",699],["06-20",699],["06-21",424],["06-22",404],["06-23",391],["06-24",385],["06-25",421],["06-26",382],["06-27",392],["06-28",404],["06-29",245],["07-02",518],["07-03",663],["07-04",659],["07-05",427],["07-06",444],["09-04",10],["09-05",725],["09-06",481],["09-07",477],["09-08",378],["09-09",424],["09-10",360],["09-11",430],["09-12",376],["09-13",499],["09-14",439],["09-15",389],["09-16",404],["09-17",426],["09-18",440],["09-19",343],["09-20",491],["09-21",389],["09-22",433],["09-23",381],["09-24",419],["09-25",389],["09-26",401],["09-27",470],["09-28",480],["09-29",110]],"120247771241150687":[["06-22",96]],"120247841619580687":[["06-23",23]],"120247846546780687":[["06-23",160],["06-24",28]],"120247849068490687":[["06-23",190],["06-24",303],["06-25",220],["06-26",180],["06-27",197],["06-28",236],["06-29",158],["07-02",323],["07-03",403],["07-04",342],["09-04",343],["09-05",426],["09-06",287],["09-07",241],["09-08",242],["09-09",219],["09-10",233],["09-11",288],["09-12",254],["09-13",303],["09-14",279],["09-15",240],["09-16",221],["09-17",264],["09-18",259],["09-19",197],["09-20",313],["09-21",226],["09-22",271],["09-23",197],["09-24",238],["09-25",256],["09-26",250],["09-27",288],["09-28",267],["09-29",78]],"120247849144520687":[["06-23",222],["06-24",246],["06-25",50]],"120248473038190687":[["07-06",227],["08-04",363],["08-05",869],["08-06",795],["08-07",793],["08-08",708],["08-09",605],["08-10",533],["08-11",434],["08-12",44],["08-13",626],["08-15",882],["08-16",691],["08-18",703],["08-19",514],["08-20",475],["08-21",590],["08-22",536],["08-23",501],["08-24",452],["08-25",540],["08-26",532],["08-27",533],["08-28",592],["08-29",378],["08-30",584],["08-31",445],["09-01",590],["09-02",518],["09-03",516],["09-04",127]],"120249636263290687":[["09-04",127],["09-05",236],["09-06",286],["09-07",274],["09-08",232],["09-09",228],["09-10",213],["09-11",281],["09-12",247],["09-13",306],["09-14",268],["09-15",246],["09-16",232],["09-17",248],["09-18",256],["09-19",207],["09-20",303],["09-21",216],["09-22",286],["09-23",234],["09-24",249],["09-25",224],["09-26",232],["09-27",283],["09-28",323],["09-29",132]],"120250057177670687":[["09-26",196],["09-27",485],["09-28",346],["09-29",140]]};
+
+/* catalogue + the 9 mappings in force. life = exact LYD since 23 May; sets[].u = ad-set USD since 23 May */
+const C = [
+ {id:RELAUNCH, name:"BoxLyLong - relaunch", st:"paused", life:16696, map:["L"], who:"Super Admin", at:"08-15",
+  sets:[{id:"120248473038160687", name:"BoxLyLong relaunch", st:"paused", u:1987.61}]},
+ {id:"120237064561150687", name:"QuranTadabr", st:"live", life:18540, map:["Q"], who:"Super Admin", at:"08-15",
+  sets:[{id:"120249720411550687", name:"QuranTadabr Ad Set 2- batch 2", st:"live", u:677.45},
+        {id:"120248372924980687", name:"QuranTadabr Ad Set 1- batch 1", st:"live", u:916.64},
+        {id:"120237064561140687", name:"QuranTadabr Ad Set", st:"paused", u:657.82}]},
+ {id:"120247849068490687", name:"book da2 w dawa2 - LY", st:"live", life:9230, map:["D"], who:"Super Admin", at:"08-15",
+  sets:[{id:"120249635130000687", name:"DA2 DAWA2 Ad Set 2 - batch 2", st:"live", u:795.04},
+        {id:"120248372194620687", name:"DA2 DAWA2 Ad Set 1 - Copy", st:"paused", u:133.5},
+        {id:"120247849068460687", name:"DA2 DAWA2 Ad Set 1", st:"paused", u:185.47}]},
+ {id:"120249636263290687", name:"Qalun Memorization Mushaf", st:"live", life:6369, map:["H"], who:"Super Admin", at:"09-10",
+  sets:[{id:"120249636263270687", name:"Mushaf Qalun Ad Set 1  batch 1", st:"live", u:730.61},
+        {id:"120250102797550687", name:"Mushaf Qalun Ad Set 2 batch  2", st:"live", u:27.58}]},
+ {id:"120236426064310687", name:"BoxLy", st:"paused", life:10536, map:["S"], who:"Admin", at:"09-17",
+  sets:[{id:"120248449670150687", name:"BoxLY Ad Set - Copy", st:"paused", u:582.45},
+        {id:"120236426064350687", name:"BoxLY Ad Set", st:"paused", u:705.48}]},
+ {id:"120250057177670687", name:"book qiyam layl", st:"live", life:1167, map:["T"], who:"Admin", at:"09-27",
+  sets:[{id:"120250057177820687", name:"QIYAM - Adset 1", st:"live", u:138.96}]},
+ {id:"120236801079970687", name:"BoxLyLong", st:"paused", life:9783, map:["M"], who:"Admin", at:"09-27",
+  sets:[{id:"120248373212020687", name:"BoxLyLong relaunch", st:"paused", u:0},
+        {id:"120247982489800687", name:"BoxLyLong Vo AdSet - 2", st:"paused", u:74.19},
+        {id:"120236802631090687", name:"BoxLyLong Music AdSet", st:"paused", u:238.38},
+        {id:"120236801080020687", name:"BoxLyLong Vo AdSet", st:"paused", u:910.35}]},
+ {id:"120247849144520687", name:"BoxheroLY - LY", st:"paused", life:519, map:null,
+  sets:[{id:"120247849144550687", name:"BOXHERO LY - ADSET 1", st:"paused", u:64.86}]},
+ {id:"120247846546780687", name:"manches-ly", st:"paused", life:188, map:["X"], who:"Super Admin", at:"08-15",
+  sets:[{id:"120247846546770687", name:"manches-ly Ad Set 1", st:"paused", u:23.53}]},
+ {id:"120247771241150687", name:"book da2 w dawa2", st:"paused", life:96, map:["D"], who:"Super Admin", at:"08-15",
+  sets:[{id:"120247771241160687", name:"DA2 DAWA2 Ad Set 1", st:"paused", u:12.02}]},
+ {id:"120247841619580687", name:"BoxheroLY", st:"paused", life:23, map:null,
+  sets:[{id:"120247841619570687", name:"BOXHERO LY - ADSET 1", st:"paused", u:2.93}]},
+ {id:"120238321014810687", name:"Pets Glove test", st:"paused", life:0, map:null,
+  sets:[{id:"120238321014820687", name:"PetsGlove Ad Set", st:"paused", u:0}]},
+ {id:"120236802980950687", name:"Flash Quran LY", st:"paused", life:0, map:null,
+  sets:[{id:"120236804192740687", name:"FlashQuran vids Ad Set - Copy", st:"paused", u:0},
+        {id:"120236802980960687", name:"FlashQuran statics Ad Set", st:"paused", u:0}]},
+ {id:"120236100299980687", name:"Spinner ly", st:"paused", life:0, map:null,
+  sets:[{id:"120236100300000687", name:"SpinnerLY Ad Set", st:"paused", u:0}]},
+ {id:"120235751090800687", name:"Spinner dz", st:"paused", life:0, map:null,
+  sets:[{id:"120235751090780687", name:"SpinnerDz Ad Set", st:"paused", u:0}]},
+];
+let VID = 0;
+for (const c of C) {
+  c.versions = c.map ? [{id:++VID, from:null, kind:"products", lines:[...c.map], split:null, pct:{}, who:c.who, at:c.at}] : [];
+  const uSum = c.sets.reduce((a, s) => a + s.u, 0);
+  for (const s of c.sets) { s.ratio = uSum > 0 ? s.u / uSum : 1 / c.sets.length; s.life = Math.round(c.life * s.ratio); s.versions = []; s.c = c; }
+  const d = DAILY[c.id] || [];
+  const raw = d.reduce((a, r) => a + r[1], 0);
+  c.days = d.map(([day, x]) => [day, raw > 0 ? x * c.life / raw : 0]); // scaled so the days add up to the exact total
+  c.first = d.length ? d[0][0] : null;
+  c.last = d.length ? d[d.length - 1][0] : null;
+}
+const byId = Object.fromEntries(C.map(c => [c.id, c]));
+const DAYS = []; for (let d = new Date(Date.UTC(2026,4,23)); d <= new Date(Date.UTC(2026,8,30)); d.setUTCDate(d.getUTCDate() + 1)) DAYS.push(d.toISOString().slice(5,10));
+const TODAY = "10-01";
+
+/* ═══════════════ i18n ═══════════════ */
+const T = {
+ fr:{
+  cur:"LYD", title:"Campagnes et produits", sub:"La dépense d'une campagne compte dans la marge du produit qu'elle vend.",
+  synced:"Synchronisé il y a 21 min", close:"Fermer",
+  st_todo:(x, n) => `<b>${x}</b> dépensés par ${n} campagne${n > 1 ? "s" : ""} ne comptent dans la marge d'aucun produit.`,
+  st_go:"Attribuer", st_done:"Chaque campagne qui a dépensé est attribuée.", st_gen:x => `${x} comptés en dépense générale.`,
+  meter:p => `${p} sur des produits`,
+  search:"Chercher une campagne ou un produit", col:"Dépensé depuis le 23 mai",
+  g_todo:"À attribuer", g_live:"En cours", g_paused:"En pause", g_never:n => `${n} campagnes jamais diffusées`,
+  no_product:"Aucun produit", general:"Dépense générale", multi:(n, auto) => `${n} produits · ${auto ? "selon les commandes" : "pourcentages fixes"}`,
+  own_sets:n => `${n} ensemble${n > 1 ? "s" : ""} à part`, inactive_p:"produit désactivé", no_results:"Aucune campagne ne correspond.",
+  back_list:"Campagnes",
+  pill_live:"En cours", pill_paused:"En pause", pill_never:"Jamais diffusée",
+  spent_range:(x, a, b) => `<b>${x}</b> dépensés du ${a} au ${b}`, spent_one:(x, a) => `<b>${x}</b> dépensés le ${a}`, spent_none:"Rien dépensé depuis le 23 mai",
+  sells:"Ce qu'elle vend", sells_set:"Ce qu'il vend", edit:"Modifier", choose:"Choisir le produit",
+  un_title:"Aucun produit", un_body:x => `Ses ${x} ne comptent dans la marge d'aucun produit : seul le P&L du marché les porte.`,
+  un_never:"Elle n'a encore rien dépensé. Attribuez-la si elle doit reprendre.",
+  gen_title:"Dépense générale", gen_body:"Comptée dans le P&L du marché, dans la marge d'aucun produit. Pour la notoriété ou un test.",
+  orders30:n => `${n} commande${n > 1 ? "s" : ""} sur 30 jours`, orders_run:n => `${n} commandes pendant sa diffusion`,
+  foot_auto:"Partagée chaque jour selon les commandes de ces produits", foot_manual:"Partagée selon des pourcentages fixes",
+  since_start:"Depuis le début", from:d => `À partir du ${d}`, by:(w, d) => `${w}, le ${d}`, you:"Vous",
+  history:n => `Historique (${n})`, hide_history:"Masquer l'historique", in_force:"En vigueur", replaced:d => `remplacée le ${d}`,
+  except:n => `Sauf ${n} ensemble${n > 1 ? "s" : ""} attribué${n > 1 ? "s" : ""} à part, plus bas.`,
+  sets_h:"Ensembles de publicités", sets_hint:"Ils vendent ce que vend la campagne. N'en attribuez un à part que s'il vend autre chose.",
+  same:"Même produit que la campagne", set_own:"Attribuer à part",
+  back:"Retour", k_edit:"Modifier ce qu'elle vend", k_set:c => `Ensemble de publicités de « ${c} »`,
+  inherit_sw:"Vend la même chose que sa campagne", inherit_now:"La campagne vend :",
+  q_products:"Quels produits vend-elle ?", q_products_set:"Quels produits vend cet ensemble ?",
+  add:"Ajouter un produit", find:"Chercher un produit", pg_act:"Produits actifs", pg_off:"Désactivés", o30s:n => `${n} cmd. / 30 j`,
+  remove:n => `Retirer ${n}`, none_found:"Aucun produit ne correspond.",
+  to_general:"Aucun produit précis ? <button data-act='kind-general'>Compter en dépense générale</button>",
+  to_products:"<button data-act='kind-products'>Choisir des produits plutôt</button>",
+  q_split:"Comment partager sa dépense ?", split_auto:"Selon les commandes", split_manual:"Pourcentages fixes",
+  split_auto_d:n => `Chaque jour, la dépense suit les commandes reçues ce jour-là pour ces ${n} produits.`,
+  split_manual_d:"Les mêmes pourcentages s'appliquent chaque jour, quelles que soient les commandes.",
+  even:"Parts égales", sum_ok:"Total 100 %", sum_lo:m => `Il manque ${m} %`, sum_hi:m => `${m} % de trop`,
+  q_when:"À partir de quand ?", w_all:"Depuis le début", w_all_d:"Corrige aussi le passé", w_from:"À partir d'une date", w_from_d:"Le passé ne change pas",
+  leg_old:"Inchangé", leg_new:"Nouvelle attribution", leg_all:"Toute la dépense suit le nouveau choix",
+  q_impact:"Ce qui va changer", imp_none:"Aucune dépense déjà enregistrée ne change. Le choix vaut pour les dépenses à venir.",
+  row_none:"Sans produit", row_gen:"Dépense générale",
+  stmt_t:"Relevé investisseur déjà payé",
+  stmt_b:(p, x) => `<bdi>${p}</bdi>, relevé n°1 (20 mai – 31 juil.) : ce choix lui ajoute <b>${x}</b> de pub sur cette période. L'écart sera repris dans son prochain relevé.`,
+  stmt_fix:"Commencer au 1ᵉʳ août", stmt_none:"Aucun relevé investisseur déjà payé n'est touché.",
+  f_moved:x => `<b>${x}</b> changent de produit.`, f_none:"Rien ne change dans le passé.", f_same:"Aucun changement pour l'instant.",
+  f_need:"Choisissez au moins un produit.", f_date:"Choisissez une date.",
+  cancel:"Annuler", save:"Enregistrer", toast_moved:x => `Enregistré · ${x} ont changé de produit`, toast:"Enregistré",
+  page_t:"Dépenses pub", page_s:"Libye · du 9 juil. au 30 sept. 2026", open:"Campagnes et produits", open_cnt:n => `${n} sans produit`,
+  nav:["Accueil","Commandes","Entrepôt","Livraison","Finances","P&L global","Produits & marges","Stock & inventaire","Dépenses pub","Investisseurs","Clients","Équipe","Système"],
+ },
+ ar:{
+  cur:"د.ل", title:"الحملات والمنتجات", sub:"يُحتسب إنفاق كل حملة في هامش المنتج الذي تبيعه.",
+  synced:"آخر مزامنة منذ 21 دقيقة", close:"إغلاق",
+  st_todo:(x, n) => `<b>${x}</b> أنفقتها ${n === 1 ? "حملة واحدة" : n === 2 ? "حملتان" : `${n} حملات`} لا تُحتسب في هامش أي منتج.`,
+  st_go:"اربطها", st_done:"كل حملة أنفقت مربوطة.", st_gen:x => `${x} محسوبة إنفاقًا عامًا.`,
+  meter:p => `${p} على منتجات`,
+  search:"ابحث عن حملة أو منتج", col:"المُنفَق منذ 23 مايو",
+  g_todo:"تحتاج ربطًا", g_live:"قيد التشغيل", g_paused:"متوقفة", g_never:n => `${n} حملات لم تُعرض قط`,
+  no_product:"بدون منتج", general:"إنفاق عام", multi:(n, auto) => `${n} منتجات · ${auto ? "حسب الطلبات" : "نسب ثابتة"}`,
+  own_sets:n => `${n} مجموعة مستقلة`, inactive_p:"منتج معطّل", no_results:"لا توجد حملة مطابقة.",
+  back_list:"الحملات",
+  pill_live:"قيد التشغيل", pill_paused:"متوقفة", pill_never:"لم تُعرض قط",
+  spent_range:(x, a, b) => `أنفقت <b>${x}</b> من ${a} إلى ${b}`, spent_one:(x, a) => `أنفقت <b>${x}</b> في ${a}`, spent_none:"لا إنفاق منذ 23 مايو",
+  sells:"ما تبيعه", sells_set:"ما تبيعه", edit:"تعديل", choose:"اختر المنتج",
+  un_title:"بدون منتج", un_body:x => `إنفاقها ${x} لا يُحتسب في هامش أي منتج، بل في أرباح السوق وحدها.`,
+  un_never:"لم تنفق شيئًا بعد. اربطها إن كانت ستُستأنف.",
+  gen_title:"إنفاق عام", gen_body:"يُحتسب في أرباح السوق، لا في هامش أي منتج. للتعريف بالعلامة أو للاختبار.",
+  orders30:n => `${n} طلبًا خلال 30 يومًا`, orders_run:n => `${n} طلبًا أثناء عرضها`,
+  foot_auto:"تُقسَّم يوميًا حسب طلبات هذه المنتجات", foot_manual:"تُقسَّم بنسب ثابتة",
+  since_start:"منذ البداية", from:d => `ابتداءً من ${d}`, by:(w, d) => `${w}، ${d}`, you:"أنت",
+  history:n => `السجل (${n})`, hide_history:"إخفاء السجل", in_force:"سارية", replaced:d => `استُبدلت في ${d}`,
+  except:n => `باستثناء ${n} مجموعة مربوطة بشكل مستقل، أدناه.`,
+  sets_h:"المجموعات الإعلانية", sets_hint:"تبيع ما تبيعه الحملة. اربط مجموعة بشكل مستقل فقط إن كانت تبيع شيئًا آخر.",
+  same:"نفس منتج الحملة", set_own:"ربط مستقل",
+  back:"رجوع", k_edit:"تعديل ما تبيعه", k_set:c => `مجموعة إعلانية ضمن «${c}»`,
+  inherit_sw:"تبيع ما تبيعه حملتها", inherit_now:"الحملة تبيع:",
+  q_products:"ما المنتجات التي تبيعها؟", q_products_set:"ما المنتجات التي تبيعها هذه المجموعة؟",
+  add:"إضافة منتج", find:"ابحث عن منتج", pg_act:"منتجات نشطة", pg_off:"معطّلة", o30s:n => `${n} طلب / 30 يومًا`,
+  remove:n => `إزالة ${n}`, none_found:"لا يوجد منتج مطابق.",
+  to_general:"لا منتج محدد؟ <button data-act='kind-general'>احسبها إنفاقًا عامًا</button>",
+  to_products:"<button data-act='kind-products'>اختيار منتجات بدلًا من ذلك</button>",
+  q_split:"كيف يُقسَّم إنفاقها؟", split_auto:"حسب الطلبات", split_manual:"نسب ثابتة",
+  split_auto_d:n => `كل يوم، يتبع الإنفاق الطلبات الواردة في ذلك اليوم لهذه المنتجات الـ${n}.`,
+  split_manual_d:"تُطبَّق النسب نفسها كل يوم، مهما كانت الطلبات.",
+  even:"حصص متساوية", sum_ok:"المجموع 100 %", sum_lo:m => `ينقص ${m} %`, sum_hi:m => `زيادة ${m} %`,
+  q_when:"ابتداءً من متى؟", w_all:"منذ البداية", w_all_d:"يصحّح الماضي أيضًا", w_from:"ابتداءً من تاريخ", w_from_d:"الماضي لا يتغير",
+  leg_old:"دون تغيير", leg_new:"الربط الجديد", leg_all:"كل الإنفاق يتبع الاختيار الجديد",
+  q_impact:"ما الذي سيتغير", imp_none:"لا يتغير أي إنفاق مسجَّل. يسري الاختيار على الإنفاق القادم.",
+  row_none:"بدون منتج", row_gen:"إنفاق عام",
+  stmt_t:"كشف مستثمر مدفوع مسبقًا",
+  stmt_b:(p, x) => `<bdi>${p}</bdi>، الكشف رقم 1 (20 مايو – 31 يوليو): يضيف هذا الاختيار <b>${x}</b> من الإعلانات على هذه الفترة. يُستدرك الفرق في كشفه القادم.`,
+  stmt_fix:"البدء من 1 أغسطس", stmt_none:"لا يمسّ أي كشف مستثمر مدفوع.",
+  f_moved:x => `<b>${x}</b> ستنتقل إلى منتج آخر.`, f_none:"لا شيء يتغير في الماضي.", f_same:"لا تغيير حتى الآن.",
+  f_need:"اختر منتجًا واحدًا على الأقل.", f_date:"اختر تاريخًا.",
+  cancel:"إلغاء", save:"حفظ", toast_moved:x => `تم الحفظ · انتقلت ${x}`, toast:"تم الحفظ",
+  page_t:"الإنفاق الإعلاني", page_s:"ليبيا · من 9 يوليو إلى 30 سبتمبر 2026", open:"الحملات والمنتجات", open_cnt:n => `${n} بدون منتج`,
+  nav:["الرئيسية","الطلبات","المستودع","التوصيل","المالية","الأرباح والخسائر","المنتجات والهوامش","المخزون","الإنفاق الإعلاني","المستثمرون","العملاء","الفريق","النظام"],
+ },
+};
+
+/* ═══════════════ state ═══════════════ */
+const QS = new URLSearchParams(location.search);
+const L = QS.get("lang") === "ar" ? "ar" : "fr";
+const t = T[L];
+const PHONE = QS.get("device") === "phone";
+const SCREEN = QS.get("screen") || "list";
+const S = {open:true, sel:null, mode:"view", draft:null, q:"", never:false, hist:false, view:"list", toast:null};
+
+/* ═══════════════ format ═══════════════ */
+const nf = new Intl.NumberFormat("fr-FR", {maximumFractionDigits:0});
+const pf = new Intl.NumberFormat("fr-FR", {maximumFractionDigits:1});
+const num = x => nf.format(Math.round(x));
+const money = x => `${num(x)} ${t.cur}`;
+const pct = x => `${pf.format(x)} %`;
+const DLOC = L === "ar" ? "ar-u-nu-latn" : "fr-FR";
+const asDate = md => new Date(`2026-${md}T00:00:00Z`);
+const fmtD = md => { const s = new Intl.DateTimeFormat(DLOC, {day:"numeric", month:"short", timeZone:"UTC"}).format(asDate(md)); return L === "fr" ? s.replace(/^1 /, "1ᵉʳ ") : s; };
+const fmtMon = md => new Intl.DateTimeFormat(DLOC, {month:"short", timeZone:"UTC"}).format(asDate(md));
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const pname = k => esc(P[k].name);
+
+const ICONS = {
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  back:'<path d="m15 18-6-6 6-6"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
+  help:'<circle cx="12" cy="12" r="9.5"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  globe:'<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5a14.5 14.5 0 0 1 0 19 14.5 14.5 0 0 1 0-19"/>',
+  sync:'<path d="M21 12a9 9 0 0 0-15.5-6.2L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.5 6.2L21 16"/><path d="M16 16h5v5"/>',
+  clock:'<circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/>',
+  corner:'<path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+};
+const ic = (n, s = 16, w = 2, cls = "") => `<svg class="${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+const thumb = (k, s) => `<span class="th${P[k].inactive ? " off" : ""}" style="width:${s}px;height:${s}px;border-radius:${Math.round(s / 4)}px;background-image:url('${P[k].img}')"></span>`;
+const RAMP = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
+
+/* ═══════════════ the model (same rules as lib/ad-spend/allocation.ts) ═══════════════ */
+function versionAt(vs, day) {
+  let best = null;
+  for (const v of vs) {
+    if (v.gone || (v.from && v.from > day)) continue;
+    if (!best || (v.from || "") >= (best.from || "")) best = v;
+  }
+  return best;
+}
+function resolve(sv, cv, day) {
+  const own = versionAt(sv, day);
+  return own && own.kind !== "inherit" ? own : versionAt(cv, day);
+}
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+function weights(c, lines, day) {
+  // The relaunch: the real day-by-day order mix (computed on prod for v1). Elsewhere: 12 weeks of orders.
+  if (c.id === RELAUNCH && sameSet(lines, ["M","S","L"])) return day === "07-06" ? {M:0, S:1, L:0} : {M:10544, S:3067, L:2857};
+  return Object.fromEntries(lines.map(k => [k, P[k].o12 || 0]));
+}
+function add(o, k, x) { o[k] = (o[k] || 0) + x; }
+function allocDay(c, v, day, amt, out) {
+  if (!v || v.kind === "none" || v.kind === "inherit") return add(out, "_none", amt);
+  if (v.kind === "general") return add(out, "_gen", amt);
+  if (v.lines.length === 1) return add(out, v.lines[0], amt);
+  if (v.split === "manual") { for (const k of v.lines) add(out, k, amt * (v.pct[k] || 0) / 100); return; }
+  const w = weights(c, v.lines, day); const sum = v.lines.reduce((a, k) => a + w[k], 0);
+  for (const k of v.lines) add(out, k, sum > 0 ? amt * w[k] / sum : amt / v.lines.length);
+}
+function allocCampaign(c, o = {}) {
+  const out = {};
+  for (const [day, amt] of c.days) {
+    if (o.filter && !o.filter(day)) continue;
+    for (const s of c.sets) {
+      if (o.only && o.only !== s) continue;
+      const sv = o.svs && o.svs.has(s.id) ? o.svs.get(s.id) : s.versions;
+      allocDay(c, resolve(sv, o.cv || c.versions, day), day, amt * s.ratio, out);
+    }
+  }
+  return out;
+}
+function totals() { const out = {}; for (const c of C) for (const [k, x] of Object.entries(allocCampaign(c))) add(out, k, x); return out; }
+const isLive = c => c.st === "live" || c.sets.some(s => s.st === "live");
+const current = c => versionAt(c.versions, TODAY);
+const ownSets = c => c.sets.filter(s => { const v = versionAt(s.versions, TODAY); return v && v.kind !== "inherit"; });
+const waiting = c => allocCampaign(c)._none || 0;
+const needs = c => waiting(c) >= 1 || (isLive(c) && !current(c));
+
+function supersede(vs, nv, at) {
+  return [...vs.map(v => !v.gone && (nv.from === null || (v.from && v.from >= nv.from)) ? {...v, gone:true, replacedAt:at} : v), nv];
+}
+function draftVersion(d) {
+  const from = d.scope === "from" && d.from ? d.from.slice(5) : null;
+  if (d.s && d.inherit) return {kind:"inherit", lines:[], split:null, pct:{}, from};
+  return {kind:d.kind, lines:[...d.lines], split:d.lines.length > 1 ? d.split : null, pct:{...d.pct}, from};
+}
+function draftFor(c, s) {
+  const target = s || c;
+  const cur = versionAt(target.versions, TODAY);
+  const d = {c, s, inherit:false, kind:"products", lines:[], split:"auto", pct:{}, scope:"all", from:"2026-10-01", picker:false, pq:""};
+  const base = s && !(cur && cur.kind !== "inherit") ? current(c) : cur; // "Attribuer à part" starts from a copy of the campaign
+  if (base && base.kind === "general") d.kind = "general";
+  if (base && base.kind === "products") { d.lines = [...base.lines]; d.split = base.split || "auto"; d.pct = {...base.pct}; }
+  if (!s && !cur) d.picker = true;
+  return d;
+}
+function problem(d) {
+  if (d.scope === "from" && !d.from) return "date";
+  if (d.s && d.inherit) return null;
+  if (d.kind === "products" && d.lines.length === 0) return "need";
+  if (d.kind === "products" && d.lines.length > 1 && d.split === "manual") {
+    const sum = d.lines.reduce((a, k) => a + (Number(d.pct[k]) || 0), 0);
+    if (Math.abs(sum - 100) > 0.001) return "sum";
+  }
+  return null;
+}
+function unchanged(d) {
+  if (d.scope === "from") return false;
+  const target = d.s || d.c;
+  const cur = versionAt(target.versions, TODAY);
+  const nv = draftVersion(d);
+  if (d.s && nv.kind === "inherit") return !cur || cur.kind === "inherit";
+  if (!cur || cur.kind === "inherit") return false;
+  if (cur.kind !== nv.kind) return false;
+  if (nv.kind === "general") return true;
+  if (!sameSet(cur.lines, nv.lines)) return false;
+  if (nv.lines.length < 2) return true;
+  if ((cur.split || "auto") !== nv.split) return false;
+  return nv.split !== "manual" || nv.lines.every(k => Number(cur.pct[k]) === Number(nv.pct[k]));
+}
+function impact(d) {
+  const c = d.c, target = d.s || c;
+  const nvs = supersede(target.versions, {...draftVersion(d), id:-1}, TODAY);
+  const opt = d.s ? {svs:new Map([[d.s.id, nvs]])} : {cv:nvs};
+  const before = allocCampaign(c), after = allocCampaign(c, opt);
+  const rows = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .map(k => ({k, before:before[k] || 0, after:after[k] || 0}))
+    .filter(r => Math.abs(r.after - r.before) >= 1)
+    .sort((a, b) => Math.abs(b.after - b.before) - Math.abs(a.after - a.before));
+  const moved = rows.reduce((a, r) => a + Math.max(0, r.after - r.before), 0);
+  const inStmt = day => day >= STATEMENT.from && day <= STATEMENT.to;
+  const sb = allocCampaign(c, {filter:inStmt}), sa = allocCampaign(c, {...opt, filter:inStmt});
+  const stmts = Object.keys(P).filter(k => P[k].deal).map(k => ({k, delta:(sa[k] || 0) - (sb[k] || 0)})).filter(x => Math.abs(x.delta) >= 1);
+  return {rows, moved, stmts};
+}
+function draftShares(d) {
+  // the draft's own split over the days it governs — what each product would carry
+  const v = draftVersion(d); if (v.kind !== "products" || v.lines.length < 2) return null;
+  const from = v.from, out = {};
+  for (const [day, amt] of d.c.days) if (!from || day >= from) allocDay(d.c, v, day, amt, out);
+  const sum = v.lines.reduce((a, k) => a + (out[k] || 0), 0);
+  if (sum <= 0) return null;
+  return Object.fromEntries(v.lines.map(k => [k, (out[k] || 0) / sum * 100]));
+}
+
+/* ═══════════════ render: page behind ═══════════════ */
+function renderPage() {
+  const n = C.filter(needs).length;
+  const nav = t.nav;
+  return `
+  <aside class="sb"><div class="brand"><i></i>Ordra</div>
+    <div class="sec">${nav[0]}</div><div class="sec">${nav[1]}</div><div class="sec">${nav[2]}</div><div class="sec">${nav[3]}</div>
+    <div class="sec">${nav[4]}</div><span class="it">${nav[5]}</span><span class="it">${nav[6]}</span><span class="it">${nav[7]}</span><span class="it on">${nav[8]}</span><span class="it">${nav[9]}</span>
+    <div class="sec">${nav[10]}</div><div class="sec">${nav[11]}</div><div class="sec">${nav[12]}</div>
+  </aside>
+  <main class="main">
+    <div class="pgh"><div><h2>${t.page_t}</h2><p>${t.page_s}</p></div><span class="grow"></span>
+      <button class="btn" data-act="open">${ic("link", 15)}${t.open}${n ? `<span class="cnt warn">${t.open_cnt(n)}</span>` : ""}</button></div>
+    <div class="skel" style="height:116px"></div><div class="skel" style="height:420px"></div>
+  </main>`;
+}
+
+/* ═══════════════ render: drawer ═══════════════ */
+function renderStatus() {
+  const tot = totals();
+  const all = Object.values(tot).reduce((a, x) => a + x, 0);
+  const none = tot._none || 0, gen = tot._gen || 0;
+  const onProducts = Math.floor((all - none - gen) / all * 1000) / 10;
+  const meter = `<span class="meter">${t.meter(pct(onProducts))}<i><b style="width:${onProducts}%"></b></i></span>`;
+  const todo = C.filter(needs);
+  if (none >= 1) {
+    return `<div class="status todo"><span class="sic">${ic("alert", 15)}</span>
+      <p class="txt">${t.st_todo(money(none), todo.length)} <button class="go" data-act="first-todo">${t.st_go}</button></p>${meter}</div>`;
+  }
+  return `<div class="status done"><span class="sic">${ic("check", 15, 2.4)}</span>
+    <p class="txt">${t.st_done}${gen >= 1 ? ` <span class="sub">${t.st_gen(money(gen))}</span>` : ""}</p>${meter}</div>`;
+}
+
+function rowThumb(c) {
+  const v = current(c);
+  if (!v) return `<span class="ph ${needs(c) ? "warn" : ""}" style="width:36px;height:36px">${ic("help", 17)}</span>`;
+  if (v.kind === "general") return `<span class="ph gen" style="width:36px;height:36px">${ic("globe", 17)}</span>`;
+  if (v.lines.length === 1) return thumb(v.lines[0], 36);
+  return `<span class="stack" style="width:36px;height:36px">${thumb(v.lines[0], 26)}${thumb(v.lines[1], 26)}</span>`;
+}
+function sellsLine(c) {
+  const v = current(c);
+  let txt, cls = "";
+  if (!v) { txt = t.no_product; cls = needs(c) ? "warn" : "muted"; }
+  else if (v.kind === "general") txt = t.general;
+  else if (v.lines.length === 1) txt = `<bdi>${pname(v.lines[0])}</bdi>${P[v.lines[0]].inactive ? ` · ${t.inactive_p}` : ""}`;
+  else txt = t.multi(v.lines.length, v.split !== "manual");
+  const own = ownSets(c).length;
+  if (own) txt += ` · ${t.own_sets(own)}`;
+  return {txt, cls};
+}
+function row(c) {
+  const sel = S.sel === c;
+  const {txt, cls} = sellsLine(c);
+  return `<button class="row${sel ? " sel" : ""}" data-act="sel" data-c="${c.id}" ${sel ? 'aria-current="true"' : ""}>
+    ${rowThumb(c)}
+    <span style="min-width:0"><span class="rn ell">${esc(c.name)}</span><span class="rl ell ${cls}">${txt}</span></span>
+    ${c.life > 0 ? `<span class="ramt tnum">${num(c.life)}<small>${t.cur}</small></span>` : `<span class="ramt z">—</span>`}
+  </button>`;
+}
+function renderList() {
+  const q = S.q.trim().toLocaleLowerCase();
+  const match = c => !q || c.name.toLocaleLowerCase().includes(q) || c.sets.some(s => s.name.toLocaleLowerCase().includes(q))
+    || (current(c)?.lines || []).some(k => P[k].name.includes(S.q.trim()));
+  const vis = C.filter(match).sort((a, b) => b.life - a.life);
+  if (!vis.length) return `<p class="none">${t.no_results}</p>`;
+  const todo = vis.filter(needs);
+  const live = vis.filter(c => !needs(c) && isLive(c));
+  const paused = vis.filter(c => !needs(c) && !isLive(c) && c.life > 0);
+  const never = vis.filter(c => !needs(c) && !isLive(c) && c.life <= 0);
+  const group = (label, list, warn) => list.length ? `<div class="gh${warn ? " todo" : ""}">${label}<span class="cnt${warn ? " warn" : ""}">${list.length}</span></div>${list.map(row).join("")}` : "";
+  const neverOpen = S.never || !!q;
+  return group(t.g_todo, todo, true) + group(t.g_live, live) + group(t.g_paused, paused)
+    + (never.length ? `<button class="never${neverOpen ? " open" : ""}" data-act="never" aria-expanded="${neverOpen}">${ic("chev", 14, 2.2)}${t.g_never(never.length)}</button>${neverOpen ? never.map(row).join("") : ""}` : "");
+}
+
+function spark(c) {
+  const m = new Map(c.days);
+  const max = Math.max(1, ...c.days.map(r => r[1]));
+  const bars = DAYS.map(d => { const a = m.get(d) || 0; return a > 0 ? `<i style="height:${Math.max(8, a / max * 100)}%" title="${fmtD(d)} · ${money(a)}"></i>` : `<i class="z"></i>`; }).join("");
+  const starts = DAYS.map((d, i) => [d, i]).filter(([d, i]) => i === 0 || d.endsWith("-01"));
+  const labels = starts.map(([d, i], j) => { const end = j + 1 < starts.length ? starts[j + 1][1] : DAYS.length; return `<span style="inset-inline-start:${(i + end) / 2 / DAYS.length * 100}%">${fmtMon(d)}</span>`; }).join("");
+  return `<div class="spark" role="img" aria-label="${t.col}">${bars}</div><div class="axis">${labels}</div>`;
+}
+
+function versionLabel(v) {
+  if (!v || v.kind === "inherit") return `<span>${t.same}</span>`;
+  if (v.kind === "general") return `<span>${t.general}</span>`;
+  if (v.lines.length === 1) return `${thumb(v.lines[0], 18)}<bdi class="ell">${pname(v.lines[0])}</bdi>`;
+  return `<span class="stack" style="width:26px;height:18px">${thumb(v.lines[0], 16)}${thumb(v.lines[1], 16)}</span><span class="ell">${t.multi(v.lines.length, v.split !== "manual")}</span>`;
+}
+
+function renderDetail(c) {
+  const v = current(c);
+  const live = isLive(c);
+  const pill = live ? `<span class="pill live"><i></i>${t.pill_live}</span>` : c.life > 0 ? `<span class="pill"><i></i>${t.pill_paused}</span>` : `<span class="pill">${t.pill_never}</span>`;
+  const meta = c.life > 0 ? (c.first === c.last ? t.spent_one(money(c.life), fmtD(c.first)) : t.spent_range(money(c.life), fmtD(c.first), fmtD(c.last))) : t.spent_none;
+  const alloc = allocCampaign(c);
+  const live_vs = c.versions.filter(x => !x.gone).length;
+
+  let card;
+  if (!v) {
+    const w = waiting(c);
+    card = `<div class="card${needs(c) ? " warn" : ""}"><div class="ask"><span class="ic">${ic("help", 20)}</span><div>
+      <b>${t.un_title}</b><p>${w >= 1 ? t.un_body(money(w)) : t.un_never}</p>
+      <button class="btn ${needs(c) ? "primary" : ""}" data-act="edit">${ic("plus", 15, 2.2)}${t.choose}</button></div></div></div>`;
+  } else {
+    let body;
+    if (v.kind === "general") {
+      body = `<div class="ask"><span class="ic">${ic("globe", 20)}</span><div><b>${t.gen_title}</b><p>${t.gen_body}</p></div></div>`;
+    } else {
+      const sum = v.lines.reduce((a, k) => a + (alloc[k] || 0), 0);
+      body = v.lines.map(k => {
+        const share = v.lines.length === 1 ? 100 : sum > 0 ? (alloc[k] || 0) / sum * 100 : 0;
+        const orders = c.id === RELAUNCH && RUN_ORDERS[k] != null && v.lines.length > 1 ? t.orders_run(RUN_ORDERS[k]) : t.orders30(P[k].o30);
+        return `<div class="crow">${thumb(k, 44)}<div class="nm"><b class="ell"><bdi>${pname(k)}</bdi></b><small>${P[k].inactive ? t.inactive_p : orders}</small></div>
+          <div class="pc tnum">${pct(share)}${v.lines.length > 1 ? `<small>${money(alloc[k] || 0)}</small><span class="minibar"><b style="width:${share}%"></b></span>` : ""}</div></div>`;
+      }).join("");
+    }
+    const split = v.kind === "products" && v.lines.length > 1 ? `${v.split === "manual" ? t.foot_manual : t.foot_auto} · ` : "";
+    const all = [...c.versions].reverse();
+    const hist = S.hist && all.length > 1 ? `<div class="tl">${all.map(x => {
+      const now = x === v;
+      return `<div class="tli${x.gone ? " old" : ""}${now ? " now" : ""}"><span class="bul"></span><div>
+        <div class="w"><b>${x.from ? t.from(fmtD(x.from)) : t.since_start}</b> · ${t.by(esc(x.who), fmtD(x.at))}${x.gone ? ` · ${t.replaced(fmtD(x.replacedAt))}` : ""}${now ? `<span class="badge">${t.in_force}</span>` : ""}</div>
+        <div class="what">${versionLabel(x)}</div></div></div>`;
+    }).join("")}</div>` : "";
+    card = `<div class="card">${body}<div class="cfoot">${ic("clock", 13)}<span>${split}${v.from ? t.from(fmtD(v.from)) : t.since_start} · ${t.by(esc(v.who), fmtD(v.at))}</span>
+      <span class="grow"></span>${all.length > 1 ? `<button data-act="hist">${S.hist ? t.hide_history : t.history(all.length)}</button>` : ""}</div>${hist}</div>`;
+  }
+  const own = ownSets(c);
+  const showSets = c.sets.length > 1 || own.length > 0;
+  const sets = showSets ? `<section class="blk"><div class="bh"><h4>${t.sets_h}</h4><span class="cnt">${c.sets.length}</span></div>
+    <p class="hint">${t.sets_hint}</p>
+    <div class="card">${c.sets.map(s => {
+      const sv = versionAt(s.versions, TODAY);
+      const isOwn = sv && sv.kind !== "inherit";
+      return `<div class="set"><div style="min-width:0"><b class="ell">${esc(s.name)}${s.st === "live" ? `<span class="live-t">● ${t.pill_live}</span>` : ""}</b>
+        <span class="sm">${isOwn ? versionLabel(sv) : `${ic("corner", 13, 2, "flip")}<span>${t.same}</span>`}</span></div>
+        <span class="sa tnum${s.life > 0 ? "" : " z"}">${s.life > 0 ? money(s.life) : "—"}</span>
+        <button class="btn sm${isOwn ? "" : " quiet"}" data-act="edit-set" data-s="${s.id}">${isOwn ? t.edit : t.set_own}</button></div>`;
+    }).join("")}</div></section>` : "";
+
+  return `<div class="dwrap">
+    <div class="hero">${PHONE ? `<button class="back" data-act="to-list">${ic("back", 16, 2.2, "flip")}${t.back_list}</button><div style="height:10px"></div>` : ""}
+      ${pill}<h3>${esc(c.name)}</h3><p class="meta">${meta}</p>${c.life > 0 ? spark(c) : ""}</div>
+    <section class="blk"><div class="bh"><h4>${t.sells}</h4><span class="grow"></span>${v ? `<button class="btn sm" data-act="edit">${t.edit}</button>` : ""}</div>
+      ${card}${own.length && v ? `<p class="except">${ic("corner", 13, 2, "flip")}${t.except(own.length)}</p>` : ""}</section>
+    ${sets}
+  </div>`;
+}
+
+function cutChart(d) {
+  const c = d.c;
+  if (!c.first) return "";
+  const i0 = DAYS.indexOf(c.first), i1 = DAYS.indexOf(c.last);
+  const span = DAYS.slice(Math.max(0, i0 - 2), Math.min(DAYS.length, i1 + 3));
+  const m = new Map(c.days); const max = Math.max(1, ...c.days.map(r => r[1]));
+  const from = d.scope === "from" && d.from ? d.from.slice(5) : null;
+  const bars = span.map(day => { const a = m.get(day) || 0; return a > 0 ? `<i class="${from && day < from ? "old" : ""}" style="height:${Math.max(8, a / max * 100)}%" title="${fmtD(day)} · ${money(a)}"></i>` : `<i class="z"></i>`; }).join("");
+  const at = from ? span.indexOf(from) : -1;
+  const mark = at > 0 ? `<span class="mark" style="inset-inline-start:${at / span.length * 100}%"><span>${fmtD(from)}</span></span>` : "";
+  const leg = from ? `<span><i style="background:var(--line-strong)"></i>${t.leg_old}</span><span><i style="background:var(--ink-1)"></i>${t.leg_new}</span>` : `<span><i style="background:var(--ink-1)"></i>${t.leg_all}</span>`;
+  return `<div class="cut"><div class="bars">${bars}${mark}</div><div class="cax"><span>${fmtD(span[0])}</span><span>${fmtD(span[span.length - 1])}</span></div><div class="leg">${leg}</div></div>`;
+}
+
+function renderPicker(d) {
+  const q = d.pq.trim().toLocaleLowerCase();
+  const fits = k => !q || P[k].name.toLocaleLowerCase().includes(q) || (P[k].sku || "").toLocaleLowerCase().includes(q);
+  const keys = Object.keys(P).sort((a, b) => P[b].o30 - P[a].o30);
+  const act = keys.filter(k => !P[k].inactive && fits(k)), off = q ? keys.filter(k => P[k].inactive && fits(k)) : [];
+  const opt = k => { const taken = d.lines.includes(k); return `<button class="po" data-act="pick" data-k="${k}" ${taken ? "disabled" : ""} role="option" aria-selected="${taken}">
+    ${thumb(k, 32)}<span style="min-width:0"><b class="ell"><bdi>${pname(k)}</bdi></b><small>${P[k].sku || "—"}</small></span>
+    <span class="o">${taken ? ic("check", 15, 2.4) : t.o30s(P[k].o30)}</span></button>`; };
+  return `<div class="pop" role="dialog"><div class="ps">${ic("search", 14)}<input data-k="pq" value="${esc(d.pq)}" placeholder="${t.find}" aria-label="${t.find}"></div>
+    <div class="pl" role="listbox">${act.length ? `<p class="pg">${t.pg_act}</p>${act.map(opt).join("")}` : ""}${off.length ? `<p class="pg">${t.pg_off}</p>${off.map(opt).join("")}` : ""}
+    ${!act.length && !off.length ? `<p class="none">${t.none_found}</p>` : ""}</div></div>`;
+}
+
+function renderEditor(d) {
+  const c = d.c, s = d.s;
+  const several = d.kind === "products" && d.lines.length > 1;
+  const manual = several && d.split === "manual";
+  const shares = draftShares(d);
+  const prob = problem(d);
+  const parts = [];
+
+  if (s) {
+    const cv = current(c);
+    parts.push(`<button class="swrow${d.inherit ? " on" : ""}" data-act="inherit" role="switch" aria-checked="${d.inherit}"><span class="tg"></span>
+      <span style="min-width:0"><b>${t.inherit_sw}</b><small>${t.inherit_now} ${versionLabel(cv)}</small></span></button>`);
+  }
+  if (!(s && d.inherit)) {
+    let prod;
+    if (d.kind === "general") {
+      prod = `<div class="card"><div class="ask"><span class="ic">${ic("globe", 20)}</span><div><b>${t.gen_title}</b><p>${t.gen_body}</p></div></div></div><p class="alt">${t.to_products}</p>`;
+    } else {
+      const rows = d.lines.map((k, i) => {
+        const orders = c.id === RELAUNCH && RUN_ORDERS[k] != null && several ? t.orders_run(RUN_ORDERS[k]) : t.orders30(P[k].o30);
+        const right = manual
+          ? `<label class="pct"><input type="number" min="0" max="100" step="1" inputmode="decimal" data-k="pct-${k}" value="${d.pct[k] ?? ""}" aria-label="${pname(k)}"><span>%</span></label>`
+          : several ? `<span class="sw tnum${shares ? "" : " m"}"><i style="background:${RAMP[i % RAMP.length]}"></i>${shares ? pct(shares[k]) : "—"}</span>` : `<span class="sw tnum">100 %</span>`;
+        return `<div class="pr">${thumb(k, 40)}<div class="pn" style="min-width:0"><b class="ell"><bdi>${pname(k)}</bdi></b><small>${orders}</small></div>${right}
+          <button class="rm" data-act="rm" data-k="${k}" aria-label="${t.remove(pname(k))}">${ic("x", 15)}</button></div>`;
+      }).join("");
+      prod = `<div class="plist${d.lines.length ? "" : " empty"}">${rows}<div class="addrow">
+        <button class="addbtn" data-act="add" aria-expanded="${d.picker}"><span class="plus">${ic("plus", 17, 2.2)}</span>${t.add}</button>${d.picker ? renderPicker(d) : ""}</div></div>
+        <p class="alt">${t.to_general}</p>`;
+    }
+    parts.push(`<section class="q"><h4>${s ? t.q_products_set : t.q_products}</h4>${prod}</section>`);
+
+    if (several) {
+      const widths = d.lines.map(k => manual ? Number(d.pct[k]) || 0 : shares ? shares[k] : 100 / d.lines.length);
+      const sum = d.lines.reduce((a, k) => a + (Number(d.pct[k]) || 0), 0);
+      const sumTxt = Math.abs(sum - 100) < 0.001 ? `<span class="ok">${ic("check", 14, 2.4)}${t.sum_ok}</span>` : sum < 100 ? `<span class="ko">${t.sum_lo(pf.format(100 - sum))}</span>` : `<span class="ko">${t.sum_hi(pf.format(sum - 100))}</span>`;
+      parts.push(`<section class="q"><h4>${t.q_split}</h4>
+        <div class="seg" role="radiogroup"><button role="radio" aria-checked="${!manual}" class="${!manual ? "on" : ""}" data-act="split" data-v="auto">${t.split_auto}</button><button role="radio" aria-checked="${manual}" class="${manual ? "on" : ""}" data-act="split" data-v="manual">${t.split_manual}</button></div>
+        <div class="sbar" aria-hidden="true">${d.lines.map((k, i) => `<i style="width:${Math.max(0, widths[i])}%;background:${RAMP[i % RAMP.length]}"></i>`).join("")}</div>
+        ${manual ? `<div class="sumrow">${sumTxt}<span class="grow"></span><button class="btn sm quiet" data-act="even">${t.even}</button></div><p class="desc">${t.split_manual_d}</p>` : `<p class="desc">${t.split_auto_d(d.lines.length)}</p>`}
+      </section>`);
+    }
+  }
+
+  parts.push(`<section class="q"><h4>${t.q_when}</h4>
+    <div class="scopes" role="radiogroup">
+      <div class="opt${d.scope === "all" ? " on" : ""}" role="radio" aria-checked="${d.scope === "all"}" tabindex="0" data-act="scope" data-v="all"><span class="rd"></span><span><b>${t.w_all}</b><span class="od">${t.w_all_d}</span></span></div>
+      <div class="opt${d.scope === "from" ? " on" : ""}" role="radio" aria-checked="${d.scope === "from"}" tabindex="0" data-act="scope" data-v="from"><span class="rd"></span><span><b>${t.w_from}</b><span class="od">${t.w_from_d}</span>
+        ${d.scope === "from" ? `<input type="date" data-k="from" value="${d.from}" min="2026-05-23" max="2026-10-01" aria-label="${t.w_from}">` : ""}</span></div>
+    </div>${cutChart(d)}</section>`);
+
+  let foot = "";
+  const same = !prob && unchanged(d);
+  if (prob === "need") foot = t.f_need;
+  else if (prob === "sum") {
+    const sum = d.lines.reduce((a, k) => a + (Number(d.pct[k]) || 0), 0);
+    foot = `<span class="ko">${sum < 100 ? t.sum_lo(pf.format(100 - sum)) : t.sum_hi(pf.format(sum - 100))}</span>`;
+  }
+  else if (prob === "date") foot = t.f_date;
+  else if (same) foot = t.f_same;
+  if (!prob && !same) {
+    const imp = impact(d);
+    const label = k => k === "_none" ? t.row_none : k === "_gen" ? t.row_gen : `<bdi>${pname(k)}</bdi>`;
+    const tIcon = k => k === "_none" ? `<span class="ph" style="width:28px;height:28px;border-radius:7px">${ic("help", 14)}</span>` : k === "_gen" ? `<span class="ph gen" style="width:28px;height:28px;border-radius:7px">${ic("globe", 14)}</span>` : thumb(k, 28);
+    const rows = imp.rows.map(r => { const dlt = r.after - r.before; return `<div class="ir">${tIcon(r.k)}<span class="in ell">${label(r.k)}</span>
+      <span class="iv tnum">${num(r.before)} → <b>${num(r.after)}</b> ${t.cur}</span><span class="dl tnum" dir="ltr">${dlt > 0 ? "+" : "−"}${num(Math.abs(dlt))}</span></div>`; }).join("");
+    const fixable = !(d.scope === "from" && d.from >= "2026-08-01");
+    const notes = imp.stmts.filter(x => x.delta >= 1).map(x => `<div class="note warn">${ic("alert", 16)}<div><b>${t.stmt_t}</b><br>${t.stmt_b(pname(x.k), money(x.delta))}
+      ${fixable ? `<div><button class="btn sm" data-act="fix-date">${t.stmt_fix}</button></div>` : ""}</div></div>`).join("");
+    const okNote = imp.rows.length && !notes ? `<div class="note ok">${ic("check", 16, 2.4)}<span>${t.stmt_none}</span></div>` : "";
+    parts.push(`<section class="q"><h4>${t.q_impact}</h4><div class="imp">${imp.rows.length ? rows : `<div class="note">${ic("clock", 16)}<span>${t.imp_none}</span></div>`}${notes}${okNote}</div></section>`);
+    foot = imp.moved >= 1 ? t.f_moved(money(imp.moved)) : t.f_none;
+  }
+
+  const head = `<button class="back" data-act="back">${ic("back", 16, 2.2, "flip")}${s ? esc(c.name) : t.back}</button>
+    <p class="kick">${s ? t.k_set(esc(c.name)) : t.k_edit}</p><h3>${esc((s || c).name)}</h3>`;
+  return {body:`<div class="dwrap ed"><div>${head}</div>${parts.join("")}</div>`,
+    foot:`<div class="efoot"><p>${foot}</p><button class="btn" data-act="back">${t.cancel}</button><button class="btn primary" data-act="save" ${prob || same ? "disabled" : ""}>${t.save}</button></div>`};
+}
+
+function renderDrawer() {
+  if (!S.open) return "";
+  const sel = S.sel;
+  let right = "", foot = "";
+  if (sel && S.mode === "edit" && S.draft) { const e = renderEditor(S.draft); right = e.body; foot = e.foot; }
+  else if (sel) right = renderDetail(sel);
+  return `<div class="backdrop" data-act="close"></div>
+  <aside class="drawer${S.mode === "edit" ? " editing" : ""}" role="dialog" aria-modal="true" aria-label="${t.title}">
+    <header class="dh"><div class="grow"><h2>${t.title}</h2><p>${t.sub}</p></div>
+      <span class="sync">${ic("sync", 13)}${t.synced}</span>
+      <button class="xbtn" data-act="close-x" aria-label="${t.close}">${ic("x", 18)}</button></header>
+    ${renderStatus()}
+    <div class="panes" data-view="${S.view}">
+      <section class="lp" aria-label="${t.title}">
+        <div class="lsearch"><label class="srch">${ic("search", 15)}<input type="search" data-k="q" value="${esc(S.q)}" placeholder="${t.search}" aria-label="${t.search}"></label></div>
+        <div class="colh">${t.col}</div>
+        <div class="list">${renderList()}</div>
+      </section>
+      <section class="rp"><div class="dscroll">${right}</div>${foot}</section>
+    </div>
+    ${S.toast ? `<div class="toast" role="status">${ic("check", 16, 2.4)}${S.toast}</div>` : ""}
+  </aside>`;
+}
+
+/* ═══════════════ render loop (keeps focus + scroll across re-renders) ═══════════════ */
+const stage = document.getElementById("stage");
+function render() {
+  const a = document.activeElement, k = a && a.dataset ? a.dataset.k : null;
+  let caret = null; try { caret = a && a.selectionStart; } catch (e) {}
+  const keep = [".list", ".dscroll", ".pop .pl"].map(sel => [sel, stage.querySelector(sel)?.scrollTop || 0]);
+  stage.innerHTML = renderPage() + renderDrawer();
+  for (const [sel, top] of keep) { const el = stage.querySelector(sel); if (el) el.scrollTop = top; }
+  if (k) { const el = stage.querySelector(`[data-k="${k}"]`); if (el) { el.focus(); try { if (caret != null) el.setSelectionRange(caret, caret); } catch (e) {} } }
+}
+let toastTimer = null;
+function toast(msg) { S.toast = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 3200); }
+const firstTodo = () => C.filter(needs).sort((a, b) => b.life - a.life)[0] || null;
+const toTop = () => { const el = stage.querySelector(".dscroll"); if (el) el.scrollTop = 0; };
+
+stage.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el || el.disabled) return;
+  const act = el.dataset.act, d = S.draft;
+  switch (act) {
+    case "open": S.open = true; break;
+    case "close": case "close-x": if (S.mode === "edit" && act === "close") { S.mode = "view"; S.draft = null; } else S.open = false; break;
+    case "sel": S.sel = byId[el.dataset.c]; S.mode = "view"; S.draft = null; S.hist = false; S.view = "detail"; render(); toTop(); return;
+    case "to-list": S.view = "list"; break;
+    case "first-todo": { const c = firstTodo(); if (c) { S.sel = c; S.mode = "view"; S.draft = null; S.view = "detail"; } break; }
+    case "never": S.never = !S.never; break;
+    case "hist": S.hist = !S.hist; break;
+    case "edit": S.draft = draftFor(S.sel, null); S.mode = "edit"; render(); toTop(); return;
+    case "edit-set": S.draft = draftFor(S.sel, S.sel.sets.find(s => s.id === el.dataset.s)); S.mode = "edit"; render(); toTop(); return;
+    case "back": S.mode = "view"; S.draft = null; break;
+    case "add": d.picker = !d.picker; d.pq = ""; render(); stage.querySelector('[data-k="pq"]')?.focus(); return;
+    case "pick": { const k = el.dataset.k; d.lines.push(k); d.kind = "products"; if (d.split === "manual") d.pct[k] = 0; d.picker = false; d.pq = ""; break; }
+    case "rm": d.lines = d.lines.filter(k => k !== el.dataset.k); delete d.pct[el.dataset.k]; break;
+    case "kind-general": d.kind = "general"; d.picker = false; break;
+    case "kind-products": d.kind = "products"; break;
+    case "split": {
+      const v = el.dataset.v;
+      if (v === "manual" && !d.lines.every(k => d.pct[k] != null && d.pct[k] !== "")) {
+        const sh = draftShares({...d, split:"auto"});
+        const seed = sh ? d.lines.map(k => Math.round(sh[k])) : d.lines.map(() => Math.floor(100 / d.lines.length));
+        seed[0] += 100 - seed.reduce((a, x) => a + x, 0);
+        d.lines.forEach((k, i) => d.pct[k] = seed[i]);
+      }
+      d.split = v; break;
+    }
+    case "even": { const n = d.lines.length, base = Math.floor(100 / n); d.lines.forEach((k, i) => d.pct[k] = base + (i < 100 - base * n ? 1 : 0)); break; }
+    case "scope": if (e.target.matches("input")) return; d.scope = el.dataset.v; if (d.scope === "from" && !d.from) d.from = "2026-10-01"; break;
+    case "fix-date": d.scope = "from"; d.from = "2026-08-01"; break;
+    case "inherit": d.inherit = !d.inherit; break;
+    case "save": {
+      const imp = impact(d), target = d.s || d.c;
+      target.versions = supersede(target.versions, {...draftVersion(d), id:++VID, who:t.you, at:TODAY}, TODAY);
+      S.mode = "view"; S.draft = null;
+      toast(imp.moved >= 1 ? t.toast_moved(money(imp.moved)) : t.toast);
+      break;
+    }
+    default: return;
+  }
+  render();
+});
+stage.addEventListener("input", e => {
+  const k = e.target.dataset.k; if (!k) return;
+  if (k === "q") S.q = e.target.value;
+  else if (k === "pq") S.draft.pq = e.target.value;
+  else if (k.startsWith("pct-")) S.draft.pct[k.slice(4)] = e.target.value === "" ? "" : Number(e.target.value);
+  else if (k === "from") return;
+  render();
+});
+stage.addEventListener("change", e => { if (e.target.dataset.k === "from") { S.draft.from = e.target.value; render(); } });
+stage.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches('.opt[role="radio"]')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (S.draft && S.draft.picker) S.draft.picker = false;
+  else if (S.mode === "edit") { S.mode = "view"; S.draft = null; }
+  else S.open = false;
+  render();
+});
+
+/* ═══════════════ presets ═══════════════ */
+(function init() {
+  document.documentElement.lang = L;
+  stage.setAttribute("dir", L === "ar" ? "rtl" : "ltr");
+  const fit = () => document.documentElement.style.setProperty("--pbar", document.querySelector(".pbar").offsetHeight + "px");
+  fit(); addEventListener("resize", fit);
+  if (PHONE) stage.classList.add("phone");
+  document.querySelectorAll(".pbar [data-p]").forEach(b => {
+    const cur = {lang:L, screen:SCREEN, device:PHONE ? "phone" : "desktop"}[b.dataset.p];
+    if (cur === b.dataset.v) b.classList.add("on");
+    b.addEventListener("click", () => { const q = new URLSearchParams(location.search); q.set(b.dataset.p, b.dataset.v); location.search = q.toString(); });
+  });
+  const relaunch = byId[RELAUNCH], quran = byId["120237064561150687"];
+  const edit = (c, patch) => { S.sel = c; S.mode = "edit"; S.draft = Object.assign(draftFor(c, null), patch); S.view = "detail"; };
+  switch (SCREEN) {
+    case "campaign": S.sel = quran; S.view = "detail"; break;
+    case "pick": edit(byId["120247849144520687"], {picker:true}); break;
+    case "edit": edit(relaunch, {lines:["M","S","L"], split:"auto"}); break;
+    case "manual": edit(relaunch, {lines:["M","S","L"], split:"manual", pct:{M:60, S:20, L:20}}); break;
+    case "date": edit(relaunch, {lines:["M","S","L"], split:"auto", scope:"from", from:"2026-08-01"}); break;
+    case "adset": {
+      const s = quran.sets[0];
+      S.sel = quran; S.mode = "edit"; S.view = "detail";
+      S.draft = Object.assign(draftFor(quran, s), {lines:["Q","T"], split:"auto"});
+      break;
+    }
+    case "done":
+      for (const id of ["120247849144520687", "120247841619580687"]) byId[id].versions = [{id:++VID, from:null, kind:"general", lines:[], split:null, pct:{}, who:"Super Admin", at:TODAY}];
+      S.sel = byId["120247849144520687"]; S.view = "detail"; break;
+    default: S.sel = PHONE ? null : firstTodo(); S.view = PHONE ? "list" : "detail";
+  }
+  render();
+})();
+</script>
+</body>
+</html>

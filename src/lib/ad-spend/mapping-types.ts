@@ -7,6 +7,9 @@ import type { MappingKind, SplitMode } from "./allocation";
 
 export type { MappingKind, SplitMode };
 
+/** Where a dinar of spend lands: a product's margin, general spend, or nowhere yet. */
+export type SpendBucket = "product" | "general" | "none";
+
 export interface MappingVersionDTO {
   id: string;
   external_adset_id: string | null;
@@ -24,6 +27,8 @@ export interface MappingVersionDTO {
 export interface NodeSpend {
   spend_window: number;
   spend_life: number;
+  /** Spent with no product and not deliberately general: money waiting for a decision. */
+  spend_unattributed: number;
   results_window: number;
   first_day: string | null;
   last_day: string | null;
@@ -52,6 +57,8 @@ export interface CampaignNodeDTO extends NodeSpend {
   /** Campaign-level versions, newest first, superseded ones included. */
   versions: MappingVersionDTO[];
   current_id: string | null;
+  /** What each product carried of this campaign's spend, whole history. */
+  spend_by_product: Record<string, number>;
   adsets: AdsetNodeDTO[];
 }
 
@@ -88,8 +95,6 @@ export interface MappingTreeDTO {
   campaigns: CampaignNodeDTO[];
   products: MappingProductDTO[];
   coverage: { window: CoverageDTO; life: CoverageDTO; life_from: string | null };
-  /** Campaigns with no decision at all (never mapped), and how much they spent. */
-  unmapped: { campaigns: number; spent_campaigns: number; spend_life: number };
 }
 
 /** What the drawer sends — a preview and a save take the same body. */
@@ -114,7 +119,11 @@ export interface MappingPreviewDTO {
   days: number;
   /** Sum of the increases — equals the sum of the decreases. */
   moved: number;
-  products: { product_id: string | null; before: number; after: number }[];
+  /**
+   * Money per bucket, before and after. A null product is either deliberate
+   * general spend or spend still waiting for a product — two different lines.
+   */
+  products: { product_id: string | null; bucket: SpendBucket; before: number; after: number }[];
   /** The target's own split after the change, with the evidence behind it. */
   shares: { product_id: string; amount: number; pct: number; orders: number | null }[];
   /** Issued investor statements whose period the change rewrites. */

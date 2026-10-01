@@ -21,7 +21,7 @@ import { AdSpendEntryModal } from "@/components/ad-spend/AdSpendEntryModal";
 import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
 import { AdSpendMappingDrawer } from "@/components/ad-spend/AdSpendMappingDrawer";
 import { useAdSpendMapping } from "@/hooks/useAdSpendMapping";
-import type { ListFilter } from "@/lib/ad-spend/mapping-view";
+import { needsAttribution } from "@/lib/ad-spend/mapping-view";
 import { EmptyState } from "@/components/dashboard/Panel";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AuthUser } from "@/types";
@@ -105,8 +105,8 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   const [editingEntry, setEditingEntry] = useState<AdSpendWithMetrics | null | undefined>(undefined); // undefined = modal closed
   const [showImport, setShowImport] = useState(false);
-  // null = closed. The drawer opens on a filter, or straight on one campaign.
-  const [mapping, setMapping] = useState<{ filter: ListFilter; focus: string | null } | null>(null);
+  // null = closed. The drawer opens on the most money waiting, or straight on one campaign.
+  const [mapping, setMapping] = useState<{ focus: string | null } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<AdSpendWithMetrics | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -117,13 +117,12 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   // Fetched with the page, not on open: the header badge needs its count, and
   // the drawer then opens from the same SWR entry without a spinner.
+  // Whole history, like the drawer: the badge and the drawer say the same number.
   const { tree: mappingTree, mutate: mutateMapping } = useAdSpendMapping({
     marketId: selectedMarketId,
-    fromDate,
-    toDate,
     enabled: hasMetaAccount && !scopeIsAll,
   });
-  const toMap = mappingTree?.unmapped.spent_campaigns ?? 0;
+  const toMap = mappingTree?.campaigns.filter(needsAttribution).length ?? 0;
 
   // Entries and the product list back the CRUD surfaces only — every figure on
   // the page comes from the economics route. The metrics overlay is skipped
@@ -396,7 +395,7 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             {hasMetaAccount && (
               <button
                 type="button"
-                onClick={() => setMapping({ filter: toMap > 0 ? "unmapped" : "all", focus: null })}
+                onClick={() => setMapping({ focus: null })}
                 className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
               >
                 <Link2 size={14} strokeWidth={1.8} />
@@ -484,7 +483,7 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             currency={currency}
             onAttach={
               economicsMeta.unmapped.campaigns.length > 0
-                ? () => setMapping({ filter: "unmapped", focus: null })
+                ? () => setMapping({ focus: null })
                 : undefined
             }
           />
@@ -516,8 +515,8 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             currency={currency}
             onEditEntry={openEntry}
             onDeleteEntry={confirmDelete}
-            onMapCampaigns={hasMetaAccount ? () => setMapping({ filter: "all", focus: null }) : undefined}
-            onOpenCampaign={hasMetaAccount ? (id) => setMapping({ filter: "all", focus: id }) : undefined}
+            onMapCampaigns={hasMetaAccount ? () => setMapping({ focus: null }) : undefined}
+            onOpenCampaign={hasMetaAccount ? (id) => setMapping({ focus: id }) : undefined}
           />
 
           <AdSpendSyncStrip health={syncHealth} />
@@ -591,10 +590,7 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
       {mapping && (
         <AdSpendMappingDrawer
           marketId={selectedMarketId}
-          fromDate={fromDate}
-          toDate={toDate}
           currency={currency}
-          initialFilter={mapping.filter}
           focusCampaignId={mapping.focus}
           onClose={() => setMapping(null)}
           onSaved={refresh}
