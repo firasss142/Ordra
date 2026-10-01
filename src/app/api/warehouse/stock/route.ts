@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { marketIdToCode } from "@/lib/markets";
+import { incomingByProduct } from "@/lib/receptions/incoming";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,16 @@ export interface WarehouseStockRow {
    * nobody has ventilated, not a rounding error to hide.
    */
   unallocated: number;
+  /**
+   * Units on order that have not reached the shelf — announced or declared
+   * receptions, minus what has already been counted on them.
+   *
+   * NULL, never 0, when nothing is on the way: "nothing ordered" and "we do not
+   * know" must not share a number, and a reassuring zero is the worse of the
+   * two. See src/lib/receptions/incoming.ts for why a stale draft stops
+   * counting — otherwise this figure would never come back down.
+   */
+  incoming: number | null;
 }
 
 export interface StockSiteRow {
@@ -240,6 +251,34 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  /*
+   * Ce qui est en route. Une seule requête, filtrée sur les deux seuls statuts
+   * qui peuvent compter — la règle de péremption d'un brouillon est appliquée
+   * en TypeScript, testée, plutôt que dupliquée en SQL.
+   */
+  let incomingQuery = supabase
+    .from("receptions")
+    .select("status, expected_at, reception_lines(product_id, expected_qty, received_qty)")
+    .in("status", ["draft", "submitted"]);
+  if (scopeMarket) incomingQuery = incomingQuery.eq("market_id", scopeMarket);
+  const { data: incomingRows } = await incomingQuery;
+
+  const incomingBy = incomingByProduct(
+    ((incomingRows ?? []) as unknown as Array<{
+      status: string;
+      expected_at: string | null;
+      reception_lines: Array<{
+        product_id: string;
+        expected_qty: number | null;
+        received_qty: number | null;
+      }> | null;
+    }>).map((r) => ({
+      status: r.status,
+      expected_at: r.expected_at,
+      lines: r.reception_lines ?? [],
+    })),
+  );
+
   const accuracyBy = new Map<string, number | null>();
   for (const a of ((accuracyData as { products?: Array<{ product_id: string; accuracy: number | null }> } | null)
     ?.products ?? [])) {
@@ -270,6 +309,8 @@ export async function GET(req: NextRequest) {
       accuracy: accuracyBy.get(p.id) ?? null,
       series: seriesBy.get(p.id) ?? [],
       sites,
+      // Absent de la Map = rien en route. On rend null, pas 0.
+      incoming: incomingBy.get(p.id) ?? null,
       /*
        * The gap between the market total and what the buildings account for.
        *

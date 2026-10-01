@@ -187,6 +187,24 @@ export function StockCard({
             </>
           ) : null}
 
+          {/*
+            « En route » n'est PAS une ligne de la ventilation par bâtiment : ces
+            unités ne sont dans aucun bâtiment, c'est tout leur sens. Elles se
+            lisent à côté du stock détenu.
+
+            `null` = rien en route. On ne rend rien du tout, plutôt qu'un zéro
+            qui se lirait comme « j'ai vérifié, il n'y a rien de commandé ».
+          */}
+          {row.incoming !== null && row.incoming > 0 ? (
+            <div
+              data-testid="wh-stock-incoming"
+              className="mt-3 flex items-center justify-between gap-2 rounded-wm border border-wm-line bg-wm-sunken px-3 py-2"
+            >
+              <span className="text-[13px] text-wm-ink-2">{tf("incoming")}</span>
+              <b className="shrink-0 tabular-nums text-wm-ink">{row.incoming}</b>
+            </div>
+          ) : null}
+
           {/* Fourteen days of on-hand level. The API has sent this all along and
               the phone card never drew it: a figure alone cannot say whether the
               shelf is draining or refilling. */}
