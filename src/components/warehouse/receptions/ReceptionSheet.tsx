@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, Check, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, Check, Plus, Trash2, Image as ImageIcon, Undo2, Smartphone } from "lucide-react";
 import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
 import { canSeeReceptionCosts, canDraftReception } from "@/lib/receptions/permissions";
-import { lineVariance, receptionTotals } from "@/lib/receptions/derive";
+import { lineVariance, receptionTotals, paidPercent } from "@/lib/receptions/derive";
 import { ReceptionLineEditor, type LinePatch } from "./ReceptionLineEditor";
 import { WH_CARD, WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
 import { ReceptionPostDialog } from "./ReceptionPostDialog";
+import { ReceptionReverseDialog } from "./ReceptionReverseDialog";
+import { ReceptionCountFlow } from "./ReceptionCountFlow";
 
 /**
  * La feuille d'une réception — plein écran, pas une modale de 480 px.
@@ -47,6 +49,8 @@ export function ReceptionSheet({
   const t = useTranslations("warehouse.receptions");
   const { reception, isLoading, mutate } = useReception(id);
   const [posting, setPosting] = useState(false);
+  const [reversing, setReversing] = useState(false);
+  const [counting, setCounting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /*
@@ -61,21 +65,49 @@ export function ReceptionSheet({
   const [edits, setEdits] = useState<Record<string, LinePatch>>({});
   const withCosts = canSeeReceptionCosts(role);
 
+  /*
+   * Sur un téléphone, le tableau du bureau est le mauvais outil : la maquette §6
+   * place l'agent dans un comptage ligne par ligne. On y entre donc tout seul
+   * quand l'écran est étroit — mais une seule fois par ouverture de la feuille,
+   * pour que fermer le comptage ne devienne pas un piège qui se rouvre.
+   */
+  const autoCounted = useRef(false);
+  useEffect(() => {
+    if (autoCounted.current || !reception) return;
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const narrow = window.matchMedia("(max-width: 767px)").matches;
+    const editableNow =
+      canDraftReception(role) &&
+      (reception.status === "draft" || reception.status === "submitted") &&
+      reception.lines.length > 0;
+    if (narrow && editableNow) {
+      autoCounted.current = true;
+      setCounting(true);
+    }
+  }, [reception, role]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !posting) onClose();
+      if (e.key === "Escape" && !posting && !reversing && !counting) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, posting]);
+  }, [onClose, posting, reversing, counting]);
 
   const nf = new Intl.NumberFormat(locale === "ar" ? "ar-LY" : "fr-FR", {
     maximumFractionDigits: 0,
   });
-  const cf = new Intl.NumberFormat(locale === "ar" ? "ar-LY" : "fr-FR", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  /*
+   * Une date de bon de livraison se lit « 28 sept 2026 ». `2026-09-28` est un
+   * format de stockage : on ne le montre pas à quelqu'un qui tient un carton.
+   */
+  const df = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString(locale === "ar" ? "ar" : "fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
 
   async function act(path: string, body?: unknown) {
     if (busy) return;
@@ -182,6 +214,7 @@ export function ReceptionSheet({
         r.lines.map((l) => {
           const patch = edits[l.id];
           return {
+            expected_qty: l.expected_qty,
             received_qty: patch ? patch.received_qty : l.received_qty,
             damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
             unit_cost: withCosts ? (patch ? patch.unit_cost : (l.unit_cost ?? null)) : null,
@@ -225,11 +258,21 @@ export function ReceptionSheet({
                   </Fact>
                 ) : null}
                 {r.submitted_by_name ? (
-                  <Fact label={t("declaredBy", { name: "" }).replace(/\s*\{?name\}?\s*/, "")}>
-                    {r.submitted_by_name}
-                  </Fact>
+                  <Fact label={t("countedBy")}>{r.submitted_by_name}</Fact>
                 ) : null}
-                {r.expected_at ? <Fact label={t("fieldExpectedAt")}>{r.expected_at}</Fact> : null}
+                {/*
+                 * La maquette appelle cette date « Arrivée ». C'est en vérité la
+                 * date de la DÉCLARATION, et les deux ne coïncident que si l'agent
+                 * compte le jour de la livraison. On la nomme donc pour ce qu'elle
+                 * est : rien ne nous autorise à affirmer un jour d'arrivée que
+                 * personne n'a saisi.
+                 */}
+                {r.submitted_at ? (
+                  <Fact label={t("countedOn")}>{df(r.submitted_at.slice(0, 10))}</Fact>
+                ) : null}
+                {r.expected_at ? (
+                  <Fact label={t("fieldExpectedAt")}>{df(r.expected_at)}</Fact>
+                ) : null}
               </div>
             </div>
 
@@ -257,6 +300,18 @@ export function ReceptionSheet({
                 <span className="text-[13px] font-semibold text-wh-warn">
                   {t("entryRemaining", { count: remaining })}
                 </span>
+              ) : null}
+              {/*
+               * L'entrée du comptage une-ligne-à-la-fois. On ne demande pas à
+               * quelqu'un debout devant une palette de remplir un tableau, donc
+               * sur un écran étroit ce mode s'ouvre de lui-même (une seule fois,
+               * et le fermer n'y ramène pas) ; au bureau il reste un choix.
+               */}
+              {editable ? (
+                <button type="button" className={WH_BTN} onClick={() => setCounting(true)}>
+                  <Smartphone size={16} />
+                  {t("countOnPhone")}
+                </button>
               ) : null}
             </div>
           ) : null}
@@ -303,7 +358,13 @@ export function ReceptionSheet({
               return (
                 <li
                   key={l.id}
-                  className={`${LINE_GRID} border-b border-wh-border px-4 py-3 last:border-b-0 md:px-5`}
+                  /*
+                   * Une ligne comptée se teinte. Sur quarante lignes, « où me
+                   * suis-je arrêté » doit se voir sans relire chaque champ.
+                   */
+                  className={`${LINE_GRID} border-b border-wh-border px-4 py-3 last:border-b-0 md:px-5 ${
+                    shown.received_qty !== null ? "bg-wh-ok-bg/15" : ""
+                  }`}
                 >
                   <ReceptionLineEditor
                     line={shown}
@@ -373,7 +434,15 @@ export function ReceptionSheet({
                 </>
               ) : (
                 <>
-                  {r.can.submit ? (
+                  {/*
+                   * UNE SEULE ACTION PRIMAIRE. Qui peut valider n'a aucune
+                   * raison de déclarer d'abord — il est à la fois déclarant et
+                   * validateur, et deux boutons verts dont l'un contient l'autre
+                   * ne font que demander « lequel des deux ? » à quelqu'un qui
+                   * voulait juste entrer sa marchandise. L'API, elle, reste
+                   * honnête : `can.submit` dit que la route l'accepterait.
+                   */}
+                  {r.can.submit && !r.can.post ? (
                     <button
                       type="button"
                       className={WH_BTN_PRIMARY}
@@ -382,6 +451,23 @@ export function ReceptionSheet({
                     >
                       <Check size={17} strokeWidth={2.2} />
                       {t("submit")}
+                    </button>
+                  ) : null}
+                  {/*
+                   * LA TROISIÈME ISSUE. Sans « renvoyer », un manager qui voit
+                   * une erreur n'a que deux choix : valider ce qui est faux, ou
+                   * laisser la réception bloquée dans sa file pour toujours.
+                   * Rien n'a bougé en stock, donc il n'y a rien à annuler.
+                   */}
+                  {r.can.sendBack ? (
+                    <button
+                      type="button"
+                      className={WH_BTN}
+                      disabled={busy}
+                      onClick={() => void act("/unsubmit")}
+                    >
+                      <Undo2 size={16} className="rtl:-scale-x-100" />
+                      {t("sendBack")}
                     </button>
                   ) : null}
                   {r.can.post ? (
@@ -393,6 +479,22 @@ export function ReceptionSheet({
                     >
                       <Check size={17} strokeWidth={2.2} />
                       {t("post")}
+                    </button>
+                  ) : null}
+                  {/*
+                   * Contre-passer est discret et destructeur : il ne porte ni la
+                   * couleur primaire ni la position d'une action courante, et il
+                   * n'apparaît que sur une réception déjà validée.
+                   */}
+                  {r.can.reverse ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-[10px] border border-wh-bad-edge bg-wh-surface px-[15px] py-[9px] text-[13.5px] font-semibold text-wh-bad hover:bg-wh-bad-bg"
+                      disabled={busy}
+                      onClick={() => setReversing(true)}
+                    >
+                      <Undo2 size={16} className="rtl:-scale-x-100" />
+                      {t("reverse")}
                     </button>
                   ) : null}
                 </>
@@ -436,6 +538,28 @@ export function ReceptionSheet({
             void mutate();
             onChanged();
           }}
+        />
+      ) : null}
+
+      {reversing ? (
+        <ReceptionReverseDialog
+          reception={r}
+          onClose={() => setReversing(false)}
+          onReversed={() => {
+            setReversing(false);
+            void mutate();
+            onChanged();
+          }}
+        />
+      ) : null}
+
+      {counting ? (
+        <ReceptionCountFlow
+          reception={r}
+          locale={locale}
+          edits={edits}
+          onPatch={(lineId, patch) => setEdits((prev) => ({ ...prev, [lineId]: patch }))}
+          onClose={() => setCounting(false)}
         />
       ) : null}
     </div>
@@ -506,6 +630,14 @@ function PaymentsBlock({
   const [adding, setAdding] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("bank_transfer");
+  /*
+   * LA DATE EST CELLE DU VERSEMENT, PAS CELLE DE LA SAISIE. Un acompte viré
+   * jeudi et enregistré lundi n'a pas la date de lundi, et c'est cette liste
+   * qu'on relira pour savoir quand le fournisseur a été payé. Elle part
+   * pré-remplie à aujourd'hui, qui est le cas courant.
+   */
+  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -524,7 +656,12 @@ function PaymentsBlock({
       const res = await fetch(`/api/warehouse/receptions/${receptionId}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: parsed, method }),
+        body: JSON.stringify({
+          amount: parsed,
+          method,
+          paid_at: paidAt || undefined,
+          note: note.trim() || undefined,
+        }),
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => ({}))) as { error?: string };
@@ -532,6 +669,7 @@ function PaymentsBlock({
         return;
       }
       setAmount("");
+      setNote("");
       setAdding(false);
       onChanged();
     } finally {
@@ -564,7 +702,7 @@ function PaymentsBlock({
     <div className="border-t border-wh-border p-4 md:p-5">
       <h4 className={`${WH_LABEL} flex flex-wrap items-center gap-2.5`}>
         {t("payments")}
-        <PaymentChip state={state} outstanding={outstanding} currency={currency} />
+        <PaymentChip state={state} percent={paidPercent({ value, paid: paidTotal })} />
       </h4>
 
       {value !== null ? (
@@ -623,7 +761,7 @@ function PaymentsBlock({
       {canPay ? (
         adding ? (
           <div className="mt-3 flex flex-wrap items-end gap-2.5">
-            <label className="flex-1">
+            <label className="min-w-[110px] flex-1">
               <span className={WH_LABEL}>{t("paymentAmount")}</span>
               <input
                 autoFocus
@@ -631,6 +769,15 @@ function PaymentsBlock({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="mt-1 w-full rounded-[6px] border border-wh-border px-2.5 py-2 text-end font-mono text-[14px] tabular-nums"
+              />
+            </label>
+            <label>
+              <span className={WH_LABEL}>{t("paymentDate")}</span>
+              <input
+                type="date"
+                value={paidAt}
+                onChange={(e) => setPaidAt(e.target.value)}
+                className="mt-1 rounded-[6px] border border-wh-border px-2.5 py-2 text-[13.5px]"
               />
             </label>
             <label>
@@ -646,6 +793,15 @@ function PaymentsBlock({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="min-w-[140px] flex-1">
+              <span className={WH_LABEL}>{t("paymentNote")}</span>
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                dir="auto"
+                className="mt-1 w-full rounded-[6px] border border-wh-border px-2.5 py-2 text-[13.5px]"
+              />
             </label>
             <button type="button" className={WH_BTN_PRIMARY} disabled={busy} onClick={() => void add()}>
               {t("save")}

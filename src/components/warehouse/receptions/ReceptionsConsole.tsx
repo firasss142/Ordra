@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, AlertCircle, Clock, Inbox } from "lucide-react";
+import { Plus, AlertCircle, Clock, Inbox, ChevronRight } from "lucide-react";
 import type { Role } from "@/types";
+import type { ProjectedReception } from "@/lib/receptions/project";
 import { useReceptions } from "@/hooks/useReceptions";
 import { canDraftReception } from "@/lib/receptions/permissions";
+import { headlineQuantity, paidPercent } from "@/lib/receptions/derive";
 import { WH_CARD, WH_LABEL, WH_BTN_PRIMARY, WH_STRIPE } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
 import { ReceptionSheet } from "./ReceptionSheet";
@@ -19,13 +21,37 @@ import { ReceptionCreateDialog } from "./ReceptionCreateDialog";
  * attend un manager. Il se lit en balayant la colonne du regard sans lire, et
  * il n'est porté que par les lignes qui demandent une action : si toutes les
  * lignes en ont un, aucune ne veut plus rien dire.
+ *
+ * LE SEGMENT EST UNE VUE, PAS UNE REQUÊTE. Il filtre une liste déjà chargée,
+ * pour deux raisons. La première est que le changement de segment est alors
+ * instantané. La seconde est qu'un filtre côté serveur faisait mentir les
+ * compteurs : ils étaient comptés sur la liste retournée, donc choisir
+ * « Attendues » affichait « À valider 0 » — le seul écran censé dire au manager
+ * ce qui l'attend l'oubliait dès qu'on s'en servait.
  */
 
 type Segment = "all" | "draft" | "submitted" | "posted" | "unpaid";
 
+/** Huit colonnes : les sept de la maquette, plus la chevron qui dit « ça s'ouvre ». */
 const GRID =
   "grid items-center gap-x-3 " +
-  "grid-cols-[minmax(140px,1.1fr)_minmax(96px,.7fr)_112px_minmax(150px,1.3fr)_minmax(110px,.9fr)_minmax(130px,1fr)_minmax(118px,.9fr)]";
+  "grid-cols-[minmax(140px,1.1fr)_minmax(96px,.7fr)_112px_minmax(150px,1.3fr)_minmax(110px,.92fr)_minmax(130px,1.06fr)_minmax(118px,.9fr)_28px]";
+
+function matchesSegment(r: ProjectedReception, segment: Segment): boolean {
+  switch (segment) {
+    case "all":
+      return true;
+    case "draft":
+    case "submitted":
+    case "posted":
+      return r.status === segment;
+    // « Impayées » n'est pas un statut en base : c'est une déduction de
+    // somme(paiements) contre la valeur reçue. Le filtre porte donc sur l'état
+    // déduit, ce qui évite d'écrire la règle une deuxième fois en SQL.
+    case "unpaid":
+      return r.payment_state === "unpaid" || r.payment_state === "partial";
+  }
+}
 
 export function ReceptionsConsole({ locale, role }: { locale: string; role: Role }) {
   const t = useTranslations("warehouse.receptions");
@@ -33,20 +59,32 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const { receptions, counts, currency, unassigned, isLoading, error, mutate } = useReceptions({
-    status: segment === "all" || segment === "unpaid" ? (segment === "unpaid" ? "unpaid" : null) : segment,
-  });
+  const { receptions, counts, currency, unassigned, isLoading, error, mutate } = useReceptions({});
+
+  const visible = useMemo(
+    () => receptions.filter((r) => matchesSegment(r, segment)),
+    [receptions, segment],
+  );
 
   const segments: { key: Segment; label: string; count: number; tone?: "warn" | "bad" }[] = [
     { key: "all", label: t("segAll"), count: counts.all },
     { key: "draft", label: t("segExpected"), count: counts.draft },
     { key: "submitted", label: t("segToValidate"), count: counts.submitted, tone: "warn" },
     { key: "posted", label: t("segPosted"), count: counts.posted },
+    { key: "unpaid", label: t("segUnpaid"), count: counts.unpaid, tone: "bad" },
   ];
 
   const nf = new Intl.NumberFormat(locale === "ar" ? "ar-LY" : "fr-FR", {
     maximumFractionDigits: 0,
   });
+
+  /** Le mot qui accompagne le chiffre de tête. Un nombre nu ne dit pas de quoi il parle. */
+  function unitWord(kind: ReturnType<typeof headlineQuantity>["kind"], damaged: number): string {
+    if (kind === "cancelled") return t("unitsCancelled");
+    if (kind === "expected") return t("unitsExpected");
+    if (kind === "counted") return t("unitsCounted");
+    return damaged > 0 ? "" : t("unitsPosted");
+  }
 
   return (
     <div className="mx-auto w-full max-w-[1460px] px-4 py-4 md:px-6">
@@ -79,7 +117,9 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                       ? "bg-white/20 text-white"
                       : s.tone === "warn" && s.count > 0
                         ? "bg-wh-warn-bg text-wh-warn"
-                        : "bg-wh-sunken text-wh-ink-2"
+                        : s.tone === "bad" && s.count > 0
+                          ? "bg-wh-bad-bg text-wh-bad"
+                          : "bg-wh-sunken text-wh-ink-2"
                   }`}
                 >
                   {s.count}
@@ -118,11 +158,21 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
         </div>
       ) : isLoading && receptions.length === 0 ? (
         <div className={`${WH_CARD} p-8 text-center text-[13px] text-wh-ink-3`}>…</div>
-      ) : receptions.length === 0 ? (
+      ) : visible.length === 0 ? (
+        /*
+         * « Rien ici » et « rien du tout » sont deux faits différents. Dire
+         * « une livraison fournisseur commence ici » à quelqu'un qui vient de
+         * filtrer sur « Impayées » l'envoie créer une réception alors qu'il
+         * voulait juste savoir qu'il n'en a aucune d'impayée.
+         */
         <div className={`${WH_CARD} p-8 text-center`}>
           <Inbox className="mx-auto mb-3 text-wh-ink-3" size={26} />
-          <p className="text-[15px] font-semibold text-wh-ink-1">{t("empty")}</p>
-          <p className="mt-1.5 text-[13px] text-wh-ink-2">{t("emptyHint")}</p>
+          <p className="text-[15px] font-semibold text-wh-ink-1">
+            {receptions.length > 0 ? t("emptyFiltered") : t("empty")}
+          </p>
+          <p className="mt-1.5 text-[13px] text-wh-ink-2">
+            {receptions.length > 0 ? t("emptyFilteredHint") : t("emptyHint")}
+          </p>
         </div>
       ) : (
         <div className={`${WH_CARD} overflow-hidden`}>
@@ -134,10 +184,11 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
             <span className={`${WH_LABEL} text-end`}>{t("colQuantities")}</span>
             <span className={`${WH_LABEL} text-end`}>{t("colValue")}</span>
             <span className={WH_LABEL}>{t("colPayment")}</span>
+            <span />
           </div>
 
           <ul>
-            {receptions.map((r) => {
+            {visible.map((r) => {
               // Le liseré n'est porté que par ce qui bloque quelqu'un.
               const stripe = r.is_late
                 ? WH_STRIPE.bad
@@ -149,6 +200,8 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                 : r.status === "submitted"
                   ? "bg-wh-warn-bg/30"
                   : "";
+
+              const headline = headlineQuantity(r);
 
               return (
                 <li key={r.id} className="border-b border-wh-border last:border-b-0">
@@ -194,13 +247,30 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                       {r.supplier_name ?? "—"}
                     </span>
 
+                    {/*
+                     * LE CHIFFRE N'EST JAMAIS NU. « 300 » ne dit pas si trois
+                     * cents unités sont arrivées ou seulement promises, et
+                     * `totals.units` somme le REÇU : sur une réception annoncée
+                     * et pas encore comptée il vaut 0, ce qui se lirait « rien
+                     * n'est arrivé ». C'est donc l'attendu qu'on montre, nommé.
+                     */}
                     <span className="text-end font-mono text-[13.5px] font-semibold tabular-nums">
-                      {nf.format(r.totals.units)}
-                      {r.totals.damaged > 0 ? (
-                        <span className="ms-1 font-sans text-[11.5px] font-medium text-wh-warn">
-                          {t("unitsDamagedSuffix", { count: r.totals.damaged })}
-                        </span>
-                      ) : null}
+                      {headline.value === null ? (
+                        <span className="text-wh-ink-3">—</span>
+                      ) : (
+                        <>
+                          {nf.format(headline.value)}
+                          {r.totals.damaged > 0 && headline.kind === "units" ? (
+                            <span className="ms-1 font-sans text-[11.5px] font-medium text-wh-warn">
+                              {t("unitsDamagedSuffix", { count: r.totals.damaged })}
+                            </span>
+                          ) : (
+                            <span className="ms-1 font-sans text-[11.5px] font-medium text-wh-ink-3">
+                              {unitWord(headline.kind, r.totals.damaged)}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </span>
 
                     {/*
@@ -224,9 +294,13 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                     <span>
                       <PaymentChip
                         state={r.payment_state}
-                        outstanding={r.outstanding}
-                        currency={currency}
+                        percent={paidPercent({ value: r.totals.value, paid: r.paid_total ?? 0 })}
                       />
+                    </span>
+
+                    {/* La ligne s'ouvre. Rien ne le disait. */}
+                    <span className="grid place-items-center text-wh-ink-3" aria-hidden>
+                      <ChevronRight size={16} className="rtl:-scale-x-100" />
                     </span>
                   </button>
                 </li>

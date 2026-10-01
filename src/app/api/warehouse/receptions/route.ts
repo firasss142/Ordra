@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 const LINE_SELECT = `
   id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, note,
-  product:products ( name, sku, current_stock, unit_cogs ),
+  product:products ( name, sku, image_url, current_stock, unit_cogs ),
   variant:product_variants ( label, sku )
 `;
 
@@ -75,37 +75,48 @@ export async function GET(req: NextRequest) {
   if (scope.marketId) query = query.eq("market_id", scope.marketId);
   if (site.warehouseId) query = query.eq("warehouse_id", site.warehouseId);
 
-  const status = req.nextUrl.searchParams.get("status");
-  if (status && status !== "all") {
-    // « impayées » n'est pas un statut en base : c'est une déduction. Elle se
-    // filtre après projection, sinon il faudrait dupliquer la règle en SQL.
-    if (status !== "unpaid") query = query.eq("status", status);
-  }
-
   const { data, error } = await query;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  let receptions = projectReceptionList((data ?? []) as unknown as RawReception[], actor.role);
+  /*
+   * LES COMPTEURS SE COMPTENT SUR TOUT, LE FILTRE S'APPLIQUE APRÈS.
+   *
+   * Le filtre de statut était posé sur la requête SQL, et les compteurs étaient
+   * ensuite comptés sur ce qu'elle retournait : demander `status=draft` donnait
+   * donc « À valider 0 » et « Validées 0 ». Le seul écran censé dire à un
+   * manager ce qui l'attend l'oubliait dès qu'on s'en servait.
+   *
+   * « impayées » n'est de toute façon pas un statut en base — c'est une
+   * déduction de somme(paiements) contre la valeur reçue — donc le filtre vivait
+   * déjà en partie ici. Il y vit maintenant entièrement, et la règle n'est
+   * écrite qu'une fois.
+   */
+  const all = projectReceptionList((data ?? []) as unknown as RawReception[], actor.role);
 
-  if (status === "unpaid") {
-    receptions = receptions.filter(
-      (r) => r.payment_state === "unpaid" || r.payment_state === "partial",
-    );
-  }
+  const counts = {
+    all: all.length,
+    draft: all.filter((r) => r.status === "draft").length,
+    submitted: all.filter((r) => r.status === "submitted").length,
+    posted: all.filter((r) => r.status === "posted").length,
+    unpaid: all.filter((r) => r.payment_state === "unpaid" || r.payment_state === "partial").length,
+    late: all.filter((r) => r.is_late).length,
+  };
+
+  const status = req.nextUrl.searchParams.get("status");
+  const receptions =
+    !status || status === "all"
+      ? all
+      : status === "unpaid"
+        ? all.filter((r) => r.payment_state === "unpaid" || r.payment_state === "partial")
+        : all.filter((r) => r.status === status);
 
   return NextResponse.json({
     receptions,
     currency: scope.currency,
     site: { warehouse_id: site.warehouseId, pinned: site.pinned },
-    counts: {
-      all: receptions.length,
-      draft: receptions.filter((r) => r.status === "draft").length,
-      submitted: receptions.filter((r) => r.status === "submitted").length,
-      posted: receptions.filter((r) => r.status === "posted").length,
-      late: receptions.filter((r) => r.is_late).length,
-    },
+    counts,
   });
 }
 

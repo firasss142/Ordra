@@ -39,7 +39,13 @@ export interface RawReceptionLine {
   damaged_qty: number | null;
   unit_cost: number | null;
   note: string | null;
-  product: { name: string; sku: string | null; current_stock: number; unit_cogs: number } | null;
+  product: {
+    name: string;
+    sku: string | null;
+    image_url: string | null;
+    current_stock: number;
+    unit_cogs: number;
+  } | null;
   variant: { label: string; sku: string | null } | null;
 }
 
@@ -79,6 +85,14 @@ export interface ProjectedLine {
   variant_id: string | null;
   product_name: string;
   product_sku: string | null;
+  /** Pour la vignette. Pas une information de coût : un agent y a droit. */
+  product_image_url: string | null;
+  /**
+   * Le stock actuel du produit. Pas un prix : c'est le chiffre qui dit si ce
+   * carton comble un manque ou empile du dormant, et l'agent le voit déjà sur
+   * l'onglet Niveaux. Il reste donc dans la projection de tous les rôles.
+   */
+  product_stock: number | null;
   variant_label: string | null;
   expected_qty: number | null;
   received_qty: number | null;
@@ -115,13 +129,29 @@ export interface ProjectedReception {
   is_late: boolean;
   days_late: number | null;
   lines: ProjectedLine[];
-  totals: { units: number; damaged: number; value: number | null; lines: number };
+  totals: {
+    units: number;
+    damaged: number;
+    value: number | null;
+    lines: number;
+    /** `null` quand rien n'est annoncé — « non annoncé », pas « zéro attendu ». */
+    expected: number | null;
+    /** Lignes portant un nombre reçu, zéro compris. */
+    countedLines: number;
+  };
   /** `null` pour qui n'a pas le droit de voir l'argent. */
   payments: { id: string; paid_at: string; amount: number; method: string | null; note: string | null }[];
   paid_total: number | null;
   outstanding: number | null;
   payment_state: PaymentState | null;
-  can: { submit: boolean; post: boolean; reverse: boolean; pay: boolean };
+  can: {
+    submit: boolean;
+    post: boolean;
+    reverse: boolean;
+    pay: boolean;
+    /** Rendre une déclaration à son agent. Rien n'a bougé : c'est un retour en brouillon. */
+    sendBack: boolean;
+  };
 }
 
 export function projectReception(
@@ -139,6 +169,8 @@ export function projectReception(
       variant_id: line.variant_id,
       product_name: line.product?.name ?? "—",
       product_sku: line.product?.sku ?? null,
+      product_image_url: line.product?.image_url ?? null,
+      product_stock: line.product?.current_stock ?? null,
       variant_label: line.variant?.label ?? null,
       expected_qty: line.expected_qty,
       received_qty: line.received_qty,
@@ -169,6 +201,7 @@ export function projectReception(
 
   const totals = receptionTotals(
     raw.reception_lines.map((l) => ({
+      expected_qty: l.expected_qty,
       received_qty: l.received_qty,
       damaged_qty: l.damaged_qty,
       // Sans droit sur les coûts, la valeur ne peut pas être calculée : elle
@@ -208,6 +241,8 @@ export function projectReception(
       damaged: totals.damaged,
       value: totals.value,
       lines: totals.lines,
+      expected: totals.expected,
+      countedLines: totals.countedLines,
     },
     payments: withCosts ? raw.reception_payments : [],
     paid_total: paid,
@@ -219,6 +254,13 @@ export function projectReception(
       post: canPostReception(role) && isDraftish,
       reverse: canReverseReception(role) && raw.status === "posted",
       pay: canSeeReceptionCosts(role) && raw.status !== "reversed",
+      /*
+       * Renvoyer est le geste de celui qui VALIDE, pas de celui qui déclare :
+       * sans lui, un manager qui voit une erreur n'a que deux issues, valider
+       * ce qui est faux ou ne rien faire. Et sur un brouillon il n'y a personne
+       * à qui le rendre.
+       */
+      sendBack: canPostReception(role) && raw.status === "submitted",
     },
   };
 }

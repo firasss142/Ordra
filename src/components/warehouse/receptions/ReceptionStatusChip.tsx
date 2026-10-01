@@ -20,8 +20,14 @@ const TONE: Record<string, WhTone> = {
   reversed: "bad",
 };
 
+/*
+ * UN SEUL MOT POUR UN SEUL ÉTAT. `draft` se dit « Attendue », comme le filtre
+ * qui le retourne. Il s'est appelé « Brouillon » un temps, à quinze centimètres
+ * d'un segment nommé « Attendues » qui ne montrait que lui : deux noms pour le
+ * même fait dans le même écran, et personne ne peut deviner qu'ils sont égaux.
+ */
 const LABEL: Record<string, string> = {
-  draft: "statusDraft",
+  draft: "statusExpected",
   submitted: "statusSubmitted",
   posted: "statusPosted",
   cancelled: "statusCancelled",
@@ -48,15 +54,18 @@ export function ReceptionStatusChip({ status }: { status: string }) {
  *
  * `null` veut dire « ce lecteur n'a pas le droit de voir l'argent » — la
  * pastille disparaît alors complètement plutôt que d'afficher un état vide.
+ *
+ * UN POURCENTAGE, PAS UN MONTANT. « acompte 40 % » tient dans une colonne de
+ * liste ; « reste 11 232,000 LYD » n'y tient pas et se ferait tronquer. Le
+ * montant exact est dans la feuille, où il y a la place de le dire au millième.
  */
 export function PaymentChip({
   state,
-  outstanding,
-  currency,
+  percent,
 }: {
   state: string | null;
-  outstanding: number | null;
-  currency: string;
+  /** La part versée, pour « acompte 40 % ». `null` → la pastille reste générique. */
+  percent?: number | null;
 }) {
   const t = useTranslations("warehouse.receptions");
   if (!state) return null;
@@ -74,7 +83,9 @@ export function PaymentChip({
     state === "paid"
       ? t("payPaid")
       : state === "partial"
-        ? t("payPartial")
+        ? percent !== null && percent !== undefined
+          ? t("payPartialPercent", { percent })
+          : t("payPartial")
         : state === "unpaid"
           ? t("payUnpaid")
           : t("payNotApplicable");
@@ -84,12 +95,6 @@ export function PaymentChip({
       className={`inline-flex items-center gap-1 rounded-[6px] px-2 py-0.5 text-[11.5px] font-semibold ${tone.pill}`}
     >
       {label}
-      {state === "partial" && outstanding !== null ? (
-        <span className="font-mono tabular-nums">
-          {" · "}
-          {outstanding.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} {currency}
-        </span>
-      ) : null}
     </span>
   );
 }

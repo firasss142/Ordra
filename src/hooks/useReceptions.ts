@@ -25,10 +25,19 @@ export interface ReceptionCounts {
   draft: number;
   submitted: number;
   posted: number;
+  /** Déduit de somme(paiements) contre la valeur reçue, pas un statut en base. */
+  unpaid: number;
   late: number;
 }
 
-const NO_COUNTS: ReceptionCounts = { all: 0, draft: 0, submitted: 0, posted: 0, late: 0 };
+const NO_COUNTS: ReceptionCounts = {
+  all: 0,
+  draft: 0,
+  submitted: 0,
+  posted: 0,
+  unpaid: 0,
+  late: 0,
+};
 
 export interface ReceptionsPayload {
   receptions: ProjectedReception[];

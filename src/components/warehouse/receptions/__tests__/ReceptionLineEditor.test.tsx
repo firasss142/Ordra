@@ -30,6 +30,8 @@ function line(over: Partial<ProjectedLine> = {}): ProjectedLine {
     variant_id: null,
     product_name: "القرآن تدبر وعمل",
     product_sku: "qr-01",
+    product_image_url: null,
+    product_stock: 943,
     variant_label: null,
     expected_qty: 150,
     received_qty: null,

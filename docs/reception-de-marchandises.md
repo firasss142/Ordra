@@ -157,13 +157,44 @@ où elle ne tourne pas.
 
 | Où | Quoi |
 |---|---|
-| Entrepôt › Stock › **Réceptions** | La liste. Liseré de 3 px : rouge en retard, ambre attend un manager — porté seulement par ce qui bloque quelqu'un |
-| La feuille (plein écran) | Lignes, écarts, barre « saisie 4/5 lignes comptées », totaux, paiements |
+| Entrepôt › Stock › **Réceptions** | La liste. Cinq filtres (`Toutes · Attendues · À valider · Validées · Impayées`), liseré de 3 px : rouge en retard, ambre attend un manager — porté seulement par ce qui bloque quelqu'un |
+| La feuille (plein écran) | Vignettes, lignes, écarts, barre « saisie 4/5 lignes comptées », totaux, paiements |
+| Le comptage téléphone | Une ligne à la fois : progression, champ de 52 px, raccourcis « l'attendu » / « zéro », abîmé séparé. S'ouvre tout seul sous 768 px |
 | Le dialogue de validation | L'arithmétique des coûts, case décochée, l'avertissement sur le P&L |
+| Le dialogue de contre-passation | super_admin seul, sur une réception validée |
 | Entrepôt › Stock › Journal | Pastilles **Réceptions** et **Inventaires** |
+| Entrepôt › Stock › Niveaux | « en route » par produit |
 
 `ReceptionSheet` est plein écran et non la modale de 480 px du système : un document à
 plusieurs lignes n'y tient pas, et un seul composant sert ainsi le bureau et le téléphone.
+
+### Les quatre actions, et qui les porte
+
+| Action | Qui | Depuis | Vers |
+|---|---|---|---|
+| Déclarer | agent, manager, super_admin | `draft` | `submitted` |
+| **Renvoyer à l'agent** | manager, super_admin | `submitted` | `draft` |
+| Valider | manager, super_admin | `draft` \| `submitted` | `posted` |
+| **Contre-passer** | super_admin | `posted` | `reversed` |
+
+**« Renvoyer à l'agent » est la troisième issue.** Sans elle, un manager qui voit une
+erreur dans une déclaration n'a que deux choix : valider ce qui est faux, ou laisser la
+réception bloquée dans sa file pour toujours. Rien n'a bougé en stock à ce stade — seule
+la validation écrit le registre — donc il n'y a rien à annuler et aucune contre-passation
+à écrire : la réception redevient un brouillon, et la trace de déclaration part avec le
+statut, parce que « déclarée par Adel » sur un brouillon que personne n'a déclaré serait
+un mensonge. C'est le geste de celui qui VALIDE : si l'agent pouvait rouvrir sa propre
+déclaration, il corrigerait et redéclarerait sans qu'aucun manager ne voie passer la
+version intermédiaire.
+
+### Le mot derrière le chiffre
+
+La liste n'affiche jamais un nombre nu, parce que `totals.units` somme le REÇU : sur une
+réception annoncée et pas encore comptée il vaut 0, et un 0 affiché se lit « rien n'est
+arrivé » — le contraire de ce qu'on veut dire. `headlineQuantity` choisit donc le chiffre
+ET son mot : `300 attendues` (promesse), `312 comptées` (déclaration), `1 000 unités`
+(fait en stock), `80 annulées` (écriture retirée). Rien d'annoncé et rien de compté donne
+`—`, pas `0`.
 
 ## Le bug corrigé au passage
 

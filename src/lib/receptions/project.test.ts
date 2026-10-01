@@ -41,7 +41,7 @@ const RAW: RawReception = {
       damaged_qty: 0,
       unit_cost: 40,
       note: null,
-      product: { name: "القرآن تدبر وعمل", sku: "qr-01", current_stock: 943, unit_cogs: 40 },
+      product: { name: "القرآن تدبر وعمل", sku: "qr-01", image_url: null, current_stock: 943, unit_cogs: 40 },
       variant: null,
     },
     {
@@ -53,7 +53,7 @@ const RAW: RawReception = {
       damaged_qty: 2,
       unit_cost: 85,
       note: null,
-      product: { name: "مصحف التهجد", sku: "th-01", current_stock: 218, unit_cogs: 85 },
+      product: { name: "مصحف التهجد", sku: "th-01", image_url: null, current_stock: 218, unit_cogs: 85 },
       variant: null,
     },
   ],

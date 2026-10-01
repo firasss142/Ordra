@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import type { ProjectedLine } from "@/lib/receptions/project";
 
 /**
@@ -84,13 +85,22 @@ export function ReceptionLineEditor({
 
   return (
     <>
-      <span className="min-w-0">
-        <span className="block truncate text-[13.5px] font-semibold" dir="auto">
-          {line.product_name}
-        </span>
-        <span className="mt-0.5 block font-mono text-[11.5px] text-wh-ink-3">
-          {line.variant_label ? `${line.variant_label} · ` : ""}
-          {line.product_sku ?? ""}
+      {/*
+       * La vignette. Sur un quai on reconnaît un produit par son image avant son
+       * nom, et une liste de titres arabes en police de 13 px ne se distingue
+       * pas d'un coup d'oeil. `ProductAvatar` retombe sur l'initiale quand il n'y
+       * a pas de photo, donc la colonne ne saute jamais.
+       */}
+      <span className="flex min-w-0 items-center gap-2.5">
+        <ProductAvatar imageUrl={line.product_image_url ?? null} productName={line.product_name} size={36} />
+        <span className="min-w-0">
+          <span className="block truncate text-[13.5px] font-semibold" dir="auto">
+            {line.product_name}
+          </span>
+          <span className="mt-0.5 block font-mono text-[11.5px] text-wh-ink-3">
+            {line.variant_label ? `${line.variant_label} · ` : ""}
+            {line.product_sku ?? ""}
+          </span>
         </span>
       </span>
 
@@ -142,8 +152,19 @@ export function ReceptionLineEditor({
           </>
         )}
 
-        {line.received_qty === null && !readOnly ? (
-          <span className="mt-1 block text-[11px] italic text-wh-ink-3">{t("notCounted")}</span>
+        {/*
+         * CE QUI SE DIT SOUS LE CHAMP, ET DANS QUEL ORDRE.
+         *
+         * Un écart suppose DEUX nombres. Quand le produit n'était pas sur le bon
+         * de livraison il n'y a pas d'attendu dont faire la différence : ce n'est
+         * donc pas un écart, c'est un autre fait — « hors bon » — et il a ses
+         * propres mots. L'écran ne disait rien du tout dans ce cas, ce qui
+         * laissait une ligne hors bon se confondre avec une ligne conforme.
+         */}
+        {line.received_qty === null ? (
+          !readOnly ? (
+            <span className="mt-1 block text-[11px] italic text-wh-ink-3">{t("notCounted")}</span>
+          ) : null
         ) : variance !== null ? (
           <span
             className={`mt-1 block font-mono text-[11.5px] font-bold ${
@@ -151,6 +172,10 @@ export function ReceptionLineEditor({
             }`}
           >
             {variance === 0 ? t("conform") : `${variance > 0 ? "+" : "−"}${Math.abs(variance)}`}
+          </span>
+        ) : line.expected_qty === null && line.received_qty > 0 ? (
+          <span className="mt-1 block font-mono text-[11.5px] font-bold text-wh-move">
+            {t("offDocket", { delta: `+${line.received_qty}` })}
           </span>
         ) : null}
       </span>

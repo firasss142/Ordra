@@ -16,7 +16,7 @@ const RECEPTION_SELECT = `
   posted_by_user:users!receptions_posted_by_fkey ( full_name ),
   reception_lines (
     id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, note,
-    product:products ( name, sku, current_stock, unit_cogs ),
+    product:products ( name, sku, image_url, current_stock, unit_cogs ),
     variant:product_variants ( label, sku )
   ),
   reception_payments ( id, paid_at, amount, method, note )

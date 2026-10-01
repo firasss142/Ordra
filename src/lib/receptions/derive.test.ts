@@ -5,6 +5,8 @@ import {
   receptionTotals,
   isLate,
   weightedAverageCost,
+  headlineQuantity,
+  paidPercent,
 } from "./derive";
 
 /**
@@ -159,5 +161,133 @@ describe("weightedAverageCost", () => {
 
   it("rend null pour une quantité nulle — rien n'est arrivé", () => {
     expect(weightedAverageCost({ stockBefore: 10, cogsBefore: 10, qty: 0, unitCost: 20 })).toBeNull();
+  });
+});
+
+/**
+ * LE CHIFFRE DE TÊTE D'UNE LIGNE DE LISTE.
+ *
+ * La maquette §3 ne montre jamais un nombre nu : « 300 attendues », « 312
+ * comptées », « 1 000 unités », « 80 annulées ». Le mot n'est pas décoratif —
+ * c'est lui qui dit si le nombre est une promesse ou un fait, et `totals.units`
+ * seul ne peut pas le dire puisqu'il somme le REÇU : une réception annoncée mais
+ * pas encore comptée y vaut 0, ce qui se lirait « rien n'est arrivé ».
+ */
+describe("headlineQuantity", () => {
+  const t = (over: Partial<ReturnType<typeof receptionTotals>> = {}) => ({
+    units: 0,
+    damaged: 0,
+    value: null,
+    valuedLines: 0,
+    lines: 0,
+    expected: null,
+    countedLines: 0,
+    ...over,
+  });
+
+  it("annonce l'attendu d'une réception que personne n'a encore comptée", () => {
+    const h = headlineQuantity({ status: "draft", totals: t({ expected: 300, lines: 3 }) });
+    expect(h).toEqual({ value: 300, kind: "expected" });
+  });
+
+  it("bascule sur le compté dès qu'une ligne porte un nombre", () => {
+    const h = headlineQuantity({
+      status: "draft",
+      totals: t({ units: 150, expected: 300, lines: 3, countedLines: 1 }),
+    });
+    expect(h).toEqual({ value: 150, kind: "counted" });
+  });
+
+  it("dit « comptées » sur une déclaration en attente de manager", () => {
+    const h = headlineQuantity({
+      status: "submitted",
+      totals: t({ units: 312, expected: 310, lines: 5, countedLines: 5 }),
+    });
+    expect(h).toEqual({ value: 312, kind: "counted" });
+  });
+
+  it("dit « unités » une fois validée — ce n'est plus une promesse", () => {
+    const h = headlineQuantity({
+      status: "posted",
+      totals: t({ units: 602, expected: 600, lines: 14, countedLines: 14 }),
+    });
+    expect(h).toEqual({ value: 602, kind: "units" });
+  });
+
+  it("dit « annulées » sur une contre-passation", () => {
+    const h = headlineQuantity({
+      status: "reversed",
+      totals: t({ units: 80, expected: 80, lines: 1, countedLines: 1 }),
+    });
+    expect(h).toEqual({ value: 80, kind: "cancelled" });
+  });
+
+  /*
+   * Une livraison surprise ouverte à vide : rien d'annoncé, rien de compté.
+   * Zéro serait un mensonge dans les deux sens — ni « rien n'est attendu », ni
+   * « rien n'est arrivé » n'a été établi. Le tiret dit « on ne sait pas encore ».
+   */
+  it("ne rend aucun nombre quand rien n'est ni annoncé ni compté", () => {
+    const h = headlineQuantity({ status: "draft", totals: t({ lines: 0 }) });
+    expect(h).toEqual({ value: null, kind: "unknown" });
+  });
+});
+
+describe("receptionTotals — l'attendu et les lignes comptées", () => {
+  it("somme l'attendu annoncé", () => {
+    const out = receptionTotals([
+      { expected_qty: 150, received_qty: null, damaged_qty: 0, unit_cost: null },
+      { expected_qty: 100, received_qty: null, damaged_qty: 0, unit_cost: null },
+    ]);
+    expect(out.expected).toBe(250);
+  });
+
+  it("laisse l'attendu à null quand aucune ligne n'annonce rien", () => {
+    // « non annoncé » n'est pas « zéro attendu ».
+    const out = receptionTotals([
+      { expected_qty: null, received_qty: 8, damaged_qty: 0, unit_cost: null },
+    ]);
+    expect(out.expected).toBeNull();
+  });
+
+  it("ignore les lignes non annoncées dans la somme des attendus", () => {
+    const out = receptionTotals([
+      { expected_qty: 150, received_qty: null, damaged_qty: 0, unit_cost: null },
+      { expected_qty: null, received_qty: 8, damaged_qty: 0, unit_cost: null },
+    ]);
+    expect(out.expected).toBe(150);
+  });
+
+  /* Zéro compté EST une réponse — « le carton était vide ». Pas une absence. */
+  it("compte une ligne à zéro comme comptée", () => {
+    const out = receptionTotals([
+      { expected_qty: 10, received_qty: 0, damaged_qty: 0, unit_cost: null },
+      { expected_qty: 10, received_qty: null, damaged_qty: 0, unit_cost: null },
+    ]);
+    expect(out.countedLines).toBe(1);
+  });
+});
+
+/**
+ * « acompte 40 % » dans la liste. La colonne est étroite ; un pourcentage y tient
+ * là où un montant et sa devise n'y tiennent pas, et le reste à payer exact a sa
+ * place dans la feuille.
+ */
+describe("paidPercent", () => {
+  it("rend le pourcentage versé", () => {
+    expect(paidPercent({ value: 18720, paid: 7488 })).toBe(40);
+  });
+
+  it("arrondit à l'entier — « acompte 40 % », pas « 40,0038 % »", () => {
+    expect(paidPercent({ value: 3, paid: 1 })).toBe(33);
+  });
+
+  it("plafonne à 100 sur un trop-payé", () => {
+    expect(paidPercent({ value: 100, paid: 120 })).toBe(100);
+  });
+
+  it("rend null sans valeur reçue — on ne divise pas par une inconnue", () => {
+    expect(paidPercent({ value: null, paid: 50 })).toBeNull();
+    expect(paidPercent({ value: 0, paid: 0 })).toBeNull();
   });
 });

@@ -53,6 +53,7 @@ export function lineVariance(line: {
 }
 
 export interface ReceptionLineFigures {
+  expected_qty?: number | null;
   received_qty: number | null;
   damaged_qty: number | null;
   unit_cost: number | null;
@@ -66,6 +67,16 @@ export interface ReceptionTotals {
   /** Combien de lignes ont pu être valorisées, pour dire « partiel » sans mentir. */
   valuedLines: number;
   lines: number;
+  /**
+   * La somme des quantités ANNONCÉES, `null` quand aucune ligne n'annonce rien.
+   * « Non annoncé » n'est pas « zéro attendu », donc l'absence ne devient pas 0.
+   */
+  expected: number | null;
+  /**
+   * Combien de lignes portent un nombre reçu — ZÉRO COMPRIS, parce que « le
+   * carton était vide » est une réponse et non une absence de réponse.
+   */
+  countedLines: number;
 }
 
 export function receptionTotals(lines: ReceptionLineFigures[]): ReceptionTotals {
@@ -73,11 +84,20 @@ export function receptionTotals(lines: ReceptionLineFigures[]): ReceptionTotals 
   let damaged = 0;
   let value = 0;
   let valuedLines = 0;
+  let expected = 0;
+  let expectedLines = 0;
+  let countedLines = 0;
 
   for (const line of lines) {
     const received = line.received_qty ?? 0;
     units += received;
     damaged += line.damaged_qty ?? 0;
+    if (line.received_qty !== null && line.received_qty !== undefined) countedLines += 1;
+
+    if (line.expected_qty !== null && line.expected_qty !== undefined) {
+      expected += line.expected_qty;
+      expectedLines += 1;
+    }
 
     // La valeur porte sur ce qui entre en stock. Les abîmées n'entrent pas :
     // elles ne sont pas un actif, elles sont un litige fournisseur.
@@ -93,7 +113,57 @@ export function receptionTotals(lines: ReceptionLineFigures[]): ReceptionTotals 
     value: valuedLines > 0 ? value : null,
     valuedLines,
     lines: lines.length,
+    expected: expectedLines > 0 ? expected : null,
+    countedLines,
   };
+}
+
+/**
+ * Le chiffre de tête d'une ligne de liste, et le MOT qui dit ce qu'il est.
+ *
+ * La maquette §3 n'affiche jamais un nombre nu : « 300 attendues » est une
+ * promesse, « 312 comptées » est une déclaration, « 1 000 unités » est un fait
+ * en stock, « 80 annulées » est une écriture retirée. `totals.units` seul ne
+ * peut pas porter cette distinction, puisqu'il somme le REÇU : une réception
+ * annoncée et pas encore comptée y vaut 0, et un 0 affiché se lit « rien n'est
+ * arrivé » — le contraire de ce qu'on veut dire.
+ */
+export type HeadlineKind = "expected" | "counted" | "units" | "cancelled" | "unknown";
+
+export interface Headline {
+  value: number | null;
+  kind: HeadlineKind;
+}
+
+export function headlineQuantity(reception: {
+  status: ReceptionStatus | string;
+  totals: Pick<ReceptionTotals, "units" | "expected" | "countedLines">;
+}): Headline {
+  const { status, totals } = reception;
+
+  // Une contre-passation porte ce qu'elle a retiré, au signe près : le nombre
+  // est le même, le mot change tout.
+  if (status === "reversed") return { value: totals.units, kind: "cancelled" };
+  if (status === "posted") return { value: totals.units, kind: "units" };
+
+  // Avant la validation, le fait le plus récent gagne : dès qu'un humain a
+  // compté une ligne, c'est son comptage qu'on montre, pas la promesse.
+  if (totals.countedLines > 0) return { value: totals.units, kind: "counted" };
+  if (totals.expected !== null) return { value: totals.expected, kind: "expected" };
+  return { value: null, kind: "unknown" };
+}
+
+/**
+ * La part versée, en pourcentage entier — « acompte 40 % ».
+ *
+ * La colonne « paiement » de la liste est étroite : un pourcentage y tient là où
+ * un montant et sa devise n'y tiennent pas. Le reste à payer exact, lui, a sa
+ * place dans la feuille, où il y a la largeur pour le dire au millième.
+ */
+export function paidPercent(input: { value: number | null; paid: number }): number | null {
+  // Sans valeur reçue, il n'y a pas de dénominateur — et pas de dette établie.
+  if (input.value === null || input.value <= MONEY_EPSILON) return null;
+  return Math.min(Math.round((input.paid / input.value) * 100), 100);
 }
 
 /**

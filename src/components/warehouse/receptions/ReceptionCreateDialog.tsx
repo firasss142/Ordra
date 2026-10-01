@@ -26,6 +26,8 @@ interface Draft {
   product_id: string;
   product_name: string;
   product_sku: string | null;
+  /** Le stock actuel, au moment du choix : « ce réassort est-il nécessaire ? » */
+  product_stock: number;
   expected_qty: string;
   unit_cost: string;
 }
@@ -40,6 +42,7 @@ interface SitesResponse {
 interface ProductRow {
   id: string;
   name: string;
+  sku: string | null;
   current_stock: number;
 }
 
@@ -67,6 +70,7 @@ export function ReceptionCreateDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const first = useRef<HTMLSelectElement>(null);
+  const search = useRef<HTMLInputElement>(null);
 
   // Un agent est épinglé à son bâtiment ; un manager choisit.
   useEffect(() => {
@@ -98,7 +102,8 @@ export function ReceptionCreateDialog({
         key: `${p.id}-${Date.now()}`,
         product_id: p.id,
         product_name: p.name,
-        product_sku: null,
+        product_sku: p.sku ?? null,
+        product_stock: p.current_stock,
         expected_qty: "",
         unit_cost: "",
       },
@@ -223,6 +228,9 @@ export function ReceptionCreateDialog({
                 onChange={(e) => setSupplierRef(e.target.value)}
                 className="mt-1.5 w-full rounded-[6px] border border-wh-border px-2.5 py-2 font-mono text-[13.5px]"
               />
+              <span className="mt-1.5 block text-[11.5px] text-wh-ink-3">
+                {t("hintSupplierRef")}
+              </span>
             </label>
           </div>
 
@@ -238,8 +246,14 @@ export function ReceptionCreateDialog({
                   withCosts ? "grid-cols-[1fr_88px_96px_28px]" : "grid-cols-[1fr_88px_28px]"
                 }`}
               >
-                <span className="truncate text-[13px] font-medium" dir="auto">
-                  {l.product_name}
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-medium" dir="auto">
+                    {l.product_name}
+                  </span>
+                  <span className="mt-0.5 block truncate font-mono text-[11px] text-wh-ink-3">
+                    {l.product_sku ? `${l.product_sku} · ` : ""}
+                    {t("inStock", { count: l.product_stock })}
+                  </span>
                 </span>
                 <input
                   inputMode="numeric"
@@ -268,13 +282,31 @@ export function ReceptionCreateDialog({
               </div>
             ))}
 
-            <div className="px-3.5 py-2.5">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("searchProduct")}
-                className="w-full rounded-[6px] border border-wh-border px-2.5 py-2 text-[13px]"
-              />
+            {/*
+             * LA RANGÉE GRISE PORTE LA RECHERCHE ET LES EN-TÊTES À LA FOIS.
+             * Les deux champs numériques d'une ligne sont indiscernables sans
+             * libellé : « 150 » et « 40,000 » côte à côte ne disent pas lequel
+             * est une quantité. Les nommer ici les nomme pour toutes les lignes.
+             */}
+            <div className="bg-wh-sunken px-3.5 py-2.5">
+              <div
+                className={`grid items-center gap-x-2.5 ${
+                  withCosts ? "grid-cols-[1fr_88px_96px_28px]" : "grid-cols-[1fr_88px_28px]"
+                }`}
+              >
+                <input
+                  ref={search}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("searchProduct")}
+                  className="w-full rounded-[6px] border border-wh-border px-2.5 py-2 text-[13px]"
+                />
+                <span className={`${WH_LABEL} text-end`}>{t("colQuantity")}</span>
+                {withCosts ? (
+                  <span className={`${WH_LABEL} text-end`}>{t("colUnitCost")}</span>
+                ) : null}
+                <span />
+              </div>
               {found?.data && found.data.length > 0 ? (
                 <ul className="mt-2 max-h-48 overflow-y-auto rounded-[6px] border border-wh-border">
                   {found.data
@@ -299,6 +331,20 @@ export function ReceptionCreateDialog({
                 </ul>
               ) : null}
             </div>
+
+            {/*
+             * L'affordance explicite. Un champ de recherche seul n'annonce pas
+             * qu'une réception peut porter plusieurs lignes ; ce bouton le dit, et
+             * amène le curseur là où il faut taper.
+             */}
+            <button
+              type="button"
+              onClick={() => search.current?.focus()}
+              className="flex w-full items-center gap-2.5 border-t border-wh-border bg-wh-surface px-3.5 py-2.5 text-[13px] font-semibold text-wh-ok hover:bg-wh-sunken"
+            >
+              <Plus size={16} strokeWidth={2.2} />
+              {t("addLine")}
+            </button>
           </div>
 
           {error ? (

@@ -273,9 +273,12 @@ entry has not meant deleting its page — check before assuming a route is dead.
   pourquoi DROP+CREATE d'une RPC rouvre l'accès anon: docs/product-variants.md +
   plans/product-variants.md
 - Réception de marchandises — les trois documents du métier, pourquoi la validation crée
-  la ligne de site, pourquoi le coût est capturé mais jamais propagé seul, et la limite
-  assumée du modèle de paiement: docs/reception-de-marchandises.md +
-  plans/reception-de-marchandises.md (prototypes `prototypes/reception-marchandises-v2.html`)
+  la ligne de site, pourquoi le coût est capturé mais jamais propagé seul, les quatre
+  actions (déclarer, renvoyer à l'agent, valider, contre-passer), et la limite assumée du
+  modèle de paiement: docs/reception-de-marchandises.md +
+  plans/reception-de-marchandises.md + plans/reception-parite-maquette.md
+  (prototypes `prototypes/reception-marchandises-v2.html` — la maquette est la référence
+  de l'écran, et le code en est la copie à la lettre depuis le 2 octobre 2026)
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +
