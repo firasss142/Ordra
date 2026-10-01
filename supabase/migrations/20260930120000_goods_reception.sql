@@ -177,7 +177,11 @@ CREATE INDEX IF NOT EXISTS idx_inventory_log_reception
 -- écrits par la RPC elle-même, donc la garde s'évalue sur l'ANCIEN statut.
 
 CREATE OR REPLACE FUNCTION public.reception_immutable_once_posted()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER LANGUAGE plpgsql
+-- `search_path` épinglé : SECURITY INVOKER ou non, une fonction qui résout
+-- `public.receptions` sans chemin fixe est le piège documenté du projet.
+SET search_path = public
+AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     IF OLD.status IN ('posted', 'reversed') THEN
@@ -210,7 +214,9 @@ CREATE TRIGGER trg_reception_immutable
 
 -- Les lignes d'une réception validée sont tout aussi définitives.
 CREATE OR REPLACE FUNCTION public.reception_line_immutable_once_posted()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER LANGUAGE plpgsql
+SET search_path = public
+AS $$
 DECLARE
   v_status TEXT;
 BEGIN
