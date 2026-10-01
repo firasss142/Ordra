@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchCampaignInsights, fetchAccountMeta, MetaApiError } from "../client";
+import {
+  fetchCampaignInsights,
+  fetchAdsetInsights,
+  fetchCatalogue,
+  fetchAccountMeta,
+  MetaApiError,
+} from "../client";
 
 /**
  * The client is the part of this integration that fails in ways nothing else
@@ -230,5 +236,52 @@ describe("fetchAccountMeta", () => {
       currency: "USD",
       timezoneName: "Africa/Tripoli",
     });
+  });
+});
+
+describe("fetchAdsetInsights — the grain the mapping lives at", () => {
+  it("asks for level=adset, one row per day, with the ad set's identity", async () => {
+    const fn = stubFetch(jsonResponse({ data: [] }));
+    await fetchAdsetInsights(CFG, { since: "2026-09-01", until: "2026-09-07" });
+    const url = new URL(String(fn.mock.calls[0][0]));
+    expect(url.searchParams.get("level")).toBe("adset");
+    expect(url.searchParams.get("time_increment")).toBe("1");
+    const fields = url.searchParams.get("fields")?.split(",") ?? [];
+    expect(fields).toEqual(expect.arrayContaining(["adset_id", "adset_name", "campaign_id", "objective", "actions"]));
+  });
+
+  it("follows the cursor like the campaign call", async () => {
+    stubFetch(
+      jsonResponse({ data: [{ ...row("1"), adset_id: "A1" }], paging: { next: "https://graph.facebook.com/v26.0/next?after=x" } }),
+      jsonResponse({ data: [{ ...row("1"), adset_id: "A2" }] }),
+    );
+    const res = await fetchAdsetInsights(CFG, { since: "2026-09-01", until: "2026-09-07" });
+    expect(res.rows.map((r) => r.adset_id)).toEqual(["A1", "A2"]);
+  });
+});
+
+describe("fetchCatalogue — every campaign and ad set, spent or not", () => {
+  it("reads campaigns and ad sets, following both cursors", async () => {
+    const fn = stubFetch(
+      jsonResponse({
+        data: [{ id: "C1", name: "BoxLyLong - relaunch", objective: "OUTCOME_SALES", effective_status: "PAUSED", created_time: "2026-07-06T10:00:00+0100" }],
+        paging: { next: "https://graph.facebook.com/v26.0/act_123456789/campaigns?after=c" },
+      }),
+      jsonResponse({ data: [{ id: "C2", name: "Pets Glove test", objective: "OUTCOME_SALES", effective_status: "PAUSED" }] }),
+      jsonResponse({ data: [{ id: "S1", name: "BoxLyLong relaunch", campaign_id: "C1", effective_status: "CAMPAIGN_PAUSED" }] }),
+    );
+    const cat = await fetchCatalogue(CFG);
+    expect(cat.campaigns.map((c) => c.id)).toEqual(["C1", "C2"]);
+    expect(cat.campaigns[0]).toMatchObject({ objective: "OUTCOME_SALES", effective_status: "PAUSED", created_time: "2026-07-06T10:00:00+0100" });
+    expect(cat.adsets).toEqual([expect.objectContaining({ id: "S1", campaign_id: "C1", effective_status: "CAMPAIGN_PAUSED" })]);
+    const urls = fn.mock.calls.map((c) => String(c[0]));
+    expect(urls[0]).toContain("/act_123456789/campaigns");
+    expect(urls[2]).toContain("/act_123456789/adsets");
+    expect(urls.every((u) => !u.includes("access_token"))).toBe(true);
+  });
+
+  it("throws a classified error rather than returning a half catalogue", async () => {
+    stubFetch(jsonResponse({ error: { message: "Invalid OAuth access token", code: 190 } }, { status: 400 }));
+    await expect(fetchCatalogue(CFG)).rejects.toMatchObject({ isAuthFailure: true });
   });
 });

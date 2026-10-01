@@ -70,6 +70,12 @@ const INSIGHTS_FIELDS = [
   "date_stop",
 ].join(",");
 
+/** Same metrics, one row per AD SET per day — the grain mappings live at. */
+const ADSET_INSIGHTS_FIELDS = ["adset_id", "adset_name", INSIGHTS_FIELDS].join(",");
+
+const CAMPAIGN_FIELDS = "id,name,objective,effective_status,created_time";
+const ADSET_FIELDS = "id,name,campaign_id,effective_status,created_time";
+
 export interface MetaClientConfig {
   /** Ad account id, with or without the `act_` prefix — both are accepted. */
   adAccountId: string;
@@ -96,6 +102,29 @@ export interface FetchInsightsResult {
    * approaches 100.
    */
   accUtilPct: number | null;
+}
+
+/** One campaign of the account's catalogue, spent or not. */
+export interface MetaCampaignNode {
+  id: string;
+  name: string;
+  objective?: string;
+  effective_status?: string;
+  created_time?: string;
+}
+
+/** One ad set of the account's catalogue. */
+export interface MetaAdsetNode {
+  id: string;
+  name: string;
+  campaign_id: string;
+  effective_status?: string;
+  created_time?: string;
+}
+
+export interface MetaCatalogue {
+  campaigns: MetaCampaignNode[];
+  adsets: MetaAdsetNode[];
 }
 
 export interface MetaAccountMeta {
@@ -282,11 +311,35 @@ export async function fetchCampaignInsights(
   cfg: MetaClientConfig,
   params: FetchInsightsParams,
 ): Promise<FetchInsightsResult> {
+  return fetchInsightsAt(cfg, params, "campaign", INSIGHTS_FIELDS);
+}
+
+/**
+ * Fetch daily AD-SET insights for a date range — one row per ad set per day.
+ *
+ * This is the grain the sync stores since 2026-09-30: a campaign may run one ad
+ * set per product, and a mapping can only follow that if it can see it. Same
+ * transport, pagination, throttle reading and error classification as the
+ * campaign call; the rows simply carry adset_id and adset_name as well.
+ */
+export async function fetchAdsetInsights(
+  cfg: MetaClientConfig,
+  params: FetchInsightsParams,
+): Promise<FetchInsightsResult> {
+  return fetchInsightsAt(cfg, params, "adset", ADSET_INSIGHTS_FIELDS);
+}
+
+async function fetchInsightsAt(
+  cfg: MetaClientConfig,
+  params: FetchInsightsParams,
+  level: "campaign" | "adset",
+  fields: string,
+): Promise<FetchInsightsResult> {
   const query = new URLSearchParams({
-    level: "campaign",
+    level,
     time_increment: "1",
     time_range: JSON.stringify({ since: params.since, until: params.until }),
-    fields: INSIGHTS_FIELDS,
+    fields,
     limit: String(PAGE_LIMIT),
   });
   // Note the absence of action_attribution_windows — see the module header.
@@ -330,6 +383,44 @@ export async function fetchCampaignInsights(
   }
 
   return { rows, accUtilPct };
+}
+
+/** GET every page of an edge. Throws on the first failed page — never half a list. */
+async function getAllPages<T>(firstUrl: string, accessToken: string, signal?: AbortSignal): Promise<T[]> {
+  const out: T[] = [];
+  let url: string | null = firstUrl;
+  for (let page = 0; page < MAX_PAGES && url; page++) {
+    const { status, body } = await getJson(url, accessToken, signal);
+    if (status < 200 || status >= 300) throw toApiError(status, body);
+    const payload = asRecord(body);
+    if (Array.isArray(payload.data)) out.push(...(payload.data as T[]));
+    const next = asRecord(payload.paging).next;
+    url = typeof next === "string" && next ? stripToken(next) : null;
+  }
+  if (url) {
+    throw new MetaApiError(`Pagination exceeded ${MAX_PAGES} pages; the list is incomplete.`, {
+      code: null,
+      subcode: null,
+      httpStatus: null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Every campaign and ad set of the account, whether it has spent or not.
+ *
+ * Insights only ever return what spent. The mapping drawer lists the whole
+ * catalogue so a campaign can be mapped the day it is created — before its first
+ * dinar, which then lands attributed instead of as market-level spend waiting
+ * for someone to notice. Two calls against a 60-point budget: nothing.
+ */
+export async function fetchCatalogue(cfg: MetaClientConfig, signal?: AbortSignal): Promise<MetaCatalogue> {
+  const base = `${graphBase(cfg)}/${actId(cfg.adAccountId)}`;
+  const q = (fields: string) => new URLSearchParams({ fields, limit: String(PAGE_LIMIT) });
+  const campaigns = await getAllPages<MetaCampaignNode>(`${base}/campaigns?${q(CAMPAIGN_FIELDS)}`, cfg.accessToken, signal);
+  const adsets = await getAllPages<MetaAdsetNode>(`${base}/adsets?${q(ADSET_FIELDS)}`, cfg.accessToken, signal);
+  return { campaigns, adsets };
 }
 
 /**

@@ -4,7 +4,7 @@ import { useState, useCallback, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ChevronRight, Info, Lock, Pencil, Trash2 } from "lucide-react";
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
-import type { ProductEconomics, EconomicsMeta, SpendEntry } from "@/hooks/useAdSpendEconomics";
+import type { ProductEconomics, EconomicsMeta, SpendEntry, CampaignSpend } from "@/hooks/useAdSpendEconomics";
 
 /**
  * The ad-spend console, rebuilt around one question: can this product afford
@@ -730,33 +730,117 @@ function BreakEvenLever({ p, currency }: { p: ProductEconomics; currency: string
   );
 }
 
+/**
+ * What a product's spend is made of: campaigns → ad sets, then manual entries.
+ *
+ * Synced spend used to be listed one row per DAY (51 rows for one campaign),
+ * each with a "CPL" that divided one day's spend by the window's leads. Leads
+ * cannot be attributed below the product — no order carries a campaign — so a
+ * campaign line carries what it can honestly say: the spend charged here, the
+ * share of the campaign that is (when it is split), and Meta's own purchase
+ * count and cost per purchase, split the same way as the money.
+ */
 function CampaignRows({
+  campaigns,
   entries,
   currency,
-  leads,
   colSpan,
   onEdit,
   onDelete,
+  onOpenCampaign,
 }: {
+  campaigns: CampaignSpend[];
   entries: SpendEntry[];
   currency: string;
-  leads: number | null;
   colSpan: number;
   onEdit?: (entryId: string) => void;
   onDelete?: (entryId: string) => void;
+  onOpenCampaign?: (campaignId: string) => void;
 }) {
   const t = useTranslations("adSpend.economics");
+  const kicker = "text-[10.5px] font-bold uppercase tracking-[0.06em] text-ads-ink-3";
+  const perPurchase = (amount: number, results: number) =>
+    results > 0 ? t("costPerPurchase", { amount: `${fmt(amount / results, 2)} ${currency}` }) : "—";
 
   return (
     <tr>
       <td colSpan={colSpan} className="p-0 ps-[42px] bg-[#FBFCFD] border-b border-ads-line">
-        {entries.length === 0 ? (
+        {campaigns.length === 0 && entries.length === 0 ? (
           <p className="px-3 py-3 text-[12.5px] text-ads-ink-2">{t("noCampaigns")}</p>
         ) : (
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
+              {campaigns.map((c) => [
+                <tr key={c.campaign_id} className="border-t border-ads-line first:border-t-0">
+                  <td className="px-3 py-2.5 text-start text-ads-ink-1">
+                    <span className="flex items-center gap-2 flex-wrap">
+                      <span className={kicker}>{t("campaignLine")}</span>
+                      <span className="font-semibold">{c.campaign_name ?? c.campaign_id}</span>
+                      <span
+                        className={`inline-flex items-center h-5 px-[7px] rounded-full border text-[11.5px] font-semibold whitespace-nowrap ${
+                          c.share !== null ? "border-ads-ink-1 text-ads-ink-1" : "border-ads-line-2 text-ads-ink-2 bg-surface-card"
+                        }`}
+                      >
+                        {c.share === null
+                          ? t("shareWhole")
+                          : t(c.split === "manual" ? "shareManual" : "shareAuto", { pct: `${fmt(c.share * 100)} %` })}
+                      </span>
+                      {onOpenCampaign && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenCampaign(c.campaign_id)}
+                          className="text-[12px] font-semibold text-brand hover:underline"
+                        >
+                          {t("openInMapping")}
+                        </button>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-1 font-semibold whitespace-nowrap">
+                    {fmt(c.amount)} {currency}
+                  </td>
+                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
+                    {c.results > 0 ? t("metaPurchases", { count: `${c.share !== null ? "≈ " : ""}${fmt(c.results)}` }) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
+                    {perPurchase(c.amount, c.results)}
+                  </td>
+                  <td className="px-3 py-2.5 text-end text-ads-ink-3 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5" title={t("syncedReadOnly")}>
+                      <Lock size={12} strokeWidth={1.8} />
+                      {t("synced")}
+                    </span>
+                  </td>
+                </tr>,
+                ...c.adsets.map((a) => (
+                  <tr key={`${c.campaign_id}-${a.adset_id}`}>
+                    <td className="ps-9 pe-3 py-2 text-start text-ads-ink-1">
+                      <span className="flex items-center gap-2">
+                        <span className={kicker}>{t("adsetLine")}</span>
+                        <span>{a.adset_name ?? a.adset_id}</span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">{fmt(a.amount)}</td>
+                    <td className="px-3 py-2 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
+                      {a.results > 0 ? `${c.share !== null ? "≈ " : ""}${fmt(a.results)}` : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
+                      {perPurchase(a.amount, a.results)}
+                    </td>
+                    <td />
+                  </tr>
+                )),
+              ])}
+
+              {entries.length > 0 && (
+                <tr className="border-t border-ads-line">
+                  <td colSpan={5} className={`px-3 pt-2.5 pb-1 ${kicker}`}>
+                    {t("manualLines")}
+                  </td>
+                </tr>
+              )}
               {entries.map((e) => (
-                <tr key={e.id} className="[&+tr>td]:border-t [&+tr>td]:border-ads-line">
+                <tr key={e.id}>
                   <td className="px-3 py-2.5 text-start text-ads-ink-1">
                     <span className="font-medium">{e.label ?? t("manualEntry")}</span>
                     <span className="block text-[11px] text-ads-ink-3">
@@ -766,9 +850,8 @@ function CampaignRows({
                   <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
                     {fmt(e.amount)} {currency}
                   </td>
-                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                    {leads !== null && leads > 0 ? `CPL ${fmt(e.amount / leads, 2)}` : "—"}
-                  </td>
+                  <td />
+                  <td />
                   <td className="px-3 py-2.5 text-end text-ads-ink-2 whitespace-nowrap">
                     {e.editable ? (
                       <span className="inline-flex items-center gap-1.5">
@@ -820,6 +903,7 @@ export function AdSpendProductTable({
   onEditEntry,
   onDeleteEntry,
   onMapCampaigns,
+  onOpenCampaign,
 }: {
   products: ProductEconomics[];
   meta: EconomicsMeta;
@@ -827,6 +911,8 @@ export function AdSpendProductTable({
   onEditEntry?: (entryId: string) => void;
   onDeleteEntry?: (entryId: string) => void;
   onMapCampaigns?: () => void;
+  /** Open the mapping drawer on one campaign. */
+  onOpenCampaign?: (campaignId: string) => void;
 }) {
   const t = useTranslations("adSpend.economics");
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -929,9 +1015,11 @@ export function AdSpendProductTable({
                           {p.product_name}
                         </span>
                         <span className="block text-[11.5px] text-ads-ink-2 mt-0.5">
-                          {p.entries.length > 0
-                            ? t("campaignCount", { count: p.entries.length })
-                            : t("noCampaignsShort")}
+                          {p.campaigns.length > 0
+                            ? t("campaignsCount", { count: p.campaigns.length })
+                            : p.entries.length > 0
+                              ? t("campaignCount", { count: p.entries.length })
+                              : t("noCampaignsShort")}
                         </span>
                       </span>
                     </div>
@@ -980,12 +1068,13 @@ export function AdSpendProductTable({
                 isOpen ? (
                   <CampaignRows
                     key={`${p.product_id}-campaigns`}
+                    campaigns={p.campaigns}
                     entries={p.entries}
                     currency={currency}
-                    leads={p.leads}
                     colSpan={colSpan}
                     onEdit={onEditEntry}
                     onDelete={onDeleteEntry}
+                    onOpenCampaign={onOpenCampaign}
                   />
                 ) : null,
               ];
@@ -1024,7 +1113,9 @@ export function AdSpendProductTable({
                           {t("unmappedRow")}
                         </span>
                         <span className="block text-[11.5px] text-ads-ink-2 mt-0.5">
-                          {t("campaignCount", { count: meta.unmapped.entries.length })}
+                          {meta.unmapped.campaigns.length > 0
+                            ? t("campaignsCount", { count: meta.unmapped.campaigns.length })
+                            : t("campaignCount", { count: meta.unmapped.entries.length })}
                         </span>
                       </span>
                     </div>
@@ -1048,12 +1139,13 @@ export function AdSpendProductTable({
                 </tr>
                 {open.__unmapped && (
                   <CampaignRows
+                    campaigns={meta.unmapped.campaigns}
                     entries={meta.unmapped.entries}
                     currency={currency}
-                    leads={null}
                     colSpan={colSpan}
                     onEdit={onEditEntry}
                     onDelete={onDeleteEntry}
+                    onOpenCampaign={onOpenCampaign}
                   />
                 )}
               </>
@@ -1131,7 +1223,7 @@ export function AdSpendUnmappedBanner({
         <b className="font-bold">
           {t("unmappedBanner", {
             amount: `${fmt(meta.unmapped.spend)} ${currency}`,
-            count: meta.unmapped.entries.length,
+            count: meta.unmapped.campaigns.length + meta.unmapped.entries.length,
           })}
         </b>{" "}
         {t("unmappedBannerHint")}

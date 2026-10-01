@@ -1,6 +1,23 @@
 import useSWR from "swr";
 
-/** One `ad_spend` row shown as a campaign sub-row under its product. */
+/**
+ * Synced spend under a product (or the unmapped row), one line per campaign
+ * with its ad sets. `share` is the fraction of the campaign's window spend this
+ * line carries (null = all of it); `results` are Meta purchases, split the same
+ * way as the money.
+ */
+export interface CampaignSpend {
+  campaign_id: string;
+  ad_account_id: string | null;
+  campaign_name: string | null;
+  amount: number;
+  share: number | null;
+  split: "auto" | "manual" | null;
+  results: number;
+  adsets: { adset_id: string; adset_name: string | null; amount: number; results: number }[];
+}
+
+/** One `ad_spend` row a person entered (manual or CSV), under its product. */
 export interface SpendEntry {
   id: string;
   label: string | null;
@@ -42,7 +59,9 @@ export interface ProductEconomics {
   profit: number;
   roas: number | null;
   daily_leads: number[];
+  /** Manual / CSV rows only — the editable ones. */
   entries: SpendEntry[];
+  campaigns: CampaignSpend[];
 }
 
 export interface EconomicsMeta {
@@ -61,7 +80,7 @@ export interface EconomicsMeta {
   cost_processing: number;
   products_without_spend: number;
   maturity_pct: number;
-  unmapped: { spend: number; entries: SpendEntry[] };
+  unmapped: { spend: number; entries: SpendEntry[]; campaigns: CampaignSpend[] };
   from_date: string;
   to_date: string;
 }

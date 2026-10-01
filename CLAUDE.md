@@ -233,6 +233,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
   docs/delivery-worklist.md + plans/suivi-livraison.md
 - Ad spend + Meta sync (break-even math, cost stack, cohort basis): docs/ad-spend.md +
   plans/ad-spend-meta-sync-redesign.md (NOT ad-spend-campaign-redesign.md — superseded)
+- Ad spend mapping — per ad set, several products per campaign, dated history; meta
+  rows of ad_spend are a projection rewritten whole; two-step rollout (cutover
+  migration AFTER deploy): docs/ad-spend-mapping.md + plans/ad-spend-adset-mapping.md
 - CRM prospects/leads + Équipe (control room, performance, presence): docs/crm-and-team.md
 - Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
   trigger, the columns that do not exist): docs/prospects-worklist.md

@@ -39,11 +39,14 @@ const CONFIRMED_PHASE = [
 ];
 
 /**
- * Campaign identity lives in columns added by 20260906000001, which production
- * has not taken yet. PostgREST answers an unknown column with 42703 rather than
- * ignoring it, so asking for them unconditionally would take the whole page
- * down on an un-migrated database. Ask for them, fall back without them.
+ * Campaign identity (20260906000001) and ad-set identity (20260930225232) live
+ * in columns a database may not have taken yet. PostgREST answers an unknown
+ * column with 42703 rather than ignoring it, so asking for them unconditionally
+ * would take the whole page down on an un-migrated database. Ask for the most,
+ * fall back tier by tier.
  */
+const SPEND_COLUMNS_ADSET =
+  "id, product_id, amount, period_start, period_end, note, campaign_name, source, external_campaign_id, ad_account_id, external_adset_id, adset_name, platform_results, allocation_basis";
 const SPEND_COLUMNS_RICH =
   "id, product_id, amount, period_start, period_end, note, campaign_name, source, external_campaign_id";
 const SPEND_COLUMNS_BASE = "id, product_id, amount, period_start, period_end, note";
@@ -76,9 +79,37 @@ interface SpendRow {
   campaign_name?: string | null;
   source?: string | null;
   external_campaign_id?: string | null;
+  ad_account_id?: string | null;
+  external_adset_id?: string | null;
+  adset_name?: string | null;
+  platform_results?: number | null;
+  allocation_basis?: string | null;
 }
 
-/** One `ad_spend` row, as the campaign sub-row under a product. */
+/**
+ * Synced spend under a product (or the unmapped row), one line per campaign.
+ *
+ * Replaces the per-row list, which showed one line per DAY — 51 of them for a
+ * single campaign — each with a "CPL" dividing a day's spend by the window's
+ * leads. Leads cannot be attributed below the product (no order carries a
+ * campaign), so a line carries spend, its share, and Meta's own purchase count.
+ */
+export interface CampaignSpend {
+  campaign_id: string;
+  ad_account_id: string | null;
+  campaign_name: string | null;
+  /** Charged to this product (or left unattributed) over the window. */
+  amount: number;
+  /** Fraction of the campaign's window spend this line carries; null when all of it. */
+  share: number | null;
+  /** How the campaign is split, when it is. */
+  split: "auto" | "manual" | null;
+  /** Meta-reported purchases, split the same way as the money. */
+  results: number;
+  adsets: { adset_id: string; adset_name: string | null; amount: number; results: number }[];
+}
+
+/** One `ad_spend` row a person entered (manual or CSV), under its product. */
 export interface SpendEntry {
   id: string;
   label: string | null;
@@ -141,11 +172,14 @@ export async function GET(req: NextRequest) {
       .order("id", { ascending: true });
 
   const loadSpend = async (): Promise<SpendRow[]> => {
-    try {
-      return await fetchAllRows<SpendRow>(spendQuery(SPEND_COLUMNS_RICH));
-    } catch {
-      return await fetchAllRows<SpendRow>(spendQuery(SPEND_COLUMNS_BASE));
+    for (const columns of [SPEND_COLUMNS_ADSET, SPEND_COLUMNS_RICH]) {
+      try {
+        return await fetchAllRows<SpendRow>(spendQuery(columns));
+      } catch {
+        // 42703 on a column this database has not taken yet — try the next tier.
+      }
     }
+    return await fetchAllRows<SpendRow>(spendQuery(SPEND_COLUMNS_BASE));
   };
 
   const [orders, products, spend] = await Promise.all([
@@ -235,19 +269,93 @@ export async function GET(req: NextRequest) {
   const entriesByProduct = new Map<string, SpendEntry[]>();
   const unmappedEntries: SpendEntry[] = [];
   let marketLevelSpend = 0;
+  let allSpend = 0;
+
+  // Synced rows are grouped per (product | unmapped) × campaign × ad set. A
+  // campaign's window total is kept apart so each line can say what share of
+  // the campaign it carries.
+  const UNMAPPED = "__unmapped";
+  const campaignTotals = new Map<string, number>();
+  const campaignLines = new Map<string, Map<string, {
+    line: CampaignSpend;
+    modes: Set<string>;
+    adsets: Map<string, CampaignSpend["adsets"][number]>;
+  }>>();
 
   for (const s of spend) {
+    const amount = Number(s.amount) || 0;
+    allSpend += amount;
+    if (s.product_id) spendByProduct.set(s.product_id, (spendByProduct.get(s.product_id) ?? 0) + amount);
+    else marketLevelSpend += amount;
+
+    if (s.source === "meta" && s.external_campaign_id) {
+      const cid = s.external_campaign_id;
+      campaignTotals.set(cid, (campaignTotals.get(cid) ?? 0) + amount);
+      const owner = s.product_id ?? UNMAPPED;
+      let byCampaign = campaignLines.get(owner);
+      if (!byCampaign) campaignLines.set(owner, (byCampaign = new Map()));
+      let acc = byCampaign.get(cid);
+      if (!acc) {
+        acc = {
+          line: {
+            campaign_id: cid,
+            ad_account_id: s.ad_account_id ?? null,
+            campaign_name: s.campaign_name ?? null,
+            amount: 0,
+            share: null,
+            split: null,
+            results: 0,
+            adsets: [],
+          },
+          modes: new Set(),
+          adsets: new Map(),
+        };
+        byCampaign.set(cid, acc);
+      }
+      const results = Number(s.platform_results) || 0;
+      acc.line.amount += amount;
+      acc.line.results += results;
+      if (s.allocation_basis) acc.modes.add(s.allocation_basis);
+      if (s.external_adset_id) {
+        let a = acc.adsets.get(s.external_adset_id);
+        if (!a) {
+          a = { adset_id: s.external_adset_id, adset_name: s.adset_name ?? null, amount: 0, results: 0 };
+          acc.adsets.set(s.external_adset_id, a);
+        }
+        a.amount += amount;
+        a.results += results;
+      }
+      continue;
+    }
+
     const entry = toEntry(s);
     if (s.product_id) {
-      spendByProduct.set(s.product_id, (spendByProduct.get(s.product_id) ?? 0) + entry.amount);
       const list = entriesByProduct.get(s.product_id);
       if (list) list.push(entry);
       else entriesByProduct.set(s.product_id, [entry]);
     } else {
-      marketLevelSpend += entry.amount;
       unmappedEntries.push(entry);
     }
   }
+
+  const round3 = (n: number) => Math.round(n * 1000) / 1000;
+  const campaignsOf = (owner: string): CampaignSpend[] =>
+    [...(campaignLines.get(owner)?.values() ?? [])]
+      .map(({ line, modes, adsets }) => {
+        const total = campaignTotals.get(line.campaign_id) ?? 0;
+        const share = total > 0 ? line.amount / total : 1;
+        return {
+          ...line,
+          amount: round3(line.amount),
+          // Within half a thousandth of the whole is the whole — rounding, not a split.
+          share: share >= 0.9995 ? null : share,
+          split: modes.has("manual") ? ("manual" as const) : [...modes].some((m) => m.startsWith("auto")) ? ("auto" as const) : null,
+          adsets: [...adsets.values()]
+            .map((a) => ({ ...a, amount: round3(a.amount) }))
+            .sort((x, y) => y.amount - x.amount),
+        };
+      })
+      .sort((x, y) => y.amount - x.amount);
 
   /** Days with at least one lead, chronologically — the sparkline's x-axis. */
   const sparkline = (byDay: Map<string, number>): number[] =>
@@ -330,6 +438,7 @@ export async function GET(req: NextRequest) {
         roas: productSpend > 0 ? b.revenue / productSpend : null,
         daily_leads: sparkline(b.byDay),
         entries: entriesByProduct.get(productId) ?? [],
+        campaigns: campaignsOf(productId),
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
@@ -350,7 +459,10 @@ export async function GET(req: NextRequest) {
   const costPacking = sum((r) => r.cost_packing);
   const costProcessing = sum((r) => r.cost_processing);
 
-  const totalSpend = sum((r) => r.spend) + marketLevelSpend;
+  // Every row, not the sum of the product rows: a product that took no lead in
+  // the window has no row, yet a split may have charged it — that money was
+  // still spent, and leaving it out would overstate profit.
+  const totalSpend = allSpend;
   // Summed from the named buckets rather than backed out of the rounded
   // per-lead floor, so the cost stack adds up to revenue exactly instead of
   // accumulating five separate rounding errors.
@@ -381,6 +493,7 @@ export async function GET(req: NextRequest) {
       unmapped: {
         spend: marketLevelSpend,
         entries: unmappedEntries,
+        campaigns: campaignsOf(UNMAPPED),
       },
       from_date: fromDate,
       to_date: toDate,
