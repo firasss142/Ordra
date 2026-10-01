@@ -42,6 +42,21 @@ describe("parseSearch", () => {
     expect(term.value).toBe("925782017");
   });
 
+  test("a phone typed with spaces is one number, not three words", () => {
+    // Split into "091" / "345" / "67", the last chunk was too short to read as
+    // digits, so it searched the text columns only and nothing ever matched.
+    // People type numbers the way they say them, and paste them from WhatsApp.
+    expect(parseSearch("091 345 67")).toEqual([
+      expect.objectContaining({ field: null, phone: "9134567" }),
+    ]);
+    expect(parseSearch("+218 91-345-6721")).toEqual([
+      expect.objectContaining({ phone: "913456721" }),
+    ]);
+    expect(parseSearch("tel:091 345 6721")).toEqual([
+      expect.objectContaining({ field: "phone", phone: "913456721" }),
+    ]);
+  });
+
   test("ANDs the words, so two half-remembered facts narrow instead of widen", () => {
     const terms = parseSearch("salima 925");
     expect(terms).toHaveLength(2);
@@ -95,6 +110,79 @@ describe("parseSearch", () => {
   });
 });
 
+describe("Arabic spelling variants", () => {
+  // Measured on the Libyan orders, 2026-10-01: 278 names carry a hamza alef,
+  // 349 a ta marbuta, 231 an alef maqsura, and 22 customers exist under both
+  // spellings. `ilike '%احمد%'` found 237 orders; the variant-tolerant pattern
+  // found 298. For فاطمة it was 18 against 34.
+  test("an Arabic term becomes a pattern where each letter group matches any member", () => {
+    expect(parseSearch("احمد")[0].regex).toBe("[اأإآ]حمد");
+    // Every alef, not only the first: مأمون and مامون are both written.
+    expect(parseSearch("فاطمة")[0].regex).toBe("ف[اأإآ]طم[هة]");
+    expect(parseSearch("مؤمن")[0].regex).toBe("م[وؤ]من");
+    expect(parseSearch("يحيى")[0].regex).toBe("[يىئ]ح[يىئ][يىئ]");
+  });
+
+  test("the spelling the agent happened to type does not change what is found", () => {
+    expect(parseSearch("أحمد")[0].regex).toBe(parseSearch("احمد")[0].regex);
+    expect(parseSearch("إحمد")[0].regex).toBe(parseSearch("آحمد")[0].regex);
+    expect(parseSearch("فاطمه")[0].regex).toBe(parseSearch("فاطمة")[0].regex);
+  });
+
+  test("typed tashkeel is dropped rather than demanded of the stored name", () => {
+    expect(parseSearch("أَحْمَد")[0].regex).toBe("[اأإآ]حمد");
+  });
+
+  test("regex syntax typed into the box is text, never an operator", () => {
+    expect(parseSearch("احمد+?|^$[]{}")[0].regex).toBe("[اأإآ]حمد");
+  });
+
+  test("a number, or a word with no letter to fold, keeps its plain substring match", () => {
+    expect(parseSearch("0925782017")[0].regex).toBeNull();
+    expect(parseSearch("drb-77")[0].regex).toBeNull();
+  });
+});
+
+describe("accents", () => {
+  // Measured 2026-10-01: 22 Tunisian names and 535 Tunisian addresses carry an
+  // accent. `ilike '%hela%'` missed « Hèla Ben Salah » while the agent's own
+  // (accent-blind) local search found her — the two halves of one dropdown
+  // disagreed. Same mechanism as the Arabic letters, same trigram indexes:
+  // 4.9 ms for `h[eéèêë]l[aàâäá]` over the whole Tunisian market.
+  test("a vowel or c matches its accented forms", () => {
+    expect(parseSearch("hela")[0].regex).toBe("h[eéèêë]l[aàâäá]");
+    expect(parseSearch("cite")[0].regex).toBe("[cç][iîïí]t[eéèêë]");
+  });
+
+  test("the accent or the case the agent typed does not change what is found", () => {
+    expect(parseSearch("HÈLA")[0].regex).toBe(parseSearch("hela")[0].regex);
+    expect(parseSearch("Héla")[0].regex).toBe(parseSearch("hèla")[0].regex);
+  });
+
+  test("the PostgREST filter matches the pattern case-insensitively, quoted", () => {
+    const filter = termToOrFilter(parseSearch("احمد")[0]);
+    expect(filter).toContain('customer_name.imatch."[اأإآ]حمد"');
+    expect(filter).toContain('customer_address.imatch."[اأإآ]حمد"');
+    expect(filter).not.toContain("ilike");
+  });
+
+  test("a field-restricted Arabic term uses the pattern on that field only", () => {
+    expect(termToOrFilter(parseSearch("ville:بنغازي")[0])).toBe(
+      'customer_city.imatch."بنغ[اأإآ]ز[يىئ]"',
+    );
+  });
+
+  test("the facet-count legs carry the same pattern and say so", () => {
+    const legs = searchToLegs("احمد")!;
+    expect(legs[0].every((l) => l.op === "imatch" && l.v === "[اأإآ]حمد")).toBe(true);
+  });
+
+  test("a term with nothing to fold carries no operator, so the SQL keeps its ILIKE", () => {
+    const legs = searchToLegs("drb-77")!;
+    expect(legs[0].every((l) => l.op === undefined)).toBe(true);
+  });
+});
+
 describe("termToOrFilter", () => {
   test("a bare number searches the phone columns as well as the text ones", () => {
     const filter = termToOrFilter(parseSearch("925782017")[0]);
@@ -105,7 +193,7 @@ describe("termToOrFilter", () => {
 
   test("a field-restricted term touches only that field", () => {
     const filter = termToOrFilter(parseSearch("ville:sfax")[0]);
-    expect(filter).toBe("customer_city.ilike.%sfax%");
+    expect(filter).toBe('customer_city.imatch."sf[aàâäá]x"');
   });
 
   test("searches every column a dispatcher can see on the row", () => {
@@ -118,7 +206,7 @@ describe("termToOrFilter", () => {
       "external_id",
       "tracking_number",
     ]) {
-      expect(filter).toContain(`${col}.ilike.%doll%`);
+      expect(filter).toContain(`${col}.imatch."d[oôöó]ll"`);
     }
   });
 });
@@ -161,7 +249,7 @@ describe("searchToLegs", () => {
       // the rows the same search returns in the table.
       const [term] = parseSearch("salima");
       const cols = searchToLegs("salima")![0].map((l) => l.c);
-      for (const c of cols) expect(termToOrFilter(term)).toContain(`${c}.ilike.`);
+      for (const c of cols) expect(termToOrFilter(term)).toContain(`${c}.imatch.`);
       expect(new Set(cols).size).toBe(cols.length);
     });
 

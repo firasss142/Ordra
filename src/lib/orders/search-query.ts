@@ -49,6 +49,13 @@ export interface SearchTerm {
    * a number. Null for anything that is not mostly digits.
    */
   phone: string | null;
+  /**
+   * A case-insensitive regex in which every letter written more than one way
+   * matches its whole group — ا/أ/إ/آ, ه/ة, ي/ى/ئ, و/ؤ, and a vowel or c with
+   * its accents (see FOLD_GROUPS). Null for numbers and for words with nothing
+   * to fold, which keep their plain `ilike` substring match.
+   */
+  regex: string | null;
 }
 
 /**
@@ -151,6 +158,59 @@ function sanitize(value: string): string {
 }
 
 /**
+ * Letters that the same customer writes more than one way. Measured on the
+ * live orders (2026-10-01):
+ *
+ * - Libya: 278 names carry a hamza alef, 349 a ta marbuta, 231 an alef
+ *   maqsura, and 22 customers exist under both spellings — `ilike '%احمد%'`
+ *   found 237 orders where the customer had 298.
+ * - Tunisia: 22 names and 535 addresses carry an accent — `ilike '%hela%'`
+ *   missed « Hèla Ben Salah ».
+ *
+ * The groups are what the agent queue's client-side `normalize` folds (NFKD
+ * drops accents and the hamza off أ إ آ ؤ ئ; ة and ى are mapped by hand), so a
+ * name the queue finds locally is a name the server finds too.
+ */
+const FOLD_GROUPS = [
+  "اأإآ", "هة", "يىئ", "وؤ",
+  "aàâäá", "eéèêë", "iîïí", "oôöó", "uùûüú", "cç",
+] as const;
+
+/**
+ * Combining marks a person might type — Latin accents typed decomposed, Arabic
+ * tashkeel. Built from escapes so the source shows which code points they are.
+ */
+const TYPED_MARKS = new RegExp("[\\u0300-\\u036F\\u064B-\\u065F\\u0670]", "g");
+/**
+ * Regex syntax that `sanitize` leaves alone. None of it belongs in a name, and
+ * every character of it would otherwise reach Postgres as an operator.
+ */
+const REGEX_SYNTAX = /[[\]{}+?^$|]/g;
+
+/**
+ * The pattern a term is matched with when it has a letter written more than
+ * one way: each such letter becomes its group. Null when nothing folds, so
+ * the term keeps its plain `ilike`. Uses the same trigram indexes — 2.7 ms for
+ * `[اأإآ]حمد` over Libya, 4.9 ms for `h[eéèêë]l[aàâäá]` over Tunisia.
+ */
+function foldPattern(value: string): string | null {
+  const text = value
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(TYPED_MARKS, "")
+    .replace(REGEX_SYNTAX, "")
+    .trim();
+  let out = "";
+  let folded = false;
+  for (const ch of text) {
+    const group = FOLD_GROUPS.find((g) => g.includes(ch));
+    out += group ? `[${group}]` : ch;
+    folded ||= !!group;
+  }
+  return folded ? out : null;
+}
+
+/**
  * Split on whitespace, keeping "quoted phrases" whole so a two-word city or
  * product name can be searched as one thing.
  */
@@ -162,9 +222,32 @@ function tokenize(raw: string): string[] {
   return out.filter(Boolean);
 }
 
+/**
+ * A number typed with spaces is one number — "091 345 67", or
+ * "+218 91-345-6721" pasted from WhatsApp. Split into words it became three
+ * fragments ANDed together, the last too short to read as digits, so it
+ * searched the text columns only and matched nothing.
+ */
+function wholeNumber(raw: string): SearchTerm | null {
+  let text = raw.trim();
+  let field: SearchField | null = null;
+  const colon = text.indexOf(":");
+  if (colon > 0) {
+    field = FIELD_PREFIXES[text.slice(0, colon).toLowerCase()] ?? null;
+    if (!field) return null;
+    text = text.slice(colon + 1).trim();
+  }
+  if (!/\s/.test(text) || !looksNumeric(text)) return null;
+  const phone = toNationalDigits(text);
+  return phone ? { field, value: phone, phone, regex: null } : null;
+}
+
 /** Parse the box into the terms to apply. Empty when nothing is searchable. */
 export function parseSearch(raw: string): SearchTerm[] {
   if (!raw || !raw.trim()) return [];
+
+  const number = wholeNumber(raw);
+  if (number) return [number];
 
   const terms: SearchTerm[] = [];
 
@@ -193,7 +276,8 @@ export function parseSearch(raw: string): SearchTerm[] {
     // operator asked for, not the accident a bare "s" would be.
     if (value.length < MIN_TERM_LENGTH && !field) continue;
 
-    terms.push({ field, value, phone: phone || null });
+    const regex = numeric ? null : foldPattern(value);
+    terms.push({ field, value, phone: phone || null, regex });
   }
 
   return terms;
@@ -207,26 +291,35 @@ export function parseSearch(raw: string): SearchTerm[] {
  * incidentally a substring of an address.
  */
 export function termToOrFilter(term: SearchTerm): string {
+  // An Arabic term matches its variant-tolerant pattern. The value is quoted:
+  // PostgREST reads `,` `.` `:` and parentheses as syntax inside or=(…), and
+  // `sanitize` has already removed the quote and backslash that could end it.
+  const text = (col: string, value: string) =>
+    term.regex ? `${col}.imatch."${term.regex}"` : `${col}.ilike.%${value}%`;
   const legs: string[] = [];
 
   if (term.field) {
     for (const col of FIELD_COLUMNS[term.field]) {
-      legs.push(`${col}.ilike.%${term.phone && term.field === "phone" ? term.phone : term.value}%`);
+      legs.push(text(col, term.phone && term.field === "phone" ? term.phone : term.value));
     }
     return legs.join(",");
   }
 
-  for (const col of FREE_COLUMNS) legs.push(`${col}.ilike.%${term.value}%`);
+  for (const col of FREE_COLUMNS) legs.push(text(col, term.value));
   if (term.phone) {
     for (const col of FIELD_COLUMNS.phone) legs.push(`${col}.ilike.%${term.phone}%`);
   }
   return legs.join(",");
 }
 
-/** One ILIKE leg: match column `c` against `%v%`. */
+/**
+ * One leg: match column `c` against `%v%` with ILIKE, or — when `op` is
+ * `imatch` — against the case-insensitive regex `v`.
+ */
 export interface SearchLeg {
   c: string;
   v: string;
+  op?: "imatch";
 }
 
 /**
@@ -239,11 +332,13 @@ export interface SearchLeg {
  * search returns in the table.
  */
 export function termToLegs(term: SearchTerm): SearchLeg[] {
+  const text = (c: string, value: string): SearchLeg =>
+    term.regex ? { c, v: term.regex, op: "imatch" } : { c, v: value };
   if (term.field) {
     const value = term.phone && term.field === "phone" ? term.phone : term.value;
-    return FIELD_COLUMNS[term.field].map((c) => ({ c, v: value }));
+    return FIELD_COLUMNS[term.field].map((c) => text(c, value));
   }
-  const legs: SearchLeg[] = FREE_COLUMNS.map((c) => ({ c, v: term.value }));
+  const legs: SearchLeg[] = FREE_COLUMNS.map((c) => text(c, term.value));
   if (term.phone) {
     for (const c of FIELD_COLUMNS.phone) legs.push({ c, v: term.phone });
   }

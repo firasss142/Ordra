@@ -270,6 +270,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +
   plans/duplicate-review-and-order-merge.md
+- Recherche agent sur tout le marché — ses commandes en droits complets, celles des
+  collègues / non attribuées / supprimées en aperçu lecture seule (jamais le panneau :
+  sa présence bloquerait le manager), RLS non élargie, variantes arabes + accents pliées
+  dans la recherche partagée (migration à appliquer AVANT le déploiement):
+  docs/agent-market-search.md + plans/agent-market-search.md
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:

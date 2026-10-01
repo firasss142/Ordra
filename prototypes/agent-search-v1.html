@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="ar" dir="ltr">
+<head>
+<meta charset="utf-8">
+<title>Ordra — Recherche agent sur tout le marché (v1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v1 — la barre de recherche de l'AGENT, étendue à tout le marché. Construit 2026-10-01.
+  Plan : plans/agent-market-search.md (Phase 0 — rien sous src/ ni supabase/ avant validation).
+  Ce qui est montré :
+   · ?screen=phone    Un téléphone tapé « 091 345 67 » : la même cliente sous TROIS formats stockés
+                      (0913…, +218913…, 913…) — sa commande à moi, celle d'une collègue, et le doublon supprimé.
+   · ?screen=name     Un nom : « احمد » trouve aussi « أحمد » (alef hamza) et « الأحمدي » ; « فاطمه » ↔ « فاطمة ».
+   · ?screen=loading  Deux temps : mes commandes tout de suite (caches), le marché ~250 ms après (serveur).
+   · ?screen=empty    Aucun résultat dans tout le marché.
+   · ?screen=preview  L'APERÇU lecture seule d'une commande qui n'est pas à moi.
+   · ?others=view|hidden   Décision D1 : les commandes des AUTRES agents visibles en lecture seule
+                      (recommandé) ou cachées (seules les non attribuées restent).
+   · ?view=desktop|mobile  Le champ du bandeau (bureau) ou la feuille plein écran (téléphone).
+  TAPEZ dans le champ : le filtrage applique les règles du plan (chiffres nationaux du téléphone,
+  ا/أ/إ/آ · ه/ة · ي/ى confondus, classement, surlignage). ↑ ↓ Entrée Échap marchent.
+  Données : produits et prix RÉELS (Libye 30 j ; Tunisie : le seul produit réel). Noms, téléphones,
+  références et agents INVENTÉS. Aucune donnée client réelle.
+  Studio LTR en français ; seule la scène est en miroir pour l'arabe.
+  URL : ?lang=ar|fr &view=desktop|mobile &screen=phone|name|loading|empty|preview &others=view|hidden
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#FAFAF9; --surface:#FFFFFF; --soft:#F9FAFB; --sunk:#F3F4F6; --hover:#F4F3EF; --active:#EFEDE8;
+  --line:#E5E7EB; --line-2:#D1D5DB; --outline:#DCD9D3; --outline-v:#EAE8E4;
+  --ink:#1B1917; --ink-2:#5C5852; --ink-3:#6B7280; --ink-4:#9CA3AF;
+  --brand:#15803D; --brand-deep:#14532D; --brand-tint:#F0FDF4; --brand-line:#BBF7D0;
+  --agent-primary:#006C49;
+  --mark:#FEF08A;
+  --black:#111111; --studio:#E9EBEF;
+  --f-lat:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"Cairo","Noto Sans Arabic",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:var(--f-lat);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.app,.phone{font-family:var(--f-lat)}
+.app[dir=rtl],.phone[dir=rtl]{font-family:var(--f-ar)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;background:#fff;font:700 11px/1 var(--f-lat);color:var(--ink-3)}
+mark{background:var(--mark);color:inherit;border-radius:3px}
+[hidden]{display:none!important}
+
+/* ── Studio chrome (always LTR, French — it is for the owner, not the product) ── */
+.studio{padding:18px 20px 40px;direction:ltr;font-family:var(--f-lat)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;max-width:1520px;margin:0 auto 12px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:var(--ink-3);font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-3)}
+.seg button[aria-pressed=true]{background:var(--black);color:#fff}
+.note{max-width:1520px;margin:0 auto 14px;font-size:12.5px;color:var(--ink-3);line-height:1.6}
+.note b{color:#374151}
+.stage{max-width:1520px;margin:0 auto}
+.hscroll{overflow-x:auto}
+
+/* ── Agent shell (Topbar variant="agent": brand · inline tabs · centred search · status/avatar) ── */
+.app{min-width:1240px;height:900px;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative;text-align:start}
+.top{height:64px;flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:0 20px;background:#fff;border-bottom:1px solid var(--outline-v);position:relative;z-index:30}
+.brand{font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--brand-deep);font-family:var(--f-lat)}
+.brand i{font-style:normal;color:var(--brand)}
+.tabs{display:flex;align-items:center;gap:2px;height:48px;padding:4px;border-radius:14px;background:var(--sunk);margin-inline-start:8px}
+.tabs a{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:10px;font-size:13.5px;font-weight:600;color:#374151;text-decoration:none;white-space:nowrap}
+.tabs a svg{width:16px;height:16px;opacity:.7}
+.tabs a[aria-current=page]{color:var(--brand);background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+.tabs .badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#DCFCE7;color:var(--brand);font-size:12px;font-weight:700}
+.sslot{flex:1;min-width:0;display:flex;justify-content:center;padding:0 24px}
+.swrap{position:relative;width:100%;max-width:560px}
+.sfield{display:flex;align-items:center;gap:8px;height:44px;padding-inline:12px 8px;border-radius:999px;background:#fff;border:1px solid var(--outline-v)}
+.sfield.on{border-color:var(--agent-primary);box-shadow:0 0 0 3px rgba(0,108,73,.15)}
+.sfield svg{width:16px;height:16px;color:var(--ink-2)}
+.sfield input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:14px;unicode-bidi:plaintext;text-align:start}
+.sfield input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.sfield .clr{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;color:var(--ink-3)}
+.sfield .clr:hover{background:var(--hover)}
+.trail{display:flex;align-items:center;gap:12px}
+.avail{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;background:var(--brand-tint);border:1px solid var(--brand-line);font-size:13px;font-weight:600;color:var(--brand-deep);white-space:nowrap}
+.avail i{width:7px;height:7px;border-radius:50%;background:#22C55E}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-weight:700;font-size:14px;color:#374151}
+
+/* ── Queue backdrop (static — the page under the dropdown, unchanged) ── */
+.qpage{flex:1;min-height:0;padding:14px 24px;opacity:.55;filter:saturate(.7)}
+.qpage h2{margin:4px 0 12px;font-size:22px;font-weight:700}
+.qrow{display:flex;align-items:center;gap:14px;height:62px;padding:0 16px;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.qrow .n{font-weight:700;width:220px}
+.qrow .p{color:var(--ink-3);flex:1}
+.qrow .a{font-weight:700}
+
+/* ── The dropdown ── */
+.dd{position:absolute;top:calc(100% + 6px);inset-inline-start:50%;transform:translateX(-50%);width:680px;max-width:92vw;background:#fff;border:1px solid var(--outline-v);border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,.10);overflow:hidden;z-index:40}
+.app[dir=rtl] .dd{transform:translateX(50%)}
+.ddh{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--outline-v);background:var(--soft)}
+.intent{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:#374151;white-space:nowrap}
+.intent svg{width:14px;height:14px;color:var(--agent-primary)}
+.scope{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+.cnt{margin-inline-start:auto;font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.ddb{max-height:560px;overflow-y:auto;padding-bottom:4px}
+.gh{display:flex;align-items:center;gap:8px;padding:12px 16px 4px}
+.gh svg{width:14px;height:14px;color:var(--ink-3)}
+.gh .l{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.app[dir=rtl] .gh .l,.phone[dir=rtl] .gh .l{letter-spacing:0;font-size:12px}
+.gh .ro{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:999px;background:var(--sunk);font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.gh .ro svg{width:12px;height:12px;color:var(--ink-2)}
+.gh .t{margin-inline-start:auto;font-size:12px;font-weight:600;color:var(--ink-3)}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:8px 16px;text-align:start}
+.row:hover{background:var(--hover)}
+.row[aria-selected=true]{background:var(--active)}
+.rm{flex:1;min-width:0}
+.rt{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:650;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt .ref{font-size:12px;font-weight:500;color:var(--ink-3)}
+.rs{display:block;margin-top:2px;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rtags{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.amt{flex:0 0 auto;min-width:74px;text-align:end;font-size:13.5px;font-weight:700}
+.go{flex:0 0 auto;display:grid;place-items:center;width:28px;height:28px;border-radius:8px;color:var(--ink-4)}
+.go svg{width:16px;height:16px}
+.row.view .go{color:var(--ink-2)}
+.app[dir=rtl] .go.chev svg,.phone[dir=rtl] .go.chev svg{transform:scaleX(-1)}
+.ddf{display:flex;align-items:center;gap:14px;padding:9px 16px;border-top:1px solid var(--outline-v);font-size:12px;color:var(--ink-3)}
+.ddf .k{display:inline-flex;align-items:center;gap:5px}
+.ddf .pf{margin-inline-start:auto;direction:ltr;unicode-bidi:isolate}
+.ddf code{font:600 11.5px ui-monospace,Menlo,monospace;color:#374151;background:var(--sunk);padding:1px 5px;border-radius:4px}
+.empty{padding:28px 20px;text-align:center}
+.empty b{display:block;font-size:14.5px;margin-bottom:4px}
+.empty span{font-size:13px;color:var(--ink-3)}
+.skel{display:flex;align-items:center;gap:12px;height:58px;padding:0 16px}
+.skel i{display:block;height:10px;border-radius:5px;background:linear-gradient(90deg,#F1F0EC,#E7E4DE,#F1F0EC);background-size:200% 100%;animation:sh 1.1s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.srch{display:flex;align-items:center;gap:8px;padding:6px 16px 10px;font-size:12.5px;color:var(--ink-3)}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--agent-primary);animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── Tags: status (functional colour) + owner (neutral) ── */
+.st{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.st[data-t=amber]{background:#FFF8E6;color:#8A5A00}
+.st[data-t=blue]{background:#EEF4FF;color:#1D4ED8}
+.st[data-t=violet]{background:#F3EEFF;color:#6D28D9}
+.st[data-t=green]{background:#ECFDF3;color:#067647}
+.st[data-t=red]{background:#FEF3F2;color:#B42318}
+.st[data-t=grey]{background:var(--sunk);color:var(--ink-3)}
+.own{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:6px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:600;color:#374151;white-space:nowrap}
+.own svg{width:12px;height:12px}
+.own.none{border-color:#FCD9A8;background:#FFF7ED;color:#9A3412}
+
+/* ── Read-only preview (slide-over; NOT the order panel) ── */
+.scrim{position:absolute;inset:64px 0 0 0;background:rgba(17,17,17,.18);z-index:45}
+.pv{position:absolute;top:64px;bottom:0;inset-inline-end:0;width:460px;background:#fff;border-inline-start:1px solid var(--outline-v);box-shadow:-8px 0 30px rgba(0,0,0,.08);z-index:50;display:flex;flex-direction:column}
+.pvh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--outline-v)}
+.pvh .ttl{font-size:15px;font-weight:700}
+.pvh .ro{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:var(--sunk);font-size:12px;font-weight:600;color:#374151}
+.pvh .ro svg{width:13px;height:13px}
+.pvh .x{margin-inline-start:auto;display:grid;place-items:center;width:32px;height:32px;border-radius:8px;color:var(--ink-2)}
+.pvh .x:hover{background:var(--hover)}
+.pvb{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px}
+.pvid{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.pvid .ref{font-size:18px;font-weight:800}
+.pvid .when{font-size:12.5px;color:var(--ink-3);width:100%}
+.lock{display:flex;gap:10px;padding:10px 12px;border-radius:10px;background:#F8FAFC;border:1px solid #E2E8F0;font-size:13px;color:#334155;line-height:1.5;margin-bottom:14px}
+.lock svg{width:16px;height:16px;margin-top:2px;color:#475569}
+.sec{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.sec h3{margin:0;padding:9px 12px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);background:var(--soft);border-bottom:1px solid var(--line)}
+.app[dir=rtl] .sec h3,.phone[dir=rtl] .sec h3{letter-spacing:0;font-size:12.5px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;padding:10px 12px;font-size:13.5px}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.line{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13.5px;border-bottom:1px solid var(--line)}
+.line:last-child{border-bottom:0}
+.line .q{color:var(--ink-3);font-weight:600}
+.line .nm{flex:1;min-width:0}
+.line .pr{font-weight:700}
+.tot{display:flex;justify-content:space-between;padding:10px 12px;font-weight:800;background:var(--soft);border-top:1px solid var(--line)}
+.tl{list-style:none;margin:0;padding:10px 12px}
+.tl li{position:relative;padding-inline-start:18px;padding-bottom:12px;font-size:13px}
+.tl li:last-child{padding-bottom:0}
+.tl li::before{content:"";position:absolute;inset-inline-start:3px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.tl li::after{content:"";position:absolute;inset-inline-start:6px;top:15px;bottom:-2px;width:1px;background:var(--line)}
+.tl li:last-child::after{display:none}
+.tl .h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tl .d{font-size:12px;color:var(--ink-3)}
+.tl .by{font-size:12px;color:var(--ink-2)}
+.tl .nt{margin-top:4px;padding:6px 9px;border-radius:8px;background:var(--soft);color:#374151;font-size:12.5px;unicode-bidi:plaintext}
+.pvf{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--outline-v)}
+.btn-o{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--line-2);border-radius:10px;background:#fff;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.btn-o:hover{background:var(--soft)}
+.btn-o svg{width:16px;height:16px}
+.btn-g{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 14px;border-radius:10px;font-size:14px;font-weight:600;color:var(--ink-2);margin-inline-start:auto}
+.btn-g:hover{background:var(--hover)}
+
+.toast{position:absolute;bottom:22px;inset-inline-start:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:13.5px;font-weight:600;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2);white-space:nowrap}
+.app[dir=rtl] .toast,.phone[dir=rtl] .toast{transform:translateX(50%)}
+
+/* ── Phone (full-screen search sheet, as QueueSearchBar's sheetOpen) ── */
+.pwrap{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.phone{width:390px;height:800px;background:#fff;border:10px solid #111;border-radius:44px;overflow:hidden;position:relative;display:flex;flex-direction:column;text-align:start}
+.phone .sb{height:34px;flex:0 0 auto}
+.phone .sh{display:flex;align-items:center;gap:8px;padding:6px 12px 10px;border-bottom:1px solid var(--outline-v)}
+.phone .back{display:grid;place-items:center;width:44px;height:44px;border-radius:12px}
+.phone[dir=rtl] .back svg{transform:scaleX(-1)}
+.phone .sfield{flex:1}
+.phone .ddh{flex-wrap:wrap;row-gap:4px}
+.phone .ddb{max-height:none;flex:1;min-height:0}
+.phone .row{min-height:64px;align-items:flex-start;flex-wrap:wrap;gap:4px 10px}
+.phone .rm{flex:1 1 100%;order:1}
+.phone .rtags{order:2;flex:1 1 auto}
+.phone .amt{order:3;margin-inline-start:auto;min-width:0}
+.phone .go{display:none}
+.phone .ddf{display:none}
+.phone .pv{top:34px;width:100%;border:0;box-shadow:none}
+.phone .scrim{display:none}
+.phone .kv{grid-template-columns:96px 1fr}
+.phone .pvf{padding-bottom:22px}
+.cap{font-size:12px;color:var(--ink-3);text-align:center;margin-top:8px;direction:ltr}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="bar">
+    <h1>Ordra — Recherche agent · tout le marché <span>· prototype v1 — lecture seule hors de ma file</span></h1>
+    <div class="seg" id="segLang"><button data-v="ar">العربية</button><button data-v="fr">Français</button></div>
+    <div class="seg" id="segView"><button data-v="desktop">Bureau</button><button data-v="mobile">Mobile</button></div>
+    <div class="seg" id="segScreen"><button data-v="phone">Téléphone</button><button data-v="name">Nom</button><button data-v="loading">Chargement</button><button data-v="empty">Aucun résultat</button><button data-v="preview">Aperçu lecture seule</button></div>
+    <div class="seg" id="segOthers" title="Décision D1"><button data-v="view">Autres agents : lecture seule</button><button data-v="hidden">Autres agents : cachés</button></div>
+  </div>
+  <p class="note" id="note"></p>
+  <div class="stage" id="stage"></div>
+</div>
+
+<script>
+/* ───────────── Icons ───────────── */
+const I={
+  search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  phone:'<svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
+  hash:'<svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>',
+  text:'<svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg>',
+  pin:'<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  eye:'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  lock:'<svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  inbox:'<svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>',
+  bag:'<svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>',
+  globe:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>',
+  chev:'<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>',
+  back:'<svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+  copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  truck:'<svg viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  users:'<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
+  coin:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 10h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3H15"/></svg>',
+};
+
+/* ───────────── Copy (fr / ar) ───────────── */
+const T={
+fr:{dir:"ltr",market:"Tunisie",cur:"DT",me:"Sami",meIni:"S",avail:"Disponible",
+  tabs:["Commandes","Livraison","Prospects","Commissions"],qTitle:"Ma file d'attente",
+  ph:"Rechercher nom, téléphone, réf., suivi…",
+  intentPhone:"Téléphone · tous formats",intentRef:"Référence / suivi",intentText:"Nom, ville, produit, adresse",intentField:{city:"Ville",product:"Produit",name:"Nom",ref:"Référence",tracking:"Suivi",phone:"Téléphone"},
+  scope:m=>`Tout le marché · ${m}`,count:(s,t)=>t===0?"0 résultat":(s<t?`${s} sur ${t}`:`${t} résultat${t>1?"s":""}`),
+  gMine:"Mes commandes",gOthers:"Autres commandes du marché",gUnassigned:"Commandes non attribuées",ro:"Lecture seule",
+  owner:n=>`Chez ${n}`,none:"Non attribuée",
+  searching:"Recherche dans tout le marché…",
+  emptyT:q=>`Aucune commande ne correspond à « ${q} » dans tout le marché.`,emptyS:"Essayez le numéro de téléphone ou la référence de la commande.",
+  kNav:"naviguer",kOpen:"ouvrir",kEsc:"fermer",narrow:"Préciser :",
+  pvTitle:"Aperçu de la commande",lockMsg:"Lecture seule — cette commande n'est pas dans votre file. Pour la traiter, demandez à votre manager de vous l'attribuer.",
+  sClient:"Client",kName:"Nom",kPhone:"Téléphone",kPhone2:"Téléphone 2",kCity:"Ville",kAddr:"Adresse",sItems:"Articles",total:"Total",sShip:"Livraison",kCarrier:"Transporteur",kTrack:"N° de suivi",sHist:"Historique",by:n=>`par ${n}`,system:"Système",
+  copy:"Copier la référence",close:"Fermer",copied:r=>`Référence ${r} copiée`,mineToast:"Ouvre le panneau de commande habituel — inchangé",created:d=>`Créée le ${d}`,
+  st:{pending:"En attente",attempt_1:"Tentative 1",attempt_2:"Tentative 2",callback_scheduled:"Rappel prévu",confirmed:"Confirmé",uploaded:"Téléchargé",scanned:"Scanné",at_carrier:"Remis au transporteur",in_transit:"En transit",out_for_delivery:"En cours de livraison",delivered:"Livré",returned:"Retourné",rejected:"Rejeté",deleted:"Supprimé",dispatched:"Expédié"},
+},
+ar:{dir:"rtl",market:"ليبيا",cur:"د.ل",me:"خالد",meIni:"خ",avail:"متاح",
+  tabs:["الطلبات","التوصيل","العملاء المحتملون","العمولات"],qTitle:"قائمة الانتظار",
+  ph:"ابحث بالاسم أو الهاتف أو رقم الطلب أو التتبع…",
+  intentPhone:"هاتف · كل الصيغ",intentRef:"رقم الطلب / التتبع",intentText:"الاسم، المدينة، المنتج، العنوان",intentField:{city:"المدينة",product:"المنتج",name:"الاسم",ref:"رقم الطلب",tracking:"التتبع",phone:"الهاتف"},
+  scope:m=>`كل السوق · ${m}`,count:(s,t)=>t===0?"لا نتائج":(s<t?`${s} من ${t}`:`${t} نتيجة`),
+  gMine:"طلباتي",gOthers:"طلبات أخرى في السوق",gUnassigned:"طلبات غير مسندة",ro:"قراءة فقط",
+  owner:n=>`عند ${n}`,none:"غير مسندة",
+  searching:"جارٍ البحث في كل السوق…",
+  emptyT:q=>`لا يوجد طلب يطابق « ${q} » في كل السوق.`,emptyS:"جرّب رقم الهاتف أو رقم الطلب.",
+  kNav:"للتنقل",kOpen:"للفتح",kEsc:"للإغلاق",narrow:"حدّد:",
+  pvTitle:"معاينة الطلب",lockMsg:"قراءة فقط — هذا الطلب ليس في قائمتك. لمعالجته، اطلب من المدير إسناده إليك.",
+  sClient:"العميل",kName:"الاسم",kPhone:"الهاتف",kPhone2:"هاتف 2",kCity:"المدينة",kAddr:"العنوان",sItems:"المنتجات",total:"المجموع",sShip:"التوصيل",kCarrier:"شركة التوصيل",kTrack:"رقم التتبع",sHist:"السجل",by:n=>`بواسطة ${n}`,system:"النظام",
+  copy:"نسخ رقم الطلب",close:"إغلاق",copied:r=>`تم نسخ رقم الطلب ${r}`,mineToast:"يفتح لوحة الطلب المعتادة — بدون تغيير",created:d=>`أُنشئ في ${d}`,
+  st:{pending:"قيد الانتظار",attempt_1:"محاولة 1",attempt_2:"محاولة 2",callback_scheduled:"مكالمة مجدولة",confirmed:"مؤكد",uploaded:"تم الرفع",scanned:"تم المسح",at_carrier:"تم التسليم للشركة",in_transit:"في الطريق",out_for_delivery:"خرجت للتوصيل",delivered:"تم التسليم",returned:"مرتجع",rejected:"مرفوض",deleted:"محذوف",dispatched:"تم الشحن"},
+}};
+const TONE={pending:"amber",attempt_1:"amber",attempt_2:"amber",callback_scheduled:"amber",confirmed:"blue",uploaded:"blue",scanned:"violet",at_carrier:"violet",dispatched:"violet",in_transit:"violet",out_for_delivery:"violet",delivered:"green",returned:"red",rejected:"red",deleted:"grey"};
+const CLOSED=new Set(["delivered","returned","rejected","deleted"]);
+
+/* ───────────── Data — products/prices REAL, people INVENTED ───────────── */
+// owner: "me" | "none" | agent first name. ts: sort key (higher = newer).
+const D={
+ar:[
+ {id:"L1",ref:"50231",name:"أحمد الورفلي",phones:["0913456721"],city:"طرابلس",addr:"حي الأندلس، قرب جامع القدس",items:[["مصحف الحفظ الميسر برواية قالون",1,253]],status:"attempt_1",owner:"me",ts:99,date:"01/10 10:42",
+  hist:[["pending","01/10 10:42",null],["attempt_1","01/10 11:05","خالد","لم يرد، أعيد الاتصال بعد الظهر"]]},
+ {id:"L2",ref:"49874",name:"أحمد الورفلي",phones:["+218913456721"],city:"طرابلس",addr:"حي الأندلس، قرب جامع القدس",items:[["كتاب الداء والدواء للإمام ابن القيم",1,202]],status:"out_for_delivery",owner:"سالم",ts:90,date:"22/09 09:18",carrier:"درب السبيل",track:"DRB-7741203",
+  hist:[["pending","22/09 09:18",null],["confirmed","22/09 10:02","سالم","العميل يفضّل التوصيل بعد العصر"],["uploaded","22/09 10:03","سالم"],["scanned","23/09 08:40","مخزن طرابلس"],["at_carrier","23/09 15:10",null],["out_for_delivery","25/09 09:30",null]]},
+ {id:"L3",ref:"49860",name:"احمد الورفلي",phones:["913456721"],city:"طرابلس",addr:"الأندلس",items:[["كتاب الداء والدواء للإمام ابن القيم",1,202]],status:"deleted",owner:"none",ts:89,date:"22/09 09:11",
+  hist:[["pending","22/09 09:11",null],["deleted","22/09 09:40","المدير","نسخة مكررة من #49874"]]},
+ {id:"L4",ref:"50198",name:"أحمد بن عمران",phones:["0924418830"],city:"بنغازي",addr:"الفويهات الغربية، شارع دبي",items:[["القرآن تدبر وعمل حجم كبير",1,255]],status:"callback_scheduled",owner:"me",ts:97,date:"30/09 18:20",
+  hist:[["pending","30/09 18:20",null],["callback_scheduled","30/09 19:02","خالد","اتصل غداً بعد الساعة 5"]]},
+ {id:"L5",ref:"50117",name:"احمد الشريف",phones:["0917720145","0925512300"],city:"مصراتة",addr:"الزروق، قرب المصرف",items:[["كتاب الداء والدواء للإمام ابن القيم",1,202]],status:"confirmed",owner:"me",ts:95,date:"29/09 12:04",
+  hist:[["pending","29/09 12:04",null],["confirmed","29/09 13:30","خالد"]]},
+ {id:"L6",ref:"50240",name:"أحمد الفيتوري",phones:["0945507781"],city:"الزاوية",addr:"وسط المدينة",items:[["مصحف التهجد وقيام الليل ( حجم كبير 50×35 سم )",1,249]],status:"pending",owner:"none",ts:100,date:"01/10 11:58",
+  hist:[["pending","01/10 11:58",null]]},
+ {id:"L7",ref:"49502",name:"محمد أحمد الترهوني",phones:["0912290044"],city:"سبها",addr:"حي الجديد",items:[["مصحف القرآن تدبر وعمل حجم كبير",1,256]],status:"delivered",owner:"مريم",ts:70,date:"12/09 16:44",carrier:"درب السبيل",track:"DRB-7702118",
+  hist:[["pending","12/09 16:44",null],["confirmed","12/09 17:20","مريم"],["uploaded","12/09 17:21","مريم"],["delivered","17/09 13:05",null]]},
+ {id:"L8",ref:"50011",name:"فاطمة الزوي",phones:["0928810034"],city:"بنغازي",addr:"السلماني",items:[["كتاب الداء والدواء للإمام ابن القيم",2,378]],status:"attempt_2",owner:"هدى",ts:93,date:"27/09 20:15",
+  hist:[["pending","27/09 20:15",null],["attempt_1","28/09 10:00","هدى"],["attempt_2","29/09 11:40","هدى","الهاتف مغلق"]]},
+ {id:"L9",ref:"49911",name:"فاطمه المصراتي",phones:["0916603321"],city:"مصراتة",addr:"قصر أحمد",items:[["القرآن تدبر وعمل حجم كبير",1,255]],status:"delivered",owner:"me",ts:80,date:"25/09 08:02",carrier:"درب السبيل",track:"DRB-7753390",
+  hist:[["pending","25/09 08:02",null],["confirmed","25/09 09:15","خالد"],["delivered","28/09 14:20",null]]},
+ {id:"L10",ref:"49655",name:"سالمة الأحمدي",phones:["0914470021"],city:"طرابلس",addr:"سوق الجمعة",items:[["افضل لعبة رياضية ممكن تهديها لاطفالك (حجم متوسط - ...)",1,186]],status:"rejected",owner:"سالم",ts:75,date:"15/09 19:30",
+  hist:[["pending","15/09 19:30",null],["rejected","16/09 10:12","سالم","تراجع الزبون · غيّر رأيه"]]},
+ {id:"L11",ref:"49780",name:"عائشة بن سليمان",phones:["0921180077"],city:"البيضاء",addr:"شحات",items:[["مصحف الحفظ الميسر برواية قالون",1,253]],status:"returned",owner:"مريم",ts:85,date:"19/09 11:11",carrier:"درب السبيل",track:"DRB-7729014",
+  hist:[["pending","19/09 11:11",null],["confirmed","19/09 12:00","مريم"],["returned","26/09 16:45",null]]},
+],
+fr:[
+ {id:"T1",ref:"30418",name:"Hèla Ben Salah",phones:["98123456"],city:"Sfax",addr:"Route de Tunis km 4, Sakiet Ezzit",items:[["Biovera - Routine Anti-Cellulite",1,53]],status:"attempt_1",owner:"me",ts:99,date:"01/10 10:42",
+  hist:[["pending","01/10 10:42",null],["attempt_1","01/10 11:05","Sami","Pas de réponse, rappeler après 14 h"]]},
+ {id:"T2",ref:"30205",name:"Hèla Ben Salah",phones:["+21698123456"],city:"Sfax",addr:"Route de Tunis km 4, Sakiet Ezzit",items:[["Biovera - Routine Anti-Cellulite",2,96]],status:"in_transit",owner:"Walid",ts:90,date:"22/09 09:18",carrier:"Navex",track:"NVX-2291044",
+  hist:[["pending","22/09 09:18",null],["confirmed","22/09 10:02","Walid","Livrer l'après-midi, sonner deux fois"],["uploaded","22/09 10:03","Walid"],["scanned","23/09 08:40","Entrepôt Sfax"],["in_transit","24/09 12:10",null]]},
+ {id:"T3",ref:"30199",name:"Hela Ben Salah",phones:["0021698123456"],city:"Sfax",addr:"Sakiet Ezzit",items:[["Biovera - Routine Anti-Cellulite",1,53]],status:"deleted",owner:"none",ts:89,date:"22/09 09:11",
+  hist:[["pending","22/09 09:11",null],["deleted","22/09 09:40","Manager","Doublon de #30205"]]},
+ {id:"T4",ref:"30390",name:"Héla Mansouri",phones:["22410987"],city:"Sousse",addr:"Khezama Est, rue 12",items:[["Biovera - Routine Anti-Cellulite",1,53]],status:"callback_scheduled",owner:"me",ts:97,date:"30/09 18:20",
+  hist:[["pending","30/09 18:20",null],["callback_scheduled","30/09 19:02","Sami","Rappeler demain après 17 h"]]},
+ {id:"T5",ref:"30421",name:"Hela Trabelsi",phones:["55667788"],city:"Nabeul",addr:"Avenue Habib Thameur",items:[["Biovera - Routine Anti-Cellulite",1,53]],status:"pending",owner:"none",ts:100,date:"01/10 11:58",
+  hist:[["pending","01/10 11:58",null]]},
+ {id:"T6",ref:"29870",name:"Rahela Gharbi",phones:["93001122"],city:"Ariana",addr:"Ennasr 2",items:[["Biovera - Routine Anti-Cellulite",1,53]],status:"delivered",owner:"Amira",ts:70,date:"12/09 16:44",carrier:"Navex",track:"NVX-2250031",
+  hist:[["pending","12/09 16:44",null],["confirmed","12/09 17:20","Amira"],["delivered","16/09 13:05",null]]},
+ {id:"T7",ref:"30333",name:"Nour Hamdi",phones:["29334455"],city:"Tunis",addr:"El Menzah 6",items:[["Biovera - Routine Anti-Cellulite",2,96]],status:"confirmed",owner:"me",ts:95,date:"29/09 12:04",
+  hist:[["pending","29/09 12:04",null],["confirmed","29/09 13:30","Sami"]]},
+ {id:"T8",ref:"30102",name:"Mohamed Ben Hela",phones:["97112233"],city:"Monastir",addr:"Skanes",items:[["Biovera - Routine Anti-Cellulite",1,53]],status:"rejected",owner:"Amira",ts:75,date:"15/09 19:30",
+  hist:[["pending","15/09 19:30",null],["rejected","16/09 10:12","Amira","Refus client · a changé d'avis"]]},
+]};
+const PRESET={ar:{phone:"091 345 67",name:"احمد",loading:"احمد",empty:"زينب القذافي",preview:"091 345 67"},
+              fr:{phone:"98 123 4",name:"hela",loading:"hela",empty:"Zeineb Karoui",preview:"98 123 4"}};
+const PREVIEW_ID={ar:"L2",fr:"T2"};
+
+/* ───────────── The matcher (the plan's D4/D5 rules, in miniature) ───────────── */
+// One character → its folded form. NFKD + strip marks already turns أ إ آ into ا
+// (the hamza is a combining mark); ة→ه and ى→ي are the two NFKD does not do.
+function foldChar(c){return c.normalize("NFKD").replace(/[̀-ًͯ-ٰٟ]/g,"").toLowerCase().replace(/ة/g,"ه").replace(/ى/g,"ي");}
+function foldMap(s){let out="",map=[];for(let i=0;i<s.length;i++){for(const ch of foldChar(s[i])){out+=ch;map.push(i);}}return{out,map};}
+const fold=s=>foldMap(s).out;
+// National digits: country code (216/218) and trunk zeros gone — lib/orders/search-query toNationalDigits.
+function nat(s){let d=(s||"").replace(/\D/g,"");if(/^00(216|218)/.test(d))d=d.slice(5);else if(/^(216|218)/.test(d)&&d.length-3>=7)d=d.slice(3);return d.replace(/^0+/,"")||d;}
+const PFX={tel:"phone","tél":"phone",phone:"phone",ville:"city",city:"city",produit:"product",product:"product",ref:"ref",commande:"ref",suivi:"tracking",tracking:"tracking",nom:"name",name:"name"};
+function parse(raw){
+  const t=(raw||"").trim(); if(t.length<2) return null;
+  let field=null,body=t; const m=t.match(/^([a-zé]+):\s*(.*)$/i);
+  if(m&&PFX[m[1].toLowerCase()]){field=PFX[m[1].toLowerCase()];body=m[2];}
+  const numeric=/^[+#\d][\d\s\-.()]*$/.test(body)&&(body.match(/\d/g)||[]).length>=3;
+  if(numeric) return {kind:field||"phone",digits:nat(body),raw:t,field};
+  const terms=fold(body).split(/\s+/).filter(x=>x.length>=2||field);
+  return terms.length?{kind:field||"text",terms,raw:t,field}:null;
+}
+function fieldsOf(o,f){
+  const all={name:o.name,city:o.city,addr:o.addr,product:o.items.map(i=>i[0]).join(" "),ref:o.ref,tracking:o.track||""};
+  if(!f||f==="text") return Object.values(all);
+  return [all[f==="product"?"product":f]||""];
+}
+function matches(o,P){
+  if(P.digits!==undefined){
+    const phoneHit=(P.field===null||P.field==="phone")&&o.phones.some(p=>nat(p).includes(P.digits));
+    const refHit=(P.field===null||P.field==="ref"||P.field==="tracking")&&(o.ref.includes(P.digits)||(o.track||"").replace(/\D/g,"").includes(P.digits));
+    return phoneHit||refHit;
+  }
+  const hay=fold(fieldsOf(o,P.field).join(" "));
+  return P.terms.every(t=>hay.includes(t));
+}
+// Rank inside a group: exact phone → exact ref/tracking → open → newest; deleted always last.
+function score(o,P){
+  let s=0;
+  if(P.digits!==undefined){ if(o.phones.some(p=>nat(p)===P.digits)) s-=3000; if(o.ref===P.digits) s-=2000; }
+  if(o.status==="deleted") s+=5000; else if(CLOSED.has(o.status)) s+=1000;
+  return s-o.ts;
+}
+function hl(text,P){
+  if(!P||P.digits!==undefined||!text) return esc(text);
+  const {out,map}=foldMap(text); const marks=new Array(text.length).fill(false);
+  for(const t of P.terms){let i=out.indexOf(t);while(i!==-1){for(let k=i;k<i+t.length;k++)marks[map[k]]=true;i=out.indexOf(t,i+t.length);}}
+  let h="",on=false;for(let i=0;i<text.length;i++){if(marks[i]&&!on){h+="<mark>";on=true;}if(!marks[i]&&on){h+="</mark>";on=false;}h+=esc(text[i]);}
+  return h+(on?"</mark>":"");
+}
+function phoneHL(p,P){
+  if(P&&P.digits!==undefined&&nat(p).includes(P.digits)) return `<mark>${esc(p)}</mark>`;
+  return esc(p);
+}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ───────────── State ───────────── */
+const U=new URLSearchParams(location.search);
+const S={lang:U.get("lang")||"ar",view:U.get("view")||"desktop",screen:U.get("screen")||"phone",others:U.get("others")||"view",
+  q:"",loading:false,active:0,pv:null,toast:null};
+let loadTimer=null,toastTimer=null;
+const L=()=>T[S.lang];
+
+function results(){
+  const P=parse(S.q); if(!P) return {P:null,mine:[],others:[],total:0};
+  let hits=D[S.lang].filter(o=>matches(o,P));
+  if(S.others==="hidden") hits=hits.filter(o=>o.owner==="me"||o.owner==="none");
+  const sort=a=>a.sort((x,y)=>score(x,P)-score(y,P));
+  const mine=sort(hits.filter(o=>o.owner==="me")), others=sort(hits.filter(o=>o.owner!=="me"));
+  return {P,mine,others,total:hits.length};
+}
+
+/* ───────────── Rendering ───────────── */
+function statusTag(s){return `<span class="st" data-t="${TONE[s]||"grey"}">${esc(L().st[s]||s)}</span>`;}
+function ownerTag(o){
+  if(o.owner==="me"||o.status==="deleted") return "";
+  if(o.owner==="none") return `<span class="own none">${I.inbox}${esc(L().none)}</span>`;
+  return `<span class="own">${I.user}${esc(L().owner(o.owner))}</span>`;
+}
+function total(o){return o.items.reduce((a,i)=>a+i[2],0);}
+function rowHTML(o,P,ix){
+  const view=o.owner!=="me";
+  const product=o.items.map(i=>i[0]).join(" · ");
+  const phones=o.phones.map(p=>`<span class="num">${phoneHL(p,P)}</span>`).join(" / ");
+  // Every row shows WHY it matched: a hit only in a field the row does not
+  // normally carry (address, tracking) brings that field onto the row.
+  let why="";
+  if(P&&P.terms){
+    const seen=fold([o.name,product,o.city].join(" "));
+    const unseen=P.terms.filter(t=>!seen.includes(t));
+    if(unseen.some(t=>fold(o.addr).includes(t))) why+=` · ${hl(o.addr,P)}`;
+    if(o.track&&unseen.some(t=>fold(o.track).includes(t))) why+=` · <span class="num">${hl(o.track,P)}</span>`;
+  } else if(P&&P.digits!==undefined&&o.track&&o.track.replace(/\D/g,"").includes(P.digits)){
+    why=` · <span class="num"><mark>${esc(o.track)}</mark></span>`;
+  }
+  return `<button class="row${view?" view":""}" role="option" data-id="${o.id}" data-ix="${ix}" aria-selected="${ix===S.active}">
+    <span class="rm"><span class="rt"><span>${hl(o.name,P)}</span><span class="ref num">#${P&&P.digits!==undefined&&o.ref.includes(P.digits)?`<mark>${o.ref}</mark>`:o.ref}</span></span>
+      <span class="rs">${hl(product,P)} · ${hl(o.city,P)} · ${phones}${why}</span></span>
+    <span class="rtags">${statusTag(o.status)}${ownerTag(o)}</span>
+    <span class="amt num">${total(o)} ${L().cur}</span>
+    <span class="go${view?"":" chev"}" title="${view?esc(L().ro):""}">${view?I.eye:I.chev}</span>
+  </button>`;
+}
+function intentChip(P){
+  const t=L();
+  if(P.field) return `<span class="intent">${P.field==="phone"?I.phone:P.field==="city"?I.pin:I.hash}${esc(t.intentField[P.field])}</span>`;
+  if(P.digits!==undefined) return `<span class="intent">${I.phone}${esc(t.intentPhone)}</span><span class="intent">${I.hash}${esc(t.intentRef)}</span>`;
+  return `<span class="intent">${I.text}${esc(t.intentText)}</span>`;
+}
+function listHTML(){
+  const t=L(); const {P,mine,others,total:tot}=results();
+  if(!P) return "";
+  const serverPending=S.loading;
+  const CAP=5; let ix=0;
+  const shownMine=mine.slice(0,CAP), shownOthers=serverPending?[]:others.slice(0,CAP);
+  const shown=shownMine.length+shownOthers.length;
+  const countTxt=serverPending?"":t.count(shown,tot);
+  let h=`<div class="ddh">${intentChip(P)}<span class="scope">${I.globe.replace("<svg",'<svg style="width:13px;height:13px;vertical-align:-2px;margin-inline-end:4px"')}${esc(t.scope(t.market))}</span><span class="cnt">${countTxt}</span></div><div class="ddb" role="listbox">`;
+  if(!serverPending&&tot===0){
+    h+=`<div class="empty"><b>${esc(t.emptyT(S.q.trim()))}</b><span>${esc(t.emptyS)}</span></div>`;
+  }
+  if(shownMine.length){
+    h+=`<div class="gh">${I.bag}<span class="l">${esc(t.gMine)}</span><span class="t num">${mine.length}</span></div>`;
+    for(const o of shownMine) h+=rowHTML(o,P,ix++);
+  }
+  if(serverPending){
+    h+=`<div class="gh">${I.globe}<span class="l">${esc(S.others==="hidden"?t.gUnassigned:t.gOthers)}</span><span class="ro">${I.lock}${esc(t.ro)}</span></div>
+        <div class="srch"><span class="spin"></span>${esc(t.searching)}</div>
+        <div class="skel"><div style="flex:1"><i style="width:42%"></i><i style="width:64%;margin-top:8px;height:8px"></i></div><i style="width:70px"></i></div>
+        <div class="skel"><div style="flex:1"><i style="width:36%"></i><i style="width:58%;margin-top:8px;height:8px"></i></div><i style="width:70px"></i></div>`;
+  } else if(shownOthers.length){
+    h+=`<div class="gh">${I.globe}<span class="l">${esc(S.others==="hidden"?t.gUnassigned:t.gOthers)}</span><span class="ro">${I.lock}${esc(t.ro)}</span><span class="t num">${others.length}</span></div>`;
+    for(const o of shownOthers) h+=rowHTML(o,P,ix++);
+  }
+  h+=`</div><div class="ddf"><span class="k"><kbd>↑</kbd><kbd>↓</kbd> ${esc(t.kNav)}</span><span class="k"><kbd>↵</kbd> ${esc(t.kOpen)}</span><span class="k"><kbd>Esc</kbd> ${esc(t.kEsc)}</span>
+    <span class="pf">${esc(t.narrow)} <code>tel:</code> <code>ville:</code> <code>produit:</code> <code>ref:</code> <code>suivi:</code></span></div>`;
+  return h;
+}
+function previewHTML(o){
+  const t=L(); if(!o) return "";
+  const own=ownerTag(o);
+  const items=o.items.map(i=>`<div class="line"><span class="q num">${i[1]}×</span><span class="nm">${esc(i[0])}</span><span class="pr num">${i[2]} ${t.cur}</span></div>`).join("");
+  const hist=[...o.hist].reverse().map(([s,d,by,note])=>`<li><div class="h">${statusTag(s)}<span class="d num">${d}</span><span class="by">${esc(by?t.by(by):t.system)}</span></div>${note?`<div class="nt">${esc(note)}</div>`:""}</li>`).join("");
+  return `<div class="scrim" data-close></div><aside class="pv" role="dialog" aria-label="${esc(t.pvTitle)}">
+    <div class="pvh"><span class="ttl">${esc(t.pvTitle)}</span><span class="ro">${I.eye}${esc(t.ro)}</span><button class="x" data-close aria-label="${esc(t.close)}">${I.x}</button></div>
+    <div class="pvb">
+      <div class="pvid"><span class="ref num">#${o.ref}</span>${statusTag(o.status)}${own}<span class="when num">${esc(t.created(o.date))}</span></div>
+      <div class="lock">${I.lock}<span>${esc(t.lockMsg)}</span></div>
+      <section class="sec"><h3>${esc(t.sClient)}</h3><dl class="kv">
+        <dt>${esc(t.kName)}</dt><dd>${esc(o.name)}</dd>
+        <dt>${esc(t.kPhone)}</dt><dd><span class="num">${esc(o.phones[0])}</span></dd>
+        ${o.phones[1]?`<dt>${esc(t.kPhone2)}</dt><dd><span class="num">${esc(o.phones[1])}</span></dd>`:""}
+        <dt>${esc(t.kCity)}</dt><dd>${esc(o.city)}</dd>
+        <dt>${esc(t.kAddr)}</dt><dd>${esc(o.addr)}</dd></dl></section>
+      <section class="sec"><h3>${esc(t.sItems)}</h3>${items}<div class="tot"><span>${esc(t.total)}</span><span class="num">${total(o)} ${t.cur}</span></div></section>
+      ${o.carrier?`<section class="sec"><h3>${esc(t.sShip)}</h3><dl class="kv"><dt>${esc(t.kCarrier)}</dt><dd>${esc(o.carrier)}</dd><dt>${esc(t.kTrack)}</dt><dd><span class="num">${esc(o.track)}</span></dd></dl></section>`:""}
+      <section class="sec"><h3>${esc(t.sHist)}</h3><ol class="tl">${hist}</ol></section>
+    </div>
+    <div class="pvf"><button class="btn-o" data-copy="${o.ref}">${I.copy}${esc(t.copy)}</button><button class="btn-g" data-close>${esc(t.close)}</button></div>
+  </aside>`;
+}
+function fieldHTML(){
+  const t=L();
+  return `<label class="sfield on">${I.search}<input id="q" type="search" autocomplete="off" value="${esc(S.q)}" placeholder="${esc(t.ph)}" aria-label="${esc(t.ph)}"><button class="clr" id="clr" aria-label="clear"${S.q?"":" hidden"}>${I.x}</button></label>`;
+}
+function renderStage(){
+  const t=L(); const stage=document.getElementById("stage");
+  const pv=S.pv?D[S.lang].find(o=>o.id===S.pv):null;
+  if(S.view==="desktop"){
+    stage.className="stage hscroll";
+    stage.innerHTML=`<div class="app" dir="${t.dir}" lang="${S.lang}">
+      <header class="top"><span class="brand">Ord<i>ra</i></span>
+        <nav class="tabs"><a aria-current="page">${I.bag}${t.tabs[0]} <span class="badge num">14</span></a><a>${I.truck}${t.tabs[1]}</a><a>${I.users}${t.tabs[2]}</a><a>${I.coin}${t.tabs[3]}</a></nav>
+        <div class="sslot"><div class="swrap">${fieldHTML()}<div class="dd" id="dd"${S.q.trim().length<2||S.pv?" hidden":""}>${listHTML()}</div></div></div>
+        <div class="trail"><span class="avail"><i></i>${t.avail}</span><span class="avatar">${t.meIni}</span></div>
+      </header>
+      <main class="qpage" aria-hidden="true"><h2>${t.qTitle}</h2>
+        ${D[S.lang].filter(o=>o.owner==="me").map(o=>`<div class="qrow"><span class="n">${esc(o.name)}</span><span class="p">${esc(o.items[0][0])} · ${esc(o.city)}</span>${statusTag(o.status)}<span class="a num">${total(o)} ${t.cur}</span></div>`).join("")}
+      </main>
+      <div id="pvslot">${previewHTML(pv)}</div>
+      ${S.toast?`<div class="toast">${esc(S.toast)}</div>`:""}
+    </div>`;
+  } else {
+    stage.className="stage";
+    stage.innerHTML=`<div class="pwrap"><div><div class="phone" dir="${t.dir}" lang="${S.lang}">
+      <div class="sb"></div>
+      <div class="sh"><button class="back" aria-label="back">${I.back}</button>${fieldHTML()}</div>
+      <div id="dd" style="display:flex;flex-direction:column;flex:1;min-height:0">${listHTML()}</div>
+      <div id="pvslot">${previewHTML(pv)}</div>
+      ${S.toast?`<div class="toast">${esc(S.toast)}</div>`:""}
+    </div><p class="cap">Téléphone — la feuille plein écran de QueueSearchBar (sheetOpen), même liste.</p></div></div>`;
+  }
+  wire();
+}
+function renderList(){ // Re-render only the results so the input keeps focus and caret.
+  const dd=document.getElementById("dd"); if(!dd) return;
+  dd.innerHTML=listHTML();
+  if(S.view==="desktop") dd.hidden=S.q.trim().length<2||!!S.pv;
+  document.getElementById("clr").hidden=!S.q;
+  wireRows();
+}
+function wire(){
+  const q=document.getElementById("q");
+  q.addEventListener("input",()=>{S.q=q.value;S.active=0;S.loading=true;renderList();clearTimeout(loadTimer);
+    if(S.screen!=="loading") loadTimer=setTimeout(()=>{S.loading=false;renderList();},450);});
+  q.addEventListener("keydown",e=>{
+    const rows=[...document.querySelectorAll("#dd .row")];
+    if(e.key==="ArrowDown"){e.preventDefault();S.active=Math.min(S.active+1,rows.length-1);renderList();}
+    else if(e.key==="ArrowUp"){e.preventDefault();S.active=Math.max(S.active-1,0);renderList();}
+    else if(e.key==="Enter"){const r=rows[S.active];if(r)openRow(r.dataset.id);}
+    else if(e.key==="Escape"){if(S.pv){S.pv=null;renderStage();}else{S.q="";renderStage();}}
+  });
+  document.getElementById("clr").addEventListener("click",e=>{e.preventDefault();S.q="";renderStage();document.getElementById("q").focus();});
+  document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>{S.pv=null;renderStage();}));
+  document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
+    try{navigator.clipboard&&navigator.clipboard.writeText("#"+b.dataset.copy);}catch(e){}
+    flash(L().copied("#"+b.dataset.copy));}));
+  wireRows();
+}
+function wireRows(){
+  document.querySelectorAll("#dd .row").forEach(r=>{
+    r.addEventListener("mouseenter",()=>{S.active=+r.dataset.ix;document.querySelectorAll("#dd .row").forEach(x=>x.setAttribute("aria-selected",x===r));});
+    r.addEventListener("click",()=>openRow(r.dataset.id));
+  });
+}
+function openRow(id){
+  const o=D[S.lang].find(x=>x.id===id); if(!o) return;
+  if(o.owner==="me"){flash(L().mineToast);return;}
+  S.pv=id; renderStage();
+}
+function flash(msg){S.toast=msg;renderStage();clearTimeout(toastTimer);toastTimer=setTimeout(()=>{S.toast=null;renderStage();},2200);}
+
+/* ───────────── Studio ───────────── */
+const NOTES={
+ phone:"<b>Téléphone tapé avec espaces, sans indicatif.</b> Le serveur le réduit aux chiffres nationaux et retrouve la même cliente sous trois formats stockés : sa commande dans MA file (panneau habituel, droits complets), la même cliente chez un·e collègue (lecture seule, avec son prénom), et le doublon supprimé (classé dernier). En Libye, 79 des 128 clients récurrents (60 j) ont leurs commandes chez des agents différents — c'est ce cas-là que l'équipe ne trouve pas aujourd'hui.",
+ name:"<b>Un nom.</b> « <bdi>احمد</bdi> » trouve aussi « <bdi>أحمد</bdi> » et « <bdi>الأحمدي</bdi> » ; tapez « <bdi>فاطمه</bdi> » : « <bdi>فاطمة</bdi> » sort aussi. Aujourd'hui, côté serveur, <bdi>احمد</bdi> donne 237 commandes au lieu de 298, et <bdi>فاطمة</bdi> 18 au lieu de 34. En français : « hela » trouve Hèla, Héla, Hela. Pas de tolérance aux fautes : proposer un AUTRE client est pire que ne rien trouver.",
+ loading:"<b>Deux temps.</b> Mes commandes s'affichent sans attendre (déjà en cache dans le shell). Le reste du marché arrive du serveur ~250 ms après la dernière frappe ; la ligne du serveur remplace la ligne locale si les deux existent. Cet écran reste figé sur « chargement » ; ailleurs, tapez pour voir la transition.",
+ empty:"<b>Rien dans tout le marché.</b> Le message dit « tout le marché » : l'agent sait que ce n'est pas un problème de file. Il propose le téléphone ou la référence, les deux recherches les plus précises.",
+ preview:"<b>L'aperçu lecture seule</b> — un volet léger, PAS le panneau de commande : il n'annonce aucune présence (celle d'un agent bloque les écritures du manager), ne s'abonne pas au temps réel, n'a aucun champ modifiable ni bouton d'issue. Le refus est aussi côté serveur (route PATCH 404 + RLS orders_update), l'interface n'est pas la seule barrière. Seule action : copier la référence pour la donner au manager.",
+};
+function seg(id,key){document.querySelectorAll(`#${id} button`).forEach(b=>{b.setAttribute("aria-pressed",b.dataset.v===S[key]);b.onclick=()=>{S[key]=b.dataset.v;if(key==="screen"||key==="lang")applyPreset();render();};});}
+function applyPreset(){S.q=PRESET[S.lang][S.screen];S.loading=S.screen==="loading";S.active=0;S.pv=S.screen==="preview"?PREVIEW_ID[S.lang]:null;}
+function render(){
+  seg("segLang","lang");seg("segView","view");seg("segScreen","screen");seg("segOthers","others");
+  document.getElementById("note").innerHTML=NOTES[S.screen]+(S.others==="hidden"?" <b>D1 = cachés :</b> les commandes des autres agents disparaissent ; seules les non attribuées (et supprimées) restent en lecture seule.":"");
+  const u=new URLSearchParams({lang:S.lang,view:S.view,screen:S.screen,others:S.others});
+  history.replaceState(null,"",location.pathname+"?"+u);
+  renderStage();
+  const q=document.getElementById("q"); if(q&&!S.pv){q.focus();q.setSelectionRange(q.value.length,q.value.length);}
+}
+applyPreset();render();
+</script>
+</body>
+</html>

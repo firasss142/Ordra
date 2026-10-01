@@ -1,18 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import useSWR from "swr";
-import { Search, X, Clock, ShoppingBag, Truck, Users, ArrowLeft } from "lucide-react";
+import {
+  Search,
+  X,
+  Clock,
+  ShoppingBag,
+  Truck,
+  Users,
+  ArrowLeft,
+  Globe,
+  Lock,
+  Eye,
+  ChevronRight,
+  Phone,
+  Hash,
+  Type,
+} from "lucide-react";
 import { useQueueSearch } from "@/context/queue-search";
 import { fetcher } from "@/lib/swr-config";
 import { fetchAgentQueue } from "@/lib/agent-queue/fetch-queue";
 import {
   buildSuggestions,
+  queryIntent,
   MIN_QUERY,
   type SuggestionGroupKey,
   type SuggestionRow,
 } from "@/lib/agent-search/suggestions";
+import { highlight } from "@/lib/agent-search/highlight";
+import { MARKET_SEARCH_MIN } from "@/lib/agent-search/market";
+import { useAgentMarketSearch } from "@/hooks/useAgentMarketSearch";
+import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
+import { OwnerTag } from "@/components/queue/OwnerTag";
+import { OrderPreviewSheet } from "@/components/queue/OrderPreviewSheet";
 
 export const RECENT_SEARCHES_KEY = "oms.agent.recentSearches";
 const MAX_RECENT = 5;
@@ -74,6 +96,8 @@ export function QueueSearchBar({
   const t = useTranslations("queue.search");
   const tNav = useTranslations("nav");
   const tCrm = useTranslations("crm");
+  const tStatus = useTranslations("orders.statuses");
+  const tFields = useTranslations("orders.search.fields");
   const locale = useLocale();
   const ctx = useQueueSearch();
   const [focused, setFocused] = useState(false);
@@ -112,6 +136,11 @@ export function QueueSearchBar({
     swrOpts,
   );
 
+  // The whole market, from the server — only while the results are on screen.
+  const market = useAgentMarketSearch(value, wantsSuggestions && (focused || sheetOpen));
+  // A view-only order opens here, in a snapshot, never in the order panel.
+  const [previewId, setPreviewId] = useState<string | null>(null);
+
   const groups = useMemo(() => {
     if (!wantsSuggestions) return [];
     const cache = queueCache as { allOrders?: unknown[] } | undefined;
@@ -119,12 +148,17 @@ export function QueueSearchBar({
       orders: (cache?.allOrders ?? []) as never,
       parcels: ((worklist?.rows ?? []) as never) ?? [],
       leads: ((leadQueue?.allLeads ?? leadQueue?.leads ?? []) as never) ?? [],
+      market: market.rows,
+      marketTotal: market.total,
       locale,
     });
-  }, [wantsSuggestions, value, queueCache, worklist, leadQueue, locale]);
+  }, [wantsSuggestions, value, queueCache, worklist, leadQueue, market.rows, market.total, locale]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
   const showSuggestions = focused && wantsSuggestions && value.trim().length >= MIN_QUERY;
+  // Long enough for the market to have been asked: from here an empty list
+  // means "nothing in the whole market", not "nothing in your queue".
+  const marketAsked = value.trim().length >= MARKET_SEARCH_MIN;
 
   useEffect(() => {
     setActiveIx(0);
@@ -133,10 +167,28 @@ export function QueueSearchBar({
   const GROUP_META: Record<SuggestionGroupKey, { label: string; Icon: typeof ShoppingBag }> = {
     orders: { label: tNav("orders"), Icon: ShoppingBag },
     delivery: { label: tNav("delivery"), Icon: Truck },
+    market: { label: t("marketGroup"), Icon: Globe },
     leads: { label: tCrm("nav"), Icon: Users },
   };
 
+  const openOwn = useCallback(
+    (id: string) => {
+      setPreviewId(null);
+      if (typeof window !== "undefined") window.location.assign(`/${locale}/queue?openOrderId=${id}`);
+    },
+    [locale],
+  );
+  const closePreview = useCallback(() => setPreviewId(null), []);
+
   function go(row: SuggestionRow) {
+    if (row.view) {
+      // Keep the query: closing the preview should land back on these results.
+      pushRecentSearch(value);
+      setFocused(false);
+      setSheetOpen(false);
+      setPreviewId(row.id);
+      return;
+    }
     pushRecentSearch(value);
     setFocused(false);
     setSheetOpen(false);
@@ -165,13 +217,66 @@ export function QueueSearchBar({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [focused]);
 
+  /** Text with the matched letters marked, as the query found them. */
+  function marked(text: string) {
+    return highlight(text, value).map((s, i) =>
+      s.hit ? (
+        <mark key={i} className="rounded-sm bg-[#FEF08A] text-inherit">
+          {s.text}
+        </mark>
+      ) : (
+        <span key={i}>{s.text}</span>
+      ),
+    );
+  }
+
+  /** What the box understood — so a phone typed any way visibly searches as one. */
+  function intentChip() {
+    const intent = queryIntent(value);
+    if (!intent) return null;
+    const { Icon, label } =
+      intent.kind === "number"
+        ? { Icon: Phone, label: t("intentNumber") }
+        : intent.kind === "field"
+          ? { Icon: Hash, label: tFields(intent.field) }
+          : { Icon: Type, label: t("intentText") };
+    return (
+      <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-agent-outline-variant bg-agent-surface px-2.5 text-[12px] font-semibold text-agent-on-surface-variant">
+        <Icon size={13} strokeWidth={2} aria-hidden="true" className="text-agent-primary" />
+        {label}
+      </span>
+    );
+  }
+
   /** The grouped rows, shared by the desktop dropdown and the phone sheet. */
   function resultList() {
+    const shown = flat.length;
+    const total = groups.reduce((n, g) => n + g.total, 0);
+    const count =
+      total > shown
+        ? t("countOf", { shown, total })
+        : total === 1
+          ? t("resultCount", { count: 1 })
+          : t("resultCountPlural", { count: total });
+
     return (
       <div id="agent-search-listbox" role="listbox" aria-label={t("aria")}>
+        {marketAsked && (
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-agent-outline-variant bg-agent-surface-low px-4 py-2">
+            {intentChip()}
+            <span className="inline-flex items-center gap-1 text-[12px] text-agent-ink-3">
+              <Globe size={12} strokeWidth={2} aria-hidden="true" />
+              {t("scope")}
+            </span>
+            {!market.pending && (
+              <span className="ms-auto text-[12px] font-semibold tabular-nums text-agent-on-surface-variant">{count}</span>
+            )}
+          </div>
+        )}
         {groups.map((group) => {
           const meta = GROUP_META[group.key];
           const Icon = meta.Icon;
+          const orderStatuses = group.key === "orders" || group.key === "market";
           return (
             <div key={group.key}>
               <div className="flex items-center gap-2 px-4 pb-1 pt-2">
@@ -179,15 +284,21 @@ export function QueueSearchBar({
                 <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-agent-on-surface-variant">
                   {meta.label}
                 </span>
+                {group.key === "market" && (
+                  <span className="inline-flex h-5 items-center gap-1 rounded-pill bg-agent-surface-low px-2 text-[11px] font-semibold text-agent-on-surface-variant">
+                    <Lock size={11} strokeWidth={2} aria-hidden="true" />
+                    {t("readOnly")}
+                  </span>
+                )}
                 <span className="ms-auto text-[11px] font-semibold tabular-nums text-agent-ink-3">
                   {group.total}
                 </span>
               </div>
               {group.rows.map((row) => {
-                const ix = flat.findIndex((r) => r.href === row.href);
+                const ix = flat.indexOf(row);
                 return (
                   <button
-                    key={row.href}
+                    key={`${group.key}:${row.id}`}
                     type="button"
                     role="option"
                     aria-selected={ix === activeIx}
@@ -198,31 +309,83 @@ export function QueueSearchBar({
                       go(row);
                     }}
                     className={[
-                      "w-full flex items-center gap-3 px-4 py-2.5 min-h-[48px] text-start",
+                      "w-full flex flex-wrap lg:flex-nowrap items-center gap-x-3 gap-y-1 px-4 py-2.5 min-h-[48px] text-start",
                       "transition-colors duration-fast",
                       ix === activeIx ? "bg-agent-surface-high" : "hover:bg-agent-surface-low",
                     ].join(" ")}
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-semibold text-agent-on-surface">
-                        {row.title}
+                    <span className="min-w-0 basis-full lg:basis-auto lg:flex-1">
+                      <span className="flex items-baseline gap-2 truncate text-[13.5px] font-semibold text-agent-on-surface">
+                        <span className="truncate">{marked(row.title)}</span>
+                        {row.ref && (
+                          <span dir="ltr" className="shrink-0 text-[11.5px] font-medium tabular-nums text-agent-ink-3">
+                            {marked(`#${row.ref}`)}
+                          </span>
+                        )}
                       </span>
                       <span className="block truncate text-[12px] text-agent-ink-3">
-                        {row.subtitle}
+                        {/* Each piece isolated: a "+218…" between Arabic words
+                            otherwise renders with its plus sign at the end. */}
+                        {row.parts.map((part, i) => (
+                          <span key={i}>
+                            {i > 0 && " · "}
+                            <bdi>{marked(part)}</bdi>
+                          </span>
+                        ))}
                       </span>
                     </span>
+                    {(orderStatuses && row.status) || row.view ? (
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {orderStatuses && row.status && (
+                          <OrderStatusBadge status={row.status} label={tStatus(row.status)} locale={locale} />
+                        )}
+                        <OwnerTag owner={row.owner} ownerName={row.ownerName} status={row.status} />
+                      </span>
+                    ) : null}
                     {row.amount !== null && (
-                      <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-agent-on-surface">
+                      <span className="ms-auto shrink-0 text-[12.5px] font-semibold tabular-nums text-agent-on-surface">
                         {row.amount}
                         {row.currency ? ` ${row.currency}` : ""}
                       </span>
                     )}
+                    <span
+                      aria-hidden="true"
+                      className={["hidden lg:grid h-7 w-7 shrink-0 place-items-center rounded-lg", row.view ? "text-agent-on-surface-variant" : "text-agent-ink-3"].join(" ")}
+                    >
+                      {row.view ? (
+                        <Eye size={15} strokeWidth={2} />
+                      ) : (
+                        <ChevronRight size={15} strokeWidth={2} className="rtl:-scale-x-100" />
+                      )}
+                    </span>
                   </button>
                 );
               })}
             </div>
           );
         })}
+        {marketAsked && market.pending && (
+          <div role="status" className="flex items-center gap-2 px-4 py-3 text-[12.5px] text-agent-ink-3">
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-agent-outline-variant border-t-agent-primary"
+            />
+            {t("searchingMarket")}
+          </div>
+        )}
+        {marketAsked && market.error && (
+          <p role="status" className="px-4 py-3 text-[12.5px] text-agent-error">
+            {t("marketError")}
+          </p>
+        )}
+        {groups.length === 0 && !market.pending && !market.error && (
+          <div className="px-5 py-8 text-center">
+            <p className="text-[13.5px] font-semibold text-agent-on-surface">
+              {t("emptyMarket", { query: value.trim() })}
+            </p>
+            <p className="mt-1 text-[12.5px] text-agent-ink-3">{t("emptyHint")}</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -254,6 +417,9 @@ export function QueueSearchBar({
           <input
             ref={inputRef as React.Ref<HTMLInputElement>}
             type="search"
+            // A number typed into the Arabic field reads as typed ("091 345 67"),
+            // not with its digit groups reversed.
+            dir="auto"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onFocus={() => setFocused(true)}
@@ -324,7 +490,11 @@ export function QueueSearchBar({
           </p>
         )}
 
-        {showSuggestions && groups.length > 0 && <div className="absolute z-30 mt-1.5 start-0 w-full max-w-[640px] max-h-[420px] overflow-y-auto bg-agent-surface border border-agent-outline-variant rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] py-2">{resultList()}</div>}
+        {showSuggestions && (groups.length > 0 || marketAsked) && (
+          <div className="absolute z-30 mt-1.5 start-0 w-full min-w-[min(640px,90vw)] max-w-[680px] max-h-[min(560px,70vh)] overflow-y-auto bg-agent-surface border border-agent-outline-variant rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] pb-2">
+            {resultList()}
+          </div>
+        )}
 
         {/* Phones: a compact trigger that opens the results full screen. */}
         {isNavbar && (
@@ -361,6 +531,7 @@ export function QueueSearchBar({
                 <input
                   autoFocus
                   type="search"
+                  dir="auto"
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
                   placeholder={t("placeholder")}
@@ -381,7 +552,7 @@ export function QueueSearchBar({
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto bg-agent-surface">
               {value.trim().length >= MIN_QUERY ? (
-                groups.length > 0 ? (
+                groups.length > 0 || marketAsked ? (
                   resultList()
                 ) : (
                   <p className="px-5 py-10 text-center text-[13.5px] text-agent-ink-3">
@@ -464,6 +635,9 @@ export function QueueSearchBar({
           </div>
         )}
       </div>
+      {wantsSuggestions && (
+        <OrderPreviewSheet orderId={previewId} onClose={closePreview} onOpenOwn={openOwn} />
+      )}
     </div>
   );
 }

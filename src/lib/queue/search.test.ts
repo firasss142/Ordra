@@ -72,6 +72,15 @@ describe("normalize", () => {
     expect(normalize("مُحَمَّد")).toBe(normalize("محمد"));
   });
 
+  it("folds the Arabic letters one customer writes two ways, as the server search does", () => {
+    // The hamza alef already folds through NFKD; ة and ى do not decompose and
+    // must be mapped, or the instant local results and the server's disagree.
+    expect(normalize("أحمد")).toBe(normalize("احمد"));
+    expect(normalize("إحمد")).toBe(normalize("آحمد"));
+    expect(normalize("فاطمة")).toBe(normalize("فاطمه"));
+    expect(normalize("يحيى")).toBe(normalize("يحيي"));
+  });
+
   it("returns empty string for nullish-ish input", () => {
     expect(normalize("")).toBe("");
     expect(normalize("   ")).toBe("");

@@ -352,6 +352,8 @@ export function QueueHeader({
           />
           <input
             type="search"
+            // A number typed into the Arabic field reads as typed, not reversed.
+            dir="auto"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={tSearch("placeholder")}
