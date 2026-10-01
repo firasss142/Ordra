@@ -130,10 +130,47 @@ Le test SQL a attrapé un bug réel : la contre-passation naissait `posted` et l
 déclencheur d'immutabilité refusait d'insérer ses lignes. Elle naît maintenant en
 brouillon et se valide à la fin — elle respecte la règle au lieu de s'en exempter.
 
+## Mise en production du 2026-10-01
+
+La migration est appliquée sur `vshynigvgrlihngozuwb` en 9 sections (découpées sur
+les séparateurs du fichier, réassemblage vérifié octet pour octet avant envoi,
+pour qu'aucune retranscription à la main ne puisse diverger du texte testé).
+
+Vérifié après coup, en production :
+
+| Contrôle | Résultat |
+|---|---|
+| 3 tables, 3 RPC, 6 politiques, 2 déclencheurs, `inventory_log.reception_id` | présents |
+| `anon` EXECUTE sur les RPC · SELECT sur les tables | **non · non** |
+| RLS active sur les trois tables | oui |
+| `post_reception` / `reverse_reception` sans session | refus **42501**, avant toute lecture |
+| `next_reception_reference` | `REC-LY-2026-0001`, `REC-TN-2026-0001` |
+| Données existantes (registre, produits, stock, sites) | **inchangées** |
+| Advisor : `anon_security_definer_function_executable` | ne cite PAS la réception |
+| Advisor : `function_search_path_mutable` | citait mes 2 triggers → **corrigé** (section 9) |
+
+**Le code React n'est pas déployé.** L'onglet est invisible jusqu'à la fusion
+dans `main`, ce qui laisse une fenêtre pour inspecter le schéma avant que
+quiconque puisse s'en servir.
+
 ## Ce qui reste
 
-1. **Le hook SWR** `useReceptions` dans `src/hooks/` — les écrans Stock appellent
-   `useSWR` en ligne aujourd'hui ; ne pas en ajouter un quatrième.
+1. ~~Le hook SWR `useReceptions`~~ — **fait**.
+2. ~~Les composants React~~ — **faits** (liste, feuille, saisie, validation, création).
+3. ~~Le Journal~~ — **fait**, et son bug de quatre motifs sur douze corrigé d'abord.
+4. ~~« En route »~~ — **fait**, avec la règle de péremption à 14 jours.
+
+Reste vraiment :
+
+- **Déployer le code** : fusionner `feat/goods-reception` dans `main`. Le schéma est
+  en prod, l'écran ne l'est pas.
+- **Le parcours téléphone arabe** du prototype §6 : les routes le permettent, l'écran
+  bureau sert déjà les deux tailles, mais le comptage ligne-par-ligne au pouce n'est
+  pas construit.
+- **Deux échecs préexistants sur `DatePicker`** : le calendrier s'ouvre sur le mois du
+  JOUR et non sur celui de `value`. Signalé, hors périmètre.
+
+### Ancienne liste (pour mémoire)
 2. **Les composants React** : `ReceptionsConsole` (liste), `ReceptionSheet` (feuille
    plein écran, `?reception=<id>`), le dialogue de validation, la création. Plus le
    troisième segment dans `StockConsole.tsx`.

@@ -1,5 +1,12 @@
 # Réception de marchandises
 
+> **État : migration APPLIQUÉE EN PRODUCTION le 2026-10-01** (projet
+> `vshynigvgrlihngozuwb`). Le schéma, les 3 RPC, la RLS et les déclencheurs sont
+> en place ; `anon` n'a ni EXECUTE ni SELECT, les deux gardes d'acteur refusent
+> en 42501 sans session. **Le code React n'est pas déployé** : l'onglet reste
+> invisible jusqu'à la fusion dans `main`. Aucune donnée existante n'a bougé
+> (244 lignes de registre, 13 produits, 3 893 unités avant comme après).
+
 Ce qui entre en stock est un document, pas un nombre tapé dans une fiche produit.
 
 ## Pourquoi ce domaine existe
