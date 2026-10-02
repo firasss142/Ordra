@@ -38,15 +38,16 @@ export async function GET(req: NextRequest) {
   }
 
   const limit = Math.min(200, Math.max(1, parseInt(req.nextUrl.searchParams.get("limit") ?? "60", 10)));
+  const marketId = req.nextUrl.searchParams.get("market_id");
 
   const [settingsRows, userRows] = await Promise.all([
     (async (): Promise<AuditRow[]> => {
       try {
-        const { data, error } = await supabase
+        let q = supabase
           .from("settings_history")
-          .select("id, key, old_value, new_value, changed_at, changed_by, users:users!settings_history_changed_by_fkey(full_name)")
-          .order("changed_at", { ascending: false })
-          .limit(limit);
+          .select("id, key, market_id, old_value, new_value, changed_at, changed_by, users:users!settings_history_changed_by_fkey(full_name)");
+        if (marketId) q = q.eq("market_id", marketId);
+        const { data, error } = await q.order("changed_at", { ascending: false }).limit(limit);
         if (error || !data) return [];
         return (data as Record<string, unknown>[]).map((r) => {
           const oldV = unwrap(r.old_value);
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
             at: String(r.changed_at),
             actor: ((r.users as { full_name?: string } | null)?.full_name) ?? null,
             summary: `Réglage ${r.key} : ${JSON.stringify(oldV)} → ${JSON.stringify(newV)}`,
-            meta: { key: r.key, old: oldV, new: newV },
+            meta: { key: r.key, old: oldV, new: newV, market_id: (r.market_id as string | null) ?? null },
           };
         });
       } catch {
@@ -68,18 +69,29 @@ export async function GET(req: NextRequest) {
       try {
         const { data, error } = await supabase
           .from("user_audit_log")
-          .select("id, event_type, meta, created_at, actor_id, target_id, actor:users!user_audit_log_actor_id_fkey(full_name), target:users!user_audit_log_target_id_fkey(full_name)")
+          .select("id, event_type, meta, created_at, actor_id, target_id, actor:users!user_audit_log_actor_id_fkey(full_name), target:users!user_audit_log_target_id_fkey(full_name, market_id)")
           .order("created_at", { ascending: false })
           .limit(limit);
         if (error || !data) return [];
-        return (data as Record<string, unknown>[]).map((r) => ({
-          id: String(r.id),
-          kind: "user" as const,
-          at: String(r.created_at),
-          actor: ((r.actor as { full_name?: string } | null)?.full_name) ?? null,
-          summary: `${r.event_type} · ${((r.target as { full_name?: string } | null)?.full_name) ?? "utilisateur"}`,
-          meta: (r.meta as Record<string, unknown>) ?? {},
-        }));
+        // A user event belongs to the market of the user it is about.
+        return (data as Record<string, unknown>[])
+          .map((r) => {
+            const target = r.target as { full_name?: string; market_id?: string | null } | null;
+            return {
+              id: String(r.id),
+              kind: "user" as const,
+              at: String(r.created_at),
+              actor: ((r.actor as { full_name?: string } | null)?.full_name) ?? null,
+              summary: `${r.event_type} · ${target?.full_name ?? "utilisateur"}`,
+              meta: {
+                ...((r.meta as Record<string, unknown>) ?? {}),
+                event_type: r.event_type,
+                target: target?.full_name ?? null,
+                market_id: target?.market_id ?? null,
+              },
+            };
+          })
+          .filter((row) => !marketId || row.meta.market_id === marketId);
       } catch {
         return [];
       }

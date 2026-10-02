@@ -569,7 +569,7 @@ export async function GET(req: NextRequest) {
         type: "sheet_sync_stalled",
         entityId: source.storefront_id,
         entityKind: "storefront",
-        href: "/settings/storefronts",
+        href: "/system/settings/shops",
         primary: SYNC_ALERT_LABEL,
         secondary: lastSettled?.error ?? (lastGood ? null : SYNC_NEVER_LABEL),
         // Anchored to the last time orders actually landed, so the age reads as

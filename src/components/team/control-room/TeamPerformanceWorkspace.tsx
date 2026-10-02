@@ -162,7 +162,7 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
               canPay={canPay}
               onPay={setPayTarget}
               onSelectAgent={setSelected}
-              settingsHref={`/${locale}/settings/general?tab=commissions`}
+              settingsHref={`/${locale}/system/settings/team`}
               exportHrefFor={(id) => `/api/team/commissions/${id}/ledger?format=csv`}
               marketState={commissions?.market ?? null}
             />

@@ -86,3 +86,50 @@ describe("GET /api/admin/audit", () => {
     expect(rows.map((r) => r.id)).toEqual(["sh1"]);
   });
 });
+
+/**
+ * Journaux › Modifications shows the market of each change and can be
+ * narrowed to one market (a user event belongs to its target's market).
+ */
+describe("GET /api/admin/audit — market", () => {
+  function chainWithEq(rows: unknown[]) {
+    const c: Record<string, unknown> = {};
+    c.select = vi.fn().mockReturnValue(c);
+    c.eq = vi.fn().mockReturnValue(c);
+    c.order = vi.fn().mockReturnValue(c);
+    c.limit = vi.fn().mockResolvedValue({ data: rows, error: null });
+    return c;
+  }
+
+  test("settings rows carry their market; user rows their event, target and target's market", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa" } } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return usersChain("super_admin");
+      if (table === "settings_history")
+        return chainWithEq([{ id: "h1", key: "max_call_attempts", market_id: "m-ly", old_value: { value: 5 }, new_value: { value: 8 }, changed_at: "2026-05-22T10:00:00Z", users: { full_name: "Super Admin" } }]);
+      return chainWithEq([{ id: "u1", event_type: "user_created", meta: {}, created_at: "2026-05-21T10:00:00Z", actor: { full_name: "Admin" }, target: { full_name: "adel", market_id: "m-ly" } }]);
+    });
+    const body = await (await GET(req())).json();
+    expect(body.data[0].meta).toMatchObject({ key: "max_call_attempts", old: 5, new: 8, market_id: "m-ly" });
+    expect(body.data[1].meta).toMatchObject({ event_type: "user_created", target: "adel", market_id: "m-ly" });
+  });
+
+  test("?market_id narrows settings in the query and user events by their target's market", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa" } } });
+    let settingsChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return usersChain("super_admin");
+      if (table === "settings_history") {
+        settingsChain = chainWithEq([]);
+        return settingsChain;
+      }
+      return chainWithEq([
+        { id: "u1", event_type: "user_created", meta: {}, created_at: "2026-05-21T10:00:00Z", actor: null, target: { full_name: "adel", market_id: "m-ly" } },
+        { id: "u2", event_type: "user_created", meta: {}, created_at: "2026-05-20T10:00:00Z", actor: null, target: { full_name: "asma", market_id: "m-tn" } },
+      ]);
+    });
+    const body = await (await GET(new NextRequest(new URL("http://localhost/api/admin/audit?market_id=m-ly")))).json();
+    expect((settingsChain as unknown as { eq: ReturnType<typeof vi.fn> }).eq).toHaveBeenCalledWith("market_id", "m-ly");
+    expect(body.data.map((r: { id: string }) => r.id)).toEqual(["u1"]);
+  });
+});

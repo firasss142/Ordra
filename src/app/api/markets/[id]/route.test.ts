@@ -118,3 +118,37 @@ describe("PATCH /api/markets/[id]", () => {
     expect(res.status).toBe(400);
   });
 });
+
+/**
+ * Réglages › Marchés: the label sender (sender_name / sender_address /
+ * sender_phone) is printed on every parcel label (label-prints) but had no
+ * screen. Both markets carry "Libya"/"Tunisia" with no address or phone.
+ */
+describe("PATCH /api/markets/[id] — label sender", () => {
+  test("super_admin sets the sender, trimmed; an empty field clears it", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa" } } });
+    let call = 0;
+    let upd: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return usersChain("super_admin", null);
+      upd = updateChain({ ...MARKET, sender_name: "Totella", sender_address: "Rue 1, Tripoli", sender_phone: null });
+      return upd;
+    });
+    const res = await PATCH(
+      req({ sender_name: " Totella ", sender_address: " Rue 1, Tripoli ", sender_phone: "  " }),
+      { params: Promise.resolve({ id: "m-tn" }) },
+    );
+    expect(res.status).toBe(200);
+    const u = upd as unknown as { update: ReturnType<typeof vi.fn>; select: ReturnType<typeof vi.fn> };
+    expect(u.update.mock.calls[0][0]).toEqual({ sender_name: "Totella", sender_address: "Rue 1, Tripoli", sender_phone: null });
+    expect(String(u.select.mock.calls[0][0])).toContain("sender_address");
+  });
+
+  test("a non-string sender field is refused", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa" } } });
+    mockFrom.mockImplementation(() => usersChain("super_admin", null));
+    const res = await PATCH(req({ sender_phone: 21891 }), { params: Promise.resolve({ id: "m-tn" }) });
+    expect(res.status).toBe(400);
+  });
+});

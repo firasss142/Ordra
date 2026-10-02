@@ -197,19 +197,14 @@ describe("Sidebar — sections", () => {
     expect(screen.queryByRole("link", { name: /Stock & inventaire/ })).not.toBeInTheDocument();
   });
 
-  it("shows SYSTÈME to market_manager with only Connexions and Paramètres, and the read-only note", () => {
-    // Owner's decision (prototype whatsapp-manager-v1, role=manager): the
-    // manager reaches Connexions and Paramètres to read them; Marchés and
-    // Journaux stay super_admin only.
+  it("shows SYSTÈME to market_manager with Réglages only — no Journaux, no read-only note", () => {
+    // Réglages (plans/reglages-redesign.md): one page by topic. A manager edits
+    // the day-to-day rules of their market there; Journaux stays super_admin.
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
     fireEvent.click(screen.getByRole("button", { name: /Système/ }));
-    expect(screen.getByRole("link", { name: /^Connexions$/ })).toHaveAttribute("href", "/fr/system/connections");
-    expect(screen.getByRole("link", { name: /^Paramètres$/ })).toHaveAttribute("href", "/fr/system/settings");
-    expect(screen.queryByRole("link", { name: /^Marchés$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Réglages$/ })).toHaveAttribute("href", "/fr/system/settings");
     expect(screen.queryByRole("link", { name: /Journaux/ })).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Lecture seule — les identifiants et les réglages sont modifiés par un super_admin."),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Lecture seule/)).not.toBeInTheDocument();
   });
 
   it("gives super_admin no read-only note", () => {
@@ -223,41 +218,27 @@ describe("Sidebar — sections", () => {
     expect(screen.getByRole("button", { name: /Système/ })).toBeInTheDocument();
   });
 
-  it("expanding SYSTÈME reveals the four redesigned workspaces for super_admin", () => {
+  it("expanding SYSTÈME shows the two entries: Réglages and Journaux", () => {
     renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
     fireEvent.click(screen.getByRole("button", { name: /Système/ }));
-    // Four workspaces only. Storefronts, Transporteurs, Correspondances and
-    // Intégrations are now tabs inside Connexions, not separate nav entries.
-    expect(screen.getByRole("link", { name: /^Marchés$/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Connexions$/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Paramètres$/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Journaux/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Storefronts$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Intégrations$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Réglages$/ })).toHaveAttribute("href", "/fr/system/settings");
+    expect(screen.getByRole("link", { name: /Journaux/ })).toHaveAttribute("href", "/fr/system/logs");
+    expect(screen.queryByRole("link", { name: /^Marchés$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Connexions$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Paramètres$/ })).not.toBeInTheDocument();
   });
 
-  it("activates Connexions across every tab of the workspace (super_admin)", () => {
-    // Connexions is one nav entry; its tabs (carriers, etc.) live in ?tab=.
-    // The plain-path item stays active regardless of the query string.
-    pathnameMock = "/fr/system/connections";
-    searchParamsMock = new URLSearchParams("tab=carriers");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/connections" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /^Connexions$/ });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-
-  it("activates Marchés on the Marchés workspace", () => {
-    pathnameMock = "/fr/system/markets";
+  it("keeps Réglages active on every topic page", () => {
+    pathnameMock = "/fr/system/settings/delivery";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/markets" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /^Marchés$/ });
-    expect(link).toHaveAttribute("aria-current", "page");
+    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/settings/delivery" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /^Réglages$/ })).toHaveAttribute("aria-current", "page");
   });
 
-  it("activates Journaux on /fr/admin/logs", async () => {
-    pathnameMock = "/fr/admin/logs";
+  it("activates Journaux on /fr/system/logs", async () => {
+    pathnameMock = "/fr/system/logs";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/admin/logs" unassignedCount={0} />);
+    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/logs" unassignedCount={0} />);
     const link = await screen.findByRole("link", { name: /Journaux/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });

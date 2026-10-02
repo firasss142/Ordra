@@ -5,9 +5,32 @@ import {
   canReadSettings,
   canWriteSettings,
 } from "@/lib/settings-permissions";
-import { DEFAULT_MARKET_SETTINGS, isValidMarketSettings } from "@/types/settings";
+import {
+  DEFAULT_MARKET_SETTINGS,
+  isValidMarketSettings,
+  MARKET_SETTINGS_KEYS,
+} from "@/types/settings";
+import { assembleMarketSettings } from "@/lib/settings/assembleMarketSettings";
+import { MANAGER_EDITABLE_SETTING_KEYS } from "@/lib/reglages/topics";
 
 export const dynamic = "force-dynamic";
+
+const KNOWN_KEYS = new Set<string>(MARKET_SETTINGS_KEYS);
+
+/**
+ * A stored row's plain value. Scalars are written as { value }, but older rows
+ * carry { type } (assignment_algorithm) or { amount } (fees); a plain object
+ * such as shift_config is stored as-is.
+ */
+function storedScalar(raw: unknown): unknown {
+  if (raw !== null && typeof raw === "object" && !Array.isArray(raw)) {
+    const ks = Object.keys(raw);
+    if (ks.length === 1 && (ks[0] === "value" || ks[0] === "type" || ks[0] === "amount")) {
+      return (raw as Record<string, unknown>)[ks[0]];
+    }
+  }
+  return raw;
+}
 
 export async function GET(
   req: NextRequest,
@@ -57,42 +80,58 @@ export async function PATCH(
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-
-  if (!isValidMarketSettings(body)) {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Invalid settings payload" }, { status: 400 });
   }
 
-  const incoming = { ...(body as unknown as Record<string, unknown>) };
+  // Réglages sends only what changed (the save bar's edits); older callers
+  // still send the whole object. Both are a set of keys to apply on top of
+  // what is stored — validated as the full object they would produce.
+  const incoming = { ...(body as Record<string, unknown>) };
   const keys = Object.keys(incoming);
+  if (keys.some((k) => !KNOWN_KEYS.has(k))) {
+    return NextResponse.json({ error: "Invalid settings payload" }, { status: 400 });
+  }
 
   const { data: existingRows } = await supabase
     .from("settings")
     .select("key, value")
-    .eq("market_id", marketId)
-    .in("key", keys);
+    .eq("market_id", marketId);
+  const rows = (existingRows ?? []) as { key: string; value: unknown }[];
+  const existingByKey = new Map<string, unknown>(rows.map((r) => [r.key, r.value]));
 
-  const existingByKey = new Map<string, unknown>(
-    (existingRows ?? []).map((r: { key: string; value: unknown }) => [r.key, r.value]),
-  );
+  const merged = { ...assembleMarketSettings(rows), ...incoming };
+  if (!isValidMarketSettings(merged)) {
+    return NextResponse.json({ error: "Invalid settings payload" }, { status: 400 });
+  }
 
-  // WhatsApp automation (Paramètres › WhatsApp) is a super_admin decision —
-  // the screen is read-only for a market manager (prototypes/whatsapp-manager-v1.html).
-  // The screen saves the WHOLE settings object, so a manager saving another
-  // group sends these keys unchanged: those are dropped from the write; a
-  // changed one is refused and nothing is written.
+  // Only what actually changes is written — re-sending a stored value (even one
+  // stored in a legacy { type } / { amount } wrapper) writes nothing and leaves
+  // no « manual → manual » row in the history.
+  const defaults = DEFAULT_MARKET_SETTINGS as unknown as Record<string, unknown>;
+  const changed = keys.filter((key) => {
+    const stored = existingByKey.has(key) ? storedScalar(existingByKey.get(key)) : defaults[key];
+    return JSON.stringify(stored ?? null) !== JSON.stringify(incoming[key] ?? null);
+  });
+
+  // A market manager runs the day-to-day rules of their own market; money,
+  // stock planning and WhatsApp automation are the administrator's
+  // (plans/reglages-redesign.md). RLS holds the same list
+  // (20261002150000_settings_manager_daily_rules.sql); this gives the readable 403.
   if (role !== "super_admin") {
-    const defaults = DEFAULT_MARKET_SETTINGS as unknown as Record<string, unknown>;
-    for (const key of keys.filter((k) => k.startsWith("whatsapp_"))) {
-      const stored = existingByKey.has(key) ? existingByKey.get(key) : { value: defaults[key] ?? null };
-      const sent = { value: incoming[key] ?? null };
-      if (JSON.stringify(stored) !== JSON.stringify(sent)) {
-        return NextResponse.json({ error: "whatsapp_settings_super_admin_only" }, { status: 403 });
-      }
-      delete incoming[key];
+    const refused = changed.filter((k) => !MANAGER_EDITABLE_SETTING_KEYS.has(k));
+    if (refused.length > 0) {
+      const error = refused.every((k) => k.startsWith("whatsapp_"))
+        ? "whatsapp_settings_super_admin_only"
+        : "setting_super_admin_only";
+      return NextResponse.json({ error }, { status: 403 });
     }
   }
 
-  const updates = Object.entries(incoming).map(([key, value]) => {
+  if (changed.length === 0) return NextResponse.json({ success: true });
+
+  const updates = changed.map((key) => {
+    const value = incoming[key];
     const wrapped =
       value !== null && typeof value === "object" && !Array.isArray(value)
         ? value
@@ -112,18 +151,20 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
-  const historyRows = updates
-    .filter((u) => JSON.stringify(existingByKey.get(u.key)) !== JSON.stringify(u.value))
-    .map((u) => ({
+  const { error: historyErr } = await supabase.from("settings_history").insert(
+    updates.map((u) => ({
       market_id: marketId,
       key: u.key,
       old_value: existingByKey.get(u.key) ?? null,
       new_value: u.value,
       changed_by: actor.id,
-    }));
-
-  if (historyRows.length > 0) {
-    await supabase.from("settings_history").insert(historyRows);
+    })),
+  );
+  if (historyErr) {
+    console.error("[PATCH /api/settings/[marketId]] settings_history insert failed", {
+      code: historyErr.code,
+      message: historyErr.message,
+    });
   }
 
   // Mirror the algorithm into assignment_rules.
@@ -140,7 +181,7 @@ export async function PATCH(
   // that had happened, choosing an algorithm HERE did nothing at all, silently
   // and with no feedback anywhere. PUT /api/assignment-rules already mirrors
   // in the other direction; this closes the loop.
-  const algorithm = incoming.assignment_algorithm;
+  const algorithm = changed.includes("assignment_algorithm") ? incoming.assignment_algorithm : undefined;
   if (typeof algorithm === "string") {
     const { error: ruleErr } = await supabase.from("assignment_rules").upsert(
       {

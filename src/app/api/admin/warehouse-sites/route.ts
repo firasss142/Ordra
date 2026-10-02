@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
  * ne pourrait jamais en rallumer un — avec de quoi mesurer l'impact d'une
  * désactivation : qui y est affecté, et ce qu'il y reste en stock.
  *
- * super_admin uniquement, comme le reste de l'onglet Transporteurs.
+ * Lecture : super_admin (tout marché) ou market_manager (son marché, en
+ * lecture seule dans Réglages › Entrepôts). Écriture : super_admin uniquement.
  */
 
 export interface AdminWarehouseSite {
@@ -36,12 +37,14 @@ export async function GET(req: NextRequest) {
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  if (!canManageCarriers(actor.role)) {
+  const isManager = actor.role === "market_manager" && !!actor.market_id;
+  if (!canManageCarriers(actor.role) && !isManager) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const supabase = await createClient();
-  const marketId = req.nextUrl.searchParams.get("market_id");
+  // A manager only ever sees their own market, whatever they ask for.
+  const marketId = isManager ? actor.market_id : req.nextUrl.searchParams.get("market_id");
 
   let query = supabase
     .from("warehouses")
@@ -77,6 +80,7 @@ export async function GET(req: NextRequest) {
           .from("users")
           .select("id, full_name, warehouse_id")
           .in("warehouse_id", siteIds)
+          .is("deleted_at", null)
       : Promise.resolve({ data: [], error: null }),
     siteIds.length
       ? supabase
@@ -169,7 +173,7 @@ export async function PATCH(req: NextRequest) {
 
   if (!isActive) {
     const [agentsRes, stockRes] = await Promise.all([
-      supabase.from("users").select("id, full_name").eq("warehouse_id", id),
+      supabase.from("users").select("id, full_name").eq("warehouse_id", id).is("deleted_at", null),
       supabase.from("product_site_stock").select("current_stock").eq("warehouse_id", id),
     ]);
 

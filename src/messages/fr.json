@@ -133,19 +133,13 @@
       "activeProspects": "Prospects",
       "performanceLive": "Performance",
       "access": "Accès",
-      "marketsConfig": "Marchés",
-      "storefrontsConfig": "Storefronts",
-      "mappings": "Correspondances",
-      "carriersConfig": "Transporteurs",
-      "integrations": "Intégrations",
-      "generalSettings": "Paramètres",
       "logs": "Journaux",
       "investors": "Investisseurs",
       "controlRoom": "Salle de contrôle",
       "deliveryWorklist": "Suivi livraison",
       "messages": "Messages",
-      "connexions": "Connexions",
-      "customerVoice": "Voix du client"
+      "customerVoice": "Voix du client",
+      "reglages": "Réglages"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -2793,45 +2787,6 @@
       "creating": "Création…"
     }
   },
-  "mappings": {
-    "title": "Correspondances",
-    "subtitle": "Associer les produits et villes des storefronts aux entités OMS",
-    "save": "Enregistrer",
-    "cancel": "Annuler",
-    "loading": "Chargement…",
-    "loadError": "Échec du chargement. Réessayez.",
-    "tabs": {
-      "products": "Produits",
-      "cities": "Villes"
-    },
-    "status": {
-      "needs_review": "À vérifier",
-      "unmatched": "Non associé"
-    },
-    "products": {
-      "reviewHeading": "Commandes sans produit associé",
-      "reviewEmpty": "Aucune commande en attente d'association produit",
-      "mappingsHeading": "Correspondances produit existantes",
-      "mappingsEmpty": "Aucune correspondance produit configurée",
-      "variantId": "ID variante",
-      "bind": "Associer",
-      "bindTitle": "Associer un produit",
-      "bindDescription": "Associer la variante {variant} (« {name} ») à un produit OMS. Les commandes ouvertes portant cette variante seront mises à jour.",
-      "colStorefront": "Storefront",
-      "colVariantId": "ID variante",
-      "colProduct": "Produit OMS",
-      "selectProduct": "Sélectionner un produit"
-    },
-    "cities": {
-      "reviewHeading": "Commandes sans ville associée",
-      "reviewEmpty": "Aucune commande en attente d'association ville",
-      "bind": "Associer",
-      "bindTitle": "Associer une ville",
-      "bindDescription": "La ville « {name} » de la commande ne correspond à aucune destination. Choisissez la bonne destination ci-dessous.",
-      "colCity": "Ville OMS",
-      "selectCity": "Sélectionner une ville"
-    }
-  },
   "productPnl": {
     "rentabilityTitle": "Rentabilité",
     "loading": "Chargement…",
@@ -4050,342 +4005,6 @@
       "keyHint": "Minuscules, chiffres et underscores. Exemple: blocked_customs",
       "keyInvalid": "Format invalide — utilisez minuscules/chiffres/underscores uniquement.",
       "keyConflict": "Cette clé existe déjà pour ce marché et cette portée."
-    },
-    "storefronts": {
-      "title": "Storefronts",
-      "subtitle": "Connectez vos boutiques et surveillez l'état des webhooks.",
-      "subtitleReadOnly": "Vue lecture seule — supervision des webhooks.",
-      "connect": "Connecter un storefront",
-      "test": "Tester",
-      "testing": "Test…",
-      "edit": "Modifier",
-      "active": "Actif",
-      "inactive": "Inactif",
-      "lastWebhook": "Dernier webhook",
-      "failureCount": "Échecs consécutifs",
-      "status": "Statut",
-      "statusProcessed": "Traité",
-      "statusError": "Erreur",
-      "statusIgnored": "Ignoré",
-      "statusNone": "—",
-      "lastError": "Dernière erreur :",
-      "viewAlerts": "Voir alertes →",
-      "noStorefronts": "Aucun storefront configuré pour ce marché.",
-      "emptyHint": "Cliquez sur \"Connecter un storefront\" pour démarrer.",
-      "copy": "Copier",
-      "copied": "Copié ✓",
-      "regenerateSecret": "Régénérer le secret",
-      "regenerateWarning": "Régénérer invalidera la signature actuelle — mettez à jour le storefront immédiatement.",
-      "errorMessages": {
-        "copyFailed": "Impossible de copier dans le presse-papiers.",
-        "testFailed": "Test échoué.",
-        "networkError": "Erreur réseau"
-      },
-      "edit_panel": {
-        "title": "Modifier le storefront",
-        "name": "Nom",
-        "webhookUrl": "Webhook URL",
-        "webhookSecret": "Webhook Secret",
-        "secretPlaceholder": "Laisser tel quel pour ne pas modifier",
-        "save": "Enregistrer",
-        "saving": "Enregistrement…",
-        "cancel": "Annuler",
-        "error": "Erreur"
-      },
-      "created_modal": {
-        "title": "Storefront créé",
-        "warning": "Copiez ces informations — elles ne seront plus affichées.",
-        "webhookUrlLabel": "URL Webhook (OMS)",
-        "secretLabel": "Secret Webhook",
-        "ack": "J'ai sauvegardé ces informations"
-      },
-      "wizard": {
-        "title": "Nouveau storefront — {market}",
-        "stepsAria": "Étapes",
-        "steps": {
-          "name": "Nom",
-          "platform": "Plateforme",
-          "auth": "Authentification",
-          "webhook": "Webhook"
-        },
-        "nameLabel": "Nom du storefront",
-        "namePlaceholder": "ex : Boutique principale",
-        "nameHelp": "Un nom court, visible partout où ce storefront apparaît.",
-        "platformLabel": "Plateforme",
-        "secretLabel": "Secret webhook",
-        "secretRegenerate": "Régénérer",
-        "secretHelp": "Ce secret servira à signer les webhooks entrants. 16 caractères minimum.",
-        "webhookLabel": "URL webhook (côté storefront)",
-        "webhookHelp": "Optionnel — URL où le storefront envoie les webhooks (pour référence). L'URL d'écoute OMS sera affichée après création.",
-        "summary": "Récapitulatif",
-        "summaryName": "Nom : {name}",
-        "summaryPlatform": "Plateforme : {platform}",
-        "summaryMarket": "Marché : {market}",
-        "errorCreate": "Erreur lors de la création",
-        "cancel": "Annuler",
-        "previous": "Précédent",
-        "next": "Suivant",
-        "create": "Créer le storefront",
-        "creating": "Création…",
-        "platforms": {
-          "easyOrders": "Easy Orders",
-          "shopify": "Shopify",
-          "woocommerce": "WooCommerce",
-          "lightfunnels": "Lightfunnels"
-        },
-        "hints": {
-          "easyOrders": "X-Webhook-Signature (hex)",
-          "shopify": "X-Shopify-Hmac-Sha256 (base64)",
-          "woocommerce": "X-WC-Webhook-Signature (base64)",
-          "lightfunnels": "lightfunnels-hmac (base64)"
-        }
-      }
-    },
-    "carriers": {
-      "onboarding": {
-        "dialogLabel": "Guide d'intégration transporteur",
-        "tocLabel": "Sections du guide",
-        "eyebrow": "Guide d'intégration",
-        "title": "Connecter un transporteur",
-        "subtitle": "Choisissez un adaptateur officiel ou implémentez le vôtre. Tout dispatch passe par cette couche.",
-        "close": "Fermer",
-        "addCarrier": "Ajouter un transporteur",
-        "copyPath": "Copier",
-        "copyEndpoint": "Copier",
-        "sections": {
-          "overview": {
-            "tab": "Aperçu",
-            "title": "Comment ça marche",
-            "body": "Chaque transporteur est connecté via un adaptateur — une classe TypeScript qui formate le payload, appelle l'API du transporteur et parse la réponse. Le dispatch est synchrone : l'agent voit immédiatement le succès ou l'échec.",
-            "stat1Label": "Adaptateurs",
-            "stat1Value": "{count} disponibles",
-            "stat2Label": "Dispatch",
-            "stat2Value": "Synchrone",
-            "stat3Label": "Test",
-            "stat3Value": "Ping + Dry-run"
-          },
-          "adapters": {
-            "tab": "Adaptateurs",
-            "title": "Adaptateurs officiels",
-            "body": "Ces adaptateurs sont prêts à l'emploi. Sélectionnez l'un d'eux à la création — l'endpoint et les champs d'identifiants sont préremplis.",
-            "empty": "Aucun adaptateur disponible pour ce marché. Ajoutez-en un dans src/lib/carriers/."
-          },
-          "newAdapter": {
-            "tab": "Nouvel adaptateur",
-            "title": "Implémenter un adaptateur",
-            "body": "Suivez ces étapes pour ajouter un nouveau transporteur. Les fichiers existants servent de référence.",
-            "step1Title": "Créer la classe d'adaptateur",
-            "step1Body": "Implémenter l'interface CarrierAdapter avec formatPayload, dispatch et parseResponse. Garder la logique pure et testable.",
-            "step2Title": "Enregistrer dans le registre",
-            "step2Body": "Ajouter une entrée à ADAPTER_DESCRIPTORS et la factory dans le mapping adapters. Préciser markets pour le filtrage par marché.",
-            "step3Title": "Écrire les tests",
-            "step3Body": "Au minimum : formatage du payload, parsing succès, parsing erreurs. Pas de mock du HTTP — utiliser le contrat de réponse.",
-            "step4Title": "Ajouter le transporteur",
-            "step4Body": "Cliquer sur \"Ajouter un transporteur\" — votre adaptateur apparaît automatiquement dans le sélecteur.",
-            "step5Title": "Vérifier l'intégration",
-            "step5Body": "Utiliser \"Ping\" pour vérifier la joignabilité, puis \"Test dispatch\" pour valider le formatage du payload."
-          },
-          "rotation": {
-            "tab": "Rotation",
-            "title": "Rotation des identifiants",
-            "body": "La clé API n'est jamais affichée après la création — seule une nouvelle saisie peut la remplacer. Pour faire tourner : Configurer → Faire tourner → entrer la nouvelle clé → Enregistrer.",
-            "tipTitle": "Conseil",
-            "tipBody": "Faites tourner la clé immédiatement si vous suspectez une fuite. L'ancienne reste active jusqu'à l'enregistrement de la nouvelle."
-          },
-          "performance": {
-            "tab": "Performance",
-            "title": "Indicateurs de santé",
-            "body": "Les stats (livraison 30j, transit médian) sont calculées depuis l'historique des commandes et recalculées chaque minute.",
-            "healthy": "Sain — taux de livraison ≥ 80% sur 10+ commandes.",
-            "degraded": "Dégradé — taux entre 60% et 80%, ou échantillon insuffisant.",
-            "critical": "Critique — taux < 60% sur 10+ commandes, ou injoignable."
-          },
-          "troubleshooting": {
-            "tab": "Dépannage",
-            "title": "Problèmes courants",
-            "ping": {
-              "title": "Ping échoue",
-              "body": "Vérifiez l'endpoint API (HTTPS ?), la résolution DNS et le pare-feu. Un 401 sur Ping est normal — Ping teste la joignabilité, pas l'auth."
-            },
-            "dryRun": {
-              "title": "Test dispatch échoue",
-              "body": "Lisez la réponse — elle indique le champ manquant ou invalide. Vérifiez que les identifiants stockés correspondent à ce que l'API attend."
-            },
-            "lowDelivery": {
-              "title": "Taux de livraison bas",
-              "body": "Comparez avec d'autres transporteurs sur le même marché. Si le problème persiste, contactez le transporteur ou désactivez-le temporairement."
-            },
-            "unknownAdapter": {
-              "title": "Adaptateur inconnu",
-              "body": "Le transporteur a été créé avec un code qui n'a plus d'adaptateur enregistré. Modifiez le code dans le registre ou recréez le transporteur."
-            }
-          }
-        },
-        "adapter": {
-          "endpoint": "Endpoint par défaut",
-          "credentials": "Champs d'identifiants",
-          "secret": "Secret"
-        }
-      }
-    },
-    "googleSheets": {
-      "title": "Google Sheets",
-      "syncNow": "Synchroniser",
-      "syncing": "Synchronisation…",
-      "rowsSynced": "{count} lignes synchronisées",
-      "neverSynced": "Jamais synchronisé",
-      "error": "Erreur de synchronisation",
-      "config": {
-        "title": "Sources Google Sheets",
-        "subtitle": "Importez des commandes depuis Google Sheets en lecture seule.",
-        "addSource": "Ajouter une source",
-        "spreadsheetId": "ID du classeur",
-        "spreadsheetIdPlaceholder": "Ex : 1RT7e_Tmmz3kr…",
-        "sheetName": "Nom de l’onglet",
-        "platform": "Plateforme source",
-        "save": "Enregistrer",
-        "saving": "Enregistrement…",
-        "cancel": "Annuler",
-        "active": "Actif",
-        "inactive": "Inactif",
-        "disable": "Désactiver",
-        "enable": "Activer",
-        "remove": "Supprimer",
-        "removeAriaLabel": "Supprimer cette source",
-        "noSources": "Aucune source Google Sheets configurée.",
-        "validation": {
-          "required": "ID du classeur et nom de l’onglet sont requis.",
-          "saveFailed": "Échec de l’enregistrement. Réessayez."
-        }
-      },
-      "broken": "Import interrompu",
-      "brokenHint": "Aucune synchronisation réussie depuis {since}. Les commandes du classeur n’arrivent pas.",
-      "brokenNever": "Aucune synchronisation n’a jamais abouti.",
-      "healthy": "Dernière synchronisation {since}",
-      "catchingUp": "Rattrapage en cours — il reste des lignes à importer.",
-      "failedRows": "{count} ligne(s) non importée(s)"
-    },
-    "commissions": {
-      "tab": "Commissions",
-      "title": "Commissions",
-      "description": "Ce qu'un agent gagne par commande livrée. Seules comptent les commandes téléversées après l'activation de sa commission. Un changement ne touche jamais les commandes déjà livrées.",
-      "enabledLabel": "Commissions activées",
-      "enabledHint": "Éteint : plus aucune commission n'est calculée pour les commandes livrées à partir de la date choisie. Les soldes déjà acquis restent visibles et payables.",
-      "enabledFor": "Activées pour {market}",
-      "disabledFor": "Désactivées pour {market}",
-      "rateLabel": "Commission par commande livrée ({currency})",
-      "rateHint": "Taux du marché — s'applique à tout agent sans exception.",
-      "fromLabel": "À partir du",
-      "fromHint": "Les commandes livrées avant cette date gardent leur ancien taux.",
-      "fromToday": "aujourd'hui, heure du marché",
-      "perAgentLabel": "Par agent",
-      "perAgentHint": "Coupe la commission d'un agent, ou donne-lui un taux propre. Sinon, le taux du marché s'applique.",
-      "colAgent": "Agent",
-      "colCommission": "Commission",
-      "colRate": "Taux",
-      "colSince": "Depuis",
-      "colNote": "Note",
-      "marketRate": "marché",
-      "ownRate": "taux propre",
-      "off": "désactivée",
-      "inactive": "inactif",
-      "setOwnRate": "Taux propre…",
-      "edit": "Modifier",
-      "clearOverride": "Revenir au taux du marché",
-      "perAgentNote": "Un agent désactivé ne voit plus l'onglet « Mes commissions » (sauf s'il lui reste un solde à recevoir) et sort des totaux à payer. Couper puis rallumer ne touche jamais l'historique.",
-      "historyLabel": "Historique",
-      "historyHint": "Chaque changement est daté et signé.",
-      "historyMarket": "marché",
-      "historyEnabled": "activé à {amount}",
-      "historyDisabled": "désactivé",
-      "historyRate": "{amount}",
-      "historyEmpty": "Aucun changement enregistré.",
-      "noRate": "Aucun taux n'est encore défini pour ce marché — les commissions ne sont pas calculées.",
-      "visibleTo": "Visible par super_admin uniquement",
-      "save": "Enregistrer",
-      "saving": "Enregistrement…",
-      "saved": "Enregistré",
-      "failed": "Erreur lors de l'enregistrement",
-      "overrideTitle": "Taux propre — {name}",
-      "overrideAmount": "Taux ({currency})",
-      "overrideFrom": "À partir du",
-      "overrideNote": "Note",
-      "apply": "Appliquer",
-      "cancel": "Annuler",
-      "loading": "Chargement…",
-      "loadError": "Impossible de charger les commissions."
-    }
-  },
-  "logs": {
-    "title": "Journaux système",
-    "subtitle": "Audit technique des webhooks entrants et des événements transporteur. Super admin uniquement.",
-    "tabs": {
-      "webhooks": "Webhooks",
-      "carrier": "Transporteurs"
-    },
-    "failuresOnly": "Échecs uniquement",
-    "searchPlaceholder": "ID externe, tracking, message d'erreur…",
-    "searchAria": "Rechercher dans les journaux",
-    "refresh": "Actualiser",
-    "loading": "Chargement…",
-    "empty": "Aucune entrée trouvée.",
-    "prev": "Page précédente",
-    "next": "Page suivante",
-    "paginationLabel": "{total, plural, one {# entrée} other {# entrées}} — page {page} / {totalPages}",
-    "retentionNote": "Les entrées de plus de 90 jours sont archivées en stockage froid.",
-    "cols": {
-      "date": "Date",
-      "source": "Source",
-      "event": "Événement",
-      "externalId": "ID externe",
-      "status": "Statut",
-      "order": "Commande",
-      "message": "Message",
-      "carrier": "Transporteur",
-      "carrierSource": "Canal",
-      "tracking": "Tracking",
-      "rawStatus": "Statut brut",
-      "outcome": "Résultat",
-      "reason": "Détail"
-    },
-    "outcome": {
-      "processed": "Traité",
-      "ignored": "Ignoré",
-      "error": "Erreur",
-      "unknown": "—"
-    },
-    "filters": {
-      "all": "Tous"
-    },
-    "stats": {
-      "webhookRate": "Webhooks",
-      "carrierRate": "Transporteurs",
-      "window60": "60 dernières minutes"
-    },
-    "inspector": {
-      "title": "Inspecteur de charge utile",
-      "webhookTitle": "Livraison webhook",
-      "carrierTitle": "Événement transporteur",
-      "close": "Fermer",
-      "date": "Date",
-      "errorMessage": "Erreur",
-      "reason": "Raison",
-      "searchPayload": "Filtrer dans la charge utile…",
-      "copy": "Copier",
-      "copied": "Copié",
-      "noPayload": "Aucune charge utile enregistrée.",
-      "noSearchMatch": "Aucune ligne correspondante."
-    },
-    "replay": {
-      "action": "Rejouer",
-      "inProgress": "Rejeu en cours…",
-      "help": "Relance le traitement du webhook. Les contraintes d'unicité sur les commandes protègent contre les doublons.",
-      "success": "Rejeu réussi — commande créée.",
-      "duplicate": "Rejeu OK — la commande existait déjà, aucune écriture supplémentaire.",
-      "error": "Échec du rejeu : {message}",
-      "ambiguous": "Rejeu terminé sans confirmation claire : {message}",
-      "noDetail": "aucun détail",
-      "networkError": "Erreur réseau pendant le rejeu."
     }
   },
   "teamPerf": {
@@ -6984,7 +6603,7 @@
         "launched": "Campagne lancée · {n} messages en file",
         "resubmit": "Modifier et resoumettre",
         "waApiOffD": "WhatsApp n'est pas connecté pour ce marché.",
-        "waApiOffAdmin": "Connectez-le dans Système › Connexions.",
+        "waApiOffAdmin": "Connectez-le dans Réglages › WhatsApp.",
         "waFrom": "Ordra {market}",
         "market": {
           "ly": "Libye",
@@ -7161,7 +6780,7 @@
       "undeliverable": "Ce numéro n'est pas sur WhatsApp",
       "undeliverableSub": "Meta a refusé la livraison (code 131026). Appelez le client ou corrigez le numéro.",
       "noConfig": "WhatsApp n'est pas connecté pour ce marché",
-      "noConfigSub": "Demandez à l'administrateur de connecter le numéro dans Système › Connexions. En attendant, le lien wa.me ouvre WhatsApp sur votre téléphone.",
+      "noConfigSub": "Demandez à l'administrateur de connecter le numéro dans Réglages › WhatsApp. En attendant, le lien wa.me ouvre WhatsApp sur votre téléphone.",
       "noPhone": "Aucun numéro WhatsApp utilisable pour ce client.",
       "failed": "L'envoi a échoué",
       "failedMeta": "Meta {code} · {reason}",
@@ -7233,7 +6852,7 @@
         "h": "il y a {n} h",
         "d": "il y a {n} j"
       },
-      "goToConnections": "Ouvrir Système › Connexions",
+      "goToConnections": "Ouvrir Réglages › WhatsApp",
       "language": {
         "fr": "Français",
         "ar": "العربية",
@@ -7244,124 +6863,6 @@
       "conversations": "Conversations",
       "templates": "Modèles",
       "switchLabel": "Messages WhatsApp"
-    },
-    "overview": {
-      "sub": "Cloud API · {connected}/{markets} marché(s) relié(s)",
-      "realtime": "temps réel"
-    },
-    "connections": {
-      "title": "WhatsApp Business — Cloud API",
-      "sub": "Un numéro par marché, un portefeuille Meta par marché. Les identifiants sont vérifiés auprès de Meta avant d'être chiffrés.",
-      "status": {
-        "connected": "Connecté",
-        "notConnected": "Non connecté",
-        "unverified": "Connecté · non vérifié",
-        "paused": "En pause",
-        "authFailed": "Jeton invalide"
-      },
-      "noNumber": "Aucun numéro relié",
-      "notConnectedBody": "Une fois relié : relance des tentatives sans réponse, notification d'expédition avec numéro de suivi, envois des agents depuis le numéro de l'entreprise, réponses des clients sur la commande.",
-      "health": {
-        "quality": "Qualité",
-        "tier": "Palier",
-        "templates": "Modèles",
-        "webhook": "Dernier webhook",
-        "auto": "Envois automatiques : {state}"
-      },
-      "quality": {
-        "GREEN": "verte",
-        "YELLOW": "orange",
-        "RED": "rouge",
-        "NA": "pas encore de données"
-      },
-      "tierOf": "{n} destinataires / 24 h",
-      "tierUnlimited": "illimité",
-      "verifOk": "entreprise vérifiée",
-      "verifPending": "vérification d'entreprise en cours",
-      "tpl": {
-        "approved": "{n} approuvés",
-        "pending": "{n} en attente",
-        "rejectedOne": "{n} refusé",
-        "rejectedMany": "{n} refusés"
-      },
-      "auto": {
-        "off": "désactivés (Paramètres)",
-        "cronOff": "cron inactif — prévenez l'administrateur",
-        "of": "dernière passe {time} · {n} en file"
-      },
-      "fields": {
-        "waba": "WABA ID",
-        "pnid": "Phone number ID",
-        "app": "App ID",
-        "token": "Jeton d'accès",
-        "tokenForm": "Jeton d'accès (System User)",
-        "secret": "App secret",
-        "verify": "Verify token",
-        "gv": "Version Graph",
-        "rate": "Débit automatique",
-        "keep": "{label} — laisser vide pour conserver"
-      },
-      "rateOf": "{n} msg/s",
-      "systemUser": "System User · permanent",
-      "copy": "Copier {field}",
-      "show": "Afficher",
-      "hide": "Masquer",
-      "revealFailed": "Verify token illisible",
-      "actions": {
-        "test": "Tester",
-        "edit": "Modifier",
-        "pause": "Mettre en pause",
-        "resume": "Reprendre",
-        "connect": "Connecter",
-        "save": "Vérifier et enregistrer",
-        "saving": "Vérification auprès de Meta…",
-        "cancel": "Annuler",
-        "generate": "Générer"
-      },
-      "formHint": "Rien n'est stocké tant que Meta n'a pas répondu à un appel de test avec ces valeurs.",
-      "saveFailed": "La vérification auprès de Meta a échoué.",
-      "saved": "Vérifié auprès de Meta et enregistré (chiffré)",
-      "lastTest": "Dernier test · {when}",
-      "stages": {
-        "credentials": "Identifiants",
-        "phone": "Numéro",
-        "waba": "Compte WhatsApp (WABA)",
-        "subscription": "Abonnement de l'app",
-        "webhook": "Webhook"
-      },
-      "stageStatus": {
-        "ok": "ok",
-        "warning": "avertissement",
-        "failed": "échec",
-        "skipped": "ignoré"
-      },
-      "detail": {
-        "credentials_ok": "déchiffrés, jeton système permanent",
-        "credentials_decrypt_failed": "Identifiants illisibles — ENCRYPTION_KEY a probablement changé. Saisissez-les à nouveau.",
-        "phone_registered": "{name} · {phone} · enregistré",
-        "phone_unregistered": "{name} · {phone} · statut {status} — le numéro n'est pas enregistré sur la Cloud API (définissez le PIN de vérification en deux étapes dans WhatsApp Manager).",
-        "graph_auth": "Jeton refusé (code {code}). Générez un nouveau jeton System User.",
-        "graph_throttle": "Meta limite les appels en ce moment — l'identifiant est bon, réessayez dans quelques minutes.",
-        "graph_error": "{message}",
-        "waba_counts": "{total} modèles · {approved} approuvés",
-        "waba_pending": "{n} en attente",
-        "waba_rejected": "{n} refusés",
-        "waba_unreadable": "WABA {waba} illisible avec ce jeton — {cause}",
-        "subscription_ok": "l'app reçoit les événements de ce WABA",
-        "subscription_fixed": "abonnement absent — corrigé automatiquement",
-        "webhook_min": "dernier événement il y a {n} min",
-        "webhook_h": "dernier événement il y a {n} h",
-        "webhook_stale": "dernier événement il y a {n} j — vérifiez l'URL de rappel et l'abonnement aux champs dans l'app Meta",
-        "webhook_never": "aucun événement reçu — envoyez un message test au numéro depuis un téléphone, puis relancez le test"
-      },
-      "hook": {
-        "title": "Webhook — à coller dans l'app Meta",
-        "sub": "Une seule URL pour les deux applications : Ordra reconnaît le marché par le numéro qui a reçu l'événement.",
-        "url": "URL de rappel",
-        "verify": "Verify token · {market}",
-        "fields": "Champs à abonner",
-        "note": "Ordra répond 401 à toute requête dont la signature ne correspond pas à l'app secret du marché."
-      }
     },
     "templates": {
       "title": "Modèles WhatsApp",
@@ -7422,7 +6923,7 @@
       "empty": "Aucun modèle pour ce marché.",
       "emptyHint": "« Créer les modèles Ordra » soumet le catalogue complet.",
       "notConnected": "WhatsApp n'est pas connecté pour ce marché : Meta ne détient encore aucun modèle, rien ne peut être synchronisé ni créé.",
-      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un super_admin relie le numéro dans Système › Connexions.",
+      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un administrateur relie le numéro dans Réglages › WhatsApp.",
       "synced": "Synchronisé · {total} modèles, {updated} mis à jour",
       "syncedNew": "{n} nouveaux",
       "syncedGone": "{n} disparus",
@@ -7442,60 +6943,6 @@
         "sender": "Ordra {market}",
         "dialog": "Modèle {name}"
       }
-    },
-    "settings": {
-      "card": "Notifications WhatsApp automatiques",
-      "cardSub": "Un message part quand la commande atteint l'un de ces états. Chaque événement se coupe indépendamment.",
-      "master": "Notifications automatiques",
-      "masterHint": "Interrupteur général : coupé, aucun événement n'envoie, quels que soient les réglages ci-dessous.",
-      "events": {
-        "could_not_reach": {
-          "label": "Injoignable",
-          "hint": "Après la première tentative sans réponse, une seule fois par commande."
-        },
-        "shipped": {
-          "label": "Expédié",
-          "hint": "Numéro de suivi au scan de sortie. Darb envoie déjà son SMS en Libye."
-        },
-        "out_for_delivery": {
-          "label": "En livraison",
-          "hint": "« Le livreur passe aujourd'hui, gardez votre téléphone allumé. »"
-        },
-        "last_chance": {
-          "label": "Dernière chance",
-          "hint": "Livraison retardée ou colis en retour : « répondez aujourd'hui »."
-        },
-        "delivered": {
-          "label": "Livré",
-          "hint": "Remerciement une fois le colis remis."
-        }
-      },
-      "tpl": {
-        "ok": "modèle approuvé",
-        "pend": "en attente d'approbation",
-        "none": "aucun modèle approuvé"
-      },
-      "on": "Activé",
-      "off": "Désactivé",
-      "lang": "Langue par défaut",
-      "langHint": "Pour un client dont la langue n'a pas encore été choisie par un agent.",
-      "window": "Plage d'envoi",
-      "windowHint": "En dehors, les messages attendent le lendemain matin. Darb synchronise la nuit ; personne ne doit être réveillé à 3 h.",
-      "windowInvalid": "Format attendu : HH-HH, début avant fin (ex. 10-20).",
-      "windowUnit": "h · {tz}",
-      "warnUnverified": "Le numéro est connecté mais l'entreprise n'est pas encore vérifiée : 250 destinataires par 24 h. Activez un seul événement pour commencer, puis les autres une fois la qualité verte.",
-      "warnMissing": "Aucun modèle approuvé {language} pour « {event} ».",
-      "inLanguage": {
-        "fr": "en français",
-        "ar": "en arabe"
-      },
-      "noConfigTitle": "WhatsApp n'est pas connecté pour ce marché",
-      "noConfig": "Connectez d'abord WhatsApp dans Système › Connexions. Les réglages ci-dessous seront appliqués dès que ce sera fait.",
-      "save": "Enregistrer",
-      "saving": "Enregistrement…",
-      "reset": "Réinitialiser ce groupe",
-      "warnMissingTail": "L'événement restera en file jusqu'à l'approbation — rien n'est perdu, rien ne part.",
-      "warnMissingTailMany": "Ces événements resteront en file jusqu'à l'approbation — rien n'est perdu, rien ne part."
     },
     "inbox": {
       "title": "Messages",
@@ -7718,5 +7165,871 @@
       "actionFailed": "L'action a échoué. Réessayez.",
       "productTabs": "Produits"
     }
+  },
+  "reglages": {
+    "title": "Réglages",
+    "marketLabel": {
+      "admin": "Marché réglé",
+      "manager": "Votre marché"
+    },
+    "allMarketsHint": "Vous regardez « Tous les marchés ». Choisissez-en un.",
+    "menuFoot": {
+      "admin": "Chaque modification est enregistrée avec son auteur. Cliquez sur l’horloge d’un réglage pour voir son historique.",
+      "manager": "Vous pouvez modifier les règles du quotidien de votre marché. Le reste est réglé par un administrateur."
+    },
+    "market": {
+      "tn": "Tunisie",
+      "ly": "Libye"
+    },
+    "language": {
+      "fr": "Français",
+      "ar": "Arabe"
+    },
+    "topics": {
+      "markets": {
+        "label": "Marchés",
+        "subtitle": "Les pays où Ordra vend. Chacun a sa langue, sa devise et ses propres réglages."
+      },
+      "shops": {
+        "label": "Boutiques",
+        "subtitle": "Les boutiques qui envoient leurs commandes à Ordra, et les produits ou villes reçus qu’il faut associer."
+      },
+      "orders": {
+        "label": "Commandes",
+        "subtitle": "Combien de fois on appelle, quand on rappelle, ce qu’on fait des doublons et quand on range."
+      },
+      "rejections": {
+        "label": "Motifs de rejet",
+        "subtitle": "Les raisons qu’un agent choisit quand une commande n’aboutit pas."
+      },
+      "team": {
+        "label": "Équipe",
+        "subtitle": "Comment les commandes sont réparties entre les agents, leurs objectifs et leurs commissions."
+      },
+      "warehouses": {
+        "label": "Entrepôts",
+        "subtitle": "Les bâtiments d’où partent les colis, et le délai pour réapprovisionner le stock."
+      },
+      "delivery": {
+        "label": "Livraison",
+        "subtitle": "Les transporteurs et leurs frais, et quand un colis en route mérite un appel."
+      },
+      "whatsapp": {
+        "label": "WhatsApp",
+        "subtitle": "Le numéro WhatsApp de la marque, et les messages envoyés automatiquement aux clients."
+      },
+      "ads": {
+        "label": "Publicité",
+        "subtitle": "Les comptes publicitaires Meta dont Ordra lit les dépenses, et le taux de change utilisé."
+      }
+    },
+    "scope": {
+      "title": "Les réglages se font marché par marché",
+      "heading": "Quel marché voulez-vous régler ?",
+      "body": "Vous regardez « Tous les marchés ». Une règle d’appel ou un transporteur appartient toujours à un seul marché."
+    },
+    "save": {
+      "one": "1 modification non enregistrée",
+      "many": "{count} modifications non enregistrées",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saved": "Réglages enregistrés",
+      "failed": "L’enregistrement a échoué. Rien n’a été modifié.",
+      "forbidden": "Ce réglage est modifiable par un administrateur seulement.",
+      "invalid": "Une valeur est hors des limites autorisées. Corrigez-la avant d’enregistrer."
+    },
+    "leave": {
+      "title": "Quitter sans enregistrer ?",
+      "body": "Vous avez des modifications non enregistrées sur cette page. Elles seront perdues.",
+      "stay": "Rester",
+      "go": "Quitter sans enregistrer"
+    },
+    "readOnly": "Modifiable par un administrateur",
+    "adminOnly": "Visible par l’administrateur seulement",
+    "history": {
+      "button": "Historique des modifications",
+      "empty": "Aucune modification enregistrée : c’est la valeur d’origine.",
+      "loading": "Chargement de l’historique",
+      "unknown": "—"
+    },
+    "common": {
+      "active": "Actif",
+      "inactive": "Désactivé",
+      "edit": "Modifier",
+      "add": "Ajouter",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "close": "Fermer",
+      "copy": "Copier",
+      "copied": "Copié",
+      "archive": "Archiver",
+      "remove": "Retirer",
+      "test": "Tester",
+      "saved": "Enregistré",
+      "error": "Une erreur est survenue. Réessayez.",
+      "loading": "Chargement",
+      "none": "—"
+    },
+    "fields": {
+      "max_call_attempts": {
+        "label": "Nombre maximum d’appels",
+        "unit": "appels",
+        "help": "Au {n}ᵉ appel sans réponse, la commande est rejetée automatiquement avec le motif « Injoignable »."
+      },
+      "sla_minutes": {
+        "label": "Délai de confirmation visé",
+        "unit": "minutes",
+        "helpHours": "Dans le panneau d’une commande, le compteur passe au rouge quand elle attend sa confirmation depuis plus de {n} h.",
+        "helpMinutes": "Dans le panneau d’une commande, le compteur passe au rouge quand elle attend sa confirmation depuis plus de {n} min."
+      },
+      "attempt_retry_times": {
+        "label": "Heures de rappel",
+        "help": "Une commande restée sans réponse revient en haut de la file de l’agent à {times}, dans cet ordre. 3 heures au maximum.",
+        "helpEmpty": "Aucune heure : la commande revient quand l’agent le décide.",
+        "add": "Ajouter",
+        "remove": "Retirer",
+        "slot": "Heure {n}",
+        "invalid": "Heures au format HH:MM, dans l’ordre de la journée."
+      },
+      "duplicate_window_hours": {
+        "label": "Doublon probable",
+        "unit": "heures",
+        "help": "Si un client recommande dans les {n} h, la nouvelle commande porte le badge « doublon probable ». Un doublon exact est déjà écarté."
+      },
+      "duplicate_autoselect_window_hours": {
+        "label": "Pré-sélection sur l’écran Doublons",
+        "unit": "heures",
+        "help": "Les commandes identiques arrivées à moins de {n} h d’écart sont cochées d’avance. 0 = rien n’est coché.",
+        "helpZero": "Rien n’est coché d’avance : vous choisissez chaque doublon."
+      },
+      "merge_window_hours": {
+        "label": "Fusion de commandes",
+        "unit": "heures",
+        "help": "Même client, produits différents, à moins de {n} h d’écart : l’agent peut les réunir en un seul colis, avec un seul frais de livraison. 0 = désactivée.",
+        "helpZero": "Désactivée : l’agent ne peut pas réunir deux commandes d’un même client. Saisissez un nombre d’heures pour l’activer."
+      },
+      "auto_archive_after_days": {
+        "label": "Archiver les commandes terminées après",
+        "unit": "jours",
+        "help": "Une commande livrée, retournée, rejetée ou annulée depuis {n} jours passe dans « Archivées ». Son statut ne change pas."
+      },
+      "goal_daily_treated": {
+        "label": "Commandes traitées par agent et par jour",
+        "unit": "commandes",
+        "help": "Affiché dans la salle de contrôle et sur la fiche de chaque agent."
+      },
+      "goal_min_rate": {
+        "label": "Taux de confirmation minimum",
+        "unit": "%",
+        "help": "En dessous de {n} %, le taux d’un agent ou du marché s’affiche en alerte."
+      },
+      "goal_conf_per_hour": {
+        "label": "Confirmations par heure, par agent",
+        "unit": "par heure"
+      },
+      "goal_team_weekly_conf": {
+        "label": "Confirmations par semaine, toute l’équipe",
+        "unit": "par semaine"
+      },
+      "supplier_lead_time_days": {
+        "label": "Délai fournisseur",
+        "unit": "jours",
+        "help": "Temps entre la commande au fournisseur et l’arrivée en stock. La page Stock vous dit de recommander {n} jours avant la rupture prévue."
+      },
+      "high_value_threshold": {
+        "label": "Montant élevé",
+        "help": "Un colis de {n} {cur} ou plus est à risque. 0 = désactivé.",
+        "helpZero": "Désactivé : le montant ne rend jamais un colis à risque. Saisissez un montant pour l’activer."
+      },
+      "risk_min_prior_failures": {
+        "label": "Client déjà en échec",
+        "unit": "échecs",
+        "help": "Un client qui a déjà refusé ou renvoyé {n} colis est à risque. Un nouveau client ne l’est jamais."
+      },
+      "zone_low_delivery_rate_pct": {
+        "label": "Zone difficile",
+        "unit": "%",
+        "help": "Une destination où moins de {n} % des colis sont livrés rend le colis à risque…"
+      },
+      "zone_min_sample": {
+        "label": "Échantillon minimum d’une zone",
+        "unit": "colis",
+        "help": "…mais seulement après {n} colis terminés vers cette zone. Avant, le taux ne veut rien dire."
+      },
+      "carrier_stall_days": {
+        "label": "Colis immobile",
+        "unit": "jours",
+        "help": "Un colis sans aucun mouvement chez le transporteur depuis {n} jours remonte dans le suivi de livraison."
+      },
+      "delivery_first_action_hours": {
+        "label": "Délai de première action",
+        "unit": "heures",
+        "help": "Un colis à traiter qui attend plus de {n} h (heures de service) signale son agent en retard sur le tableau."
+      },
+      "delivery_done_window_hours": {
+        "label": "Colis terminés visibles",
+        "unit": "heures",
+        "help": "Un colis livré ou retourné reste {n} h dans « Terminés » : l’agent peut encore y noter l’appel qui l’a clos."
+      }
+    },
+    "orders": {
+      "callsTitle": "Appels de confirmation",
+      "callsDesc": "Combien de fois un agent appelle, et quand une commande sans réponse revient.",
+      "dupTitle": "Doublons et fusion",
+      "dupDesc": "Ce qui se passe quand un même client commande plusieurs fois.",
+      "archiveTitle": "Archivage",
+      "archiveDesc": "Ranger les commandes terminées pour alléger les listes."
+    },
+    "markets": {
+      "colMarket": "Marché",
+      "colLanguage": "Langue de l’équipe",
+      "colCurrency": "Devise",
+      "colState": "État",
+      "addNote": "Ajouter un marché demande une intervention technique : devise, transporteurs et villes de livraison.",
+      "open": "Ouvrir {market}",
+      "drawerSub": "Modifier le marché",
+      "identity": "Identité",
+      "name": "Nom",
+      "teamLanguage": "Langue de l’équipe",
+      "teamLanguageHelp": "La langue des agents et managers de ce marché. L’administrateur voit toujours le français.",
+      "ltr": "de gauche à droite",
+      "rtl": "de droite à gauche",
+      "currency": "Devise",
+      "currencyHelp": "Fixée à la création : toutes les sommes du marché en dépendent.",
+      "activeLabel": "Marché actif",
+      "activeHelp": "Désactivé, il disparaît du sélecteur de marché ; ses commandes et réglages sont conservés.",
+      "sender": "Expéditeur sur les étiquettes",
+      "senderHelp": "Imprimé sur chaque étiquette de colis de ce marché. Le transporteur s’en sert pour un retour.",
+      "senderName": "Nom",
+      "senderAddress": "Adresse",
+      "senderAddressPlaceholder": "ex. Rue du 1er Septembre, Tripoli",
+      "senderPhone": "Téléphone",
+      "nameRequired": "Le nom du marché ne peut pas être vide."
+    },
+    "rejections": {
+      "intro": "Les cinq groupes sont fixes : ils servent aux statistiques. Dans chaque groupe, ajoutez, renommez, réordonnez ou retirez les motifs précis. Sur une commande rejetée, la pastille affiche le motif court, en rouge, avec l’icône du groupe.",
+      "groups": {
+        "refus_client": "Le client a entendu l’offre et a dit non.",
+        "commande_invalide": "Il n’y a jamais eu de vraie commande.",
+        "injoignable": "Personne ne répond, ou le numéro ne mène pas au client.",
+        "livraison_impossible": "Le client veut le produit, mais on ne peut pas le livrer.",
+        "autre": "Aucun motif ne convient : l’agent écrit la raison."
+      },
+      "orders": "{count} commandes",
+      "colReason": "Motif",
+      "colBadge": "Pastille",
+      "colOrders": "Commandes",
+      "add": "Ajouter un motif",
+      "edit": "Modifier",
+      "move": "Déplacer {reason}",
+      "moveHint": "Glisser pour réordonner",
+      "emptyTitle": "Pas de motif précis dans ce groupe",
+      "emptyText": "L’agent écrit lui-même la raison dans une note.",
+      "retired": "Retiré",
+      "reactivate": "Réactiver",
+      "drawer": {
+        "editTitle": "Modifier le motif",
+        "addTitle": "Ajouter un motif",
+        "group": "Groupe : {group}",
+        "labelFr": "Libellé en français",
+        "labelAr": "Libellé en arabe",
+        "shortFr": "Court, en français",
+        "shortAr": "Court, en arabe",
+        "shortHelp": "Sur la pastille.",
+        "preview": "Aperçu sur une commande",
+        "previewEmpty": "Court",
+        "retireTitle": "Retirer ce motif",
+        "retireUsed": "Utilisé par {count} commandes : il disparaîtra de la liste des agents, mais restera lisible sur ces commandes.",
+        "retireUnused": "Jamais utilisé : il sera supprimé.",
+        "retire": "Retirer",
+        "create": "Ajouter",
+        "required": "Les quatre libellés sont obligatoires.",
+        "duplicate": "Un motif de ce marché porte déjà ce nom."
+      },
+      "toast": {
+        "saved": "Motif enregistré",
+        "added": "Motif ajouté",
+        "retired": "Motif retiré",
+        "deleted": "Motif supprimé",
+        "reactivated": "Motif réactivé",
+        "moved": "Ordre enregistré"
+      }
+    },
+    "team": {
+      "distTitle": "Distribution des commandes",
+      "distDesc": "Comment une commande en attente trouve son agent, à chaque distribution automatique.",
+      "method": "Méthode de distribution",
+      "methodHelp": "Les commandes déjà affectées ne bougent pas quand vous changez de méthode.",
+      "algo": {
+        "manual": {
+          "label": "Manuelle",
+          "desc": "Un manager affecte chaque commande lui-même."
+        },
+        "round_robin": {
+          "label": "Tour à tour",
+          "desc": "Chaque agent disponible reçoit la suivante, à tour de rôle."
+        },
+        "workload": {
+          "label": "Selon la charge",
+          "desc": "La commande va à l’agent qui en a le moins en cours."
+        },
+        "percentage": {
+          "label": "Par pourcentages",
+          "desc": "Chaque agent reçoit la part que vous fixez."
+        }
+      },
+      "shareOf": "Part de {name}",
+      "sharesTotal": "Total",
+      "sharesReady": "Prêt",
+      "sharesMissing": "Il manque {n} %",
+      "sharesOver": "{n} % de trop",
+      "sharesHelp": "Le total doit faire exactement 100 %. Un agent à 0 % ne reçoit rien. Seuls les agents disponibles reçoivent leur part.",
+      "sharesInvalid": "La répartition doit faire exactement 100 %.",
+      "noAgents": "Aucun agent actif dans ce marché.",
+      "goalsTitle": "Objectifs",
+      "goalsDesc": "Les cibles affichées dans la salle de contrôle et sur la fiche de chaque agent.",
+      "commTitle": "Commissions",
+      "commDesc": "Ce qu’un agent gagne pour chaque commande livrée qu’il a confirmée.",
+      "commPay": "Payer des commissions",
+      "commOn": "Activé : chaque commande livrée crédite son agent.",
+      "commOff": "Désactivé : aucune commande ne crédite d’agent.",
+      "commAmount": "Montant par commande livrée",
+      "commAmountHelp": "En vigueur depuis le {date}. Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
+      "commAmountHelpNew": "Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
+      "colAgent": "Agent",
+      "colCommission": "Commission",
+      "colAmount": "Montant",
+      "colSince": "Depuis",
+      "paid": "Payé",
+      "unpaid": "Non payé",
+      "ownAmount": "montant propre",
+      "agent": {
+        "title": "Commission de {name}",
+        "sub": "Montant de l’équipe : {amount} par commande livrée",
+        "pay": "Payer cet agent",
+        "payHelp": "Désactivé, ses commandes livrées ne lui rapportent rien.",
+        "team": "Montant de l’équipe",
+        "own": "Montant propre",
+        "ownDesc": "pour cet agent seulement",
+        "amount": "Montant",
+        "from": "À partir du",
+        "help": "Ce qui est déjà gagné ne change pas : le nouveau montant vaut pour les commandes livrées à partir de cette date.",
+        "invalid": "Montant et date obligatoires."
+      }
+    },
+    "warehouses": {
+      "sitesTitle": "Sites",
+      "sitesDesc": "Chaque site est un bâtiment avec son propre stock et ses agents d’entrepôt. Un colis part du site de son transporteur.",
+      "colSite": "Site",
+      "colAgents": "Agents d’entrepôt",
+      "colCarriers": "Transporteurs rattachés",
+      "colActive": "Actif",
+      "default": "par défaut",
+      "agentsOne": "1 agent",
+      "agentsMany": "{n} agents",
+      "noAgent": "aucun agent",
+      "carrierOff": "désactivé",
+      "unassignedNote": "Un agent d’entrepôt sans site ne voit rien et ne peut rien scanner.",
+      "assignLink": "Affecter dans Équipe › Accès",
+      "restockTitle": "Réapprovisionnement",
+      "restockDesc": "Le temps qu’il faut pour refaire le stock.",
+      "switch": "{site} actif",
+      "confirmTitle": "Désactiver {site} ?",
+      "confirmAgents": "Agents encore affectés : {names}. Ils ne verront plus rien tant qu’ils ne sont pas affectés ailleurs.",
+      "confirmStock": "{n} unités sont encore en stock sur ce site.",
+      "confirmGo": "Désactiver quand même",
+      "defaultLocked": "Le site par défaut ne peut pas être désactivé.",
+      "toastOn": "{site} activé",
+      "toastOff": "{site} désactivé"
+    },
+    "delivery": {
+      "carriersTitle": "Transporteurs",
+      "carriersDesc": "Les sociétés qui livrent les colis de ce marché, et ce qu’elles facturent.",
+      "add": "Ajouter un transporteur",
+      "colCarrier": "Transporteur",
+      "colSite": "Site",
+      "colFees": "Frais livraison · retour",
+      "colDelivered": "Livrés · 30 j",
+      "colActive": "Actif",
+      "feesMissing": "non renseignés",
+      "deliveredOf": "sur {n}",
+      "noCarrier": "Aucun transporteur pour ce marché.",
+      "riskTitle": "Colis à risque",
+      "riskDesc": "Un colis à risque est appelé avant le passage du livreur. Ces seuils décident lesquels.",
+      "boardTitle": "Tableau de suivi",
+      "boardDesc": "Les règles du tableau de livraison du manager.",
+      "toastOn": "{name} activé",
+      "toastOff": "{name} désactivé",
+      "open": "Ouvrir {name}",
+      "adapters": {
+        "darb_assabil": "Clé API et identifiant de compte.",
+        "dexpress": "Compte marchand du portail Dexpress.",
+        "navex": "Jeton API et expéditeur."
+      },
+      "credential": {
+        "token": "Jeton API",
+        "sender_name": "Nom de l’expéditeur",
+        "sender_location": "Localité de l’expéditeur",
+        "email": "E-mail du compte marchand",
+        "password": "Mot de passe",
+        "merchant_id": "Identifiant marchand",
+        "from_state": "Région de départ (identifiant)",
+        "cost_type": "Frais de livraison à la charge du client",
+        "api_key": "Clé API",
+        "account_id": "Identifiant de compte",
+        "default_service_id": "Service de livraison par défaut"
+      },
+      "drawer": {
+        "carrier": "Transporteur",
+        "name": "Nom affiché",
+        "nameHelp": "Utile quand un même transporteur a un compte par site.",
+        "namePlaceholder": "ex. Darb Assabil - Misrata",
+        "site": "Site d’où partent ses colis",
+        "siteFixed": "Fixé à la création : le compte du transporteur est lié à ce bâtiment.",
+        "noSite": "aucun",
+        "active": "Actif",
+        "activeHelp": "Désactivé, les agents ne peuvent plus lui envoyer de colis. Les colis déjà partis restent suivis.",
+        "connection": "Connexion",
+        "replace": "Remplacer",
+        "secretKept": "Inchangée tant que vous ne la remplacez pas.",
+        "credentialsHidden": "Les identifiants ne sont visibles que par un administrateur.",
+        "test": "Tester la connexion",
+        "testHelp": "Vérifie que le serveur du transporteur répond ; les identifiants sont vérifiés au premier envoi de colis.",
+        "testOk": "Le transporteur répond.",
+        "testFail": "Le transporteur ne répond pas : {reason}",
+        "testing": "Test en cours…",
+        "fees": "Frais",
+        "feeDelivery": "Livraison",
+        "feeReturn": "Retour",
+        "feesHelp": "Comptés dans le P&L à partir du dépôt chez le transporteur.",
+        "modes": "D’où part le stock",
+        "modeHome": "Notre entrepôt",
+        "modeHomeHelp": "Nous gardons le stock ; le transporteur vient chercher les colis.",
+        "modeCarrier": "Entrepôt du transporteur",
+        "modeCarrierHelp": "Le transporteur garde le stock et prépare lui-même les colis.",
+        "modesOne": "Il faut au moins un des deux.",
+        "options": "Options de commande",
+        "optionsHelp": "Ce qui est coché d’avance quand un agent envoie un colis, et s’il peut le changer.",
+        "colOption": "Option",
+        "colChecked": "Coché",
+        "colEditable": "Modifiable",
+        "checkedFor": "{option} coché par défaut",
+        "editableFor": "{option} modifiable par l’agent",
+        "opt": {
+          "is_pickup": {
+            "label": "Ramassage",
+            "help": "Le transporteur passe chercher le colis chez nous."
+          },
+          "allow_inspection": {
+            "label": "Ouverture du colis",
+            "help": "Le client peut ouvrir avant de payer. Plus de retours possibles."
+          },
+          "is_fragile": {
+            "label": "Fragile",
+            "help": "Le transporteur manipule le colis avec soin."
+          },
+          "allow_card_payment": {
+            "label": "Paiement par carte",
+            "help": "Le client peut payer par carte au lieu du comptant."
+          },
+          "allow_testing": {
+            "label": "Essai",
+            "help": "Le client peut essayer le produit. Plus de retours possibles."
+          },
+          "is_replacement": {
+            "label": "Échange",
+            "help": "Le colis remplace une commande précédente."
+          }
+        },
+        "addTitle": "Ajouter un transporteur",
+        "addSub": "Pour la {market}",
+        "company": "Société",
+        "companyHelp": "Une autre société demande une intégration technique.",
+        "create": "Créer le transporteur",
+        "created": "{name} ajouté",
+        "createdTestFail": "{name} ajouté, mais le transporteur ne répond pas encore.",
+        "required": "Nom, société et identifiants obligatoires.",
+        "duplicate": "Un transporteur porte déjà ce nom dans ce marché."
+      }
+    },
+    "shops": {
+      "title": "Boutiques",
+      "desc": "Chaque boutique envoie ses commandes à Ordra. Une boutique silencieuse est active, mais n’a rien envoyé depuis plus de 14 jours.",
+      "add": "Ajouter une boutique",
+      "filter": "Filtrer les boutiques",
+      "all": "Toutes",
+      "ok": "Reçoivent",
+      "quiet": "Silencieuses",
+      "off": "Désactivées",
+      "colShop": "Boutique",
+      "colOrders": "Commandes · 30 j",
+      "colLast": "Dernière commande",
+      "colState": "État",
+      "colActive": "Active",
+      "state": {
+        "ok": "Reçoit des commandes",
+        "quiet": "Silencieuse depuis {days} j",
+        "never": "Jamais reçu de commande",
+        "off": "Désactivée"
+      },
+      "none": "Aucune boutique ici",
+      "open": "Ouvrir {name}",
+      "toastOn": "{name} activée",
+      "toastOff": "{name} désactivée",
+      "drawer": {
+        "shop": "Boutique",
+        "name": "Nom",
+        "nameHelp": "Le nom que l’équipe verra sur chaque commande.",
+        "namePlaceholder": "ex. Biovera Libye",
+        "active": "Active",
+        "activeHelp": "Désactivée, la boutique peut toujours envoyer, mais Ordra refuse ses commandes.",
+        "reception": "Réception des commandes",
+        "source": "Source",
+        "reading": "Lecture",
+        "every15": "toutes les 15 minutes",
+        "link": "Lien de réception des commandes",
+        "linkHelp": "À coller dans les réglages de {platform}. Chaque commande passée sur la boutique arrive alors dans Ordra.",
+        "linkOnlyHelp": "Le lien suffit : cette plateforme n’envoie pas de clé.",
+        "secret": "Clé secrète",
+        "secretHelp": "Prouve que la commande vient bien de votre boutique. Après une régénération, mettez la nouvelle clé dans la boutique.",
+        "regenerate": "Régénérer",
+        "newSecret": "Nouvelle clé — copiez-la maintenant et collez-la dans la boutique : elle ne sera plus affichée.",
+        "activity": "Activité",
+        "seeLogs": "Voir ses commandes reçues dans les Journaux",
+        "addTitle": "Ajouter une boutique",
+        "addSub": "Deux étapes : nommez-la, puis collez le lien de réception dans la boutique.",
+        "platform": "Plateforme",
+        "platformHelp": "Google Sheets, BuyBox et Converty demandent une mise en place technique.",
+        "afterCreate": "Après la création",
+        "afterCreateHelp": "Ordra affichera le lien de réception des commandes et sa clé secrète. Copiez-les tout de suite dans les réglages de la boutique : la clé ne sera plus affichée.",
+        "create": "Créer la boutique",
+        "createdTitle": "{name} est prête",
+        "createdHelp": "Copiez ces deux valeurs maintenant dans les réglages de la boutique : la clé ne sera plus affichée.",
+        "required": "Le nom est obligatoire."
+      }
+    },
+    "matching": {
+      "title": "Produits et villes à associer",
+      "desc": "Quand une boutique envoie un produit ou une ville qu’Ordra ne reconnaît pas, la commande attend ici avant d’être confirmée. Une fois associé, le nom est reconnu pour toutes les commandes suivantes.",
+      "products": "Produits",
+      "cities": "Villes",
+      "allMatched": "Tout est associé",
+      "noProduct": "Aucune commande en attente d’un produit.",
+      "noCity": "Aucune commande en attente d’une ville.",
+      "pendingOne": "1 commande en attente",
+      "pendingMany": "{n} commandes en attente",
+      "ref": "réf. {ref}",
+      "associate": "Associer",
+      "productTitle": "Associer un produit",
+      "cityTitle": "Associer une ville",
+      "searchProduct": "Chercher un produit Ordra",
+      "searchCity": "Chercher une destination",
+      "productEffect": "Les commandes en attente sont corrigées, et les prochaines commandes de cette boutique avec ce produit seront reconnues seules.",
+      "cityEffect": "Les commandes en attente reçoivent cette destination.",
+      "nothingFound": "Aucun résultat.",
+      "done": "Associé",
+      "pick": "Choisissez d’abord un élément de la liste.",
+      "productSubtitle": "« {name} » · {shop} · {pending}",
+      "citySubtitle": "« {name} » · {pending}"
+    },
+    "whatsapp": {
+      "numberTitle": "Numéro WhatsApp",
+      "notConnectedTitle": "WhatsApp n’est pas connecté pour la {market}",
+      "notConnectedText": "Connectez le numéro WhatsApp Business de la marque pour envoyer des messages automatiques et répondre aux clients depuis Ordra.",
+      "connect": "Connecter le numéro",
+      "adminConnects": "Un administrateur doit connecter le numéro.",
+      "test": "Tester",
+      "testing": "Test en cours…",
+      "testOk": "Le numéro répond : tout est en ordre.",
+      "testFail": "Le test a échoué : {reason}",
+      "editCreds": "Modifier les identifiants",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
+      "number": "Numéro",
+      "verifiedName": "Nom vérifié",
+      "quality": "Qualité",
+      "limit": "Limite d’envoi",
+      "lastMessage": "Dernier message reçu",
+      "state": "État",
+      "qualityLevel": {
+        "GREEN": "Bonne",
+        "YELLOW": "Moyenne",
+        "RED": "Faible",
+        "UNKNOWN": "Inconnue"
+      },
+      "limitN": "{n} clients par 24 h",
+      "limitUnverified": "{n} clients par 24 h — entreprise pas encore vérifiée",
+      "limitUnlimited": "Sans limite",
+      "never": "jamais",
+      "stateActive": "Actif",
+      "statePaused": "En pause : aucun message ne part",
+      "stateAuthFailed": "Identifiants refusés par Meta",
+      "autoTitle": "Messages automatiques",
+      "autoDesc": "Un message part quand la commande atteint l’un de ces moments. Chacun s’active séparément.",
+      "autoDisabledDesc": "Disponible une fois le numéro connecté.",
+      "master": "Envoyer les messages automatiques",
+      "masterHelp": "Interrupteur général : coupé, plus rien ne part, quels que soient les réglages ci-dessous.",
+      "events": {
+        "could_not_reach": {
+          "label": "Injoignable",
+          "help": "Après le premier appel sans réponse, une seule fois par commande."
+        },
+        "shipped": {
+          "label": "Expédié",
+          "help": "Le numéro de suivi, au moment où le colis quitte l’entrepôt."
+        },
+        "out_for_delivery": {
+          "label": "En livraison",
+          "help": "« Le livreur passe aujourd’hui, gardez votre téléphone allumé. »"
+        },
+        "last_chance": {
+          "label": "Dernière chance",
+          "help": "Livraison retardée ou colis sur le retour : « répondez aujourd’hui »."
+        },
+        "delivered": {
+          "label": "Livré",
+          "help": "Un remerciement une fois le colis remis."
+        }
+      },
+      "tpl": {
+        "ok": "modèle approuvé",
+        "pend": "en attente d’approbation",
+        "none": "aucun modèle approuvé"
+      },
+      "tplLang": "{lang} · {state}",
+      "language": "Langue par défaut",
+      "languageHelp": "Pour un client dont la langue n’a pas encore été choisie par un agent.",
+      "window": "Heures d’envoi",
+      "windowHelp": "En dehors, les messages attendent le lendemain matin. Personne ne doit être réveillé à 3 h.",
+      "windowFrom": "Début (heure)",
+      "windowTo": "Fin (heure)",
+      "windowAlways": "toute la journée",
+      "templatesTitle": "Modèles de message",
+      "templatesDesc": "Les textes approuvés par Meta. Un message automatique ne part que si son modèle est approuvé.",
+      "templatesLink": "Gérer les modèles",
+      "templatesCount": "{approved} approuvés · {pending} en attente",
+      "drawer": {
+        "connectTitle": "Connecter le numéro WhatsApp",
+        "editTitle": "Modifier les identifiants",
+        "identity": "Identifiants Meta",
+        "waba": "WhatsApp Business Account ID",
+        "pnid": "Phone number ID",
+        "appId": "App ID",
+        "token": "Jeton d’accès",
+        "appSecret": "Clé secrète de l’app",
+        "verifyToken": "Jeton de vérification",
+        "graph": "Version de l’API Graph",
+        "keep": "Laissez vide pour garder la valeur actuelle.",
+        "meta": "À coller dans Meta",
+        "callback": "Adresse de rappel",
+        "metaHelp": "Dans Meta › WhatsApp › Configuration, collez l’adresse de rappel et le jeton de vérification.",
+        "save": "Enregistrer et vérifier",
+        "required": "Tous les champs sont obligatoires pour une première connexion.",
+        "failed": "Meta a refusé ces identifiants : {reason}"
+      }
+    },
+    "ads": {
+      "accountsTitle": "Comptes publicitaires Meta",
+      "accountsDesc": "Ordra lit chaque jour ce que ces comptes ont dépensé.",
+      "connect": "Connecter un compte",
+      "colAccount": "Compte",
+      "colCurrency": "Devise",
+      "colSync": "Synchronisation",
+      "colActive": "Actif",
+      "syncedToday": "Synchronisé aujourd’hui à {time}",
+      "syncedOn": "Synchronisé le {date}",
+      "syncError": "Erreur de synchronisation",
+      "neverSynced": "Jamais synchronisé",
+      "test": "Tester",
+      "testOk": "{name} : connexion vérifiée",
+      "testFail": "{name} : {reason}",
+      "disconnect": "Déconnecter",
+      "disconnectTitle": "Déconnecter {name} ?",
+      "disconnectBody": "Ordra cessera de lire ses dépenses. Ce qui a déjà été importé reste dans le P&L.",
+      "disconnected": "{name} déconnecté",
+      "emptyTitle": "Aucun compte publicitaire connecté",
+      "emptyText": "Connectez un compte Meta pour que les dépenses pub de ce marché arrivent seules dans le P&L.",
+      "toastOn": "{name} activé",
+      "toastOff": "{name} désactivé",
+      "fxTitle": "Taux de change",
+      "fxDesc": "Pour convertir en monnaie locale ce que Meta facture en dollars.",
+      "fxLabel": "Taux de change du dollar",
+      "fxHelp": "Les dépenses Meta facturées en dollars sont converties à {n} {cur} pour le P&L et la page Dépenses pub.",
+      "fxHelpEmpty": "Nécessaire seulement si un compte publicitaire facture en dollars.",
+      "drawer": {
+        "title": "Connecter un compte publicitaire",
+        "accountId": "Identifiant du compte publicitaire",
+        "accountIdHelp": "Dans Meta Business, sous « Comptes publicitaires » : act_123… ou seulement les chiffres.",
+        "token": "Jeton d’accès",
+        "tokenHelp": "Un jeton d’utilisateur système avec le droit de lire les publicités. Meta le vérifie à l’enregistrement.",
+        "save": "Connecter",
+        "required": "Identifiant et jeton obligatoires.",
+        "errors": {
+          "invalid_account_id": "Cet identifiant de compte n’est pas valide.",
+          "invalid_token": "Meta refuse ce jeton.",
+          "meta_unreachable": "Meta ne répond pas. Réessayez dans un instant."
+        }
+      }
+    }
+  },
+  "journaux": {
+    "title": "Journaux",
+    "subtitle": "Tout ce qui entre dans Ordra et en sort : les commandes reçues des boutiques, les échanges avec les transporteurs, les tâches automatiques et les modifications de réglages.",
+    "tabs": {
+      "received": "Commandes reçues",
+      "carrier": "Transporteurs",
+      "sync": "Synchronisations",
+      "audit": "Modifications"
+    },
+    "errorsOne": "1 erreur",
+    "errorsMany": "{n} erreurs",
+    "searchReceived": "Commande, boutique, erreur…",
+    "searchCarrier": "N° de suivi, statut…",
+    "searchAudit": "Réglage, personne…",
+    "allMarkets": "Tous les marchés",
+    "market": {
+      "tn": "Tunisie",
+      "ly": "Libye"
+    },
+    "marketFilter": "Marché",
+    "resultFilter": "Résultat",
+    "allResults": "Tous les résultats",
+    "errorsOnly": "Erreurs seulement",
+    "refresh": "Actualiser",
+    "result": {
+      "processed": "Traitée",
+      "ignored": "Ignorée",
+      "error": "Erreur"
+    },
+    "resultCarrier": {
+      "processed": "Traité",
+      "ignored": "Ignoré",
+      "error": "Erreur"
+    },
+    "sync": {
+      "succeeded": "Réussie",
+      "completed": "Réussie",
+      "failed": "Échec",
+      "partial": "Partielle",
+      "running": "En cours"
+    },
+    "trigger": {
+      "cron": "Automatique",
+      "manual": "Manuelle",
+      "schedule": "Automatique"
+    },
+    "col": {
+      "receivedAt": "Reçue le",
+      "shop": "Boutique",
+      "order": "Commande",
+      "result": "Résultat",
+      "detail": "Détail",
+      "carrierAt": "Reçu le",
+      "carrier": "Transporteur",
+      "tracking": "N° de suivi",
+      "carrierStatus": "Statut transporteur",
+      "startedAt": "Début",
+      "task": "Tâche",
+      "trigger": "Déclenchée",
+      "duration": "Durée",
+      "date": "Date",
+      "by": "Par",
+      "market": "Marché",
+      "setting": "Réglage",
+      "before": "Avant",
+      "after": "Après"
+    },
+    "seeData": "Voir les données",
+    "empty": "Rien à afficher pour ces filtres.",
+    "page": "Page {page} · {total} résultats",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "yes": "Oui",
+    "no": "Non",
+    "system": "Système",
+    "drawer": {
+      "title": "Données reçues · {ref}",
+      "outcome": "Ce qu’Ordra en a fait",
+      "order": "Commande créée",
+      "noOrder": "Aucune commande créée",
+      "error": "Erreur",
+      "payload": "Données reçues",
+      "copy": "Copier",
+      "replay": "Relancer le traitement",
+      "replayed": "Traitement relancé",
+      "replayFailed": "La relance a échoué : {reason}"
+    },
+    "userEvents": {
+      "user_created": "Utilisateur créé",
+      "user_deactivated": "Utilisateur désactivé",
+      "user_reactivated": "Utilisateur réactivé",
+      "user_deleted": "Utilisateur supprimé",
+      "password_reset": "Mot de passe réinitialisé",
+      "deactivate": "Utilisateur désactivé",
+      "note": "Note"
+    },
+    "keys": {
+      "delivery_fee": "Frais de livraison (ancien réglage)",
+      "return_fee": "Frais de retour (ancien réglage)",
+      "packing_cost": "Coût d’emballage",
+      "max_call_attempts": "Nombre maximum d’appels",
+      "assignment_algorithm": "Méthode de distribution",
+      "active_agents_only": "Agents actifs seulement",
+      "agent_inactivity_minutes": "Seuil d’inactivité des agents",
+      "attempt_retry_times": "Heures de rappel",
+      "shift_config": "Heures ouvrées",
+      "supplier_lead_time_days": "Délai fournisseur",
+      "sla_minutes": "Délai de confirmation visé",
+      "after_max_attempts_action": "Après le dernier appel",
+      "after_max_attempts_delay_hours": "Délai après le dernier appel",
+      "callback_max_days": "Rappel programmé au plus tard",
+      "callback_grace_minutes": "Tolérance d’un rappel",
+      "dispatch_cutoff_time": "Heure limite d’expédition",
+      "duplicate_window_hours": "Doublon probable",
+      "duplicate_autoselect_window_hours": "Pré-sélection des doublons",
+      "merge_window_hours": "Fusion de commandes",
+      "auto_assign_on_intake": "Affectation à l’arrivée",
+      "order_amount_min": "Montant minimum de commande",
+      "order_amount_max": "Montant maximum de commande",
+      "unknown_city_policy": "Ville non reconnue",
+      "auto_upload_on_confirm": "Envoi au transporteur à la confirmation",
+      "unverified_after_days": "Colis sans nouvelle",
+      "auto_restock_on_return_scan": "Remise en stock au retour",
+      "auto_archive_after_days": "Archivage automatique",
+      "max_open_orders_per_agent": "Plafond par agent",
+      "orphan_reassign_after_minutes": "Réaffectation des commandes orphelines",
+      "orphan_reassign_enabled": "Réaffectation automatique",
+      "outside_hours_policy": "Hors heures ouvrées",
+      "carrier_error_rate_threshold": "Seuil d’erreurs transporteur",
+      "webhook_failure_threshold": "Seuil d’échecs de réception",
+      "sync_staleness_hours": "Fraîcheur des synchronisations",
+      "carrier_stall_days": "Colis immobile",
+      "stockout_days_of_cover": "Couverture de stock",
+      "sla_breach_alert": "Alerte de délai dépassé",
+      "high_value_threshold": "Montant élevé",
+      "zone_low_delivery_rate_pct": "Zone difficile",
+      "zone_min_sample": "Échantillon minimum d’une zone",
+      "risk_min_prior_failures": "Client déjà en échec",
+      "proactive_call_window_hours": "Durée de l’appel préventif",
+      "delivery_done_window_hours": "Colis terminés visibles",
+      "delivery_first_action_hours": "Délai de première action",
+      "goal_daily_treated": "Objectif : commandes traitées par jour",
+      "goal_min_rate": "Objectif : taux de confirmation minimum",
+      "goal_conf_per_hour": "Objectif : confirmations par heure",
+      "goal_team_weekly_conf": "Objectif : confirmations par semaine",
+      "whatsapp_lifecycle_enabled": "WhatsApp : messages automatiques",
+      "whatsapp_event_could_not_reach": "WhatsApp : Injoignable",
+      "whatsapp_event_shipped": "WhatsApp : Expédié",
+      "whatsapp_event_out_for_delivery": "WhatsApp : En livraison",
+      "whatsapp_event_last_chance": "WhatsApp : Dernière chance",
+      "whatsapp_event_delivered": "WhatsApp : Livré",
+      "whatsapp_default_language": "WhatsApp : langue par défaut",
+      "whatsapp_send_window": "WhatsApp : heures d’envoi",
+      "ad_spend_fx_rates": "Taux de change du dollar",
+      "google_sheets_sources": "Sources Google Sheets",
+      "lead_hot_window_minutes": "Prospects : fenêtre « chaud »"
+    },
+    "close": "Fermer"
   }
 }
