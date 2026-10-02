@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { Fragment, memo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { preload } from "swr";
@@ -18,8 +18,12 @@ import { jsonFetcher } from "@/lib/fetchers";
  * thumb reaches, and it clears the iOS home indicator.
  *
  * Scanning is deliberately NOT a tab — it is the one thing an agent does
- * continuously, so it gets the floating button (`ScanFab`) instead of a
- * quarter of a bar.
+ * continuously, so it sits in the CENTRE of the bar as its own action
+ * (`center`), under the thumb, between the four jobs' tabs. It used to float
+ * over the content (ScanFab), where at 390px it covered the last card.
+ *
+ * Each tab may carry its job's hue (`job-out`, `job-returns`, …): the current
+ * tab's plate takes that colour, so the bar says which job you are in.
  */
 
 export interface BottomTab {
@@ -35,6 +39,8 @@ export interface BottomTab {
   /** Work waiting in that section. Omitted, not zero, when there is none. */
   count?: number;
   prefetchKey?: string;
+  /** The job's hue class (globals.css), applied to the current tab's plate. */
+  hue?: string;
 }
 
 /** Past two digits the number stops being a count and becomes a smear. */
@@ -42,7 +48,7 @@ function badge(count: number): string {
   return count > 99 ? "99+" : String(count);
 }
 
-function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
+function WarehouseBottomBarInner({ tabs, center }: { tabs: BottomTab[]; center?: React.ReactNode }) {
   const pathname = usePathname();
   const t = useTranslations("warehouse.nav");
 
@@ -63,23 +69,26 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
       // the labels. A navigation bar has nothing to gain from transparency.
       className="wh-safe-bottom fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-wm-card-edge bg-wm-card"
     >
-      {tabs.map((tab) => {
+      {tabs.map((tab, index) => {
         const active = tab.exact
           ? pathname === tab.href
           : pathname === tab.href || pathname.startsWith(tab.href + "/");
         const Icon = tab.icon;
+        const middle = center && index === Math.ceil(tabs.length / 2);
         return (
+          <Fragment key={tab.href}>
+          {middle ? <div className="relative flex flex-1 justify-center">{center}</div> : null}
           <Link
-            key={tab.href}
             href={tab.href}
             prefetch
             aria-current={active ? "page" : undefined}
             onTouchStart={() => prefetchData(tab.prefetchKey)}
             onMouseEnter={() => prefetchData(tab.prefetchKey)}
             className={[
+              tab.hue ?? "",
               "relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 px-1 py-2",
               "text-[10.5px] font-semibold no-underline transition-colors duration-fast",
-              active ? "text-wm-accent" : "text-wm-ink-2 active:text-wm-ink",
+              active ? "text-job-ink" : "text-wm-ink-2 active:text-wm-ink",
             ].join(" ")}
           >
             <span className="relative">
@@ -89,7 +98,7 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
               <span
                 aria-hidden="true"
                 className={`absolute -inset-x-3.5 -inset-y-1.5 rounded-pill transition-opacity ${
-                  active ? "bg-wm-accent-soft opacity-100" : "opacity-0"
+                  active ? "bg-job-bg opacity-100" : "opacity-0"
                 }`}
               />
               <Icon
@@ -109,6 +118,7 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
             </span>
             <span className="max-w-full truncate">{tab.label}</span>
           </Link>
+          </Fragment>
         );
       })}
     </nav>

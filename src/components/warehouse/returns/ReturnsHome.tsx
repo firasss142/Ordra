@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { Camera, Check, Clock, Package, RotateCcw, Send, Trash2, TriangleAlert } from "lucide-react";
+import { Camera, Check, Clock, Package, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { ReturnsStats } from "@/app/api/warehouse/returns/stats/route";
@@ -23,11 +23,13 @@ import { readScannerPrefs, signalOutcome } from "@/lib/warehouse/scanner-prefs";
  * 2026-09-08: the bench receives nothing Darb has not marked returned); an
  * unknown number says so. A failed request names itself and offers a retry.
  *
- * The three decisions are the system's own: restock (+stock), damage
- * (writes off, needs a cause), redeliver (back out, stock untouched).
+ * Scan, then ONE tap: intact (restock, +stock) or damaged (written off, needs
+ * a cause). Redelivery — sending the parcel back out to the customer — is a
+ * commercial decision and lives on the manager's desk (ReturnsConsole), not
+ * in the agent's hand (decision of 2026-10-02, plans/entrepot-day-loop-redesign.md).
  */
 
-type Decision = "restock" | "damage" | "redeliver";
+type Decision = "restock" | "damage";
 
 const REASON_KEY: Record<ReturnReason, string> = {
   packaging: "reasonPackaging",
@@ -40,7 +42,6 @@ const REASON_KEY: Record<ReturnReason, string> = {
 const DECISIONS: Array<{ key: Decision; icon: LucideIcon; label: string; hint: string }> = [
   { key: "restock", icon: RotateCcw, label: "restock", hint: "restockHint" },
   { key: "damage", icon: Trash2, label: "damageShort", hint: "damageHint" },
-  { key: "redeliver", icon: Send, label: "redeliver", hint: "redeliverHint" },
 ];
 
 function parcelRef(o: WarehouseOrderRow): string {
@@ -138,24 +139,17 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
     setBusy(true);
     setFailed(null);
     try {
-      const res =
-        decision === "redeliver"
-          ? await fetch("/api/warehouse/scan-received", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ order_id: picked.id }),
-            })
-          : await fetch("/api/warehouse/scan-return", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                order_id: picked.id,
-                is_damaged: decision === "damage",
-                return_reason: decision === "damage" ? reason : null,
-                return_reason_note: decision === "damage" && reason === "other" ? note.trim() : null,
-                return_photo_url: null,
-              }),
-            });
+      const res = await fetch("/api/warehouse/scan-return", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: picked.id,
+          is_damaged: decision === "damage",
+          return_reason: decision === "damage" ? reason : null,
+          return_reason_note: decision === "damage" && reason === "other" ? note.trim() : null,
+          return_photo_url: null,
+        }),
+      });
       const body = (await res.json().catch(() => ({}))) as { error?: string; stock_after?: number };
       if (!res.ok) {
         setFailed(body.error ?? t("failed"));
@@ -170,10 +164,11 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
   }, [picked, decision, reason, note, busy, canValidate, mutate, mutateStats, t]);
 
   const effect = (d: Decision, p: WarehouseOrderRow) =>
-    d === "restock" ? t("fxRestock", { n: p.quantity }) : d === "damage" ? t("fxDamage", { n: p.quantity }) : t("fxRedeliver");
+    d === "restock" ? t("fxRestock", { n: p.quantity }) : t("fxDamage", { n: p.quantity });
 
   return (
-    <div className="px-4 py-4">
+    // « Rentrer » — the second job of the day, in its hue.
+    <div className="job-returns px-4 py-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-wm-ink">{t("title")}</h1>
         <span className="flex gap-1.5">
@@ -335,7 +330,8 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
                     {`${t("arrived")} ${picked.customer_name}${picked.customer_city ? ` · ${picked.customer_city}` : ""} · ${picked.product_name} × ${picked.quantity} · `}
                     <span dir="ltr" className="inline-block tabular-nums">{parcelRef(picked)}</span>
                   </p>
-                  <div className="grid gap-2">
+                  {/* Two tiles of equal weight: neither verdict is the default. */}
+                  <div className="grid grid-cols-2 gap-2.5">
                     {DECISIONS.map((d) => {
                       const Icon = d.icon;
                       const on = decision === d.key;
@@ -350,15 +346,26 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
                             setDecision(d.key);
                             if (d.key !== "damage") setReason(null);
                           }}
-                          className={`flex min-h-[56px] items-center gap-3 rounded-[12px] border px-4 text-start ${
-                            on ? "border-wm-accent bg-wm-accent-soft" : "border-wm-card-edge bg-wm-card"
+                          className={`flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-[16px] border-[1.5px] px-3 py-3 text-center ${
+                            d.key === "restock"
+                              ? on
+                                ? "border-wm-accent bg-wm-accent-soft"
+                                : "border-wm-card-edge bg-wm-card"
+                              : on
+                                ? "border-wh-bad bg-wh-bad-bg"
+                                : "border-wh-bad-edge bg-wm-card"
                           }`}
                         >
-                          <Icon size={22} strokeWidth={1.75} className="shrink-0 text-wm-ink" aria-hidden="true" />
-                          <span className="min-w-0">
-                            <span className="block text-[16px] font-bold text-wm-ink">{t(d.label)}</span>
-                            <small className="block text-[13px] text-wm-ink-2">{t(d.hint)}</small>
+                          <Icon
+                            size={24}
+                            strokeWidth={2}
+                            className={`shrink-0 ${d.key === "restock" ? "text-wm-accent" : "text-wh-bad"}`}
+                            aria-hidden="true"
+                          />
+                          <span className={`block text-[16px] font-bold ${d.key === "restock" ? "text-wm-ink" : "text-wh-bad"}`}>
+                            {t(d.label)}
                           </span>
+                          <small className="block text-[12.5px] leading-snug text-wm-ink-2">{t(d.hint)}</small>
                         </button>
                       );
                     })}

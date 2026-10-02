@@ -1090,26 +1090,59 @@ the manager console, which keeps the desk layout.
 Visual reference: `docs/design/entrepot/mobile/` — four mockups plus the map
 of which figure resolves to which query.
 
-### Bottom navigation
+### Bottom navigation (since 2026-10-02 — the day loop)
 
-Four destinations — Aujourd'hui · Préparation · Retours · Stock — pinned to the
-bottom edge, 56px per cell plus `env(safe-area-inset-bottom)`. The whole cell is
-the target, never the label. The active cell is marked by a **tinted plate as
-well as by colour**: colour alone fails on a loading dock in sunlight.
+Aujourd'hui · Sortir · **[Scan]** · Rentrer · Stock — pinned to the bottom edge,
+56px per cell plus `env(safe-area-inset-bottom)`. Aujourd'hui is home: the four
+jobs of the day (Sortir, Rentrer, Recevoir, Compter), each a link carrying its
+backlog. Recevoir and Compter are reached from Aujourd'hui and Stock, not from
+the bar; Réglages sits behind the avatar on Aujourd'hui. The whole cell is the
+target, never the label. The active cell is marked by a **tinted plate in its
+job's hue as well as by colour**: colour alone fails on a loading dock in
+sunlight. See plans/entrepot-day-loop-redesign.md.
 
 The bar is **opaque**. At 95% the list scrolling underneath blurred through and
 the product names read as smudges under the labels.
 
+The bar disappears during a scan run and a count run: each carries its own exit.
+
 ### The scan button
 
-Scanning is the one thing the agent does continuously, so it does not take a
-quarter of the bar: it floats above it as a labelled green pill, clearing
-`56px + safe-area + 16px`. It hides on the scan screen itself — a button that
-navigates to where you already are is noise, and at 390px it covers the
-viewfinder.
+Scanning is the one thing the agent does continuously, so it is not a tab: it
+sits in the **centre** of the bar as a 60px green circle, raised out of it by a
+ring of the page ground, labelled underneath (`shell/ScanButton.tsx`). It used
+to float over the content (ScanFab) and, at 390px, covered the last card of
+every list. It opens the bench's scan sheet: with a parcel in hand it binds the
+sticker, with nothing in hand it looks the sticker up.
 
-This is the **only** floating action button in the OMS. It is justified by
-frequency, not by decoration; do not add a second one anywhere.
+It is the one filled green on the agent's screen. Do not add a second floating
+or raised action anywhere.
+
+### Job hues (`--job-*`, `.job-out | .job-returns | .job-receive | .job-count`)
+
+Each job of the day has a hue, drawn from the brand green's family plus one
+warm counterpoint — the owner asked for colours that sit with the main green
+(no blue, no violet):
+
+| Job | Fill | Tint | Ink (text) |
+|---|---|---|---|
+| Sortir | `#15803D` (= `--brand`) | `#E9F6EE` | `#12692F` |
+| Rentrer | `#0F766E` teal | `#E3F3F1` | `#0B5C56` |
+| Recevoir · Stock | `#4D7C0F` moss | `#EEF5E1` | `#3F6212` |
+| Compter | `#A16207` gold | `#FBF3DC` | `#854D0E` |
+
+A wrapper names the job with its class; everything inside reads `bg-job`,
+`bg-job-bg`, `text-job-ink` (Tailwind `job`). Only the `-ink` carries text, as
+in §4.21. Hues mark the step numbers, the job figures, progress bars, the
+active tab plate, product tiles and the job's primary button — never a status:
+refused stays red, late and never-counted stay amber.
+
+### Palette
+
+Since 2026-10-02 the `--wh-*` and `--wm-*` variables hold **Ordra's values**
+(ground `#F6F6F7`, ink `#1A1A1A`/`#6D7175`, hairline `#E1E3E5`, `ok` = the brand
+green `#15803D`). The names remain so the warehouse's class usages keep working;
+retiring them is a later clean-up.
 
 ### The graph-paper ground
 

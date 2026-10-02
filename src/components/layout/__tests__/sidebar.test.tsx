@@ -107,22 +107,22 @@ describe("Sidebar — sections", () => {
     expect(screen.getByRole("button", { name: /Finances/ })).toBeInTheDocument();
   });
 
-  it("keeps ENTREPÔT to the three questions the warehouse actually asks", () => {
-    // It was five entries plus two pages unreachable from the navigation.
-    // "Aujourd'hui" repeated every figure the other screens showed and its
-    // priority actions were not even clickable; "Préparation" and "Mode scan"
-    // were two more renderings of the same queue and the same scanner; the
-    // Journal is the evidence behind the stock figures, so it lives in Stock.
+  it("keeps ENTREPÔT to the day: Aujourd'hui, then the jobs in their order", () => {
+    // Aujourd'hui is the four jobs and their backlog — every row a link, no KPI
+    // tile (the dashboard deleted on 2026-09-08 had neither). Sortir and Rentrer
+    // are where the floor works; Recevoir and Compter live inside Stock, which
+    // also holds the Journal, the evidence behind its figures.
     renderSidebar(
       <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const group = screen.getByRole("link", { name: /^Banc$/ }).closest("div");
+    const group = screen.getByRole("link", { name: /^Aujourd'hui$/ }).closest("div");
     const hrefs = Array.from(group?.querySelectorAll("a") ?? []).map((a) =>
       a.getAttribute("href"),
     );
     expect(hrefs).toEqual([
       "/fr/warehouse",
+      "/fr/warehouse/out",
       "/fr/warehouse/returns",
       "/fr/warehouse/stock",
     ]);
@@ -155,14 +155,12 @@ describe("Sidebar — sections", () => {
     expect(screen.queryByRole("link", { name: /^Expédition$/ })).not.toBeInTheDocument();
   });
 
-  it("puts the bench first in ENTREPÔT — it is where the work is", () => {
-    // /warehouse is the bench for both roles now: the queue and the parcels
-    // already scanned, which is the whole of the floor's day.
+  it("opens ENTREPÔT on Aujourd'hui, the door to every job", () => {
     renderSidebar(
       <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const today = screen.getByRole("link", { name: /^Banc$/ });
+    const today = screen.getByRole("link", { name: /^Aujourd'hui$/ });
     expect(today).toHaveAttribute("href", "/fr/warehouse");
 
     const group = today.closest("div");
@@ -300,23 +298,40 @@ describe("Sidebar — active route auto-expand", () => {
     pathnameMock = "/fr/warehouse";
     searchParamsMock = new URLSearchParams("");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /^Banc$/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Aujourd'hui$/ })).toBeInTheDocument();
   });
 
-  it("marks Banc active on /fr/warehouse", () => {
+  it("marks Aujourd'hui active on /fr/warehouse, and only there", () => {
     pathnameMock = "/fr/warehouse";
     searchParamsMock = new URLSearchParams("");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /^Banc$/ });
-    expect(link).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /^Aujourd'hui$/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /^Sortir$/ })).not.toHaveAttribute("aria-current");
   });
 
-  it("marks Retours active on /fr/warehouse/returns", () => {
+  it("marks Rentrer active on /fr/warehouse/returns", () => {
     pathnameMock = "/fr/warehouse/returns";
     searchParamsMock = new URLSearchParams("");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/returns" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Retours/ });
+    const link = screen.getByRole("link", { name: /^Rentrer$/ });
     expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("keeps Sortir active during a scan run", () => {
+    pathnameMock = "/fr/warehouse/scan";
+    searchParamsMock = new URLSearchParams("");
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/scan" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /^Sortir$/ })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("keeps Stock active on a product page and on the count run", () => {
+    for (const path of ["/fr/warehouse/stock/p1", "/fr/warehouse/count"]) {
+      pathnameMock = path;
+      searchParamsMock = new URLSearchParams("");
+      renderSidebar(<Sidebar user={managerUser} currentPath={path} unassignedCount={0} />);
+      expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute("aria-current", "page");
+      cleanup();
+    }
   });
 
   // The sidebar, the tab band and the page's own <h1> all say "Journal": the

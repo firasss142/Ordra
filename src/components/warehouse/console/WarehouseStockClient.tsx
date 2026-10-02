@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -8,7 +9,6 @@ import { Boxes, Lock, PackageCheck, Search, TriangleAlert, ClipboardList } from 
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
 import { WhCard, WhKpiCard, WhKpiGrid, WhPill } from "./primitives";
 import { WH_LABEL } from "./tokens";
-import { StockCountDialog } from "./StockCountDialog";
 import { StockCard } from "./StockCard";
 import {
   applyStockFilters, stockFacets, stateOf, EMPTY_STOCK_FILTER,
@@ -36,12 +36,18 @@ const SEGMENTS: StockSegment[] = ["all", "low", "negative", "uncounted"];
 export function WarehouseStockClient({ locale }: { locale: string }) {
   const t = useTranslations("warehouse.stock");
   const tf = useTranslations("warehouse.stock.filters");
-  const { data, error, isLoading, mutate } = useSWR<{ rows: WarehouseStockRow[] }>(
+  const router = useRouter();
+  /*
+   * One way to count: the count run, narrowed to this product. The dialog it
+   * replaces compared a BUILDING's count with the MARKET total, which in Libya
+   * (two buildings, one total) showed a gap that did not exist.
+   */
+  const countHref = (r: WarehouseStockRow) => `/${locale}/warehouse/count?product=${r.product_id}`;
+  const { data, error, isLoading } = useSWR<{ rows: WarehouseStockRow[] }>(
     "/api/warehouse/stock",
     fetcher,
     { revalidateOnFocus: true },
   );
-  const [counting, setCounting] = useState<WarehouseStockRow | null>(null);
   const [filter, setFilter] = useState<StockFilter>(EMPTY_STOCK_FILTER);
   const patch = (next: Partial<StockFilter>) => setFilter((f) => ({ ...f, ...next }));
   const query = filter.q;
@@ -163,9 +169,25 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
           </label>
         </div>
         {neverCountedAll ? (
-          <span data-testid="wh-stock-never-counted" className="text-[12.5px] text-wh-ink-3">
-            {t("neverCountedAll")}
-          </span>
+          /* Said once, plainly, with the gesture that fixes it. On 2026-10-02
+             not one product had ever been counted: every figure on this screen
+             was the register alone. */
+          <div
+            data-testid="wh-stock-never-counted"
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-wh border border-wh-warn-edge bg-wh-warn-bg px-4 py-3 text-wh-warn"
+          >
+            <TriangleAlert size={18} className="shrink-0" aria-hidden="true" />
+            <p className="min-w-0 flex-1 text-[13px]">
+              <b className="font-semibold">{t("neverCountedAll")}</b>{" "}
+              <span>{t("neverCountedHint", { n: all.length })}</span>
+            </p>
+            <Link
+              href={`/${locale}/warehouse/count`}
+              className="inline-flex min-h-[38px] items-center rounded-[10px] bg-wh-ink-1 px-3.5 text-[13px] font-semibold text-white no-underline"
+            >
+              {t("startCount")}
+            </Link>
+          </div>
         ) : null}
       </div>
       <div className="mb-4 hidden md:block">
@@ -205,7 +227,7 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
                 parcel in the other hand. */}
             <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
               {rows.map((r) => (
-                <StockCard key={r.product_id} row={r} onCount={setCounting} />
+                <StockCard key={r.product_id} row={r} onCount={(row) => router.push(countHref(row))} />
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
@@ -228,7 +250,12 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
                     <tr key={r.product_id} className="border-b border-wh-border last:border-0 hover:bg-wh-surface-2">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="font-semibold text-wh-ink-1">{r.name}</span>
+                          <Link
+                            href={`/${locale}/warehouse/stock/${r.product_id}`}
+                            className="font-semibold text-wh-ink-1 no-underline hover:underline"
+                          >
+                            {r.name}
+                          </Link>
                           {negative ? (
                             <WhPill tone="bad">{t("negative")}</WhPill>
                           ) : low ? (
@@ -248,19 +275,18 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
                         <div className="flex items-center justify-end gap-2">
                           {/* Movements live in the Journal, filtered — not duplicated here. */}
                           <Link
-                            href={`/${locale}/warehouse/history?product_id=${r.product_id}`}
+                            href={`/${locale}/warehouse/stock?tab=journal&product=${r.product_id}`}
                             className="inline-flex items-center gap-1.5 rounded-[8px] border border-wh-border px-2.5 py-1.5 text-[12.5px] font-semibold text-wh-ink-2 hover:border-wh-border-strong"
                           >
                             <ClipboardList size={13} aria-hidden="true" />
                             {t("movements")}
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => setCounting(r)}
-                            className="rounded-[8px] border border-wh-ok bg-wh-ok px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90"
+                          <Link
+                            href={countHref(r)}
+                            className="rounded-[8px] border border-wh-ok bg-wh-ok px-3 py-1.5 text-[12.5px] font-semibold text-white no-underline hover:opacity-90"
                           >
                             {t("count")}
-                          </button>
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -273,16 +299,6 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
         )}
       </WhCard>
 
-      {counting ? (
-        <StockCountDialog
-          row={counting}
-          onClose={() => setCounting(null)}
-          onDone={() => {
-            setCounting(null);
-            void mutate();
-          }}
-        />
-      ) : null}
     </div>
   );
 }

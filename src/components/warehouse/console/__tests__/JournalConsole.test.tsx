@@ -65,6 +65,30 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
 const setup = () => render(<JournalConsole locale="fr" />);
 
+describe("Journal — one product's movements", () => {
+  // « Mouvements » on a stock row used to link to /warehouse/history, which
+  // redirected and dropped the product: the reader landed on the wrong tab,
+  // unfiltered. The Journal now takes the product from the address.
+  it("asks the server for that product only", () => {
+    render(<JournalConsole locale="fr" productId="p1" productName="دمية ملاكمة" />);
+    expect(lastKey).toContain("product_id=p1");
+  });
+
+  it("says what it is filtered on, and lets the reader clear it", () => {
+    const onClear = vi.fn();
+    render(<JournalConsole locale="fr" productId="p1" productName="دمية ملاكمة" onClearProduct={onClear} />);
+    const chip = screen.getByTestId("wh-journal-product");
+    expect(chip).toHaveTextContent("دمية ملاكمة");
+    fireEvent.click(within(chip).getByRole("button"));
+    expect(onClear).toHaveBeenCalled();
+  });
+
+  it("asks for every product when none is given", () => {
+    setup();
+    expect(lastKey).not.toContain("product_id");
+  });
+});
+
 describe("Journal — the ledger", () => {
   it("groups rows under a day band that counts its own day", () => {
     setup();
