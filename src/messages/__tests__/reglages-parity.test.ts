@@ -19,7 +19,7 @@ const FR = flatten((fr as unknown as { reglages: Tree }).reglages);
 const AR = flatten((ar as unknown as { reglages: Tree }).reglages);
 
 /** Brand and product names stay in Latin script in both catalogs. */
-const LATIN_OK = /\b(WhatsApp|Meta|Ordra|Darb Assabil|Navex|Dexpress|Google Sheets|Shopify|EasyOrders|WooCommerce|LightFunnels|BuyBox|Converty|USD|LYD|TND|P&L|API|Business|FR|AR|LY|TN|act_)\b/g;
+const LATIN_OK = /\b(WhatsApp|Meta|Ordra|Darb Assabil|Navex|Dexpress|Google Sheets|Shopify|EasyOrders|WooCommerce|LightFunnels|BuyBox|Converty|USD|LYD|TND|P&L|API|Business|Graph|FR|AR|LY|TN|act_)\b/g;
 
 describe("reglages i18n parity", () => {
   test("both locales define every key", () => {

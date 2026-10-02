@@ -8284,6 +8284,102 @@
       "nothingFound": "Aucun résultat.",
       "done": "Associé",
       "pick": "Choisissez d’abord un élément de la liste."
+    },
+    "whatsapp": {
+      "numberTitle": "Numéro WhatsApp",
+      "notConnectedTitle": "WhatsApp n’est pas connecté pour la {market}",
+      "notConnectedText": "Connectez le numéro WhatsApp Business de la marque pour envoyer des messages automatiques et répondre aux clients depuis Ordra.",
+      "connect": "Connecter le numéro",
+      "adminConnects": "Un administrateur doit connecter le numéro.",
+      "test": "Tester",
+      "testing": "Test en cours…",
+      "testOk": "Le numéro répond : tout est en ordre.",
+      "testFail": "Le test a échoué : {reason}",
+      "editCreds": "Modifier les identifiants",
+      "pause": "Mettre en pause",
+      "resume": "Reprendre",
+      "number": "Numéro",
+      "verifiedName": "Nom vérifié",
+      "quality": "Qualité",
+      "limit": "Limite d’envoi",
+      "lastMessage": "Dernier message reçu",
+      "state": "État",
+      "qualityLevel": {
+        "GREEN": "Bonne",
+        "YELLOW": "Moyenne",
+        "RED": "Faible",
+        "UNKNOWN": "Inconnue"
+      },
+      "limitN": "{n} clients par 24 h",
+      "limitUnverified": "{n} clients par 24 h — entreprise pas encore vérifiée",
+      "limitUnlimited": "Sans limite",
+      "never": "jamais",
+      "stateActive": "Actif",
+      "statePaused": "En pause : aucun message ne part",
+      "stateAuthFailed": "Identifiants refusés par Meta",
+      "autoTitle": "Messages automatiques",
+      "autoDesc": "Un message part quand la commande atteint l’un de ces moments. Chacun s’active séparément.",
+      "autoDisabledDesc": "Disponible une fois le numéro connecté.",
+      "master": "Envoyer les messages automatiques",
+      "masterHelp": "Interrupteur général : coupé, plus rien ne part, quels que soient les réglages ci-dessous.",
+      "events": {
+        "could_not_reach": {
+          "label": "Injoignable",
+          "help": "Après le premier appel sans réponse, une seule fois par commande."
+        },
+        "shipped": {
+          "label": "Expédié",
+          "help": "Le numéro de suivi, au moment où le colis quitte l’entrepôt."
+        },
+        "out_for_delivery": {
+          "label": "En livraison",
+          "help": "« Le livreur passe aujourd’hui, gardez votre téléphone allumé. »"
+        },
+        "last_chance": {
+          "label": "Dernière chance",
+          "help": "Livraison retardée ou colis sur le retour : « répondez aujourd’hui »."
+        },
+        "delivered": {
+          "label": "Livré",
+          "help": "Un remerciement une fois le colis remis."
+        }
+      },
+      "tpl": {
+        "ok": "modèle approuvé",
+        "pend": "en attente d’approbation",
+        "none": "aucun modèle approuvé"
+      },
+      "tplLang": "{lang} · {state}",
+      "language": "Langue par défaut",
+      "languageHelp": "Pour un client dont la langue n’a pas encore été choisie par un agent.",
+      "window": "Heures d’envoi",
+      "windowHelp": "En dehors, les messages attendent le lendemain matin. Personne ne doit être réveillé à 3 h.",
+      "windowFrom": "Début (heure)",
+      "windowTo": "Fin (heure)",
+      "windowAlways": "toute la journée",
+      "templatesTitle": "Modèles de message",
+      "templatesDesc": "Les textes approuvés par Meta. Un message automatique ne part que si son modèle est approuvé.",
+      "templatesLink": "Gérer les modèles",
+      "templatesCount": "{approved} approuvés · {pending} en attente",
+      "drawer": {
+        "connectTitle": "Connecter le numéro WhatsApp",
+        "editTitle": "Modifier les identifiants",
+        "identity": "Identifiants Meta",
+        "waba": "WhatsApp Business Account ID",
+        "pnid": "Phone number ID",
+        "appId": "App ID",
+        "token": "Jeton d’accès",
+        "appSecret": "Clé secrète de l’app",
+        "verifyToken": "Jeton de vérification",
+        "graph": "Version de l’API Graph",
+        "keep": "Laissez vide pour garder la valeur actuelle.",
+        "meta": "À coller dans Meta",
+        "callback": "Adresse de rappel",
+        "metaHelp": "Dans Meta › WhatsApp › Configuration, collez l’adresse de rappel et le jeton de vérification.",
+        "save": "Enregistrer et vérifier",
+        "required": "Tous les champs sont obligatoires pour une première connexion.",
+        "failed": "Meta a refusé ces identifiants : {reason}"
+      }
     }
   }
 }
