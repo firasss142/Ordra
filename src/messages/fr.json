@@ -7890,6 +7890,41 @@
         "label": "Délai fournisseur",
         "unit": "jours",
         "help": "Temps entre la commande au fournisseur et l’arrivée en stock. La page Stock vous dit de recommander {n} jours avant la rupture prévue."
+      },
+      "high_value_threshold": {
+        "label": "Montant élevé",
+        "help": "Un colis de {n} {cur} ou plus est à risque. 0 = désactivé.",
+        "helpZero": "Désactivé : le montant ne rend jamais un colis à risque. Saisissez un montant pour l’activer."
+      },
+      "risk_min_prior_failures": {
+        "label": "Client déjà en échec",
+        "unit": "échecs",
+        "help": "Un client qui a déjà refusé ou renvoyé {n} colis est à risque. Un nouveau client ne l’est jamais."
+      },
+      "zone_low_delivery_rate_pct": {
+        "label": "Zone difficile",
+        "unit": "%",
+        "help": "Une destination où moins de {n} % des colis sont livrés rend le colis à risque…"
+      },
+      "zone_min_sample": {
+        "label": "Échantillon minimum d’une zone",
+        "unit": "colis",
+        "help": "…mais seulement après {n} colis terminés vers cette zone. Avant, le taux ne veut rien dire."
+      },
+      "carrier_stall_days": {
+        "label": "Colis immobile",
+        "unit": "jours",
+        "help": "Un colis sans aucun mouvement chez le transporteur depuis {n} jours remonte dans le suivi de livraison."
+      },
+      "delivery_first_action_hours": {
+        "label": "Délai de première action",
+        "unit": "heures",
+        "help": "Un colis à traiter qui attend plus de {n} h (heures de service) signale son agent en retard sur le tableau."
+      },
+      "delivery_done_window_hours": {
+        "label": "Colis terminés visibles",
+        "unit": "heures",
+        "help": "Un colis livré ou retourné reste {n} h dans « Terminés » : l’agent peut encore y noter l’appel qui l’a clos."
       }
     },
     "orders": {
@@ -8061,6 +8096,116 @@
       "defaultLocked": "Le site par défaut ne peut pas être désactivé.",
       "toastOn": "{site} activé",
       "toastOff": "{site} désactivé"
+    },
+    "delivery": {
+      "carriersTitle": "Transporteurs",
+      "carriersDesc": "Les sociétés qui livrent les colis de ce marché, et ce qu’elles facturent.",
+      "add": "Ajouter un transporteur",
+      "colCarrier": "Transporteur",
+      "colSite": "Site",
+      "colFees": "Frais livraison · retour",
+      "colDelivered": "Livrés · 30 j",
+      "colActive": "Actif",
+      "feesMissing": "non renseignés",
+      "deliveredOf": "sur {n}",
+      "noCarrier": "Aucun transporteur pour ce marché.",
+      "riskTitle": "Colis à risque",
+      "riskDesc": "Un colis à risque est appelé avant le passage du livreur. Ces seuils décident lesquels.",
+      "boardTitle": "Tableau de suivi",
+      "boardDesc": "Les règles du tableau de livraison du manager.",
+      "toastOn": "{name} activé",
+      "toastOff": "{name} désactivé",
+      "open": "Ouvrir {name}",
+      "adapters": {
+        "darb_assabil": "Clé API et identifiant de compte.",
+        "dexpress": "Compte marchand du portail Dexpress.",
+        "navex": "Jeton API et expéditeur."
+      },
+      "credential": {
+        "token": "Jeton API",
+        "sender_name": "Nom de l’expéditeur",
+        "sender_location": "Localité de l’expéditeur",
+        "email": "E-mail du compte marchand",
+        "password": "Mot de passe",
+        "merchant_id": "Identifiant marchand",
+        "from_state": "Région de départ (identifiant)",
+        "cost_type": "Frais de livraison à la charge du client",
+        "api_key": "Clé API",
+        "account_id": "Identifiant de compte",
+        "default_service_id": "Service de livraison par défaut"
+      },
+      "drawer": {
+        "carrier": "Transporteur",
+        "name": "Nom affiché",
+        "nameHelp": "Utile quand un même transporteur a un compte par site.",
+        "namePlaceholder": "ex. Darb Assabil - Misrata",
+        "site": "Site d’où partent ses colis",
+        "siteFixed": "Fixé à la création : le compte du transporteur est lié à ce bâtiment.",
+        "noSite": "aucun",
+        "active": "Actif",
+        "activeHelp": "Désactivé, les agents ne peuvent plus lui envoyer de colis. Les colis déjà partis restent suivis.",
+        "connection": "Connexion",
+        "replace": "Remplacer",
+        "secretKept": "Inchangée tant que vous ne la remplacez pas.",
+        "credentialsHidden": "Les identifiants ne sont visibles que par un administrateur.",
+        "test": "Tester la connexion",
+        "testHelp": "Vérifie que le serveur du transporteur répond ; les identifiants sont vérifiés au premier envoi de colis.",
+        "testOk": "Le transporteur répond.",
+        "testFail": "Le transporteur ne répond pas : {reason}",
+        "testing": "Test en cours…",
+        "fees": "Frais",
+        "feeDelivery": "Livraison",
+        "feeReturn": "Retour",
+        "feesHelp": "Comptés dans le P&L à partir du dépôt chez le transporteur.",
+        "modes": "D’où part le stock",
+        "modeHome": "Notre entrepôt",
+        "modeHomeHelp": "Nous gardons le stock ; le transporteur vient chercher les colis.",
+        "modeCarrier": "Entrepôt du transporteur",
+        "modeCarrierHelp": "Le transporteur garde le stock et prépare lui-même les colis.",
+        "modesOne": "Il faut au moins un des deux.",
+        "options": "Options de commande",
+        "optionsHelp": "Ce qui est coché d’avance quand un agent envoie un colis, et s’il peut le changer.",
+        "colOption": "Option",
+        "colChecked": "Coché",
+        "colEditable": "Modifiable",
+        "checkedFor": "{option} coché par défaut",
+        "editableFor": "{option} modifiable par l’agent",
+        "opt": {
+          "is_pickup": {
+            "label": "Ramassage",
+            "help": "Le transporteur passe chercher le colis chez nous."
+          },
+          "allow_inspection": {
+            "label": "Ouverture du colis",
+            "help": "Le client peut ouvrir avant de payer. Plus de retours possibles."
+          },
+          "is_fragile": {
+            "label": "Fragile",
+            "help": "Le transporteur manipule le colis avec soin."
+          },
+          "allow_card_payment": {
+            "label": "Paiement par carte",
+            "help": "Le client peut payer par carte au lieu du comptant."
+          },
+          "allow_testing": {
+            "label": "Essai",
+            "help": "Le client peut essayer le produit. Plus de retours possibles."
+          },
+          "is_replacement": {
+            "label": "Échange",
+            "help": "Le colis remplace une commande précédente."
+          }
+        },
+        "addTitle": "Ajouter un transporteur",
+        "addSub": "Pour la {market}",
+        "company": "Société",
+        "companyHelp": "Une autre société demande une intégration technique.",
+        "create": "Créer le transporteur",
+        "created": "{name} ajouté",
+        "createdTestFail": "{name} ajouté, mais le transporteur ne répond pas encore.",
+        "required": "Nom, société et identifiants obligatoires.",
+        "duplicate": "Un transporteur porte déjà ce nom dans ce marché."
+      }
     }
   }
 }
