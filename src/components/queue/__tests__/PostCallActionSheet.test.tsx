@@ -71,6 +71,8 @@ vi.mock("../RejectionReasonSelect", () => ({
       {/* A sub-reason a manager added this morning: valid for the market, and
           unknown to the compiled taxonomy. */}
       <button onClick={() => onSelect("refus_client", "promo_concurrent")}>Promo concurrent</button>
+      {/* « Autre » + its note — the only answer that offers « Aussi un retour client ». */}
+      <button onClick={() => onSelect("autre", null, "قال اريد الدفع بالبطاقة")}>Autre avec note</button>
       {onClear && <button onClick={onClear}>Retirer le motif</button>}
       {onBack && <button onClick={onBack}>Retour aux résultats</button>}
       {onPostpone && <button onClick={onPostpone}>Plus tard</button>}
@@ -894,5 +896,56 @@ describe("PostCallActionSheet — scheduling a callback", () => {
     });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.callback_time).toBe(shown);
+  });
+});
+
+
+// Voix du client — « Garder aussi dans la voix du client » under an « Autre » rejection
+// (prototype voix-du-client-agent-v2, screen ④).
+vi.mock("@/hooks/useFeedback", () => ({
+  useFeedbackTopics: () => [
+    { id: "t-card", category: "objection", key: "card", label_fr: "Veut payer par carte ou virement", label_ar: "x", sort_order: 2 },
+  ],
+}));
+vi.mock("@/components/feedback/FeedbackCaptureProvider", () => ({
+  useFeedbackCapture: () => ({ enabled: true, captureOpen: false, openCapture: () => {}, register: () => () => {} }),
+}));
+
+describe("PostCallActionSheet — « Autre » keeps the note as the customer's words", () => {
+  const rejectBody = () => {
+    const call = mockFetch.mock.calls.find((c) => String(c[0]).endsWith("/reject"));
+    return JSON.parse(call![1].body as string);
+  };
+
+  it("offers it, on by default, with the category the words suggest — and sends it", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ data: { new_status: "rejected" } }) });
+    render(<PostCallActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText("Rejeté"));
+    fireEvent.click(screen.getByText("Autre avec note"));
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Catégorie suggérée d'après les mots")).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByText("Confirmer le rejet")); });
+    expect(rejectBody()).toMatchObject({
+      rejection_reason: "autre",
+      rejection_note: "قال اريد الدفع بالبطاقة",
+      feedback: { category: "objection", topic_id: "t-card" },
+    });
+  });
+
+  it("switched off, the rejection goes alone", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ data: { new_status: "rejected" } }) });
+    render(<PostCallActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText("Rejeté"));
+    fireEvent.click(screen.getByText("Autre avec note"));
+    fireEvent.click(screen.getByRole("switch"));
+    await act(async () => { fireEvent.click(screen.getByText("Confirmer le rejet")); });
+    expect(rejectBody().feedback).toBeUndefined();
+  });
+
+  it("a structured reason never offers it", () => {
+    render(<PostCallActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText("Rejeté"));
+    fireEvent.click(screen.getByText("Doublon"));
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 });

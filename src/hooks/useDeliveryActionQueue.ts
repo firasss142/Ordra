@@ -16,6 +16,8 @@ export const UNDO_WINDOW_MS = 5_000;
 
 export interface QueuedBody extends RecordedAction {
   template_key?: string | null;
+  /** Voix du client — keep the note as the customer's words (« Pourquoi ? »). */
+  feedback?: { category: string; topic_id: string | null };
   /**
    * The server already wrote this row (a WhatsApp send through the business
    * number records its own delivery action). The row still moves on screen

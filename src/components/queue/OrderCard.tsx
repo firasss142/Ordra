@@ -49,6 +49,8 @@ interface OrderCardProps {
   highlightQuery?: ParsedQuery;
   /** Called after a duplicate sibling is deleted from the dialog, to revalidate the queue. */
   onMutate?: () => void;
+  /** The customer's réclamations still open (Voix du client) — said before the call. */
+  openComplaints?: number;
 }
 
 /**
@@ -161,9 +163,11 @@ export const OrderCard = memo(function OrderCard({
   onToggleSelect,
   highlightQuery,
   onMutate,
+  openComplaints = 0,
 }: OrderCardProps) {
   const t = useTranslations("queue");
   const tWa = useTranslations("whatsapp");
+  const tFeedback = useTranslations("feedback.capture");
   const locale = useLocale();
 
   // Mounted-only clock: the server and the client would otherwise disagree on
@@ -389,6 +393,14 @@ export const OrderCard = memo(function OrderCard({
                 <span data-testid="queue-row-whatsapp" className="inline-flex shrink-0 items-center gap-1 font-semibold text-brand">
                   <WhatsAppGlyph size={13} strokeWidth={2} />
                   {(order.wa_unread ?? 0) > 0 ? tWa("prospects.replied") : tWa("button")}
+                </span>
+                <span aria-hidden="true" className="shrink-0 text-agent-outline">·</span>
+              </>
+            )}
+            {openComplaints > 0 && (
+              <>
+                <span className="shrink-0 font-semibold text-[#991B1B]">
+                  {tFeedback("openOnRow", { n: openComplaints })}
                 </span>
                 <span aria-hidden="true" className="shrink-0 text-agent-outline">·</span>
               </>

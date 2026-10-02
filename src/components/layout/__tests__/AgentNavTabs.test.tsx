@@ -12,10 +12,11 @@ vi.mock("swr", async (orig) => ({ ...(await orig<typeof import("swr")>()), prelo
 const user = { id: "a1", email: "a@x", full_name: "Hend", avatar_url: null, role: "agent", market_id: "m", locale: "fr", direction: "ltr" } as AuthUser;
 
 describe("AgentNavTabs", () => {
-  it("offers File, Prospects, Livraison and Commissions", () => {
+  it("offers File, Prospects, Livraison, Commissions and Voix du client", () => {
     render(<NextIntlClientProvider locale="fr" messages={fr}><AgentNavTabs user={user} /></NextIntlClientProvider>);
     const links = screen.getAllByRole("link");
-    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/fr/queue", "/fr/leads", "/fr/delivery", "/fr/commissions"]);
+    expect(links.map((l) => l.getAttribute("href"))).toEqual(["/fr/queue", "/fr/leads", "/fr/delivery", "/fr/commissions", "/fr/feedback"]);
+    expect(screen.getByRole("link", { name: /Voix du client/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Livraison/ }).getAttribute("aria-current")).toBe("page");
     expect(screen.queryByRole("link", { name: /Relances|Suivis/ })).toBeNull();
   });

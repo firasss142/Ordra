@@ -39,6 +39,7 @@ import {
   Users,
   Warehouse,
   type LucideIcon,
+  MessageSquareQuote,
 } from "lucide-react";
 import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
@@ -203,6 +204,8 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Users,
     items: [
       { key: "activeProspects", href: "leads", icon: Target, prefetchRoute: "leads" },
+      // « Voix du client » — complaints, objections, suggestions (plans/voix-du-client.md).
+      { key: "customerVoice", href: "feedback", icon: MessageSquareQuote, prefetchRoute: "feedback" },
       // WhatsApp replies nobody has claimed yet (managers + super_admin).
       // Its Modèles page lives under it and keeps it highlighted.
       { key: "messages", href: "messages", icon: MessageCircle, badgeSource: "whatsapp", activeOn: ["messages/templates"] },

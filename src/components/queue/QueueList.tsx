@@ -10,6 +10,10 @@ import type { BucketKey } from "./QueueHeader";
 import type { ParsedQuery } from "@/lib/queue/search";
 import { QUEUE_ROW_GRID, QUEUE_ROW_SPACING } from "./row-grid";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
+import { useOpenComplaints } from "@/hooks/useFeedback";
+import { useFeedbackCapture } from "@/components/feedback/FeedbackCaptureProvider";
+import { Kbd } from "@/components/feedback/atoms";
+import { normalizePhone } from "@/lib/leads/phone";
 
 interface QueueStats {
   assigned_count: number;
@@ -76,6 +80,10 @@ export function QueueList({
   onClearSearch,
 }: QueueListProps) {
   const t = useTranslations("queue");
+  const tFeedback = useTranslations("feedback.capture");
+  // Voix du client: which customers in the list have a complaint still open.
+  const feedback = useFeedbackCapture();
+  const openComplaints = useOpenComplaints(feedback.enabled);
   const tSearch = useTranslations("queue.search");
 
   if (orders.length === 0 && isSearching) {
@@ -202,9 +210,16 @@ export function QueueList({
             maxAttempts={maxAttempts}
             highlightQuery={highlightQuery}
             onMutate={onRefresh}
+            openComplaints={openComplaints[normalizePhone(order.customer_phone ?? "")] ?? 0}
           />
         ))}
       </div>
+      {/* « F voix du client — même sans commande ouverte » (prototype agent-v2, queue footer). */}
+      {feedback.enabled && (
+        <p className="mt-2 hidden items-center justify-end gap-1.5 text-[13px] text-agent-ink-3 lg:flex">
+          <Kbd>F</Kbd> {tFeedback("queueHint")}
+        </p>
+      )}
     </div>
   );
 }

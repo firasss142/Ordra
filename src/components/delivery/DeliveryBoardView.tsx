@@ -28,6 +28,7 @@ import { DeliveryDetailPanel } from "./DeliveryDetail";
 import { DeliveryCockpit, DeliveryAgentsStrip, type CockpitTab } from "./DeliveryCockpit";
 import { ReassignSheet } from "./ReassignSheet";
 import { ActionSheet, WhatsAppSheet } from "./Sheets";
+import { useRegisterFeedbackContext } from "@/components/feedback/FeedbackCaptureProvider";
 import { Money, OUTLINE_BTN, TONE } from "./ui";
 
 type Sheet =
@@ -89,6 +90,8 @@ export function DeliveryBoardView(props: DeliveryBoardViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Set<string>>(() => new Set());
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  // Voix du client: the selected parcel is the F key's context.
+  const feedbackCapture = useRegisterFeedbackContext(selectedId);
   const [showStalled, setShowStalled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sheetError, setSheetError] = useState<string | null>(null);
@@ -367,6 +370,7 @@ export function DeliveryBoardView(props: DeliveryBoardViewProps) {
 
       {sheet?.kind === "action" && sheetRow && (
         <ActionSheet key={sheet.orderId} initialType={sheet.type} tz={tz} now={now}
+          feedback={{ enabled: feedbackCapture.enabled, remark: sheetRow.latest_remark, remarkClass: sheetRow.remark_class, status: sheetRow.status, marketId: props.marketId ?? null }}
           onClose={() => setSheet(null)} onSubmit={(body) => { onQueue(sheetRow, body); setSheet(null); }} />
       )}
       {sheet?.kind === "wa" && sheetRow && (

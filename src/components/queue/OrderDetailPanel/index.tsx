@@ -101,6 +101,8 @@ import { OrderTakeoverScreen } from "../OrderTakeoverScreen";
 import { useOrderLocks } from "@/hooks/useOrderLocks";
 import { useTypingMode } from "@/hooks/useTypingMode";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { useRegisterFeedbackContext } from "@/components/feedback/FeedbackCaptureProvider";
+import { PanelFeedbackButton } from "@/components/feedback/PanelFeedbackButton";
 import { TypingActivityProvider } from "@/components/ui/typing-activity";
 
 const ScheduleDispatchModal = dynamic(
@@ -411,6 +413,12 @@ export function OrderDetailPanel({
   // list beside it must keep scrolling, so the lock is phone-only.
   const isPhone = useIsPhone();
   useBodyScrollLock(isPhone && orderId !== null);
+
+  // « Voix du client » (plans/voix-du-client.md): this order is the capture context, and
+  // while the capture window is up the panel's keys stand down exactly as under the call
+  // sheet — both layers listen on `document`.
+  const feedback = useRegisterFeedbackContext(orderId);
+  const layered = covered || feedback.captureOpen;
   const ts = useTranslations("orders.statuses");
   const tCov = useTranslations("dispatch.coverage");
   const tMerge = useTranslations("orderMerge");
@@ -713,7 +721,7 @@ export function OrderDetailPanel({
   // "p" opens the sheet. Deliberately not gated on canEdit — an agent must be
   // able to read the product even on an order they can no longer modify.
   useEffect(() => {
-    if (!order || productSheetOpen || covered) return;
+    if (!order || productSheetOpen || layered) return;
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       if (e.key === "p" || e.key === "P") {
@@ -723,7 +731,7 @@ export function OrderDetailPanel({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, productSheetOpen, covered]);
+  }, [order, productSheetOpen, layered]);
 
   // Reset transient UI state when switching orders.
   useEffect(() => {
@@ -823,7 +831,7 @@ export function OrderDetailPanel({
     // While the product sheet is stacked on top, it owns Escape. Both
     // listeners sit on `document`, so without this guard one Escape would
     // collapse both layers at once. The call sheet stacked above is the same.
-    if (productSheetOpen || covered) return;
+    if (productSheetOpen || layered) return;
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       if (e.key === "e" || e.key === "E") {
@@ -839,7 +847,7 @@ export function OrderDetailPanel({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, canEdit, onClose, productSheetOpen, covered]);
+  }, [order, canEdit, onClose, productSheetOpen, layered]);
 
   if (orderId === null) return null;
 
@@ -1391,6 +1399,7 @@ export function OrderDetailPanel({
           maxAttempts={maxCallAttempts}
           saveFlash={saveFlash}
           presenceRows={orderId ? othersOn(orderId) : undefined}
+          feedbackSlot={feedback.enabled && orderId ? <PanelFeedbackButton orderId={orderId} /> : undefined}
           carrierDeletedChip={
             order?.carrier_barcode_deleted_at && !order.tracking_number
               ? {
@@ -1736,6 +1745,7 @@ export function OrderDetailPanel({
             primaryPending={reopening || returningToPool || cancelingSchedule || recovering}
             onInvoke={invokeAction}
             showNavHint={variant === "side"}
+            feedbackHint={feedback.enabled}
           />
         )}
       </div>
