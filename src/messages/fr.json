@@ -7885,6 +7885,11 @@
       "goal_team_weekly_conf": {
         "label": "Confirmations par semaine, toute l’équipe",
         "unit": "par semaine"
+      },
+      "supplier_lead_time_days": {
+        "label": "Délai fournisseur",
+        "unit": "jours",
+        "help": "Temps entre la commande au fournisseur et l’arrivée en stock. La page Stock vous dit de recommander {n} jours avant la rupture prévue."
       }
     },
     "orders": {
@@ -8031,6 +8036,31 @@
         "help": "Ce qui est déjà gagné ne change pas : le nouveau montant vaut pour les commandes livrées à partir de cette date.",
         "invalid": "Montant et date obligatoires."
       }
+    },
+    "warehouses": {
+      "sitesTitle": "Sites",
+      "sitesDesc": "Chaque site est un bâtiment avec son propre stock et ses agents d’entrepôt. Un colis part du site de son transporteur.",
+      "colSite": "Site",
+      "colAgents": "Agents d’entrepôt",
+      "colCarriers": "Transporteurs rattachés",
+      "colActive": "Actif",
+      "default": "par défaut",
+      "agentsOne": "1 agent",
+      "agentsMany": "{n} agents",
+      "noAgent": "aucun agent",
+      "carrierOff": "désactivé",
+      "unassignedNote": "Un agent d’entrepôt sans site ne voit rien et ne peut rien scanner.",
+      "assignLink": "Affecter dans Équipe › Accès",
+      "restockTitle": "Réapprovisionnement",
+      "restockDesc": "Le temps qu’il faut pour refaire le stock.",
+      "switch": "{site} actif",
+      "confirmTitle": "Désactiver {site} ?",
+      "confirmAgents": "Agents encore affectés : {names}. Ils ne verront plus rien tant qu’ils ne sont pas affectés ailleurs.",
+      "confirmStock": "{n} unités sont encore en stock sur ce site.",
+      "confirmGo": "Désactiver quand même",
+      "defaultLocked": "Le site par défaut ne peut pas être désactivé.",
+      "toastOn": "{site} activé",
+      "toastOff": "{site} désactivé"
     }
   }
 }

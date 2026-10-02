@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -25,6 +25,7 @@ import { ReglagesFormProvider, useReglagesForm } from "./form-context";
 import { SaveBar } from "./kit/SaveBar";
 import { CodeChip, EmptyState, SettingsCard } from "./kit/parts";
 import { RgButton } from "./kit/RgButton";
+import { ConfirmDialog } from "./kit/ConfirmDialog";
 import { TopicBody } from "./TopicBody";
 
 const ICONS: Record<TopicId, LucideIcon> = {
@@ -226,24 +227,16 @@ function ScopePrompt({ onPick }: { onPick: (code: MarketCode) => void }) {
   );
 }
 
-function LeaveDialog({ onStay, onLeave }: { onStay: () => void; onLeave: () => void }): ReactNode {
+function LeaveDialog({ onStay, onLeave }: { onStay: () => void; onLeave: () => void }) {
   const t = useTranslations("reglages");
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[rgba(17,24,39,.36)]" role="presentation">
-      <div role="alertdialog" aria-modal="true" aria-labelledby="rg-leave-title" className="w-[420px] max-w-[92vw] rounded-[12px] border border-line bg-white shadow-floating">
-        <h3 id="rg-leave-title" className="m-0 px-[20px] pb-[6px] pt-[16px] text-[16px] font-semibold">
-          {t("leave.title")}
-        </h3>
-        <p className="m-0 px-[20px] pb-[16px] text-[13.5px] text-ink-secondary">{t("leave.body")}</p>
-        <div className="flex justify-end gap-[8px] rounded-b-[12px] border-t border-line-subtle bg-surface-sunken px-[20px] py-[12px]">
-          <RgButton onClick={onStay} autoFocus>
-            {t("leave.stay")}
-          </RgButton>
-          <RgButton variant="danger" onClick={onLeave}>
-            {t("leave.go")}
-          </RgButton>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      title={t("leave.title")}
+      body={t("leave.body")}
+      cancelLabel={t("leave.stay")}
+      confirmLabel={t("leave.go")}
+      onCancel={onStay}
+      onConfirm={onLeave}
+    />
   );
 }
