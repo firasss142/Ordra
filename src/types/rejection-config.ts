@@ -1,5 +1,3 @@
-import type { StatusHue } from "@/lib/orders/status-presentation";
-
 /**
  * One row of the rejection taxonomy, as stored per market.
  *
@@ -18,8 +16,8 @@ export interface RejectionReasonConfig {
   /** The badge label — "Faux n°" where `label_fr` is "Numéro faux ou inexistant". */
   short_fr: string;
   short_ar: string;
-  /** Meaningful on a group row only; sub-reasons inherit their parent's hue. */
-  hue: StatusHue;
+  // The table still has a `hue` column. Nothing reads it: a rejection wears
+  // the rejected red and its group is an icon — see REJECTION_GROUP_ICONS.
   sort_order: number;
   /** false = retired: gone from the picker, still rendered on past orders. */
   is_active: boolean;
@@ -28,16 +26,6 @@ export interface RejectionReasonConfig {
   created_at: string;
   updated_at: string;
 }
-
-/** The six named hues a group may wear. Not a free hex — see the migration. */
-export const REJECTION_HUES: readonly StatusHue[] = [
-  "neutral",
-  "amber",
-  "violet",
-  "teal",
-  "green",
-  "red",
-];
 
 /**
  * Same shape as `STATUS_KEY_REGEX`. A key is an identifier, not a label: it is
@@ -52,7 +40,6 @@ export interface RejectionConfigPatch {
   label_ar?: string;
   short_fr?: string;
   short_ar?: string;
-  hue?: StatusHue;
   sort_order?: number;
   is_active?: boolean;
 }

@@ -46,7 +46,6 @@ const configRow = (
   label_ar: "طويل",
   short_fr: "Court",
   short_ar: "قصير",
-  hue: "red",
   sort_order: 0,
   is_active: true,
   requires_note: false,
@@ -67,11 +66,12 @@ describe("useRejectionBadge", () => {
 
   it("prefers the market's own short label once the config has loaded", () => {
     mockRows.mockReturnValue([
-      configRow({ key: "injoignable", hue: "amber" }),
+      configRow({ key: "injoignable", label_fr: "Injoignable" }),
       configRow({
         key: "numero_invalide",
         parent_key: "injoignable",
         short_fr: "Mauvais numéro",
+        label_fr: "Numéro faux ou inexistant",
       }),
     ]);
 
@@ -81,7 +81,11 @@ describe("useRejectionBadge", () => {
         rejection_reason: "injoignable",
         rejection_subreason: "numero_invalide",
       }),
-    ).toEqual({ hue: "amber", text: "Mauvais numéro" });
+    ).toEqual({
+      icon: "rejectedUnreachable",
+      text: "Mauvais numéro",
+      detail: "Injoignable · Numéro faux ou inexistant",
+    });
   });
 
   // Before the fetch resolves there is still a thousand-row table to paint.
@@ -94,7 +98,7 @@ describe("useRejectionBadge", () => {
         rejection_reason: "injoignable",
         rejection_subreason: "numero_invalide",
       }),
-    ).toEqual({ hue: "amber", text: "Faux n°" });
+    ).toEqual({ icon: "rejectedUnreachable", text: "Faux n°", detail: null });
   });
 
   it("resolves a legacy group that no picker offers any more", () => {
@@ -106,12 +110,12 @@ describe("useRejectionBadge", () => {
         rejection_reason: "prix",
         rejection_subreason: null,
       }),
-    ).toEqual({ hue: "red", text: "Prix" });
+    ).toEqual({ icon: "rejectedRefused", text: "Prix", detail: null });
   });
 
   it("shows the agent's own note for `autre`", () => {
     mockRows.mockReturnValue([
-      configRow({ key: "autre", hue: "neutral", requires_note: true }),
+      configRow({ key: "autre", label_fr: "Autre", requires_note: true }),
     ]);
 
     expect(
@@ -121,7 +125,11 @@ describe("useRejectionBadge", () => {
         rejection_subreason: null,
         rejection_note: "veut la taille au-dessus",
       }),
-    ).toEqual({ hue: "neutral", text: "veut la taille au-dessus" });
+    ).toEqual({
+      icon: "rejectedOther",
+      text: "veut la taille au-dessus",
+      detail: "Autre · veut la taille au-dessus",
+    });
   });
 
   // A key deleted from the config and absent from the bundled messages must not

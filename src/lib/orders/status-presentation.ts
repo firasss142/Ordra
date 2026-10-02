@@ -63,6 +63,12 @@ export type StatusIconName =
   | "toReturn"
   | "returned"
   | "rejected"
+  // A rejected order's group — see REJECTION_GROUP_ICONS in rejection-config.
+  | "rejectedRefused"
+  | "rejectedUnreachable"
+  | "rejectedUndeliverable"
+  | "rejectedInvalid"
+  | "rejectedOther"
   | "cancelled"
   | "deleted";
 

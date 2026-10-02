@@ -166,9 +166,8 @@ export async function POST(req: NextRequest) {
       short_ar,
       sort_order: typeof body.sort_order === "number" ? body.sort_order : 0,
       is_active: true,
-      // No `hue`: a sub-reason inherits its group's colour. Letting each one
-      // pick its own would put five colours inside one group and destroy the
-      // thing the colour is for.
+      // No `hue`: colour is not configurable at any level. A rejection wears
+      // the rejected red, and its group's icon says which kind it was.
     })
     .select()
     .single();

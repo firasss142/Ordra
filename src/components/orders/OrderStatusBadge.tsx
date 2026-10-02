@@ -2,22 +2,24 @@
 
 import { StatusIcon } from "@/components/shared/StatusIcon";
 import { STATUS_HUE_TONE, STATUS_WEIGHT_FONT } from "@/components/shared/status-tone";
-import { presentStatus, type StatusHue } from "@/lib/orders/status-presentation";
+import { presentStatus, type StatusIconName } from "@/lib/orders/status-presentation";
 
 export interface OrderStatusBadgeProps {
   status: string;
   /** Already localised — this component does no lookup. */
   label: string;
   /**
-   * Why this order was rejected, already resolved to a hue and a short phrase
-   * (see `lib/orders/rejection-presentation` and `useRejectionBadge`).
+   * Why this order was rejected, already resolved to the group's icon and a
+   * short phrase (see `lib/orders/rejection-presentation` and
+   * `useRejectionBadge`).
    *
-   * When present on a `rejected` row it *replaces* both the colour and the
-   * word: the row is unmistakably a rejection from its cross glyph, so spending
-   * the one readable field on the word "Rejeté" said nothing that the icon had
-   * not already said. Ignored on any other status.
+   * When present on a `rejected` row it replaces the glyph and the word, but
+   * NOT the colour. The quiet red is what says "this order is over"; every
+   * other hue already names a live status, and a group painted amber, violet
+   * or teal made dead orders read as being called, confirmed or shipped.
+   * Ignored on any other status.
    */
-  rejection?: { hue: StatusHue; text: string } | null;
+  rejection?: { icon: StatusIconName; text: string } | null;
   locale?: string;
   /** Truth for calls made; the status label stops counting at three. */
   attemptsCount?: number | null;
@@ -27,7 +29,7 @@ export interface OrderStatusBadgeProps {
    * Drop the word on attempt statuses and let the icon plus the counter carry
    * it — "Tentative 3/8" becomes a 60px pill instead of a 112px one.
    *
-   * Only for the orders table, where the column is 120px wide, every attempt
+   * Only for the orders table, where the column is 148px wide, every attempt
    * row repeats the same word, and the number is the whole reason to look. A
    * surface with room (the detail panel) keeps the phrase.
    */
@@ -56,13 +58,13 @@ export function OrderStatusBadge({
   className = "",
 }: OrderStatusBadgeProps) {
   const base = presentStatus(status, { attemptsCount, maxAttempts });
-  const { weight, icon, counter } = base;
+  const { hue, weight, counter } = base;
 
   // Only `rejected` carries a reason. Guarding on the status rather than on the
   // prop keeps a stale payload from recolouring a row that has since moved on.
   const reason = status === "rejected" ? rejection : null;
 
-  const hue = reason?.hue ?? base.hue;
+  const icon = reason?.icon ?? base.icon;
   const tone = STATUS_HUE_TONE[hue];
 
   // "Tentative 1" plus a "1/8" counter renders as "Tentative 11/8", which

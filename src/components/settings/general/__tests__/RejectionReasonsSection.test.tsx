@@ -29,7 +29,6 @@ const cfg = (
   label_ar: `ar-${key}`,
   short_fr: key,
   short_ar: `ar-${key}`,
-  hue: "red",
   sort_order: 0,
   is_active: true,
   requires_note: false,
@@ -39,7 +38,7 @@ const cfg = (
 });
 
 const TAXONOMY = [
-  cfg("refus_client", null, { label_fr: "Refus client", hue: "red" }),
+  cfg("refus_client", null, { label_fr: "Refus client" }),
   cfg("prix_eleve", "refus_client", {
     label_fr: "Prix trop élevé",
     short_fr: "Prix",
@@ -48,7 +47,7 @@ const TAXONOMY = [
     label_fr: "Acheté ailleurs",
     short_fr: "Ailleurs",
   }),
-  cfg("injoignable", null, { label_fr: "Injoignable", hue: "amber", sort_order: 1 }),
+  cfg("injoignable", null, { label_fr: "Injoignable", sort_order: 1 }),
 ];
 
 function mockFetch(impl?: (url: string, init?: RequestInit) => unknown) {
@@ -87,12 +86,20 @@ describe("RejectionReasonsSection — reading the taxonomy", () => {
     expect(within(groups[1]).queryByDisplayValue("Prix trop élevé")).toBeNull();
   });
 
-  it("carries the group's colour so the screen previews the badge", () => {
+  // The preview is the real badge, so it cannot drift from the column.
+  it("previews every reason as the column's own badge: rejected red, the group's icon", () => {
     render(<RejectionReasonsSection marketId="m-tn" />);
 
-    const groups = screen.getAllByTestId("rejection-group");
-    expect(groups[0]).toHaveAttribute("data-hue", "red");
-    expect(groups[1]).toHaveAttribute("data-hue", "amber");
+    const [refus, injoignable] = screen.getAllByTestId("rejection-group");
+    const refusBadges = within(refus).getAllByTestId("order-status");
+    expect(refusBadges.length).toBe(3); // the group + its two sub-reasons
+    for (const b of refusBadges) {
+      expect(b).toHaveAttribute("data-hue", "red");
+      expect(b.querySelector(".lucide-thumbs-down")).not.toBeNull();
+    }
+    const [injBadge] = within(injoignable).getAllByTestId("order-status");
+    expect(injBadge).toHaveAttribute("data-hue", "red");
+    expect(injBadge.querySelector(".lucide-phone-off")).not.toBeNull();
   });
 
   // Groups mirror a Postgres enum: no add, no delete, ever.
@@ -135,17 +142,12 @@ describe("RejectionReasonsSection — editing", () => {
     await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
   });
 
-  it("recolours a group", async () => {
-    const fetchMock = mockFetch();
+  // A free colour choice is how « Commande non réelle » ended up in the teal of
+  // a shipped parcel. Every rejection is the same red; the group is the icon.
+  it("offers no colour choice for a group", () => {
     render(<RejectionReasonsSection marketId="m-tn" />);
 
-    const select = within(groupCard("Refus client")).getByLabelText(/couleur/i);
-    fireEvent.change(select, { target: { value: "violet" } });
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toEqual({
-      hue: "violet",
-    });
+    expect(within(groupCard("Refus client")).queryByLabelText(/couleur/i)).toBeNull();
   });
 
   it("adds a sub-reason to the group it was opened from", async () => {

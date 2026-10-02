@@ -168,36 +168,17 @@ describe("PATCH /api/settings/rejection-reasons/[id]", () => {
     ).toBe(400);
   });
 
-  test("recolours a group", async () => {
+  // Colour is not configurable any more: every rejection wears the rejected
+  // red and the group is its icon. A free choice is how a group came to wear
+  // the teal of a shipped parcel.
+  test("never writes a hue, on a group or a sub-reason", async () => {
     vi.mocked(getActor).mockResolvedValue(tnManager);
-    const { configChain } = setup({ row: GROUP });
-
-    const res = await PATCH(req("PATCH", { hue: "violet" }), params);
-
-    expect(res.status).toBe(200);
-    expect(configChain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ hue: "violet" }),
-    );
-  });
-
-  test("400 on a hue outside the six named ones", async () => {
-    vi.mocked(getActor).mockResolvedValue(tnManager);
-    setup({ row: GROUP });
-
-    expect((await PATCH(req("PATCH", { hue: "#ff0000" }), params)).status).toBe(
-      400,
-    );
-  });
-
-  // A sub-reason inherits its group's colour — that is what keeps one group one
-  // colour down a thousand rows.
-  test("400 when recolouring a sub-reason", async () => {
-    vi.mocked(getActor).mockResolvedValue(tnManager);
-    setup({ row: SUBREASON });
-
-    expect((await PATCH(req("PATCH", { hue: "green" }), params)).status).toBe(
-      400,
-    );
+    for (const row of [GROUP, SUBREASON]) {
+      const { configChain } = setup({ row });
+      const res = await PATCH(req("PATCH", { hue: "violet" }), params);
+      expect(res.status).toBe(400);
+      expect(configChain.update).not.toHaveBeenCalled();
+    }
   });
 
   test("400 when no mutable field is sent", async () => {

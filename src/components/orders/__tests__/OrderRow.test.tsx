@@ -20,6 +20,14 @@ vi.mock("@/components/shared/RepeatBuyerBadge", () => ({
   RepeatBuyerBadge: () => null,
 }));
 
+vi.mock("@/hooks/useOrderHistory", () => ({
+  useOrderHistory: () => ({
+    detail: { customer_name: "Karim Gharbi", source_platform: null, entries: [] },
+    isLoading: false,
+    error: undefined,
+  }),
+}));
+
 const mockOrder: OrdersListRow = {
   id: "order-abc-123",
   external_id: "3047",
@@ -375,5 +383,42 @@ describe("OrderRow", () => {
       } as OrdersListRow,
     });
     expect(container.querySelector('[data-duplicate="true"]')).toBeNull();
+  });
+});
+
+describe("OrderRow — a rejected order", () => {
+  const NOTE =
+    "Le client dit avoir déjà reçu le même produit d'un autre vendeur hier soir";
+
+  function renderRejected() {
+    return render(
+      <table>
+        <tbody>
+          <OrderRow
+            {...defaultProps}
+            order={{ ...mockOrder, status: "rejected" }}
+            labels={{ ...defaultProps.labels, status: "Rejeté" }}
+            rejection={{ icon: "rejectedOther", text: NOTE, detail: `Autre · ${NOTE}` }}
+          />
+        </tbody>
+      </table>,
+    );
+  }
+
+  it("wears the rejected red with the group's icon", () => {
+    renderRejected();
+    const badge = screen.getByTestId("order-status");
+    expect(badge).toHaveAttribute("data-hue", "red");
+    expect(badge.querySelector(".lucide-message-square-text")).not.toBeNull();
+  });
+
+  // The column clips; the hover is where the agent's whole sentence is read.
+  it("puts the full reason in the status hover", async () => {
+    const user = userEvent.setup();
+    renderRejected();
+    await user.hover(screen.getByTestId("order-status"));
+    expect((await screen.findByTestId("status-history-reason")).textContent).toBe(
+      `Autre · ${NOTE}`,
+    );
   });
 });

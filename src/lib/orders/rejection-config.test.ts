@@ -3,9 +3,9 @@ import {
   buildRejectionTree,
   validateRejectionPair,
   findRejectionConfig,
-  SEED_GROUP_HUES,
+  REJECTION_GROUP_ICONS,
 } from "./rejection-config";
-import { REJECTION_GROUPS, REJECTION_SUBREASONS } from "./rejection-taxonomy";
+import { REJECTION_GROUPS } from "./rejection-taxonomy";
 import type { RejectionReasonConfig } from "@/types/rejection-config";
 
 const MARKET = "m-tn";
@@ -22,7 +22,6 @@ function row(over: Partial<RejectionReasonConfig>): RejectionReasonConfig {
     label_ar: "تسمية",
     short_fr: "L",
     short_ar: "ت",
-    hue: "red",
     sort_order: 0,
     is_active: true,
     requires_note: false,
@@ -35,13 +34,13 @@ function row(over: Partial<RejectionReasonConfig>): RejectionReasonConfig {
 /** The shape the seed produces: two groups, each with two sub-reasons. */
 function sampleRows(): RejectionReasonConfig[] {
   return [
-    row({ key: "refus_client", hue: "red", sort_order: 0 }),
+    row({ key: "refus_client", sort_order: 0 }),
     row({ key: "prix_eleve", parent_key: "refus_client", sort_order: 0 }),
     row({ key: "achete_ailleurs", parent_key: "refus_client", sort_order: 1 }),
-    row({ key: "injoignable", hue: "amber", sort_order: 1 }),
+    row({ key: "injoignable", sort_order: 1 }),
     row({ key: "raccroche", parent_key: "injoignable", sort_order: 0 }),
     row({ key: "pas_de_reponse", parent_key: "injoignable", sort_order: 1 }),
-    row({ key: "autre", hue: "neutral", sort_order: 2, requires_note: true }),
+    row({ key: "autre", sort_order: 2, requires_note: true }),
   ];
 }
 
@@ -176,22 +175,19 @@ describe("validateRejectionPair", () => {
   });
 });
 
-describe("SEED_GROUP_HUES", () => {
+describe("REJECTION_GROUP_ICONS", () => {
   // The fallback used before the config loads, and for legacy rows. If a group
-  // is ever added to the taxonomy without a hue here, the badge silently turns
-  // grey — so this asserts the two lists stay in step.
+  // is ever added to the taxonomy without an icon here, its badge falls back to
+  // the generic cross — so this asserts the two lists stay in step.
   it("covers every group in the hardcoded taxonomy", () => {
     for (const g of REJECTION_GROUPS) {
-      expect(SEED_GROUP_HUES[g]).toBeTruthy();
+      expect(REJECTION_GROUP_ICONS[g]).toBeTruthy();
+      expect(REJECTION_GROUP_ICONS[g]).not.toBe("rejected");
     }
   });
 
-  it("gives the four groups that carry sub-reasons four distinct hues", () => {
-    const withSubs = REJECTION_GROUPS.filter(
-      (g) => REJECTION_SUBREASONS[g].length > 0,
-    );
-    const hues = withSubs.map((g) => SEED_GROUP_HUES[g]);
-
-    expect(new Set(hues).size).toBe(withSubs.length);
+  it("gives the five groups five distinct icons", () => {
+    const icons = REJECTION_GROUPS.map((g) => REJECTION_GROUP_ICONS[g]);
+    expect(new Set(icons).size).toBe(REJECTION_GROUPS.length);
   });
 });
