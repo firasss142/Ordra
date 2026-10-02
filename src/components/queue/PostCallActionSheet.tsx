@@ -16,6 +16,10 @@ import {
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
+import { FeedbackOffer, useFeedbackOffer } from "@/components/feedback/FeedbackOffer";
+import { useFeedbackCapture } from "@/components/feedback/FeedbackCaptureProvider";
+import { useFeedbackTopics } from "@/hooks/useFeedback";
+import { momentOf } from "@/lib/feedback/moment";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useVisibleViewport } from "@/hooks/useVisibleViewport";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
@@ -312,6 +316,14 @@ export function PostCallActionSheet({
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [rejectionSubreason, setRejectionSubreason] = useState<string | null>(null);
   const [rejectionNote, setRejectionNote] = useState<string | undefined>(undefined);
+  // Voix du client — « Garder aussi dans la voix du client »: only a note-only group (« Autre »)
+  // carries the customer's own words; a structured reason creates nothing.
+  const feedbackCapture = useFeedbackCapture();
+  const feedbackTopics = useFeedbackTopics(marketId || null, feedbackCapture.enabled);
+  const rejectOffer = useFeedbackOffer({ topics: feedbackTopics, words: rejectionNote });
+  const offeringFeedback =
+    feedbackCapture.enabled && rejectionReason !== null && rejectionSubreason === null && Boolean(rejectionNote?.trim());
+  const keepFeedback = offeringFeedback && rejectOffer.state.on && rejectOffer.state.category !== null;
 
   // CALLBACK — pre-seeded so "Planifier le rappel" is enabled immediately.
   // The picker's shown default and the time that will be submitted are ONE
@@ -743,6 +755,9 @@ export function PostCallActionSheet({
             rejection_reason: rejectionReason,
             rejection_subreason: rejectionSubreason,
             rejection_note: rejectionNote,
+            ...(keepFeedback
+              ? { feedback: { category: rejectOffer.state.category, topic_id: rejectOffer.state.topicId } }
+              : {}),
           }),
         }),
     });
@@ -1261,6 +1276,7 @@ export function PostCallActionSheet({
             )}
 
             {flow === "reject_flow" && (
+              <>
               <RejectionReasonSelect
                 marketId={marketId}
                 // At the ceiling the answer is pre-armed; the picker shows it
@@ -1292,6 +1308,11 @@ export function PostCallActionSheet({
                       }
                 }
               />
+              {offeringFeedback && (
+                <FeedbackOffer kind="reject" offer={rejectOffer} topics={feedbackTopics}
+                  moment={momentOf(orderStatus, false)} status={orderStatus} />
+              )}
+              </>
             )}
           </div>
 
