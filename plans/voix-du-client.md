@@ -1,7 +1,11 @@
 # Voix du client — « صوت العميل »
 
 Plan written 2026-09-30, corrected 2026-10-01: rejection dates now come from `order_history`.
-Status: **Phase 0.**
+Status: **built on 2026-10-02** in the worktree `feat/voix-du-client`. It follows the approved
+agent-v2 and manager-v6 prototypes; reference: docs/customer-voice.md.
+- Migrations are NOT applied to prod yet. Insights (phase 4) and the topics settings screen
+  were left out because neither approved prototype shows them.
+- Earlier status: **Phase 0.**
 - On 2026-10-01 the agent prototype v1 was approved, then reopened the same day to cover
   every moment the customer's voice reaches us, with 3 categories.
 - On 2026-10-02 manager v3 was rejected and redesigned from scratch as v4.

@@ -291,6 +291,8 @@ entry has not meant deleting its page — check before assuming a route is dead.
   sa présence bloquerait le manager), RLS non élargie, variantes arabes + accents pliées
   dans la recherche partagée (migration à appliquer AVANT le déploiement):
   docs/agent-market-search.md + plans/agent-market-search.md
+- Voix du client — feedback by category and moment, the F key, courier/import feeds, the
+  manager page: docs/customer-voice.md + plans/voix-du-client.md
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:
