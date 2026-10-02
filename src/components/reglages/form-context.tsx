@@ -23,6 +23,10 @@ export interface Saver {
   count: number;
   save: () => Promise<void>;
   reset: () => void;
+  /** Checked before anything is saved; a message vetoes the whole save. */
+  validate?: () => string | null;
+  /** Lower saves first (default 0) — the agents' split before the method that needs it. */
+  order?: number;
 }
 
 interface FormContextValue {
@@ -60,10 +64,18 @@ export function ReglagesFormProvider({ children }: { children: ReactNode }) {
   );
 
   const saveAll = useCallback(async () => {
-    setSaving(true);
     setError(null);
+    for (const s of Array.from(savers.current.values())) {
+      const veto = s.validate?.();
+      if (veto) {
+        setError(veto);
+        return false;
+      }
+    }
+    setSaving(true);
     try {
-      for (const s of Array.from(savers.current.values())) {
+      const ordered = Array.from(savers.current.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      for (const s of ordered) {
         if (s.count > 0) await s.save();
       }
       toast.show({ message: t("save.saved"), tone: "info" });
@@ -111,6 +123,7 @@ export function useRegisterSaver(id: string, saver: Saver | null) {
   const latest = useRef(saver);
   latest.current = saver;
   const count = saver?.count ?? 0;
+  const order = saver?.order ?? 0;
   const present = saver !== null;
 
   useEffect(() => {
@@ -122,8 +135,10 @@ export function useRegisterSaver(id: string, saver: Saver | null) {
       count,
       save: () => latest.current?.save() ?? Promise.resolve(),
       reset: () => latest.current?.reset(),
+      validate: () => latest.current?.validate?.() ?? null,
+      order,
     });
-  }, [id, count, present, register]);
+  }, [id, count, order, present, register]);
 
   useEffect(() => () => register(id, null), [id, register]);
 }

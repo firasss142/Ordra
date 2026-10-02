@@ -91,8 +91,8 @@ describe("OptionCards", () => {
   });
 });
 
-function Dirty({ id, count, save, reset }: { id: string; count: number; save: () => Promise<void>; reset: () => void }) {
-  useRegisterSaver(id, { count, save, reset });
+function Dirty({ id, count, save, reset, validate }: { id: string; count: number; save: () => Promise<void>; reset: () => void; validate?: () => string | null }) {
+  useRegisterSaver(id, { count, save, reset, validate });
   return null;
 }
 
@@ -146,6 +146,22 @@ describe("SaveBar", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Enregistrer" }));
     expect(await screen.findByText("Ce réglage est modifiable par un administrateur seulement.")).toBeInTheDocument();
     expect(screen.getByText("1 modification non enregistrée")).toBeInTheDocument();
+  });
+});
+
+describe("SaveBar — a card can veto the save", () => {
+  it("runs every card's check first and saves nothing when one refuses", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ReglagesFormProvider>
+        <SaveBar />
+        <Dirty id="shares" count={0} save={vi.fn()} reset={vi.fn()} validate={() => "La répartition doit faire exactement 100 %."} />
+        <Dirty id="settings" count={1} save={save} reset={vi.fn()} />
+      </ReglagesFormProvider>,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Enregistrer" }));
+    expect(await screen.findByText("La répartition doit faire exactement 100 %.")).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
   });
 });
 

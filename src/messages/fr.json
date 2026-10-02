@@ -7867,6 +7867,24 @@
         "label": "Archiver les commandes terminées après",
         "unit": "jours",
         "help": "Une commande livrée, retournée, rejetée ou annulée depuis {n} jours passe dans « Archivées ». Son statut ne change pas."
+      },
+      "goal_daily_treated": {
+        "label": "Commandes traitées par agent et par jour",
+        "unit": "commandes",
+        "help": "Affiché dans la salle de contrôle et sur la fiche de chaque agent."
+      },
+      "goal_min_rate": {
+        "label": "Taux de confirmation minimum",
+        "unit": "%",
+        "help": "En dessous de {n} %, le taux d’un agent ou du marché s’affiche en alerte."
+      },
+      "goal_conf_per_hour": {
+        "label": "Confirmations par heure, par agent",
+        "unit": "par heure"
+      },
+      "goal_team_weekly_conf": {
+        "label": "Confirmations par semaine, toute l’équipe",
+        "unit": "par semaine"
       }
     },
     "orders": {
@@ -7950,6 +7968,68 @@
         "deleted": "Motif supprimé",
         "reactivated": "Motif réactivé",
         "moved": "Ordre enregistré"
+      }
+    },
+    "team": {
+      "distTitle": "Distribution des commandes",
+      "distDesc": "Comment une commande en attente trouve son agent, à chaque distribution automatique.",
+      "method": "Méthode de distribution",
+      "methodHelp": "Les commandes déjà affectées ne bougent pas quand vous changez de méthode.",
+      "algo": {
+        "manual": {
+          "label": "Manuelle",
+          "desc": "Un manager affecte chaque commande lui-même."
+        },
+        "round_robin": {
+          "label": "Tour à tour",
+          "desc": "Chaque agent disponible reçoit la suivante, à tour de rôle."
+        },
+        "workload": {
+          "label": "Selon la charge",
+          "desc": "La commande va à l’agent qui en a le moins en cours."
+        },
+        "percentage": {
+          "label": "Par pourcentages",
+          "desc": "Chaque agent reçoit la part que vous fixez."
+        }
+      },
+      "shareOf": "Part de {name}",
+      "sharesTotal": "Total",
+      "sharesReady": "Prêt",
+      "sharesMissing": "Il manque {n} %",
+      "sharesOver": "{n} % de trop",
+      "sharesHelp": "Le total doit faire exactement 100 %. Un agent à 0 % ne reçoit rien. Seuls les agents disponibles reçoivent leur part.",
+      "sharesInvalid": "La répartition doit faire exactement 100 %.",
+      "noAgents": "Aucun agent actif dans ce marché.",
+      "goalsTitle": "Objectifs",
+      "goalsDesc": "Les cibles affichées dans la salle de contrôle et sur la fiche de chaque agent.",
+      "commTitle": "Commissions",
+      "commDesc": "Ce qu’un agent gagne pour chaque commande livrée qu’il a confirmée.",
+      "commPay": "Payer des commissions",
+      "commOn": "Activé : chaque commande livrée crédite son agent.",
+      "commOff": "Désactivé : aucune commande ne crédite d’agent.",
+      "commAmount": "Montant par commande livrée",
+      "commAmountHelp": "En vigueur depuis le {date}. Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
+      "commAmountHelpNew": "Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
+      "colAgent": "Agent",
+      "colCommission": "Commission",
+      "colAmount": "Montant",
+      "colSince": "Depuis",
+      "paid": "Payé",
+      "unpaid": "Non payé",
+      "ownAmount": "montant propre",
+      "agent": {
+        "title": "Commission de {name}",
+        "sub": "Montant de l’équipe : {amount} par commande livrée",
+        "pay": "Payer cet agent",
+        "payHelp": "Désactivé, ses commandes livrées ne lui rapportent rien.",
+        "team": "Montant de l’équipe",
+        "own": "Montant propre",
+        "ownDesc": "pour cet agent seulement",
+        "amount": "Montant",
+        "from": "À partir du",
+        "help": "Ce qui est déjà gagné ne change pas : le nouveau montant vaut pour les commandes livrées à partir de cette date.",
+        "invalid": "Montant et date obligatoires."
       }
     }
   }
