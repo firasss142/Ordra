@@ -55,7 +55,8 @@ Hiding colleagues' orders is one constant: `SHOW_OTHER_AGENTS_ORDERS` in
 - The global SWR config sets `keepPreviousData: true`. The market hook turns it off, or one
   query's rows would show as the answer to the next.
 - A term with a foldable letter becomes a PostgREST `imatch."…"` leg, and `get_order_facet_counts`
-  reads `op: "imatch"` (migration `20261001100000`). Apply that migration before deploying code
-  that sends such legs, or the facet counts read zero.
+  reads `op: "imatch"` (migration `20261002000207`, applied to production 2026-10-02). On any
+  other database, apply it before deploying code that sends such legs, or the facet counts read
+  zero.
 - On a 390 px phone the agent header overflows, and the availability switch covers the search
   trigger. This predates the feature and is still open.

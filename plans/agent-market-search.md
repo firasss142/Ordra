@@ -1,7 +1,8 @@
 # Recherche agent sur tout le marché — plan
 
-Drafted 2026-10-01. Status: **implemented on branch `feat/agent-market-search`
-(2026-10-01), uncommitted; migration NOT yet applied to production.** D1 taken as
+Drafted 2026-10-01. Status: **shipped 2026-10-02.** Migration applied to production first
+(version `20261002000207`, verified: plain-search facet counts unchanged, grants unchanged),
+then merged to main. D1 taken as
 recommended (other agents' orders: view-only with the owner's first name). See §7 for
 what changed against this plan, and docs/agent-market-search.md for the reference.
 
@@ -201,5 +202,5 @@ Built as planned, test-first, with these differences, each found during the buil
   phone the header search is practically unreachable. The header was not touched; this needs its
   own fix.
 - **Migration order matters.** The list sends `imatch` legs as soon as the code ships. Until
-  `20261001100000_search_legs_arabic_variants.sql` is applied, `get_order_facet_counts` would read
+  `20261002000207_search_legs_arabic_variants.sql` is applied, `get_order_facet_counts` would read
   them as ILIKE and count zero. It is backward compatible, so apply it **before** deploying.

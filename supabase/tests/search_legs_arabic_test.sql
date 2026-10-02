@@ -1,5 +1,5 @@
 -- Recherche — les variantes d'écriture arabes dans get_order_facet_counts
--- (20261001100000_search_legs_arabic_variants.sql).
+-- (20261002000207_search_legs_arabic_variants.sql).
 --
 -- CE QUE CE FICHIER PROUVE
 --   1. Une jambe `op: imatch` est une expression régulière insensible à la casse :
