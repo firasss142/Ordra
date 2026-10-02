@@ -144,7 +144,8 @@
       "controlRoom": "غرفة التحكم",
       "deliveryWorklist": "متابعة التوصيل",
       "messages": "الرسائل",
-      "connexions": "الاتصالات"
+      "connexions": "الاتصالات",
+      "customerVoice": "صوت العميل"
     },
     "a11y": {
       "expandSection": "توسيع قسم {section}",

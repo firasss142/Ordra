@@ -11,6 +11,7 @@ import { NotificationBell } from "./NotificationBell";
 import { AgentAvailabilityToggle } from "./AgentAvailabilityToggle";
 import { QueueSearchBar } from "@/components/queue/QueueSearchBar";
 import { QueueSearchProvider } from "@/context/queue-search";
+import { FeedbackCaptureProvider } from "@/components/feedback/FeedbackCaptureProvider";
 import type { AuthUser } from "@/types";
 
 export function AgentDashboardShell({
@@ -37,6 +38,7 @@ export function AgentDashboardShell({
 
   return (
     <QueueSearchProvider>
+      <FeedbackCaptureProvider role={user.role}>
       <div
         className="agent-theme"
         style={{
@@ -71,6 +73,7 @@ export function AgentDashboardShell({
         </div>
         <AgentNavTabs user={user} />
       </div>
+      </FeedbackCaptureProvider>
     </QueueSearchProvider>
   );
 }

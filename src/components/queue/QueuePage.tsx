@@ -22,6 +22,7 @@ import { sortAgentQueue } from "@/lib/orders/queue-sort";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQueueSearch } from "@/context/queue-search";
 import { isEditableTarget } from "@/lib/dom";
+import { useFeedbackCapture } from "@/components/feedback/FeedbackCaptureProvider";
 import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import { parseQuery, searchOrders } from "@/lib/queue/search";
 import { enCoursBucket } from "@/lib/queue/schedule-bucket";
@@ -470,7 +471,10 @@ export function QueuePage() {
     createOpen: false,
     shortcutsOpen: false,
     searchActive: false,
+    feedbackOpen: false,
   });
+  // Voix du client: while the capture window is up, its keys (1–3, Enter, Esc) are its own.
+  const { captureOpen } = useFeedbackCapture();
 
   // Auto-dismiss banner after 5s
   useEffect(() => {
@@ -641,13 +645,14 @@ export function QueuePage() {
       createOpen,
       shortcutsOpen,
       searchActive: searchQuery.trim().length > 0,
+      feedbackOpen: captureOpen,
     };
   });
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (isEditableTarget(e.target)) return;
     const s = stateRef.current;
-    if (s.createOpen) return;
+    if (s.createOpen || s.feedbackOpen) return;
 
     // "?" overlay toggle
     if (e.key === "?" || (e.shiftKey && e.key === "/")) {

@@ -154,3 +154,15 @@ describe("ActionFooter — everywhere else", () => {
     expect(kinds()).toEqual(["uploadToCarrier", "scheduleDispatch"]);
   });
 });
+
+describe("ActionFooter — « F voix du client » in the key hint", () => {
+  it("adds F to the hint line when capture is available", () => {
+    render(<ActionFooter actions={CALL_OUTCOMES} onInvoke={vi.fn()} showNavHint feedbackHint />);
+    expect(screen.getByText("voix du client")).toBeInTheDocument();
+    expect(screen.getByText("F")).toBeInTheDocument();
+  });
+  it("stays out otherwise", () => {
+    render(<ActionFooter actions={CALL_OUTCOMES} onInvoke={vi.fn()} showNavHint />);
+    expect(screen.queryByText("voix du client")).toBeNull();
+  });
+});

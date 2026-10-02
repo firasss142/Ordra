@@ -54,6 +54,8 @@ export interface PanelHeaderProps {
   presenceRows?: PresenceRow[];
   /** Optional carrier-barcode pulled-back chip (e.g. "Dexpress annulé"). */
   carrierDeletedChip?: { label: string; tooltip: string } | null;
+  /** « Voix du client » — the one header addition of plans/voix-du-client.md. */
+  feedbackSlot?: React.ReactNode;
   onClose: () => void;
 }
 
@@ -85,6 +87,7 @@ export function PanelHeader({
   saveFlash,
   presenceRows,
   carrierDeletedChip,
+  feedbackSlot,
   onClose,
 }: PanelHeaderProps) {
   const t = useTranslations("orders.detail");
@@ -208,6 +211,7 @@ export function PanelHeader({
               <Copy size={15} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
+          {feedbackSlot}
           <button
             type="button"
             onClick={onClose}

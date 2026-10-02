@@ -13,6 +13,8 @@ import { CaptureDialog, type SavedFeedback } from "./CaptureDialog";
 import { CategoryTag, MomentChip } from "./atoms";
 
 interface FeedbackCaptureValue {
+  /** This role can capture (agents, managers, super_admin) and a provider is mounted. */
+  enabled: boolean;
   /** The window is up — the queue's and the panel's own keys stand down while it is. */
   captureOpen: boolean;
   /** Open on the registered order, or on `orderId` when given (null = the callback search). */
@@ -20,7 +22,7 @@ interface FeedbackCaptureValue {
   register: (orderId: string) => () => void;
 }
 
-const NOOP: FeedbackCaptureValue = { captureOpen: false, openCapture: () => {}, register: () => () => {} };
+const NOOP: FeedbackCaptureValue = { enabled: false, captureOpen: false, openCapture: () => {}, register: () => () => {} };
 const Ctx = createContext<FeedbackCaptureValue>(NOOP);
 
 export const useFeedbackCapture = () => useContext(Ctx);
@@ -111,7 +113,7 @@ export function FeedbackCaptureProvider({ role, children }: { role: Role; childr
   }, [toast, refresh]);
 
   const value = useMemo<FeedbackCaptureValue>(
-    () => (enabled ? { captureOpen: open !== null, openCapture, register } : NOOP),
+    () => (enabled ? { enabled: true, captureOpen: open !== null, openCapture, register } : NOOP),
     [enabled, open, openCapture, register],
   );
 

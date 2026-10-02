@@ -116,3 +116,13 @@ describe("PanelHeader — the chrome it already carried", () => {
     expect(screen.queryByTestId("panel-age")).not.toBeInTheDocument();
   });
 });
+
+describe("PanelHeader — the « Voix du client » slot", () => {
+  it("sits after the reference, before the close button", () => {
+    renderHeader({ feedbackSlot: <button type="button">fbk</button> });
+    const buttons = screen.getAllByRole("button").map((b) => b.textContent || b.getAttribute("aria-label"));
+    const fbk = buttons.indexOf("fbk");
+    expect(fbk).toBeGreaterThan(-1);
+    expect(buttons[fbk + 1]).toBe("Fermer");
+  });
+});

@@ -27,6 +27,8 @@ export interface ActionFooterProps {
    * queue, which is the one surface where ↑↓ and Enter do anything.
    */
   showNavHint?: boolean;
+  /** Add « F voix du client » to that hint line (plans/voix-du-client.md). */
+  feedbackHint?: boolean;
 }
 
 /**
@@ -107,8 +109,10 @@ export function ActionFooter({
   primaryPending,
   onInvoke,
   showNavHint = false,
+  feedbackHint = false,
 }: ActionFooterProps) {
   const t = useTranslations("orders.detail");
+  const tFeedback = useTranslations("feedback.capture");
   const { primary, overflow, outcomes = [] } = actions;
 
   const primaryLabelKey = primary.labelKey.replace(/^actions\./, "actions.");
@@ -209,6 +213,14 @@ export function ActionFooter({
           <Kbd>↕</Kbd> {t("navHintNav")}
           <span aria-hidden="true"> · </span>
           <Kbd>{t("navHintEnterKey")}</Kbd> {t("navHintCall")}
+          {feedbackHint ? (
+            <>
+              <span aria-hidden="true"> · </span>
+              <b className="font-semibold text-[#6D28D9]">
+                <Kbd>F</Kbd> {tFeedback("hint")}
+              </b>
+            </>
+          ) : null}
         </p>
       ) : null}
     </div>

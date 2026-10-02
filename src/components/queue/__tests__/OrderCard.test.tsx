@@ -540,3 +540,18 @@ describe("OrderCard — WhatsApp line (prototype whatsapp-agent-v1.html, queue r
     expect(screen.queryByTestId("queue-row-whatsapp")).toBeNull();
   });
 });
+
+describe("OrderCard — an open complaint on the row (Voix du client)", () => {
+  it("prints « 1 réclamation ouverte » before the product, in red", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={vi.fn()} onCallTerminated={vi.fn()} openComplaints={1} />);
+    // This file's next-intl mock does not render ICU plurals; the real provider's « 1 réclamation
+    // ouverte » is asserted in PanelFeedbackButton.test.tsx.
+    const flag = screen.getByText(/réclamation ouverte/);
+    expect(flag.className).toContain("text-[#991B1B]");
+  });
+
+  it("says nothing when the customer has none", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={vi.fn()} onCallTerminated={vi.fn()} />);
+    expect(screen.queryByText(/réclamation ouverte/)).toBeNull();
+  });
+});

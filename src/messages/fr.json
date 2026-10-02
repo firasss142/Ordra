@@ -144,7 +144,8 @@
       "controlRoom": "Salle de contrôle",
       "deliveryWorklist": "Suivi livraison",
       "messages": "Messages",
-      "connexions": "Connexions"
+      "connexions": "Connexions",
+      "customerVoice": "Voix du client"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
