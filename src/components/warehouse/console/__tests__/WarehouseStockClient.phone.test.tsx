@@ -22,6 +22,7 @@ const row = (id: string, name: string, stock: number, free: number): WarehouseSt
   product_id: id, name, sku: null, image_url: null, current_stock: stock, low_stock_threshold: 20,
   stock_goal: null, goal_pct: null, damaged_return_count: 0, engaged: stock - free, free,
   last_counted_at: null, accuracy: null, series: [], sites: [], unallocated: 0,
+    incoming: null,
 });
 
 vi.mock("swr", () => ({

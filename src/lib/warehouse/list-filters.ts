@@ -6,6 +6,11 @@ export type WarehouseHistoryKind =
   | "scan"
   | "handover"
   | "return"
+  // Deux familles ajoutées avec la réception de marchandises. `count` existait
+  // déjà EN BASE (`stock_count`) mais n'avait aucun filtre : les comptages
+  // physiques étaient invisibles dans le Journal.
+  | "reception"
+  | "count"
   | "adjust"
   | "writeoff";
 
@@ -15,6 +20,8 @@ export const WAREHOUSE_HISTORY_KINDS: WarehouseHistoryKind[] = [
   "scan",
   "handover",
   "return",
+  "reception",
+  "count",
   "adjust",
   "writeoff",
 ];

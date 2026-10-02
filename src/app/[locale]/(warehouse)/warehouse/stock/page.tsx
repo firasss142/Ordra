@@ -21,5 +21,5 @@ export default async function WarehouseStockPage({
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
-  return <StockConsole locale={locale} />;
+  return <StockConsole locale={locale} role={user.role} />;
 }

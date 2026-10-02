@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { reasonsForKind, kindForReason, type HistoryKind } from "./history-reasons";
 import {
   decodeWarehouseHistoryCursor,
   encodeWarehouseHistoryCursor,
@@ -19,7 +20,7 @@ export interface WarehouseActor {
 }
 
 export interface WarehouseHistoryRow {
-  kind: "print" | "scan" | "handover" | "return" | "adjust" | "writeoff";
+  kind: "print" | "scan" | "handover" | "return" | "reception" | "count" | "adjust" | "writeoff";
   id: string;
   order_id: string | null;
   order_number: string | null;
@@ -247,19 +248,17 @@ export async function getWarehouseHistoryPage(
   const streams = [includePrints, includeHandovers, includeInventory].filter(Boolean).length;
   const fetchLimit = streams > 1 ? q.limit * streams + 1 : q.limit + 1;
 
-  // Determine which inventory reasons to include
-  const scanReasons: string[] = [];
-  if (kindSet === "all") {
-    scanReasons.push("scanned", "returned", "damaged_writeoff", "manual_adjustment");
-  } else if (kindSet === "scan") {
-    scanReasons.push("scanned");
-  } else if (kindSet === "return") {
-    scanReasons.push("returned", "damaged_writeoff");
-  } else if (kindSet === "adjust") {
-    scanReasons.push("manual_adjustment");
-  } else if (kindSet === "writeoff") {
-    scanReasons.push("damaged_writeoff");
-  }
+  /*
+   * Les motifs viennent de `history-reasons.ts`, en un seul endroit testé.
+   *
+   * Cette liste était écrite ici, et « Tout » n'en nommait que QUATRE sur les
+   * douze que la contrainte autorise : `stock_count`, `received_back`,
+   * `initial_stock`, `scan_reversal` et `manual_delete_reversal` étaient
+   * invisibles dans le Journal comme dans son export CSV. Un registre qui
+   * affiche « Tout » et en cache la moitié confirme ce qu'on croyait déjà au
+   * lieu de le vérifier.
+   */
+  const scanReasons: string[] = reasonsForKind(kindSet as HistoryKind);
 
   const printsPromise = (async () => {
     if (!includePrints) return { data: [] as PrintRow[] };
@@ -397,14 +396,9 @@ export async function getWarehouseHistoryPage(
   }));
 
   const scanRows: WarehouseHistoryRow[] = scans.map((s) => {
-    const isReturn = s.reason === "returned";
-    const isWriteoff = s.reason === "damaged_writeoff";
-    const isAdjust = s.reason === "manual_adjustment";
-    let kind: WarehouseHistoryRow["kind"];
-    if (isAdjust) kind = "adjust";
-    else if (isWriteoff) kind = "writeoff";
-    else if (isReturn) kind = "return";
-    else kind = "scan";
+    // Le classement vient de la même table que la sélection : une ligne ne peut
+    // pas être interrogée dans une famille et affichée dans une autre.
+    const kind = kindForReason(s.reason) as WarehouseHistoryRow["kind"];
 
     return {
       kind,

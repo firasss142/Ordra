@@ -9,6 +9,7 @@ import { ar, fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   todayISO,
+  daysAgoISO,
   startOfWeekISO,
   startOfMonthISO,
   startOfQuarterISO,
@@ -56,14 +57,17 @@ const DEFAULT_PRESETS: RangePreset[] = [
   "custom",
 ];
 
-function isoOffsetDays(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+/*
+ * Un helper local construisait la date à partir des composants LOCAUX, alors que
+ * `todayISO()` est en UTC. Les deux bornes d'un même intervalle tombaient donc
+ * dans des jours UTC différents pendant toute la fenêtre où l'heure locale a
+ * déjà changé de jour et pas l'UTC — une heure par nuit en CET, deux en CEST.
+ * « 7 derniers jours » mesurait alors 5 jours, et un P&L filtré là-dessus
+ * perdait deux journées sans rien dire.
+ *
+ * `daysAgoISO` de @/lib/date fait le calcul entièrement en UTC, comme
+ * `todayISO`. Une seule implémentation, deux bornes cohérentes.
+ */
 
 function rangeForPreset(preset: RangePreset, current: RangeValue): RangeValue {
   const today = todayISO();
@@ -71,13 +75,13 @@ function rangeForPreset(preset: RangePreset, current: RangeValue): RangeValue {
     case "today":
       return { from: today, to: today };
     case "yesterday": {
-      const y = isoOffsetDays(1);
+      const y = daysAgoISO(1);
       return { from: y, to: y };
     }
     case "last7days":
-      return { from: isoOffsetDays(6), to: today };
+      return { from: daysAgoISO(6), to: today };
     case "last30days":
-      return { from: isoOffsetDays(29), to: today };
+      return { from: daysAgoISO(29), to: today };
     case "thisWeek":
       return { from: startOfWeekISO(), to: today };
     case "thisMonth":

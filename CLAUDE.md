@@ -147,8 +147,17 @@ Stock changes via EXACTLY these paths — anything else is a bug:
 3. warehouse_agent / market_manager / super_admin call scan_order_out (−qty) or scan_return_in (+qty or damaged)
 4. record_stock_count (per SITE; the count is what creates a site row) and scan_received_in (+qty)
 5. unscan_order (+qty, reason='scan_reversal') and manual_delete_orders (+qty on a scanned order)
-All five resolve an order's contents through `order_stock_lines(order_id)` — the single
+6. **post_reception** (+qty per line, reason='reception') and reverse_reception
+   (−qty, reason='reception_reversal') — supplier goods, since 2026-09-30. It is the ONLY
+   path besides a physical count that CREATES a `product_site_stock` row: the ventilation
+   trigger does an UPDATE, never an upsert, so a reception into a never-counted
+   (product, variant, site) would move the market total and silently miss the building.
+   Damaged-on-arrival stays on the reception line and never enters stock — it is NOT
+   `damaged_return_count`, which means "came back broken from a customer".
+Paths 1–5 resolve an order's contents through `order_stock_lines(order_id)` — the single
 definition of "what is in this parcel" (order_items when present, else the denormalised row).
+Path 6 does NOT: a reception has no order, its lines ARE the document, and it names its
+warehouse explicitly instead of inheriting one from `orders.warehouse_id`.
 Since 2026-09-24 it aggregates PER (PRODUCT, ATTRIBUTE VARIANT): two sizes of one product write
 two movements so the ledger says which size left, while two PACK TIERS of one product still
 write one — a pack is not an object on a shelf, so `order_stock_lines` normalises it to NULL and
@@ -266,6 +275,13 @@ entry has not meant deleting its page — check before assuming a route is dead.
   partagé avec products, les trois niveaux de stock, la règle du « non ventilé », et
   pourquoi DROP+CREATE d'une RPC rouvre l'accès anon: docs/product-variants.md +
   plans/product-variants.md
+- Réception de marchandises — les trois documents du métier, pourquoi la validation crée
+  la ligne de site, pourquoi le coût est capturé mais jamais propagé seul, les quatre
+  actions (déclarer, renvoyer à l'agent, valider, contre-passer), et la limite assumée du
+  modèle de paiement: docs/reception-de-marchandises.md +
+  plans/reception-de-marchandises.md + plans/reception-parite-maquette.md
+  (prototypes `prototypes/reception-marchandises-v2.html` — la maquette est la référence
+  de l'écran, et le code en est la copie à la lettre depuis le 2 octobre 2026)
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("products")
     .select(
-      "id, market_id, name, default_price, current_stock, is_active, image_url, product_variants(id, label, is_active)",
+      "id, market_id, name, sku, default_price, current_stock, is_active, image_url, product_variants(id, label, is_active)",
     )
     .eq("market_id", marketId)
     .eq("is_active", true)

@@ -38,6 +38,7 @@ const row = (over: Partial<WarehouseStockRow> = {}): WarehouseStockRow => ({
   series: [],
   sites: [],
   unallocated: 0,
+    incoming: null,
   ...over,
 });
 
@@ -159,5 +160,31 @@ describe("StockCard — the buildings", () => {
     render(<StockCard row={row({ series: [] })} onCount={() => {}} />);
     fireEvent.click(screen.getByRole("button", { expanded: false }));
     expect(screen.queryByTestId("wh-stock-spark")).not.toBeInTheDocument();
+  });
+
+  /*
+   * « En route » : les unités commandées qui ne sont pas encore sur l'étagère.
+   * `null` et `0` doivent se lire différemment — « rien n'est commandé » et
+   * « on ne sait pas » ne partagent pas un nombre, et un zéro rassurant est le
+   * pire des deux.
+   */
+  it("announces units on the way when there are some", () => {
+    render(<StockCard row={row({ incoming: 300 })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    const el = screen.getByTestId("wh-stock-incoming");
+    expect(el).toHaveTextContent("300");
+    expect(el).toHaveTextContent(/en route/i);
+  });
+
+  it("says nothing at all when nothing is on the way", () => {
+    render(<StockCard row={row({ incoming: null })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.queryByTestId("wh-stock-incoming")).not.toBeInTheDocument();
+  });
+
+  it("does not draw a zero — it would read as « I checked, nothing is ordered »", () => {
+    render(<StockCard row={row({ incoming: 0 })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.queryByTestId("wh-stock-incoming")).not.toBeInTheDocument();
   });
 });

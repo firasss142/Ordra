@@ -96,7 +96,18 @@ describe("Journal — the ledger", () => {
 });
 
 describe("Journal — filters", () => {
-  it("offers only the six categories that have a source", () => {
+  /*
+   * Huit catégories, et toujours seulement celles qui ont une source.
+   *
+   * « Réceptions » en a une depuis le 2026-09-30 (`receptions` + les motifs
+   * `reception` / `reception_reversal`), et « Inventaires » en avait déjà une
+   * sans filtre : `stock_count` existait en base mais aucune pastille ne le
+   * montrait, donc pas un comptage physique n'était visible ici.
+   *
+   * « Transferts » reste absent : ce flux n'existe pas dans le modèle de
+   * données, et une pastille vide pour toujours vaut moins que pas de pastille.
+   */
+  it("offers only the categories that have a source", () => {
     setup();
     const pills = screen.getAllByTestId(/^wh-filter-/);
     expect(pills.map((p) => p.getAttribute("data-testid"))).toEqual([
@@ -104,9 +115,12 @@ describe("Journal — filters", () => {
       "wh-filter-scan",
       "wh-filter-handover",
       "wh-filter-return",
+      "wh-filter-reception",
+      "wh-filter-count",
       "wh-filter-adjust",
       "wh-filter-print",
     ]);
+    expect(screen.queryByTestId("wh-filter-transfer")).not.toBeInTheDocument();
   });
 
   it("asks the server for the chosen category rather than filtering the page", () => {
