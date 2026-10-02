@@ -28,16 +28,35 @@ const FIELD_PREFIXES: Record<string, SearchField> = {
   note: "note",
 };
 
-/** lowercase, strip accents/diacritics (Latin + Arabic tashkeel), collapse spaces. */
-export function normalize(s: string): string {
-  if (!s) return "";
+/** Lowercase, strip accents and tashkeel, fold the Arabic letters written two ways. */
+function fold(s: string): string {
   return s
     .normalize("NFKD")
     // Strip combining marks: Latin accents AND Arabic harakat (U+064B–U+065F, U+0670).
     .replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+    // NFKD already turned the hamza alefs (and the hamza waw / yeh) into the
+    // bare letter: the hamza is a combining mark, dropped above. Ta marbuta
+    // (U+0629) and alef maqsura (U+0649) do not decompose, so they are mapped to
+    // heh and yeh here \u2014 the same groups as lib/orders/search-query's
+    // FOLD_GROUPS, so this matcher and the server's agree on a name.
+    .replace(/\u0629/g, "\u0647")
+    .replace(/\u0649/g, "\u064a")
+    .toLowerCase();
+}
+
+/** lowercase, strip accents/diacritics (Latin + Arabic tashkeel), collapse spaces. */
+export function normalize(s: string): string {
+  if (!s) return "";
+  return fold(s).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * One character, folded exactly as `normalize` folds it — possibly to "" (a
+ * standalone mark) or to more than one character. Lets a highlighter map a
+ * match in the folded text back onto the text as written.
+ */
+export function foldChar(c: string): string {
+  return /\s/.test(c) ? " " : fold(c);
 }
 
 /** Reduce a phone-ish string to bare digits so formatting never breaks a match. */

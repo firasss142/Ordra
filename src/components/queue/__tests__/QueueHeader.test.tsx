@@ -84,6 +84,14 @@ function renderHeader(overrides: {
   };
 }
 
+describe("QueueHeader — in-page filter", () => {
+  it("lets a typed number keep its own direction in an Arabic field", () => {
+    // Without it, "091 345 67" typed on the Arabic queue displayed as "67 345 091".
+    renderHeader();
+    expect(screen.getByRole("searchbox").getAttribute("dir")).toBe("auto");
+  });
+});
+
 describe("QueueHeader — bucket tabs", () => {
   it("renders four bucket tabs (Nouveau, En cours, Confirmé, Fermées)", () => {
     renderHeader();
