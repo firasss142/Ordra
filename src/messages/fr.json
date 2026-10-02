@@ -4317,78 +4317,6 @@
       "loadError": "Impossible de charger les commissions."
     }
   },
-  "logs": {
-    "title": "Journaux système",
-    "subtitle": "Audit technique des webhooks entrants et des événements transporteur. Super admin uniquement.",
-    "tabs": {
-      "webhooks": "Webhooks",
-      "carrier": "Transporteurs"
-    },
-    "failuresOnly": "Échecs uniquement",
-    "searchPlaceholder": "ID externe, tracking, message d'erreur…",
-    "searchAria": "Rechercher dans les journaux",
-    "refresh": "Actualiser",
-    "loading": "Chargement…",
-    "empty": "Aucune entrée trouvée.",
-    "prev": "Page précédente",
-    "next": "Page suivante",
-    "paginationLabel": "{total, plural, one {# entrée} other {# entrées}} — page {page} / {totalPages}",
-    "retentionNote": "Les entrées de plus de 90 jours sont archivées en stockage froid.",
-    "cols": {
-      "date": "Date",
-      "source": "Source",
-      "event": "Événement",
-      "externalId": "ID externe",
-      "status": "Statut",
-      "order": "Commande",
-      "message": "Message",
-      "carrier": "Transporteur",
-      "carrierSource": "Canal",
-      "tracking": "Tracking",
-      "rawStatus": "Statut brut",
-      "outcome": "Résultat",
-      "reason": "Détail"
-    },
-    "outcome": {
-      "processed": "Traité",
-      "ignored": "Ignoré",
-      "error": "Erreur",
-      "unknown": "—"
-    },
-    "filters": {
-      "all": "Tous"
-    },
-    "stats": {
-      "webhookRate": "Webhooks",
-      "carrierRate": "Transporteurs",
-      "window60": "60 dernières minutes"
-    },
-    "inspector": {
-      "title": "Inspecteur de charge utile",
-      "webhookTitle": "Livraison webhook",
-      "carrierTitle": "Événement transporteur",
-      "close": "Fermer",
-      "date": "Date",
-      "errorMessage": "Erreur",
-      "reason": "Raison",
-      "searchPayload": "Filtrer dans la charge utile…",
-      "copy": "Copier",
-      "copied": "Copié",
-      "noPayload": "Aucune charge utile enregistrée.",
-      "noSearchMatch": "Aucune ligne correspondante."
-    },
-    "replay": {
-      "action": "Rejouer",
-      "inProgress": "Rejeu en cours…",
-      "help": "Relance le traitement du webhook. Les contraintes d'unicité sur les commandes protègent contre les doublons.",
-      "success": "Rejeu réussi — commande créée.",
-      "duplicate": "Rejeu OK — la commande existait déjà, aucune écriture supplémentaire.",
-      "error": "Échec du rejeu : {message}",
-      "ambiguous": "Rejeu terminé sans confirmation claire : {message}",
-      "noDetail": "aucun détail",
-      "networkError": "Erreur réseau pendant le rejeu."
-    }
-  },
   "teamPerf": {
     "title": "Performance équipe",
     "periods": {
@@ -8424,5 +8352,164 @@
         }
       }
     }
+  },
+  "journaux": {
+    "title": "Journaux",
+    "subtitle": "Tout ce qui entre dans Ordra et en sort : les commandes reçues des boutiques, les échanges avec les transporteurs, les tâches automatiques et les modifications de réglages.",
+    "tabs": {
+      "received": "Commandes reçues",
+      "carrier": "Transporteurs",
+      "sync": "Synchronisations",
+      "audit": "Modifications"
+    },
+    "errorsOne": "1 erreur",
+    "errorsMany": "{n} erreurs",
+    "searchReceived": "Commande, boutique, erreur…",
+    "searchCarrier": "N° de suivi, statut…",
+    "searchAudit": "Réglage, personne…",
+    "allMarkets": "Tous les marchés",
+    "market": {
+      "tn": "Tunisie",
+      "ly": "Libye"
+    },
+    "marketFilter": "Marché",
+    "resultFilter": "Résultat",
+    "allResults": "Tous les résultats",
+    "errorsOnly": "Erreurs seulement",
+    "refresh": "Actualiser",
+    "result": {
+      "processed": "Traitée",
+      "ignored": "Ignorée",
+      "error": "Erreur"
+    },
+    "resultCarrier": {
+      "processed": "Traité",
+      "ignored": "Ignoré",
+      "error": "Erreur"
+    },
+    "sync": {
+      "succeeded": "Réussie",
+      "completed": "Réussie",
+      "failed": "Échec",
+      "partial": "Partielle",
+      "running": "En cours"
+    },
+    "trigger": {
+      "cron": "Automatique",
+      "manual": "Manuelle",
+      "schedule": "Automatique"
+    },
+    "col": {
+      "receivedAt": "Reçue le",
+      "shop": "Boutique",
+      "order": "Commande",
+      "result": "Résultat",
+      "detail": "Détail",
+      "carrierAt": "Reçu le",
+      "carrier": "Transporteur",
+      "tracking": "N° de suivi",
+      "carrierStatus": "Statut transporteur",
+      "startedAt": "Début",
+      "task": "Tâche",
+      "trigger": "Déclenchée",
+      "duration": "Durée",
+      "date": "Date",
+      "by": "Par",
+      "market": "Marché",
+      "setting": "Réglage",
+      "before": "Avant",
+      "after": "Après"
+    },
+    "seeData": "Voir les données",
+    "empty": "Rien à afficher pour ces filtres.",
+    "page": "Page {page} · {total} résultats",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "yes": "Oui",
+    "no": "Non",
+    "system": "Système",
+    "drawer": {
+      "title": "Données reçues · {ref}",
+      "outcome": "Ce qu’Ordra en a fait",
+      "order": "Commande créée",
+      "noOrder": "Aucune commande créée",
+      "error": "Erreur",
+      "payload": "Données reçues",
+      "copy": "Copier",
+      "replay": "Relancer le traitement",
+      "replayed": "Traitement relancé",
+      "replayFailed": "La relance a échoué : {reason}"
+    },
+    "userEvents": {
+      "user_created": "Utilisateur créé",
+      "user_deactivated": "Utilisateur désactivé",
+      "user_reactivated": "Utilisateur réactivé",
+      "user_deleted": "Utilisateur supprimé",
+      "password_reset": "Mot de passe réinitialisé",
+      "deactivate": "Utilisateur désactivé",
+      "note": "Note"
+    },
+    "keys": {
+      "delivery_fee": "Frais de livraison (ancien réglage)",
+      "return_fee": "Frais de retour (ancien réglage)",
+      "packing_cost": "Coût d’emballage",
+      "max_call_attempts": "Nombre maximum d’appels",
+      "assignment_algorithm": "Méthode de distribution",
+      "active_agents_only": "Agents actifs seulement",
+      "agent_inactivity_minutes": "Seuil d’inactivité des agents",
+      "attempt_retry_times": "Heures de rappel",
+      "shift_config": "Heures ouvrées",
+      "supplier_lead_time_days": "Délai fournisseur",
+      "sla_minutes": "Délai de confirmation visé",
+      "after_max_attempts_action": "Après le dernier appel",
+      "after_max_attempts_delay_hours": "Délai après le dernier appel",
+      "callback_max_days": "Rappel programmé au plus tard",
+      "callback_grace_minutes": "Tolérance d’un rappel",
+      "dispatch_cutoff_time": "Heure limite d’expédition",
+      "duplicate_window_hours": "Doublon probable",
+      "duplicate_autoselect_window_hours": "Pré-sélection des doublons",
+      "merge_window_hours": "Fusion de commandes",
+      "auto_assign_on_intake": "Affectation à l’arrivée",
+      "order_amount_min": "Montant minimum de commande",
+      "order_amount_max": "Montant maximum de commande",
+      "unknown_city_policy": "Ville non reconnue",
+      "auto_upload_on_confirm": "Envoi au transporteur à la confirmation",
+      "unverified_after_days": "Colis sans nouvelle",
+      "auto_restock_on_return_scan": "Remise en stock au retour",
+      "auto_archive_after_days": "Archivage automatique",
+      "max_open_orders_per_agent": "Plafond par agent",
+      "orphan_reassign_after_minutes": "Réaffectation des commandes orphelines",
+      "orphan_reassign_enabled": "Réaffectation automatique",
+      "outside_hours_policy": "Hors heures ouvrées",
+      "carrier_error_rate_threshold": "Seuil d’erreurs transporteur",
+      "webhook_failure_threshold": "Seuil d’échecs de réception",
+      "sync_staleness_hours": "Fraîcheur des synchronisations",
+      "carrier_stall_days": "Colis immobile",
+      "stockout_days_of_cover": "Couverture de stock",
+      "sla_breach_alert": "Alerte de délai dépassé",
+      "high_value_threshold": "Montant élevé",
+      "zone_low_delivery_rate_pct": "Zone difficile",
+      "zone_min_sample": "Échantillon minimum d’une zone",
+      "risk_min_prior_failures": "Client déjà en échec",
+      "proactive_call_window_hours": "Durée de l’appel préventif",
+      "delivery_done_window_hours": "Colis terminés visibles",
+      "delivery_first_action_hours": "Délai de première action",
+      "goal_daily_treated": "Objectif : commandes traitées par jour",
+      "goal_min_rate": "Objectif : taux de confirmation minimum",
+      "goal_conf_per_hour": "Objectif : confirmations par heure",
+      "goal_team_weekly_conf": "Objectif : confirmations par semaine",
+      "whatsapp_lifecycle_enabled": "WhatsApp : messages automatiques",
+      "whatsapp_event_could_not_reach": "WhatsApp : Injoignable",
+      "whatsapp_event_shipped": "WhatsApp : Expédié",
+      "whatsapp_event_out_for_delivery": "WhatsApp : En livraison",
+      "whatsapp_event_last_chance": "WhatsApp : Dernière chance",
+      "whatsapp_event_delivered": "WhatsApp : Livré",
+      "whatsapp_default_language": "WhatsApp : langue par défaut",
+      "whatsapp_send_window": "WhatsApp : heures d’envoi",
+      "ad_spend_fx_rates": "Taux de change du dollar",
+      "google_sheets_sources": "Sources Google Sheets",
+      "lead_hot_window_minutes": "Prospects : fenêtre « chaud »"
+    },
+    "close": "Fermer"
   }
 }

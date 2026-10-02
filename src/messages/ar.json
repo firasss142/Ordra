@@ -4317,78 +4317,6 @@
       "loadError": "تعذّر تحميل العمولات."
     }
   },
-  "logs": {
-    "title": "سجلات النظام",
-    "subtitle": "تدقيق تقني لطلبات الويب هوك الواردة وأحداث شركات التوصيل. مخصّص للمشرف العام فقط.",
-    "tabs": {
-      "webhooks": "ويب هوك",
-      "carrier": "شركات التوصيل"
-    },
-    "failuresOnly": "الإخفاقات فقط",
-    "searchPlaceholder": "المعرف الخارجي، رقم التتبع، رسالة الخطأ…",
-    "searchAria": "بحث في السجلات",
-    "refresh": "تحديث",
-    "loading": "جارٍ التحميل…",
-    "empty": "لا توجد نتائج.",
-    "prev": "الصفحة السابقة",
-    "next": "الصفحة التالية",
-    "paginationLabel": "{total, plural, one {# مدخل} other {# مدخل}} — صفحة {page} / {totalPages}",
-    "retentionNote": "المدخلات الأقدم من 90 يوماً تُؤرشف في التخزين البارد.",
-    "cols": {
-      "date": "التاريخ",
-      "source": "المصدر",
-      "event": "الحدث",
-      "externalId": "المعرف الخارجي",
-      "status": "الحالة",
-      "order": "الطلب",
-      "message": "الرسالة",
-      "carrier": "الناقل",
-      "carrierSource": "القناة",
-      "tracking": "رقم التتبع",
-      "rawStatus": "الحالة الخام",
-      "outcome": "النتيجة",
-      "reason": "التفاصيل"
-    },
-    "outcome": {
-      "processed": "تمت المعالجة",
-      "ignored": "تم التجاهل",
-      "error": "خطأ",
-      "unknown": "—"
-    },
-    "filters": {
-      "all": "الكل"
-    },
-    "stats": {
-      "webhookRate": "ويب هوك",
-      "carrierRate": "شركات التوصيل",
-      "window60": "آخر 60 دقيقة"
-    },
-    "inspector": {
-      "title": "معاين الحمولة",
-      "webhookTitle": "تسليم ويب هوك",
-      "carrierTitle": "حدث شركة التوصيل",
-      "close": "إغلاق",
-      "date": "التاريخ",
-      "errorMessage": "الخطأ",
-      "reason": "السبب",
-      "searchPayload": "تصفية داخل الحمولة…",
-      "copy": "نسخ",
-      "copied": "تم النسخ",
-      "noPayload": "لا توجد حمولة محفوظة.",
-      "noSearchMatch": "لا توجد أسطر مطابقة."
-    },
-    "replay": {
-      "action": "إعادة التشغيل",
-      "inProgress": "جاري إعادة التشغيل…",
-      "help": "يعيد معالجة الويب هوك. قيود التفرد على الطلبات تحميك من التكرار.",
-      "success": "نجح إعادة التشغيل — تم إنشاء الطلب.",
-      "duplicate": "تمت — الطلب موجود مسبقاً، لم يُكتب شيء إضافي.",
-      "error": "فشل إعادة التشغيل: {message}",
-      "ambiguous": "اكتمل إعادة التشغيل دون تأكيد واضح: {message}",
-      "noDetail": "لا تفاصيل",
-      "networkError": "خطأ في الشبكة أثناء إعادة التشغيل."
-    }
-  },
   "teamPerf": {
     "title": "أداء الفريق",
     "periods": {
@@ -8424,5 +8352,164 @@
         }
       }
     }
+  },
+  "journaux": {
+    "title": "السجلات",
+    "subtitle": "كل ما يدخل إلى أوردرا ويخرج منه: الطلبات المستلمة من المتاجر، والتبادلات مع شركات الشحن، والمهام التلقائية، وتعديلات الإعدادات.",
+    "tabs": {
+      "received": "الطلبات المستلمة",
+      "carrier": "شركات الشحن",
+      "sync": "المزامنات",
+      "audit": "التعديلات"
+    },
+    "errorsOne": "خطأ واحد",
+    "errorsMany": "{n} أخطاء",
+    "searchReceived": "طلب، متجر، خطأ…",
+    "searchCarrier": "رقم التتبع، الحالة…",
+    "searchAudit": "إعداد، شخص…",
+    "allMarkets": "كل الأسواق",
+    "market": {
+      "tn": "تونس",
+      "ly": "ليبيا"
+    },
+    "marketFilter": "السوق",
+    "resultFilter": "النتيجة",
+    "allResults": "كل النتائج",
+    "errorsOnly": "الأخطاء فقط",
+    "refresh": "تحديث",
+    "result": {
+      "processed": "تمت المعالجة",
+      "ignored": "تم التجاهل",
+      "error": "خطأ"
+    },
+    "resultCarrier": {
+      "processed": "تمت المعالجة",
+      "ignored": "تم التجاهل",
+      "error": "خطأ"
+    },
+    "sync": {
+      "succeeded": "نجحت",
+      "completed": "نجحت",
+      "failed": "فشلت",
+      "partial": "جزئية",
+      "running": "جارية"
+    },
+    "trigger": {
+      "cron": "تلقائية",
+      "manual": "يدوية",
+      "schedule": "تلقائية"
+    },
+    "col": {
+      "receivedAt": "تاريخ الاستلام",
+      "shop": "المتجر",
+      "order": "الطلب",
+      "result": "النتيجة",
+      "detail": "التفاصيل",
+      "carrierAt": "تاريخ الاستلام",
+      "carrier": "شركة الشحن",
+      "tracking": "رقم التتبع",
+      "carrierStatus": "حالة شركة الشحن",
+      "startedAt": "البداية",
+      "task": "المهمة",
+      "trigger": "التشغيل",
+      "duration": "المدة",
+      "date": "التاريخ",
+      "by": "بواسطة",
+      "market": "السوق",
+      "setting": "الإعداد",
+      "before": "قبل",
+      "after": "بعد"
+    },
+    "seeData": "عرض البيانات",
+    "empty": "لا شيء للعرض بهذه المرشحات.",
+    "page": "الصفحة {page} · {total} نتيجة",
+    "prev": "السابق",
+    "next": "التالي",
+    "yes": "نعم",
+    "no": "لا",
+    "system": "النظام",
+    "drawer": {
+      "title": "البيانات المستلمة · {ref}",
+      "outcome": "ما فعله أوردرا بها",
+      "order": "الطلب المنشأ",
+      "noOrder": "لم يُنشأ أي طلب",
+      "error": "الخطأ",
+      "payload": "البيانات المستلمة",
+      "copy": "نسخ",
+      "replay": "إعادة المعالجة",
+      "replayed": "تمت إعادة المعالجة",
+      "replayFailed": "فشلت إعادة المعالجة: {reason}"
+    },
+    "userEvents": {
+      "user_created": "تم إنشاء مستخدم",
+      "user_deactivated": "تم تعطيل مستخدم",
+      "user_reactivated": "تمت إعادة تفعيل مستخدم",
+      "user_deleted": "تم حذف مستخدم",
+      "password_reset": "تمت إعادة تعيين كلمة المرور",
+      "deactivate": "تم تعطيل مستخدم",
+      "note": "ملاحظة"
+    },
+    "keys": {
+      "delivery_fee": "رسوم التوصيل (إعداد قديم)",
+      "return_fee": "رسوم الإرجاع (إعداد قديم)",
+      "packing_cost": "تكلفة التغليف",
+      "max_call_attempts": "الحد الأقصى للمكالمات",
+      "assignment_algorithm": "طريقة التوزيع",
+      "active_agents_only": "الموظفون النشطون فقط",
+      "agent_inactivity_minutes": "حد عدم نشاط الموظفين",
+      "attempt_retry_times": "ساعات إعادة الاتصال",
+      "shift_config": "ساعات العمل",
+      "supplier_lead_time_days": "مدة توريد المورّد",
+      "sla_minutes": "المهلة المستهدفة للتأكيد",
+      "after_max_attempts_action": "بعد آخر مكالمة",
+      "after_max_attempts_delay_hours": "المهلة بعد آخر مكالمة",
+      "callback_max_days": "أقصى أجل لإعادة الاتصال المبرمجة",
+      "callback_grace_minutes": "مهلة السماح لإعادة الاتصال",
+      "dispatch_cutoff_time": "آخر ساعة للشحن",
+      "duplicate_window_hours": "طلب مكرر محتمل",
+      "duplicate_autoselect_window_hours": "التحديد المسبق للمكررات",
+      "merge_window_hours": "دمج الطلبات",
+      "auto_assign_on_intake": "التوزيع عند الوصول",
+      "order_amount_min": "الحد الأدنى لمبلغ الطلب",
+      "order_amount_max": "الحد الأقصى لمبلغ الطلب",
+      "unknown_city_policy": "مدينة غير معروفة",
+      "auto_upload_on_confirm": "الإرسال إلى شركة الشحن عند التأكيد",
+      "unverified_after_days": "طرد بلا أخبار",
+      "auto_restock_on_return_scan": "إعادة المخزون عند الإرجاع",
+      "auto_archive_after_days": "الأرشفة التلقائية",
+      "max_open_orders_per_agent": "الحد الأقصى لكل موظف",
+      "orphan_reassign_after_minutes": "إعادة توزيع الطلبات المتروكة",
+      "orphan_reassign_enabled": "إعادة التوزيع التلقائية",
+      "outside_hours_policy": "خارج ساعات العمل",
+      "carrier_error_rate_threshold": "حد أخطاء شركة الشحن",
+      "webhook_failure_threshold": "حد إخفاقات الاستلام",
+      "sync_staleness_hours": "حداثة المزامنة",
+      "carrier_stall_days": "طرد متوقف",
+      "stockout_days_of_cover": "تغطية المخزون",
+      "sla_breach_alert": "تنبيه تجاوز المهلة",
+      "high_value_threshold": "مبلغ مرتفع",
+      "zone_low_delivery_rate_pct": "منطقة صعبة",
+      "zone_min_sample": "الحد الأدنى للعينة في المنطقة",
+      "risk_min_prior_failures": "عميل سبق أن فشل طلبه",
+      "proactive_call_window_hours": "مدة المكالمة الوقائية",
+      "delivery_done_window_hours": "الطرود المنتهية الظاهرة",
+      "delivery_first_action_hours": "مهلة الإجراء الأول",
+      "goal_daily_treated": "الهدف: الطلبات المعالجة يومياً",
+      "goal_min_rate": "الهدف: الحد الأدنى لنسبة التأكيد",
+      "goal_conf_per_hour": "الهدف: التأكيدات في الساعة",
+      "goal_team_weekly_conf": "الهدف: التأكيدات الأسبوعية",
+      "whatsapp_lifecycle_enabled": "واتساب: الرسائل التلقائية",
+      "whatsapp_event_could_not_reach": "واتساب: تعذر الاتصال",
+      "whatsapp_event_shipped": "واتساب: تم الشحن",
+      "whatsapp_event_out_for_delivery": "واتساب: قيد التوصيل",
+      "whatsapp_event_last_chance": "واتساب: الفرصة الأخيرة",
+      "whatsapp_event_delivered": "واتساب: تم التسليم",
+      "whatsapp_default_language": "واتساب: اللغة الافتراضية",
+      "whatsapp_send_window": "واتساب: ساعات الإرسال",
+      "ad_spend_fx_rates": "سعر صرف الدولار",
+      "google_sheets_sources": "مصادر Google Sheets",
+      "lead_hot_window_minutes": "العملاء المحتملون: نافذة «ساخن»"
+    },
+    "close": "إغلاق"
   }
 }
