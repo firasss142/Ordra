@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("carriers")
-    .select("id, market_id, name, code, api_endpoint, api_credentials, delivery_fee, return_fee, is_active, created_at, updated_at")
+    .select("id, market_id, name, code, api_endpoint, api_credentials, delivery_fee, return_fee, is_active, warehouse_id, created_at, updated_at")
     .eq("market_id", marketId);
 
   if (error) {
@@ -129,6 +129,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // The site the carrier ships from (Libya: one Darb account per building).
+  // Optional — the orders trigger falls back to the market default — but when
+  // given it must be a site of the same market.
+  const warehouseId = typeof body.warehouse_id === "string" && body.warehouse_id ? body.warehouse_id : null;
+  if (warehouseId) {
+    const { data: site } = await createAdminClient()
+      .from("warehouses")
+      .select("id, market_id")
+      .eq("id", warehouseId)
+      .maybeSingle();
+    if (!site || (site as { market_id: string }).market_id !== market_id) {
+      return NextResponse.json({ error: "Site inconnu pour ce marché" }, { status: 400 });
+    }
+  }
+
   const encoded = encodeCredentials(codeStr, body);
   if (encoded && typeof encoded === "object") {
     return NextResponse.json({ error: encoded.error }, { status: 400 });
@@ -149,8 +164,9 @@ export async function POST(req: NextRequest) {
       delivery_fee: delivery_fee ?? 0,
       return_fee: return_fee ?? 0,
       is_active: true,
+      ...(warehouseId ? { warehouse_id: warehouseId } : {}),
     })
-    .select("id, market_id, name, code, api_endpoint, delivery_fee, return_fee, is_active")
+    .select("id, market_id, name, code, api_endpoint, delivery_fee, return_fee, is_active, warehouse_id")
     .single();
 
   if (error) {

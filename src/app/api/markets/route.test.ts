@@ -95,3 +95,46 @@ describe("GET /api/markets", () => {
     expect(res.status).toBe(403);
   });
 });
+
+/**
+ * Réglages › Marchés lists every market — an inactive one too, or it could
+ * never be switched back on — with its label sender. super_admin only.
+ */
+describe("GET /api/markets?detail=1", () => {
+  function detailChain(rows: unknown[]) {
+    const c: Record<string, unknown> = {};
+    c.select = vi.fn().mockReturnValue(c);
+    c.order = vi.fn().mockResolvedValue({ data: rows, error: null });
+    return c;
+  }
+
+  test("super_admin gets every market, inactive included, with the label sender", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    const rows = [
+      { id: "m-2", code: "ly", name: "Libya", language: "ar", currency: "LYD", direction: "rtl", is_active: true, sender_name: "Libya", sender_address: null, sender_phone: null },
+      { id: "m-1", code: "tn", name: "Tunisia", language: "fr", currency: "TND", direction: "ltr", is_active: false, sender_name: "Tunisia", sender_address: null, sender_phone: null },
+    ];
+    let chain: Record<string, unknown> | null = null;
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return usersChain("super_admin", null);
+      chain = detailChain(rows);
+      return chain;
+    });
+    const res = await GET(new NextRequest("http://localhost/api/markets?detail=1"));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data).toHaveLength(2);
+    expect(json.data[1].is_active).toBe(false);
+    const c = chain as unknown as { select: ReturnType<typeof vi.fn> };
+    expect(String(c.select.mock.calls[0][0])).toContain("sender_phone");
+  });
+
+  test("a market manager is refused the detailed list", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    mockFrom.mockImplementation(() => usersChain("market_manager", "m-1"));
+    const res = await GET(new NextRequest("http://localhost/api/markets?detail=1"));
+    expect(res.status).toBe(403);
+  });
+});

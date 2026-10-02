@@ -6,11 +6,13 @@ import { getActor } from "@/lib/auth/actor";
 export const dynamic = "force-dynamic";
 
 const VALID_LANGUAGES = new Set(["fr", "ar"]);
+const SENDER_FIELDS = ["sender_name", "sender_address", "sender_phone"] as const;
 
 /**
  * PATCH /api/markets/[id] — edit a market (super_admin only).
  *
- * Editable: name, language, is_active. currency and code are intentionally
+ * Editable: name, language, is_active, and the label sender (sender_name,
+ * sender_address, sender_phone). currency and code are intentionally
  * NOT editable — changing currency would misread thousands of historical
  * orders, and code is the isolation key wired into RLS and hardcoded IDs.
  * A market is edit-only (no create/delete) because both are constrained by
@@ -50,10 +52,20 @@ export async function PATCH(
   if (typeof body.is_active === "boolean") {
     patch.is_active = body.is_active;
   }
+  // The label sender — printed on every parcel label of the market. A blank
+  // field clears it rather than storing whitespace.
+  for (const field of SENDER_FIELDS) {
+    if (body[field] === undefined) continue;
+    if (body[field] !== null && typeof body[field] !== "string") {
+      return NextResponse.json({ error: "Expéditeur invalide" }, { status: 400 });
+    }
+    const trimmed = typeof body[field] === "string" ? (body[field] as string).trim() : "";
+    patch[field] = trimmed === "" ? null : trimmed;
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json(
-      { error: "Aucun champ modifiable fourni (nom, langue ou statut actif)." },
+      { error: "Aucun champ modifiable fourni (nom, langue, statut actif ou expéditeur)." },
       { status: 400 },
     );
   }
@@ -63,7 +75,7 @@ export async function PATCH(
     .from("markets")
     .update(patch)
     .eq("id", id)
-    .select("id, code, name, language, currency, direction, is_active")
+    .select("id, code, name, language, currency, direction, is_active, sender_name, sender_address, sender_phone")
     .single();
 
   if (error || !data) {
