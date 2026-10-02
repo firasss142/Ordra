@@ -7,6 +7,7 @@ import { X, Plus, Trash2 } from "lucide-react";
 import type { Role } from "@/types";
 import { canSeeReceptionCosts } from "@/lib/receptions/permissions";
 import { WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
+import { ProductSearchPanel, MIN_QUERY, type SearchableProduct } from "./ProductSearchPanel";
 
 /**
  * Créer une réception.
@@ -26,6 +27,7 @@ interface Draft {
   product_id: string;
   product_name: string;
   product_sku: string | null;
+  product_image_url: string | null;
   /** Le stock actuel, au moment du choix : « ce réassort est-il nécessaire ? » */
   product_stock: number;
   expected_qty: string;
@@ -39,12 +41,7 @@ interface SitesResponse {
   unassigned: boolean;
 }
 
-interface ProductRow {
-  id: string;
-  name: string;
-  sku: string | null;
-  current_stock: number;
-}
+type ProductRow = SearchableProduct;
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -88,9 +85,14 @@ export function ReceptionCreateDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const { data: found } = useSWR<{ data: ProductRow[] }>(
-    query.trim().length >= 2 ? `/api/products/search?q=${encodeURIComponent(query.trim())}` : null,
+  const { data: found, isLoading: searching } = useSWR<{ data: ProductRow[] }>(
+    query.trim().length >= MIN_QUERY
+      ? `/api/products/search?q=${encodeURIComponent(query.trim())}`
+      : null,
     fetcher,
+    // Les résultats précédents restent affichés pendant la requête suivante : un
+    // panneau qui se vide à chaque frappe est illisible.
+    { keepPreviousData: true },
   );
 
   const chosen = useMemo(() => new Set(lines.map((l) => l.product_id)), [lines]);
@@ -103,6 +105,7 @@ export function ReceptionCreateDialog({
         product_id: p.id,
         product_name: p.name,
         product_sku: p.sku ?? null,
+        product_image_url: p.image_url ?? null,
         product_stock: p.current_stock,
         expected_qty: "",
         unit_cost: "",
@@ -288,49 +291,27 @@ export function ReceptionCreateDialog({
              * libellé : « 150 » et « 40,000 » côte à côte ne disent pas lequel
              * est une quantité. Les nommer ici les nomme pour toutes les lignes.
              */}
-            <div className="bg-wh-sunken px-3.5 py-2.5">
-              <div
-                className={`grid items-center gap-x-2.5 ${
-                  withCosts ? "grid-cols-[1fr_88px_96px_28px]" : "grid-cols-[1fr_88px_28px]"
-                }`}
-              >
-                <input
-                  ref={search}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t("searchProduct")}
-                  className="w-full rounded-[6px] border border-wh-border px-2.5 py-2 text-[13px]"
-                />
-                <span className={`${WH_LABEL} text-end`}>{t("colQuantity")}</span>
-                {withCosts ? (
-                  <span className={`${WH_LABEL} text-end`}>{t("colUnitCost")}</span>
-                ) : null}
-                <span />
-              </div>
-              {found?.data && found.data.length > 0 ? (
-                <ul className="mt-2 max-h-48 overflow-y-auto rounded-[6px] border border-wh-border">
-                  {found.data
-                    .filter((p) => !chosen.has(p.id))
-                    .slice(0, 8)
-                    .map((p) => (
-                      <li key={p.id} className="border-b border-wh-border last:border-b-0">
-                        <button
-                          type="button"
-                          onClick={() => addLine(p)}
-                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-start hover:bg-wh-sunken"
-                        >
-                          <span className="truncate text-[13px]" dir="auto">
-                            {p.name}
-                          </span>
-                          <span className="flex-none font-mono text-[11.5px] text-wh-ink-3 tabular-nums">
-                            {p.current_stock}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              ) : null}
-            </div>
+            <ProductSearchPanel
+              query={query}
+              onQueryChange={setQuery}
+              results={found?.data ?? []}
+              isLoading={searching}
+              chosenIds={chosen}
+              onPick={addLine}
+              inputRef={search}
+              gridClassName={
+                withCosts ? "grid-cols-[1fr_88px_96px_28px]" : "grid-cols-[1fr_88px_28px]"
+              }
+              trailing={
+                <>
+                  <span className={`${WH_LABEL} text-end`}>{t("colQuantity")}</span>
+                  {withCosts ? (
+                    <span className={`${WH_LABEL} text-end`}>{t("colUnitCost")}</span>
+                  ) : null}
+                  <span />
+                </>
+              }
+            />
 
             {/*
              * L'affordance explicite. Un champ de recherche seul n'annonce pas

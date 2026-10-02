@@ -280,8 +280,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   actions (déclarer, renvoyer à l'agent, valider, contre-passer), et la limite assumée du
   modèle de paiement: docs/reception-de-marchandises.md +
   plans/reception-de-marchandises.md + plans/reception-parite-maquette.md
-  (prototypes `prototypes/reception-marchandises-v2.html` — la maquette est la référence
-  de l'écran, et le code en est la copie à la lettre depuis le 2 octobre 2026)
+  (prototypes `prototypes/reception-marchandises-v3.html` — la maquette est la référence
+  de l'écran et le code en est la copie ; la v3 du 2 octobre 2026 est presque entièrement
+  SOUSTRACTIVE : un seul signal de couleur par ligne, pas de puce « sans objet », cinq
+  colonnes au lieu de huit, un bandeau au lieu de trois, l'avarie derrière un geste, et
+  seuls les coûts qui bougent dans le dialogue de validation)
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +

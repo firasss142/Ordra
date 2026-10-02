@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordra — Réception de marchandises v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES VRAIS JETONS DE L'ENTREPÔT.
+
+   La v2 inventait sa palette : --bg #F4F5F7 (gris bleuté) et --green #16A34A.
+   La console réelle est en gris CHAUD #F6F7F5 avec un vert plus sourd #0E7A45,
+   déclarés `--wh-*` dans src/app/globals.css. La maquette était donc jolie et
+   fausse : impossible de juger un contraste sur des couleurs qui ne sont pas
+   celles du produit. Ici, chaque valeur est copiée du produit.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#F6F7F5; --card:#FFFFFF; --surface-2:#EFF1ED; --sunken:#EFF1ED;
+  --line:#E5E7E2; --line-strong:#CFD3CB;
+  --ink-1:#1B1D1A; --ink-2:#585C54; --ink-3:#8B8F85;
+
+  --ok:#0E7A45;   --ok-bg:#E7F4ED;   --ok-edge:#BCE0CB;  --ok-tint:#F2FAF5;
+  --warn:#92600A; --warn-bg:#FAF0DA; --warn-edge:#E8CFA0;
+  --bad:#B23A2E;  --bad-bg:#FBECE8;  --bad-edge:#EBC3BC;
+  --move:#0C7180; --move-bg:#E4F1F3; --move-edge:#BBD9DE;
+
+  --r-xs:6px; --r-sm:8px; --r:10px; --r-md:12px; --r-lg:14px; --r-pill:9999px;
+  /* Une seule ombre, réservée à ce qui FLOTTE. « Zéro ombre au repos » est une
+     règle du système de design ; la v2 en mettait une sous chaque carte. */
+  --sh-float:0 12px 40px rgba(27,29,26,.16);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink-1);font-size:14px;line-height:1.5;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:26px 22px 60px}
+h1,h2,h3,h4,p,ul{margin:0}
+ul{list-style:none;padding:0}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;text-align:inherit}
+input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ok);outline-offset:2px;border-radius:4px}
+[dir=auto]{unicode-bidi:plaintext}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+/* ── chrome de la maquette ────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg)}
+.note{background:#FFFDF6;border:1px solid var(--warn-edge);border-radius:var(--r-md);padding:15px 18px}
+.note h3{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--warn)}
+.note p{font-size:13px;color:#6E4F10;margin-top:8px}
+.note p:first-child{margin-top:0}
+.note b{font-weight:600}
+.note .mono{background:#F7EFD9;padding:1px 5px;border-radius:4px;font-size:12px}
+.sechead{display:flex;align-items:baseline;gap:12px;margin-top:18px;flex-wrap:wrap}
+.sechead h2{font-size:18px;font-weight:700;letter-spacing:-.015em}
+.sechead span{font-size:12.5px;color:var(--ink-2)}
+.cap{font-size:11.5px;font-weight:600;color:var(--ink-2);text-align:center;margin-bottom:10px}
+
+/* ── onglets + filtres ───────────────────────────────────────────────────── */
+.tabs{display:inline-flex;gap:3px;background:var(--surface-2);border-radius:var(--r);padding:3px}
+.tabs button{padding:7px 16px;border-radius:7px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink-1)}
+
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.segs{display:flex;gap:7px;flex-wrap:wrap}
+.seg{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--r-pill);
+  border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-2)}
+.seg[aria-pressed=true]{background:var(--ink-1);border-color:var(--ink-1);color:#FFF}
+.seg .c{font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:var(--r-pill);
+  background:var(--surface-2);color:var(--ink-2);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.seg[aria-pressed=true] .c{background:rgba(255,255,255,.2);color:#FFF}
+/* Seuls les compteurs qui RÉCLAMENT portent une couleur. Un compteur coloré sur
+   chaque pastille ne désignerait plus rien. */
+.seg .c.warn{background:var(--warn-bg);color:var(--warn)}
+.seg .c.bad{background:var(--bad-bg);color:var(--bad)}
+
+/* ── puces ───────────────────────────────────────────────────────────────── */
+.st{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--r-xs);
+  font-size:11.5px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.st i{width:6px;height:6px;border-radius:2px;flex:none}
+.st-att{background:var(--sunken);color:var(--ink-2);border-color:var(--line)}       .st-att i{background:var(--ink-3)}
+.st-val{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-edge)}  .st-val i{background:var(--warn)}
+.st-ok {background:var(--ok-bg);color:var(--ok);border-color:var(--ok-edge)}        .st-ok  i{background:var(--ok)}
+.st-rev{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-edge)}     .st-rev i{background:var(--bad)}
+.pay{display:inline-flex;align-items:center;padding:3px 8px;border-radius:var(--r-xs);
+  font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.pay-no{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-edge)}
+.pay-part{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-edge)}
+.pay-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-edge)}
+
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;margin-top:4px}
+.tag-late{color:var(--bad)} .tag-wait{color:var(--warn)}
+
+/* ── boutons ─────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+  border-radius:var(--r);font-size:13.5px;font-weight:600;min-height:42px;white-space:nowrap}
+.btn-pri{background:var(--ok);color:#FFF;border:1px solid var(--ok)}
+.btn-sec{background:var(--card);border:1px solid var(--line-strong);color:var(--ink-1)}
+.btn-danger{background:var(--card);border:1px solid var(--bad-edge);color:var(--bad)}
+.btn-quiet{color:var(--ink-2);font-weight:600;font-size:13px;padding:8px 10px;min-height:0}
+.btn svg{width:16px;height:16px;flex:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ═══ 1 · LA LISTE ═════════════════════════════════════════════════════════
+   CINQ COLONNES, PAS HUIT. Le bâtiment rejoint la référence (un agent n'en voit
+   qu'un, un manager filtre) ; statut et paiement partagent une cellule « État »,
+   parce qu'on les lit ensemble : dans quel état, et est-ce payé.
+   ═════════════════════════════════════════════════════════════════════════ */
+.rhead,.rrow{display:grid;
+  grid-template-columns:minmax(210px,1.3fr) minmax(150px,1.1fr) minmax(128px,.85fr) minmax(136px,.9fr) minmax(186px,1fr) 26px;
+  align-items:center;gap:0 16px}
+.rhead{padding:14px 20px 11px}
+.rhead span{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.rlist{border-top:1px solid var(--line)}
+.rrow{padding:15px 20px;border-bottom:1px solid var(--line);cursor:pointer;position:relative;width:100%}
+.rrow:last-child{border-bottom:0}
+.rrow:hover{background:var(--ok-tint)}
+/* UN SEUL SIGNAL DE COULEUR PAR LIGNE. La v2 empilait un fond teinté, un liseré,
+   une puce de statut, une étiquette de retard et une puce de paiement : cinq
+   voix pour un fait. Reste le liseré, parce qu'il se lit en balayant la colonne
+   sans rien lire, et il n'est porté que par ce qui bloque quelqu'un. */
+.rrow::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;background:transparent}
+.rrow.late::before{background:var(--bad)}
+.rrow.wait::before{background:var(--warn)}
+
+.rref{font-family:var(--mono);font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.rmeta{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.rsup{font-size:13px;color:var(--ink-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Le chiffre est l'ancre visuelle de la ligne : plus gros que tout le reste,
+   et JAMAIS nu — le mot dit si c'est une promesse ou un fait. */
+.qty{text-align:end;white-space:nowrap}
+.qty .n{font-family:var(--mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.qty .w{font-size:11.5px;color:var(--ink-3);margin-inline-start:5px}
+.qty .d{font-size:11.5px;color:var(--warn);margin-inline-start:5px;font-weight:500}
+.val{text-align:end;white-space:nowrap}
+.val .n{font-family:var(--mono);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.val .c{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-inline-start:4px}
+.dash{color:var(--ink-3);font-family:var(--mono)}
+.state{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.chev{color:var(--ink-3);display:grid;place-items:center}
+
+.empty{padding:56px 24px;text-align:center}
+.empty .ic{width:46px;height:46px;border-radius:var(--r-md);background:var(--sunken);color:var(--ink-3);
+  display:grid;place-items:center;margin:0 auto 14px}
+.empty h4{font-size:15.5px;font-weight:600}
+.empty p{font-size:13px;color:var(--ink-2);margin-top:6px;max-width:330px;margin-inline:auto}
+.empty .btn{margin-top:18px}
+
+/* ═══ 2 · LA FEUILLE ═══════════════════════════════════════════════════════
+   UN SEUL BANDEAU D'EN-TÊTE. La v2 en empilait trois (identité, progression en
+   bandeau vert, en-tête de tableau) : 150 px avant d'atteindre une quantité.
+   ═════════════════════════════════════════════════════════════════════════ */
+.sh-top{padding:19px 22px 17px;display:flex;align-items:flex-start;gap:15px;flex-wrap:wrap}
+.back{width:33px;height:33px;border-radius:var(--r-sm);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--ink-2);flex:none;background:var(--card)}
+.sh-id{min-width:0;flex:1}
+.sh-id h3{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-.025em;
+  display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+/* Les cinq faits de l'en-tête étaient cinq blocs libellé/valeur. Ils sont la
+   LÉGENDE du document, pas son contenu : une ligne grise suffit. */
+.sh-sub{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:9px;
+  font-size:12.5px;color:var(--ink-2)}
+.sh-sub .sep{color:var(--line-strong)}
+.sh-sub b{font-weight:600;color:var(--ink-1)}
+/* La progression : un filet de 3 px au bord du bandeau, pas une bande verte. */
+.prog-rail{height:3px;background:var(--sunken);position:relative}
+.prog-rail i{position:absolute;inset-inline-start:0;top:0;bottom:0;background:var(--ok);display:block}
+.prog-lbl{font-size:12px;font-weight:600;color:var(--ok);white-space:nowrap}
+.prog-lbl.rest{color:var(--warn)}
+
+.lhead,.lrow{display:grid;
+  grid-template-columns:minmax(250px,2.5fr) 92px 118px 86px 118px 124px;
+  align-items:center;gap:0 14px}
+.lhead{padding:12px 22px 10px;background:var(--sunken)}
+.lhead span{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.lhead .tr{text-align:end}
+/* La zone ARGENT est séparée de la zone COMPTAGE par un filet vertical : on ne
+   compte pas et on ne valorise pas avec la même partie du cerveau. Elle est
+   simplement absente pour un agent d'entrepôt. */
+.money-edge{border-inline-start:1px solid var(--line);padding-inline-start:14px}
+.lrow{padding:13px 22px;border-top:1px solid var(--line)}
+.lrow.done{background:var(--ok-tint)}
+.lprod{display:flex;align-items:center;gap:12px;min-width:0}
+.thumb{width:38px;height:38px;border-radius:var(--r-sm);flex:none;display:grid;place-items:center;
+  font-size:19px;border:1px solid var(--line);background:var(--bg)}
+.lprod .pn{font-size:13.5px;font-weight:600;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lprod .pc{font-size:11px;color:var(--ink-3);margin-top:2px;font-family:var(--mono)}
+.lnum{font-family:var(--mono);font-size:14px;font-weight:600;text-align:end;font-variant-numeric:tabular-nums}
+.lnum.dim{color:var(--ink-3);font-weight:500}
+.lnum.none{font-family:"Inter",sans-serif;font-size:11.5px;font-weight:500;color:var(--ink-3);font-style:italic}
+/* Le champ « Reçu » est le SEUL élément fort de la ligne : c'est le seul endroit
+   où l'on tape. Tout le reste est du texte. */
+.lin{width:100%;text-align:end;font-family:var(--mono);font-size:15px;font-weight:600;
+  padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--card);min-height:40px}
+.lin.filled{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.lin.empty{border-style:dashed;color:var(--ink-3)}
+/* ABÎMÉ EST SILENCIEUX TANT QU'IL N'EXISTE PAS. Un encadré ambre sur chaque
+   ligne laisse croire que l'avarie est le cas courant ; elle est l'exception. */
+.dmg0{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--ink-3);text-align:end;
+  border:1px solid transparent;padding:9px 11px;border-radius:var(--r-sm);display:block}
+.dmg0:hover{border-color:var(--line);background:var(--bg)}
+.dmgN{width:100%;text-align:end;font-family:var(--mono);font-size:14px;font-weight:700;
+  padding:9px 11px;border:1px solid var(--warn-edge);border-radius:var(--r-sm);
+  background:var(--warn-bg);color:var(--warn);min-height:40px}
+.ecart{display:block;font-family:var(--mono);font-size:11.5px;font-weight:700;margin-top:5px;text-align:end}
+.ecart.neg{color:var(--bad)} .ecart.pos{color:var(--move)} .ecart.zero{color:var(--ok)}
+.ecart.wait{color:var(--ink-3);font-family:"Inter",sans-serif;font-style:italic;font-weight:500}
+
+.sh-foot{padding:17px 22px;background:var(--sunken);border-top:1px solid var(--line);
+  display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.totals{display:flex;gap:26px;flex-wrap:wrap}
+.tot .k{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.tot .v{font-family:var(--mono);font-size:19px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+.tot.lead .v{font-size:25px;letter-spacing:-.02em}
+.tot .v .u{font-family:"Inter",sans-serif;font-size:11.5px;font-weight:600;color:var(--ink-2);margin-inline-start:5px}
+.tot .v.warn{color:var(--warn)}
+.acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* ── paiement, replié par défaut ─────────────────────────────────────────── */
+.pay-block{border-top:1px solid var(--line)}
+.pay-head{padding:15px 22px;display:flex;align-items:center;gap:12px;width:100%}
+.pay-head .lb{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.pay-head .rest{margin-inline-start:auto;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--bad)}
+.pay-body{padding:0 22px 18px}
+.pay-bar{display:flex;height:6px;border-radius:var(--r-pill);overflow:hidden;background:var(--surface-2);margin-bottom:14px}
+.pay-bar i{display:block;height:100%;background:var(--ok)}
+.pay-line{display:grid;grid-template-columns:104px 1fr 132px 26px;align-items:center;gap:0 14px;
+  padding:10px 0;border-bottom:1px solid var(--line)}
+.pay-line .d{font-family:var(--mono);font-size:12.5px;color:var(--ink-2)}
+.pay-line .nt{font-size:12.5px;color:var(--ink-3)}
+.pay-line .a{font-family:var(--mono);font-size:14px;font-weight:600;text-align:end;font-variant-numeric:tabular-nums}
+.pay-tot{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding-top:14px}
+.pay-tot .k{font-size:13px;font-weight:600}
+.pay-tot .v{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--bad)}
+
+/* ── modales ─────────────────────────────────────────────────────────────── */
+.scrim{background:rgba(27,29,26,.46);border-radius:var(--r-lg);padding:30px 16px;display:grid;place-items:center}
+.modal{width:100%;max-width:540px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-float);overflow:hidden}
+.modal.wide{max-width:680px}
+.mo-h{padding:18px 22px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mo-h h3{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.mo-b{padding:14px 22px 20px}
+.mo-b > p{font-size:13.5px;color:var(--ink-2)}
+.mo-f{padding:15px 22px;border-top:1px solid var(--line);background:var(--sunken);display:flex;justify-content:flex-end;gap:10px}
+.recap{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;margin-top:16px}
+.recap div{padding:13px 14px}
+.recap div + div{border-inline-start:1px solid var(--line)}
+.recap .k{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.recap .v{font-family:var(--mono);font-size:19px;font-weight:600;margin-top:5px;font-variant-numeric:tabular-nums}
+.recap .v.warn{color:var(--warn)}
+
+.costbox{margin-top:18px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cb-h{padding:13px 15px;background:var(--sunken);display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.cb-h input{width:17px;height:17px;margin:2px 0 0;flex:none;accent-color:var(--ok)}
+.cb-h .t{font-size:13.5px;font-weight:600}
+.cb-h .s{font-size:12px;color:var(--ink-2);margin-top:3px}
+.cline{display:grid;grid-template-columns:1fr 82px 18px 82px;align-items:center;gap:0 12px;
+  padding:11px 15px;border-top:1px solid var(--line)}
+.cline .cp{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cline .co{font-family:var(--mono);font-size:12.5px;color:var(--ink-3);text-align:end;text-decoration:line-through}
+.cline .ca{color:var(--ink-3);display:grid;place-items:center}
+.cline .cn{font-family:var(--mono);font-size:14px;font-weight:700;text-align:end}
+.cline .cn.down{color:var(--ok)} .cline .cn.up{color:var(--bad)}
+/* LES COÛTS QUI NE BOUGENT PAS SE COMPTENT, ILS NE SE LISTENT PAS. La v2
+   affichait « 40,000 → 40,000 » deux fois : du bruit qui cachait les deux
+   lignes où quelque chose change vraiment. */
+.cquiet{padding:10px 15px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3);
+  display:flex;align-items:center;gap:7px}
+.warnbox{margin-top:16px;background:var(--warn-bg);border:1px solid var(--warn-edge);
+  border-radius:var(--r);padding:13px 15px;display:flex;gap:11px}
+.warnbox svg{width:17px;height:17px;flex:none;color:var(--warn);margin-top:1px}
+/* Le texte de l'encadré est en --wh-warn, comme dans le produit : le brun choisi
+   à la main de la v2 n'existait nulle part dans les jetons. */
+.warnbox p{font-size:12.5px;color:var(--warn)}
+
+/* ── création ────────────────────────────────────────────────────────────── */
+.form{display:flex;flex-direction:column;gap:17px}
+.frow{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.fld label{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:7px}
+.fld input,.fld select{width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--r-sm);min-height:40px;background:var(--card)}
+.fld .hint{font-size:11.5px;color:var(--ink-3);margin-top:6px}
+.picker{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.pk-row{display:grid;grid-template-columns:1fr 92px 104px 26px;align-items:center;gap:0 12px;padding:11px 14px}
+.pk-row + .pk-row{border-top:1px solid var(--line)}
+.pk-row .pn{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-row .pst{font-size:11px;color:var(--ink-3);margin-top:2px;font-family:var(--mono)}
+.pk-row input{width:100%;text-align:end;font-family:var(--mono);font-size:13.5px;font-weight:600;
+  padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--r-sm);min-height:36px}
+.pk-search{background:var(--sunken);border-top:1px solid var(--line)}
+.pk-search .lbl{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);text-align:end}
+.pk-add{padding:12px 14px;display:flex;align-items:center;gap:9px;color:var(--ok);
+  font-size:13px;font-weight:600;border-top:1px solid var(--line);width:100%}
+
+/* ── recherche dynamique de produit ──────────────────────────────────────────
+   LE PANNEAU S'OUVRE SOUS LE CHAMP, DANS LE SÉLECTEUR, pas en surcouche : on
+   doit voir en même temps ce qu'on cherche et les lignes déjà posées, sinon on
+   ajoute deux fois le même produit sans le savoir. */
+.srch{display:flex;align-items:center;gap:9px;width:100%}
+.srch .ic{color:var(--ink-3);flex:none;display:grid;place-items:center}
+.srch input{flex:1;min-width:0;text-align:start;font-family:"Inter",sans-serif;font-weight:400;
+  padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--r-sm);min-height:36px;background:var(--card)}
+.srch .clr{color:var(--ink-3);flex:none;display:grid;place-items:center;padding:2px}
+.results{border-top:1px solid var(--line);background:var(--card)}
+.res{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;align-items:center;gap:0 12px;
+  padding:10px 14px;width:100%}
+.res + .res{border-top:1px solid var(--line)}
+.res:hover,.res.on{background:var(--ok-tint)}
+.res .th2{width:34px;height:34px;border-radius:var(--r-xs);border:1px solid var(--line);background:var(--bg);
+  display:grid;place-items:center;font-size:17px}
+.res .nm{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.res .mt{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .st-num{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--ink-2);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.res .st-num .z{color:var(--bad)}
+.res .kbd{opacity:0}
+.res.on .kbd,.res:hover .kbd{opacity:1}
+/* Un produit DÉJÀ sur la réception reste visible et dit pourquoi il est barré.
+   La v3 du code le retirait silencieusement de la liste : on tapait son nom, on
+   ne voyait rien, et on en concluait qu'il n'existait pas. */
+.res.taken{cursor:default}
+.res.taken:hover{background:transparent}
+.res.taken .nm,.res.taken .mt{color:var(--ink-3)}
+.res .already{font-size:11px;font-weight:600;color:var(--ink-2);background:var(--sunken);
+  border:1px solid var(--line);border-radius:var(--r-xs);padding:2px 8px;white-space:nowrap}
+.res-foot{padding:9px 14px;border-top:1px solid var(--line);background:var(--sunken);
+  font-size:11.5px;color:var(--ink-3);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.res-msg{padding:20px 16px;text-align:center;font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--line)}
+.res-msg b{color:var(--ink-2);font-weight:600}
+kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line-strong);border-radius:4px;
+  padding:1px 5px;background:var(--card);color:var(--ink-2)}
+/* La correspondance est mise en GRAS, pas en couleur : la couleur fonctionnelle
+   est réservée aux statuts, et un surlignage jaune ici voudrait dire « attention ». */
+mark{background:var(--surface-2);font-weight:700;color:inherit;border-radius:3px;padding:0 1px}
+.spin{width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--ink-3);
+  border-radius:50%;flex:none}
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(286px,1fr));gap:16px}
+.state-card{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--card)}
+.state-card .sc-h{padding:9px 13px;background:var(--sunken);font-size:11px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ═══ 5 · TÉLÉPHONE ════════════════════════════════════════════════════════ */
+.phones{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.stage{width:390px;height:812px;background:var(--card);border:1px solid var(--line-strong);border-radius:22px;
+  overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--sh-float)}
+.ph-top{padding:14px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex:none}
+.ph-top .bk{width:34px;height:34px;border-radius:var(--r-sm);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2);flex:none}
+.ph-top .ti{flex:1;min-width:0}
+.ph-top .ti h4{font-size:15.5px;font-weight:700}
+.ph-top .ti p{font-size:12px;color:var(--ink-3);margin-top:2px}
+.ph-body{flex:1;overflow:hidden;padding:17px;display:flex;flex-direction:column;gap:15px}
+.ph-foot{flex:none;padding:14px 17px;border-top:1px solid var(--line);display:flex;gap:10px;
+  padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+.ph-foot .btn{flex:1;min-height:54px;font-size:15px}
+
+.plist{display:flex;flex-direction:column;gap:11px}
+.plrow{border:1px solid var(--line);border-radius:var(--r);padding:14px;position:relative;overflow:hidden}
+.plrow::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;background:transparent}
+.plrow.late::before{background:var(--bad)}
+.plrow.done{opacity:.6}
+.plrow .t{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.plrow .rf{font-family:var(--mono);font-size:13.5px;font-weight:600}
+.plrow .m{font-size:12.5px;color:var(--ink-2);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+.plrow .m b{font-family:var(--mono);font-weight:600;color:var(--ink-1)}
+
+.prog{display:flex;align-items:center;gap:10px}
+.prog .pt{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.prog .pb{flex:1;height:6px;border-radius:var(--r-pill);background:var(--surface-2);overflow:hidden}
+.prog .pb i{display:block;height:100%;background:var(--ok);border-radius:var(--r-pill)}
+
+/* L'écran du quai : la zone de saisie est l'écran, pas une carte dans l'écran. */
+.pcount{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center}
+.pcount .th{width:76px;height:76px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--bg);
+  display:grid;place-items:center;font-size:36px}
+.pcount .pn{font-size:18px;font-weight:700;line-height:1.3;margin-top:14px}
+.pcount .pm{font-size:12.5px;color:var(--ink-3);margin-top:5px;font-family:var(--mono)}
+.facts{display:flex;gap:10px;margin-top:16px;width:100%}
+.facts div{flex:1;padding:11px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--line)}
+.facts .k{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.facts .v{font-family:var(--mono);font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.bignum{margin-top:20px;width:100%}
+.bignum .lb{font-size:12px;font-weight:600;color:var(--ink-2);display:block;margin-bottom:9px}
+.bignum .field{display:flex;align-items:center;gap:11px}
+.bignum .step{width:56px;height:56px;border-radius:var(--r);border:1px solid var(--line-strong);
+  display:grid;place-items:center;font-size:25px;font-weight:600;color:var(--ink-2);flex:none;background:var(--card)}
+.bignum input{flex:1;height:56px;text-align:center;font-family:var(--mono);font-size:29px;font-weight:700;
+  border:1px solid var(--ok);border-radius:var(--r);background:var(--ok-bg);color:var(--ok);min-width:0;font-variant-numeric:tabular-nums}
+.chipsrow{display:flex;gap:8px;margin-top:11px;justify-content:center;flex-wrap:wrap}
+.qchip{padding:7px 14px;border-radius:var(--r-pill);border:1px solid var(--line-strong);background:var(--card);
+  font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.qchip.on{background:var(--ok);border-color:var(--ok);color:#FFF}
+/* Déclarer une avarie est un GESTE, pas un champ permanent. */
+.dmg-add{margin-top:16px;font-size:13px;font-weight:600;color:var(--warn);display:inline-flex;align-items:center;gap:7px}
+.dmgrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;width:100%;
+  padding:12px 14px;border:1px solid var(--warn-edge);background:var(--warn-bg);border-radius:var(--r-sm)}
+.dmgrow .l{font-size:13px;font-weight:600;color:var(--warn)}
+.dmgrow input{width:64px;height:42px;text-align:center;font-family:var(--mono);font-size:17px;font-weight:700;
+  border:1px solid var(--warn-edge);border-radius:var(--r-xs);background:var(--card);color:var(--warn)}
+
+/* Le RÉCAPITULATIF — la fin que la v2 n'avait pas. */
+.sum-h{text-align:center;padding:6px 0 2px}
+.sum-h .ic{width:52px;height:52px;border-radius:var(--r-pill);background:var(--ok-bg);color:var(--ok);
+  display:grid;place-items:center;margin:0 auto 12px}
+.sum-h h4{font-size:18px;font-weight:700}
+.sum-h p{font-size:12.5px;color:var(--ink-2);margin-top:5px}
+.sumgrid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.sumgrid div{padding:14px}
+.sumgrid div:nth-child(odd){border-inline-end:1px solid var(--line)}
+.sumgrid div:nth-child(n+3){border-top:1px solid var(--line)}
+.sumgrid .k{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.sumgrid .v{font-family:var(--mono);font-size:21px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.sumgrid .v.warn{color:var(--warn)}
+.sumgrid .v.dim{color:var(--ink-3)}
+.sumlist{display:flex;flex-direction:column;gap:8px}
+.sumrow{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm)}
+.sumrow .nm{flex:1;min-width:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sumrow .qt{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.sumrow .ec{font-family:var(--mono);font-size:11px;font-weight:700}
+.sumrow .ec.neg{color:var(--bad)} .sumrow .ec.zero{color:var(--ok)} .sumrow .ec.pos{color:var(--move)}
+.sumrow.skipped{background:var(--bg)}
+.sumrow.skipped .qt{color:var(--ink-3)}
+
+/* ── parcours ────────────────────────────────────────────────────────────── */
+.flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;overflow:hidden}
+.fstep{flex:1;min-width:170px;padding:16px 18px;display:flex;flex-direction:column;gap:3px}
+.fstep + .fstep{border-inline-start:1px solid var(--line)}
+.fstep .n{width:22px;height:22px;border-radius:var(--r-pill);background:var(--sunken);color:var(--ink-2);
+  display:grid;place-items:center;font-size:11px;font-weight:700;font-family:var(--mono);margin-bottom:6px}
+.fstep.key .n{background:var(--ok);color:#FFF}
+.fstep .lb{font-size:14px;font-weight:600}
+.fstep .who{font-size:11.5px;color:var(--ink-3)}
+.fstep.key .who{color:var(--ok);font-weight:600}
+table.dec{width:100%;border-collapse:collapse;font-size:13px}
+table.dec th,table.dec td{text-align:start;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+table.dec th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);background:var(--sunken)}
+table.dec tr:last-child td{border-bottom:0}
+table.dec td b{font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="note">
+  <h3>Maquette v3 · Réception de marchandises · 2 octobre 2026</h3>
+  <p><b>Ce que la v3 retire.</b> La v2 était complète et bruyante. Une ligne de liste pouvait porter <b>cinq signaux de couleur</b> pour un seul fait ; la colonne « paiement » affichait « sans objet » sur les deux tiers des lignes ; la feuille empilait <b>trois bandeaux</b> avant la première quantité ; un encadré ambre réclamait des articles abîmés sur chaque ligne, alors que l'avarie est l'exception ; et la boîte des coûts listait « 40,000 → 40,000 » pour cacher les deux lignes où un prix bouge vraiment.</p>
+  <p><b>Ce qu'elle ajoute.</b> Deux choses. <b>La fin du parcours téléphone</b> (§6, troisième écran) : la v2 faisait compter la dernière ligne à l'agent et s'arrêtait là, sans aucun moment pour déclarer. Et <b>la recherche de produit en direct</b> (§5 et §5b) : la maquette ne montrait qu'un champ vide, alors que tout le travail d'un sélecteur est dans ses états — rien tapé, une lettre, requête en cours, aucun résultat, déjà ajouté.</p>
+  <p><b>Et elle corrige deux infidélités.</b> La palette de la v2 était inventée (gris bleuté <span class="mono">#F4F5F7</span>, vert <span class="mono">#16A34A</span>) ; la console est en gris <i>chaud</i> <span class="mono">#F6F7F5</span> avec un vert sourd <span class="mono">#0E7A45</span>. Toutes les valeurs ici sont copiées de <span class="mono">--wh-*</span>. Et chaque carte portait une ombre, ce que le système de design interdit au repos — seules les modales et le téléphone flottent.</p>
+</div>
+
+<!-- ═════ 1 · LE PARCOURS ═════ -->
+<div class="sechead"><h2>1 · Le parcours</h2><span>deux personnes, quatre gestes, un seul qui touche au stock</span></div>
+
+<div class="card flow">
+  <div class="fstep"><span class="n">1</span><span class="lb">Annoncer</span><span class="who">agent ou manager · facultatif</span></div>
+  <div class="fstep"><span class="n">2</span><span class="lb">Compter</span><span class="who">agent, sur le quai</span></div>
+  <div class="fstep"><span class="n">3</span><span class="lb">Déclarer</span><span class="who">agent · rien n'a encore bougé</span></div>
+  <div class="fstep key"><span class="n">4</span><span class="lb">Valider</span><span class="who">manager · le stock existe ici</span></div>
+</div>
+
+<!-- ═════ 2 · LA LISTE ═════ -->
+<div class="sechead"><h2>2 · Entrepôt › Stock › Réceptions</h2><span>un troisième onglet, pas une entrée de menu</span></div>
+
+<div class="tabs" role="tablist">
+  <button role="tab" aria-selected="false">Niveaux</button>
+  <button role="tab" aria-selected="true">Réceptions</button>
+  <button role="tab" aria-selected="false">Journal</button>
+</div>
+
+<div class="toolbar">
+  <div class="segs">
+    <button class="seg" aria-pressed="true">Toutes <span class="c">14</span></button>
+    <button class="seg" aria-pressed="false">Attendues <span class="c">3</span></button>
+    <button class="seg" aria-pressed="false">À valider <span class="c warn">2</span></button>
+    <button class="seg" aria-pressed="false">Validées <span class="c">8</span></button>
+    <button class="seg" aria-pressed="false">Impayées <span class="c bad">4</span></button>
+  </div>
+  <button class="btn btn-pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg> Nouvelle réception</button>
+</div>
+
+<div class="card">
+  <div class="rhead">
+    <span>Référence</span><span>Fournisseur</span><span style="text-align:end">Quantités</span>
+    <span style="text-align:end">Valeur reçue</span><span>État</span><span></span>
+  </div>
+
+  <div class="rlist">
+    <div class="rrow late">
+      <div><div class="rref">REC-LY-2026-0044</div>
+        <div class="tag tag-late"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> en retard de 4 j · Tripoli</div></div>
+      <div class="rsup" dir="auto">مكتبة الرسالة</div>
+      <div class="qty"><span class="n">300</span><span class="w">attendues</span></div>
+      <div class="val dash">—</div>
+      <div class="state"><span class="st st-att"><i></i>Attendue</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow wait">
+      <div><div class="rref">REC-LY-2026-0042</div>
+        <div class="tag tag-wait"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> attend un manager · Tripoli</div></div>
+      <div class="rsup" dir="auto">مكتبة الرسالة</div>
+      <div class="qty"><span class="n">312</span><span class="w">comptées</span></div>
+      <div class="val"><span class="n">18 720</span><span class="c">LYD</span></div>
+      <div class="state"><span class="st st-val"><i></i>À valider</span><span class="pay pay-part">acompte 40 %</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow wait">
+      <div><div class="rref">REC-LY-2026-0041</div>
+        <div class="tag tag-wait"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> attend un manager · Benghazi</div></div>
+      <div class="rsup" dir="auto">مصنع الألعاب الحديثة</div>
+      <div class="qty"><span class="n">150</span><span class="w">comptées</span></div>
+      <div class="val"><span class="n">3 750</span><span class="c">LYD</span></div>
+      <div class="state"><span class="st st-val"><i></i>À valider</span><span class="pay pay-no">impayée</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div><div class="rref">REC-LY-2026-0043</div><div class="rmeta">Benghazi · prévue 2 oct</div></div>
+      <div class="rsup" dir="auto">دار ابن الجوزي</div>
+      <div class="qty"><span class="n">480</span><span class="w">attendues</span></div>
+      <div class="val dash">—</div>
+      <div class="state"><span class="st st-att"><i></i>Attendue</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div><div class="rref">REC-LY-2026-0039</div><div class="rmeta">Tripoli · validée 22 sept par Salma</div></div>
+      <div class="rsup" dir="auto">دار ابن الجوزي</div>
+      <div class="qty"><span class="n">602</span><span class="d">· 3 abîmées</span></div>
+      <div class="val"><span class="n">45 150</span><span class="c">LYD</span></div>
+      <div class="state"><span class="st st-ok"><i></i>Validée</span><span class="pay pay-ok">payée</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div><div class="rref">REC-TN-2026-0018</div><div class="rmeta">Tunis · validée 19 sept</div></div>
+      <div class="rsup">Laboratoire Medisud</div>
+      <div class="qty"><span class="n">1 000</span><span class="w">unités</span></div>
+      <div class="val"><span class="n">10 000</span><span class="c">TND</span></div>
+      <div class="state"><span class="st st-ok"><i></i>Validée</span><span class="pay pay-part">acompte 60 %</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div><div class="rref">REC-LY-2026-0037</div><div class="rmeta">Tripoli · contre-passée 16 sept</div></div>
+      <div class="rsup" dir="auto">مكتبة الرسالة</div>
+      <div class="qty"><span class="n">80</span><span class="w">annulées</span></div>
+      <div class="val"><span class="n">3 200</span><span class="c">LYD</span></div>
+      <div class="state"><span class="st st-rev"><i></i>Contre-passée</span></div>
+      <div class="chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Ce qui a été retiré de la liste</h3>
+  <p><b>Trois colonnes sur huit.</b> « Bâtiment » rejoint la référence — un agent n'en voit qu'un, un manager filtre dessus — et « Statut » + « Paiement » partagent une cellule <b>État</b>, parce qu'on les lit d'un même regard : dans quel état, et est-ce payé.</p>
+  <p><b>La puce de paiement n'existe que si elle veut dire quelque chose.</b> Une réception attendue affichait « sans objet » : un libellé pour dire que la colonne ne la concerne pas. C'est la même règle que <span class="mono">null</span> plutôt que <span class="mono">0</span> — on ne remplit pas une case pour qu'elle ne soit pas vide.</p>
+  <p><b>Le fond teinté est parti, le liseré reste.</b> Une ligne en retard portait un fond rouge, un liseré rouge, une puce ambre, une étiquette rouge et une puce de paiement rouge. Le liseré de 3 px suffit : il se lit en balayant la colonne sans lire un mot, et il n'est porté que par ce qui bloque quelqu'un.</p>
+  <p><b>Le chiffre est devenu l'ancre.</b> 16 px en mono tabulaire, avec son mot à côté — « 300 attendues » est une promesse, « 312 comptées » une déclaration, « 1 000 unités » un fait, « 80 annulées » une écriture retirée. Jamais un nombre nu : <span class="mono">totals.units</span> somme le <i>reçu</i>, donc sur une attendue il vaut 0, et un 0 se lirait « rien n'est arrivé ».</p>
+</div>
+
+<div class="sechead"><h2>2b · Et quand il n'y a rien</h2><span>l'état que la production affiche aujourd'hui</span></div>
+
+<div class="card">
+  <div class="empty">
+    <div class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-6 9 6v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 21V12h6v9"/></svg></div>
+    <h4>Aucune réception</h4>
+    <p>Une livraison fournisseur commence ici. Annoncez-la à l'avance pour alimenter « en route » sur l'onglet Niveaux.</p>
+    <button class="btn btn-pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg> Nouvelle réception</button>
+  </div>
+</div>
+
+<!-- ═════ 3 · LA FEUILLE ═════ -->
+<div class="sechead"><h2>3 · La feuille</h2><span>vue manager · saisie en cours</span></div>
+
+<div class="card" style="overflow:hidden">
+  <div class="sh-top">
+    <button class="back"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="sh-id">
+      <h3>REC-LY-2026-0042 <span class="st st-val"><i></i>À valider</span></h3>
+      <div class="sh-sub">
+        <span dir="auto"><b>مكتبة الرسالة</b></span><span class="sep">·</span>
+        <span>BL <span class="mono">4471</span></span><span class="sep">·</span>
+        <span>Tripoli</span><span class="sep">·</span>
+        <span>comptée par <b>Adel Ben Salah</b> le 28 sept 2026</span>
+        <span class="sep">·</span>
+        <span class="prog-lbl"><span class="mono">4 / 5</span> comptées</span>
+        <span class="prog-lbl rest">1 reste</span>
+      </div>
+    </div>
+    <button class="btn btn-sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Bon de livraison</button>
+  </div>
+  <div class="prog-rail"><i style="width:80%"></i></div>
+
+  <div class="lhead">
+    <span>Produit</span><span class="tr">Attendu</span><span class="tr">Reçu</span><span class="tr">Abîmé</span>
+    <span class="tr money-edge">Coût unit.</span><span class="tr">Total</span>
+  </div>
+
+  <div class="lrow done">
+    <div class="lprod"><div class="thumb">📗</div><div><div class="pn" dir="auto">القرآن تدبر وعمل</div><div class="pc">qr-01</div></div></div>
+    <div class="lnum dim">150</div>
+    <div><input class="lin filled" value="150" readonly><span class="ecart zero">conforme</span></div>
+    <div><span class="dmg0">0</span></div>
+    <div class="lnum money-edge">40,000</div><div class="lnum">6 000</div>
+  </div>
+
+  <div class="lrow done">
+    <div class="lprod"><div class="thumb">📘</div><div><div class="pn" dir="auto">مصحف التهجد و قيام الليل</div><div class="pc">th-01</div></div></div>
+    <div class="lnum dim">100</div>
+    <div><input class="lin filled" value="94" readonly><span class="ecart neg">−6</span></div>
+    <div><input class="dmgN" value="2" readonly></div>
+    <div class="lnum money-edge">85,000</div><div class="lnum">7 990</div>
+  </div>
+
+  <div class="lrow done">
+    <div class="lprod"><div class="thumb">📕</div><div><div class="pn" dir="auto">كتاب الحفظ الميسر</div><div class="pc">hm-01</div></div></div>
+    <div class="lnum dim">60</div>
+    <div><input class="lin filled" value="60" readonly><span class="ecart zero">conforme</span></div>
+    <div><span class="dmg0">0</span></div>
+    <div class="lnum money-edge">73,500</div><div class="lnum">4 410</div>
+  </div>
+
+  <div class="lrow done">
+    <div class="lprod"><div class="thumb">📙</div><div><div class="pn" dir="auto">كتاب الداء والدواء للإمام ابن القيم</div><div class="pc">DA2</div></div></div>
+    <div class="lnum none">non annoncé</div>
+    <div><input class="lin filled" value="8" readonly><span class="ecart pos">+8 hors bon</span></div>
+    <div><span class="dmg0">0</span></div>
+    <div class="lnum money-edge">40,000</div><div class="lnum">320</div>
+  </div>
+
+  <div class="lrow">
+    <div class="lprod"><div class="thumb">🧸</div><div><div class="pn" dir="auto">دميه ملاكمه حجم صغير</div><div class="pc">box-wafra-shop</div></div></div>
+    <div class="lnum dim">40</div>
+    <div><input class="lin empty" placeholder="—"><span class="ecart wait">pas encore comptée</span></div>
+    <div><span class="dmg0">0</span></div>
+    <div class="lnum money-edge">24,998</div><div class="lnum dim">—</div>
+  </div>
+
+  <div class="sh-foot">
+    <div class="totals">
+      <div class="tot lead"><div class="k">Valeur reçue</div><div class="v">18 720<span class="u">LYD</span></div></div>
+      <div class="tot"><div class="k">Unités reçues</div><div class="v">312</div></div>
+      <div class="tot"><div class="k">Abîmées</div><div class="v warn">2</div></div>
+      <div class="tot"><div class="k">Lignes</div><div class="v">5</div></div>
+    </div>
+    <div class="acts">
+      <button class="btn btn-sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-1"/></svg> Renvoyer à l'agent</button>
+      <button class="btn btn-pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg> Valider et entrer en stock</button>
+    </div>
+  </div>
+
+  <div class="pay-block">
+    <button class="pay-head">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--ink-3)"><path d="M6 9l6 6 6-6"/></svg>
+      <span class="lb">Paiement</span>
+      <span class="pay pay-part">acompte 40 %</span>
+      <span class="rest">reste 11 232,000 LYD</span>
+    </button>
+    <div class="pay-body">
+      <div class="pay-bar"><i style="width:40%"></i></div>
+      <div class="pay-line">
+        <div class="d">24 sept</div><div>Virement bancaire</div>
+        <div class="a">7 488,000</div>
+        <button class="btn btn-quiet" style="padding:4px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+      </div>
+      <div class="pay-line" style="border-bottom:0">
+        <div class="d">—</div><div class="nt">acompte à la commande</div><div></div><div></div>
+      </div>
+      <div class="pay-tot">
+        <span class="k">Reste à payer</span><span class="v">11 232,000 LYD</span>
+      </div>
+      <button class="btn btn-sec" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Enregistrer un paiement</button>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Ce qui a été retiré de la feuille</h3>
+  <p><b>Trois bandeaux deviennent un.</b> La v2 empilait l'identité, un bandeau vert de progression et l'en-tête du tableau : environ 150 px avant la première quantité. Les cinq faits libellé/valeur sont la <i>légende</i> du document, pas son contenu, donc ils tiennent sur une ligne grise ; et la progression est un filet de 3 px au bord du bandeau.</p>
+  <p><b>Abîmé est silencieux tant qu'il n'existe pas.</b> Un encadré ambre sur chaque ligne réclame une avarie qui n'arrive presque jamais, et finit par ne plus rien signaler. Zéro s'affiche en texte gris, cliquable ; l'ambre n'apparaît que sur la ligne qui porte vraiment des articles cassés — ici la deuxième.</p>
+  <p><b>Une colonne « Reçu » forte, tout le reste en texte.</b> C'est le seul endroit où l'on tape. Un filet vertical sépare la zone <i>comptage</i> de la zone <i>argent</i>, et cette seconde zone est simplement <b>absente</b> pour un agent d'entrepôt — retirée de la réponse de l'API, pas masquée en CSS.</p>
+  <p><b>« Valeur reçue » domine le pied</b> à 25 px : c'est le chiffre qu'un manager cherche. Et le paiement est un bloc <b>replié</b> dont le titre dit déjà tout — « acompte 40 % · reste 11 232,000 » — qu'on ouvre seulement pour voir les versements ou en ajouter un.</p>
+</div>
+
+<!-- ═════ 4 · VALIDER ═════ -->
+<div class="sechead"><h2>4 · Valider</h2><span>le seul geste qui fait exister le stock — et le seul qui peut redater le P&amp;L</span></div>
+
+<div class="scrim">
+  <div class="modal">
+    <div class="mo-h">
+      <div><h3>Valider REC-LY-2026-0042</h3></div>
+      <button class="btn btn-quiet" style="padding:2px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="mo-b">
+      <p><b>312 unités</b> vont entrer en stock à <b>Tripoli</b>. Cette écriture est définitive : une réception validée se corrige par une contre-passation, jamais par une modification.</p>
+      <div class="recap">
+        <div><div class="k">Unités</div><div class="v">312</div></div>
+        <div><div class="k">Abîmées</div><div class="v warn">2</div></div>
+        <div><div class="k">Valeur</div><div class="v">18 720</div></div>
+      </div>
+
+      <div class="costbox">
+        <label class="cb-h"><input type="checkbox">
+          <div><div class="t">Adopter les nouveaux coûts d'achat</div>
+            <div class="s">Deux produits changeraient de coût catalogue, en moyenne pondérée sur le stock existant.</div></div></label>
+        <div class="cline"><div class="cp" dir="auto">كتاب الحفظ الميسر</div>
+          <div class="co">75,000</div>
+          <div class="ca"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="cn down">74,667</div></div>
+        <div class="cline"><div class="cp" dir="auto">كتاب الداء والدواء</div>
+          <div class="co">27,000</div>
+          <div class="ca"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+          <div class="cn up">27,929</div></div>
+        <div class="cquiet">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          2 autres produits gardent exactement leur coût actuel.
+        </div>
+      </div>
+
+      <div class="warnbox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+        <p>Le P&amp;L lit le coût en direct : adopter ces coûts <b>recalcule aussi la marge des commandes déjà livrées</b> et les chiffres investisseurs. C'est pour cela que la case est décochée — entrer du stock et redater la rentabilité sont deux décisions.</p>
+      </div>
+    </div>
+    <div class="mo-f"><button class="btn btn-sec">Annuler</button><button class="btn btn-pri">Valider et entrer en stock</button></div>
+  </div>
+</div>
+
+<div class="note">
+  <p><b>Seuls les coûts qui BOUGENT sont listés.</b> La v2 montrait quatre lignes dont deux disaient « 40,000 → 40,000 » : du bruit, qui rendait les deux vrais changements plus difficiles à voir. Les inchangés se <i>comptent</i> en une ligne grise. Un baisse (vert), un monte (rouge), et l'ancien prix est barré parce qu'il est réellement remplacé.</p>
+  <p><b>Côté serveur, <span class="mono">adopt_costs</span> doit arriver à <span class="mono">true</span> strictement.</b> Un corps vide, un champ absent ou une valeur vaguement vraie n'adoptent rien — c'est testé, parce qu'un client distrait ne doit pas redater la rentabilité.</p>
+</div>
+
+<!-- ═════ 5 · CRÉER ═════ -->
+<div class="sechead"><h2>5 · Créer une réception</h2><span>elle naît en brouillon — rien n'entre en stock ici</span></div>
+
+<div class="scrim">
+  <div class="modal wide">
+    <div class="mo-h">
+      <div><h3>Nouvelle réception</h3></div>
+      <button class="btn btn-quiet" style="padding:2px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="mo-b">
+      <div class="form">
+        <div class="frow">
+          <div class="fld"><label>Bâtiment</label>
+            <select><option>Tripoli — طرابلس</option><option>Benghazi — بنغازي</option></select>
+            <div class="hint">Une réception arrive dans un seul bâtiment.</div></div>
+          <div class="fld"><label>Date prévue <span style="text-transform:none;letter-spacing:0;color:var(--ink-3);font-weight:400">(facultatif)</span></label>
+            <input type="date" value="2026-10-06">
+            <div class="hint">Renseignée, elle alimente « en route » et le retard.</div></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Fournisseur</label><input value="مكتبة الرسالة" dir="auto">
+            <div class="hint">Texte libre — pas encore de fiche fournisseur.</div></div>
+          <div class="fld"><label>N° de bon de livraison</label><input value="BL-4471" class="mono">
+            <div class="hint">Leur numéro, pas le nôtre.</div></div>
+        </div>
+
+        <div class="picker">
+          <div class="pk-row">
+            <div><div class="pn" dir="auto">القرآن تدبر وعمل</div><div class="pst">qr-01 · en stock 943</div></div>
+            <input value="150"><input value="40,000">
+            <button class="btn btn-quiet" style="padding:3px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="pk-row">
+            <div><div class="pn" dir="auto">مصحف التهجد و قيام الليل</div><div class="pst">th-01 · en stock 218</div></div>
+            <input value="100"><input value="85,000">
+            <button class="btn btn-quiet" style="padding:3px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="pk-row pk-search">
+            <div class="srch">
+              <span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg></span>
+              <input value="كتاب" dir="auto">
+              <button class="clr" aria-label="Effacer"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg></button>
+            </div>
+            <div class="lbl">Quantité</div><div class="lbl">Coût unit.</div><div></div>
+          </div>
+
+          <!-- RÉSULTATS EN DIRECT. Ils s'ouvrent sous le champ, à l'intérieur du
+               sélecteur, pour qu'on voie en même temps les lignes déjà posées. -->
+          <div class="results">
+            <button class="res on">
+              <span class="th2">📕</span>
+              <span><span class="nm" dir="auto"><mark>كتاب</mark> الحفظ الميسر</span><span class="mt">hm-01</span></span>
+              <span class="st-num">en stock 61</span>
+              <span class="kbd"><kbd>↵</kbd></span>
+            </button>
+            <button class="res">
+              <span class="th2">📙</span>
+              <span><span class="nm" dir="auto"><mark>كتاب</mark> الداء والدواء للإمام ابن القيم</span><span class="mt">DA2</span></span>
+              <span class="st-num">en stock 12</span>
+              <span class="kbd"><kbd>↵</kbd></span>
+            </button>
+            <button class="res">
+              <span class="th2">📒</span>
+              <span><span class="nm" dir="auto">مختصر <mark>كتاب</mark> الأذكار</span><span class="mt">az-04</span></span>
+              <span class="st-num"><span class="z">en stock 0</span></span>
+              <span class="kbd"><kbd>↵</kbd></span>
+            </button>
+            <!-- Déjà posé plus haut : visible, barré, et il dit pourquoi. -->
+            <div class="res taken">
+              <span class="th2">📗</span>
+              <span><span class="nm" dir="auto">القرآن تدبر وعمل</span><span class="mt">qr-01</span></span>
+              <span class="already">déjà sur cette réception</span>
+              <span></span>
+            </div>
+            <div class="res-foot">
+              <span><b style="color:var(--ink-2)">4</b> produits actifs</span>
+              <span><kbd>↑</kbd> <kbd>↓</kbd> choisir</span>
+              <span><kbd>↵</kbd> ajouter</span>
+              <span><kbd>esc</kbd> fermer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mo-f">
+      <button class="btn btn-sec">Annuler</button>
+      <button class="btn btn-pri">Créer le brouillon</button>
+    </div>
+  </div>
+</div>
+
+<div class="sechead"><h2>5b · Les autres états de la recherche</h2><span>un champ de recherche vit surtout dans ses états vides</span></div>
+
+<div class="states">
+  <div class="state-card">
+    <div class="sc-h">Au repos</div>
+    <div class="pk-row pk-search" style="border-top:0">
+      <div class="srch">
+        <span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg></span>
+        <input placeholder="Chercher un produit…">
+      </div>
+      <div></div><div></div><div></div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="sc-h">Une seule lettre</div>
+    <div class="pk-row pk-search" style="border-top:0">
+      <div class="srch">
+        <span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg></span>
+        <input value="ك" dir="auto">
+      </div>
+      <div></div><div></div><div></div>
+    </div>
+    <div class="results"><div class="res-msg">Encore une lettre — on ne lance pas une requête par caractère.</div></div>
+  </div>
+
+  <div class="state-card">
+    <div class="sc-h">Pendant la requête</div>
+    <div class="pk-row pk-search" style="border-top:0">
+      <div class="srch">
+        <span class="ic"><span class="spin"></span></span>
+        <input value="كتاب الح" dir="auto">
+      </div>
+      <div></div><div></div><div></div>
+    </div>
+    <div class="results">
+      <button class="res" style="opacity:.45">
+        <span class="th2">📕</span>
+        <span><span class="nm" dir="auto">كتاب الحفظ الميسر</span><span class="mt">hm-01</span></span>
+        <span class="st-num">en stock 61</span><span></span>
+      </button>
+      <div class="res-foot">Les résultats précédents restent affichés — un panneau qui clignote à chaque frappe est illisible.</div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="sc-h">Aucune correspondance</div>
+    <div class="pk-row pk-search" style="border-top:0">
+      <div class="srch">
+        <span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg></span>
+        <input value="biovera 750" dir="auto">
+      </div>
+      <div></div><div></div><div></div>
+    </div>
+    <div class="results"><div class="res-msg">Aucun produit actif ne correspond à <b>biovera 750</b>.<br><span style="font-size:11.5px">Un produit désactivé ou archivé n'apparaît pas ici.</span></div></div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>La recherche dynamique</h3>
+  <p><b>Le panneau s'ouvre dans le sélecteur, pas par-dessus.</b> On doit voir les lignes déjà posées en même temps que les résultats, sinon on ajoute deux fois le même produit — et l'index unique <span class="mono">(réception, produit, variante)</span> refuserait l'enregistrement bien plus tard, loin du geste.</p>
+  <p><b>Un produit déjà sur la réception reste VISIBLE et dit pourquoi.</b> Le code le retirait silencieusement de la liste : on tapait son nom, rien n'apparaissait, et on en concluait qu'il n'existait pas. Une absence inexpliquée est pire qu'une ligne barrée.</p>
+  <p><b>La correspondance est en gras, pas surlignée en couleur.</b> La couleur fonctionnelle est réservée aux statuts ; un surlignage ambre ici se lirait « attention ».</p>
+  <p><b>« en stock 0 » est en rouge.</b> C'est l'information qui décide : si on reçoit un produit à zéro, la réception est urgente ; s'il en reste 900, elle peut attendre au quai.</p>
+  <p><b>La rangée grise porte la recherche ET les en-têtes de colonnes.</b> « 150 » et « 40,000 » côte à côte ne disent pas lequel est une quantité : les nommer une fois les nomme pour toutes les lignes. <b>La colonne « coût unit. » n'existe pas pour un agent d'entrepôt</b> — et s'il en envoyait un, le serveur le force à <span class="mono">NULL</span>.</p>
+</div>
+
+<div class="note">
+  <h3>L'état du code</h3>
+  <p><b>La référence est cherchable depuis le 2 octobre.</b> <span class="mono">/api/products/search</span> ne faisait un <span class="mono">ilike</span> que sur le <i>nom</i>, alors que le panneau affiche « hm-01 » sous chaque produit : taper <span class="mono">hm-01</span> était le geste naturel et ne renvoyait rien. Le filtre est désormais un <span class="mono">.or(name.ilike, sku.ilike)</span>, et la virgule comme les parenthèses — la <i>syntaxe</i> de <span class="mono">.or()</span> — sont retirées de la saisie : une virgule y ajouterait une condition et élargirait le filtre en silence.</p>
+  <p><b>Ce qui reste impossible : choisir la variante.</b> Le grain du stock est <span class="mono">(produit, variante, bâtiment)</span> et <span class="mono">reception_lines.variant_id</span> existe, mais le sélecteur envoie toujours <span class="mono">NULL</span> : recevoir 50 M et 50 L se déclare comme 100 « produit nu », qui entrera dans le <i>non ventilé</i>, et « quelle taille avons-nous reçue » restera sans réponse. Plus gros qu'une recherche — à décider séparément.</p>
+</div>
+
+<!-- ═════ 6 · TÉLÉPHONE ═════ -->
+<div class="sechead"><h2>6 · L'agent sur le quai</h2><span>390 × 812 · arabe · RTL complet · trois écrans</span></div>
+
+<div class="phones">
+  <!-- 6a · ses réceptions -->
+  <div>
+    <div class="cap">Ses réceptions — الاستلامات</div>
+    <div class="stage" dir="rtl" lang="ar">
+      <div class="ph-top">
+        <button class="bk"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" style="transform:scaleX(-1)"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="ti"><h4>الاستلامات</h4><p>طرابلس · 3 في الانتظار</p></div>
+      </div>
+      <div class="ph-body"><div class="plist">
+        <div class="plrow late">
+          <div class="t"><span class="rf">REC-LY-2026-0044</span><span class="st st-att"><i></i>متوقع</span></div>
+          <div class="m"><span dir="auto">مكتبة الرسالة</span><span>متوقع <b>300</b></span></div>
+          <div class="tag tag-late"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> متأخر 4 أيام</div>
+        </div>
+        <div class="plrow">
+          <div class="t"><span class="rf">REC-LY-2026-0043</span><span class="st st-att"><i></i>متوقع</span></div>
+          <div class="m"><span dir="auto">دار ابن الجوزي</span><span>متوقع <b>480</b></span></div>
+        </div>
+        <div class="plrow done">
+          <div class="t"><span class="rf">REC-LY-2026-0042</span><span class="st st-val"><i></i>بانتظار الاعتماد</span></div>
+          <div class="m"><span dir="auto">مكتبة الرسالة</span><span>عُدّت <b>312</b></span></div>
+        </div>
+      </div></div>
+      <div class="ph-foot"><button class="btn btn-pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg> استلام جديد</button></div>
+    </div>
+  </div>
+
+  <!-- 6b · compter -->
+  <div>
+    <div class="cap">Compter — une ligne à la fois</div>
+    <div class="stage" dir="rtl" lang="ar">
+      <div class="ph-top">
+        <button class="bk"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" style="transform:scaleX(-1)"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="ti"><h4>REC-LY-2026-0044</h4><p dir="auto">مكتبة الرسالة · طرابلس</p></div>
+      </div>
+      <div class="ph-body">
+        <div class="prog"><span class="pt">2 / 5</span><div class="pb"><i style="width:40%"></i></div></div>
+        <div class="pcount">
+          <div class="th">📘</div>
+          <div class="pn" dir="auto">مصحف التهجد و قيام الليل</div>
+          <div class="pm">th-01</div>
+          <div class="facts">
+            <div><div class="k">متوقع</div><div class="v">100</div></div>
+            <div><div class="k">في المخزون</div><div class="v">218</div></div>
+          </div>
+          <div class="bignum">
+            <span class="lb">الكمية المستلمة</span>
+            <div class="field"><button class="step">−</button><input value="94" inputmode="numeric"><button class="step">+</button></div>
+            <div class="chipsrow">
+              <button class="qchip on">المتوقع 100</button><button class="qchip">صفر</button>
+            </div>
+          </div>
+          <button class="dmg-add">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            الإبلاغ عن تالف
+          </button>
+        </div>
+      </div>
+      <div class="ph-foot">
+        <button class="btn btn-sec" style="flex:0 0 96px">تخطّي</button>
+        <button class="btn btn-pri">التالي <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="transform:scaleX(-1)"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6c · récapitulatif — LA NOUVEAUTÉ -->
+  <div>
+    <div class="cap">Déclarer — la fin qui manquait</div>
+    <div class="stage" dir="rtl" lang="ar">
+      <div class="ph-top">
+        <button class="bk"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" style="transform:scaleX(-1)"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="ti"><h4>REC-LY-2026-0044</h4><p dir="auto">مكتبة الرسالة · طرابلس</p></div>
+      </div>
+      <div class="ph-body">
+        <div class="sum-h">
+          <div class="ic"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <h4>العدّ انتهى</h4>
+          <p>راجع الأرقام قبل الإعلان. لن يتحرّك المخزون قبل اعتماد المدير.</p>
+        </div>
+        <div class="sumgrid">
+          <div><div class="k">الوحدات المستلمة</div><div class="v">312</div></div>
+          <div><div class="k">التالفة</div><div class="v warn">2</div></div>
+          <div><div class="k">الأسطر</div><div class="v">4 / 5</div></div>
+          <div><div class="k">لم تُعدّ</div><div class="v dim">1</div></div>
+        </div>
+        <div class="sumlist">
+          <div class="sumrow"><span class="nm" dir="auto">القرآن تدبر وعمل</span><span class="qt">150</span><span class="ec zero">مطابق</span></div>
+          <div class="sumrow"><span class="nm" dir="auto">مصحف التهجد</span><span class="qt">94</span><span class="ec neg">−6</span></div>
+          <div class="sumrow"><span class="nm" dir="auto">كتاب الحفظ الميسر</span><span class="qt">60</span><span class="ec zero">مطابق</span></div>
+          <div class="sumrow"><span class="nm" dir="auto">كتاب الداء والدواء</span><span class="qt">8</span><span class="ec pos">خارج الإشعار</span></div>
+          <div class="sumrow skipped"><span class="nm" dir="auto">دميه ملاكمه</span><span class="qt">—</span><span class="ec" style="color:var(--ink-3)">لم تُعدّ</span></div>
+        </div>
+      </div>
+      <div class="ph-foot">
+        <button class="btn btn-sec" style="flex:0 0 96px">رجوع</button>
+        <button class="btn btn-pri">إعلان الاستلام</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Le téléphone</h3>
+  <p><b>Le troisième écran est la seule addition de la v3.</b> La v2 faisait compter la dernière ligne à l'agent et s'arrêtait : il n'existait aucun moment pour <i>déclarer</i>. Le récapitulatif montre ce qu'il va affirmer — y compris <b>la ligne qu'il a sautée</b>, en gris, parce qu'une réception déclarée avec une ligne non comptée est un fait et non une erreur, mais il doit le savoir avant de signer.</p>
+  <p><b>« الإبلاغ عن تالف » remplace l'encadré ambre permanent.</b> L'avarie est l'exception ; un champ qui la réclame sur chaque ligne finit par ne plus rien signaler. Taper dessus ouvre la rangée ambre de la v2.</p>
+  <p><b>La zone de saisie est l'écran, pas une carte dans l'écran.</b> La v2 dessinait une bordure autour du contenu d'un téléphone qui est déjà un cadre : 2 × 15 px de perdus et une boîte de plus à regarder. L'image passe de 60 à 76 px, le nom de 16 à 18, le champ de 52 à 56.</p>
+  <p><b>Aucun coût, nulle part</b> — absent de la réponse API, pas masqué. Et la ligne en retard porte le même liseré de 3 px que sur le bureau, au lieu du fond rouge plein de la v2 : une seule grammaire pour les deux écrans.</p>
+</div>
+
+<!-- ═════ 7 · DÉCISIONS ═════ -->
+<div class="sechead"><h2>7 · Le bilan v2 → v3</h2><span>ce qui change, et pourquoi</span></div>
+
+<div class="card" style="overflow:hidden">
+  <table class="dec">
+    <tr><th style="width:27%">Changement</th><th style="width:36%">Pourquoi</th><th>Effet</th></tr>
+    <tr><td><b>Un seul signal de couleur par ligne</b></td><td>Fond teinté + liseré + puce + étiquette + puce de paiement = cinq voix pour un fait. La couleur cesse de signaler quand tout en porte.</td><td>Le liseré de 3 px reste, et seulement sur ce qui bloque quelqu'un.</td></tr>
+    <tr><td><b>La puce de paiement disparaît quand elle ne dit rien</b></td><td>« sans objet » est un libellé pour annoncer qu'une colonne ne s'applique pas. Même règle que <span class="mono">null</span> plutôt que <span class="mono">0</span>.</td><td>Deux tiers des lignes perdent une puce.</td></tr>
+    <tr><td><b>8 colonnes → 5</b></td><td>Le bâtiment est une méta de la référence ; statut et paiement se lisent d'un même regard.</td><td>Moins de trajet de l'œil, chiffres plus gros.</td></tr>
+    <tr><td><b>Trois bandeaux → un</b></td><td>~150 px avant la première quantité sur la feuille. Les cinq faits sont une légende, pas un contenu.</td><td>Une ligne grise + un filet de progression de 3 px.</td></tr>
+    <tr><td><b>Abîmé silencieux à zéro</b></td><td>L'avarie est l'exception. Un encadré ambre partout finit par ne plus rien signaler.</td><td>Ambre seulement sur la ligne concernée ; sur le téléphone, un geste.</td></tr>
+    <tr><td><b>Seuls les coûts qui bougent</b></td><td>« 40,000 → 40,000 » deux fois cachait les deux vrais changements.</td><td>La boîte est deux fois plus courte et dit quelque chose.</td></tr>
+    <tr><td><b>Le paiement est replié</b></td><td>Son titre porte déjà le fait entier : « acompte 40 % · reste 11 232,000 ».</td><td>On l'ouvre pour agir, pas pour lire.</td></tr>
+    <tr><td><b>Recherche produit en direct</b></td><td>La maquette ne montrait qu'un champ vide : le vrai travail d'un sélecteur est dans ses états — rien tapé, une lettre, en cours, aucun résultat, déjà ajouté.</td><td>Cinq états dessinés, résultats sous le champ, correspondance en gras.</td></tr>
+    <tr><td><b>Récapitulatif téléphone</b></td><td>Le parcours n'avait pas de fin : compter la dernière ligne ne déclarait rien.</td><td>Un écran de plus, et le geste existe.</td></tr>
+    <tr><td><b>Les vrais jetons <span class="mono">--wh-*</span></b></td><td>La v2 inventait un gris bleuté et un vert plus vif. On ne juge pas un contraste sur des couleurs absentes du produit.</td><td>Ce qui est validé ici est ce qui s'affichera.</td></tr>
+    <tr><td><b>Zéro ombre au repos</b></td><td><span class="mono">docs/design-system.md</span> l'interdit ; la v2 en mettait sous chaque carte.</td><td>Seules les modales et les téléphones flottent.</td></tr>
+  </table>
+</div>
+
+<div class="note">
+  <h3>Inchangé, et volontairement</h3>
+  <p>Le modèle de données, les trois RPC, les quatre gestes et leurs rôles, « en route » sur Niveaux, les pastilles du Journal. <b>La v3 ne demande aucune migration et ne change aucune règle</b> — c'est une refonte de surface. Hors périmètre comme avant : pas de table fournisseurs, pas de bon de commande, pas de facture fournisseur, pas de couches FIFO.</p>
+</div>
+
+</div>
+</body>
+</html>

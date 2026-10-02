@@ -42,7 +42,24 @@ export async function GET(req: NextRequest) {
     .is("deleted_at", null);
 
   if (q) {
-    query = query.ilike("name", `%${q}%`);
+    /*
+     * LA RÉFÉRENCE EST CHERCHABLE, PARCE QU'ELLE EST AFFICHÉE.
+     *
+     * Le sélecteur de réception écrit « hm-01 » sous chaque produit, donc taper
+     * « hm-01 » est le geste naturel. Tant que la requête ne regardait que le
+     * NOM, ce geste ne renvoyait rien : montrer un identifiant qu'on ne peut pas
+     * chercher est un piège qu'on se tend à soi-même.
+     *
+     * La virgule et les parenthèses sont la SYNTAXE de `.or()` : une virgule
+     * dans la saisie y ajouterait une condition et ferait remonter des lignes
+     * qu'on n'a pas demandées. On les retire plutôt que de les échapper —
+     * aucune référence produit n'en contient, et un filtre silencieusement
+     * élargi est plus dangereux qu'une recherche qui ne trouve rien.
+     */
+    const safe = q.replace(/[(),]/g, " ").trim();
+    if (safe) {
+      query = query.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%`);
+    }
   }
 
   const { data, error } = await query.order("name");

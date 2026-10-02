@@ -62,6 +62,7 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
 
 const onPatch = vi.fn();
 const onClose = vi.fn();
+const onDeclare = vi.fn();
 
 function wrap(
   over: Partial<ProjectedReception> = {},
@@ -76,6 +77,7 @@ function wrap(
         edits={edits}
         onPatch={onPatch}
         onClose={onClose}
+        onDeclare={onDeclare}
       />
     </NextIntlClientProvider>,
   );
@@ -177,10 +179,17 @@ describe("ReceptionCountFlow — passer sans mentir", () => {
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
   });
 
-  it("ferme le comptage sur la dernière ligne", () => {
+  /*
+   * Ce test affirmait que la dernière ligne FERMAIT le comptage. C'était
+   * justement le défaut : l'agent comptait son dernier carton et se retrouvait
+   * sur la feuille sans avoir rien déclaré. Elle mène maintenant au
+   * récapitulatif, et c'est de là qu'on déclare.
+   */
+  it("mène au récapitulatif sur la dernière ligne, sans fermer", () => {
     wrap({ lines: [line()] });
     fireEvent.click(screen.getByRole("button", { name: /terminer la saisie/i }));
-    expect(onClose).toHaveBeenCalled();
+    expect(screen.getByText(/le comptage est terminé/i)).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 
@@ -191,6 +200,8 @@ describe("ReceptionCountFlow — passer sans mentir", () => {
 describe("ReceptionCountFlow — abîmé à l'arrivée", () => {
   it("saisit les abîmées séparément", () => {
     wrap();
+    // Le champ est derrière un geste depuis la v3 — l'avarie est l'exception.
+    fireEvent.click(screen.getByRole("button", { name: /signaler un article abîmé/i }));
     fireEvent.change(screen.getByLabelText(/abîmé à l'arrivée/i), { target: { value: "2" } });
     expect(onPatch).toHaveBeenCalledWith("l1", expect.objectContaining({ damaged_qty: 2 }));
   });
@@ -240,5 +251,126 @@ describe("ReceptionCountFlow — le stock actuel", () => {
   it("n'invente pas un stock quand il est inconnu", () => {
     wrap({ lines: [line({ product_stock: null })] });
     expect(screen.queryByText(/en stock/i)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * L'AVARIE EST UN GESTE, PAS UN CHAMP PERMANENT.
+ *
+ * Un encadré ambre présent sur chaque ligne réclame une avarie qui n'arrive
+ * presque jamais, et finit par ne plus rien signaler. Il reste à un geste.
+ */
+describe("ReceptionCountFlow — l'avarie est un geste", () => {
+  it("n'affiche pas le champ abîmé tant qu'il n'y a rien à signaler", () => {
+    wrap();
+    expect(screen.queryByLabelText(/abîmé à l'arrivée/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /signaler un article abîmé/i })).toBeInTheDocument();
+  });
+
+  it("l'ouvre au geste, et la saisie fonctionne", () => {
+    wrap();
+    fireEvent.click(screen.getByRole("button", { name: /signaler un article abîmé/i }));
+    const field = screen.getByLabelText(/abîmé à l'arrivée/i);
+    fireEvent.change(field, { target: { value: "2" } });
+    expect(onPatch).toHaveBeenCalledWith("l1", expect.objectContaining({ damaged_qty: 2 }));
+  });
+
+  /* Une ligne qui PORTE déjà une avarie montre son champ sans qu'on le demande. */
+  it("l'affiche d'emblée quand la ligne porte déjà une avarie", () => {
+    wrap({}, { l1: { received_qty: 94, damaged_qty: 2, unit_cost: null } });
+    expect(screen.getByLabelText(/abîmé à l'arrivée/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /signaler un article abîmé/i })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * LE RÉCAPITULATIF — la fin que le parcours n'avait pas.
+ *
+ * On faisait compter la dernière ligne à l'agent et on s'arrêtait : il n'existait
+ * aucun moment pour déclarer. L'écran montre ce qu'il va affirmer, y compris LA
+ * LIGNE QU'IL A SAUTÉE — une réception déclarée avec une ligne non comptée est un
+ * fait et non une erreur, mais il doit le savoir avant de signer.
+ */
+describe("ReceptionCountFlow — le récapitulatif", () => {
+  function toEnd() {
+    // deux lignes dans le gabarit : une avance suffit pour atteindre la dernière
+    fireEvent.click(screen.getByRole("button", { name: /^suivant$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /terminer la saisie/i }));
+  }
+
+  it("s'ouvre à la fin au lieu de fermer", () => {
+    wrap({}, { l1: { received_qty: 150, damaged_qty: 0, unit_cost: null } });
+    toEnd();
+    expect(screen.getByText(/le comptage est terminé/i)).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("totalise ce qui a été compté", () => {
+    wrap(
+      {},
+      {
+        l1: { received_qty: 94, damaged_qty: 2, unit_cost: null },
+        l2: { received_qty: 150, damaged_qty: 0, unit_cost: null },
+      },
+    );
+    toEnd();
+    expect(screen.getByText("244")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("montre la ligne sautée au lieu de la taire", () => {
+    wrap({}, { l1: { received_qty: 94, damaged_qty: 0, unit_cost: null } });
+    toEnd();
+    expect(screen.getByText(/non comptées/i)).toBeInTheDocument();
+    // La ligne non comptée porte un tiret, jamais un zéro.
+    const rows = screen.getAllByTestId("count-summary-row");
+    expect(rows[1]).toHaveTextContent("—");
+  });
+
+  it("propose de déclarer, et revient en arrière sans rien perdre", () => {
+    wrap({}, { l1: { received_qty: 150, damaged_qty: 0, unit_cost: null } });
+    toEnd();
+    expect(screen.getByRole("button", { name: /déclarer la réception/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^retour$/i }));
+    expect(screen.getByLabelText(/quantité reçue/i)).toBeInTheDocument();
+  });
+
+  it("remonte la demande de déclaration à la feuille", () => {
+    wrap({}, { l1: { received_qty: 150, damaged_qty: 0, unit_cost: null } });
+    toEnd();
+    fireEvent.click(screen.getByRole("button", { name: /déclarer la réception/i }));
+    expect(onDeclare).toHaveBeenCalled();
+  });
+});
+
+/**
+ * ON NE PROPOSE PAS DE DÉCLARER CE QUI EST DÉJÀ DÉCLARÉ.
+ *
+ * Le comptage s'ouvre aussi sur une réception DÉJÀ déclarée — un manager qui
+ * recompte avant de valider. Mais `POST …/submit` n'accepte qu'un brouillon :
+ * proposer « Déclarer » là aurait mené à un 409 sur le dernier écran du parcours,
+ * c'est-à-dire à un cul-de-sac au moment précis où l'agent croit avoir fini. Le
+ * bouton devient donc « Enregistrer les quantités », qui est le geste réel.
+ */
+describe("ReceptionCountFlow — le récapitulatif selon le statut", () => {
+  function toEnd() {
+    fireEvent.click(screen.getByRole("button", { name: /^suivant$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /terminer la saisie/i }));
+  }
+
+  it("propose de déclarer un brouillon", () => {
+    wrap({ status: "draft", can: { submit: true, post: false, reverse: false, pay: false, sendBack: false } });
+    toEnd();
+    expect(screen.getByRole("button", { name: /déclarer la réception/i })).toBeInTheDocument();
+  });
+
+  it("propose seulement d'enregistrer une réception déjà déclarée", () => {
+    wrap({
+      status: "submitted",
+      can: { submit: false, post: true, reverse: false, pay: true, sendBack: true },
+    });
+    toEnd();
+    expect(screen.queryByRole("button", { name: /déclarer la réception/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /enregistrer les quantités/i })).toBeInTheDocument();
   });
 });

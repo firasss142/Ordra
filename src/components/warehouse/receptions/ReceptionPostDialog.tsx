@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { X, AlertTriangle, ArrowRight } from "lucide-react";
+import { X, AlertTriangle, ArrowRight, Check } from "lucide-react";
 import type { ProjectedReception } from "@/lib/receptions/project";
 import { WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 
@@ -62,6 +62,22 @@ export function ReceptionPostDialog({
       l.cogs_next !== undefined &&
       (l.received_qty ?? 0) > 0,
   );
+
+  /*
+   * SEULS LES COÛTS QUI BOUGENT SONT LISTÉS.
+   *
+   * Afficher « 40,000 → 40,000 » est du bruit qui rend les vrais changements plus
+   * difficiles à voir — et c'est précisément cette boîte qui doit rendre la case
+   * à cocher honnête. Un coût inchangé reste un fait, mais il se COMPTE.
+   *
+   * Le seuil est celui de la base : `unit_cogs` est au millième, donc on compare
+   * à la demi-unité de ce grain pour qu'un aller-retour en flottant ne fabrique
+   * pas un changement de 0,0000001.
+   */
+  const moving = costLines.filter(
+    (l) => Math.abs((l.cogs_next as number) - (l.cogs_current ?? 0)) >= 0.0005,
+  );
+  const unchanged = costLines.length - moving.length;
 
   async function submit() {
     if (busy) return;
@@ -131,7 +147,12 @@ export function ReceptionPostDialog({
             </Cell>
           </div>
 
-          {costLines.length > 0 ? (
+          {/*
+           * Si AUCUN coût ne bouge, la case n'a pas d'objet : la montrer
+           * proposerait une décision sans conséquence, et la décocher par prudence
+           * n'aurait rien évité.
+           */}
+          {moving.length > 0 ? (
             <>
               <div className="mt-4 overflow-hidden rounded-[8px] border border-wh-border">
                 <label className="flex cursor-pointer items-start gap-3 border-b border-wh-border bg-wh-sunken px-3.5 py-3">
@@ -144,15 +165,14 @@ export function ReceptionPostDialog({
                   <span>
                     <span className="block text-[13.5px] font-semibold">{t("adoptCosts")}</span>
                     <span className="mt-0.5 block text-[12px] text-wh-ink-2">
-                      {t("adoptCostsHint")}
+                      {t("adoptCostsCount", { count: moving.length })}
                     </span>
                   </span>
                 </label>
 
-                {costLines.map((l) => {
+                {moving.map((l) => {
                   const before = l.cogs_current ?? 0;
                   const after = l.cogs_next as number;
-                  const moves = Math.abs(after - before) >= 0.0005;
                   return (
                     <div
                       key={l.id}
@@ -161,23 +181,16 @@ export function ReceptionPostDialog({
                       <span className="truncate text-[13px] font-medium" dir="auto">
                         {l.product_name}
                       </span>
-                      <span
-                        className={`text-end font-mono text-[13px] tabular-nums text-wh-ink-3 ${
-                          moves ? "line-through" : ""
-                        }`}
-                      >
+                      {/* Barré, parce qu'il est réellement remplacé. */}
+                      <span className="text-end font-mono text-[13px] tabular-nums text-wh-ink-3 line-through">
                         {cf.format(before)}
                       </span>
                       <span className="grid place-items-center text-wh-ink-3">
                         <ArrowRight size={13} className="rtl:-scale-x-100" />
                       </span>
                       <span
-                        className={`text-end font-mono text-[13.5px] tabular-nums ${
-                          !moves
-                            ? "font-medium text-wh-ink-3"
-                            : after > before
-                              ? "font-bold text-wh-bad"
-                              : "font-bold text-wh-ok"
+                        className={`text-end font-mono text-[13.5px] font-bold tabular-nums ${
+                          after > before ? "text-wh-bad" : "text-wh-ok"
                         }`}
                       >
                         {cf.format(after)}
@@ -185,6 +198,14 @@ export function ReceptionPostDialog({
                     </div>
                   );
                 })}
+
+                {/* Les inchangés se comptent ; ils n'ont pas besoin d'une ligne. */}
+                {unchanged > 0 ? (
+                  <p className="flex items-center gap-2 border-t border-wh-border px-3.5 py-2.5 text-[12.5px] text-wh-ink-3">
+                    <Check size={14} strokeWidth={2} className="flex-none" />
+                    {t("costsUnchangedCount", { count: unchanged })}
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-3.5 flex gap-2.5 rounded-[8px] border border-wh-warn-edge bg-wh-warn-bg px-3.5 py-3">

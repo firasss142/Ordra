@@ -384,8 +384,14 @@ describe("ReceptionSheet — enregistrer un paiement", () => {
     return wrap();
   }
 
+  /** Le bloc est replié : on l'ouvre pour agir. */
+  function openPayments() {
+    fireEvent.click(screen.getByRole("button", { name: /^paiement/i }));
+  }
+
   it("envoie la date et le motif saisis", async () => {
     withValue();
+    openPayments();
     fireEvent.click(screen.getByRole("button", { name: /enregistrer un paiement/i }));
     fireEvent.change(screen.getByLabelText(/montant/i), { target: { value: "2400" } });
     fireEvent.change(screen.getByLabelText(/^date$/i), { target: { value: "2026-09-24" } });
@@ -407,6 +413,7 @@ describe("ReceptionSheet — enregistrer un paiement", () => {
      ne pas lui faire écrire une ligne pour rien. */
   it("n'envoie rien sans montant valide", async () => {
     withValue();
+    openPayments();
     fireEvent.click(screen.getByRole("button", { name: /enregistrer un paiement/i }));
     fireEvent.change(screen.getByLabelText(/montant/i), { target: { value: "abc" } });
     fireEvent.click(screen.getByRole("button", { name: /^enregistrer$/i }));
@@ -438,5 +445,116 @@ describe("ReceptionSheet — une seule action primaire", () => {
     });
     wrap("warehouse_agent");
     expect(screen.getByRole("button", { name: /déclarer la réception/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * LA FEUILLE DE LA v3 — un seul bandeau d'en-tête, et l'avarie silencieuse.
+ */
+describe("ReceptionSheet — la densité de la v3", () => {
+  it("met les faits d'en-tête sur une ligne, sans libellés empilés", () => {
+    mockUseReception.mockReturnValue({
+      reception: reception({ status: "submitted", submitted_by_name: "Adel Ben Salah" }),
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    });
+    wrap();
+    // Les cinq faits sont la LÉGENDE du document : ils restent lisibles…
+    expect(screen.getByText("Tripoli")).toBeInTheDocument();
+    expect(screen.getByText("Adel Ben Salah")).toBeInTheDocument();
+    // …mais « Bâtiment » n'est plus un libellé en capitales au-dessus d'une valeur.
+    expect(screen.queryByText(/^Bâtiment$/)).not.toBeInTheDocument();
+  });
+
+  /*
+   * La progression était un bandeau vert pleine largeur, troisième bande
+   * horizontale avant la première quantité. Elle reste lisible en mots, mais
+   * c'est un filet de 3 px qui la dessine.
+   */
+  it("garde la progression en mots mais sans bandeau", () => {
+    wrap();
+    expect(screen.getByText(/saisie 0 \/ 1/i)).toBeInTheDocument();
+    expect(screen.getByTestId("reception-progress-rail")).toBeInTheDocument();
+  });
+
+  /*
+   * ABÎMÉ EST SILENCIEUX TANT QU'IL N'EXISTE PAS. Un encadré ambre sur chaque
+   * ligne réclame une avarie qui n'arrive presque jamais, et finit par ne plus
+   * rien signaler. Zéro reste saisissable — mais discret.
+   */
+  it("n'habille pas en ambre une ligne sans avarie", () => {
+    wrap();
+    const field = screen.getByLabelText(/abîmé/i);
+    expect(field.className).not.toMatch(/bg-wh-warn-bg/);
+  });
+
+  it("passe en ambre dès qu'une avarie existe", () => {
+    mockUseReception.mockReturnValue({
+      reception: reception({
+        lines: [{ ...reception().lines[0], received_qty: 94, damaged_qty: 2 }],
+      }),
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    });
+    wrap();
+    expect(screen.getByLabelText(/abîmé/i).className).toMatch(/bg-wh-warn-bg/);
+  });
+
+  /* « Valeur reçue » est le chiffre qu'un manager cherche : il domine le pied. */
+  it("donne le premier rang à la valeur reçue", () => {
+    mockUseReception.mockReturnValue({
+      reception: reception({
+        status: "submitted",
+        totals: { units: 312, damaged: 2, value: 18720, lines: 1, expected: 150, countedLines: 1 },
+      }),
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    });
+    wrap();
+    const lead = screen.getByTestId("reception-total-value");
+    expect(lead).toHaveTextContent(/18\s*720/);
+    expect(lead.className).toMatch(/text-\[25px\]/);
+  });
+});
+
+/**
+ * LE BLOC PAIEMENT EST REPLIÉ. Son titre porte déjà le fait entier — « acompte
+ * 40 % · reste 11 232,000 » — donc on l'ouvre pour AGIR, pas pour lire.
+ */
+describe("ReceptionSheet — le paiement replié", () => {
+  function paid() {
+    mockUseReception.mockReturnValue({
+      reception: reception({
+        status: "posted",
+        totals: { units: 150, damaged: 0, value: 18720, lines: 1, expected: 150, countedLines: 1 },
+        payments: [
+          { id: "pay1", paid_at: "2026-09-24", amount: 7488, method: "bank_transfer", note: null },
+        ],
+        paid_total: 7488,
+        outstanding: 11232,
+        payment_state: "partial",
+        can: { submit: false, post: false, reverse: false, pay: true, sendBack: false },
+      }),
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    });
+    return wrap();
+  }
+
+  it("résume l'état sans être ouvert", () => {
+    paid();
+    expect(screen.getByText(/acompte 40 %/)).toBeInTheDocument();
+    // Le versement lui-même n'est pas rendu tant qu'on n'a pas ouvert.
+    expect(screen.queryByText(/virement bancaire/i)).not.toBeInTheDocument();
+  });
+
+  it("s'ouvre au clic et montre les versements", () => {
+    paid();
+    fireEvent.click(screen.getByRole("button", { name: /paiement/i }));
+    expect(screen.getByText(/virement bancaire/i)).toBeInTheDocument();
   });
 });

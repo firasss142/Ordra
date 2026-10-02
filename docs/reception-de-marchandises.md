@@ -187,6 +187,57 @@ un mensonge. C'est le geste de celui qui VALIDE : si l'agent pouvait rouvrir sa 
 déclaration, il corrigerait et redéclarerait sans qu'aucun manager ne voie passer la
 version intermédiaire.
 
+### La surface v3 (2 octobre 2026) — ce qui a été RETIRÉ
+
+`prototypes/reception-marchandises-v3.html` est la référence de l'écran, et le
+code en est la copie. La v3 est presque entièrement soustractive :
+
+| Retiré | Pourquoi |
+|---|---|
+| Le fond teinté des lignes | Une ligne en retard portait un fond + un liseré + une puce + une étiquette + une puce de paiement : **cinq voix pour un fait**. Le liseré de 3 px se lit en balayant la colonne sans lire un mot. |
+| La puce « sans objet » | Un libellé dont tout le contenu est « cette colonne ne me concerne pas ». Même règle que `null` plutôt que `0`. La clé `payNotApplicable` a été supprimée. |
+| Trois colonnes sur huit | Le bâtiment rejoint la référence ; statut et paiement partagent « État », parce qu'on les lit d'un même regard. |
+| Deux bandeaux sur trois | Les cinq faits libellé/valeur de l'en-tête sont la **légende** du document : une ligne grise suffit. La progression est un filet de 3 px. |
+| L'encadré ambre sur chaque ligne | L'avarie est l'exception. Le réclamer partout finit par ne plus rien signaler : zéro est du texte gris au bureau, et un **geste** sur le téléphone. |
+| Les coûts qui ne bougent pas | « 40,000 → 40,000 » deux fois cachait les deux vrais changements. Ils se **comptent** en une ligne. Et si aucun ne bouge, la case à cocher disparaît : proposer une décision sans conséquence n'est pas une précaution. |
+| Le bloc paiement ouvert | Son titre porte déjà le fait entier — « acompte 40 % · reste 11 232,000 LYD ». On l'ouvre pour **agir**. |
+
+Ajouté, en revanche : **le récapitulatif du téléphone**. Le parcours faisait
+compter la dernière ligne et s'arrêtait — il n'existait aucun moment pour
+déclarer. L'écran montre ce que l'agent va affirmer, **y compris la ligne qu'il a
+sautée**, en gris : une réception déclarée avec une ligne non comptée est un fait
+et non une erreur, mais il doit le savoir avant de signer. « Enregistrer d'abord,
+déclarer ensuite » y vaut comme ailleurs.
+
+### La recherche de produit
+
+Le sélecteur de création cherche en direct, à partir de **deux** caractères.
+
+- **Le panneau s'ouvre DANS le sélecteur**, pas par-dessus : il faut voir les
+  lignes déjà posées en même temps que les résultats, sinon on ajoute deux fois le
+  même produit — et l'index unique `(reception, produit, variante)` le refuserait
+  à l'enregistrement, loin du geste.
+- **Un produit déjà posé reste visible et dit pourquoi.** Il était retiré
+  silencieusement de la liste : on tapait son nom, rien n'apparaissait, et on en
+  concluait qu'il n'existait pas. Une absence inexpliquée est pire qu'une ligne
+  barrée.
+- **La référence est cherchable.** `/api/products/search` ne faisait un `ilike`
+  que sur le *nom* alors que le panneau affiche le SKU sous chaque produit :
+  taper `hm-01` était le geste naturel et ne renvoyait rien. Le filtre est
+  maintenant un `.or(name.ilike, sku.ilike)`, et la virgule comme les parenthèses
+  — la **syntaxe** de `.or()` — sont retirées de la saisie, parce qu'une virgule
+  y ajouterait une condition et élargirait le filtre en silence.
+- **La correspondance est en gras, pas surlignée en couleur** : dans cette
+  section la couleur fonctionnelle appartient aux statuts.
+- `↑` `↓` pour choisir, `↵` pour ajouter, `esc` pour fermer **la liste** et non la
+  modale, et le champ se vide après chaque ajout pour enchaîner dix lignes sans
+  lâcher le clavier.
+
+**Ce qui n'est toujours pas possible : choisir la variante.** Le grain du stock
+est `(produit, variante, bâtiment)` et `reception_lines.variant_id` existe, mais
+le sélecteur envoie toujours `NULL` — recevoir 50 M et 50 L se déclare comme 100
+« produit nu », qui entrera dans le **non ventilé**. À décider séparément.
+
 ### Le mot derrière le chiffre
 
 La liste n'affiche jamais un nombre nu, parce que `totals.units` somme le REÇU : sur une

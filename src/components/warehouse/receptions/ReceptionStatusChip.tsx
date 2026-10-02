@@ -69,6 +69,13 @@ export function PaymentChip({
 }) {
   const t = useTranslations("warehouse.receptions");
   if (!state) return null;
+  /*
+   * « sans objet » est un libellé dont tout le contenu est « cette colonne ne me
+   * concerne pas ». Une réception attendue n'a pas de valeur reçue, donc pas de
+   * dette : il n'y a rien à dire, et on ne remplit pas une case pour qu'elle ne
+   * soit pas vide. Même règle que `null` plutôt que `0`.
+   */
+  if (state === "not_applicable") return null;
 
   const tone =
     state === "paid"
@@ -86,9 +93,7 @@ export function PaymentChip({
         ? percent !== null && percent !== undefined
           ? t("payPartialPercent", { percent })
           : t("payPartial")
-        : state === "unpaid"
-          ? t("payUnpaid")
-          : t("payNotApplicable");
+        : t("payUnpaid");
 
   return (
     <span

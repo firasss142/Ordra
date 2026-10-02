@@ -412,3 +412,70 @@ describe("ReceptionsConsole — les deux vides", () => {
     expect(screen.getByText(/une livraison fournisseur commence ici/i)).toBeInTheDocument();
   });
 });
+
+/**
+ * LA LISTE DE LA v3 — cinq colonnes, et UN SEUL signal de couleur par ligne.
+ */
+describe("ReceptionsConsole — la densité de la v3", () => {
+  it("n'a plus de colonne « Bâtiment » : le site rejoint la référence", () => {
+    wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
+    // L'en-tête ne porte plus le libellé…
+    expect(screen.queryByText(/^Bâtiment$/)).not.toBeInTheDocument();
+    // …mais le bâtiment reste lisible sur la ligne.
+    expect(screen.getByRole("button", { name: /REC-LY-2026-0042/ })).toHaveTextContent("Tripoli");
+  });
+
+  /*
+   * Une ligne en retard portait un fond rouge ET un liseré rouge ET une puce
+   * ambre ET une étiquette rouge. Le liseré suffit : il se lit en balayant la
+   * colonne sans lire un mot. Un fond teinté en plus ne dit rien de neuf et
+   * entre en concurrence avec les puces, qui portent la vraie nuance.
+   */
+  it("ne teinte plus le fond de la ligne — le liseré porte le signal seul", () => {
+    mockUseReceptions.mockReturnValue({
+      receptions: [reception({ is_late: true, days_late: 4, status: "draft" })],
+      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 1 },
+      currency: "LYD",
+      unassigned: false,
+      isLoading: false,
+      error: undefined,
+      mutate: vi.fn(),
+    });
+    wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
+    const row = screen.getByRole("button", { name: /REC-LY-2026-0042/ });
+    expect(row.className).toMatch(/border-s-wh-bad/);
+    expect(row.className).not.toMatch(/bg-wh-bad-bg/);
+  });
+
+  /*
+   * « sans objet » est un libellé dont le seul contenu est « cette colonne ne me
+   * concerne pas ». Même règle que `null` plutôt que `0` : on ne remplit pas une
+   * case pour qu'elle ne soit pas vide.
+   */
+  it("ne met aucune puce de paiement là où le paiement n'a pas de sens", () => {
+    mockUseReceptions.mockReturnValue({
+      receptions: [
+        reception({
+          status: "draft",
+          payment_state: "not_applicable",
+          outstanding: null,
+          paid_total: 0,
+          totals: { units: 0, damaged: 0, value: null, lines: 2, expected: 300, countedLines: 0 },
+        }),
+      ],
+      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      currency: "LYD",
+      unassigned: false,
+      isLoading: false,
+      error: undefined,
+      mutate: vi.fn(),
+    });
+    wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
+    expect(screen.queryByText(/sans objet/i)).not.toBeInTheDocument();
+  });
+
+  it("garde la puce quand elle dit quelque chose", () => {
+    wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
+    expect(screen.getByText(/acompte 40 %/)).toBeInTheDocument();
+  });
+});
