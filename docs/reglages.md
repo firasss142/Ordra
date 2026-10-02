@@ -59,7 +59,14 @@ Old routes redirect to their topic:
     `{ type }` / `{ amount }` wrappers. This stops « manual → manual » history rows.
   - A market_manager may only change the keys in `MANAGER_EDITABLE_SETTING_KEYS`. Anything
     else returns 403 `setting_super_admin_only`, or `whatsapp_settings_super_admin_only` for
-    WhatsApp keys. RLS cannot restrict keys.
+    WhatsApp keys.
+  - The database holds the same list. Before `20261002150000_settings_manager_daily_rules.sql`
+    the only write policy on `settings` was super_admin, so every manager save was a 500, in
+    production too. Two policies now let a manager INSERT and UPDATE rows of their own market
+    whose key is in the list, and nothing else (no DELETE, no moving a row to the other market,
+    no renaming it into another key). A Vitest test in `src/lib/reglages/topics.test.ts` reads
+    the migration and fails if its three lists and `MANAGER_EDITABLE_SETTING_KEYS` drift apart.
+    `supabase/tests/settings_manager_write_test.sql` proves it under a real JWT.
 - **Read-only is shown as values**, with « Modifiable par un administrateur », never as
   disabled inputs.
 - **Help text restates the value** and updates while typing (« Au 8ᵉ appel sans réponse… »).

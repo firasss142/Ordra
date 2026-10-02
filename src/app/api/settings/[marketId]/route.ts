@@ -116,7 +116,8 @@ export async function PATCH(
 
   // A market manager runs the day-to-day rules of their own market; money,
   // stock planning and WhatsApp automation are the administrator's
-  // (plans/reglages-redesign.md). RLS cannot restrict keys, so this does.
+  // (plans/reglages-redesign.md). RLS holds the same list
+  // (20261002150000_settings_manager_daily_rules.sql); this gives the readable 403.
   if (role !== "super_admin") {
     const refused = changed.filter((k) => !MANAGER_EDITABLE_SETTING_KEYS.has(k));
     if (refused.length > 0) {

@@ -175,8 +175,10 @@ Settings-local kit in `src/components/settings/kit/`: `SettingsShell` (menu + he
 ## Data / API changes (small, deliberate)
 
 - `PATCH /api/settings/[marketId]`: accept a partial object (changed keys only); for
-  `market_manager` allow only the day-to-day key list (server-side whitelist — RLS can't restrict
-  keys; see [[users-rls-column-blind-escalation]]).
+  `market_manager` allow only the day-to-day key list. The route whitelist gives a readable 403;
+  RLS holds the same list, because a key here is a ROW, not a column. Found during the browser
+  pass: `settings` had no manager write policy at all, so a manager save was a 500 — migration
+  `20261002150000_settings_manager_daily_rules.sql`.
 - `PATCH /api/markets/[id]`: accept `sender_name`, `sender_address`, `sender_phone`.
 - `GET /api/admin/warehouse-sites`: allow market_manager on own market (read).
 - Carrier create: reuse `POST /api/carriers` + `GET /api/carriers/adapters`.

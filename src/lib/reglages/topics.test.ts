@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   TOPIC_IDS,
   topicsFor,
@@ -122,5 +124,21 @@ describe("Réglages topics", () => {
         "delivery_done_window_hours",
       ].sort(),
     );
+  });
+
+  it("lets the database accept exactly the same keys from a manager, in each of its three lists", () => {
+    // The route's whitelist gives a readable 403; the RLS policy is what holds
+    // against a direct PostgREST call. If one list grows without the other, a
+    // manager either gets a 500 on a field the page offers, or can write
+    // through PostgREST what the page refuses.
+    const sql = readFileSync(
+      join(__dirname, "../../../supabase/migrations/20261002150000_settings_manager_daily_rules.sql"),
+      "utf8",
+    ).replace(/--.*$/gm, "");
+    const lists = [...sql.matchAll(/key = ANY \(ARRAY\[([^\]]*)\]\)/g)].map((m) =>
+      [...m[1].matchAll(/'([a-z_]+)'/g)].map((k) => k[1]).sort(),
+    );
+    expect(lists).toHaveLength(3);
+    for (const keys of lists) expect(keys).toEqual([...MANAGER_EDITABLE_SETTING_KEYS].sort());
   });
 });
