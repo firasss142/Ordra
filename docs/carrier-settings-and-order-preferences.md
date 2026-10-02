@@ -7,15 +7,15 @@ Livré le 2026-09-16. Plan : `plans/carrier-and-order-preferences-settings.md`.
 
 ---
 
-## 1. Un seul écran : Système → Connexions → Transporteurs
+## 1. Un seul écran : Réglages › Livraison (depuis 2026-10-02, voir docs/reglages.md)
 
 Il y avait **deux** surfaces super_admin pour les transporteurs, chacune avec son
 propre interrupteur actif/inactif :
 
 | Écran | Composant | Sort |
 |---|---|---|
-| Système → Connexions → Transporteurs | `components/connections/CarriersPanel.tsx` | **Gagne** — tout est là |
-| Paramètres → Transporteurs | `components/settings/CarriersSection.tsx` | Route repliée en redirection |
+| Réglages › Livraison | `components/reglages/topics/DeliveryTopic.tsx` + `delivery/CarrierDrawer.tsx` | **Gagne** — tout est là (2026-10-02) |
+| Ancien Paramètres → Transporteurs | `components/settings/CarriersSection.tsx` (supprimé) | Route repliée en redirection |
 
 `/[locale]/settings/carriers` **redirige** désormais vers
 `/[locale]/system/connections?tab=carriers`. La route est conservée plutôt que
