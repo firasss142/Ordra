@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { useMarketScope } from "@/context/market-scope";
@@ -58,7 +58,6 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
   const t = useTranslations("feedback.manager");
   const tf = useTranslations("feedback");
   const activeLocale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const scope = useMarketScope();
@@ -69,7 +68,7 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const { overview, error, mutate: mutateOverview } = useFeedbackOverview(
+  const { overview, error, stale, mutate: mutateOverview } = useFeedbackOverview(
     { from: s.from, to: s.to, family: s.prod, agent: s.agent, cat: s.cat }, marketParam, Boolean(market),
   );
   const mode = s.review ? "review" : s.late ? "late" : "period";
@@ -93,10 +92,13 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
       if (next.review) q.set("review", "1");
       if (next.late) q.set("late", "1");
       const qs = q.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+      // Not router.replace: this page is force-dynamic, so a router navigation re-renders it on
+      // the server and the dashboard's loading skeleton flashes in between. The filters live in
+      // state; the URL only has to follow (as on the orders page).
+      window.history.replaceState(window.history.state, "", `${pathname}${qs ? `?${qs}` : ""}`);
       return next;
     });
-  }, [router, pathname, overview]);
+  }, [pathname, overview]);
 
   const refresh = useCallback(() => { void mutateOverview(); void mutateRows(); }, [mutateOverview, mutateRows]);
 
@@ -172,7 +174,9 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
       {overview && <ProductPills overview={overview} value={s.prod} onChange={(prod) => set({ prod, topic: null })} />}
 
       {!s.review && overview && (
-        <>
+        // The previous numbers stay while the next filter's load, dimmed, instead of vanishing.
+        <div data-testid="overview-blocks" aria-busy={stale}
+          className={`transition-opacity duration-150 ${stale ? "opacity-60" : ""}`}>
           <AlertStrip
             late={overview.complaints.late} review={overview.review}
             onLate={() => set({ late: true, cat: null, topic: null, review: false })}
@@ -190,7 +194,7 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
             />
             <AgentsBox overview={overview} value={s.agent} onPick={(id) => set({ agent: s.agent === id ? null : id })} />
           </div>
-        </>
+        </div>
       )}
 
       <FilterChips chips={chips} onClear={() => set({ cat: null, topic: null, agent: null, late: false })} />

@@ -6,7 +6,12 @@ import type { FeedbackOverviewResponse, FeedbackSheetRow } from "@/types/feedbac
 
 // ── router / URL ─────────────────────────────────────────────────────────────
 let search = new URLSearchParams();
-const replace = vi.fn((url: string) => { search = new URLSearchParams(url.split("?")[1] ?? ""); });
+// A filter must never go through the router: on this force-dynamic page a router.replace is a
+// server round trip, and the dashboard's loading skeleton flashes in between.
+const replace = vi.fn();
+const historyReplace = vi.spyOn(window.history, "replaceState").mockImplementation((_s, _t, url) => {
+  search = new URLSearchParams(String(url ?? "").split("?")[1] ?? "");
+});
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
   useSearchParams: () => search,
@@ -58,11 +63,12 @@ const COMPLAINT = ROW("c1", {
 });
 
 let rowsQuery: Record<string, unknown> = {};
+let overviewStale = false;
 let overviewQuery: Record<string, unknown> = {};
 const reviewFeedback = vi.fn();
 const setComplaintStatus = vi.fn();
 vi.mock("@/hooks/useFeedback", () => ({
-  useFeedbackOverview: (q: Record<string, unknown>) => { overviewQuery = q; return { overview: OVERVIEW, error: null, mutate: vi.fn() }; },
+  useFeedbackOverview: (q: Record<string, unknown>) => { overviewQuery = q; return { overview: OVERVIEW, error: null, stale: overviewStale, mutate: vi.fn() }; },
   useFeedbackRows: (q: Record<string, unknown>) => {
     rowsQuery = q;
     const rows = q.mode === "review" ? [ROW("r1", { needs_review: true, source: "courier", author: null })] : [ROW("a"), COMPLAINT];
@@ -87,6 +93,8 @@ function mount() {
 beforeEach(() => {
   search = new URLSearchParams();
   replace.mockClear();
+  historyReplace.mockClear();
+  overviewStale = false;
   reviewFeedback.mockReset().mockResolvedValue({ count: 1 });
   setComplaintStatus.mockReset().mockResolvedValue({ id: "c1" });
 });
@@ -212,5 +220,25 @@ describe("FeedbackWorkspace — the sheet", () => {
     expect(reviewFeedback).toHaveBeenCalledWith("keep", ["r1"]);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Ignorer" })); });
     expect(reviewFeedback).toHaveBeenCalledWith("ignore", ["r1"]);
+  });
+});
+
+describe("FeedbackWorkspace — switching products stays on the page", () => {
+  it("a product pill updates the URL in place, without a router navigation", () => {
+    mount();
+    const tabs = within(screen.getByRole("tablist", { name: "Produits" })).getAllByRole("tab");
+    fireEvent.click(tabs[2]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(historyReplace).toHaveBeenCalled();
+    expect(search.get("prod")).toBe("bag");
+    expect(tabs[2]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("while the next product's numbers load, the current ones stay on screen, marked busy", () => {
+    overviewStale = true;
+    mount();
+    const numbers = screen.getByTestId("overview-blocks");
+    expect(numbers).toHaveAttribute("aria-busy", "true");
+    expect(within(numbers).getByRole("button", { name: /Objections/ })).toHaveTextContent("50");
   });
 });

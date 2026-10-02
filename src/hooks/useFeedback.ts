@@ -82,8 +82,12 @@ const qs = (o: Record<string, string | number | null | undefined>) =>
 
 export function useFeedbackOverview(q: OverviewQuery, market: string | null | undefined, enabled = true) {
   const key = enabled ? withMarket(`/api/feedback/overview?${qs({ ...q })}`, market) : null;
-  const { data, error, isLoading, mutate } = useSWR<{ data: FeedbackOverviewResponse }>(key, fetcher, FRESH);
-  return { overview: data?.data ?? null, error, isLoading, mutate };
+  // Switching a product or the period keeps the numbers on screen while the next ones load —
+  // `stale` says they belong to the previous filter, so the page can dim them.
+  const { data, error, isLoading, mutate } = useSWR<{ data: FeedbackOverviewResponse }>(key, fetcher, {
+    keepPreviousData: true,
+  });
+  return { overview: data?.data ?? null, error, isLoading, stale: isLoading && Boolean(data), mutate };
 }
 
 export interface RowsQuery extends OverviewQuery {
