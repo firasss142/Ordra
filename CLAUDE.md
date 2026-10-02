@@ -167,9 +167,11 @@ and the unallocated remainder), because per-variant checks alone let two lines o
 each pass and the total go negative.
 inventory_log.reason is CHECK-constrained; order_history and inventory_log are append-only BY TRIGGER.
 `record_stock_count` and `adjust_product_stock` take `p_variant_id` (DEFAULT NULL, so every
-pre-existing caller is unchanged). A count of a SITE poses the site's value and moves the
-variant and the product by the DELTA — it never poses the variant's total, which would erase
-the other buildings' stock. Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
+pre-existing caller is unchanged). A count of a SITE poses the site's value; what it adds comes
+FIRST out of the uncounted pool (non ventilé), so the total only rises by the excess, a drop is a
+loss, and once every active building has counted, the level equals the sum of the buildings
+(20261002190000 — before it, a first count added the whole count and doubled the stock). It never
+poses the variant's total, which would erase the other buildings' stock. Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
 
 ## Terminal statuses: delivered, returned, rejected, cancelled, deleted
 ## Fulfillment statuses set by: system (carrier webhook/polling) or manager (manual update)
@@ -204,14 +206,15 @@ Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Navigation (as coded in components/layout/Sidebar.tsx → NAV_SECTIONS)
 Accueil → Dashboard · Commandes → Commandes, Archivées · Entrepôt (id `logistique`) →
-Banc, Retours, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
+Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
 (canViewFinances) → P&L global, Produits & marges, Stock & inventaire, Dépenses pub,
 Investisseurs · Clients → Prospects, Relances · Équipe → Salle de contrôle, Performance,
 Accès · Système → Réglages (super_admin + market_manager; one page by topic, see
 docs/reglages.md), Journaux (super_admin, /system/logs).
 
 Several live pages are NOT reachable from the sidebar and are reached by URL or deep
-link only: /warehouse/preparation, /warehouse/scan, /warehouse/dispatch,
+link only: /warehouse/preparation (→ /warehouse/out), /warehouse/scan, /warehouse/count,
+/warehouse/stock/[productId], /warehouse/dispatch,
 /warehouse/history, /warehouse/settings, /dashboard/alerts, /assign, /unassigned,
 /confirmation-flow, /profile, /settings/integrations, /settings/statuses. Removing a nav
 entry has not meant deleting its page — check before assuming a route is dead.
@@ -229,6 +232,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
 ## References (load on demand — do NOT @-include these)
 - Réglages + Journaux — the Système area rebuilt 2026-10-02 (topics, who edits what, the
   save bar, the 24 hidden settings, server pieces): docs/reglages.md + plans/reglages-redesign.md
+- Entrepôt « day loop » — Aujourd'hui (the four jobs: Sortir, Rentrer, Recevoir, Compter),
+  the job hues (green family), the count run, and the first-count pool rule:
+  plans/entrepot-day-loop-redesign.md
 - Full Ordra specification: docs/oms-spec.md (aspirational — where it disagrees with
   docs/database-schema.md, the schema doc is closer, and the live DB is closest)
 - Database schema reference (READ FROM THE LIVE DB, 73 tables): docs/database-schema.md

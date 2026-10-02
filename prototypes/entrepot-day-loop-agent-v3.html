@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--
+  Prototype — Entrepôt « day loop », AGENT (téléphone). v3, 2026-10-02 = la v1 + une couleur par métier.
+  (v2 refusée par le propriétaire : on revient à la v1, « juste un peu plus colorée ».)
+  Plan : plans/entrepot-day-loop-redesign.md. Pendant desk : entrepot-day-loop-manager-v1.html.
+
+  Presets : ?lang=ar|fr  ?screen=today|out|run|bound|free|wrongsite|returns|verdict|stock|product|count|settings
+  Données : produits, stocks, villes, volumes et bâtiments RÉELS (prod, lus le 2026-10-02, Benghazi / adel).
+  Prénoms des clients FICTIFS — pas de données personnelles dans git. Couleurs de rouleau déduites de la ville
+  (la table darb_shipments n'a pas encore la branche pour ces colis).
+  Jetons : copiés de src/app/globals.css (Ordra), PAS de --wh-* / --wm-*.
+-->
+<title>Entrepôt Day Loop Agent v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Ordra tokens (src/app/globals.css) ─────────────────────────────────── */
+:root{
+  --bg:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F7; --selected:#F2F2F2; --sunken:#FAFAFB;
+  --ink:#1A1A1A; --ink2:#6D7175; --ink3:#9CA3AF;
+  --line:#ECEEF0; --line2:#E1E3E5; --line3:#C9CCCF;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+  --action:#2C6ECB; --action-bg:#EEF4FC;
+  --success:#008060; --success-bg:#F1F8F5;
+  --warning:#B98900; --warning-bg:#FFF8E6; --warning-ink:#7A5B00; /* -ink partner, §4.21 rule; added in Phase 1 */
+  --critical:#D72C0D; --critical-bg:#FFF4F4;
+  --shadow-floating:0 8px 24px rgba(16,24,40,.10);
+  --r-sm:8px; --r:12px; --r-lg:16px; --pill:9999px;
+  --fast:120ms; --base:160ms;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --studio:#E9EAEC; --studio-ink:#24272B;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--studio);color:var(--ink);font:14px/1.5 Inter,"Noto Sans Arabic",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;text-align:inherit;padding:0}
+input{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+
+/* ── studio (always LTR) ────────────────────────────────────────────────── */
+.studio{min-height:100vh;display:grid;grid-template-columns:1fr;justify-items:center}
+.notes{display:none}
+@media (min-width:960px){
+  .studio{grid-template-columns:340px auto;justify-content:center;align-items:start;gap:48px;padding:32px 40px}
+  .notes{display:block;position:sticky;top:28px;direction:ltr;color:var(--studio-ink);font-size:13px;max-width:340px}
+  .notes h1{font-size:17px;font-weight:700;margin-bottom:4px}
+  .notes .sub{color:#5B6067;margin-bottom:16px}
+  .notes .row{display:flex;gap:6px;margin-bottom:12px}
+  .notes .row button{padding:5px 10px;border:1px solid #C9CCCF;border-radius:6px;background:#F7F7F8;font-size:12.5px;font-weight:600}
+  .notes .row button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .notes .pick{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:16px}
+  .notes .pick button{padding:7px 10px;border:1px solid #D5D7DA;border-radius:7px;background:#F7F7F8;font-size:12.5px}
+  .notes .pick button[aria-current=true]{border-color:var(--brand);background:var(--brand-tint);color:var(--brand-hover);font-weight:600}
+  .notes .why{background:#fff;border:1px solid #D5D7DA;border-radius:10px;padding:14px 16px}
+  .notes .why h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6D7175;margin-bottom:6px}
+  .notes .why p{margin-bottom:8px}
+  .notes .why p:last-child{margin-bottom:0}
+  .notes code{font-family:var(--mono);font-size:11.5px;background:#F2F2F3;padding:1px 4px;border-radius:4px}
+  .phone{width:390px;height:844px;border:10px solid #16181B;border-radius:46px;overflow:hidden;position:relative;background:var(--bg)}
+}
+@media (max-width:959px){.phone{width:100%;min-height:100vh;position:relative;background:var(--bg)}}
+
+/* ── the stage (mirrors for Arabic) ─────────────────────────────────────── */
+.phone[dir=rtl]{font-family:Cairo,"Noto Sans Arabic",system-ui,sans-serif}
+.phone{text-align:start}
+.screen{position:absolute;inset:0;overflow-y:auto;padding:18px 16px 120px;scrollbar-width:none;display:none}
+.screen::-webkit-scrollbar{display:none}
+.screen.on{display:block;animation:enter var(--base) ease-out}
+.screen.full{padding-bottom:24px}
+@media (max-width:959px){.screen{position:static;min-height:100vh}}
+@keyframes enter{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* type */
+.eyebrow{font-size:12.5px;font-weight:600;color:var(--ink2)}
+.h1{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.h2{font-size:17px;font-weight:700}
+.muted{color:var(--ink2)}
+.small{font-size:12.5px}
+.big{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.mid{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.label{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2)}
+.phone[dir=rtl] .label{letter-spacing:0;text-transform:none;font-size:12.5px}
+
+/* chrome */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--card);border:1px solid var(--line2);display:grid;place-items:center;font-weight:700;color:var(--ink2)}
+.back{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:1px solid var(--line2)}
+.phone[dir=rtl] .flip{transform:scaleX(-1)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg)}
+.sep{height:1px;background:var(--line);margin:0}
+.pad{padding:16px}
+.stack>*+*{margin-top:12px}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chev{color:var(--ink3);flex:none}
+
+/* pickup */
+.pickup{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);margin-bottom:14px}
+.pickup .dot{width:8px;height:8px;border-radius:50%;background:var(--warning);flex:none}
+.pickup.done .dot{background:var(--success)}
+.pickup .btn-sm{margin-inline-start:auto}
+.btn-sm{padding:7px 12px;border-radius:var(--pill);border:1px solid var(--line3);font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--card)}
+
+/* the day loop */
+.hero{padding:20px 18px 18px;display:block;width:100%}
+.hero .row{align-items:flex-end}
+.bar{height:8px;border-radius:var(--pill);background:var(--selected);overflow:hidden;margin-top:16px}
+.bar>i{display:block;height:100%;background:var(--hue,var(--brand));border-radius:inherit;transform-origin:left;animation:fill .7s ease-out}
+.phone[dir=rtl] .bar>i{transform-origin:right}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.step{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--hue-bg,var(--selected));color:var(--hue-ink,var(--ink2));flex:none}
+.hero .step{background:var(--hue,var(--ink));color:#fff}
+.hero .big{color:var(--hue-ink,var(--ink))}
+.job{display:flex;align-items:center;gap:14px;width:100%;padding:16px 16px;min-height:72px}
+.job+.job{border-top:1px solid var(--line)}
+.job .t{font-weight:700;font-size:15.5px}
+.job .s{font-size:13px;color:var(--ink2)}
+.job .fig{font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--hue-ink,var(--ink))}
+.job.quiet .fig{color:var(--ink3)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip i{width:6px;height:6px;border-radius:50%;flex:none}
+.chip.warn{background:var(--warning-bg);color:var(--warning-ink)} .chip.warn i{background:var(--warning)}
+.chip.bad{background:var(--critical-bg);color:var(--critical)} .chip.bad i{background:var(--critical)}
+.chip.ok{background:var(--success-bg);color:var(--success)} .chip.ok i{background:var(--success)}
+.chip.info{background:var(--action-bg);color:var(--action)} .chip.info i{background:var(--action)}
+.chip.mute{background:var(--selected);color:var(--ink2)} .chip.mute i{background:var(--ink3)}
+.strip{display:flex;align-items:center;gap:12px;padding:14px 16px;margin-top:12px;width:100%}
+
+
+/* ── v3: one hue per job (v1 + colour, nothing else changed) ─────────────────
+   Sortir = blue · Rentrer = violet (Ordra's « retours » hue, --ads cost stack) ·
+   Recevoir / Stock = teal (--fin-teal) · Compter = amber (--fin-gold). Each hue has a fill,
+   a tint and an -ink partner; only the -ink one carries text (§4.21 rule). */
+.j-out{--hue:#2563EB;--hue-bg:#EEF3FE;--hue-ink:#1D4ED8}
+.j-ret{--hue:#6D5CE0;--hue-bg:#F1EFFD;--hue-ink:#5240C8}
+.j-rec{--hue:#0D9488;--hue-bg:#E6F6F4;--hue-ink:#0B6A60}
+.j-cnt{--hue:#D97706;--hue-bg:#FFF3DF;--hue-ink:#8F5608}
+
+/* soft tabs (design-system: one soft track, white active pill) */
+.tabs{display:flex;gap:3px;background:#ECEDEF;border-radius:var(--r);padding:3px;margin:14px 0}
+.tabs button{flex:1;padding:8px 10px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--ink2);text-align:center}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink)}
+.tabs .c{font-size:12px;color:var(--ink3);margin-inline-start:4px}
+
+/* rolls */
+.roll{display:flex;align-items:center;gap:12px;padding:14px 14px;width:100%;min-height:68px}
+.roll+.roll,.roll+.parcels,.parcels+.roll{border-top:1px solid var(--line)}
+.sw{width:14px;height:40px;border-radius:5px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.go{padding:8px 14px;border-radius:var(--pill);background:var(--hue,var(--ink));color:#fff;font-size:13px;font-weight:700;white-space:nowrap}
+.parcels{background:var(--sunken)}
+.parcel{display:flex;align-items:center;gap:12px;padding:12px 14px 12px 14px;width:100%;min-height:64px}
+.parcel+.parcel{border-top:1px solid var(--line)}
+.thumb{width:40px;height:40px;border-radius:10px;background:var(--hue-bg,var(--selected));display:grid;place-items:center;flex:none;color:var(--hue-ink,var(--ink2))}
+.qty{font-weight:700}
+.fold{display:flex;align-items:center;gap:10px;padding:14px 16px;width:100%;color:var(--ink2);font-weight:600}
+
+/* scan run */
+.band{margin:-18px -16px 16px;padding:16px 16px 14px;color:#fff;display:flex;align-items:center;gap:10px}
+.band .plate{background:rgba(255,255,255,.92);color:var(--ink);font-weight:700;font-size:12.5px;padding:3px 9px;border-radius:6px}
+.band .x{margin-inline-start:auto;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.18)}
+.band.light{color:var(--ink)} .band.light .x{background:rgba(0,0,0,.08)}
+.progress-dots{display:flex;gap:4px;margin-top:2px}
+.progress-dots i{height:4px;flex:1;border-radius:2px;background:var(--line2)}
+.progress-dots i.d{background:var(--hue,var(--brand))}
+.inhand{padding:18px}
+.inhand .pname{font-size:20px;font-weight:700;line-height:1.3}
+.inhand .x2{font-size:34px;font-weight:700}
+.viewfinder{margin-top:14px;height:208px;border-radius:var(--r-lg);background:#1C1F22;position:relative;overflow:hidden;display:grid;place-items:center;color:#C9CCCF;width:100%}
+.viewfinder .c{position:absolute;width:34px;height:34px;border:4px solid var(--rc,#fff)}
+.viewfinder .c1{top:22px;left:22px;border-right:0;border-bottom:0;border-top-left-radius:10px}
+.viewfinder .c2{top:22px;right:22px;border-left:0;border-bottom:0;border-top-right-radius:10px}
+.viewfinder .c3{bottom:22px;left:22px;border-right:0;border-top:0;border-bottom-left-radius:10px}
+.viewfinder .c4{bottom:22px;right:22px;border-left:0;border-top:0;border-bottom-right-radius:10px}
+.viewfinder .laser{position:absolute;left:40px;right:40px;height:2px;background:var(--rc,#fff);opacity:.85;animation:laser 1.8s ease-in-out infinite alternate}
+@keyframes laser{from{top:46px}to{top:160px}}
+.typed{display:flex;gap:8px;margin-top:12px}
+.typed input{flex:1;min-width:0;height:48px;border:1px solid var(--line3);border-radius:var(--r);padding:0 14px;background:var(--card);font-family:var(--mono);font-size:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border-radius:var(--r);font-weight:700;font-size:15px;white-space:nowrap}
+.btn.pri{background:var(--brand);color:#fff}
+.btn.sec{background:var(--card);border:1px solid var(--line3)}
+.btn.ghost{color:var(--ink2);font-weight:600}
+.btn.block{width:100%}
+.btn.danger{background:var(--card);border:1.5px solid var(--critical);color:var(--critical)}
+.btn.xl{min-height:64px;font-size:16px;border-radius:var(--r-lg)}
+
+/* outcome */
+.outcome{position:relative;overflow:hidden;border-radius:var(--r-lg);padding:22px 18px;text-align:center}
+.outcome.ok{background:var(--success-bg);border:1px solid #CFE7DE}
+.outcome.bad{background:var(--critical-bg);border:1px solid #F5C9C1;animation:shake .32s ease-in-out}
+.outcome .sweep{position:absolute;top:0;bottom:0;left:0;width:45%;background:rgba(0,128,96,.10);transform:translateX(-110%);animation:sweep .7s ease-out .05s forwards}
+/* The sweep is MOTION, not decoration: a flat band that crosses once, on the event. No gradient (§1). */
+@keyframes sweep{to{transform:translateX(260%)}}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.badge-ic{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;color:#fff;animation:pop .28s cubic-bezier(.3,1.6,.6,1)}
+.ok .badge-ic{background:var(--success)} .bad .badge-ic{background:var(--critical)}
+@keyframes pop{from{transform:scale(.4)}to{transform:scale(1)}}
+.code-xl{font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:.04em;margin:6px 0 4px}
+.ring{width:22px;height:22px;flex:none}
+.ring circle{fill:none;stroke-width:3}
+.ring .t{stroke:var(--line2)} .ring .p{stroke:var(--brand);stroke-dasharray:57;stroke-dashoffset:57;animation:ring 1.4s linear forwards;transform:rotate(-90deg);transform-origin:center}
+@keyframes ring{to{stroke-dashoffset:0}}
+
+/* choose / radio cards */
+.opt{display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--line2);border-radius:var(--r);width:100%;background:var(--card)}
+.opt+.opt{margin-top:8px}
+.opt[aria-checked=true]{border-color:var(--brand);background:var(--brand-tint)}
+.radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--line3);flex:none;display:grid;place-items:center}
+.opt[aria-checked=true] .radio{border-color:var(--brand)}
+.opt[aria-checked=true] .radio::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--brand)}
+
+/* verdict */
+.verdict{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.verdict .btn{flex-direction:column;gap:4px;min-height:96px;font-size:15px}
+.verdict .btn small{font-weight:600;font-size:12px;opacity:.85}
+.causes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.causes button{padding:9px 14px;border-radius:var(--pill);border:1px solid var(--line3);background:var(--card);font-weight:600;font-size:13.5px}
+.causes button[aria-pressed=true]{background:var(--critical);border-color:var(--critical);color:#fff}
+
+/* stock */
+.truth{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--r);background:var(--warning-bg);border:1px solid #F1DFA8;color:var(--warning-ink);margin-bottom:14px}
+.truth .btn{min-height:40px;font-size:13.5px;margin-top:10px;background:var(--ink);color:#fff}
+.prod{display:flex;align-items:center;gap:12px;padding:14px;width:100%;min-height:72px}
+.prod+.prod{border-top:1px solid var(--line)}
+.spark{width:56px;height:22px;flex:none}
+.spark path{fill:none;stroke:var(--hue,var(--ink3));stroke-width:1.5}
+.free{font-size:20px;font-weight:700;letter-spacing:-.01em;text-align:end}
+.stack-bar{display:flex;height:14px;border-radius:var(--pill);overflow:hidden;background:var(--selected);margin:14px 0 8px}
+.stack-bar i{display:block;height:100%}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2)}
+.legend b{color:var(--ink);font-weight:700}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:6px;background:var(--k)}
+.mv{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.mv+.mv{border-top:1px solid var(--line)}
+.mv .d{font-weight:700;min-width:44px;text-align:end}
+
+/* count */
+.stepper{display:flex;align-items:center;gap:10px;margin-top:16px}
+.stepper button{width:64px;height:64px;border-radius:var(--r-lg);border:1px solid var(--line3);background:var(--card);display:grid;place-items:center;font-size:26px;font-weight:600}
+.stepper input{flex:1;min-width:0;height:72px;border:2px solid var(--hue,var(--ink));border-radius:var(--r-lg);text-align:center;font-size:38px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--card)}
+.delta{margin-top:12px;text-align:center;font-weight:700;font-size:15px;min-height:24px}
+
+/* settings */
+.set{display:flex;align-items:center;gap:12px;padding:14px 16px;min-height:56px}
+.set+.set{border-top:1px solid var(--line)}
+.toggle{width:44px;height:26px;border-radius:var(--pill);background:var(--brand);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;inset-inline-end:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+
+/* bottom bar + scan */
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);align-items:start;padding-top:8px;z-index:5}
+@media (max-width:959px){.tabbar{position:fixed}}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--ink3);padding-top:4px}
+.tab .plate{width:52px;height:30px;border-radius:var(--pill);display:grid;place-items:center;transition:background var(--fast)}
+.tab[aria-current=page]{color:var(--ink)}
+.tab[aria-current=page] .plate{background:var(--hue-bg,var(--brand-bg));color:var(--hue-ink,var(--brand-hover))}
+.tab .badge{position:absolute;margin-top:-4px;margin-inline-start:26px;min-width:18px;height:18px;border-radius:9px;background:var(--critical);color:#fff;font-size:11px;display:grid;place-items:center;padding:0 5px}
+.scanbtn{justify-self:center;margin-top:-26px;width:64px;height:64px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;box-shadow:var(--shadow-floating);border:4px solid var(--bg);transition:transform var(--fast)}
+.scanbtn:active{transform:scale(.94)}
+.scanlbl{display:block;text-align:center;font-size:11.5px;font-weight:700;color:var(--brand-hover);margin-top:2px}
+.hide-bar .tabbar{display:none}
+
+/* sheet (lookup) */
+.scrim{position:absolute;inset:0;background:rgba(26,26,26,.45);z-index:8;display:none}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:20px 20px 0 0;padding:10px 16px 24px;z-index:9;display:none;max-height:92%;overflow:auto;animation:up var(--base) ease-out}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line2);margin:0 auto 12px}
+@keyframes up{from{transform:translateY(30%)}to{transform:none}}
+.open .scrim,.open .sheet{display:block}
+.sim{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.sim button{padding:7px 11px;border-radius:var(--pill);border:1px dashed var(--line3);font-size:12.5px;font-weight:600;color:var(--ink2)}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="notes">
+    <h1>Entrepôt — la journée · agent</h1>
+    <p class="sub">Téléphone, Benghazi (adel). <b>v3</b> = v1 + une couleur par métier : Sortir bleu, Rentrer violet, Recevoir/Stock sarcelle, Compter ambre. Desk : <code>entrepot-day-loop-manager-v3.html</code></p>
+    <div class="row" id="langs">
+      <button data-lang="ar">العربية (RTL)</button><button data-lang="fr">Français</button>
+    </div>
+    <div class="pick" id="pick"></div>
+    <div class="why"><h2>Ce que montre cet écran</h2><div id="why"></div></div>
+  </aside>
+
+  <div class="phone" id="phone">
+    <div id="screens"></div>
+    <nav class="tabbar" id="tabbar"></nav>
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+/* ═══ Real data (prod, 2026-10-02). Customer first names are fictional. ═══ */
+const ZONES = {
+  red:    {hex:"#d80a0a", fr:"Rouge",  ar:"أحمر",   zfr:"Tripoli et banlieue", zar:"طرابلس وضواحيها", code:"TIP"},
+  orange: {hex:"#fc6401", fr:"Orange", ar:"برتقالي", zfr:"Ouest de Tripoli",   zar:"غرب طرابلس",     code:"ZAW"},
+  yellow: {hex:"#f9fc01", fr:"Jaune",  ar:"أصفر",   zfr:"Est de Tripoli",     zar:"شرق طرابلس",     code:"MIS", light:true},
+  navy:   {hex:"#091d96", fr:"Bleu marine", ar:"أزرق داكن", zfr:"Djebel occidental", zar:"الجبل الغربي", code:"GHR"},
+  magenta:{hex:"#ed00ff", fr:"Magenta", ar:"أرجواني", zfr:"Région centrale",  zar:"المنطقة الوسطى", code:"JUF"},
+  green:  {hex:"#339307", fr:"Vert",   ar:"أخضر",   zfr:"Région orientale",   zar:"المنطقة الشرقية", code:"BEN"},
+  cyan:   {hex:"#0cbceb", fr:"Cyan",   ar:"سماوي",  zfr:"Région méridionale", zar:"المنطقة الجنوبية", code:"SEB"},
+  lime:   {hex:"#8fff00", fr:"Vert lime", ar:"أخضر فاتح", zfr:"Sud-Est",     zar:"الجنوب الشرقي",  code:"KUF", light:true},
+};
+const P = {
+  qr:{ar:"مصحف القرآن تدبر وعمل",fr:"Coran « Tadabbur wa ʿAmal »",sku:"qr-01",stock:943,thr:99,engaged:29,incoming:0},
+  th:{ar:"مصحف التهجد و قيام الليل",fr:"Mushaf « Tahajjud »",sku:"th-01",stock:216,thr:50,engaged:0},
+  hm:{ar:"كتاب الحفظ الميسر",fr:"Livre « Al-Hifz al-Muyassar »",sku:"hm-01",stock:210,thr:5,engaged:0},
+  da:{ar:"كتاب الداء والدواء",fr:"« Ad-Dâ' wa ad-Dawâ' »",sku:"DA2",stock:104,thr:2,engaged:1},
+  bs:{ar:"دمية ملاكمة · صغير",fr:"Poupée de boxe · petite",sku:"box-wafra-shop",stock:216,thr:20,engaged:1},
+  bm:{ar:"دمية ملاكمة · متوسط",fr:"Poupée de boxe · moyenne",sku:"—",stock:200,thr:5,engaged:0},
+  bl:{ar:"دمية ملاكمة · كبير",fr:"Poupée de boxe · grande",sku:"—",stock:600,thr:50,engaged:0},
+};
+// Benghazi bench: 31 fresh parcels (26 shown by roll) + 11 older than 10 days.
+const Q = [
+  ["green","بنغازي","Benghazi","سارة","Sara","qr",1,2],["green","البيضاء","El Beïda","خالد","Khaled","qr",1,2],
+  ["green","درنة","Derna","مريم","Meryem","qr",1,2],["green","طبرق","Tobrouk","فاطمة","Fatma","qr",1,70],
+  ["green","طبرق","Tobrouk","هدى","Houda","qr",1,2],["green","اجدابيا","Ajdabiya","إسماعيل","Ismaïl","qr",1,2],
+  ["green","الابيار","Al Abyar","علي","Ali","qr",1,0],["green","بنغازي","Benghazi","نور","Nour","qr",1,0],
+  ["red","طرابلس","Tripoli","محمد","Mohamed","qr",1,70],["red","طرابلس","Tripoli","عبدالله","Abdallah","qr",1,70],
+  ["red","طرابلس","Tripoli","هارون","Haroun","qr",1,2],["red","تاجوراء","Tajoura","إبراهيم","Ibrahim","qr",1,0],
+  ["red","طرابلس","Tripoli","فارس","Fares","qr",1,0],["red","طرابلس","Tripoli","ليلى","Leïla","qr",1,0],
+  ["orange","الزاوية","Zawiya","معمر","Muammar","bs",1,0],["orange","صبراتة","Sabratha","يوسف","Youssef","qr",1,70],
+  ["orange","صرمان","Sorman","مريم","Meryem","qr",1,2],["orange","زوارة","Zouara","كامل","Kamel","qr",1,0],
+  ["orange","العجيلات","Ajaylat","عزات","Izzat","qr",1,0],
+  ["cyan","سبها","Sebha","حامد","Hamed","qr",1,0],["cyan","سبها","Sebha","محمد","Mohamed","qr",1,2],
+  ["lime","جالو","Jalu","أحمد","Ahmed","qr",1,2],["lime","جالو","Jalu","محمد","Mohamed","da",1,2],["lime","الكفرة","Koufra","سالم","Salem","qr",1,0],
+  ["magenta","الجفرة","Al Jufra","الحاج","Hadj","qr",1,2],["magenta","زلة","Zella","خالد","Khaled","qr",1,0],
+  ["yellow","مصراتة","Misrata","مفتاح","Muftah","qr",1,2],["yellow","سوسة","Sousse","إسلام","Islam","qr",1,2],
+  ["navy","غريان","Gharyan","صالح","Saleh","qr",1,0],
+];
+const ROLL_ORDER = ["red","orange","yellow","navy","magenta","green","cyan","lime"];
+
+/* ═══ Copy ═══ */
+const T = {
+ ar:{
+  today:"اليوم", out:"إخراج", scan:"مسح", returns:"إرجاع", stock:"المخزون",
+  site:"بنغازي", date:"الخميس 2 أكتوبر",
+  pickupOn:"لم يمر سائق درب بعد", pickupBtn:"مرّ السائق",
+  job1:"إخراج الطرود", job1s:"بانتظار المسح", oldest:"الأقدم منذ 3 أيام", scannedToday:"مُسحت اليوم",
+  job2:"استلام المرتجعات", job2s:"عند درب لنا", job2f:"و3 في الطريق",
+  job3:"استلام البضاعة", job3s:"لا توريد مُعلن لبنغازي", job3f:"",
+  job4:"الجرد", job4s:"منتجات لم تُجرد أبداً", never:"لم يُجرد أبداً",
+  stockStrip:"7 منتجات · كل الأرقام من السجل",
+  outTitle:"إخراج", toScan:"للمسح", scannedTab:"مُسحت اليوم", start:"ابدأ", parcels:"طرود",
+  older:"أقدم من 10 أيام", olderHint:"تبقى قابلة للمسح",
+  hours:"منذ {n} س", days:"منذ {n} ي", now:"الآن",
+  roll:"رولة", inHand:"في يدك", stickHint:"الصق ملصقاً من رولة {c} على هذا الطرد، ثم امسحه.",
+  typeNum:"أو اكتب رقم الملصق", bind:"ربط", skip:"تخطَّ هذا الطرد", tapCam:"المس لمحاكاة المسح",
+  bound:"تم ربط الملصق", stockFx:"المخزون", next:"التالي من نفس الرولة", autoNext:"ينتقل تلقائياً", close:"إغلاق", nextBtn:"التالي",
+  freeT:"ملصق غير مربوط", freeQ:"على أي طرد ألصقته؟", freeHint:"الطرود التالية من رولة أخضر — اختر الطرد الذي في يدك.", seeAll:"عرض كل القائمة", confirmBind:"نعم، هذا هو الطرد — اربط",
+  wrongT:"لا تمسح هذا الطرد هنا", wrongB:"هذا الطرد يخص مستودع طرابلس.", ok:"حسناً",
+  retTitle:"إرجاع", retRule:"لا يُستلم أي طرد قبل أن يسجّله درب كمرتجع.", retAtDarb:"عند درب لنا", retOnWay:"في الطريق — لا يمكن استلامه بعد", scanOnArrival:"امسحه عند الوصول",
+  darbReason:"سبب درب", refused:"رفض الزبون الاستلام", unreachable:"الزبون لا يرد",
+  intact:"سليم", intactS:"إلى المخزون +1", damaged:"تالف", damagedS:"لا يدخل المخزون", cause:"ما سبب التلف؟",
+  c1:"التغليف", c2:"عيب في المنتج", c3:"تلف من الزبون", c4:"تلف من الناقل", c5:"آخر", record:"تسجيل كتالف",
+  stockTitle:"المخزون", truthT:"لم يُجرد أي منتج بعد", truthB:"هذه الأرقام من السجل فقط، ولم يتحقق منها أحد على الرف.", truthBtn:"ابدأ الجرد · 7 منتجات · ≈ 3 دقائق",
+  free:"متاح", onShelf:"في السجل", engaged:"محجوز", incoming:"في الطريق", low:"تحت الحد",
+  prodSites:"حسب المبنى", siteNone:"لم يُجرد في أي مبنى بعد — الرقم للسوق كله.", moves:"الحركات", countThis:"جرد هذا المنتج", allMoves:"كل الحركات",
+  mvScan:"مسح للإخراج", mvInit:"رصيد افتتاحي", mvAdj:"تعديل يدوي",
+  countTitle:"الجرد", countQ:"كم تعدّ على الرف؟", book:"في السجل", same:"مطابق", diff:"الفارق", skipC:"تخطَّ", nextC:"التالي", countReason:"السبب: جرد دوري",
+  setTitle:"الإعدادات", myDay:"يومي", sound:"صوت عند النتيجة", vib:"اهتزاز عند الخطأ", cam:"الكاميرا أولاً", signOut:"تسجيل الخروج", role:"عامل المستودع · ليبيا",
+  lookT:"امسح أي ملصق", lookB:"لا طرد في يدك: سيخبرك المسح بما هو هذا الملصق.", simulate:"محاكاة:", s1:"ملصق حر", s2:"مرتجع", s3:"مُسح سابقاً", s4:"مبنى آخر",
+  outAlready:"خرج الساعة 10:42 · عادل", notTaken:"لم يأخذه درب بعد", unscan:"إلغاء المسح",
+ },
+ fr:{
+  today:"Aujourd'hui", out:"Sortir", scan:"Scanner", returns:"Rentrer", stock:"Stock",
+  site:"Benghazi", date:"jeudi 2 octobre",
+  pickupOn:"Le chauffeur Darb n'est pas encore passé", pickupBtn:"Il est passé",
+  job1:"Sortir les colis", job1s:"à scanner", oldest:"le plus ancien depuis 3 j", scannedToday:"sortis aujourd'hui",
+  job2:"Rentrer les retours", job2s:"chez Darb pour nous", job2f:"et 3 en route",
+  job3:"Recevoir la marchandise", job3s:"aucune livraison annoncée pour Benghazi", job3f:"",
+  job4:"Compter", job4s:"produits jamais comptés", never:"jamais compté",
+  stockStrip:"7 produits · tous les chiffres viennent du registre",
+  outTitle:"Sortir", toScan:"À scanner", scannedTab:"Sortis aujourd'hui", start:"Commencer", parcels:"colis",
+  older:"Plus de 10 jours", olderHint:"toujours scannables",
+  hours:"il y a {n} h", days:"il y a {n} j", now:"à l'instant",
+  roll:"Rouleau", inHand:"En main", stickHint:"Collez un sticker du rouleau {c} sur ce colis, puis scannez-le.",
+  typeNum:"ou tapez le numéro du sticker", bind:"Lier", skip:"Passer ce colis", tapCam:"Touchez pour simuler le scan",
+  bound:"Sticker lié", stockFx:"Stock", next:"Suivant, même rouleau", autoNext:"passe tout seul", close:"Fermer", nextBtn:"Suivant",
+  freeT:"Sticker libre", freeQ:"Sur quel colis l'avez-vous collé ?", freeHint:"Les prochains colis du rouleau Vert — choisissez celui que vous tenez.", seeAll:"Voir toute la file", confirmBind:"C'est bien ce colis — lier",
+  wrongT:"Ne le scannez pas ici", wrongB:"Ce colis part de l'entrepôt de Tripoli.", ok:"Compris",
+  retTitle:"Rentrer", retRule:"Aucun colis n'est reçu avant que Darb l'ait enregistré en retour.", retAtDarb:"Chez Darb pour nous", retOnWay:"En route — pas encore recevables", scanOnArrival:"à scanner à l'arrivée",
+  darbReason:"Motif Darb", refused:"Refusé par le client", unreachable:"Client injoignable",
+  intact:"Intact", intactS:"en stock +1", damaged:"Abîmé", damagedS:"n'entre pas en stock", cause:"Quelle cause ?",
+  c1:"Emballage", c2:"Défaut produit", c3:"Dommage client", c4:"Dommage transporteur", c5:"Autre", record:"Enregistrer comme abîmé",
+  stockTitle:"Stock", truthT:"Aucun produit n'a encore été compté", truthB:"Ces chiffres viennent du registre seul ; personne ne les a vérifiés sur l'étagère.", truthBtn:"Commencer · 7 produits · ≈ 3 min",
+  free:"Libre", onShelf:"Registre", engaged:"Engagé", incoming:"En route", low:"sous le seuil",
+  prodSites:"Par bâtiment", siteNone:"Compté dans aucun bâtiment — le chiffre est celui du marché.", moves:"Mouvements", countThis:"Compter ce produit", allMoves:"Tous les mouvements",
+  mvScan:"Sortie scannée", mvInit:"Stock initial", mvAdj:"Ajustement manuel",
+  countTitle:"Comptage", countQ:"Combien en comptez-vous sur l'étagère ?", book:"Registre", same:"Identique", diff:"Écart", skipC:"Passer", nextC:"Suivant", countReason:"Motif : comptage",
+  setTitle:"Réglages", myDay:"Ma journée", sound:"Son au résultat", vib:"Vibration au refus", cam:"Caméra d'abord", signOut:"Se déconnecter", role:"Agent d'entrepôt · Libye",
+  lookT:"Scannez n'importe quel sticker", lookB:"Aucun colis en main : le scan vous dira ce qu'est ce sticker.", simulate:"Simuler :", s1:"sticker libre", s2:"retour", s3:"déjà sorti", s4:"autre bâtiment",
+  outAlready:"Sorti à 10:42 · adel", notTaken:"Darb ne l'a pas encore pris", unscan:"Dé-scanner",
+ }
+};
+
+const WHY = {
+  today:"<p><b>Les quatre métiers, dans l'ordre d'une journée.</b> Chaque ligne est la seule porte vers son travail et porte un seul chiffre : la taille de ce travail. Pas de tuiles KPI — c'est ce qui avait fait supprimer l'ancien « Aujourd'hui ».</p><p><b>Compter</b> est en ambre parce qu'aucun produit n'a jamais été compté (0 ligne <code>stock_count</code> en prod).</p><p>Le chauffeur Darb reste en tête, par bâtiment.</p>",
+  out:"<p><b>Les rouleaux sont l'action.</b> « Commencer » lance la tournée sur cette couleur ; la tournée existe déjà et avance seule après une liaison propre.</p><p>Les 11 colis de plus de 10 jours se replient en bas, toujours scannables. À Tripoli ce pli contiendrait 335 colis (dont 323 Dexpress).</p><p>Produit d'abord, puis ville et prénom, puis âge.</p>",
+  run:"<p><b>Colis en main.</b> Le bandeau prend la couleur du rouleau ; les coins du viseur aussi. Le colis est grand, la consigne est une phrase.</p><p>Touchez le viseur pour simuler un scan réussi.</p>",
+  bound:"<p><b>Le succès se sent.</b> Un balayage vert une fois, une vibration de 40 ms, le stock qui bouge (943 ← 942), puis le colis suivant du même rouleau arrive seul en 1,4 s (anneau).</p><p>Les issues ambrées (<code>bind_unverified</code>, <code>bound_not_committed</code>) n'avancent jamais seules — inchangé.</p>",
+  free:"<p><b>Nouveau : le sticker d'abord.</b> Aujourd'hui un agent qui colle puis scanne se fait renvoyer (« prenez d'abord un colis »). Ici le scanner reconnaît un sticker libre et propose les prochains colis du rouleau. La liaison reste la même, après un « C'est bien ce colis » explicite.</p>",
+  wrongsite:"<p><b>Un refus se sent aussi</b> : secousse courte, bande rouge, vibration 80-60-80. Le texte dit quoi faire, pas le code d'erreur (<code>WRONG_SITE</code>).</p>",
+  returns:"<p><b>Les retours sont rares</b> (2 depuis le 9 sept.). L'écran doit être évident le jour où l'un arrive, pas rapide en volume.</p><p>La règle stricte reste : seuls les <code>to_be_returned</code> sont recevables ; ceux en route sont grisés.</p>",
+  verdict:"<p><b>Scanner, un toucher.</b> Deux boutons de même taille. « Relivrer » quitte l'écran de l'agent : c'est une décision de responsable, sur le desk.</p><p>Touchez « Abîmé » pour voir les causes (Autre exige une note).</p>",
+  stock:"<p><b>Le stock dit la vérité sur lui-même.</b> Tant qu'un produit n'a jamais été compté, l'écran le dit en premier et propose le comptage — chiffré en minutes, parce que 7 produits c'est court.</p><p>Le chiffre en gras est le <b>libre</b> (registre − engagé), celui qu'on peut promettre.</p>",
+  product:"<p><b>Une page produit</b> — le lien « Mouvements » mène enfin quelque part. Barre empilée engagé / libre (+ en route quand une réception est annoncée — aucune ne l'est pour ce produit), découpage par bâtiment honnête (aucun site compté → on le dit), et les derniers mouvements de ce produit.</p>",
+  count:"<p><b>La tournée de comptage</b> : un produit par écran, le chiffre pré-rempli avec le registre, l'écart en direct. Le motif est pré-rempli (« comptage ») au lieu d'être une saisie obligatoire vide.</p><p>Compte le bâtiment de l'agent (<code>record_stock_count</code> par site) — c'est ce qui allume enfin le stock par bâtiment.</p>",
+  settings:"<p>Les réglages passent derrière l'avatar : ce n'est pas un métier, ça ne mérite pas un onglet.</p>",
+};
+
+/* ═══ Icons (Lucide paths) ═══ */
+const I = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  out:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M12 21v-9"/><path d="m3 8 9 4 9-4"/><path d="M16 5.5 7.5 10"/>',
+  back:'<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>',
+  boxes:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>', arrow:'<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  book:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62L18.3 9.38a1 1 0 0 0-.78-.38H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  clip:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  cam:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  tally:'<path d="M4 4v16"/><path d="M9 4v16"/><path d="M14 4v16"/><path d="M19 4v16"/><path d="M22 6 2 18"/>',
+  fold:'<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+};
+const ic = (n, s=20, w=2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+
+/* ═══ State ═══ */
+const params = new URLSearchParams(location.search);
+let lang = params.get("lang") === "fr" ? "fr" : "ar";
+let screen = params.get("screen") || "today";
+let damagedOpen = false, cause = null, chosen = 0, countVal = 212;
+const t = k => T[lang][k] ?? k;
+const L = (ar, fr) => lang === "ar" ? ar : fr;
+const age = h => h === 0 ? t("now") : h < 24 ? t("hours").replace("{n}", h) : t("days").replace("{n}", Math.round(h/24));
+const pname = k => P[k][lang];
+const HUE = {out:"j-out",run:"j-out",bound:"j-out",free:"j-out",wrongsite:"j-out",returns:"j-ret",verdict:"j-ret",stock:"j-rec",product:"j-rec",count:"j-cnt"};
+const TABHUE = {out:"j-out",returns:"j-ret",stock:"j-rec"};
+const SCREENS = ["today","out","run","bound","free","wrongsite","returns","verdict","stock","product","count","settings"];
+const FULL = ["run","bound","count"];
+const TAB_OF = {today:"today",settings:"today",out:"out",run:"out",bound:"out",free:"out",wrongsite:"out",returns:"returns",verdict:"returns",stock:"stock",product:"stock",count:"stock"};
+
+function spark(seed){
+  const pts = Array.from({length:14},(_,i)=>{const v=Math.sin(i*0.9+seed)*4+Math.cos(i*0.37+seed*2)*3; return [i*4, 11 - v*0.9 + (i/14)*4];});
+  return `<svg class="spark" viewBox="0 0 54 22"><path d="M${pts.map(p=>p.join(",")).join(" L")}"/></svg>`;
+}
+const top = (title, opts={}) => `
+  <div class="top">
+    ${opts.back ? `<button class="back" data-go="${opts.back}" aria-label="back"><span class="flip">${ic("arrow",18)}</span></button>` : ""}
+    <div class="grow"><div class="eyebrow">${opts.eyebrow ?? (t("site")+" · "+t("date"))}</div><h1 class="h1">${title}</h1></div>
+    ${opts.avatar ? `<button class="avatar" data-go="settings" aria-label="settings">${L("ع","A")}</button>` : ""}
+  </div>`;
+
+/* ═══ Screens ═══ */
+const R = {};
+R.today = () => `
+  ${top(t("today"),{avatar:true})}
+  <div class="pickup"><span class="dot"></span><span class="small grow">${t("pickupOn")}</span><button class="btn-sm">${ic("truck",15)} ${t("pickupBtn")}</button></div>
+
+  <button class="card hero j-out" data-go="out">
+    <div class="row"><span class="step">1</span><span class="h2 grow">${t("job1")}</span><span class="chev flip">${ic("chev")}</span></div>
+    <div class="row" style="margin-top:14px;align-items:flex-end">
+      <div class="grow"><div class="big num">31</div><div class="muted" style="margin-top:6px">${t("job1s")} · ${t("oldest")}</div></div>
+    </div>
+    <div class="bar"><i style="width:31%"></i></div>
+    <div class="row small muted" style="margin-top:8px"><span class="grow"><b class="num" style="color:var(--ink)">14</b> ${t("scannedToday")}</span><span class="num">14 / 45</span></div>
+  </button>
+
+  <div class="card" style="margin-top:12px">
+    <button class="job j-ret" data-go="returns"><span class="step">2</span><div class="grow"><div class="t">${t("job2")}</div><div class="s">${t("job2s")} · ${t("job2f")}</div></div><span class="fig num">2</span><span class="chev flip">${ic("chev")}</span></button>
+    <button class="job quiet j-rec" data-go="stock"><span class="step">3</span><div class="grow"><div class="t">${t("job3")}</div><div class="s">${t("job3s")}</div></div><span class="fig num">0</span><span class="chev flip">${ic("chev")}</span></button>
+    <button class="job j-cnt" data-go="count"><span class="step">4</span><div class="grow"><div class="t">${t("job4")}</div><div class="s">${t("job4s")}</div><span class="chip warn" style="margin-top:6px"><i></i>${t("never")}</span></div><span class="fig num">7</span><span class="chev flip">${ic("chev")}</span></button>
+  </div>
+
+  <button class="card strip j-rec" data-go="stock"><span class="thumb">${ic("boxes",18)}</span><div class="grow"><div style="font-weight:700">${t("stock")}</div><div class="small muted">${t("stockStrip")}</div></div><span class="chev flip">${ic("chev")}</span></button>`;
+
+function rollGroups(){
+  const g = {};
+  Q.forEach(q => (g[q[0]] ??= []).push(q));
+  return ROLL_ORDER.filter(r => g[r]).map(r => [r, g[r]]);
+}
+R.out = () => {
+  const groups = rollGroups();
+  return `
+  ${top(t("outTitle"))}
+  <div class="pickup"><span class="dot"></span><span class="small grow">${t("pickupOn")}</span><button class="btn-sm">${ic("truck",15)} ${t("pickupBtn")}</button></div>
+  <div class="tabs" role="tablist"><button role="tab" aria-selected="true">${t("toScan")}<span class="c num">31</span></button><button role="tab" aria-selected="false">${t("scannedTab")}<span class="c num">14</span></button></div>
+  <div class="card" style="overflow:hidden">
+  ${groups.map(([r, list], gi) => { const z = ZONES[r]; return `
+    <div class="roll">
+      <span class="sw" style="background:${z.hex}"></span>
+      <div class="grow"><div style="font-weight:700;font-size:15.5px">${t("roll")} ${z[lang]}</div><div class="small muted ell">${lang==="ar"?z.zar:z.zfr}</div></div>
+      <span class="mid num" style="font-size:22px">${list.length}</span>
+      <button class="go" data-go="run">${t("start")}</button>
+    </div>
+    ${gi === 0 ? `<div class="parcels">${list.slice(0,3).map(q => `
+      <button class="parcel" data-go="run"><span class="thumb">${ic("book",18)}</span>
+        <div class="grow"><div class="ell" style="font-weight:600">${pname(q[5])} <span class="qty num">×${q[6]}</span></div><div class="small muted">${L(q[1],q[2])} · ${L(q[3],q[4])}</div></div>
+        <span class="small ${q[7]>48?"chip warn":"muted"}">${q[7]>48?"<i></i>":""}${age(q[7])}</span></button>`).join("")}
+      <button class="fold small">${ic("fold",16)} ${L("و"+(list.length-3)+" طرود أخرى","+ "+(list.length-3)+" autres colis")}</button></div>` : ""}`;}).join("")}
+  </div>
+  <button class="card fold" style="margin-top:12px;border-radius:var(--r-lg)">${ic("clock",16)}<span class="grow">${t("older")} · <b class="num" style="color:var(--ink)">11</b></span><span class="small">${t("olderHint")}</span><span class="chev">${ic("fold",16)}</span></button>`;
+};
+I.clock = '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>';
+
+const zoneBand = (r, extra="") => { const z = ZONES[r]; return `
+  <div class="band ${z.light?"light":""}" style="background:${z.hex}">
+    <div class="grow"><div style="font-weight:700;font-size:16px">${t("roll")} ${z[lang]}</div><div class="small" style="opacity:.9">${lang==="ar"?z.zar:z.zfr}</div></div>
+    <span class="plate mono">${z.code}</span>${extra}
+    <button class="x" data-go="out" aria-label="close">${ic("x",18)}</button>
+  </div>`;};
+
+R.run = () => `
+  ${zoneBand("green")}
+  <div class="row small muted" style="margin-bottom:6px"><span class="grow">${t("inHand")}</span><span class="num"><b style="color:var(--ink)">3</b> / 8</span></div>
+  <div class="progress-dots" style="margin-bottom:14px">${Array.from({length:8},(_,i)=>`<i class="${i<2?"d":""}"></i>`).join("")}</div>
+  <div class="card inhand">
+    <div class="row" style="align-items:flex-start"><span class="thumb" style="width:56px;height:56px">${ic("book",24)}</span>
+      <div class="grow"><div class="pname">${pname("qr")}</div><div class="muted" style="margin-top:4px">${L("درنة · مريم","Derna · Meryem")}</div></div>
+      <span class="x2 num">×1</span></div>
+  </div>
+  <p class="small muted" style="margin-top:12px">${t("stickHint").replace("{c}", ZONES.green[lang])}</p>
+  <button class="viewfinder" style="--rc:${ZONES.green.hex}" data-go="bound">
+    <span class="c c1"></span><span class="c c2"></span><span class="c c3"></span><span class="c c4"></span><span class="laser"></span>
+    <span class="small" style="display:flex;align-items:center;gap:8px">${ic("cam",18)} ${t("tapCam")}</span>
+  </button>
+  <div class="typed"><input inputmode="numeric" placeholder="${t("typeNum")}" aria-label="${t("typeNum")}"><button class="btn sec" data-go="bound">${t("bind")}</button></div>
+  <button class="btn ghost block" style="margin-top:6px">${t("skip")}</button>`;
+
+R.bound = () => `
+  ${zoneBand("green")}
+  <div class="outcome ok"><span class="sweep"></span>
+    <div class="badge-ic">${ic("check",28,3)}</div>
+    <div style="font-weight:700;font-size:17px">${t("bound")}</div>
+    <div class="code-xl">1213127</div>
+    <div class="muted">${pname("qr")} · ${L("درنة","Derna")}</div>
+    <div class="chip ok" style="margin-top:12px"><i></i>${t("stockFx")} <span class="num">943 → 942</span></div>
+  </div>
+  <div class="label" style="margin:20px 0 8px">${t("next")}</div>
+  <div class="card inhand"><div class="row"><span class="thumb">${ic("book",18)}</span>
+    <div class="grow"><div style="font-weight:700">${pname("qr")} <span class="num">×1</span></div><div class="small muted">${L("طبرق · فاطمة","Tobrouk · Fatma")}</div></div>
+    <svg class="ring" viewBox="0 0 22 22"><circle class="t" cx="11" cy="11" r="9"/><circle class="p" cx="11" cy="11" r="9"/></svg></div></div>
+  <div class="small muted" style="text-align:center;margin-top:8px">${t("autoNext")}</div>
+  <div class="row" style="margin-top:16px"><button class="btn sec grow" data-go="out">${t("close")}</button><button class="btn pri grow" data-go="run">${t("nextBtn")}</button></div>`;
+
+R.free = () => { const list = Q.filter(q=>q[0]==="green").slice(2,5); return `
+  ${top(t("freeT"),{back:"out",eyebrow:t("scan")})}
+  <div class="card pad row"><span class="thumb">${ic("scan",18)}</span><div class="grow"><div class="code-xl" style="font-size:24px;margin:0">1213140</div><div class="small muted">${L("لم يُربط بأي طلب بعد","Lié à aucune commande")}</div></div></div>
+  <h2 class="h2" style="margin:20px 0 4px">${t("freeQ")}</h2>
+  <p class="small muted" style="margin-bottom:12px">${t("freeHint")}</p>
+  ${list.map((q,i)=>`<button class="opt" role="radio" aria-checked="${i===chosen}" data-choose="${i}"><span class="radio"></span><span class="sw" style="background:${ZONES.green.hex};height:32px;width:10px"></span>
+    <div class="grow"><div style="font-weight:700">${pname(q[5])} <span class="num">×${q[6]}</span></div><div class="small muted">${L(q[1],q[2])} · ${L(q[3],q[4])} · ${age(q[7])}</div></div></button>`).join("")}
+  <button class="btn ghost block" style="margin-top:6px">${t("seeAll")}</button>
+  <button class="btn pri block xl" style="margin-top:10px" data-go="bound">${t("confirmBind")}</button>`;};
+
+R.wrongsite = () => `
+  ${top(t("scan"),{back:"out",eyebrow:t("out")})}
+  <div class="outcome bad">
+    <div class="badge-ic">${ic("x",28,3)}</div>
+    <div style="font-weight:700;font-size:18px">${t("wrongT")}</div>
+    <p style="margin-top:6px">${t("wrongB")}</p>
+    <div class="code-xl" style="font-size:22px">SH1844962</div>
+    <div class="small muted">${pname("qr")} · ${L("سبها","Sebha")}</div>
+  </div>
+  <button class="btn sec block xl" style="margin-top:16px" data-go="out">${t("ok")}</button>`;
+
+R.returns = () => `
+  ${top(t("retTitle"))}
+  <p class="small muted" style="margin:-8px 0 14px">${t("retRule")}</p>
+  <div class="label" style="margin-bottom:8px">${t("retAtDarb")} · <span class="num">2</span></div>
+  <div class="card" style="overflow:hidden">
+    ${[["qr","طبرق","Tobrouk","سعاد","Souad","refused",4],["bs","الزاوية","Zawiya","منير","Mounir","unreachable",1]].map(r=>`
+    <button class="parcel" data-go="verdict"><span class="thumb">${ic(r[0]==="bs"?"boxes":"book",18)}</span>
+      <div class="grow"><div class="ell" style="font-weight:600">${pname(r[0])} <span class="num">×1</span></div><div class="small muted">${L(r[1],r[2])} · ${L(r[3],r[4])} · ${t(r[5])}</div></div>
+      <span class="chip ${r[6]>2?"warn":"mute"}"><i></i>${age(r[6]*24)}</span></button>`).join("")}
+  </div>
+  <div class="label" style="margin:20px 0 8px">${t("retOnWay")} · <span class="num">3</span></div>
+  <div class="card" style="overflow:hidden;opacity:.62">
+    ${[["qr","سرت","Syrte"],["qr","مصراتة","Misrata"],["da","بنغازي","Benghazi"]].map(r=>`
+    <div class="parcel"><span class="thumb">${ic("book",18)}</span><div class="grow"><div class="ell" style="font-weight:600">${pname(r[0])}</div><div class="small muted">${L(r[1],r[2])} · ${t("scanOnArrival")}</div></div></div>`).join("")}
+  </div>`;
+
+R.verdict = () => `
+  ${top(t("retTitle"),{back:"returns",eyebrow:"SH1851028"})}
+  <div class="card inhand">
+    <div class="row" style="align-items:flex-start"><span class="thumb" style="width:56px;height:56px">${ic("book",24)}</span>
+      <div class="grow"><div class="pname">${pname("qr")}</div><div class="muted" style="margin-top:4px">${L("طبرق · سعاد","Tobrouk · Souad")}</div></div><span class="x2 num">×1</span></div>
+    <div class="sep" style="margin:14px 0"></div>
+    <div class="row small"><span class="muted grow">${t("darbReason")}</span><b>${t("refused")}</b></div>
+  </div>
+  <div class="verdict">
+    <button class="btn pri" data-go="returns">${ic("check",24,2.5)}<span>${t("intact")}</span><small>${t("intactS")}</small></button>
+    <button class="btn danger" data-toggle="damaged" aria-pressed="${damagedOpen}">${ic("alert",24,2.2)}<span>${t("damaged")}</span><small>${t("damagedS")}</small></button>
+  </div>
+  ${damagedOpen ? `<div class="card pad" style="margin-top:12px;animation:enter var(--base) ease-out">
+    <div style="font-weight:700">${t("cause")}</div>
+    <div class="causes">${["c1","c2","c3","c4","c5"].map(c=>`<button data-cause="${c}" aria-pressed="${cause===c}">${t(c)}</button>`).join("")}</div>
+    ${cause==="c5"?`<input style="margin-top:10px;width:100%;height:44px;border:1px solid var(--line3);border-radius:10px;padding:0 12px" placeholder="${L("حدّد السبب","Précisez la cause")}">`:""}
+    <button class="btn block" style="margin-top:12px;background:var(--critical);color:#fff;opacity:${cause?1:.4}" data-go="returns">${t("record")}</button></div>` : ""}`;
+
+R.stock = () => `
+  ${top(t("stockTitle"))}
+  <div class="truth"><span style="flex:none;margin-top:2px">${ic("alert",20)}</span><div><div style="font-weight:700">${t("truthT")}</div><div class="small" style="margin-top:2px">${t("truthB")}</div><button class="btn" data-go="count">${t("truthBtn")}</button></div></div>
+  <div class="card" style="overflow:hidden">
+  ${Object.entries(P).map(([k,p],i)=>{const free=p.stock-p.engaged; return `
+    <button class="prod" data-go="product"><span class="thumb">${ic(k.startsWith("b")?"boxes":"book",18)}</span>
+      <div class="grow"><div class="ell" style="font-weight:700">${p[lang]}</div><div class="small muted ell">${t("onShelf")} <span class="num">${p.stock}</span>${p.engaged?` · ${t("engaged")} <span class="num">${p.engaged}</span>`:""}${p.stock-p.engaged<=p.thr?` · <span style="color:var(--critical)">${t("low")}</span>`:""}</div></div>
+      ${spark(i)}
+      <div><div class="free num">${free}</div><div class="small muted" style="text-align:end">${t("free")}</div></div></button>`;}).join("")}
+  </div>`;
+
+R.product = () => { const p = P.qr; const free = p.stock - p.engaged; const tot = p.stock + p.incoming; return `
+  ${top(p[lang],{back:"stock",eyebrow:p.sku})}
+  <div class="card pad">
+    <div class="row" style="align-items:flex-end"><div class="grow"><div class="label">${t("free")}</div><div class="big num" style="margin-top:6px">${free}</div></div><span class="chip warn"><i></i>${t("never")}</span></div>
+    <div class="stack-bar"><i style="width:${p.engaged/tot*100}%;background:var(--ink)"></i><i style="width:${free/tot*100}%;background:var(--brand)"></i>${p.incoming?`<i style="width:${p.incoming/tot*100}%;background:repeating-linear-gradient(45deg,var(--line3) 0 3px,transparent 3px 7px)"></i>`:""}</div>
+    <div class="legend"><span style="--k:var(--ink)">${t("engaged")} <b class="num">${p.engaged}</b></span><span style="--k:var(--brand)">${t("free")} <b class="num">${free}</b></span>${p.incoming?`<span style="--k:var(--line3)">${t("incoming")} <b class="num">${p.incoming}</b></span>`:`<span style="--k:transparent">${t("incoming")} <b>—</b></span>`}</div>
+  </div>
+  <div class="label" style="margin:18px 0 8px">${t("prodSites")}</div>
+  <div class="card pad small muted row">${ic("inbox",18)}<span class="grow">${t("siteNone")}</span></div>
+  <div class="label" style="margin:18px 0 8px">${t("moves")}</div>
+  <div class="card" style="overflow:hidden">
+    ${[["mvScan","−1","943",L("29 سبتمبر · 14:42","29 sept. · 14:42")],["mvScan","−1","944",L("28 سبتمبر · 15:42","28 sept. · 15:42")],["mvScan","−1","945",L("28 سبتمبر · 15:42","28 sept. · 15:42")],["mvScan","−1","946",L("28 سبتمبر · 15:41","28 sept. · 15:41")],["mvScan","−1","947",L("28 سبتمبر · 15:40","28 sept. · 15:40")]].map(m=>`
+    <div class="mv"><div class="grow"><div style="font-weight:600">${t(m[0])}</div><div class="small muted">${m[3]}</div></div><span class="d num" style="color:${m[1].startsWith("+")?"var(--success)":"var(--ink)"}">${m[1]}</span><span class="small muted num" style="min-width:36px;text-align:end">${m[2]}</span></div>`).join("")}
+  </div>
+  <button class="btn ghost block" style="margin-top:4px">${t("allMoves")}</button>
+  <button class="btn sec block xl" style="margin-top:8px" data-go="count">${ic("tally",20)} ${t("countThis")}</button>`;};
+
+R.count = () => { const p = P.th; const d = countVal - p.stock; return `
+  <div class="top"><button class="back" data-go="stock" aria-label="close">${ic("x",18)}</button><div class="grow"><div class="eyebrow">${t("countTitle")} · ${t("site")}</div><div class="num" style="font-weight:700">2 / 7</div></div></div>
+  <div class="progress-dots" style="margin-bottom:18px">${Array.from({length:7},(_,i)=>`<i class="${i<1?"d":""}"></i>`).join("")}</div>
+  <div class="card inhand">
+    <div class="row"><span class="thumb" style="width:56px;height:56px">${ic("book",24)}</span><div class="grow"><div class="pname">${p[lang]}</div><div class="small muted mono" style="margin-top:2px">${p.sku}</div></div></div>
+    <div class="sep" style="margin:14px 0"></div>
+    <div class="row small"><span class="muted grow">${t("book")}</span><b class="num">${p.stock}</b></div>
+  </div>
+  <h2 class="h2" style="margin-top:20px">${t("countQ")}</h2>
+  <div class="stepper"><button data-step="-1" aria-label="-1">−</button><input id="countIn" inputmode="numeric" value="${countVal}" aria-label="${t("countQ")}"><button data-step="1" aria-label="+1">+</button></div>
+  <div class="delta" id="delta">${d===0?`<span class="chip ok"><i></i>${t("same")}</span>`:`<span class="chip ${d<0?"bad":"info"}"><i></i>${t("diff")} <span class="num">${d>0?"+":"−"}${Math.abs(d)}</span></span>`}</div>
+  <div class="small muted" style="text-align:center;margin-top:4px">${t("countReason")}</div>
+  <div class="row" style="margin-top:22px"><button class="btn sec grow">${t("skipC")}</button><button class="btn pri grow" style="flex:2">${t("nextC")}</button></div>`;};
+
+R.settings = () => `
+  ${top(t("setTitle"),{back:"today",eyebrow:t("role")})}
+  <div class="card pad row"><span class="avatar" style="width:48px;height:48px">${L("ع","A")}</span><div class="grow"><div style="font-weight:700">adel</div><div class="small muted">${t("site")}</div></div></div>
+  <div class="label" style="margin:18px 0 8px">${t("myDay")}</div>
+  <div class="card row" style="padding:16px"><div class="grow"><div class="mid num">14</div><div class="small muted">${t("scannedToday")}</div></div><div class="grow"><div class="mid num">0</div><div class="small muted">${t("returns")}</div></div></div>
+  <div class="card" style="margin-top:12px">${["sound","vib","cam"].map(k=>`<div class="set"><span class="grow" style="font-weight:600">${t(k)}</span><span class="toggle"></span></div>`).join("")}</div>
+  <button class="btn sec block" style="margin-top:16px;color:var(--critical)">${t("signOut")}</button>`;
+
+/* ═══ Lookup sheet (Scan button with nothing in hand) ═══ */
+function sheet(){
+  return `<div class="grab"></div>
+  <div class="row" style="margin-bottom:12px"><div class="grow"><div class="h2">${t("lookT")}</div><div class="small muted">${t("lookB")}</div></div><button class="back" data-close aria-label="close">${ic("x",18)}</button></div>
+  <div class="viewfinder" style="--rc:#fff;margin-top:0"><span class="c c1"></span><span class="c c2"></span><span class="c c3"></span><span class="c c4"></span><span class="laser"></span><span class="small">${ic("cam",18)}</span></div>
+  <div class="typed"><input inputmode="numeric" placeholder="${t("typeNum")}"><button class="btn sec">${t("scan")}</button></div>
+  <div class="sim"><span class="small muted" style="align-self:center">${t("simulate")}</span>
+    <button data-go="free" data-close>${t("s1")}</button><button data-go="verdict" data-close>${t("s2")}</button><button data-already data-close>${t("s3")}</button><button data-go="wrongsite" data-close>${t("s4")}</button></div>
+  <div id="already"></div>`;
+}
+
+/* ═══ Render ═══ */
+const phone = document.getElementById("phone");
+function render(){
+  phone.dir = lang === "ar" ? "rtl" : "ltr"; phone.lang = lang;
+  document.getElementById("screens").innerHTML = `<section class="screen on ${FULL.includes(screen)?"full":""} ${HUE[screen]||""}">${R[screen]()}</section>`;
+  phone.classList.toggle("hide-bar", FULL.includes(screen));
+  const cur = TAB_OF[screen];
+  const tab = (k, icon, badge) => `<button class="tab ${TABHUE[k]||""}" data-go="${k}" ${cur===k?'aria-current="page"':""}><span class="plate">${ic(icon,20)}</span>${t(k)}${badge?`<span class="badge num">${badge}</span>`:""}</button>`;
+  document.getElementById("tabbar").innerHTML = tab("today","home") + tab("out","out") +
+    `<div><button class="scanbtn" data-sheet aria-label="${t("scan")}">${ic("scan",26,2.2)}</button><span class="scanlbl">${t("scan")}</span></div>` +
+    tab("returns","back",2) + tab("stock","boxes");
+  document.getElementById("sheet").innerHTML = sheet();
+  // studio
+  document.querySelectorAll("#langs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+  document.getElementById("pick").innerHTML = SCREENS.map(s => `<button data-go="${s}" ${s===screen?'aria-current="true"':""}>${s}</button>`).join("");
+  document.getElementById("why").innerHTML = WHY[screen];
+  const u = new URL(location); u.searchParams.set("lang", lang); u.searchParams.set("screen", screen); history.replaceState(null, "", u);
+}
+document.addEventListener("click", e => {
+  const el = e.target.closest("button,[data-go]"); if (!el) return;
+  if (el.dataset.lang){ lang = el.dataset.lang; render(); return; }
+  if (el.hasAttribute("data-sheet")){ phone.classList.add("open"); return; }
+  if (el.hasAttribute("data-already")){ document.getElementById("already").innerHTML = `<div class="card pad" style="margin-top:12px"><div class="row"><span class="thumb">${ic("book",18)}</span><div class="grow"><div style="font-weight:700">${pname("qr")} · ${L("بنغازي","Benghazi")}</div><div class="small muted">${t("outAlready")} · ${t("notTaken")}</div></div></div><button class="btn danger block" style="margin-top:12px">${t("unscan")}</button></div>`; return; }
+  if (el.hasAttribute("data-close")) phone.classList.remove("open");
+  if (el.dataset.toggle === "damaged"){ damagedOpen = !damagedOpen; render(); return; }
+  if (el.dataset.cause){ cause = el.dataset.cause; render(); return; }
+  if (el.dataset.choose){ chosen = +el.dataset.choose; render(); return; }
+  if (el.dataset.step){ countVal = Math.max(0, countVal + +el.dataset.step); render(); return; }
+  if (el.dataset.go){ screen = el.dataset.go; damagedOpen = false; cause = null; render(); document.querySelector(".screen")?.scrollTo(0,0); }
+});
+document.getElementById("scrim").addEventListener("click", () => phone.classList.remove("open"));
+document.addEventListener("input", e => { if (e.target.id === "countIn"){ countVal = parseInt(e.target.value || "0", 10) || 0; const d = countVal - P.th.stock;
+  document.getElementById("delta").innerHTML = d===0?`<span class="chip ok"><i></i>${t("same")}</span>`:`<span class="chip ${d<0?"bad":"info"}"><i></i>${t("diff")} <span class="num">${d>0?"+":"−"}${Math.abs(d)}</span></span>`; }});
+render();
+})();
+</script>
+</body>
+</html>

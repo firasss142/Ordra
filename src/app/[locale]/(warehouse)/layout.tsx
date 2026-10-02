@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { WarehouseMobileShell } from "@/components/warehouse/shell/WarehouseMobileShell";
 import { useAuth } from "@/context/auth";
+import { AlertsPanelProvider } from "@/context/alerts-panel";
 
 export default function WarehouseLayout({
   children,
@@ -64,6 +65,9 @@ function WarehouseManagerShell({
   const handleOpen = useCallback(() => setMobileOpen(true), []);
   if (!user) return null;
   return (
+    // The sidebar's alerts bell opens this provider's panel. Without it the bell
+    // fell back to an empty default and did nothing on every Entrepôt page.
+    <AlertsPanelProvider user={user}>
     <div className="wh-console flex min-h-screen bg-wh-bg" style={{ direction }}>
       <Sidebar
         user={user}
@@ -104,5 +108,6 @@ function WarehouseManagerShell({
         {children}
       </main>
     </div>
+    </AlertsPanelProvider>
   );
 }

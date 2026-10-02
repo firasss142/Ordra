@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Check, PackageOpen, Warehouse } from "lucide-react";
 import { jsonFetcher } from "@/lib/fetchers";
@@ -245,7 +246,8 @@ export function BenchHome({
   }
 
   return (
-    <div className="px-4 py-4">
+    // « Sortir » — the first job of the day, in its hue (globals.css .job-out).
+    <div className="job-out px-4 py-4">
       <div className="flex items-center justify-between gap-2.5">
         <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-wm-ink">{t("title")}</h1>
         <span className="inline-flex items-center gap-1.5 rounded-pill border border-wm-card-edge bg-wm-card py-0.5 pe-2.5 ps-1 text-[13px] text-wm-ink-2">
@@ -277,11 +279,11 @@ export function BenchHome({
         data-testid="wh-bench-hero"
         className="relative mt-3 grid grid-cols-[auto_1fr] items-start gap-3.5 rounded-[14px] border border-wm-card-edge bg-wm-card px-3.5 pb-4 pt-3.5"
       >
-        <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-wm-accent-soft text-wm-accent">
+        <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-job-bg text-job-ink">
           <PackageOpen size={22} strokeWidth={1.75} aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="text-[34px] font-bold leading-none tabular-nums text-wm-accent">{waiting}</p>
+          <p className="text-[34px] font-bold leading-none tabular-nums text-job-ink">{waiting}</p>
           <p className="mt-1 text-[12.5px] font-bold text-wm-ink-2">{t("waiting", { n: waiting })}</p>
           {waiting > 0 ? (
             <p className="text-[14px] text-wm-ink-2">{t("oldest", { age: ageLabel(oldestHours, tAge) })}</p>
@@ -293,7 +295,7 @@ export function BenchHome({
         </div>
         <span aria-hidden="true" className="absolute inset-x-3.5 bottom-2 h-[3px] overflow-hidden rounded-pill bg-wm-track">
           <i
-            className="block h-full bg-wm-accent"
+            className="block h-full bg-job"
             style={{ width: `${Math.round((scannedToday / (scannedToday + waiting || 1)) * 100)}%` }}
           />
         </span>
@@ -354,6 +356,16 @@ export function BenchHome({
                   >
                     {g.rows[0].zone.branchGroup ?? "?"}
                   </span>
+                  {/* The roll in the agent's hand, worked parcel by parcel in
+                      the run. A parcel with no known roll has no batch to start. */}
+                  {g.hex ? (
+                    <Link
+                      href={`/${locale}/warehouse/scan?roll=${encodeURIComponent(g.hex)}`}
+                      className="shrink-0 rounded-pill bg-job px-3.5 py-1.5 text-[13px] font-bold text-white no-underline"
+                    >
+                      {t("startRoll")}
+                    </Link>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
                   {g.rows.map((o) => (

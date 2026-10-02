@@ -85,6 +85,7 @@ export function ScanRun({
   initialOrders,
   siteName,
   siteUnassigned,
+  initialRoll,
 }: {
   market: "ly" | "tn";
   locale: string;
@@ -92,6 +93,12 @@ export function ScanRun({
   initialOrders: RunRow[];
   siteName?: string | null;
   siteUnassigned?: boolean;
+  /**
+   * The roll chosen with « Commencer » on Sortir (`?roll=#hex`). The agent has
+   * already picked the roll in their hand, so the run opens on it directly —
+   * and it wins over a run saved earlier, because the choice was just made.
+   */
+  initialRoll?: string | null;
 }) {
   const t = useTranslations("warehouse.run");
   const router = useRouter();
@@ -124,6 +131,21 @@ export function ScanRun({
       setRestored(true);
       return;
     }
+    // A roll chosen on Sortir starts that roll's batch, if it still has parcels.
+    const chosen = initialRoll
+      ? bucketize(initialOrders, "zone", market, locale).find((b) => b.key === initialRoll)
+      : undefined;
+    if (chosen) {
+      setMode("zone");
+      setBucketKey(chosen.key);
+      setCursor(chosen.rows[0]?.id ?? null);
+      setSkipped([]);
+      setStartedAt(Date.now());
+      setTally(EMPTY_TALLY);
+      lastBucket.current = chosen;
+      setRestored(true);
+      return;
+    }
     const saved = readState();
     if (saved) {
       setMode(saved.mode);
@@ -136,6 +158,8 @@ export function ScanRun({
       setMode(readMode());
     }
     setRestored(true);
+    // Runs once on mount: the address is read once, the saved run once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteUnassigned]);
   const [armed, setArmed] = useState(false);
   const [done, setDone] = useState(false);
@@ -346,7 +370,7 @@ export function ScanRun({
 
   const exit = useCallback(() => {
     writeState(null);
-    router.push(`/${locale}/warehouse`);
+    router.push(`/${locale}/warehouse/out`);
   }, [router, locale]);
 
   const changeMode = useCallback(() => {

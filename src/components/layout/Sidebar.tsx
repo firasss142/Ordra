@@ -31,6 +31,7 @@ import {
   Settings,
   ScrollText,
   ShoppingBag,
+  Sun,
   Target,
   Truck,
   UserPlus,
@@ -153,20 +154,27 @@ const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     /*
-     * Three entries, one per question the warehouse actually asks.
+     * The warehouse day (2026-10-02, plans/entrepot-day-loop-redesign.md).
      *
-     * It was five, plus two pages unreachable from the navigation. "Aujourd'hui"
-     * repeated every figure the other screens showed and its priority actions
-     * were not even clickable; "Préparation" and "Mode scan" were two more
-     * renderings of the same queue and the same scanner; the Journal is the
-     * evidence behind the stock figures, so it sits inside Stock.
+     * Aujourd'hui is the four jobs — Sortir, Rentrer, Recevoir, Compter — each
+     * a link carrying its backlog. It is not the « Aujourd'hui » removed on
+     * 2026-09-08, which repeated other screens' figures and could not be
+     * clicked. Sortir and Rentrer are where the floor works; Recevoir and
+     * Compter live in Stock, which also holds the Journal.
      */
     id: "logistique",
     icon: Warehouse,
     items: [
-      { key: "bench", href: "warehouse", icon: PackageSearch, prefetchRoute: "warehouse" },
-      { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
-      { key: "warehouseStock", href: "warehouse/stock", icon: Boxes, prefetchRoute: "warehouse" },
+      { key: "warehouseToday", href: "warehouse", icon: Sun, prefetchRoute: "warehouse" },
+      { key: "warehouseOut", href: "warehouse/out", icon: PackageSearch, prefetchRoute: "warehouse", activeOn: ["warehouse/scan"] },
+      { key: "warehouseReturns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
+      {
+        key: "warehouseStock",
+        href: "warehouse/stock",
+        icon: Boxes,
+        prefetchRoute: "warehouse",
+        activeOn: ["warehouse/stock", "warehouse/count"],
+      },
     ],
   },
   {

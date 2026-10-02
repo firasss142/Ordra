@@ -138,8 +138,26 @@ L'exception est `record_stock_count` : le trigger s'arrête sur
 pas — donc la RPC reporte l'écart elle-même.
 
 **Un comptage de site ne pose pas le total de la variante.** Il pose la valeur
-DU SITE et reporte l'**écart** sur la variante puis sur le produit. Confondre
+DU SITE et reporte un **écart** sur la variante puis sur le produit. Confondre
 les deux ferait disparaître le stock des autres bâtiments à chaque comptage.
+
+**Quel écart — le réservoir du non ventilé (2026-10-02,
+`20261002190000_record_stock_count_draws_from_pool`).** Jusque-là l'écart était
+`compté − valeur du site`, et un bâtiment jamais compté valait 0 : Benghazi
+comptant 900 Corans sur un registre de 943 portait le total à 1 843. Chaque
+premier comptage doublait le stock. La règle, au grain produit × variante :
+
+1. ce qu'un bâtiment compte **en plus** de ce qu'il tenait sort d'abord du non
+   ventilé (niveau − somme des bâtiments) ; le total ne monte que de
+   l'excédent ;
+2. une **baisse** à un bâtiment est une perte : le total baisse d'autant ;
+3. quand **tous les bâtiments actifs** du marché ont compté
+   (`last_counted_at`), le niveau vaut **exactement** la somme des bâtiments ;
+   ce qu'aucun n'a trouvé est l'écart de comptage. Un marché à un bâtiment
+   (Tunisie) : compter le bâtiment, c'est compter le marché.
+
+La RPC rend en plus `site_delta`, `from_pool` et `closed` ; `delta` reste
+l'écart du total marché. Prouvé par `supabase/tests/stock_count_pool_test.sql`.
 
 ### Sous-débit : deux grains
 

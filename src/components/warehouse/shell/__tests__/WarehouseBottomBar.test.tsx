@@ -86,6 +86,24 @@ describe("WarehouseBottomBar", () => {
     expect(screen.getByTestId("wh-tab-count-Stock").textContent).toBe("99+");
   });
 
+  it("places the scan action in the middle of the bar, between the four jobs' tabs", () => {
+    // Scanning is what an agent does all day: it sits under the thumb, in the
+    // centre, not in a quarter of the bar and not floating over the content.
+    render(
+      <NextIntlClientProvider locale="fr" messages={frMessages}>
+        <WarehouseBottomBar tabs={TABS} center={<a href="/fr/warehouse/out?scan=1">Scanner</a>} />
+      </NextIntlClientProvider>,
+    );
+    const names = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(names).toEqual(["Aujourd'hui", "Préparation", "Scanner", "Retours", "Stock"]);
+  });
+
+  it("tints the current tab with its job's hue", () => {
+    pathname = "/fr/warehouse/returns";
+    renderBar(TABS.map((t) => (t.label === "Retours" ? { ...t, hue: "job-returns" } : t)));
+    expect(screen.getByRole("link", { name: "Retours" }).className).toContain("job-returns");
+  });
+
   it("names its landmark in the agent's language", () => {
     renderBar(TABS, "fr");
     expect(screen.getByRole("navigation", { name: "Entrepôt" })).toBeInTheDocument();

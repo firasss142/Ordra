@@ -119,6 +119,38 @@ describe("choosing what to hold", () => {
   });
 });
 
+describe("starting on a roll chosen on Sortir", () => {
+  // « Commencer » on a roll opens the run on that roll: the agent already chose
+  // the roll in their hand, so asking again would be the bench's old repetition.
+  function renderOnRoll(roll: string) {
+    return render(
+      <Intl locale="fr">
+        <ScanRun market="ly" locale="fr" currency="LYD" initialOrders={[red1, red2, green]} siteName="Tripoli" initialRoll={roll} />
+      </Intl>,
+    );
+  }
+
+  it("opens straight on that roll's first parcel", () => {
+    renderOnRoll("#339307");
+    expect(screen.getByTestId("wh-run-band")).toHaveAttribute("data-roll", "#339307");
+    expect(screen.getByTestId("wh-run-parcel")).toHaveTextContent("سعاد");
+  });
+
+  it("wins over a run saved earlier, because the agent just chose", () => {
+    sessionStorage.setItem(
+      "wh.run",
+      JSON.stringify({ mode: "product", bucketKey: "p1", cursor: null, skipped: [], startedAt: 1, tally: { bound: 0, refused: 0, skipped: 0 } }),
+    );
+    renderOnRoll("#339307");
+    expect(screen.getByTestId("wh-run-band")).toHaveAttribute("data-roll", "#339307");
+  });
+
+  it("falls back to the picker when the roll has nothing left", () => {
+    renderOnRoll("#0cbceb");
+    expect(screen.getByRole("button", { name: /Même couleur/ })).toBeInTheDocument();
+  });
+});
+
 describe("working a batch", () => {
   function startProductBatch() {
     renderRun();

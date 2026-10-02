@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import type { Role } from "@/types";
@@ -11,32 +12,50 @@ import { JournalConsole } from "./JournalConsole";
 
 /**
  * Entrepôt › Stock — what we hold, every movement that got it there, and what
- * is coming in.
+ * is coming in. One question — « Combien avons-nous, où, et qu'est-ce qui
+ * entre ? » — at three depths.
  *
- * The Journal was its own sidebar entry, which put a read-only audit log at the
- * same level as the two screens people work in all day. It is the evidence
- * behind the stock figures, so it belongs beside them: same question, two
- * depths.
+ * The tab and the product live in the ADDRESS (`?tab=levels|receptions|journal`
+ * and `?product=<id>`). The tab used to be local state, so « Recevoir » on
+ * Aujourd'hui could not open Réceptions, and « Mouvements » on a stock row
+ * pointed at a redirect that dropped the product.
  *
- * Réceptions joins them for the same reason. The section's question has always
- * been « Combien avons-nous, où, et qu'est-ce qui entre ? » — the third clause
- * simply had no data model until now. One question, three depths.
+ * Wears the Recevoir hue (`job-receive`): receiving and stock are one job seen
+ * from two sides — what comes in and what is held.
  */
 type Tab = "levels" | "receptions" | "journal";
 
 export function StockConsole({ locale, role }: { locale: string; role: Role }) {
   const t = useTranslations("warehouse.stock");
-  const [tab, setTab] = useState<Tab>("levels");
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
   const showReceptions = canViewReceptions(role);
 
+  const requested = search.get("tab");
+  const tab: Tab =
+    requested === "journal" ? "journal" : requested === "receptions" && showReceptions ? "receptions" : "levels";
+  const product = search.get("product");
+
+  const go = useCallback(
+    (next: { tab: Tab; product?: string | null }) => {
+      const params = new URLSearchParams();
+      if (next.tab !== "levels") params.set("tab", next.tab);
+      if (next.tab === "journal" && next.product) params.set("product", next.product);
+      const qs = params.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, pathname],
+  );
+
   return (
-    <div>
+    <div className="job-receive">
       <div className="mx-auto w-full max-w-[1460px] px-4 pt-4 md:px-6">
         <SegmentedTabs
           role="tablist"
           ariaLabel={t("consoleTabs")}
           value={tab}
-          onChange={(k) => setTab(k as Tab)}
+          onChange={(k) => go({ tab: k as Tab })}
           segments={[
             { key: "levels", label: t("tabLevels") },
             ...(showReceptions ? [{ key: "receptions", label: t("tabReceptions") }] : []),
@@ -46,10 +65,14 @@ export function StockConsole({ locale, role }: { locale: string; role: Role }) {
       </div>
       {tab === "levels" ? (
         <WarehouseStockClient locale={locale} />
-      ) : tab === "receptions" && showReceptions ? (
+      ) : tab === "receptions" ? (
         <ReceptionsConsole locale={locale} role={role} />
       ) : (
-        <JournalConsole locale={locale} />
+        <JournalConsole
+          locale={locale}
+          productId={product}
+          onClearProduct={() => go({ tab: "journal", product: null })}
+        />
       )}
     </div>
   );

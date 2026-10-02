@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype — Entrepôt « day loop », DESK (market_manager / super_admin). v3, 2026-10-02 = la v1 + une couleur par métier.
+  Plan : plans/entrepot-day-loop-redesign.md. Pendant téléphone : entrepot-day-loop-agent-v1.html.
+
+  Presets : ?lang=fr|ar  ?screen=today|out|returns|stock|product|receptions|journal
+  Données RÉELLES (prod, 2026-10-02) : bâtiments, agents (adel → Benghazi, tarek → Tripoli), files
+  (Benghazi 31 frais + 11 anciens ; Tripoli 16 frais + 335 anciens dont 323 Dexpress), retours (2 + 3 en
+  route), réception REC-LY-2026-0001 (brouillon de test, sans ligne), produits, stocks, 0 comptage,
+  derniers mouvements de qr-01. « Sortis aujourd'hui » = journée type (14, moyenne des jours actifs).
+  Prénoms des clients fictifs. Jetons : Ordra (src/app/globals.css) — pas de --wh-* / --wm-*.
+  Le studio est LTR ; seule la scène se met en miroir en arabe.
+-->
+<title>Entrepôt Day Loop Desk v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F7; --selected:#F2F2F2; --sunken:#FAFAFB;
+  --ink:#1A1A1A; --ink2:#6D7175; --ink3:#9CA3AF;
+  --line:#ECEEF0; --line2:#E1E3E5; --line3:#C9CCCF;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4; --brand-on-dark:#10B981;
+  --action:#2C6ECB; --action-bg:#EEF4FC;
+  --success:#008060; --success-bg:#F1F8F5;
+  --warning:#B98900; --warning-bg:#FFF8E6; --warning-ink:#7A5B00;
+  --critical:#D72C0D; --critical-bg:#FFF4F4;
+  --sb:#0E1013; --sb-text:#E6E8EB; --sb-muted:#7F858F; --sb-faint:#5A616B; --sb-hover:rgba(255,255,255,.04);
+  --shadow-floating:0 8px 24px rgba(16,24,40,.10);
+  --r-sm:6px; --r:10px; --r-lg:14px; --pill:9999px;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#DCDEE1;color:var(--ink);font:14px/1.5 Inter,"Noto Sans Arabic",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;text-align:inherit;padding:0}
+input,select{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+
+/* studio bar (LTR) */
+.studio{direction:ltr;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 20px;background:#F3F4F5;border-bottom:1px solid #CFD2D6;font-size:12.5px}
+.studio b{font-size:13.5px}
+.studio .grp{display:flex;gap:4px;flex-wrap:wrap}
+.studio button{padding:5px 10px;border:1px solid #CFD2D6;border-radius:6px;background:#fff;font-weight:600}
+.studio button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.why{direction:ltr;max-width:1440px;margin:12px auto 0;padding:12px 16px;background:#fff;border:1px solid #CFD2D6;border-radius:10px;font-size:13px;color:#30343A}
+.why p{margin:0 0 6px}.why p:last-child{margin:0}
+.why code{font-family:var(--mono);font-size:11.5px;background:#F2F2F3;padding:1px 4px;border-radius:4px}
+
+/* stage */
+.stage{max-width:1440px;margin:14px auto 40px;height:900px;display:grid;grid-template-columns:232px 1fr;background:var(--bg);border-radius:12px;overflow:hidden;border:1px solid #C9CCCF}
+.stage[dir=rtl]{font-family:"Noto Sans Arabic",Inter,system-ui,sans-serif}
+.sidebar{background:var(--sb);color:var(--sb-text);padding:16px 10px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 16px;font-weight:700;font-size:16px;color:#fff}
+.brand i{width:26px;height:26px;border-radius:7px;background:var(--brand);display:grid;place-items:center;font-style:normal;font-size:13px}
+.nsec{font-size:11px;font-weight:600;color:var(--sb-faint);letter-spacing:.05em;text-transform:uppercase;padding:14px 10px 6px}
+.stage[dir=rtl] .nsec{letter-spacing:0;text-transform:none;font-size:12px}
+.nav{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;color:#B5BAC2;font-size:13.5px;font-weight:500}
+.nav:hover{background:var(--sb-hover)}
+.nav[aria-current=page]{background:var(--brand);color:#fff}
+.nav .n{margin-inline-start:auto;font-size:11.5px;color:var(--sb-muted)}
+.nav[aria-current=page] .n{color:#DDF5E6}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:14px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--line)}
+.scanfield{flex:1;display:flex;align-items:center;gap:10px;height:42px;border:1.5px solid var(--line3);border-radius:var(--r);padding:0 12px;background:var(--card);max-width:620px}
+.scanfield.hand{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+.scanfield input{flex:1;min-width:0;border:0;outline:0;font-size:14px;background:transparent}
+.kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink2)}
+.seg{display:inline-flex;gap:2px;background:#ECEDEF;border-radius:var(--r);padding:3px}
+.seg button{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--card);color:var(--ink)}
+.seg .c{color:var(--ink3);font-size:12px;margin-inline-start:5px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--selected);display:grid;place-items:center;font-weight:700;color:var(--ink2);flex:none}
+.content{flex:1;overflow:auto;padding:24px 28px 40px}
+.content>*{animation:enter 160ms ease-out}
+@keyframes enter{from{opacity:.5;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* type */
+.h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.h2{font-size:16px;font-weight:700}
+.muted{color:var(--ink2)} .small{font-size:12.5px}
+.big{font-size:40px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+.stage[dir=rtl] .label{letter-spacing:0;text-transform:none;font-size:12px}
+.head{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px}
+.head .grow{flex:1}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg)}
+.pad{padding:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--r);font-weight:600;font-size:13.5px;white-space:nowrap}
+.btn.pri{background:var(--brand);color:#fff}
+.btn.sec{background:var(--card);border:1px solid var(--line3)}
+.btn.ink{background:var(--ink);color:#fff}
+.btn.ghost{color:var(--ink2)}
+.btn.sm{height:30px;padding:0 10px;font-size:12.5px;border-radius:8px}
+.btn.danger{border:1px solid #F0B8AD;color:var(--critical);background:var(--card)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:var(--pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip i{width:6px;height:6px;border-radius:50%;flex:none}
+.chip.warn{background:var(--warning-bg);color:var(--warning-ink)} .chip.warn i{background:var(--warning)}
+.chip.bad{background:var(--critical-bg);color:var(--critical)} .chip.bad i{background:var(--critical)}
+.chip.ok{background:var(--success-bg);color:var(--success)} .chip.ok i{background:var(--success)}
+.chip.info{background:var(--action-bg);color:var(--action)} .chip.info i{background:var(--action)}
+.chip.mute{background:var(--selected);color:var(--ink2)} .chip.mute i{background:var(--ink3)}
+.thumb{width:34px;height:34px;border-radius:9px;background:var(--hue-bg,var(--selected));display:grid;place-items:center;color:var(--hue-ink,var(--ink2));flex:none}
+.rollrow .btn.ink{background:var(--hue,var(--ink))}
+
+
+/* ── v3: one hue per job (v1 + colour, nothing else changed) ─────────────────
+   Sortir = blue · Rentrer = violet (Ordra's « retours » hue, --ads cost stack) ·
+   Recevoir / Stock = teal (--fin-teal) · Compter = amber (--fin-gold). Each hue has a fill,
+   a tint and an -ink partner; only the -ink one carries text (§4.21 rule). */
+.j-out{--hue:#2563EB;--hue-bg:#EEF3FE;--hue-ink:#1D4ED8}
+.j-ret{--hue:#6D5CE0;--hue-bg:#F1EFFD;--hue-ink:#5240C8}
+.j-rec{--hue:#0D9488;--hue-bg:#E6F6F4;--hue-ink:#0B6A60}
+.j-cnt{--hue:#D97706;--hue-bg:#FFF3DF;--hue-ink:#8F5608}
+
+/* pickup strip */
+.pick{display:flex;gap:10px;margin-bottom:18px}
+.pick .card{flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+
+/* jobs */
+.jobs{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.job{display:flex;flex-direction:column;gap:10px;padding:18px;text-align:start;transition:border-color 120ms}
+.job:hover{border-color:var(--line3)}
+.step{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--hue-bg,var(--selected));color:var(--hue-ink,var(--ink2));flex:none}
+.job.lead .step{background:var(--hue,var(--ink));color:#fff}
+.job .big{color:var(--hue-ink,var(--ink))}
+.split{display:flex;gap:14px;font-size:12.5px;color:var(--ink2)}
+.split b{color:var(--ink)}
+.bar{height:6px;border-radius:var(--pill);background:var(--selected);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--hue,var(--brand));border-radius:inherit}
+.cols{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-top:12px}
+.list .item{display:flex;align-items:center;gap:12px;padding:13px 18px;width:100%;text-align:start}
+.list .item+.item{border-top:1px solid var(--line)}
+.list button.item:hover{background:var(--hover)}
+.chev{color:var(--ink3)}
+.stage[dir=rtl] .flip{transform:scaleX(-1)}
+.card-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+
+/* tables */
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2);text-align:start;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card);position:sticky;top:0}
+.stage[dir=rtl] th{letter-spacing:0;text-transform:none;font-size:12px}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--hover)}
+td.n,th.n{text-align:end}
+th:first-child{min-width:260px}
+.rollrow td{background:var(--sunken);padding-top:10px;padding-bottom:10px}
+.sw{display:inline-block;width:12px;height:28px;border-radius:4px;vertical-align:middle;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+tr.hand td{background:var(--brand-tint)!important}
+tr.hand td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+.stage[dir=rtl] tr.hand td:first-child{box-shadow:inset -3px 0 0 var(--brand)}
+.fold{display:flex;align-items:center;gap:12px;padding:14px 18px;width:100%;color:var(--ink2)}
+.spark{width:64px;height:22px}
+.spark path{fill:none;stroke:var(--hue,var(--ink3));stroke-width:1.5}
+.dash{color:var(--ink3)}
+.truth{display:flex;gap:14px;align-items:center;padding:14px 18px;border-radius:var(--r-lg);background:var(--warning-bg);border:1px solid #F1DFA8;color:var(--warning-ink);margin-bottom:16px}
+.tabs{display:inline-flex;gap:3px;background:#ECEDEF;border-radius:var(--r);padding:3px;margin-bottom:18px}
+.tabs button{padding:7px 16px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--ink2)}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chips button{padding:6px 12px;border-radius:var(--pill);border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:600;color:var(--ink2)}
+.chips button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chips .c{margin-inline-start:5px;font-size:11.5px;opacity:.75}
+.stack-bar{display:flex;height:14px;border-radius:var(--pill);overflow:hidden;background:var(--selected);margin:16px 0 8px}
+.legend{display:flex;gap:18px;font-size:12.5px;color:var(--ink2)}
+.legend b{color:var(--ink)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:6px;background:var(--k)}
+.sel{height:36px;border:1px solid var(--line3);border-radius:var(--r);padding:0 10px;background:var(--card)}
+</style>
+</head>
+<body>
+<div class="studio">
+  <b>Entrepôt — la journée · desk</b><span>manager.ly · <b>v3</b> = v1 + une couleur par métier · 2 oct. 2026</span>
+  <span class="grp" id="langs"><button data-lang="fr">Français</button><button data-lang="ar">العربية (RTL)</button></span>
+  <span class="grp" id="pick"></span>
+</div>
+<div class="why" id="why"></div>
+<div class="stage" id="stage">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <div class="topbar" id="topbar"></div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const ZONES = {
+  red:{hex:"#d80a0a",fr:"Rouge",ar:"أحمر",zfr:"Tripoli et banlieue",zar:"طرابلس وضواحيها"},
+  orange:{hex:"#fc6401",fr:"Orange",ar:"برتقالي",zfr:"Ouest de Tripoli",zar:"غرب طرابلس"},
+  yellow:{hex:"#f9fc01",fr:"Jaune",ar:"أصفر",zfr:"Est de Tripoli",zar:"شرق طرابلس"},
+  navy:{hex:"#091d96",fr:"Bleu marine",ar:"أزرق داكن",zfr:"Djebel occidental",zar:"الجبل الغربي"},
+  magenta:{hex:"#ed00ff",fr:"Magenta",ar:"أرجواني",zfr:"Région centrale",zar:"المنطقة الوسطى"},
+  green:{hex:"#339307",fr:"Vert",ar:"أخضر",zfr:"Région orientale",zar:"المنطقة الشرقية"},
+  cyan:{hex:"#0cbceb",fr:"Cyan",ar:"سماوي",zfr:"Région méridionale",zar:"المنطقة الجنوبية"},
+  lime:{hex:"#8fff00",fr:"Vert lime",ar:"أخضر فاتح",zfr:"Sud-Est",zar:"الجنوب الشرقي"},
+};
+const P = {
+  qr:{ar:"مصحف القرآن تدبر وعمل",fr:"Coran « Tadabbur wa ʿAmal »",sku:"qr-01",stock:943,thr:99,engaged:29,s:1},
+  th:{ar:"مصحف التهجد و قيام الليل",fr:"Mushaf « Tahajjud »",sku:"th-01",stock:216,thr:50,engaged:0,s:2},
+  hm:{ar:"كتاب الحفظ الميسر",fr:"Livre « Al-Hifz al-Muyassar »",sku:"hm-01",stock:210,thr:5,engaged:0,s:3},
+  da:{ar:"كتاب الداء والدواء",fr:"« Ad-Dâ' wa ad-Dawâ' »",sku:"DA2",stock:104,thr:2,engaged:1,s:4},
+  bs:{ar:"دمية ملاكمة · صغير",fr:"Poupée de boxe · petite",sku:"box-wafra-shop",stock:216,thr:20,engaged:1,s:5},
+  bm:{ar:"دمية ملاكمة · متوسط",fr:"Poupée de boxe · moyenne",sku:"—",stock:200,thr:5,engaged:0,s:6},
+  bl:{ar:"دمية ملاكمة · كبير",fr:"Poupée de boxe · grande",sku:"—",stock:600,thr:50,engaged:0,s:7},
+};
+// [roll, city ar, city fr, name ar, name fr, product, qty, hours, site]
+const Q = [
+  ["red","طرابلس","Tripoli","محمد","Mohamed","qr",1,70,"B"],["red","طرابلس","Tripoli","هارون","Haroun","qr",1,2,"B"],["red","تاجوراء","Tajoura","إبراهيم","Ibrahim","qr",1,0,"B"],
+  ["red","طرابلس","Tripoli","سالم","Salem","da",1,5,"T"],["red","طرابلس","Tripoli","أمل","Amel","qr",1,26,"T"],
+  ["orange","الزاوية","Zawiya","معمر","Muammar","bs",1,0,"B"],["orange","صبراتة","Sabratha","يوسف","Youssef","qr",1,70,"B"],["orange","صرمان","Sorman","مريم","Meryem","qr",1,2,"B"],
+  ["green","بنغازي","Benghazi","سارة","Sara","qr",1,2,"B"],["green","درنة","Derna","مريم","Meryem","qr",1,2,"B"],["green","طبرق","Tobrouk","فاطمة","Fatma","qr",1,70,"B"],["green","البيضاء","El Beïda","خالد","Khaled","qr",1,2,"B"],
+  ["cyan","سبها","Sebha","حامد","Hamed","qr",1,0,"B"],["cyan","سبها","Sebha","رضا","Ridha","qr",1,30,"T"],
+];
+
+const T = {
+ fr:{
+  nav_home:"Accueil", nav_dash:"Dashboard", nav_orders:"Commandes", nav_wh:"Entrepôt", today:"Aujourd'hui", out:"Sortir", returns:"Rentrer", stock:"Stock",
+  nav_deliv:"Livraison", nav_track:"Suivi transporteur", nav_fin:"Finances", nav_clients:"Clients", nav_team:"Équipe", nav_sys:"Système",
+  scanPh:"Scannez un sticker, un numéro de suivi, une référence…", scanHand:"Scannez le sticker du rouleau Vert collé sur le colis de Derna", all:"Tous",
+  tripoli:"Tripoli", benghazi:"Benghazi", date:"jeudi 2 octobre · Libye",
+  pickNot:"Chauffeur Darb pas encore passé", pickDone:"Chauffeur passé à 11:20", pickBtn:"Il est passé", pickUndo:"Annuler",
+  j1:"Sortir", j1s:"colis à scanner", j1old:"anciens (> 10 j)", j2:"Rentrer", j2s:"retours chez Darb pour nous", j2f:"3 encore en route",
+  j3:"Recevoir", j3s:"réception attendue", j3f:"REC-LY-2026-0001 · en retard d'1 j · aucune ligne", j4:"Compter", j4s:"produits jamais comptés", j4f:"aucun bâtiment n'a de stock compté",
+  sortedToday:"sortis aujourd'hui", team:"Équipe aujourd'hui", decide:"À décider", lastScan:"dernier scan", noScanEver:"aucun scan depuis l'ouverture du bâtiment (9 sept.)",
+  d1:"323 colis Dexpress sur le banc de Tripoli", d1s:"transporteur arrêté depuis mai — à annuler ou relancer dans Commandes", d2:"2 retours attendent chez Darb", d2s:"recevoir au bâtiment, ou relivrer au client",
+  d3:"Réception REC-LY-2026-0001 sans ligne", d3s:"créée hier par firas, attendue le 1er oct.", d4:"Aucun comptage n'a jamais eu lieu", d4s:"7 produits × 2 bâtiments — le stock par bâtiment reste éteint d'ici là",
+  open:"Ouvrir",
+  outT:"Sortir", toScan:"À scanner", scannedTab:"Sortis aujourd'hui", startRun:"Commencer la tournée", parcel:"Colis", dest:"Destination", client:"Client", age:"Âge", site:"Bâtiment", take:"Prendre", inHand:"En main",
+  older:"Anciens — sans mouvement depuis plus de 10 jours", olderS:"Tripoli 335 (dont 323 Dexpress) · Benghazi 11 · toujours scannables",
+  h:"{n} h", d:"{n} j", now:"à l'instant",
+  retT:"Rentrer", retRule:"Un colis n'est reçu qu'une fois enregistré en retour par Darb.", atDarb:"Chez Darb pour nous", onWay:"En route — pas encore recevables", reason:"Motif Darb", since:"Chez Darb depuis",
+  receive:"Recevoir…", redeliver:"Relivrer au client", refused:"Refusé par le client", unreachable:"Client injoignable", processed:"Traités — 7 derniers jours", none7:"Aucun retour traité cette semaine.",
+  stockT:"Stock", levels:"Niveaux", receptions:"Réceptions", journal:"Mouvements",
+  truthT:"Aucun produit n'a encore été compté.", truthB:"Registre seul : personne n'a vérifié ces chiffres sur l'étagère. Les colonnes par bâtiment restent vides tant qu'un bâtiment n'est pas compté.", truthBtn:"Lancer le comptage",
+  product:"Produit", book:"Registre", engaged:"Engagé", free:"Libre", unalloc:"Non ventilé", lastCount:"Dernier comptage", days14:"14 jours", never:"jamais", count:"Compter", moves:"Mouvements", low:"sous le seuil",
+  bySite:"Par bâtiment", countAt:"Compter à", siteNone:"Jamais compté", lastMoves:"Derniers mouvements", allMoves:"Tout le journal de ce produit", variants:"Variantes", noVariants:"Ce produit ne se décline pas.",
+  recNew:"Nouvelle réception", rAll:"Toutes", rExp:"Attendues", rVal:"À valider", rPost:"Validées", rUnpaid:"Impayées", ref:"Référence", supplier:"Fournisseur", qty:"Quantités", value:"Valeur reçue", state:"État",
+  rStatus:"Attendue", rLate:"en retard d'1 j", rNoLine:"aucune ligne — à compléter",
+  fAll:"Tout", fScan:"Sorties", fRet:"Retours", fRec:"Réceptions", fCount:"Inventaires", fAdj:"Ajustements", when:"Quand", event:"Événement", who:"Qui", delta:"Δ → solde", filteredBy:"Filtré :",
+  mvScan:"Sortie scannée", orderRef:"commande",
+ },
+ ar:{
+  nav_home:"الرئيسية", nav_dash:"لوحة القيادة", nav_orders:"الطلبات", nav_wh:"المستودع", today:"اليوم", out:"إخراج", returns:"إرجاع", stock:"المخزون",
+  nav_deliv:"التوصيل", nav_track:"تتبع الناقل", nav_fin:"المالية", nav_clients:"العملاء", nav_team:"الفريق", nav_sys:"النظام",
+  scanPh:"امسح ملصقاً أو رقم تتبع أو مرجعاً…", scanHand:"امسح ملصق الرولة الخضراء الملصق على طرد درنة", all:"الكل",
+  tripoli:"طرابلس", benghazi:"بنغازي", date:"الخميس 2 أكتوبر · ليبيا",
+  pickNot:"لم يمر سائق درب بعد", pickDone:"مرّ السائق الساعة 11:20", pickBtn:"مرّ السائق", pickUndo:"إلغاء",
+  j1:"إخراج", j1s:"طرداً بانتظار المسح", j1old:"قديمة (> 10 أيام)", j2:"إرجاع", j2s:"مرتجعات عند درب لنا", j2f:"و3 في الطريق",
+  j3:"استلام", j3s:"توريد مرتقب", j3f:"REC-LY-2026-0001 · متأخر يوماً · بلا أسطر", j4:"جرد", j4s:"منتجات لم تُجرد أبداً", j4f:"لا مبنى لديه مخزون مجرود",
+  sortedToday:"مُسحت اليوم", team:"الفريق اليوم", decide:"قرارات بانتظارك", lastScan:"آخر مسح", noScanEver:"لا مسح منذ افتتاح المبنى (9 سبتمبر)",
+  d1:"323 طرداً من Dexpress على مكتب طرابلس", d1s:"الناقل متوقف منذ مايو — ألغها أو أعد إرسالها من الطلبات", d2:"مرتجعان ينتظران عند درب", d2s:"استلمهما في المبنى أو أعد توصيلهما للزبون",
+  d3:"التوريد REC-LY-2026-0001 بلا أسطر", d3s:"أنشأه firas أمس، متوقع في 1 أكتوبر", d4:"لم يُجرَ أي جرد بعد", d4s:"7 منتجات × مبنيان — المخزون حسب المبنى معطّل حتى ذلك",
+  open:"فتح",
+  outT:"إخراج", toScan:"للمسح", scannedTab:"مُسحت اليوم", startRun:"ابدأ الجولة", parcel:"الطرد", dest:"الوجهة", client:"الزبون", age:"العمر", site:"المبنى", take:"خذ", inHand:"في اليد",
+  older:"قديمة — بلا حركة منذ أكثر من 10 أيام", olderS:"طرابلس 335 (منها 323 Dexpress) · بنغازي 11 · قابلة للمسح دائماً",
+  h:"{n} س", d:"{n} ي", now:"الآن",
+  retT:"إرجاع", retRule:"لا يُستلم أي طرد قبل أن يسجّله درب كمرتجع.", atDarb:"عند درب لنا", onWay:"في الطريق — لا يمكن استلامها بعد", reason:"سبب درب", since:"عند درب منذ",
+  receive:"استلام…", redeliver:"إعادة التوصيل", refused:"رفض الزبون الاستلام", unreachable:"الزبون لا يرد", processed:"عولجت — آخر 7 أيام", none7:"لا مرتجعات عولجت هذا الأسبوع.",
+  stockT:"المخزون", levels:"المستويات", receptions:"التوريدات", journal:"الحركات",
+  truthT:"لم يُجرد أي منتج بعد.", truthB:"السجل وحده: لم يتحقق أحد من هذه الأرقام على الرف. تبقى أعمدة المباني فارغة حتى يُجرد المبنى.", truthBtn:"ابدأ الجرد",
+  product:"المنتج", book:"السجل", engaged:"محجوز", free:"متاح", unalloc:"غير موزّع", lastCount:"آخر جرد", days14:"14 يوماً", never:"أبداً", count:"جرد", moves:"الحركات", low:"تحت الحد",
+  bySite:"حسب المبنى", countAt:"جرد في", siteNone:"لم يُجرد أبداً", lastMoves:"آخر الحركات", allMoves:"كل سجل هذا المنتج", variants:"المتغيرات", noVariants:"هذا المنتج بلا متغيرات.",
+  recNew:"توريد جديد", rAll:"الكل", rExp:"متوقعة", rVal:"للتصديق", rPost:"مصدّقة", rUnpaid:"غير مدفوعة", ref:"المرجع", supplier:"المورّد", qty:"الكميات", value:"القيمة المستلمة", state:"الحالة",
+  rStatus:"متوقعة", rLate:"متأخرة يوماً", rNoLine:"بلا أسطر — يجب إكمالها",
+  fAll:"الكل", fScan:"إخراج", fRet:"مرتجعات", fRec:"توريدات", fCount:"جرد", fAdj:"تعديلات", when:"متى", event:"الحدث", who:"من", delta:"Δ ← الرصيد", filteredBy:"مُصفّى:",
+  mvScan:"مسح للإخراج", orderRef:"طلب",
+ }
+};
+const WHY = {
+  today:"<p><b>Le même « Aujourd'hui » que l'agent, plus large.</b> Les quatre métiers avec, sous chaque chiffre, le découpage par bâtiment. Ce que le manager a de plus : l'équipe du jour (tarek n'a jamais scanné à Tripoli) et « À décider » — chaque ligne est cliquable, contrairement à l'ancien tableau de bord.</p><p>Le chauffeur, un bandeau par bâtiment : le manager peut annuler, l'agent seulement couper le sien.</p>",
+  out:"<p><b>Le champ de scan est permanent</b> en haut de chaque écran (lecteur USB = clavier + Entrée). « Prendre » met un colis en main : la ligne se teinte, le champ demande le sticker du bon rouleau. Le même scanner que le téléphone, pas une troisième version (<code>ScanStation</code> disparaît).</p><p>Les 346 anciens se replient ; le manager voit d'où ils viennent (323 Dexpress).</p>",
+  returns:"<p><b>« Relivrer au client » vit ici</b> — c'est une décision de responsable (<code>scan-received</code>, statut <code>received</code>, stock inchangé). L'agent n'a plus que Intact / Abîmé.</p><p>Le filtre par bâtiment s'applique enfin aux retours (<code>/api/warehouse/returns</code> l'ignorait).</p>",
+  stock:"<p><b>Les colonnes par bâtiment sont visibles et vides</b>, parce qu'aucun bâtiment n'a jamais été compté : tout est « non ventilé ». C'est la vérité du modèle (inégalités, pas d'invention de répartition) rendue lisible plutôt que cachée sur le téléphone seulement.</p><p>Onglets dans l'URL : <code>?tab=levels|receptions|journal</code>.</p>",
+  product:"<p><b>Le manager compte un bâtiment précis</b> (« Compter à : Benghazi ») — aujourd'hui son comptage tombait sur le total marché faute de sélecteur. Les mouvements du produit sont à droite ; « Tout le journal » ouvre Mouvements filtré, le lien qui était cassé.</p>",
+  receptions:"<p><b>La v3 approuvée, sur les jetons Ordra.</b> Même structure, mêmes colonnes ; seule la peau change. La seule réception en prod est un brouillon de test sans ligne — l'écran le dit.</p>",
+  journal:"<p><b>Mouvements</b>, lien profond par produit (<code>?tab=journal&product=qr-01</code>) et par famille. Les huit familles qui ont une source, y compris Inventaires et Réceptions.</p>",
+};
+const I = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>', orders:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  out:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M12 21v-9"/><path d="m3 8 9 4 9-4"/>', back:'<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>',
+  boxes:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62L18.3 9.38a1 1 0 0 0-.78-.38H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>', users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>', book:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>', alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  fold:'<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>', plus:'<path d="M12 5v14M5 12h14"/>', tally:'<path d="M4 4v16"/><path d="M9 4v16"/><path d="M14 4v16"/><path d="M19 4v16"/><path d="M22 6 2 18"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+};
+const ic = (n,s=18,w=2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+
+const params = new URLSearchParams(location.search);
+let lang = params.get("lang") === "ar" ? "ar" : "fr";
+let screen = params.get("screen") || "today";
+let site = "all", hand = true;
+const t = k => T[lang][k] ?? k, L = (a,f) => lang === "ar" ? a : f;
+const pn = k => P[k][lang];
+const age = h => h === 0 ? t("now") : h < 24 ? t("h").replace("{n}",h) : t("d").replace("{n}",Math.round(h/24));
+const siteName = s => s === "T" ? t("tripoli") : t("benghazi");
+const HUE = {out:"j-out",returns:"j-ret",stock:"j-rec",product:"j-rec",receptions:"j-rec",journal:"j-rec"};
+const SCREENS = ["today","out","returns","stock","product","receptions","journal"];
+const NAV_OF = {today:"today",out:"out",returns:"returns",stock:"stock",product:"stock",receptions:"stock",journal:"stock"};
+function spark(seed){const pts=Array.from({length:14},(_,i)=>[i*4.6,11-(Math.sin(i*0.9+seed)*4+Math.cos(i*0.37+seed*2)*3)*0.9+(i/14)*4]);return `<svg class="spark" viewBox="0 0 62 22"><path d="M${pts.map(p=>p.join(",")).join(" L")}"/></svg>`;}
+
+function sidebar(){
+  const cur = NAV_OF[screen];
+  const item = (k,icon,label,n) => `<button class="nav" ${k&&cur===k?'aria-current="page"':""} ${k?`data-go="${k}"`:""}>${ic(icon,17)}<span>${label}</span>${n!=null?`<span class="n num">${n}</span>`:""}</button>`;
+  return `<div class="brand"><i>O</i>Ordra</div>
+    <div class="nsec">${t("nav_home")}</div>${item(null,"home",t("nav_dash"))}
+    ${item(null,"orders",t("nav_orders"))}
+    <div class="nsec">${t("nav_wh")}</div>${item("today","sun",t("today"))}${item("out","out",t("out"),47)}${item("returns","back",t("returns"),2)}${item("stock","boxes",t("stock"))}
+    <div class="nsec">${t("nav_deliv")}</div>${item(null,"truck",t("nav_track"))}
+    <div class="nsec">${t("nav_fin")}</div>${item(null,"coins",t("nav_fin"))}
+    <div class="nsec">${t("nav_team")}</div>${item(null,"users",t("nav_team"))}
+    <div class="nsec">${t("nav_sys")}</div>${item(null,"gear",t("nav_sys"))}`;
+}
+function topbar(){
+  const inHand = screen === "out" && hand;
+  return `<label class="scanfield ${inHand?"hand":""}">${ic("scan",18)}<input placeholder="${inHand?t("scanHand"):t("scanPh")}" aria-label="${t("scanPh")}"><span class="kbd">⏎</span></label>
+    <div class="seg" role="group">${[["all",t("all"),""],["T",t("tripoli"),""],["B",t("benghazi"),""]].map(([k,l])=>`<button data-site="${k}" aria-pressed="${site===k}">${l}</button>`).join("")}</div>
+    <span class="grow"></span><span class="avatar">M</span>`;
+}
+
+const C = {};
+C.today = () => `
+  <div class="head"><div class="grow"><div class="muted small" style="font-weight:600">${t("date")}</div><h1 class="h1">${t("today")}</h1></div></div>
+  <div class="pick">
+    <div class="card"><span class="dot" style="background:var(--warning)"></span><b>${t("tripoli")}</b><span class="small muted grow">${t("pickNot")}</span><button class="btn sec sm">${ic("truck",15)} ${t("pickBtn")}</button></div>
+    <div class="card"><span class="dot" style="background:var(--success)"></span><b>${t("benghazi")}</b><span class="small muted grow">${t("pickDone")}</span><button class="btn ghost sm">${t("pickUndo")}</button></div>
+  </div>
+  <div class="jobs">
+    <button class="card job lead j-out" data-go="out"><div class="row"><span class="step">1</span><span class="h2 grow">${t("j1")}</span><span class="chev flip">${ic("chev")}</span></div>
+      <div><span class="big num">47</span> <span class="muted">${t("j1s")}</span></div>
+      <div class="split"><span>${t("tripoli")} <b class="num">16</b></span><span>${t("benghazi")} <b class="num">31</b></span></div>
+      <div class="bar"><i style="width:23%"></i></div>
+      <div class="row small"><span class="grow muted"><b class="num" style="color:var(--ink)">14</b> ${t("sortedToday")}</span><span class="chip warn"><i></i><span class="num">346</span> ${t("j1old")}</span></div></button>
+    <button class="card job j-ret" data-go="returns"><div class="row"><span class="step">2</span><span class="h2 grow">${t("j2")}</span><span class="chev flip">${ic("chev")}</span></div>
+      <div><span class="big num">2</span> <span class="muted">${t("j2s")}</span></div>
+      <div class="split"><span>${t("tripoli")} <b class="num">0</b></span><span>${t("benghazi")} <b class="num">2</b></span></div>
+      <div class="small muted" style="margin-top:auto">${t("j2f")}</div></button>
+    <button class="card job j-rec" data-go="receptions"><div class="row"><span class="step">3</span><span class="h2 grow">${t("j3")}</span><span class="chev flip">${ic("chev")}</span></div>
+      <div><span class="big num">1</span> <span class="muted">${t("j3s")}</span></div>
+      <div class="split"><span>${t("tripoli")} <b class="num">1</b></span><span>${t("benghazi")} <b class="num">0</b></span></div>
+      <div class="small" style="margin-top:auto;color:var(--warning-ink)">${t("j3f")}</div></button>
+    <button class="card job j-cnt" data-go="product"><div class="row"><span class="step">4</span><span class="h2 grow">${t("j4")}</span><span class="chev flip">${ic("chev")}</span></div>
+      <div><span class="big num">7</span> <span class="muted">${t("j4s")}</span></div>
+      <div class="split"><span>${t("tripoli")} <b class="num">7</b></span><span>${t("benghazi")} <b class="num">7</b></span></div>
+      <div class="small" style="margin-top:auto;color:var(--warning-ink)">${t("j4f")}</div></button>
+  </div>
+  <div class="cols">
+    <div class="card list"><div class="card-h"><span class="h2 grow">${t("decide")}</span><span class="chip mute num">4</span></div>
+      ${[["bad","d1","d1s","out"],["warn","d2","d2s","returns"],["warn","d3","d3s","receptions"],["warn","d4","d4s","product"]].map(([k,a,b,go])=>`
+      <button class="item" data-go="${go}"><span class="dot" style="background:var(--${k==="bad"?"critical":"warning"})"></span><div class="grow"><div style="font-weight:600">${t(a)}</div><div class="small muted">${t(b)}</div></div><span class="btn sec sm">${t("open")}</span></button>`).join("")}
+    </div>
+    <div class="card list"><div class="card-h"><span class="h2 grow">${t("team")}</span></div>
+      <div class="item"><span class="avatar">A</span><div class="grow"><div style="font-weight:600">adel · <span class="muted">${t("benghazi")}</span></div><div class="bar" style="margin-top:8px"><i style="width:31%"></i></div></div><div style="text-align:end"><div class="h2 num">14</div><div class="small muted">${t("lastScan")} <span class="num">10:41</span></div></div></div>
+      <div class="item"><span class="avatar">T</span><div class="grow"><div style="font-weight:600">tarek · <span class="muted">${t("tripoli")}</span></div><span class="chip bad" style="margin-top:6px"><i></i>${t("noScanEver")}</span></div><div style="text-align:end"><div class="h2 num">0</div></div></div>
+    </div>
+  </div>`;
+
+function rollTable(){
+  const rows = Q.filter(q => site==="all" || q[8]===site);
+  const groups = {}; rows.forEach(q => (groups[q[0]] ??= []).push(q));
+  let first = true;
+  return Object.entries(groups).map(([r,list]) => { const z = ZONES[r]; return `
+    <tr class="rollrow"><td colspan="6"><div class="row"><span class="sw" style="background:${z.hex}"></span><b>${L("رولة ","Rouleau ")+z[lang]}</b><span class="muted small">${L(z.zar,z.zfr)}</span><span class="grow"></span><b class="num">${list.length}</b><button class="btn ink sm">${t("startRun")}</button></div></td></tr>
+    ${list.map(q => { const isHand = hand && first && r==="green" && q[2]==="Derna"; if (isHand) first=false; return `
+    <tr class="${isHand?"hand":""}"><td><div class="row"><span class="thumb">${ic(q[5].startsWith("b")?"boxes":"book",16)}</span><span style="font-weight:600">${pn(q[5])}</span> <span class="num muted">×${q[6]}</span></div></td>
+      <td>${L(q[1],q[2])}</td><td class="muted">${L(q[3],q[4])}</td>
+      <td>${q[7]>48?`<span class="chip warn"><i></i>${age(q[7])}</span>`:`<span class="muted">${age(q[7])}</span>`}</td>
+      <td class="muted">${siteName(q[8])}</td>
+      <td class="n">${isHand?`<span class="chip ok"><i></i>${t("inHand")}</span>`:`<button class="btn sec sm" data-hand>${t("take")}</button>`}</td></tr>`;}).join("")}`;}).join("");
+}
+C.out = () => `
+  <div class="head"><div class="grow"><h1 class="h1">${t("outT")}</h1></div>
+    <div class="tabs" role="tablist" style="margin:0"><button role="tab" aria-selected="true">${t("toScan")} <span class="num muted">47</span></button><button role="tab" aria-selected="false">${t("scannedTab")} <span class="num muted">14</span></button></div></div>
+  <div class="card" style="overflow:hidden">
+    <table><thead><tr><th>${t("parcel")}</th><th>${t("dest")}</th><th>${t("client")}</th><th>${t("age")}</th><th>${t("site")}</th><th class="n"></th></tr></thead>
+    <tbody>${rollTable()}</tbody></table>
+    <button class="fold" style="border-top:1px solid var(--line)">${ic("fold",16)}<div class="grow"><div style="font-weight:600;color:var(--ink)">${t("older")} · <span class="num">346</span></div><div class="small">${t("olderS")}</div></div></button>
+  </div>`;
+
+C.returns = () => `
+  <div class="head"><div class="grow"><h1 class="h1">${t("retT")}</h1><p class="muted small" style="margin-top:4px">${t("retRule")}</p></div></div>
+  <div class="label" style="margin-bottom:8px">${t("atDarb")} · <span class="num">2</span></div>
+  <div class="card" style="overflow:hidden;margin-bottom:20px"><table>
+    <thead><tr><th>${t("parcel")}</th><th>${t("client")}</th><th>${t("reason")}</th><th>${t("since")}</th><th>${t("site")}</th><th class="n"></th></tr></thead>
+    <tbody>${[["qr","طبرق","Tobrouk","سعاد","Souad","refused",4,"SH1851028"],["bs","الزاوية","Zawiya","منير","Mounir","unreachable",1,"SH2057634"]].map(r=>`
+    <tr><td><div class="row"><span class="thumb">${ic(r[0].startsWith("b")?"boxes":"book",16)}</span><div><div style="font-weight:600">${pn(r[0])} <span class="num muted">×1</span></div><div class="small muted mono">${r[7]}</div></div></div></td>
+      <td>${L(r[3],r[4])} · <span class="muted">${L(r[1],r[2])}</span></td><td>${t(r[5])}</td>
+      <td>${r[6]>2?`<span class="chip warn"><i></i>${age(r[6]*24)}</span>`:`<span class="muted">${age(r[6]*24)}</span>`}</td><td class="muted">${t("benghazi")}</td>
+      <td class="n"><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn sec sm">${t("redeliver")}</button><button class="btn pri sm">${t("receive")}</button></div></td></tr>`).join("")}</tbody></table></div>
+  <div class="label" style="margin-bottom:8px">${t("onWay")} · <span class="num">3</span></div>
+  <div class="card" style="overflow:hidden;opacity:.65;margin-bottom:20px"><table><tbody>
+    ${[["qr","سرت","Syrte"],["qr","مصراتة","Misrata"],["da","بنغازي","Benghazi"]].map(r=>`<tr><td><div class="row"><span class="thumb">${ic("book",16)}</span><span style="font-weight:600">${pn(r[0])}</span></div></td><td>${L(r[1],r[2])}</td><td class="muted n">${t("benghazi")}</td></tr>`).join("")}
+  </tbody></table></div>
+  <div class="label" style="margin-bottom:8px">${t("processed")}</div>
+  <div class="card pad muted small row">${ic("inbox",18)}${t("none7")}</div>`;
+
+const stockTabs = cur => `<div class="tabs" role="tablist">${[["stock","levels"],["receptions","receptions"],["journal","journal"]].map(([go,k])=>`<button role="tab" data-go="${go}" aria-selected="${cur===go}">${t(k)}</button>`).join("")}</div>`;
+C.stock = () => `
+  <div class="head"><div class="grow"><h1 class="h1">${t("stockT")}</h1></div></div>
+  ${stockTabs("stock")}
+  <div class="truth">${ic("alert",20)}<div class="grow"><b>${t("truthT")}</b> <span class="small">${t("truthB")}</span></div><button class="btn ink" data-go="product">${ic("tally",16)} ${t("truthBtn")}</button></div>
+  <div class="card" style="overflow:hidden"><table>
+    <thead><tr><th>${t("product")}</th><th class="n">${t("book")}</th><th class="n">${t("engaged")}</th><th class="n">${t("free")}</th><th class="n">${t("tripoli")}</th><th class="n">${t("benghazi")}</th><th class="n">${t("unalloc")}</th><th>${t("lastCount")}</th><th>${t("days14")}</th><th class="n"></th></tr></thead>
+    <tbody>${Object.entries(P).map(([k,p])=>{const free=p.stock-p.engaged;return `
+      <tr><td><button class="row" data-go="product" style="text-align:start"><span class="thumb">${ic(k.startsWith("b")?"boxes":"book",16)}</span><div><div style="font-weight:600">${p[lang]}</div><div class="small muted mono">${p.sku}</div></div></button></td>
+      <td class="n num">${p.stock}</td><td class="n num ${p.engaged?"":"dash"}">${p.engaged||"—"}</td><td class="n"><b class="num" style="font-size:15px">${free}</b></td>
+      <td class="n dash">—</td><td class="n dash">—</td><td class="n num muted">${p.stock}</td>
+      <td><span class="chip warn"><i></i>${t("never")}</span></td><td>${spark(p.s)}</td>
+      <td class="n"><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn ghost sm" data-go="journal">${t("moves")}</button><button class="btn sec sm" data-go="product">${t("count")}</button></div></td></tr>`;}).join("")}</tbody></table></div>`;
+
+C.product = () => { const p = P.qr, free = p.stock - p.engaged; return `
+  <div class="head"><div class="grow"><div class="small muted mono">${p.sku}</div><h1 class="h1">${p[lang]}</h1></div>
+    <span class="small muted">${t("countAt")}</span><select class="sel"><option>${t("benghazi")}</option><option>${t("tripoli")}</option></select><button class="btn pri">${ic("tally",16)} ${t("count")}</button></div>
+  <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:12px">
+    <div>
+      <div class="card pad"><div class="row" style="align-items:flex-end"><div class="grow"><div class="label">${t("free")}</div><div class="big num" style="margin-top:6px">${free}</div></div><span class="chip warn"><i></i>${t("never")}</span></div>
+        <div class="stack-bar"><i style="width:${p.engaged/p.stock*100}%;background:var(--ink)"></i><i style="width:${free/p.stock*100}%;background:var(--brand)"></i></div>
+        <div class="legend"><span style="--k:var(--ink)">${t("engaged")} <b class="num">${p.engaged}</b></span><span style="--k:var(--brand)">${t("free")} <b class="num">${free}</b></span><span style="--k:var(--line3)">${t("book")} <b class="num">${p.stock}</b></span></div></div>
+      <div class="card" style="margin-top:12px;overflow:hidden"><div class="card-h"><span class="h2 grow">${t("bySite")}</span></div><table><tbody>
+        <tr><td>${t("tripoli")}</td><td class="n dash">—</td><td><span class="chip mute"><i></i>${t("siteNone")}</span></td></tr>
+        <tr><td>${t("benghazi")}</td><td class="n dash">—</td><td><span class="chip mute"><i></i>${t("siteNone")}</span></td></tr>
+        <tr><td class="muted">${t("unalloc")}</td><td class="n num"><b>${p.stock}</b></td><td></td></tr></tbody></table></div>
+      <div class="card pad small muted" style="margin-top:12px"><b style="color:var(--ink)">${t("variants")}</b> · ${t("noVariants")}</div>
+    </div>
+    <div class="card list" style="overflow:hidden"><div class="card-h"><span class="h2 grow">${t("lastMoves")}</span></div>
+      ${[["943","14:42","29"],["944","15:42","28"],["945","15:42","28"],["946","15:41","28"],["947","15:40","28"],["948","15:23","27"]].map(m=>`
+      <div class="item"><span class="dot" style="background:var(--ink3)"></span><div class="grow"><div style="font-weight:600">${t("mvScan")}</div><div class="small muted">${L(m[2]+" سبتمبر","" + m[2]+" sept.")} · <span class="num">${m[1]}</span> · adel · ${t("benghazi")}</div></div><b class="num">−1</b><span class="num muted small" style="min-width:34px;text-align:end">${m[0]}</span></div>`).join("")}
+      <button class="item" data-go="journal" style="color:var(--brand-hover);font-weight:600">${t("allMoves")} <span class="flip" style="margin-inline-start:auto">${ic("chev",16)}</span></button>
+    </div>
+  </div>`;};
+
+C.receptions = () => `
+  <div class="head"><div class="grow"><h1 class="h1">${t("stockT")}</h1></div><button class="btn pri">${ic("plus",16)} ${t("recNew")}</button></div>
+  ${stockTabs("receptions")}
+  <div class="chips">${[["rAll",1,true],["rExp",1],["rVal",0],["rPost",0],["rUnpaid",0]].map(([k,n,on])=>`<button aria-pressed="${!!on}">${t(k)}<span class="c num">${n}</span></button>`).join("")}</div>
+  <div class="card" style="overflow:hidden"><table>
+    <thead><tr><th>${t("ref")}</th><th>${t("supplier")}</th><th>${t("qty")}</th><th class="n">${t("value")}</th><th>${t("state")}</th></tr></thead>
+    <tbody><tr><td><div style="font-weight:600" class="mono">REC-LY-2026-0001</div><div class="small muted">${t("tripoli")} · <span style="color:var(--critical);font-weight:600">${t("rLate")}</span></div></td>
+      <td>firas <span class="muted small mono">· qd</span></td><td class="muted">${t("rNoLine")}</td><td class="n dash">—</td>
+      <td><span class="chip mute"><i></i>${t("rStatus")}</span></td></tr></tbody></table></div>`;
+
+C.journal = () => `
+  <div class="head"><div class="grow"><h1 class="h1">${t("stockT")}</h1></div></div>
+  ${stockTabs("journal")}
+  <div class="row" style="margin-bottom:12px"><span class="small muted">${t("filteredBy")}</span><span class="chip info"><i></i>${pn("qr")} <button aria-label="clear" style="display:inline-grid">${ic("x",13,2.5)}</button></span></div>
+  <div class="chips">${[["fAll",225,true],["fScan",225],["fRet",0],["fRec",0],["fCount",0],["fAdj",0]].map(([k,n,on])=>`<button aria-pressed="${!!on}">${t(k)}<span class="c num">${n}</span></button>`).join("")}</div>
+  <div class="card" style="overflow:hidden"><table>
+    <thead><tr><th>${t("when")}</th><th>${t("event")}</th><th>${t("product")}</th><th>${t("who")}</th><th class="n">${t("delta")}</th></tr></thead>
+    <tbody>${[["29","14:42","943"],["28","15:42","944"],["28","15:42","945"],["28","15:41","946"],["28","15:40","947"],["27","15:23","948"]].map(m=>`
+      <tr><td class="muted">${L(m[0]+" سبتمبر",m[0]+" sept.")} · <span class="num">${m[1]}</span></td><td><span class="chip mute"><i></i>${t("mvScan")}</span></td><td style="font-weight:600">${pn("qr")}</td><td>adel · <span class="muted">${t("benghazi")}</span></td><td class="n"><b class="num">−1</b> <span class="muted num">→ ${m[2]}</span></td></tr>`).join("")}</tbody></table></div>`;
+
+const stage = document.getElementById("stage");
+function render(){
+  stage.dir = lang === "ar" ? "rtl" : "ltr"; stage.lang = lang;
+  document.getElementById("sidebar").innerHTML = sidebar();
+  document.getElementById("topbar").innerHTML = topbar();
+  document.getElementById("content").className = "content " + (HUE[screen] || "");
+  document.getElementById("content").innerHTML = C[screen]();
+  document.querySelectorAll("#langs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+  document.getElementById("pick").innerHTML = SCREENS.map(s => `<button data-go="${s}" aria-pressed="${s===screen}">${s}</button>`).join("");
+  document.getElementById("why").innerHTML = WHY[screen];
+  const u = new URL(location); u.searchParams.set("lang",lang); u.searchParams.set("screen",screen); history.replaceState(null,"",u);
+}
+document.addEventListener("click", e => {
+  const el = e.target.closest("button,[data-go]"); if (!el) return;
+  if (el.dataset.lang){ lang = el.dataset.lang; render(); return; }
+  if (el.dataset.site){ site = el.dataset.site; render(); return; }
+  if (el.hasAttribute("data-hand")){ hand = true; render(); return; }
+  if (el.dataset.go){ screen = el.dataset.go; render(); document.getElementById("content").scrollTo(0,0); }
+});
+render();
+})();
+</script>
+</body>
+</html>

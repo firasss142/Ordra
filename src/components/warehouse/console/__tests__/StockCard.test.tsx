@@ -15,6 +15,12 @@ vi.mock("next-intl", async () => {
   };
 });
 
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>{children}</a>
+  ),
+}));
+
 /**
  * One product on the phone: a row that answers "how many do I have" at a
  * glance and opens for the rest. Reserved, threshold, last count, the last
@@ -85,6 +91,16 @@ describe("StockCard", () => {
     expect(more).toHaveTextContent("jamais compté");
     fireEvent.click(within(more).getByRole("button", { name: "Compter" }));
     expect(onCount).toHaveBeenCalled();
+  });
+
+  it("opens the product's own page once the row is open", async () => {
+    render(<StockCard row={row()} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /دمية الملاكمة/ }));
+    const more = await screen.findByTestId("wh-stock-more");
+    expect(within(more).getByRole("link", { name: "Ouvrir la fiche" })).toHaveAttribute(
+      "href",
+      "/fr/warehouse/stock/11111111-1111-4111-8111-111111111111",
+    );
   });
 
   it("loads the last movements when opened, and only then", async () => {

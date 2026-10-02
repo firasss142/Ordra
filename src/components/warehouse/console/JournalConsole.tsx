@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { Copy, Download, Search, Info } from "lucide-react";
+import { Copy, Download, Search, Info, X } from "lucide-react";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
 import { WhCard, WhKpiCard, WhKpiGrid } from "./primitives";
 import { WH_BTN, WH_LABEL, WH_TONE, type WhTone } from "./tokens";
@@ -71,7 +71,22 @@ function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function JournalConsole({ locale }: { locale: string }) {
+export function JournalConsole({
+  locale,
+  productId = null,
+  productName = null,
+  onClearProduct,
+}: {
+  locale: string;
+  /**
+   * One product's movements — « Mouvements » on a stock row or a product page.
+   * The link used to point at /warehouse/history, which redirected and dropped
+   * the product. It now arrives through Stock's address (?product=).
+   */
+  productId?: string | null;
+  productName?: string | null;
+  onClearProduct?: () => void;
+}) {
   const t = useTranslations("warehouse.journal");
   const [kind, setKind] = useState<Kind>("all");
   const [query, setQuery] = useState("");
@@ -79,7 +94,7 @@ export function JournalConsole({ locale }: { locale: string }) {
 
   const key = `/api/warehouse/history?limit=100&kind=${kind}${
     query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""
-  }`;
+  }${productId ? `&product_id=${encodeURIComponent(productId)}` : ""}`;
   const { data } = useSWR<{ rows: WarehouseHistoryRow[]; nextCursor: string | null }>(
     key,
     fetcher,
@@ -166,6 +181,25 @@ export function JournalConsole({ locale }: { locale: string }) {
           {t("exportCsv")}
         </button>
       </header>
+
+      {productId ? (
+        <p data-testid="wh-journal-product" className="mb-4 flex items-center gap-2 text-[13px] text-wh-ink-2">
+          {t("filteredBy")}
+          <span className="inline-flex items-center gap-1.5 rounded-pill border border-wh-border bg-wh-surface py-1 pe-1.5 ps-3 font-semibold text-wh-ink-1" dir="auto">
+            {productName ?? rows.find((r) => r.product_id === productId)?.product_name ?? productId}
+            {onClearProduct ? (
+              <button
+                type="button"
+                onClick={onClearProduct}
+                aria-label={t("clearFilter")}
+                className="grid h-5 w-5 place-items-center rounded-full text-wh-ink-2 hover:bg-wh-sunken"
+              >
+                <X size={13} strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            ) : null}
+          </span>
+        </p>
+      ) : null}
 
       <div className="mb-[18px]">
         <WhKpiGrid min={280}>
