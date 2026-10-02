@@ -4,7 +4,7 @@
  * `rejection-taxonomy` holds the shape the system shipped with: five groups and
  * eighteen sub-reasons, compiled in. This module holds the same tree once it has
  * been read out of `rejection_reason_configs`, where a manager can add a
- * sub-reason, rename one, recolour a group or retire a reason that stopped
+ * sub-reason, rename one, reorder a group or retire a reason that stopped
  * happening — without a migration.
  *
  * The two coexist deliberately. The hardcoded list is the seed, the fallback
@@ -16,40 +16,47 @@
  * handler, a client component and a test all use the same code path.
  */
 
-import type { StatusHue } from "./status-presentation";
+import type { StatusIconName } from "./status-presentation";
 import type { RejectionReasonConfig } from "@/types/rejection-config";
-import { REJECTION_GROUPS, type RejectionGroup } from "./rejection-taxonomy";
+import type { RejectionGroup } from "./rejection-taxonomy";
 
 /**
- * The hue each seeded group wears, and the fallback whenever the config has not
- * loaded or the key predates it.
+ * The mark each group wears inside a rejected badge, and the fallback whenever
+ * the config has not loaded or the key predates it.
  *
- * Not five shades of red. A rejection is one of four *different* business
- * problems, and reading which one off a column of a thousand rows is the whole
- * point of colouring them apart:
- *
- *   red     — the customer heard the offer and said no. The real lost sale.
- *   amber   — nobody could be reached. Still actionable; a better number may fix it.
- *   violet  — reachable and willing, but undeliverable. A coverage problem, not a
- *             sales one, and it belongs to logistics rather than to the agent.
- *   neutral — there was never an order there. Counting these as losses overstates
- *             every rejection rate in the system.
+ * The group lives in the ICON, not the colour. Every hue in the status palette
+ * already names a live state — amber is "still being called", violet is
+ * "confirmed", teal is "with the carrier" — so a group painted in one of them
+ * made a dead order read as a live one (LY's « Commande non réelle » in teal
+ * looked shipped on 707 rows). A rejected order is always the quiet red of an
+ * unsuccessful ending; which KIND of ending is the glyph, and the words say
+ * the rest.
  */
-export const SEED_GROUP_HUES: Record<RejectionGroup, StatusHue> = {
-  refus_client: "red",
-  injoignable: "amber",
-  livraison_impossible: "violet",
-  commande_invalide: "neutral",
-  autre: "neutral",
+export const REJECTION_GROUP_ICONS: Record<RejectionGroup, StatusIconName> = {
+  refus_client: "rejectedRefused", // heard the offer, said no — the real lost sale
+  injoignable: "rejectedUnreachable", // nobody picked up
+  livraison_impossible: "rejectedUndeliverable", // willing, but we cannot get there
+  commande_invalide: "rejectedInvalid", // there was never an order
+  autre: "rejectedOther", // the agent's note is the reason
 };
 
-/** Retired top-level values, mapped to the hue of the group that absorbed them. */
-export const LEGACY_GROUP_HUES: Record<string, StatusHue> = {
-  faux_numero: "amber", // became injoignable › numero_invalide
-  prix: "red", // became refus_client › prix_eleve
-  doublon: "neutral", // became commande_invalide › doublon
-  non_serieux: "neutral", // became commande_invalide › non_serieux
+/** Retired top-level values, mapped to the icon of the group that absorbed them. */
+const LEGACY_GROUP_ICONS: Record<string, StatusIconName> = {
+  faux_numero: "rejectedUnreachable", // became injoignable › numero_invalide
+  prix: "rejectedRefused", // became refus_client › prix_eleve
+  doublon: "rejectedInvalid", // became commande_invalide › doublon
+  non_serieux: "rejectedInvalid", // became commande_invalide › non_serieux
 };
+
+/** The group's mark, or the plain rejected cross for a key nobody knows. */
+export function rejectionGroupIcon(groupKey: string | null | undefined): StatusIconName {
+  if (!groupKey) return "rejected";
+  return (
+    REJECTION_GROUP_ICONS[groupKey as RejectionGroup] ??
+    LEGACY_GROUP_ICONS[groupKey] ??
+    "rejected"
+  );
+}
 
 export interface RejectionGroupNode {
   key: string;
@@ -57,7 +64,6 @@ export interface RejectionGroupNode {
   labelAr: string;
   shortFr: string;
   shortAr: string;
-  hue: StatusHue;
   sortOrder: number;
   isActive: boolean;
   /** `autre`: the free-text note stands in for a sub-reason. */
@@ -115,7 +121,6 @@ export function buildRejectionTree(
     labelAr: g.label_ar,
     shortFr: g.short_fr,
     shortAr: g.short_ar,
-    hue: g.hue,
     sortOrder: g.sort_order,
     isActive: g.is_active,
     requiresNote: g.requires_note,
@@ -163,22 +168,3 @@ export function validateRejectionPair(
 
   return node.subreasons.some((s) => s.key === sub);
 }
-
-/**
- * Seed rows for a market that has none — the same tree the migration inserts.
- * Used as the client-side fallback so a surface renders something sane while
- * the fetch is in flight, rather than flashing bare "Rejeté".
- */
-export function seedGroupHue(groupKey: string | null | undefined): StatusHue {
-  if (!groupKey) return "red";
-  if (groupKey in SEED_GROUP_HUES) {
-    return SEED_GROUP_HUES[groupKey as RejectionGroup];
-  }
-  return LEGACY_GROUP_HUES[groupKey] ?? "red";
-}
-
-/** Every group key the system knows how to colour, seeded or legacy. */
-export const ALL_KNOWN_GROUP_KEYS: readonly string[] = [
-  ...REJECTION_GROUPS,
-  ...Object.keys(LEGACY_GROUP_HUES),
-];

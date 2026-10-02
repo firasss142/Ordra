@@ -76,6 +76,42 @@ function renderPopover() {
 }
 
 describe("StatusHistoryPopover", () => {
+  // The trigger sits between a fixed-width table cell and the badge. Two
+  // content-sized inline-flex wrappers gave the badge's `max-w-full` nothing to
+  // be a percentage OF, so `truncate` never fired and an agent's note ran on
+  // under the Age column.
+  it("lets the trigger shrink to its cell so a long badge truncates", () => {
+    render(
+      <StatusHistoryPopover orderId="order-1">
+        <span>long</span>
+      </StatusHistoryPopover>,
+    );
+    let el: HTMLElement | null = screen.getByText("long").parentElement;
+    for (let i = 0; i < 2 && el; i += 1, el = el.parentElement) {
+      expect(el.className).toContain("min-w-0");
+      expect(el.className).toContain("max-w-full");
+    }
+  });
+
+  it("shows the full rejection reason under the title when given one", async () => {
+    hookState.detail = TWO_ENTRIES;
+    const user = userEvent.setup();
+    render(
+      <StatusHistoryPopover
+        orderId="order-1"
+        detail="Autre · Le client a déjà reçu le même produit d'un autre vendeur"
+      >
+        <span>Le client a déjà…</span>
+      </StatusHistoryPopover>,
+    );
+    await user.hover(screen.getByText("Le client a déjà…"));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain(
+      "Autre · Le client a déjà reçu le même produit d'un autre vendeur",
+    );
+  });
+
   it("renders the trigger child and no popover at rest", () => {
     renderPopover();
     expect(screen.getByText("Confirmé")).toBeDefined();

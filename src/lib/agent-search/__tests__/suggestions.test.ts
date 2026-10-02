@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildSuggestions } from "../suggestions";
+import { buildSuggestions, queryIntent } from "../suggestions";
+import type { MarketSearchRow } from "../market";
 import type { QueueOrder } from "@/types/queue";
 
 const order = (over: Partial<QueueOrder>): QueueOrder =>
@@ -126,5 +127,144 @@ describe("buildSuggestions", () => {
   it("carries the href each suggestion navigates to", () => {
     const groups = buildSuggestions("mahmoud", { orders: [order({})], parcels: [], leads: [] });
     expect(groups[0].rows[0].href).toContain("openOrderId=o1");
+  });
+});
+
+const marketRow = (over: Partial<MarketSearchRow>): MarketSearchRow => ({
+  id: "m1",
+  external_id: "49874",
+  status: "out_for_delivery",
+  customer_name: "Mahmoud Senoussi",
+  customer_phone: "+218913565775",
+  customer_phone_2: null,
+  customer_city: "Benghazi",
+  customer_address: null,
+  product_name: "Coran",
+  variant_label: null,
+  total_price: 202,
+  currency: "LYD",
+  tracking_number: null,
+  created_at: "2026-09-22T09:18:00Z",
+  archived: false,
+  owner: "other",
+  owner_name: "Salem",
+  access: "view",
+  ...over,
+});
+
+describe("buildSuggestions — the whole market", () => {
+  it("puts a colleague's order in its own read-only group, after the agent's own", () => {
+    const groups = buildSuggestions("mahmoud", {
+      orders: [order({})],
+      parcels: [],
+      leads: [],
+      market: [marketRow({})],
+    });
+    expect(groups.map((g) => g.key)).toEqual(["orders", "market"]);
+    expect(groups[1].rows[0]).toMatchObject({
+      id: "m1",
+      view: true,
+      owner: "other",
+      ownerName: "Salem",
+      ref: "49874",
+    });
+  });
+
+  it("never lists the same order twice when the server returns one the shell already had", () => {
+    const groups = buildSuggestions("mahmoud", {
+      orders: [order({ id: "o1" })],
+      parcels: [],
+      leads: [],
+      market: [marketRow({ id: "o1", owner: "me", owner_name: null, access: "full" })],
+    });
+    expect(groups.flatMap((g) => g.rows).filter((r) => r.id === "o1")).toHaveLength(1);
+  });
+
+  it("an own order the shell had not loaded joins the agent's orders and opens the usual panel", () => {
+    const groups = buildSuggestions("mahmoud", {
+      orders: [],
+      parcels: [],
+      leads: [],
+      market: [marketRow({ id: "x9", owner: "me", owner_name: null, access: "full", status: "delivered" })],
+      locale: "ar",
+    });
+    expect(groups[0].key).toBe("orders");
+    expect(groups[0].rows[0]).toMatchObject({ id: "x9", href: "/ar/queue?openOrderId=x9" });
+    expect(groups[0].rows[0].view).toBeFalsy();
+  });
+
+  it("an own order already listed under delivery is not repeated under orders", () => {
+    const groups = buildSuggestions("mahmoud", {
+      orders: [],
+      parcels: [
+        { order_id: "p1", customer_name: "Mahmoud F", customer_city: null, customer_phone: null, external_id: null, total_price: 1, bucket: null },
+      ],
+      leads: [],
+      market: [marketRow({ id: "p1", owner: "me", owner_name: null, access: "full" })],
+    });
+    expect(groups.map((g) => g.key)).toEqual(["delivery"]);
+  });
+
+  it("keeps the server's ranking and trusts its match — the server read every format", () => {
+    // "+218 91 356 5775" is not a substring of anything the local matcher sees,
+    // but the server reduced it to national digits and found these.
+    const groups = buildSuggestions("+218 91 356 5775", {
+      orders: [],
+      parcels: [],
+      leads: [],
+      market: [marketRow({ id: "a" }), marketRow({ id: "b", owner: "none", owner_name: null })],
+    });
+    expect(groups[0].rows.map((r) => r.id)).toEqual(["a", "b"]);
+    expect(groups[0].rows[1]).toMatchObject({ owner: "none" });
+  });
+
+  it("counts what the server found beyond the rows it sent, minus the agent's own", () => {
+    const groups = buildSuggestions("mahmoud", {
+      orders: [],
+      parcels: [],
+      leads: [],
+      market: [marketRow({ id: "mine", owner: "me", owner_name: null, access: "full" }), marketRow({ id: "v1" })],
+      marketTotal: 23,
+    });
+    expect(groups.find((g) => g.key === "market")!.total).toBe(22);
+  });
+
+  it("shows on the row why it matched when the hit was in the address or the tracking number", () => {
+    const byAddress = buildSuggestions("احمد", {
+      orders: [],
+      parcels: [],
+      leads: [],
+      market: [marketRow({ customer_name: "فاطمة المصراتي", customer_address: "قصر أحمد" })],
+    });
+    expect(byAddress[0].rows[0].subtitle).toContain("قصر أحمد");
+
+    const byTracking = buildSuggestions("DRB-7741", {
+      orders: [],
+      parcels: [],
+      leads: [],
+      market: [marketRow({ tracking_number: "DRB-7741203" })],
+    });
+    expect(byTracking[0].rows[0].subtitle).toContain("DRB-7741203");
+  });
+});
+
+describe("queryIntent", () => {
+  it("reads digits, even typed with spaces, as a phone or a number", () => {
+    expect(queryIntent("091 345 67")).toEqual({ kind: "number" });
+    expect(queryIntent("+218 91-345-6721")).toEqual({ kind: "number" });
+  });
+
+  it("names the field a prefix aims at", () => {
+    expect(queryIntent("ville:sfax")).toEqual({ kind: "field", field: "city" });
+    expect(queryIntent("tel:0913")).toEqual({ kind: "field", field: "phone" });
+  });
+
+  it("anything else is a name, city, product or address", () => {
+    expect(queryIntent("احمد")).toEqual({ kind: "text" });
+    expect(queryIntent("DRB-7741")).toEqual({ kind: "text" });
+  });
+
+  it("says nothing for an empty box", () => {
+    expect(queryIntent("  ")).toBeNull();
   });
 });

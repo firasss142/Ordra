@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
-import { REJECTION_HUES } from "@/types/rejection-config";
-import type { StatusHue } from "@/lib/orders/status-presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +107,9 @@ const MUTABLE = new Set([
   "label_ar",
   "short_fr",
   "short_ar",
-  "hue",
+  // No `hue`. Every rejection wears the rejected red and its group is told
+  // apart by icon (lib/orders/rejection-config → REJECTION_GROUP_ICONS); the
+  // column survives in the table, unread.
   "sort_order",
   "is_active",
 ]);
@@ -142,7 +142,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         error:
-          "parent_key is immutable — moving a sub-reason between groups would recolour and re-bucket every order already rejected for it",
+          "parent_key is immutable — moving a sub-reason between groups would re-icon and re-bucket every order already rejected for it",
       },
       { status: 400 },
     );
@@ -162,28 +162,6 @@ export async function PATCH(
       { error: "No mutable fields provided" },
       { status: 400 },
     );
-  }
-
-  if (updates.hue !== undefined) {
-    // A sub-reason wearing its own colour would put four colours inside one
-    // group, and the colour would stop meaning "which kind of failure".
-    if (row.parent_key !== null) {
-      return NextResponse.json(
-        {
-          error:
-            "A sub-reason inherits its group's colour. Recolour the group instead.",
-        },
-        { status: 400 },
-      );
-    }
-    if (!REJECTION_HUES.includes(updates.hue as StatusHue)) {
-      return NextResponse.json(
-        {
-          error: `hue must be one of: ${REJECTION_HUES.join(", ")} — the design system's named tones, not a free colour`,
-        },
-        { status: 400 },
-      );
-    }
   }
 
   if (

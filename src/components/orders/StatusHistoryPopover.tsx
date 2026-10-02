@@ -62,6 +62,12 @@ export interface StatusHistoryPopoverProps {
    * back to `data.source_platform` from the endpoint.
    */
   sourcePlatform?: string | null;
+  /**
+   * A rejected order's reason in full — group, sub-reason and the agent's note.
+   * The badge only has room for « Faux n° » or the first words of a note, so
+   * this is the one place in the table where the whole sentence can be read.
+   */
+  detail?: string | null;
   /** The status Badge rendered as the hover trigger. */
   children: React.ReactNode;
 }
@@ -84,7 +90,7 @@ export interface StatusHistoryPopoverProps {
  * Hover mechanics (250ms close delay + transparent bridge + portal) are copied
  * from DuplicateOrderBadge so behaviour matches the table's other popovers.
  */
-export function StatusHistoryPopover({ orderId, sourcePlatform, children }: StatusHistoryPopoverProps) {
+export function StatusHistoryPopover({ orderId, sourcePlatform, detail = null, children }: StatusHistoryPopoverProps) {
   const t = useTranslations("orders.statusHistory");
   const popoverId = useId();
 
@@ -101,9 +107,12 @@ export function StatusHistoryPopover({ orderId, sourcePlatform, children }: Stat
   }
 
   return (
+    // `min-w-0 max-w-full` on both wrappers: without them they size to their
+    // content, the badge's `max-w-full` resolves against that, `truncate`
+    // never fires, and a long reason runs on under the next column.
     <span
       ref={triggerRef}
-      className="relative inline-flex"
+      className="relative inline-flex min-w-0 max-w-full"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onFocus={handleEnter}
@@ -114,7 +123,7 @@ export function StatusHistoryPopover({ orderId, sourcePlatform, children }: Stat
         aria-haspopup="dialog"
         aria-describedby={open ? popoverId : undefined}
         aria-label={t("triggerAria")}
-        className="inline-flex"
+        className="inline-flex min-w-0 max-w-full"
       >
         {children}
       </span>
@@ -123,6 +132,7 @@ export function StatusHistoryPopover({ orderId, sourcePlatform, children }: Stat
           id={popoverId}
           orderId={orderId}
           sourcePlatform={sourcePlatform ?? null}
+          summary={detail}
           anchorRef={triggerRef}
           onMouseEnter={handleEnter}
           onMouseLeave={handleLeave}
@@ -136,12 +146,13 @@ interface HistoryPopoverProps {
   id: string;
   orderId: string;
   sourcePlatform: string | null;
+  summary: string | null;
   anchorRef: React.RefObject<HTMLElement | null>;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }
 
-function HistoryPopover({ id, orderId, sourcePlatform, anchorRef, onMouseEnter, onMouseLeave }: HistoryPopoverProps) {
+function HistoryPopover({ id, orderId, sourcePlatform, summary, anchorRef, onMouseEnter, onMouseLeave }: HistoryPopoverProps) {
   const t = useTranslations("orders.statusHistory");
   const tStatuses = useTranslations("orders.statuses");
   const locale = useLocale();
@@ -215,6 +226,15 @@ function HistoryPopover({ id, orderId, sourcePlatform, anchorRef, onMouseEnter, 
               <div className="mt-1 text-[15px] font-semibold text-ink-primary truncate">
                 {detail.customer_name}
               </div>
+            )}
+            {summary && (
+              <p
+                dir="auto"
+                data-testid="status-history-reason"
+                className="m-0 mt-1 text-[12.5px] leading-snug text-ink-secondary [overflow-wrap:anywhere]"
+              >
+                {summary}
+              </p>
             )}
           </div>
           {!isLoading && !error && entries.length > 0 && (

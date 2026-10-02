@@ -4,7 +4,7 @@
  * updates a message, bumps a conversation and inserts a notification).
  *
  * Supports the subset this repo's WhatsApp code uses: from / select / eq /
- * neq / in / is / gt / gte / lt / lte / order / limit / range / maybeSingle / single /
+ * neq / in / is / or / gt / gte / lt / lte / order / limit / range / maybeSingle / single /
  * insert / upsert / update / delete / rpc, and awaiting the chain directly.
  * Anything else throws loudly rather than returning undefined.
  *
@@ -37,6 +37,52 @@ export interface FakeSupabase {
 }
 
 let idSeq = 1;
+
+/** Split an or=(…) body on the commas that are not inside a quoted value. */
+function splitOrLegs(expr: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let quoted = false;
+  for (const ch of expr) {
+    if (ch === '"') quoted = !quoted;
+    if (ch === "," && !quoted) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function parseOrLeg(leg: string): Filter {
+  const first = leg.indexOf(".");
+  const second = leg.indexOf(".", first + 1);
+  const col = leg.slice(0, first);
+  const op = leg.slice(first + 1, second);
+  const raw = leg.slice(second + 1);
+  const value = raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1) : raw;
+  const text = (r: Row) => (r[col] === null || r[col] === undefined ? "" : String(r[col]));
+  switch (op) {
+    case "ilike": {
+      const body = value
+        .split("")
+        .map((c) => (c === "%" ? ".*" : c === "_" ? "." : c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+        .join("");
+      const re = new RegExp(`^${body}$`, "is");
+      return (r) => re.test(text(r));
+    }
+    case "imatch": {
+      const re = new RegExp(value, "i");
+      return (r) => re.test(text(r));
+    }
+    case "eq":
+      return (r) => text(r) === value;
+    case "is":
+      if (value === "null") return (r) => r[col] === null || r[col] === undefined;
+      break;
+  }
+  throw new Error(`fakeSupabase: or() leg "${leg}" unsupported`);
+}
 
 export function makeFakeSupabase(seed: Record<string, Row[]> = {}): FakeSupabase {
   const tables: Record<string, Row[]> = {};
@@ -116,6 +162,16 @@ class Chain implements PromiseLike<{ data: unknown; error: unknown; count: numbe
   not(col: string, op: string, v: unknown) {
     if (op === "is" && v === null) this.filters.push((r) => r[col] !== null && r[col] !== undefined);
     else throw new Error(`fakeSupabase: not(${op}) unsupported`);
+    return this;
+  }
+  /**
+   * PostgREST `or=(…)`: the legs lib/orders/search-query emits — `ilike` with
+   * `%`/`_` wildcards, `imatch` with a quoted regex — plus `eq` and `is.null`.
+   * Any other operator throws, so a new leg shape cannot silently match nothing.
+   */
+  or(expr: string) {
+    const preds = splitOrLegs(expr).map(parseOrLeg);
+    this.filters.push((r) => preds.some((p) => p(r)));
     return this;
   }
   gt(col: string, v: unknown) {
@@ -214,8 +270,10 @@ class Chain implements PromiseLike<{ data: unknown; error: unknown; count: numbe
     switch (this.op.kind) {
       case "select": {
         const m = this.matching(rows);
-        if (this.op.options?.head) return { data: null, error: null, count: m.length };
-        return this.finish(m.map((r) => ({ ...r })), this.op.options?.count ? m.length : null);
+        // PostgREST's count is every row the filters admit, before limit/range.
+        const total = rows.filter((r) => this.filters.every((f) => f(r))).length;
+        if (this.op.options?.head) return { data: null, error: null, count: total };
+        return this.finish(m.map((r) => ({ ...r })), this.op.options?.count ? total : null);
       }
       case "insert": {
         const list = (Array.isArray(this.op.payload) ? this.op.payload : [this.op.payload!]).map((p) => ({

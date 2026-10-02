@@ -192,7 +192,8 @@ SUB-REASONS are full CRUD per market, in `rejection_reason_configs`; the old
 `orders_rejection_subreason_check` is gone, so the reject route validates against
 that table, not a compiled list. Delete = hard-delete if no order uses it, soft
 retire otherwise (history must stay readable). A rejected order's badge shows the
-short sub-reason in its GROUP's colour, never the bare word "Rejeté".
+short sub-reason in the rejected red with its GROUP's icon — never the bare word
+"Rejeté", and never a group colour (every other hue is a live status; since 2026-10-02).
 Edited at Système › Paramètres › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Agent queue sort order
@@ -266,7 +267,7 @@ entry has not meant deleting its page — check before assuming a route is dead.
   activation des sites d'entrepôt — un seul écran, Système → Connexions → Transporteurs:
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
 - Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
-  pastille porte la couleur du groupe: docs/rejection-reasons.md +
+  pastille est toujours rouge et porte l'icône du groupe: docs/rejection-reasons.md +
   plans/rejection-reasons-crud-and-badge.md
 - Intake multi-lignes — les cinq adaptateurs lisent TOUTES les lignes, le webhook écrit
   `order_items`, chaque ligne résout son produit, et `mapping_status` est le pire de
@@ -289,6 +290,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +
   plans/duplicate-review-and-order-merge.md
+- Recherche agent sur tout le marché — ses commandes en droits complets, celles des
+  collègues / non attribuées / supprimées en aperçu lecture seule (jamais le panneau :
+  sa présence bloquerait le manager), RLS non élargie, variantes arabes + accents pliées
+  dans la recherche partagée (migration à appliquer AVANT le déploiement):
+  docs/agent-market-search.md + plans/agent-market-search.md
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:
