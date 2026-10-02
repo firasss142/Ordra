@@ -17,7 +17,6 @@ import {
   FileClock,
   Gauge,
   Home,
-  Key,
   LayoutDashboard,
   LineChart,
   Megaphone,
@@ -27,12 +26,11 @@ import {
   PackageSearch,
   Percent,
   PhoneCall,
-  Plug,
   Send,
   Server,
   Settings,
+  ScrollText,
   ShoppingBag,
-  Store,
   Target,
   Truck,
   UserPlus,
@@ -230,19 +228,15 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "systeme",
     icon: Server,
     admin: true,
-    // Four workspaces, matching the Système redesign. Storefronts, Transporteurs,
-    // Correspondances and Intégrations are no longer separate nav entries — they
-    // are tabs inside Connexions. Their old routes still redirect for bookmarks.
-    //
-    // A market_manager sees Connexions and Paramètres only, to read them
-    // (owner's decision, prototype whatsapp-manager-v1 role=manager): the
-    // pages already render read-only for that role. Marchés and Journaux stay
-    // super_admin only.
+    // Two entries (plans/reglages-redesign.md, 2026-10-02). Réglages is one
+    // page organised by topic — Marchés, Boutiques, Commandes, Motifs de rejet,
+    // Équipe, Entrepôts, Livraison, WhatsApp, Publicité — with its own menu; a
+    // market_manager edits the day-to-day rules of their market there. The old
+    // Marchés / Connexions / Paramètres routes redirect to their topic.
+    // Journaux stays super_admin only.
     items: [
-      { key: "marketsConfig", href: "system/markets", icon: Store, prefetchRoute: "markets", superAdminOnly: true },
-      { key: "connexions", href: "system/connections", icon: Plug, prefetchRoute: "settings" },
-      { key: "generalSettings", href: "system/settings", icon: Settings, prefetchRoute: "settings" },
-      { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin", superAdminOnly: true },
+      { key: "reglages", href: "system/settings", icon: Settings, prefetchRoute: "settings", activeOn: ["system/settings"] },
+      { key: "logs", href: "system/logs", icon: ScrollText, prefetchRoute: "admin", superAdminOnly: true },
     ],
   },
 ];
@@ -331,7 +325,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
   const activePath = currentPath ?? pathname ?? "";
   const activeSearch = searchString ? `?${searchString}` : "";
   const t = useTranslations("nav");
-  const tWa = useTranslations("whatsappAdmin.common");
   const [menuOpen, setMenuOpen] = useState(false);
   const [userHovered, setUserHovered] = useState(false);
   const [logoutHovered, setLogoutHovered] = useState(false);
@@ -573,7 +566,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
             sectionUnassignedBadge > 0 ? sectionUnassignedBadge : sectionWhatsAppBadge > 0 ? sectionWhatsAppBadge : undefined;
           const sectionBadgeTone: BadgeTone =
             sectionUnassignedBadge > 0 ? "warning" : sectionWhatsAppBadge > 0 ? "success" : "neutral";
-          const readOnlyNote = section.admin && user.role !== "super_admin";
 
           return (
             <div key={section.id}>
@@ -649,23 +641,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                       </li>
                     );
                   })}
-                  {readOnlyNote && (
-                    <li>
-                      <p
-                        style={{
-                          margin: "6px 4px 0",
-                          padding: "8px 10px",
-                          borderRadius: "8px",
-                          backgroundColor: "var(--sidebar-bg-elevated)",
-                          color: "var(--sidebar-text-secondary)",
-                          fontSize: "12px",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {tWa("readOnly")}
-                      </p>
-                    </li>
-                  )}
                 </ul>
               )}
             </div>

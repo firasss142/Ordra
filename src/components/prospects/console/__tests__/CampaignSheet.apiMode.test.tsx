@@ -126,12 +126,12 @@ describe("CampaignSheet — when the market is not connected", () => {
     expect(api).toBeDisabled();
     expect(api.closest("label")).toHaveTextContent("Non connecté");
     expect(api.closest("label")).toHaveTextContent("WhatsApp n'est pas connecté pour ce marché.");
-    expect(screen.queryByRole("link", { name: /Système › Connexions/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Réglages › WhatsApp/ })).not.toBeInTheDocument();
   });
 
-  it("a super_admin is pointed at Système › Connexions", () => {
+  it("a super_admin is pointed at Réglages › WhatsApp", () => {
     mount(draft({ waSender: "agent" }), { whatsappActive: false, canConnectWhatsApp: true });
-    expect(screen.getByRole("link", { name: /Système › Connexions/ })).toHaveAttribute("href", "/fr/system/connections?tab=services");
+    expect(screen.getByRole("link", { name: /Réglages › WhatsApp/ })).toHaveAttribute("href", "/fr/system/settings/whatsapp");
   });
 });
 

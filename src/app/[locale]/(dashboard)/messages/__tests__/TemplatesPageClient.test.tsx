@@ -84,14 +84,14 @@ describe("TemplatesPageClient", () => {
   it("a super_admin not connected is sent to Connexions › Services", () => {
     connected = false;
     mount("super_admin");
-    expect(screen.getByRole("link", { name: "Ouvrir Système › Connexions" })).toHaveAttribute("href", "/fr/system/connections?tab=services");
+    expect(screen.getByRole("link", { name: "Ouvrir Réglages › WhatsApp" })).toHaveAttribute("href", "/fr/system/settings/whatsapp");
   });
 
   it("a market_manager reads: no link to connect, event selects disabled", () => {
     connected = false;
     mount("market_manager", [MARKETS[0]]);
-    expect(screen.queryByRole("link", { name: "Ouvrir Système › Connexions" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Un super_admin relie le numéro/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ouvrir Réglages › WhatsApp" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Un administrateur relie le numéro/)).toBeInTheDocument();
   });
 
   it("opens on the market chosen in the sidebar for a super_admin", () => {

@@ -41,7 +41,7 @@ export function TemplatesPageClient({
         initialMarketId={startMarket}
         readOnly={!isSuperAdmin}
         canDelete={isSuperAdmin}
-        connectionsHref={isSuperAdmin ? `/${locale}/system/connections?tab=services` : null}
+        connectionsHref={isSuperAdmin ? `/${locale}/system/settings/whatsapp` : null}
         renderHeader={(actions) => <MessagesHeader active="templates" locale={locale} title={t("title")} sub={t("sub")} actions={actions} />}
       />
     </div>

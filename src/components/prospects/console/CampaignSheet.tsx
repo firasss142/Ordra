@@ -803,7 +803,7 @@ function ChannelStep({
                           {canConnectWhatsApp ? (
                             <>
                               {" "}
-                              <Link href={`/${locale}/system/connections?tab=services`} className="font-semibold text-[#15803D] underline underline-offset-2">
+                              <Link href={`/${locale}/system/settings/whatsapp`} className="font-semibold text-[#15803D] underline underline-offset-2">
                                 {t("cb.waApiOffAdmin")}
                               </Link>
                             </>

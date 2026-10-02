@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
 /**
- * Legacy route — the settings workspace moved to /system/settings in the
- * Système redesign. Redirect, preserving a deep-linked tab.
+ * Legacy route — Paramètres became Réglages. /system/settings maps a
+ * deep-linked ?tab= onto its topic.
  */
 export default function GeneralSettingsPage({
   params,

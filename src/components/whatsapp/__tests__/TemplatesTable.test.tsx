@@ -67,7 +67,7 @@ function mockRows(byMarket: Record<string, unknown[]>) {
 function mount(props: Partial<React.ComponentProps<typeof TemplatesTable>> = {}) {
   return render(
     <ToastProvider>
-      <TemplatesTable markets={MARKETS} initialMarketId={TN} canDelete connectionsHref="/fr/system/connections?tab=services" {...props} />
+      <TemplatesTable markets={MARKETS} initialMarketId={TN} canDelete connectionsHref="/fr/system/settings/whatsapp" {...props} />
     </ToastProvider>,
   );
 }
@@ -214,7 +214,7 @@ describe("TemplatesTable", () => {
     mount();
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByText(/WhatsApp n'est pas connecté pour ce marché/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ouvrir Système › Connexions" })).toHaveAttribute("href", "/fr/system/connections?tab=services");
+    expect(screen.getByRole("link", { name: "Ouvrir Réglages › WhatsApp" })).toHaveAttribute("href", "/fr/system/settings/whatsapp");
     expect(screen.getByRole("button", { name: /Synchroniser depuis Meta/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Créer les modèles Ordra/ })).toBeDisabled();
   });
@@ -223,7 +223,7 @@ describe("TemplatesTable", () => {
     connected = { [TN]: false };
     mockRows({ [TN]: [] });
     mount({ markets: [MARKETS[0]], readOnly: true, canDelete: false, connectionsHref: null });
-    expect(screen.getByText(/Un super_admin relie le numéro/)).toBeInTheDocument();
+    expect(screen.getByText(/Un administrateur relie le numéro/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Connexions/ })).not.toBeInTheDocument();
   });
 

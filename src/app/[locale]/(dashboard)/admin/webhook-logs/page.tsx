@@ -8,7 +8,7 @@ export default function WebhookLogsRedirect() {
   const params = useParams<{ locale: string }>();
 
   useEffect(() => {
-    router.replace(`/${params.locale}/admin/logs`);
+    router.replace(`/${params.locale}/system/logs`);
   }, [router, params.locale]);
 
   return null;

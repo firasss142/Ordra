@@ -145,7 +145,8 @@
       "deliveryWorklist": "Suivi livraison",
       "messages": "Messages",
       "connexions": "Connexions",
-      "customerVoice": "Voix du client"
+      "customerVoice": "Voix du client",
+      "reglages": "Réglages"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -6984,7 +6985,7 @@
         "launched": "Campagne lancée · {n} messages en file",
         "resubmit": "Modifier et resoumettre",
         "waApiOffD": "WhatsApp n'est pas connecté pour ce marché.",
-        "waApiOffAdmin": "Connectez-le dans Système › Connexions.",
+        "waApiOffAdmin": "Connectez-le dans Réglages › WhatsApp.",
         "waFrom": "Ordra {market}",
         "market": {
           "ly": "Libye",
@@ -7161,7 +7162,7 @@
       "undeliverable": "Ce numéro n'est pas sur WhatsApp",
       "undeliverableSub": "Meta a refusé la livraison (code 131026). Appelez le client ou corrigez le numéro.",
       "noConfig": "WhatsApp n'est pas connecté pour ce marché",
-      "noConfigSub": "Demandez à l'administrateur de connecter le numéro dans Système › Connexions. En attendant, le lien wa.me ouvre WhatsApp sur votre téléphone.",
+      "noConfigSub": "Demandez à l'administrateur de connecter le numéro dans Réglages › WhatsApp. En attendant, le lien wa.me ouvre WhatsApp sur votre téléphone.",
       "noPhone": "Aucun numéro WhatsApp utilisable pour ce client.",
       "failed": "L'envoi a échoué",
       "failedMeta": "Meta {code} · {reason}",
@@ -7233,7 +7234,7 @@
         "h": "il y a {n} h",
         "d": "il y a {n} j"
       },
-      "goToConnections": "Ouvrir Système › Connexions",
+      "goToConnections": "Ouvrir Réglages › WhatsApp",
       "language": {
         "fr": "Français",
         "ar": "العربية",
@@ -7422,7 +7423,7 @@
       "empty": "Aucun modèle pour ce marché.",
       "emptyHint": "« Créer les modèles Ordra » soumet le catalogue complet.",
       "notConnected": "WhatsApp n'est pas connecté pour ce marché : Meta ne détient encore aucun modèle, rien ne peut être synchronisé ni créé.",
-      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un super_admin relie le numéro dans Système › Connexions.",
+      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un administrateur relie le numéro dans Réglages › WhatsApp.",
       "synced": "Synchronisé · {total} modèles, {updated} mis à jour",
       "syncedNew": "{n} nouveaux",
       "syncedGone": "{n} disparus",
@@ -7490,7 +7491,7 @@
         "ar": "en arabe"
       },
       "noConfigTitle": "WhatsApp n'est pas connecté pour ce marché",
-      "noConfig": "Connectez d'abord WhatsApp dans Système › Connexions. Les réglages ci-dessous seront appliqués dès que ce sera fait.",
+      "noConfig": "Connectez d'abord WhatsApp dans Réglages › WhatsApp. Les réglages ci-dessous seront appliqués dès que ce sera fait.",
       "save": "Enregistrer",
       "saving": "Enregistrement…",
       "reset": "Réinitialiser ce groupe",
@@ -7717,6 +7718,190 @@
       "retry": "Réessayer",
       "actionFailed": "L'action a échoué. Réessayez.",
       "productTabs": "Produits"
+    }
+  },
+  "reglages": {
+    "title": "Réglages",
+    "marketLabel": {
+      "admin": "Marché réglé",
+      "manager": "Votre marché"
+    },
+    "allMarketsHint": "Vous regardez « Tous les marchés ». Choisissez-en un.",
+    "menuFoot": {
+      "admin": "Chaque modification est enregistrée avec son auteur. Cliquez sur l’horloge d’un réglage pour voir son historique.",
+      "manager": "Vous pouvez modifier les règles du quotidien de votre marché. Le reste est réglé par un administrateur."
+    },
+    "market": {
+      "tn": "Tunisie",
+      "ly": "Libye"
+    },
+    "language": {
+      "fr": "Français",
+      "ar": "Arabe"
+    },
+    "topics": {
+      "markets": {
+        "label": "Marchés",
+        "subtitle": "Les pays où Ordra vend. Chacun a sa langue, sa devise et ses propres réglages."
+      },
+      "shops": {
+        "label": "Boutiques",
+        "subtitle": "Les boutiques qui envoient leurs commandes à Ordra, et les produits ou villes reçus qu’il faut associer."
+      },
+      "orders": {
+        "label": "Commandes",
+        "subtitle": "Combien de fois on appelle, quand on rappelle, ce qu’on fait des doublons et quand on range."
+      },
+      "rejections": {
+        "label": "Motifs de rejet",
+        "subtitle": "Les raisons qu’un agent choisit quand une commande n’aboutit pas."
+      },
+      "team": {
+        "label": "Équipe",
+        "subtitle": "Comment les commandes sont réparties entre les agents, leurs objectifs et leurs commissions."
+      },
+      "warehouses": {
+        "label": "Entrepôts",
+        "subtitle": "Les bâtiments d’où partent les colis, et le délai pour réapprovisionner le stock."
+      },
+      "delivery": {
+        "label": "Livraison",
+        "subtitle": "Les transporteurs et leurs frais, et quand un colis en route mérite un appel."
+      },
+      "whatsapp": {
+        "label": "WhatsApp",
+        "subtitle": "Le numéro WhatsApp de la marque, et les messages envoyés automatiquement aux clients."
+      },
+      "ads": {
+        "label": "Publicité",
+        "subtitle": "Les comptes publicitaires Meta dont Ordra lit les dépenses, et le taux de change utilisé."
+      }
+    },
+    "scope": {
+      "title": "Les réglages se font marché par marché",
+      "heading": "Quel marché voulez-vous régler ?",
+      "body": "Vous regardez « Tous les marchés ». Une règle d’appel ou un transporteur appartient toujours à un seul marché."
+    },
+    "save": {
+      "one": "1 modification non enregistrée",
+      "many": "{count} modifications non enregistrées",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saved": "Réglages enregistrés",
+      "failed": "L’enregistrement a échoué. Rien n’a été modifié.",
+      "forbidden": "Ce réglage est modifiable par un administrateur seulement.",
+      "invalid": "Une valeur est hors des limites autorisées. Corrigez-la avant d’enregistrer."
+    },
+    "leave": {
+      "title": "Quitter sans enregistrer ?",
+      "body": "Vous avez des modifications non enregistrées sur cette page. Elles seront perdues.",
+      "stay": "Rester",
+      "go": "Quitter sans enregistrer"
+    },
+    "readOnly": "Modifiable par un administrateur",
+    "adminOnly": "Visible par l’administrateur seulement",
+    "history": {
+      "button": "Historique des modifications",
+      "empty": "Aucune modification enregistrée : c’est la valeur d’origine.",
+      "loading": "Chargement de l’historique",
+      "unknown": "—"
+    },
+    "common": {
+      "active": "Actif",
+      "inactive": "Désactivé",
+      "edit": "Modifier",
+      "add": "Ajouter",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "close": "Fermer",
+      "copy": "Copier",
+      "copied": "Copié",
+      "archive": "Archiver",
+      "remove": "Retirer",
+      "test": "Tester",
+      "saved": "Enregistré",
+      "error": "Une erreur est survenue. Réessayez.",
+      "loading": "Chargement",
+      "none": "—"
+    },
+    "fields": {
+      "max_call_attempts": {
+        "label": "Nombre maximum d’appels",
+        "unit": "appels",
+        "help": "Au {n}ᵉ appel sans réponse, la commande est rejetée automatiquement avec le motif « Injoignable »."
+      },
+      "sla_minutes": {
+        "label": "Délai de confirmation visé",
+        "unit": "minutes",
+        "helpHours": "Dans le panneau d’une commande, le compteur passe au rouge quand elle attend sa confirmation depuis plus de {n} h.",
+        "helpMinutes": "Dans le panneau d’une commande, le compteur passe au rouge quand elle attend sa confirmation depuis plus de {n} min."
+      },
+      "attempt_retry_times": {
+        "label": "Heures de rappel",
+        "help": "Une commande restée sans réponse revient en haut de la file de l’agent à {times}, dans cet ordre. 3 heures au maximum.",
+        "helpEmpty": "Aucune heure : la commande revient quand l’agent le décide.",
+        "add": "Ajouter",
+        "remove": "Retirer",
+        "slot": "Heure {n}",
+        "invalid": "Heures au format HH:MM, dans l’ordre de la journée."
+      },
+      "duplicate_window_hours": {
+        "label": "Doublon probable",
+        "unit": "heures",
+        "help": "Si un client recommande dans les {n} h, la nouvelle commande porte le badge « doublon probable ». Un doublon exact est déjà écarté."
+      },
+      "duplicate_autoselect_window_hours": {
+        "label": "Pré-sélection sur l’écran Doublons",
+        "unit": "heures",
+        "help": "Les commandes identiques arrivées à moins de {n} h d’écart sont cochées d’avance. 0 = rien n’est coché.",
+        "helpZero": "Rien n’est coché d’avance : vous choisissez chaque doublon."
+      },
+      "merge_window_hours": {
+        "label": "Fusion de commandes",
+        "unit": "heures",
+        "help": "Même client, produits différents, à moins de {n} h d’écart : l’agent peut les réunir en un seul colis, avec un seul frais de livraison. 0 = désactivée.",
+        "helpZero": "Désactivée : l’agent ne peut pas réunir deux commandes d’un même client. Saisissez un nombre d’heures pour l’activer."
+      },
+      "auto_archive_after_days": {
+        "label": "Archiver les commandes terminées après",
+        "unit": "jours",
+        "help": "Une commande livrée, retournée, rejetée ou annulée depuis {n} jours passe dans « Archivées ». Son statut ne change pas."
+      }
+    },
+    "orders": {
+      "callsTitle": "Appels de confirmation",
+      "callsDesc": "Combien de fois un agent appelle, et quand une commande sans réponse revient.",
+      "dupTitle": "Doublons et fusion",
+      "dupDesc": "Ce qui se passe quand un même client commande plusieurs fois.",
+      "archiveTitle": "Archivage",
+      "archiveDesc": "Ranger les commandes terminées pour alléger les listes."
+    },
+    "markets": {
+      "colMarket": "Marché",
+      "colLanguage": "Langue de l’équipe",
+      "colCurrency": "Devise",
+      "colState": "État",
+      "addNote": "Ajouter un marché demande une intervention technique : devise, transporteurs et villes de livraison.",
+      "open": "Ouvrir {market}",
+      "drawerSub": "Modifier le marché",
+      "identity": "Identité",
+      "name": "Nom",
+      "teamLanguage": "Langue de l’équipe",
+      "teamLanguageHelp": "La langue des agents et managers de ce marché. L’administrateur voit toujours le français.",
+      "ltr": "de gauche à droite",
+      "rtl": "de droite à gauche",
+      "currency": "Devise",
+      "currencyHelp": "Fixée à la création : toutes les sommes du marché en dépendent.",
+      "activeLabel": "Marché actif",
+      "activeHelp": "Désactivé, il disparaît du sélecteur de marché ; ses commandes et réglages sont conservés.",
+      "sender": "Expéditeur sur les étiquettes",
+      "senderHelp": "Imprimé sur chaque étiquette de colis de ce marché. Le transporteur s’en sert pour un retour.",
+      "senderName": "Nom",
+      "senderAddress": "Adresse",
+      "senderAddressPlaceholder": "ex. Rue du 1er Septembre, Tripoli",
+      "senderPhone": "Téléphone",
+      "nameRequired": "Le nom du marché ne peut pas être vide."
     }
   }
 }
