@@ -91,7 +91,7 @@ export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDial
 
   const topics = useFeedbackTopics(market);
   const { context } = useFeedbackContext(mode === "context" ? orderId : null);
-  const { result } = useFeedbackLookup(mode === "blank" && !picked ? query : "", market);
+  const { result, isLoading: searching } = useFeedbackLookup(mode === "blank" && !picked ? query : "", market);
 
   const textRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -269,6 +269,11 @@ export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDial
             className="h-full min-w-0 flex-1 border-0 bg-transparent text-[14.5px] text-[#111827] outline-none"
           />
         </div>
+        {focusSearch && query.trim().length >= 3 && !result && searching && (
+          <div className="absolute inset-x-0 top-[calc(100%+6px)] z-10 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-[12.5px] text-[#6B7280] shadow-[0_12px_32px_rgba(17,24,39,0.14)]">
+            {t("searching")}
+          </div>
+        )}
         {focusSearch && query.trim().length >= 3 && result && (
           <div className="absolute inset-x-0 top-[calc(100%+6px)] z-10 max-h-[300px] overflow-y-auto rounded-xl border border-[#E5E7EB] bg-white shadow-[0_12px_32px_rgba(17,24,39,0.14)]">
             {options.length === 0 && <div className="px-3 pb-1 pt-2 text-[11.5px] font-bold text-[#9CA3AF]">{t("noResult")}</div>}

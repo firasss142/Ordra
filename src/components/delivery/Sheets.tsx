@@ -159,6 +159,7 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit, feedback 
           className="h-12 w-full rounded-[10px] border border-[#E5E7EB] bg-[#F9FAFB] px-3.5 text-[15px] outline-none focus:border-[#111111] focus:bg-white" />
         {note.length > 0 && <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs tabular-nums text-[#9CA3AF]">{note.length}/{NOTE_MAX}</span>}
       </div>
+      {keeping && !note.trim() && <p className="-mt-3 mb-[18px] text-[12.5px] text-[#6B7280]">{tFeedback("wordsRequired")}</p>}
 
       <Label>{t("sheet.reminder")}</Label>
       <div className="mb-[18px] grid grid-cols-3 gap-2">

@@ -62,3 +62,15 @@ describe("ActionSheet — « Pourquoi ? » on Veut annuler", () => {
     expect(screen.queryByText("Pourquoi ? Garder ce que le client a dit")).toBeNull();
   });
 });
+
+describe("ActionSheet — says why the button waits", () => {
+  it("asks for the customer's words while the offer is on and the note is empty", () => {
+    render(
+      <NextIntlClientProvider locale="fr" messages={fr}>
+        <ActionSheet initialType="call_customer" tz="Africa/Tripoli" now={NOW} onClose={vi.fn()} onSubmit={vi.fn()} feedback={feedback} />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Veut annuler" }));
+    expect(screen.getByText("Ses mots sont nécessaires pour garder le retour.")).toBeInTheDocument();
+  });
+});
