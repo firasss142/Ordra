@@ -125,11 +125,11 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
   }, [s, overview, set]);
 
   if (!market) {
-    return <div className="mx-auto max-w-[1480px] px-5 py-16 text-center text-[15px] text-[#6B7280]">{t("selectMarket")}</div>;
+    return <div className="mx-auto max-w-[1480px] px-[20px] py-[64px] text-center text-[15px] text-[#6B7280]">{t("selectMarket")}</div>;
   }
   if (error && !overview) {
     return (
-      <div className="mx-auto max-w-[1480px] px-5 py-16 text-center text-[15px] text-[#6B7280]">
+      <div className="mx-auto max-w-[1480px] px-[20px] py-[64px] text-center text-[15px] text-[#6B7280]">
         {t("error")} <button type="button" onClick={refresh} className="font-semibold text-[#15803D] underline">{t("retry")}</button>
       </div>
     );
@@ -139,9 +139,9 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
   const now = Date.now();
 
   return (
-    <main className="min-w-0 px-7 pb-[60px] pt-[22px] text-start text-[14px] text-[#1A1A1A] max-md:px-4">
-      <div className="mb-3.5 flex flex-wrap items-center gap-3">
-        <h1 className="m-0 flex items-center gap-2 text-[20px] font-[650]">
+    <main className="min-w-0 px-[28px] pb-[60px] pt-[22px] text-start text-[14px] text-[#1A1A1A] max-md:px-[16px]">
+      <div className="mb-[14px] flex flex-wrap items-center gap-[12px]">
+        <h1 className="m-0 flex items-center gap-[8px] text-[20px] font-[650]">
           {s.review && (
             <button type="button" aria-label={t("back")} onClick={() => set({ review: false, peek: null })} className="text-[14px] text-[#8A9096]">
               <ArrowLeft size={16} className="rtl:rotate-180" aria-hidden />
@@ -161,7 +161,7 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
           aria-label={t("allAgents")}
           value={s.agent ?? ""}
           onChange={(e) => set({ agent: e.target.value || null })}
-          className="h-8 rounded-lg border border-[#E1E3E5] bg-white px-2.5 text-[13px]"
+          className="h-[32px] rounded-[8px] border border-[#E1E3E5] bg-white px-[10px] text-[13px]"
         >
           <option value="">{t("allAgents")}</option>
           {overview?.agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -179,7 +179,7 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
             onReview={() => set({ review: true, late: false, peek: null })}
           />
           <KpiCards overview={overview} value={s.cat} onChange={(cat) => set({ cat, topic: null, late: false })} />
-          <div className="mb-3 grid grid-cols-[1.25fr_1fr] gap-3 max-lg:grid-cols-1">
+          <div className="mb-[12px] grid grid-cols-[1.25fr_1fr] gap-[12px] max-lg:grid-cols-1">
             <TopTopics
               overview={overview} category={s.cat} topicId={s.topic}
               onPick={(cat, topicId) => {
@@ -194,7 +194,7 @@ export function FeedbackWorkspace({ role, marketId, locale }: { role: Role; mark
       )}
 
       <FilterChips chips={chips} onClear={() => set({ cat: null, topic: null, agent: null, late: false })} />
-      {failed && <p role="alert" className="mb-2 text-[13px] font-semibold text-[#B91C1C]">{t("actionFailed")}</p>}
+      {failed && <p role="alert" className="mb-[8px] text-[13px] font-semibold text-[#B91C1C]">{t("actionFailed")}</p>}
       <FeedbackTable
         rows={rows} total={total} review={s.review} topics={overview?.topics ?? []} agents={overview?.agents ?? []}
         peek={s.peek} now={now}

@@ -58,10 +58,12 @@ export function DateRangeControl({ from, to, today, first, family, market, onCha
   const lo = sb && sa > sb ? sb : sa;
   const hi = sb ? (sa > sb ? sa : sb) : null;
 
-  const label = preset && !QUICK_PRESETS.includes(preset)
-    ? t(`presets.${preset}`)
-    : from === to ? fdate(from) : `${fdate(from)} – ${fdate(to)}`;
+  // As the prototype: a quick preset always shows its dates (« 30 sept. – 30 sept. » for today);
+  // a named preset shows its name; a custom range shows its dates, one day as one date.
   const custom = !preset || !QUICK_PRESETS.includes(preset);
+  const label = !custom
+    ? `${fdate(from)} – ${fdate(to)}`
+    : preset ? t(`presets.${preset}`) : from === to ? fdate(from) : `${fdate(from)} – ${fdate(to)}`;
   const weekdays = t("weekdays").split(",");
 
   function month(ym: string) {
@@ -69,7 +71,7 @@ export function DateRangeControl({ from, to, today, first, family, market, onCha
     const offset = (first1.getUTCDay() + 6) % 7;
     const n = new Date(Date.UTC(first1.getUTCFullYear(), first1.getUTCMonth() + 1, 0)).getUTCDate();
     const cells: React.ReactNode[] = weekdays.map((w, i) => (
-      <span key={`w${i}`} className="pb-1 text-center text-[11px] text-[#8A9096]">{w}</span>
+      <span key={`w${i}`} className="pb-[4px] text-center text-[11px] text-[#8A9096]">{w}</span>
     ));
     for (let i = 0; i < offset; i++) cells.push(<span key={`e${i}`} />);
     for (let i = 1; i <= n; i++) {
@@ -86,10 +88,10 @@ export function DateRangeControl({ from, to, today, first, family, market, onCha
           aria-label={new Intl.DateTimeFormat(intl, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`))}
           onClick={() => { if (!a || b) { setA(iso); setB(null); } else setB(iso); }}
           className={[
-            "group relative h-8 text-center text-[12.5px] disabled:pointer-events-none disabled:text-[#E1E3E5]",
+            "group relative h-[32px] text-center text-[12.5px] disabled:pointer-events-none disabled:text-[#E1E3E5]",
             inside || ((isStart || isEnd) && hi && lo !== hi) ? "bg-[#EAF6EE]" : "",
-            isStart && hi && lo !== hi ? "rounded-s-2xl" : "",
-            isEnd && hi && lo !== hi ? "rounded-e-2xl" : "",
+            isStart && hi && lo !== hi ? "rounded-s-[16px]" : "",
+            isEnd && hi && lo !== hi ? "rounded-e-[16px]" : "",
           ].join(" ")}
         >
           <span
@@ -106,7 +108,7 @@ export function DateRangeControl({ from, to, today, first, family, market, onCha
       );
     }
     const name = new Intl.DateTimeFormat(intl, { month: "long", year: "numeric", timeZone: "UTC" }).format(first1);
-    return { name, grid: <div className="grid grid-cols-[repeat(7,34px)] gap-y-0.5">{cells}</div> };
+    return { name, grid: <div className="grid grid-cols-[repeat(7,34px)] gap-y-[2px]">{cells}</div> };
   }
 
   const L = month(leftMonth);
@@ -116,65 +118,65 @@ export function DateRangeControl({ from, to, today, first, family, market, onCha
 
   return (
     <>
-      <div className="inline-flex rounded-lg border border-[#E1E3E5] bg-white p-0.5">
+      <div className="inline-flex rounded-[8px] border border-[#E1E3E5] bg-white p-[2px]">
         {QUICK_PRESETS.map((k) => (
           <button key={k} type="button" aria-pressed={preset === k} onClick={() => applyPreset(k)}
-            className={`rounded-md px-[11px] py-[5px] text-[13px] ${preset === k ? "bg-[#1A1A1A] text-white" : "text-[#5C6166]"}`}>
+            className={`rounded-[6px] px-[11px] py-[5px] text-[13px] ${preset === k ? "bg-[#1A1A1A] text-white" : "text-[#5C6166]"}`}>
             {t(`quick.${k}`)}
           </button>
         ))}
       </div>
       <div className="relative" ref={box}>
         <button type="button" aria-expanded={open} onClick={() => { if (open) close(); else { setOpen(true); setRightMonth(to.slice(0, 7)); } }}
-          className={`inline-flex h-8 items-center gap-[7px] rounded-lg border bg-white px-2.5 text-[13px] ${custom ? "border-[#1A1A1A]" : "border-[#E1E3E5]"}`}>
+          className={`inline-flex h-[32px] items-center gap-[7px] rounded-[8px] border bg-white px-[10px] text-[13px] ${custom ? "border-[#1A1A1A]" : "border-[#E1E3E5]"}`}>
           <CalendarDays size={16} aria-hidden />
           <span>{label}</span>
           <ChevronDown size={16} aria-hidden />
         </button>
         {open && (
-          <div className="absolute end-0 top-[38px] z-30 flex overflow-hidden rounded-xl border border-[#E1E3E5] bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)] max-md:flex-col">
-            <div className="flex min-w-[168px] flex-col border-e border-[#EDEEF0] p-2">
+          <div className="absolute end-0 top-[38px] z-30 flex overflow-hidden rounded-[12px] border border-[#E1E3E5] bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)] max-md:flex-col">
+            <div className="flex min-w-[168px] flex-col border-e border-[#EDEEF0] p-[8px]">
               {PRESETS.map((k) => (
                 <button key={k} type="button" onClick={() => applyPreset(k)}
-                  className={`rounded-md px-2.5 py-[7px] text-start text-[13px] ${!a && preset === k ? "bg-[#EAF6EE] font-semibold text-[#15803D]" : "text-[#5C6166] hover:bg-[#F7F8F9] hover:text-[#1A1A1A]"}`}>
+                  className={`rounded-[6px] px-[10px] py-[7px] text-start text-[13px] ${!a && preset === k ? "bg-[#EAF6EE] font-semibold text-[#15803D]" : "text-[#5C6166] hover:bg-[#F7F8F9] hover:text-[#1A1A1A]"}`}>
                   {t(`presets.${k}`)}
                 </button>
               ))}
             </div>
-            <div className="px-4 py-3.5">
-              <div className="flex gap-6 max-md:flex-col">
+            <div className="px-[16px] py-[14px]">
+              <div className="flex gap-[24px] max-md:flex-col">
                 <div>
-                  <div className="mb-2 flex min-h-6 items-center justify-between text-[13px] font-semibold">
+                  <div className="mb-[8px] flex min-h-[24px] items-center justify-between text-[13px] font-semibold">
                     <button type="button" aria-label={t("prevMonth")} onClick={() => setRightMonth(addMonth(rightMonth, -1))}
-                      className="grid h-6 w-6 place-items-center rounded-md text-[#8A9096] hover:bg-[#F7F8F9]">
+                      className="grid h-[24px] w-[24px] place-items-center rounded-[6px] text-[#8A9096] hover:bg-[#F7F8F9]">
                       <ChevronLeft size={16} className="rtl:rotate-180" aria-hidden />
                     </button>
-                    <span>{L.name}</span><span className="w-6" />
+                    <span>{L.name}</span><span className="w-[24px]" />
                   </div>
                   {L.grid}
                 </div>
                 <div>
-                  <div className="mb-2 flex min-h-6 items-center justify-between text-[13px] font-semibold">
-                    <span className="w-6" /><span>{R.name}</span>
+                  <div className="mb-[8px] flex min-h-[24px] items-center justify-between text-[13px] font-semibold">
+                    <span className="w-[24px]" /><span>{R.name}</span>
                     <button type="button" aria-label={t("nextMonth")} onClick={() => setRightMonth(addMonth(rightMonth, 1))}
-                      className={`grid h-6 w-6 place-items-center rounded-md text-[#8A9096] hover:bg-[#F7F8F9] ${canNext ? "" : "invisible"}`}>
+                      className={`grid h-[24px] w-[24px] place-items-center rounded-[6px] text-[#8A9096] hover:bg-[#F7F8F9] ${canNext ? "" : "invisible"}`}>
                       <ChevronRight size={16} className="rtl:rotate-180" aria-hidden />
                     </button>
                   </div>
                   {R.grid}
                 </div>
               </div>
-              <div className="mt-2.5 flex items-center gap-2.5 border-t border-[#EDEEF0] pt-2.5 text-[12.5px] text-[#5C6166]">
+              <div className="mt-[10px] flex items-center gap-[10px] border-t border-[#EDEEF0] pt-[10px] text-[12.5px] text-[#5C6166]">
                 <span>
                   {hi
                     ? <><b className="tabular-nums">{fdate(lo, true)} – {fdate(hi, true)}</b> · {t("days", { n: daysBetween(lo, hi) + 1 })}</>
                     : t("pickEnd")}
                 </span>
                 <span className="flex-1" />
-                <button type="button" onClick={close} className="inline-flex h-8 items-center rounded-lg border border-[#E1E3E5] bg-white px-3 text-[13px]">{t("cancel")}</button>
+                <button type="button" onClick={close} className="inline-flex h-[32px] items-center rounded-[8px] border border-[#E1E3E5] bg-white px-[12px] text-[13px]">{t("cancel")}</button>
                 <button type="button" disabled={!draftReady && !hi}
                   onClick={() => { const f = lo, e = hi ?? lo; close(); onChange(f, e); }}
-                  className="inline-flex h-8 items-center rounded-lg border border-[#15803D] bg-[#15803D] px-3 text-[13px] text-white disabled:opacity-50">
+                  className="inline-flex h-[32px] items-center rounded-[8px] border border-[#15803D] bg-[#15803D] px-[12px] text-[13px] text-white disabled:opacity-50">
                   {t("apply")}
                 </button>
               </div>

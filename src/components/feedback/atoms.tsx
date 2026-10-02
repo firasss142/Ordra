@@ -35,9 +35,21 @@ export function useTopicLabel() {
 }
 
 /** « ● Objection » — the pill on a row and in a toast. */
-export function CategoryTag({ category, size = "md" }: { category: FeedbackCategory; size?: "sm" | "md" }) {
+export function CategoryTag({ category, size = "md" }: { category: FeedbackCategory; size?: "sm" | "md" | "plain" }) {
   const t = useTranslations("feedback");
   const tone = CATEGORY_TONE[category];
+  // The manager's sheet and drawer use the flat .tag of prototype manager-v6: no dot, square-ish.
+  if (size === "plain") {
+    return (
+      <span
+        data-category={category}
+        className="inline-flex items-center whitespace-nowrap rounded-[5px] px-[7px] py-[1px] text-[12px] font-[550]"
+        style={{ background: tone.bg, color: tone.ink }}
+      >
+        {t(`cat.${category}`)}
+      </span>
+    );
+  }
   return (
     <span
       data-category={category}

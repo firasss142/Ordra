@@ -114,7 +114,8 @@ describe("FeedbackWorkspace — the numbers on top", () => {
     expect(card).toHaveTextContent("↑ 32");
     expect(card).toHaveTextContent("83 % des retours");
     expect(screen.getByRole("button", { name: /Réclamations/ })).toHaveTextContent("2 ouvertes · 1 > 48 h");
-    expect(screen.getByRole("button", { name: /Suggestions/ })).toHaveTextContent("=");
+    // No change still shows its number, like the prototype: « = 0 ».
+    expect(screen.getByRole("button", { name: /Suggestions/ })).toHaveTextContent("= 0 vs période précédente");
     fireEvent.click(card);
     expect(search.get("cat")).toBe("objection");
   });
@@ -151,6 +152,13 @@ describe("FeedbackWorkspace — the period", () => {
     expect(search.get("to")).toBe("2026-09-30");
   });
 
+  it("a quick preset always shows its range on the date button, even a single day", () => {
+    search = new URLSearchParams("from=2026-09-30&to=2026-09-30");
+    mount();
+    expect(screen.getByRole("button", { name: "Aujourd'hui" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^30 sept\. – 30 sept\.$/ })).toBeInTheDocument();
+  });
+
   it("a custom range from the calendar: start, end, apply", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: /1 sept\. – 30 sept\./ }));
@@ -171,6 +179,10 @@ describe("FeedbackWorkspace — the sheet", () => {
     }
     const complaint = screen.getByRole("row", { name: /مش نفس لي في نت/ });
     expect(complaint).toHaveTextContent("livreur Darb");
+    // The sheet's tag is the prototype's flat .tag — no dot, unlike the agent's capture tag.
+    const tag = complaint.querySelector("[data-category]");
+    expect(tag).toHaveTextContent("Réclamation");
+    expect(tag?.querySelector("[aria-hidden]")).toBeNull();
     expect(complaint).toHaveTextContent("Ouverte");
     fireEvent.click(screen.getByRole("button", { name: "Voir 20 de plus" }));
     expect(rowsQuery.limit).toBe(40);
