@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { storefrontIdsOfMarket } from "@/lib/logs/market-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,16 @@ export async function GET(req: NextRequest) {
     .range(from, to);
 
   if (storefrontId) query = query.eq("storefront_id", storefrontId);
+
+  // Journaux › market filter: logs carry no market, their shop does.
+  const marketId = sp.get("market_id");
+  if (marketId) {
+    const scope = await storefrontIdsOfMarket(supabase as unknown as SupabaseClient, marketId);
+    if (scope.length === 0) {
+      return NextResponse.json({ data: [], pagination: { page, limit, total: 0 } });
+    }
+    query = query.in("storefront_id", scope);
+  }
 
   if (failuresOnly) {
     query = query.eq("status", "error");
