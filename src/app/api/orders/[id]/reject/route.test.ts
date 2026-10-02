@@ -206,3 +206,63 @@ describe("POST /api/orders/[id]/reject — validates against the market's taxono
     expect(res.status).toBe(400);
   });
 });
+
+// Voix du client: « Autre » offers to keep the note as the customer's words (agent prototype v2,
+// screen ④). The rejection never depends on it.
+describe("POST /api/orders/[id]/reject — the « Aussi un retour client » rider", () => {
+  const TOPIC = "33333333-3333-4333-8333-333333333333";
+  const FEEDBACK_ID = "44444444-4444-4444-8444-444444444444";
+
+  function rpcs(feedback: { error?: { code: string; message: string } } = {}) {
+    mockRpc.mockImplementation(async (name: string) => {
+      if (name === "create_customer_feedback") {
+        return feedback.error ? { data: null, error: feedback.error } : { data: FEEDBACK_ID, error: null };
+      }
+      return { error: null };
+    });
+  }
+
+  test("an « Autre » note with the offer on becomes a rejection-sourced entry, after the order is rejected", async () => {
+    setup(TAXONOMY);
+    rpcs();
+    const res = await POST(
+      req({ rejection_reason: "autre", rejection_note: "قال اريد الدفع بالبطاقة", feedback: { category: "objection", topic_id: TOPIC } }),
+      params,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { new_status: "rejected", feedback_id: FEEDBACK_ID } });
+    const names = mockRpc.mock.calls.map((c) => c[0]);
+    expect(names).toEqual(["transition_order_status", "create_customer_feedback"]);
+    expect(mockRpc).toHaveBeenLastCalledWith("create_customer_feedback", {
+      p_category: "objection",
+      p_body: "قال اريد الدفع بالبطاقة",
+      p_topic_id: TOPIC,
+      p_order_id: ORDER,
+      p_source: "rejection",
+    });
+  });
+
+  test("a failed entry never undoes the rejection", async () => {
+    setup(TAXONOMY);
+    rpcs({ error: { code: "22023", message: "invalid_topic" } });
+    const res = await POST(
+      req({ rejection_reason: "autre", rejection_note: "غالي", feedback: { category: "objection", topic_id: TOPIC } }),
+      params,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { new_status: "rejected", feedback_id: null } });
+  });
+
+  test("no offer, or a structured reason → no entry; a bad category is ignored", async () => {
+    setup(TAXONOMY);
+    rpcs();
+    await POST(req({ rejection_reason: "autre", rejection_note: "غالي" }), params);
+    setup(TAXONOMY);
+    rpcs();
+    await POST(req({ rejection_reason: "refus_client", rejection_subreason: "prix_eleve", feedback: { category: "objection" } }), params);
+    setup(TAXONOMY);
+    rpcs();
+    await POST(req({ rejection_reason: "autre", rejection_note: "غالي", feedback: { category: "compliment" } }), params);
+    expect(mockRpc.mock.calls.map((c) => c[0])).not.toContain("create_customer_feedback");
+  });
+});

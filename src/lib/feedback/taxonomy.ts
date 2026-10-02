@@ -45,3 +45,13 @@ export function isLateComplaint(
     now - new Date(row.created_at).getTime() > COMPLAINT_LATE_MS
   );
 }
+
+/**
+ * Delivery outcomes that offer « Pourquoi ? Garder ce que le client a dit » in the Livraison
+ * tab (plan, decision 15): the customer wants to cancel, or the courier confirms the return.
+ */
+export const FEEDBACK_DELIVERY_OUTCOMES = ["reached_wants_cancel", "return_confirmed"] as const;
+
+export function offersFeedback(outcome: string | null | undefined): boolean {
+  return (FEEDBACK_DELIVERY_OUTCOMES as readonly string[]).includes(outcome ?? "");
+}
