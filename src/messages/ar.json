@@ -7729,7 +7729,9 @@
       "cityEffect": "تحصل الطلبات المعلقة على هذه الوجهة.",
       "nothingFound": "لا نتائج.",
       "done": "تم الربط",
-      "pick": "اختر عنصراً من القائمة أولاً."
+      "pick": "اختر عنصراً من القائمة أولاً.",
+      "productSubtitle": "«{name}» · {shop} · {pending}",
+      "citySubtitle": "«{name}» · {pending}"
     },
     "whatsapp": {
       "numberTitle": "رقم واتساب",

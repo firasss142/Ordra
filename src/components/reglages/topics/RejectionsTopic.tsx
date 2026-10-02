@@ -199,8 +199,8 @@ export function RejectionsTopic({ user, marketId }: TopicProps) {
                         </td>
                         <td className={td}>
                           <b className="font-medium">{label(r)}</b>
-                          <div className="text-[12.5px] text-ink-secondary" dir={ar ? "ltr" : "rtl"}>
-                            {other(r)}
+                          <div className="text-[12.5px] text-ink-secondary">
+                            <bdi>{other(r)}</bdi>
                           </div>
                         </td>
                         <td className={td}>

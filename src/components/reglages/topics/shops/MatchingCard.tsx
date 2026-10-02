@@ -84,7 +84,7 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
         <div className="min-w-0">
           <h4 className="m-0 flex items-center gap-[8px] px-[16px] pb-[4px] pt-[12px] text-[13.5px] font-semibold">
             {t("matching.products")}
-            <RgBadge tone={products.length ? "warn" : "neutral"}>{products.length}</RgBadge>
+            <RgBadge tone={products.length ? "warn" : "neutral"} dot={false}>{products.length}</RgBadge>
           </h4>
           {prodData && products.length === 0
             ? allMatched(t("matching.noProduct"))
@@ -107,7 +107,7 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
         <div className="min-w-0 border-line-subtle md:border-s">
           <h4 className="m-0 flex items-center gap-[8px] px-[16px] pb-[4px] pt-[12px] text-[13.5px] font-semibold">
             {t("matching.cities")}
-            <RgBadge tone={cities.length ? "warn" : "neutral"}>{cities.length}</RgBadge>
+            <RgBadge tone={cities.length ? "warn" : "neutral"} dot={false}>{cities.length}</RgBadge>
           </h4>
           {cityData && cities.length === 0
             ? allMatched(t("matching.noCity"))
@@ -133,8 +133,8 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
           title={binding.kind === "product" ? t("matching.productTitle") : t("matching.cityTitle")}
           subtitle={
             binding.kind === "product"
-              ? `« ${binding.group.name} » · ${shopName(binding.group.storefront_id)} · ${pending(binding.group.count)}`
-              : `« ${binding.group.city} » · ${pending(binding.group.orderIds.length)}`
+              ? t("matching.productSubtitle", { name: binding.group.name, shop: shopName(binding.group.storefront_id), pending: pending(binding.group.count) })
+              : t("matching.citySubtitle", { name: binding.group.city, pending: pending(binding.group.orderIds.length) })
           }
           onClose={() => setBinding(null)}
           onBind={async (optionId) => {

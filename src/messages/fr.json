@@ -7172,7 +7172,7 @@
       "admin": "Marché réglé",
       "manager": "Votre marché"
     },
-    "allMarketsHint": "Vous regardez « Tous les marchés ». Choisissez-en un.",
+    "allMarketsHint": "Vous regardez « Tous les marchés ». Choisissez-en un.",
     "menuFoot": {
       "admin": "Chaque modification est enregistrée avec son auteur. Cliquez sur l’horloge d’un réglage pour voir son historique.",
       "manager": "Vous pouvez modifier les règles du quotidien de votre marché. Le reste est réglé par un administrateur."
@@ -7225,8 +7225,8 @@
     },
     "scope": {
       "title": "Les réglages se font marché par marché",
-      "heading": "Quel marché voulez-vous régler ?",
-      "body": "Vous regardez « Tous les marchés ». Une règle d’appel ou un transporteur appartient toujours à un seul marché."
+      "heading": "Quel marché voulez-vous régler ?",
+      "body": "Vous regardez « Tous les marchés ». Une règle d’appel ou un transporteur appartient toujours à un seul marché."
     },
     "save": {
       "one": "1 modification non enregistrée",
@@ -7240,7 +7240,7 @@
       "invalid": "Une valeur est hors des limites autorisées. Corrigez-la avant d’enregistrer."
     },
     "leave": {
-      "title": "Quitter sans enregistrer ?",
+      "title": "Quitter sans enregistrer ?",
       "body": "Vous avez des modifications non enregistrées sur cette page. Elles seront perdues.",
       "stay": "Rester",
       "go": "Quitter sans enregistrer"
@@ -7249,7 +7249,7 @@
     "adminOnly": "Visible par l’administrateur seulement",
     "history": {
       "button": "Historique des modifications",
-      "empty": "Aucune modification enregistrée : c’est la valeur d’origine.",
+      "empty": "Aucune modification enregistrée : c’est la valeur d’origine.",
       "loading": "Chargement de l’historique",
       "unknown": "—"
     },
@@ -7275,7 +7275,7 @@
       "max_call_attempts": {
         "label": "Nombre maximum d’appels",
         "unit": "appels",
-        "help": "Au {n}ᵉ appel sans réponse, la commande est rejetée automatiquement avec le motif « Injoignable »."
+        "help": "Au {n}ᵉ appel sans réponse, la commande est rejetée automatiquement avec le motif « Injoignable »."
       },
       "sla_minutes": {
         "label": "Délai de confirmation visé",
@@ -7286,7 +7286,7 @@
       "attempt_retry_times": {
         "label": "Heures de rappel",
         "help": "Une commande restée sans réponse revient en haut de la file de l’agent à {times}, dans cet ordre. 3 heures au maximum.",
-        "helpEmpty": "Aucune heure : la commande revient quand l’agent le décide.",
+        "helpEmpty": "Aucune heure : la commande revient quand l’agent le décide.",
         "add": "Ajouter",
         "remove": "Retirer",
         "slot": "Heure {n}",
@@ -7295,24 +7295,24 @@
       "duplicate_window_hours": {
         "label": "Doublon probable",
         "unit": "heures",
-        "help": "Si un client recommande dans les {n} h, la nouvelle commande porte le badge « doublon probable ». Un doublon exact est déjà écarté."
+        "help": "Si un client recommande dans les {n} h, la nouvelle commande porte le badge « doublon probable ». Un doublon exact est déjà écarté."
       },
       "duplicate_autoselect_window_hours": {
         "label": "Pré-sélection sur l’écran Doublons",
         "unit": "heures",
         "help": "Les commandes identiques arrivées à moins de {n} h d’écart sont cochées d’avance. 0 = rien n’est coché.",
-        "helpZero": "Rien n’est coché d’avance : vous choisissez chaque doublon."
+        "helpZero": "Rien n’est coché d’avance : vous choisissez chaque doublon."
       },
       "merge_window_hours": {
         "label": "Fusion de commandes",
         "unit": "heures",
-        "help": "Même client, produits différents, à moins de {n} h d’écart : l’agent peut les réunir en un seul colis, avec un seul frais de livraison. 0 = désactivée.",
-        "helpZero": "Désactivée : l’agent ne peut pas réunir deux commandes d’un même client. Saisissez un nombre d’heures pour l’activer."
+        "help": "Même client, produits différents, à moins de {n} h d’écart : l’agent peut les réunir en un seul colis, avec un seul frais de livraison. 0 = désactivée.",
+        "helpZero": "Désactivée : l’agent ne peut pas réunir deux commandes d’un même client. Saisissez un nombre d’heures pour l’activer."
       },
       "auto_archive_after_days": {
         "label": "Archiver les commandes terminées après",
         "unit": "jours",
-        "help": "Une commande livrée, retournée, rejetée ou annulée depuis {n} jours passe dans « Archivées ». Son statut ne change pas."
+        "help": "Une commande livrée, retournée, rejetée ou annulée depuis {n} jours passe dans « Archivées ». Son statut ne change pas."
       },
       "goal_daily_treated": {
         "label": "Commandes traitées par agent et par jour",
@@ -7340,7 +7340,7 @@
       "high_value_threshold": {
         "label": "Montant élevé",
         "help": "Un colis de {n} {cur} ou plus est à risque. 0 = désactivé.",
-        "helpZero": "Désactivé : le montant ne rend jamais un colis à risque. Saisissez un montant pour l’activer."
+        "helpZero": "Désactivé : le montant ne rend jamais un colis à risque. Saisissez un montant pour l’activer."
       },
       "risk_min_prior_failures": {
         "label": "Client déjà en échec",
@@ -7370,7 +7370,7 @@
       "delivery_done_window_hours": {
         "label": "Colis terminés visibles",
         "unit": "heures",
-        "help": "Un colis livré ou retourné reste {n} h dans « Terminés » : l’agent peut encore y noter l’appel qui l’a clos."
+        "help": "Un colis livré ou retourné reste {n} h dans « Terminés » : l’agent peut encore y noter l’appel qui l’a clos."
       }
     },
     "orders": {
@@ -7386,7 +7386,7 @@
       "colLanguage": "Langue de l’équipe",
       "colCurrency": "Devise",
       "colState": "État",
-      "addNote": "Ajouter un marché demande une intervention technique : devise, transporteurs et villes de livraison.",
+      "addNote": "Ajouter un marché demande une intervention technique : devise, transporteurs et villes de livraison.",
       "open": "Ouvrir {market}",
       "drawerSub": "Modifier le marché",
       "identity": "Identité",
@@ -7396,9 +7396,9 @@
       "ltr": "de gauche à droite",
       "rtl": "de droite à gauche",
       "currency": "Devise",
-      "currencyHelp": "Fixée à la création : toutes les sommes du marché en dépendent.",
+      "currencyHelp": "Fixée à la création : toutes les sommes du marché en dépendent.",
       "activeLabel": "Marché actif",
-      "activeHelp": "Désactivé, il disparaît du sélecteur de marché ; ses commandes et réglages sont conservés.",
+      "activeHelp": "Désactivé, il disparaît du sélecteur de marché ; ses commandes et réglages sont conservés.",
       "sender": "Expéditeur sur les étiquettes",
       "senderHelp": "Imprimé sur chaque étiquette de colis de ce marché. Le transporteur s’en sert pour un retour.",
       "senderName": "Nom",
@@ -7408,13 +7408,13 @@
       "nameRequired": "Le nom du marché ne peut pas être vide."
     },
     "rejections": {
-      "intro": "Les cinq groupes sont fixes : ils servent aux statistiques. Dans chaque groupe, ajoutez, renommez, réordonnez ou retirez les motifs précis. Sur une commande rejetée, la pastille affiche le motif court, en rouge, avec l’icône du groupe.",
+      "intro": "Les cinq groupes sont fixes : ils servent aux statistiques. Dans chaque groupe, ajoutez, renommez, réordonnez ou retirez les motifs précis. Sur une commande rejetée, la pastille affiche le motif court, en rouge, avec l’icône du groupe.",
       "groups": {
         "refus_client": "Le client a entendu l’offre et a dit non.",
         "commande_invalide": "Il n’y a jamais eu de vraie commande.",
         "injoignable": "Personne ne répond, ou le numéro ne mène pas au client.",
         "livraison_impossible": "Le client veut le produit, mais on ne peut pas le livrer.",
-        "autre": "Aucun motif ne convient : l’agent écrit la raison."
+        "autre": "Aucun motif ne convient : l’agent écrit la raison."
       },
       "orders": "{count} commandes",
       "colReason": "Motif",
@@ -7431,7 +7431,7 @@
       "drawer": {
         "editTitle": "Modifier le motif",
         "addTitle": "Ajouter un motif",
-        "group": "Groupe : {group}",
+        "group": "Groupe : {group}",
         "labelFr": "Libellé en français",
         "labelAr": "Libellé en arabe",
         "shortFr": "Court, en français",
@@ -7440,8 +7440,8 @@
         "preview": "Aperçu sur une commande",
         "previewEmpty": "Court",
         "retireTitle": "Retirer ce motif",
-        "retireUsed": "Utilisé par {count} commandes : il disparaîtra de la liste des agents, mais restera lisible sur ces commandes.",
-        "retireUnused": "Jamais utilisé : il sera supprimé.",
+        "retireUsed": "Utilisé par {count} commandes : il disparaîtra de la liste des agents, mais restera lisible sur ces commandes.",
+        "retireUnused": "Jamais utilisé : il sera supprimé.",
         "retire": "Retirer",
         "create": "Ajouter",
         "required": "Les quatre libellés sont obligatoires.",
@@ -7492,11 +7492,11 @@
       "commTitle": "Commissions",
       "commDesc": "Ce qu’un agent gagne pour chaque commande livrée qu’il a confirmée.",
       "commPay": "Payer des commissions",
-      "commOn": "Activé : chaque commande livrée crédite son agent.",
-      "commOff": "Désactivé : aucune commande ne crédite d’agent.",
+      "commOn": "Activé : chaque commande livrée crédite son agent.",
+      "commOff": "Désactivé : aucune commande ne crédite d’agent.",
       "commAmount": "Montant par commande livrée",
-      "commAmountHelp": "En vigueur depuis le {date}. Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
-      "commAmountHelpNew": "Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
+      "commAmountHelp": "En vigueur depuis le {date}. Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
+      "commAmountHelpNew": "Un nouveau montant s’applique aux commandes livrées à partir d’aujourd’hui ; ce qui est déjà gagné ne change pas.",
       "colAgent": "Agent",
       "colCommission": "Commission",
       "colAmount": "Montant",
@@ -7506,7 +7506,7 @@
       "ownAmount": "montant propre",
       "agent": {
         "title": "Commission de {name}",
-        "sub": "Montant de l’équipe : {amount} par commande livrée",
+        "sub": "Montant de l’équipe : {amount} par commande livrée",
         "pay": "Payer cet agent",
         "payHelp": "Désactivé, ses commandes livrées ne lui rapportent rien.",
         "team": "Montant de l’équipe",
@@ -7514,7 +7514,7 @@
         "ownDesc": "pour cet agent seulement",
         "amount": "Montant",
         "from": "À partir du",
-        "help": "Ce qui est déjà gagné ne change pas : le nouveau montant vaut pour les commandes livrées à partir de cette date.",
+        "help": "Ce qui est déjà gagné ne change pas : le nouveau montant vaut pour les commandes livrées à partir de cette date.",
         "invalid": "Montant et date obligatoires."
       }
     },
@@ -7535,8 +7535,8 @@
       "restockTitle": "Réapprovisionnement",
       "restockDesc": "Le temps qu’il faut pour refaire le stock.",
       "switch": "{site} actif",
-      "confirmTitle": "Désactiver {site} ?",
-      "confirmAgents": "Agents encore affectés : {names}. Ils ne verront plus rien tant qu’ils ne sont pas affectés ailleurs.",
+      "confirmTitle": "Désactiver {site} ?",
+      "confirmAgents": "Agents encore affectés : {names}. Ils ne verront plus rien tant qu’ils ne sont pas affectés ailleurs.",
       "confirmStock": "{n} unités sont encore en stock sur ce site.",
       "confirmGo": "Désactiver quand même",
       "defaultLocked": "Le site par défaut ne peut pas être désactivé.",
@@ -7586,7 +7586,7 @@
         "nameHelp": "Utile quand un même transporteur a un compte par site.",
         "namePlaceholder": "ex. Darb Assabil - Misrata",
         "site": "Site d’où partent ses colis",
-        "siteFixed": "Fixé à la création : le compte du transporteur est lié à ce bâtiment.",
+        "siteFixed": "Fixé à la création : le compte du transporteur est lié à ce bâtiment.",
         "noSite": "aucun",
         "active": "Actif",
         "activeHelp": "Désactivé, les agents ne peuvent plus lui envoyer de colis. Les colis déjà partis restent suivis.",
@@ -7595,9 +7595,9 @@
         "secretKept": "Inchangée tant que vous ne la remplacez pas.",
         "credentialsHidden": "Les identifiants ne sont visibles que par un administrateur.",
         "test": "Tester la connexion",
-        "testHelp": "Vérifie que le serveur du transporteur répond ; les identifiants sont vérifiés au premier envoi de colis.",
+        "testHelp": "Vérifie que le serveur du transporteur répond ; les identifiants sont vérifiés au premier envoi de colis.",
         "testOk": "Le transporteur répond.",
-        "testFail": "Le transporteur ne répond pas : {reason}",
+        "testFail": "Le transporteur ne répond pas : {reason}",
         "testing": "Test en cours…",
         "fees": "Frais",
         "feeDelivery": "Livraison",
@@ -7605,7 +7605,7 @@
         "feesHelp": "Comptés dans le P&L à partir du dépôt chez le transporteur.",
         "modes": "D’où part le stock",
         "modeHome": "Notre entrepôt",
-        "modeHomeHelp": "Nous gardons le stock ; le transporteur vient chercher les colis.",
+        "modeHomeHelp": "Nous gardons le stock ; le transporteur vient chercher les colis.",
         "modeCarrier": "Entrepôt du transporteur",
         "modeCarrierHelp": "Le transporteur garde le stock et prépare lui-même les colis.",
         "modesOne": "Il faut au moins un des deux.",
@@ -7690,22 +7690,22 @@
         "every15": "toutes les 15 minutes",
         "link": "Lien de réception des commandes",
         "linkHelp": "À coller dans les réglages de {platform}. Chaque commande passée sur la boutique arrive alors dans Ordra.",
-        "linkOnlyHelp": "Le lien suffit : cette plateforme n’envoie pas de clé.",
+        "linkOnlyHelp": "Le lien suffit : cette plateforme n’envoie pas de clé.",
         "secret": "Clé secrète",
         "secretHelp": "Prouve que la commande vient bien de votre boutique. Après une régénération, mettez la nouvelle clé dans la boutique.",
         "regenerate": "Régénérer",
-        "newSecret": "Nouvelle clé — copiez-la maintenant et collez-la dans la boutique : elle ne sera plus affichée.",
+        "newSecret": "Nouvelle clé — copiez-la maintenant et collez-la dans la boutique : elle ne sera plus affichée.",
         "activity": "Activité",
         "seeLogs": "Voir ses commandes reçues dans les Journaux",
         "addTitle": "Ajouter une boutique",
-        "addSub": "Deux étapes : nommez-la, puis collez le lien de réception dans la boutique.",
+        "addSub": "Deux étapes : nommez-la, puis collez le lien de réception dans la boutique.",
         "platform": "Plateforme",
         "platformHelp": "Google Sheets, BuyBox et Converty demandent une mise en place technique.",
         "afterCreate": "Après la création",
-        "afterCreateHelp": "Ordra affichera le lien de réception des commandes et sa clé secrète. Copiez-les tout de suite dans les réglages de la boutique : la clé ne sera plus affichée.",
+        "afterCreateHelp": "Ordra affichera le lien de réception des commandes et sa clé secrète. Copiez-les tout de suite dans les réglages de la boutique : la clé ne sera plus affichée.",
         "create": "Créer la boutique",
         "createdTitle": "{name} est prête",
-        "createdHelp": "Copiez ces deux valeurs maintenant dans les réglages de la boutique : la clé ne sera plus affichée.",
+        "createdHelp": "Copiez ces deux valeurs maintenant dans les réglages de la boutique : la clé ne sera plus affichée.",
         "required": "Le nom est obligatoire."
       }
     },
@@ -7729,7 +7729,9 @@
       "cityEffect": "Les commandes en attente reçoivent cette destination.",
       "nothingFound": "Aucun résultat.",
       "done": "Associé",
-      "pick": "Choisissez d’abord un élément de la liste."
+      "pick": "Choisissez d’abord un élément de la liste.",
+      "productSubtitle": "« {name} » · {shop} · {pending}",
+      "citySubtitle": "« {name} » · {pending}"
     },
     "whatsapp": {
       "numberTitle": "Numéro WhatsApp",
@@ -7739,8 +7741,8 @@
       "adminConnects": "Un administrateur doit connecter le numéro.",
       "test": "Tester",
       "testing": "Test en cours…",
-      "testOk": "Le numéro répond : tout est en ordre.",
-      "testFail": "Le test a échoué : {reason}",
+      "testOk": "Le numéro répond : tout est en ordre.",
+      "testFail": "Le test a échoué : {reason}",
       "editCreds": "Modifier les identifiants",
       "pause": "Mettre en pause",
       "resume": "Reprendre",
@@ -7761,13 +7763,13 @@
       "limitUnlimited": "Sans limite",
       "never": "jamais",
       "stateActive": "Actif",
-      "statePaused": "En pause : aucun message ne part",
+      "statePaused": "En pause : aucun message ne part",
       "stateAuthFailed": "Identifiants refusés par Meta",
       "autoTitle": "Messages automatiques",
       "autoDesc": "Un message part quand la commande atteint l’un de ces moments. Chacun s’active séparément.",
       "autoDisabledDesc": "Disponible une fois le numéro connecté.",
       "master": "Envoyer les messages automatiques",
-      "masterHelp": "Interrupteur général : coupé, plus rien ne part, quels que soient les réglages ci-dessous.",
+      "masterHelp": "Interrupteur général : coupé, plus rien ne part, quels que soient les réglages ci-dessous.",
       "events": {
         "could_not_reach": {
           "label": "Injoignable",
@@ -7779,11 +7781,11 @@
         },
         "out_for_delivery": {
           "label": "En livraison",
-          "help": "« Le livreur passe aujourd’hui, gardez votre téléphone allumé. »"
+          "help": "« Le livreur passe aujourd’hui, gardez votre téléphone allumé. »"
         },
         "last_chance": {
           "label": "Dernière chance",
-          "help": "Livraison retardée ou colis sur le retour : « répondez aujourd’hui »."
+          "help": "Livraison retardée ou colis sur le retour : « répondez aujourd’hui »."
         },
         "delivered": {
           "label": "Livré",
@@ -7824,7 +7826,7 @@
         "metaHelp": "Dans Meta › WhatsApp › Configuration, collez l’adresse de rappel et le jeton de vérification.",
         "save": "Enregistrer et vérifier",
         "required": "Tous les champs sont obligatoires pour une première connexion.",
-        "failed": "Meta a refusé ces identifiants : {reason}"
+        "failed": "Meta a refusé ces identifiants : {reason}"
       }
     },
     "ads": {
@@ -7840,10 +7842,10 @@
       "syncError": "Erreur de synchronisation",
       "neverSynced": "Jamais synchronisé",
       "test": "Tester",
-      "testOk": "{name} : connexion vérifiée",
-      "testFail": "{name} : {reason}",
+      "testOk": "{name} : connexion vérifiée",
+      "testFail": "{name} : {reason}",
       "disconnect": "Déconnecter",
-      "disconnectTitle": "Déconnecter {name} ?",
+      "disconnectTitle": "Déconnecter {name} ?",
       "disconnectBody": "Ordra cessera de lire ses dépenses. Ce qui a déjà été importé reste dans le P&L.",
       "disconnected": "{name} déconnecté",
       "emptyTitle": "Aucun compte publicitaire connecté",
@@ -7858,7 +7860,7 @@
       "drawer": {
         "title": "Connecter un compte publicitaire",
         "accountId": "Identifiant du compte publicitaire",
-        "accountIdHelp": "Dans Meta Business, sous « Comptes publicitaires » : act_123… ou seulement les chiffres.",
+        "accountIdHelp": "Dans Meta Business, sous « Comptes publicitaires » : act_123… ou seulement les chiffres.",
         "token": "Jeton d’accès",
         "tokenHelp": "Un jeton d’utilisateur système avec le droit de lire les publicités. Meta le vérifie à l’enregistrement.",
         "save": "Connecter",
@@ -7873,7 +7875,7 @@
   },
   "journaux": {
     "title": "Journaux",
-    "subtitle": "Tout ce qui entre dans Ordra et en sort : les commandes reçues des boutiques, les échanges avec les transporteurs, les tâches automatiques et les modifications de réglages.",
+    "subtitle": "Tout ce qui entre dans Ordra et en sort : les commandes reçues des boutiques, les échanges avec les transporteurs, les tâches automatiques et les modifications de réglages.",
     "tabs": {
       "received": "Commandes reçues",
       "carrier": "Transporteurs",
@@ -7956,7 +7958,7 @@
       "copy": "Copier",
       "replay": "Relancer le traitement",
       "replayed": "Traitement relancé",
-      "replayFailed": "La relance a échoué : {reason}"
+      "replayFailed": "La relance a échoué : {reason}"
     },
     "userEvents": {
       "user_created": "Utilisateur créé",
@@ -8012,21 +8014,21 @@
       "proactive_call_window_hours": "Durée de l’appel préventif",
       "delivery_done_window_hours": "Colis terminés visibles",
       "delivery_first_action_hours": "Délai de première action",
-      "goal_daily_treated": "Objectif : commandes traitées par jour",
-      "goal_min_rate": "Objectif : taux de confirmation minimum",
-      "goal_conf_per_hour": "Objectif : confirmations par heure",
-      "goal_team_weekly_conf": "Objectif : confirmations par semaine",
-      "whatsapp_lifecycle_enabled": "WhatsApp : messages automatiques",
-      "whatsapp_event_could_not_reach": "WhatsApp : Injoignable",
-      "whatsapp_event_shipped": "WhatsApp : Expédié",
-      "whatsapp_event_out_for_delivery": "WhatsApp : En livraison",
-      "whatsapp_event_last_chance": "WhatsApp : Dernière chance",
-      "whatsapp_event_delivered": "WhatsApp : Livré",
-      "whatsapp_default_language": "WhatsApp : langue par défaut",
-      "whatsapp_send_window": "WhatsApp : heures d’envoi",
+      "goal_daily_treated": "Objectif : commandes traitées par jour",
+      "goal_min_rate": "Objectif : taux de confirmation minimum",
+      "goal_conf_per_hour": "Objectif : confirmations par heure",
+      "goal_team_weekly_conf": "Objectif : confirmations par semaine",
+      "whatsapp_lifecycle_enabled": "WhatsApp : messages automatiques",
+      "whatsapp_event_could_not_reach": "WhatsApp : Injoignable",
+      "whatsapp_event_shipped": "WhatsApp : Expédié",
+      "whatsapp_event_out_for_delivery": "WhatsApp : En livraison",
+      "whatsapp_event_last_chance": "WhatsApp : Dernière chance",
+      "whatsapp_event_delivered": "WhatsApp : Livré",
+      "whatsapp_default_language": "WhatsApp : langue par défaut",
+      "whatsapp_send_window": "WhatsApp : heures d’envoi",
       "ad_spend_fx_rates": "Taux de change du dollar",
       "google_sheets_sources": "Sources Google Sheets",
-      "lead_hot_window_minutes": "Prospects : fenêtre « chaud »"
+      "lead_hot_window_minutes": "Prospects : fenêtre « chaud »"
     },
     "close": "Fermer"
   }

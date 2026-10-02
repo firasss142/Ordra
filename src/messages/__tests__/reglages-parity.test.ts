@@ -44,4 +44,10 @@ describe("reglages i18n parity", () => {
     const banned = /\b(storefront|webhook|payload|SLA|round robin|super_admin|market_manager|scan_return_in|archived_at|unverified|pg_cron|endpoint)\b/i;
     expect(Object.entries(FR).filter(([, v]) => banned.test(v))).toEqual([]);
   });
+
+  test("French punctuation never breaks away from its word", () => {
+    // « mot », « : », « ; », « ? », « ! » take a non-breaking space, or the
+    // browser can wrap « on one line and the word on the next.
+    expect(Object.entries(FR).filter(([, v]) => /« | »| [:;?!]/.test(v))).toEqual([]);
+  });
 });

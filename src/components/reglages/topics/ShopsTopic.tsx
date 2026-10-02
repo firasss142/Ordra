@@ -58,11 +58,14 @@ export function ShopsTopic({ user, marketId, marketCode }: TopicProps) {
   const shown = filter === "all" ? shops : shops.filter((s) => bucket(stateOf(s)) === filter);
 
   const tz = marketTimezone(marketId);
+  // « 29 sept. · 15:30 » for a recent order, « 14 mai » for an older one, the year past 200 days.
   const fmt = (iso: string) => {
     const d = new Date(iso);
     const days = (now.getTime() - d.getTime()) / 86_400_000;
-    const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", timeZone: tz, ...(days < 30 ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}), ...(days > 200 ? { year: "numeric" } : {}) };
-    return new Intl.DateTimeFormat(locale === "ar" ? "ar-LY-u-nu-latn" : "fr-FR", opts).format(d);
+    const loc = locale === "ar" ? "ar-LY-u-nu-latn" : "fr-FR";
+    const date = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short", timeZone: tz, ...(days > 200 ? { year: "numeric" } : {}) }).format(d);
+    if (days >= 30) return date;
+    return `${date} · ${new Intl.DateTimeFormat(loc, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz }).format(d)}`;
   };
 
   const toggle = async (s: ShopRow, next: boolean) => {
