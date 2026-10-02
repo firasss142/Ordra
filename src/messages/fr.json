@@ -7902,6 +7902,55 @@
       "senderAddressPlaceholder": "ex. Rue du 1er Septembre, Tripoli",
       "senderPhone": "Téléphone",
       "nameRequired": "Le nom du marché ne peut pas être vide."
+    },
+    "rejections": {
+      "intro": "Les cinq groupes sont fixes : ils servent aux statistiques. Dans chaque groupe, ajoutez, renommez, réordonnez ou retirez les motifs précis. Sur une commande rejetée, la pastille affiche le motif court, en rouge, avec l’icône du groupe.",
+      "groups": {
+        "refus_client": "Le client a entendu l’offre et a dit non.",
+        "commande_invalide": "Il n’y a jamais eu de vraie commande.",
+        "injoignable": "Personne ne répond, ou le numéro ne mène pas au client.",
+        "livraison_impossible": "Le client veut le produit, mais on ne peut pas le livrer.",
+        "autre": "Aucun motif ne convient : l’agent écrit la raison."
+      },
+      "orders": "{count} commandes",
+      "colReason": "Motif",
+      "colBadge": "Pastille",
+      "colOrders": "Commandes",
+      "add": "Ajouter un motif",
+      "edit": "Modifier",
+      "move": "Déplacer {reason}",
+      "moveHint": "Glisser pour réordonner",
+      "emptyTitle": "Pas de motif précis dans ce groupe",
+      "emptyText": "L’agent écrit lui-même la raison dans une note.",
+      "retired": "Retiré",
+      "reactivate": "Réactiver",
+      "drawer": {
+        "editTitle": "Modifier le motif",
+        "addTitle": "Ajouter un motif",
+        "group": "Groupe : {group}",
+        "labelFr": "Libellé en français",
+        "labelAr": "Libellé en arabe",
+        "shortFr": "Court, en français",
+        "shortAr": "Court, en arabe",
+        "shortHelp": "Sur la pastille.",
+        "preview": "Aperçu sur une commande",
+        "previewEmpty": "Court",
+        "retireTitle": "Retirer ce motif",
+        "retireUsed": "Utilisé par {count} commandes : il disparaîtra de la liste des agents, mais restera lisible sur ces commandes.",
+        "retireUnused": "Jamais utilisé : il sera supprimé.",
+        "retire": "Retirer",
+        "create": "Ajouter",
+        "required": "Les quatre libellés sont obligatoires.",
+        "duplicate": "Un motif de ce marché porte déjà ce nom."
+      },
+      "toast": {
+        "saved": "Motif enregistré",
+        "added": "Motif ajouté",
+        "retired": "Motif retiré",
+        "deleted": "Motif supprimé",
+        "reactivated": "Motif réactivé",
+        "moved": "Ordre enregistré"
+      }
     }
   }
 }

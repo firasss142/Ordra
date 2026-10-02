@@ -60,3 +60,14 @@ describe("slaDuration", () => {
     expect(slaDuration(90)).toEqual({ unit: "min", n: 90 });
   });
 });
+
+describe("reasonKeyFrom", () => {
+  it("turns a French label into a stable key, unique in the market", async () => {
+    const { reasonKeyFrom } = await import("./helpers");
+    expect(reasonKeyFrom("Numéro occupé", [])).toBe("numero_occupe");
+    expect(reasonKeyFrom("  A changé d’avis !", [])).toBe("a_change_d_avis");
+    expect(reasonKeyFrom("Prix trop élevé", ["prix_trop_eleve"])).toBe("prix_trop_eleve_2");
+    expect(reasonKeyFrom("123 essai", [])).toBe("motif_123_essai");
+    expect(reasonKeyFrom("", [])).toBe("motif");
+  });
+});

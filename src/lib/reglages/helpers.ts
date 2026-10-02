@@ -65,3 +65,23 @@ export function formatSendWindow(start: number, end: number): string {
 export function slaDuration(minutes: number): { unit: "h" | "min"; n: number } {
   return minutes > 0 && minutes % 60 === 0 ? { unit: "h", n: minutes / 60 } : { unit: "min", n: minutes };
 }
+
+/**
+ * A sub-reason's key, made from its French label: lower case, no accents,
+ * words joined by "_", starting with a letter, unique among the market's keys.
+ * The key is written into orders.rejection_subreason and never changes.
+ */
+export function reasonKeyFrom(labelFr: string, taken: readonly string[]): string {
+  let base = labelFr
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (!base) base = "motif";
+  else if (!/^[a-z]/.test(base)) base = `motif_${base}`;
+  if (!taken.includes(base)) return base;
+  let n = 2;
+  while (taken.includes(`${base}_${n}`)) n++;
+  return `${base}_${n}`;
+}
