@@ -1,0 +1,1143 @@
+<!doctype html>
+<!--
+  Voix du client — côté RESPONSABLE, prototype v4. Construit 2026-10-02. REFONTE COMPLÈTE.
+  Plan : plans/voix-du-client.md (Phase 0). La v3 a été refusée le 2026-10-02 : « pas clair, pas de mots qui
+  expliquent, pas de structure claire » — demande : une page descriptive, claire, peu dense, simple.
+
+  Diagnostic de la v3 → principe de la v4 :
+   1. Cinq systèmes de navigation en même temps (vues, catégories, produits, puces, « Grouper »)
+      → UN seul : 5 onglets, chacun avec une phrase qui dit à quoi il sert.
+   2. Des codes au lieu de mots (« À vérifier », icônes de moment, compteurs nus)
+      → chaque section a un TITRE et une PHRASE d'explication ; les lignes se lisent comme des phrases
+        (« dit à tasnim pendant l'appel de confirmation, il y a 2 jours »).
+   3. Des lignes-tableur à 5 colonnes → la phrase du client d'abord, une ligne de contexte en clair dessous.
+   4. Aucune hiérarchie → la Vue d'ensemble répond, dans l'ordre, à : Que dois-je faire ? · Que disent les
+      clients ? · Où nous parlent-ils ? · Qu'avons-nous décidé ? · Quoi de neuf ?
+   5. Densité → une colonne centrée (1120 px), 3 cartes maximum par rangée, 5 éléments par bloc puis « Voir tout ».
+
+  Décisions conservées : 3 catégories par intention (Réclamation · Objection · Suggestion) avec leur phrase ·
+  4 moments déduits du statut · remarques du livreur à confirmer par le responsable · insights créés à partir
+  de retours · réclamations suivies jusqu'à résolution · aucune donnée de refus affichée.
+  Langue : le super_admin voit TOUJOURS le français (middleware : pas de marché → fr) ; le responsable Libye
+  voit l'arabe. Défaut : fr.
+  URL : ?lang=fr|ar &tab=overview|all|complaints|insights|review &role=super_admin|manager
+  DONNÉES RÉELLES (Libye) : 148 notes « Autre » porteuses d'un retour (20 mai → 30 sept., datées par
+  order_history) et 35 remarques réelles du livreur Darb (lues le 2026-10-01). SIMULÉ : ce qui reste à
+  vérifier, l'état « lu », le cycle des réclamations, les titres des insights (leurs preuves sont réelles).
+  Noms et téléphones des clients INVENTÉS.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voix du client — responsable, prototype v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFFFFF; --sunken:#F9FAFB; --hover:#F7F8F9;
+    --line:#E1E3E5; --line-subtle:#EDEEF0; --line-strong:#D2D5D9;
+    --ink-1:#1A1A1A; --ink-2:#5C6166; --ink-3:#8A9096;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#EAF6EE; --brand-line:#BBE5C9;
+    --crit:#D72C0D; --crit-bg:#FFF4F4; --warn:#8A5A00; --warn-bg:#FFF8E6; --ok:#008060; --ok-bg:#F1F8F5;
+    --ins:#6D28D9; --ins-bg:#F5F3FF; --ins-line:#DDD6FE;
+    --sidebar:#0E1013; --sidebar-el:#1A1D21; --sidebar-ink:#E6E8EB; --sidebar-2:#B5BAC2; --sidebar-3:#6B7178;
+    --pb:44px;
+    --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; --f-ar:"Cairo","Noto Sans Arabic",system-ui,sans-serif;
+  }
+  [data-c=reclamation]{--tb:#FEE2E2;--ti:#991B1B;--td:#EF4444;--tl:#FECACA}
+  [data-c=objection]  {--tb:#FEF3C7;--ti:#92400E;--td:#F59E0B;--tl:#FDE68A}
+  [data-c=suggestion] {--tb:#DCFCE7;--ti:#166534;--td:#22C55E;--tl:#BBF7D0}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font:14px/1.5 var(--f);-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .q{unicode-bidi:plaintext}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+  kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;background:#fff;font:700 10.5px/1 var(--f);color:var(--ink-2)}
+  h1,h2,h3,h4,p{margin:0}
+
+  /* prototype chrome */
+  .pbar{position:sticky;top:0;z-index:300;height:var(--pb);background:#1F2328;color:#E6E8EB;padding:0 18px;display:flex;align-items:center;gap:14px;direction:ltr;font:12.5px var(--f);border-bottom:3px solid var(--brand)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;color:#7F858F}
+  .pbar b{font-size:13px}
+  .pbar .grow{flex:1}
+  .seg{display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#2B3036}
+  .seg button{padding:4px 9px;border-radius:5px;color:#AEB4BB;font-size:12px;font-weight:600}
+  .seg button[aria-pressed=true]{background:#fff;color:#111}
+  .note{direction:ltr;font:12.5px/1.6 var(--f);color:#5C6166;background:#FFFBEB;border-bottom:1px solid #FDE68A;padding:8px 18px}
+  .note b{color:#1A1A1A}
+
+  /* shell */
+  .app{display:flex;min-height:calc(100vh - var(--pb));min-width:1340px}
+  .app[dir=rtl]{font-family:var(--f-ar)}
+  .sb{width:224px;flex:none;background:var(--sidebar);color:var(--sidebar-2);padding:14px 10px 18px;font-size:13px;display:flex;flex-direction:column;gap:1px;position:sticky;top:var(--pb);height:calc(100vh - var(--pb));overflow-y:auto}
+  .sb .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:15px;padding:4px 10px 12px;font-family:var(--f)}
+  .sb .brand i{width:22px;height:22px;border-radius:6px;background:var(--brand);display:grid;place-items:center;font-style:normal;font-size:12px}
+  .sb .mk{display:flex;align-items:center;justify-content:space-between;margin:0 4px 10px;padding:7px 10px;border-radius:8px;background:var(--sidebar-el);color:var(--sidebar-ink);font-size:12.5px;font-weight:600}
+  .sb .mk span{color:var(--sidebar-3);font-weight:500;font-size:11.5px}
+  .sb .sec{padding:9px 10px 3px;font-size:12px;color:var(--sidebar-2);font-weight:600}
+  .sb .it{display:flex;align-items:center;gap:8px;padding:6px 10px;padding-inline-start:20px;border-radius:7px;color:#9BA1A8}
+  .sb .it.on{background:var(--brand);color:#fff;font-weight:600}
+  .sb .it .n{margin-inline-start:auto;font-size:11px;font-weight:700;min-width:20px;height:18px;padding:0 6px;border-radius:999px;background:rgba(255,255,255,.2);display:grid;place-items:center}
+  .sb .grow{flex:1}
+  .sb .me{display:flex;align-items:center;gap:9px;padding:10px;border-top:1px solid rgba(255,255,255,.07);margin-top:10px}
+  .sb .me i{width:28px;height:28px;border-radius:50%;background:#2B3036;display:grid;place-items:center;font-style:normal;font-weight:700;color:#fff}
+  .sb .me b{display:block;color:var(--sidebar-ink);font-size:12.5px}
+  .sb .me span{font-size:11.5px;color:var(--sidebar-3)}
+
+  /* page */
+  .main{flex:1;min-width:0;padding:28px 32px 80px}
+  .wrap{max-width:1120px;margin:0 auto}
+  .crumb{font-size:12.5px;color:var(--ink-3);margin-bottom:4px}
+  .ph{display:flex;align-items:flex-start;gap:16px}
+  .ph h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
+  .ph p{margin-top:6px;color:var(--ink-2);font-size:15px;max-width:720px;line-height:1.55}
+  .ph .end{margin-inline-start:auto;display:flex;gap:8px;padding-top:4px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:14px;font-weight:600;white-space:nowrap}
+  .btn:hover{background:var(--hover)}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.pri:hover{background:var(--brand-hover)}
+  .btn.ins{background:var(--ins);border-color:var(--ins);color:#fff}
+  .btn.sm{height:32px;padding:0 11px;font-size:13px;border-radius:8px}
+  .btn.link{border:0;background:none;color:var(--brand);padding:0;height:auto}
+  .btn.link:hover{text-decoration:underline;background:none}
+
+  /* tabs (design-system §4.11 underline tabs) */
+  .tabs{display:flex;gap:28px;margin-top:22px;border-bottom:1px solid var(--line)}
+  .tabs button{display:inline-flex;align-items:center;gap:8px;height:46px;font-size:15px;font-weight:600;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs button:hover{color:var(--ink-1)}
+  .tabs button[aria-selected=true]{color:var(--ink-1);border-bottom-color:var(--brand)}
+  .tabs .n{min-width:22px;height:20px;padding:0 7px;border-radius:999px;background:#EDEEF0;color:var(--ink-2);font-size:12px;font-weight:700;display:grid;place-items:center}
+  .tabs .n.hot{background:var(--crit-bg);color:var(--crit)}
+  .tabs .n.warn{background:var(--warn-bg);color:var(--warn)}
+  .tabs .n.ins{background:var(--ins-bg);color:var(--ins)}
+  .tabdesc{margin-top:14px;font-size:14px;color:var(--ink-2)}
+
+  /* sections */
+  .section{margin-top:34px}
+  .shead{display:flex;align-items:flex-end;gap:16px;margin-bottom:14px}
+  .shead h2{font-size:19px;font-weight:700}
+  .shead p{margin-top:3px;font-size:14px;color:var(--ink-2)}
+  .shead .end{margin-inline-start:auto;display:flex;align-items:center;gap:10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+
+  /* « À faire » */
+  .todo{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px 18px 16px;text-align:start;overflow:hidden}
+  .todo::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--accent)}
+  .todo .big{display:flex;align-items:baseline;gap:10px}
+  .todo .big b{font-size:32px;line-height:1;font-weight:700;color:var(--accent-ink)}
+  .todo .big span{font-size:15.5px;font-weight:600}
+  .todo p{font-size:13.5px;color:var(--ink-2);line-height:1.5}
+  .todo .qt{font-size:14px;color:var(--ink-1);background:var(--sunken);border-radius:8px;padding:6px 10px}
+  .todo .go{margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--brand)}
+  .todo.done{--accent:#D1D5DB;--accent-ink:var(--ink-3)}
+
+  /* « Ce que disent les clients » */
+  .catcard{display:flex;flex-direction:column;padding:18px;gap:14px}
+  .catcard .hd{display:flex;align-items:center;gap:10px}
+  .catcard .dot{width:12px;height:12px;border-radius:50%;background:var(--td)}
+  .catcard .hd h3{font-size:17px;font-weight:700}
+  .catcard .hd .cnt{margin-inline-start:auto;font-size:22px;font-weight:700}
+  .catcard .desc{font-size:13.5px;color:var(--ink-2);line-height:1.5;margin-top:-6px}
+  .catcard h4{font-size:12.5px;font-weight:700;color:var(--ink-3);letter-spacing:.01em}
+  .tlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  .tlist li button{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;margin:0 -8px;border-radius:8px;font-size:14px;text-align:start}
+  .tlist li button:hover{background:var(--hover)}
+  .tlist .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tlist .bar{width:56px;height:6px;border-radius:999px;background:#EEF0F2;overflow:hidden;flex:none}
+  .tlist .bar i{display:block;height:100%;background:var(--td);opacity:.8}
+  .tlist .v{min-width:24px;text-align:end;font-weight:600;color:var(--ink-2)}
+  .example{border-radius:10px;background:var(--tb);padding:10px 12px}
+  .example small{display:block;font-size:12px;color:var(--ti);opacity:.85;margin-bottom:3px;font-weight:600}
+  .example .qt{font-size:15px;font-weight:600;color:var(--ink-1)}
+  .example .ctx{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+  .catcard .go{margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--brand);padding-top:4px}
+
+  /* « Où les clients nous parlent » */
+  .moment{display:flex;flex-direction:column;gap:6px;padding:16px;text-align:start}
+  .moment:hover{border-color:var(--line-strong)}
+  .moment .top{display:flex;align-items:center;gap:10px}
+  .moment .mic{width:34px;height:34px;border-radius:10px;background:#F1F5F9;color:#475569;display:grid;place-items:center}
+  .moment .top b{margin-inline-start:auto;font-size:22px;font-weight:700}
+  .moment h3{font-size:15px;font-weight:700;margin-top:4px}
+  .moment p{font-size:13px;color:var(--ink-2);line-height:1.45}
+  .moment.empty b{color:var(--ink-3)}
+  .hintline{display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-2)}
+  .hintline .ic{color:var(--ink-3);margin-top:2px}
+
+  /* insight rows */
+  .irow{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:16px;align-items:start;padding:18px;border-bottom:1px solid var(--line-subtle);text-align:start;width:100%}
+  .irow:last-child{border-bottom:0}
+  .irow:hover{background:var(--hover)}
+  .irow h3{font-size:16px;font-weight:700;line-height:1.35}
+  .irow .why{font-size:13.5px;color:var(--ink-2);margin-top:4px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .irow .ev{font-size:13px;color:var(--ink-2);margin-top:8px}
+  .irow .ev b{color:var(--ink-1)}
+  .irow .new{display:inline-flex;margin-top:8px;font-size:12.5px;font-weight:700;color:var(--brand);background:var(--brand-bg);border-radius:999px;padding:2px 9px}
+  .irow .own{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);white-space:nowrap}
+  .ist{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .ist::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .ist[data-i=study]{background:#F1F2F4;color:#4B5563}
+  .ist[data-i=progress]{background:var(--warn-bg);color:var(--warn)}
+  .ist[data-i=done]{background:var(--ok-bg);color:var(--ok)}
+  .ist[data-i=dismissed]{background:#F9FAFB;color:var(--ink-3)}
+
+  /* feedback rows — sentences, not columns */
+  .fgroup{padding:10px 18px 6px;font-size:12.5px;font-weight:700;color:var(--ink-3);background:var(--sunken);border-bottom:1px solid var(--line-subtle);border-top:1px solid var(--line-subtle)}
+  .fgroup:first-child{border-top:0;border-radius:14px 14px 0 0}
+  .frow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:14px;align-items:start;padding:16px 18px;border-bottom:1px solid var(--line-subtle);cursor:pointer}
+  .frow:last-child{border-bottom:0}
+  .frow:hover{background:var(--hover)}
+  .frow[data-focus]{box-shadow:inset 0 0 0 1.5px var(--brand)}
+  .frow[data-sel]{background:#F3FAF5}
+  .frow[data-peek]{background:#F3FAF5;box-shadow:inset 3px 0 0 var(--brand)}
+  [dir=rtl] .frow[data-peek]{box-shadow:inset -3px 0 0 var(--brand)}
+  .cb{width:18px;height:18px;margin-top:3px;border-radius:5px;border:1.5px solid var(--line-strong);background:#fff;display:grid;place-items:center;color:#fff}
+  .cb[aria-checked=true]{background:var(--brand);border-color:var(--brand)}
+  .cb .ic{width:12px;height:12px;stroke-width:3}
+  .frow .l1{display:flex;align-items:center;gap:10px;min-width:0}
+  .frow .qt{font-size:16px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext}
+  .udot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}
+  .frow .l2{margin-top:5px;font-size:13.5px;color:var(--ink-2);line-height:1.5}
+  .frow .l2 b{color:var(--ink-1);font-weight:600}
+  .frow .l3{margin-top:3px;font-size:12.5px;color:var(--ink-3)}
+  .frow .l4{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--ins);background:var(--ins-bg);border-radius:999px;padding:2px 10px}
+  .frow .l4 .ic{width:13px;height:13px}
+  .frow .end{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+  .tag{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px 0 9px;border-radius:999px;background:var(--tb);color:var(--ti);font-size:12.5px;font-weight:700;white-space:nowrap;flex:none}
+  .tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--td)}
+  .st{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700}
+  .st[data-s=open]{background:var(--crit-bg);color:var(--crit)}
+  .st[data-s=in_progress]{background:var(--warn-bg);color:var(--warn)}
+  .st[data-s=resolved]{background:var(--ok-bg);color:var(--ok)}
+  .more{display:flex;align-items:center;justify-content:center;gap:6px;height:48px;width:100%;font-size:14px;font-weight:600;color:var(--brand);border-top:1px solid var(--line-subtle)}
+  .more:hover{background:var(--hover)}
+  .empty{padding:44px 20px;text-align:center;color:var(--ink-2);font-size:14px}
+  .empty b{display:block;font-size:16px;color:var(--ink-1);margin-bottom:4px}
+
+  /* list controls */
+  .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+  .search{display:flex;align-items:center;gap:8px;height:42px;flex:1 1 320px;max-width:460px;padding:0 13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink-3)}
+  .search:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+  .search input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:14.5px;color:var(--ink-1)}
+  .catseg{display:inline-flex;gap:3px;padding:3px;border-radius:11px;background:#EDEEF0}
+  .catseg button{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
+  .catseg button[data-c]::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--td)}
+  .catseg button b{font-weight:600;color:var(--ink-3)}
+  .catseg button[aria-pressed=true]{background:#fff;color:var(--ink-1);box-shadow:0 0 0 1px var(--line)}
+  .filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+  .filters label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+  .sel{height:36px;padding:0 30px 0 11px;border:1px solid var(--line);border-radius:9px;background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>") no-repeat right 9px center/14px;appearance:none;font-size:13.5px;font-weight:500;color:var(--ink-1)}
+  [dir=rtl] .sel{padding:0 11px 0 30px;background-position:left 9px center}
+  .active{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--ink-2)}
+  .chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 6px 0 11px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink-1)}
+  [dir=rtl] .chip{padding:0 11px 0 6px}
+  .chip button{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;color:var(--ink-3)}
+  .chip button:hover{background:#EDEEF0}
+  .listhead{display:flex;align-items:center;gap:10px;margin:18px 2px 10px;font-size:13px;color:var(--ink-2)}
+  .listhead .grow{flex:1}
+
+  /* explain box (review / complaints) */
+  .explain{display:flex;gap:14px;align-items:flex-start;margin-top:18px;padding:16px 18px;border-radius:14px;background:#fff;border:1px solid var(--line)}
+  .explain .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:none}
+  .explain h3{font-size:15px;font-weight:700}
+  .explain p{font-size:13.5px;color:var(--ink-2);margin-top:3px;line-height:1.55}
+  .rv .src{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3);margin-bottom:6px}
+  .rv .src .ic{width:14px;height:14px}
+  .rv .prop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--ink-2)}
+  .rv .acts{display:flex;gap:8px;margin-top:12px}
+  .picker{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding:10px;border:1px dashed var(--line-strong);border-radius:10px}
+  .picker button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;text-align:start;background:#fff;min-width:170px}
+  .picker button b{display:flex;align-items:center;gap:6px;font-size:13.5px}
+  .picker button b::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--td)}
+  .picker button small{font-size:12px;color:var(--ink-2)}
+  .picker button[aria-pressed=true]{background:var(--tb);border-color:var(--td)}
+  .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;color:#fff;flex:none;font-family:var(--f)}
+  .av .ic{width:14px;height:14px}
+
+  /* drawer */
+  .veil{position:fixed;inset:var(--pb) 0 0 0;background:rgba(17,24,39,.22);z-index:90}
+  .drawer{position:fixed;top:var(--pb);bottom:0;inset-inline-end:0;width:540px;background:#fff;z-index:100;display:flex;flex-direction:column;box-shadow:0 0 44px rgba(17,24,39,.14)}
+  .drawer .hd{display:flex;align-items:center;gap:10px;height:60px;padding:0 16px 0 22px;border-bottom:1px solid var(--line-subtle);flex:none}
+  [dir=rtl] .drawer .hd{padding:0 22px 0 16px}
+  .drawer .hd h2{font-size:16px;font-weight:700}
+  .drawer .hd .grow{flex:1}
+  .ibtn{width:36px;height:36px;display:grid;place-items:center;border-radius:9px;color:var(--ink-2)}
+  .ibtn:hover{background:#F1F2F4}
+  .drawer .bd{flex:1;min-height:0;overflow-y:auto;padding:20px 22px 28px}
+  .dsec{margin-top:24px}
+  .dsec:first-child{margin-top:0}
+  .dsec > h3{font-size:13px;font-weight:700;color:var(--ink-3);margin-bottom:10px;letter-spacing:.01em}
+  .bigq{padding:18px 20px;border-radius:14px;background:var(--sunken);border:1px solid var(--line-subtle);font-size:21px;line-height:1.6;font-weight:600}
+  .bigq + .said{margin-top:10px;font-size:14px;color:var(--ink-2);line-height:1.5}
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:12px 14px;font-size:14px;align-items:center}
+  .kv dt{color:var(--ink-2)}
+  .kv dd{margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .lnk{color:var(--brand);font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+  .catpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .catpick button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;text-align:start}
+  .catpick button b{display:flex;align-items:center;gap:7px;font-size:14px}
+  .catpick button b::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--td)}
+  .catpick button small{font-size:12px;color:var(--ink-2);line-height:1.35}
+  .catpick button[aria-pressed=true]{background:var(--tb);border-color:var(--td)}
+  .catpick button[aria-pressed=true] b{color:var(--ti)}
+  .tpick{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .tpick button{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--sunken);font-size:13px;color:var(--ink-2)}
+  .tpick button[aria-pressed=true]{background:var(--tb);border-color:var(--td);color:var(--ti);font-weight:600}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .steps button{height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:13.5px;font-weight:600;color:var(--ink-2)}
+  .steps button[aria-pressed=true][data-s=open]{border-color:#FCA5A5;background:var(--crit-bg);color:var(--crit)}
+  .steps button[aria-pressed=true][data-s=in_progress]{border-color:#FCD34D;background:var(--warn-bg);color:var(--warn)}
+  .steps button[aria-pressed=true][data-s=resolved]{border-color:#86EFAC;background:var(--ok-bg);color:var(--ok)}
+  .steps button[aria-pressed=true][data-i]{border-color:var(--ins-line);background:var(--ins-bg);color:var(--ins)}
+  .ta{width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;resize:vertical;font-size:14px;line-height:1.5;unicode-bidi:plaintext;outline:0}
+  .ta:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+  .err{margin-top:6px;font-size:13px;color:var(--crit)}
+  .tl{list-style:none;margin:14px 0 0;padding:0}
+  .tl li{display:grid;grid-template-columns:12px 1fr;gap:10px;padding:5px 0;font-size:13.5px;position:relative}
+  .tl li::before{content:"";position:absolute;inset-inline-start:5px;top:18px;bottom:-5px;width:1px;background:var(--line)}
+  .tl li:last-child::before{display:none}
+  .tl i{width:9px;height:9px;border-radius:50%;background:var(--line-strong);margin-top:6px;justify-self:center}
+  .tl small{display:block;color:var(--ink-3);font-size:12px}
+  .lcard{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid var(--ins-line);background:var(--ins-bg);margin-bottom:8px}
+  .lcard .ic{color:var(--ins)}
+  .lcard b{display:block;font-size:14px}
+  .lcard small{font-size:12.5px;color:var(--ink-2)}
+  .lcard .grow{flex:1;min-width:0}
+  .pick{border:1px dashed var(--line-strong);border-radius:12px;padding:6px;margin-top:8px}
+  .pick button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border-radius:9px;text-align:start;font-size:14px}
+  .pick button:hover{background:#F6F4FF}
+  .pick button .ic{color:var(--ins)}
+  .pick button small{margin-inline-start:auto;color:var(--ink-3);font-size:12.5px}
+  .mini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-subtle)}
+  .mini:last-child{border-bottom:0}
+  .mini .qt{font-size:14.5px;font-weight:600;unicode-bidi:plaintext;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mini small{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+  .drawer .ft{display:flex;align-items:center;gap:10px;height:54px;padding:0 18px;border-top:1px solid var(--line-subtle);font-size:12.5px;color:var(--ink-2);flex:none}
+  .drawer .ft .grow{flex:1}
+
+  /* bulk, modal, toast */
+  .bulk{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:12px;padding:9px 9px 9px 18px;border-radius:14px;background:#111827;color:#fff;box-shadow:0 14px 34px rgba(17,24,39,.3);white-space:nowrap}
+  [dir=rtl] .bulk{padding:9px 18px 9px 9px}
+  .bulk .btn{height:36px;border-color:#374151;background:#1F2937;color:#fff}
+  .bulk .btn.ins{background:var(--ins);border-color:var(--ins)}
+  .bulk .x{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;color:#9CA3AF}
+  .mveil{position:fixed;inset:0;background:rgba(17,24,39,.36);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding-top:80px}
+  .modal{width:620px;max-height:calc(100vh - 120px);background:#fff;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(17,24,39,.25)}
+  .modal .mh{padding:20px 22px 8px}
+  .modal .mh h3{font-size:19px;font-weight:700}
+  .modal .mh p{font-size:14px;color:var(--ink-2);margin-top:4px;line-height:1.5}
+  .modal .mb{flex:1;min-height:0;overflow-y:auto;padding:4px 22px 16px}
+  .modal label.l{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin:16px 0 6px}
+  .modal label.l small{font-weight:500;color:var(--ink-3)}
+  .modal .in{width:100%;height:44px;padding:0 12px;border:1px solid var(--line-strong);border-radius:10px;font-size:15px;font-weight:600;outline:0}
+  .modal .in:focus{border-color:var(--ins);box-shadow:0 0 0 3px var(--ins-bg)}
+  .modal .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal .mf{display:flex;align-items:center;gap:8px;padding:14px 22px;border-top:1px solid var(--line-subtle)}
+  .modal .mf .grow{flex:1}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:250;display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:12px;background:#111827;color:#fff;font-size:14px;box-shadow:0 12px 30px rgba(17,24,39,.3)}
+  .toast .ic{color:#4ADE80}
+  .toast button{font-weight:700;color:#C4B5FD;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="pbar"><span class="tag">Prototype</span><b>Voix du client · responsable v4 — refonte</b>
+  <span class="seg" id="segLang"><button data-v="fr">FR</button><button data-v="ar">AR</button></span>
+  <span class="seg" id="segRole"><button data-v="super_admin">Super admin</button><button data-v="manager">Responsable Libye</button></span>
+  <span class="grow"></span><span style="color:#7F858F">Clavier dans les listes : j k · Entrée · x · Échap</span></div>
+<div class="note" id="note"></div>
+<div id="root"></div>
+
+<script>
+/* ═══════════ Real data (Libya) ═══════════ */
+const RAW = `6ABA6703|T|pe|tasnim|قالت طلبت يعني من مكان آخر
+6ABB4BF6|H|pe|tasnim|شراء من المكان الثاني
+6ABB1CAE|T|nc|tasnim|قالت لا املك المبلغ
+6ABB408B|T|nc|tasnim|قالت أول ما ينزل الراتب رن عليكم
+6ABA1A28|T|nc|tasnim|قالت الراتب لم ينزل
+6AB9F42A|D|pe|tasnim|اشترت من مكان آخر
+6AB9D786|T|nc|tasnim|قال حاليا لا أملك الكاش
+6AB8FB55|T|pr|tasnim|السعر غالي
+6AB89BED|Q|pr|tasnim|قال ألغي لأن السعر غالي
+6AB887E7|T|pay|tasnim|قال يريد دفع بالبطاقة
+6AB89FAA|T|pd|roqaya|تبي رواية قالون
+6AB9395A|H|nc|tasnim|قالت لا أملك المبلغ
+6AB8CDA8|Q|nc|tasnim|قالت أول ما يكونوا فلوسي جاهزات ورن عليك
+6AB92EF7|T|pd|tasnim|تريد رواية قالون
+6AB90EED|Q|pe|tasnim|قالت توني نشتريها من مكان آخر
+6AB912DC|D|pay|tasnim|قال أريد الدفع بالخدمات
+6AB8C44D|H|nc|tasnim|قالت لا أملك المال
+6AB8A9A0|T|pd|roqaya|يحسابة براوية قالون
+6AB7BF95|H|nc|tasnim|قال ليس لدي المبلغ
+6AB77E5E|T|nc|tasnim|لا تملك الكاش
+6AB704D5|Q|pd|tasnim|قال كنت حساب الكتاب سوف ينزل في هاتف إلكتروني
+6AB68FDD|H|pd|tasnim|قال لا اريده كنت نحسابه الكتروني
+6AB6794A|Q|pd|tasnim|قال أريد حجم متوسط
+6AAD51E9|H|nc|tasnim|قالت لا أملك المال
+6AB4A64B|D|pr|tasnim|قال سعره غالي
+6AB254EB|H|nc|tasnim|قال لا أملك المال
+6AB06F18|D|nc|tasnim|قال لا املك المبلغ
+6AB05869|D|pay|tasnim|قال اريد الدفع بالبطاقة
+6AB0E9EA|D|nc|roqaya|غير متوفر عنده القيمة
+6AAD60A7|H|pd|tasnim|قالت أريد كتاب في رواية حفص
+6AAE4C8D|Q|pd|tasnim|قالت أريد مصحف عادي
+6A9ECFF4|D|pr|tasnim|قال السعر غالي
+6A9E442B|Q|pay|tasnim|قالت تريد الدفع بطريقة اخرى
+6A18C2D2|BS|dl|hend|العميل لا يريد خدمة توصيل يريد الاستلام بنفسه من مكان البيع
+6AAD9004|Q|pr|tasnim|قال سعره غالي
+6AA99BAF|Q|nc|tasnim|قال لا املك السعر حاليا
+6AA7CD9F|Q|nc|tasnim|لا يملك المبلغ بالكاش
+6A198F58|BS|dl|hend|العميل رفض بسبب التوصيل..ظن السعر يشمل التوصيل
+6A9ED828|Q|pay|tasnim|قال اريد الدفع بطريقة اخرى
+6A7327AF|BM|nc|tasnim|قال لا أملك المال ل شراء
+6A8F68A5|BM|pay|riheb|ليس لديه كاش ويريد تحويل
+6AA1A8C1|H|nc|tasnim|قالت ليس لدي كاش
+6A121940|BX|pe|mouna|قال تاخرتو وشرينا
+6A138314|BX|pd|mouna|قال طلبتها قبل ووصلتني ومعجبتنيش
+6A1775FC|BM|pe|hend|اشترى المنتج من محل في منطقته
+6A177B65|BL|pe|hend|العميل اشترى من متجر اخر
+6AA3D49E|D|nc|tasnim|قالت لا املك المبلغ
+6A367325|BM|pe|hend|الطلبية من قبل العيد وتوا شروا غيرها
+6AA61B1D|Q|nc|tasnim|قال لا املك المبلغ
+6A3456D8|BM|pd|hend|يبي القفازات قال في اعلان الفيس شاف قفازات
+6A35BA21|Q|pd|roqaya|تبي حفص
+6A9C4256|D|pr|tasnim|قال السعر غالي
+6A2FC966|BM|pe|hend|طلب من مكاننا واكد عند مكان ثاني قبلنا
+6A409CC6|BS|pe|tasnim|قال اشتريت وحدة اخرى
+6A0C4E34|Q|dl|hend|قال ان الطلب ليه مدة طويلة اساببع وتوا معاش يبي
+6A33B549|BS|dl|hend|قال انا برا المدينة نروح ونعاود نطلب توا الغيها
+6A392D3E|BM|pe|hend|شرت من مكان ثاني
+6A3D063A|BS|pr|hend|يبي تخفيض ع الطرفين
+6A3EFC03|D|pr|tasnim|قال اخذته ب 10 دينار وهذا السعر جداً غالي
+6A76EEE5|BM|pd|admin|قال نبيه بدون هواء يعني يبيه ثقيل
+6A9BCA77|H|pr|tasnim|قال الغي الطلب السعرغالي
+6A40268B|BS|pe|roqaya|طلب من مكان تاني بسعر اقل 85
+6A417F8B|Q|pr|roqaya|في حد طالب ع رقمه وشافه قال السعر غالي مايبيش
+6A732BAC|BM|pe|tasnim|لان طالب من متجر آخر لذلك لا يريد هذه
+6A197FA2|BM|pe|hend|هذا طلب هو وابنه في نفس الوقت وتوا رفض الطلبية لأن ابنه اشترى وحدة
+6A46CF95|Q|pay|tasnim|بسبب انه يريد تحويل المبلغ
+6A48A5F0|Q|nc|mouna|قال الغيلي ولمانحصل حقه تو نعاود نحجز
+6A0D56A3|BS|pd|mouna|يبيها حجم اكبر
+6A46B263|Q|nc|tasnim|قال غير قادر على السعره
+6A7DFA47|BL|dl|tasnim|قالت الغي طلبيه لاني خارج مدينتي
+6A4961AF|Q|pd|roqaya|قال يبي مصحف عادي
+6A118596|BX|pe|mouna|قال شريت وحده فالغيلي هادي
+6A4098EA|D|dl|hend|العميل في منطقة اخرى يبي يأجل التسليم لين يتصل هو
+6A490D3C|Q|nc|tasnim|قال غير قادر على السعره
+6AA3A994|H|pd|tasnim|قال اريد معه جهاز لذلك الغي الطلب
+6A4B4822|Q|nc|tasnim|قالت المبلغ غير متوفر عندي حالياً
+6A81BDBF|BM|pd|tasnim|قالت سيتم تفسيدها من الصغار لذلك منقدرش نشرها
+6A3BB27E|BM|pay|mouna|قال نقدر ندفع تحويل بس
+6AA3CA9C|H|pd|tasnim|قال الغي الطلب لان اريد حجم متوسط
+6AA3ADDB|Q|pd|tasnim|قالت الغي الطلب نبي الكتاب يلي يجي معو الجهاز
+6AA67624|H|nc|tasnim|لا يملكون الكاش ابدا
+6A8D9E76|BM|pay|tasnim|قال لا استطيع الدفع الا موبي كاش
+6A42644A|BS|pe|tasnim|قال طلبت من متجر تاني
+6A469BC8|Q|pr|tasnim|اول ما سمعت السعر رفضت فورا
+6A4AB4F7|Q|pd|roqaya|يبي المصحف براويو حفص
+6AA675C7|H|pay|tasnim|قالت لا استطيع الدفع بالكاش
+6A170CF7|BM|pay|hend|العميل قال عنده بالتحويل المصرفي فقط باقي انظمة الدفع غير متوفرة عنده
+6A9C43BB|Q|pay|tasnim|يرديد الدفع بطريقة اخرى
+6A9C30AA|H|pay|tasnim|يريد الدفع بالبطاقة
+6A9E7BA0|H|pay|tasnim|قالت اريد الدفع بالبطاقة
+6A9E8028|H|pay|tasnim|قالت اريد الدفع بالبطاقة
+6AA3A832|Q|nc|tasnim|لا يملك المبلغ
+6A80E6A6|BS|pr|tasnim|قال سعره غالي الغي الطلب
+6AA3AD17|Q|nc|tasnim|لا يملك المبلغ
+6A9738BB|BM|nc|tasnim|قال الغي لان لا يستطيع دفع ثمنها
+6AA3C9E2|Q|pd|tasnim|قال اريد المتوسط الغي الطلب
+6A0FC8D6|BS|nc|mouna|قال الغيها لانه معنداش فلوس حاليا
+6A1828D6|BM|dl|hend|بعد التأكيد قال العميل انه خرج من المجينة ولن يستطيع الاستلام وطلب الالغاء
+6A9C1B72|Q|pay|tasnim|تريد الدفع بالبطاقة
+6AA3CD73|Q|nc|tasnim|قال لا املك المبلغ حالياً
+6A18E5F0|BM|pe|hend|العميل قال حجز عند شخص تاني
+6A7D4235|BL|dl|roqaya|الطلب يبها في مصر
+6A14E8E8|BM|pd|roqaya|لانه من غير قفازات
+6A96B5FD|BM|pr|tasnim|قالت غالي و الغي الطلب
+6A7DA752|BM|pay|tasnim|قال نريد حوالة لذلك الغي الطلب
+6A2F2DD4|BM|pr|roqaya|لقها بسعر اقل
+6AA692BA|D|pr|tasnim|قالت السعر غالي
+6A1195A8|BX|pe|mouna|قال تاخرتو وشريت
+6A9CFD14|H|nc|tasnim|قالت لا يتوفر المبلغ
+6A9F2817|Q|pe|tasnim|قال طلبت من مكان اخر
+6A9F2AC5|H|pd|roqaya|الزبون يبي مصحف العادي القديم
+6A846707|BM|pr|tasnim|قالت غالي لذلك الغي الطلب
+6A92108F|BL|pe|tasnim|قال اخذت من متجر اخر و غدا ستصل
+6A9EBE8C|H|pay|tasnim|قالت لا اريد الدفع الا بطريقه اخرى
+6A9C8420|Q|pr|tasnim|قال غالي
+6A9D85CC|H|pr|tasnim|قالت الغي الطلب بعد سماع السعر
+6A3EFCF7|D|pr|tasnim|قالي غالي و معنديش فلوس ولما عندي تو نطلب من الموقع من جديد
+6A3B1C0C|BL|pe|tasnim|قال خديت من مكان آخر
+6A75C9EC|BS|pr|tasnim|قال السعر غالي لذلك الغي طلب
+6A9D77C0|D|nc|tasnim|قالت لا املك المبلغ و تو نطلب من جديد
+6A8091AD|BS|pd|tasnim|قال الغي الطلب لانه بدون قفازات
+6AA690F8|Q|pr|tasnim|قالت سعره غالي الغي الطلب
+6A71F03A|BS|pay|tasnim|قال منقدرش ندفع إلا تحويل
+6A72F52D|BM|nc|tasnim|قالت لا املك ثمنها
+6AA44F32|Q|nc|tasnim|قال لا املك المبلغ
+6AAC29BE|Q|pay|tasnim|قال أريد الدفع بتحويل
+6AA7CDFC|H|pd|tasnim|قال لا يوجد معه قلم ناطق
+6AA998F6|H|pr|tasnim|قال السعر غالي
+6A3CE4F9|D|nc|tasnim|غير متوفر عندها المبلغ
+6A42149B|Q|pd|tasnim|السبب تريد رواية اخرى للكتاب وهي حفص
+6A4BD641|BS|pr|tasnim|قال الغي الطلب لان كان يحساب ان سعرها 25
+6A9C2F72|D|pay|tasnim|قال اريد الدفع بالبطالة
+6AA64EFB|H|pe|tasnim|قال طلبت من متجر آخر كتاب اخر
+6AAC0597|Q|nc|roqaya|حطلب في وقت تاني القيمة غير متوفره
+6AA7B2B7|Q|pd|tasnim|قالت كنت نحسابكم دورة
+6AA59C2C|H|nc|hend|تبي تطلب عند نزول رواتب شهر 9 لعدم توفر كامل المبلغ الان
+6AAD5623|D|nc|tasnim|قال لا أستطيع قال لا أستطيع دفع المبلغ
+6A9C8DD1|D|pr|tasnim|قال السعر غالي الغي الطلب
+6AA82A59|D|nc|hend|لعدم توفر السعر حاليا وستعاود الطلب قريبا
+6A407016|D|pr|tasnim|قال السعر جدا غالي
+6AAE0EA9|Q|pay|tasnim|يريد الدفع بتحويل
+6A72F7B6|BM|pr|tasnim|قال غالية لا أستطيع شراءها
+6AAC0DC4|Q|nc|roqaya|مش متوفر عنده حاليا القيمة كاش لانه مش متوفر خدمات مصرفيه
+6AAC4905|Q|pd|roqaya|يبيه براوية قالون مش حفص
+6AABCBE0|Q|nc|tasnim|قالت حاليا لا أملك المبلغ
+6AAD7FFA|Q|nc|tasnim|قال لا أملك المبلغ
+6AA90945|H|nc|tasnim|قالت لا يتوفر لدي المبلغ
+6A9C5DF9|Q|pay|tasnim|قال اريد الدفع بتحويل`;
+const DATES = "6A0C4E34=06-19 6A0D56A3=05-21 6A0FC8D6=05-22 6A118596=05-23 6A1195A8=06-01 6A121940=06-01 6A138314=05-29 6A14E8E8=05-31 6A170CF7=06-01 6A1775FC=06-01 6A177B65=06-01 6A1828D6=06-01 6A18C2D2=05-29 6A18E5F0=05-30 6A197FA2=05-30 6A198F58=05-30 6A2F2DD4=06-15 6A2FC966=06-15 6A33B549=06-19 6A3456D8=06-20 6A35BA21=06-20 6A367325=06-23 6A392D3E=06-22 6A3B1C0C=08-10 6A3BB27E=06-24 6A3CE4F9=06-25 6A3D063A=06-25 6A3EFC03=06-27 6A3EFCF7=08-10 6A40268B=06-28 6A407016=06-28 6A4098EA=07-05 6A409CC6=08-10 6A417F8B=06-29 6A42149B=06-29 6A42644A=07-02 6A469BC8=07-02 6A46B263=07-04 6A46CF95=07-04 6A48A5F0=07-04 6A490D3C=07-05 6A4961AF=07-05 6A4AB4F7=07-06 6A4B4822=07-06 6A4BD641=07-07 6A71F03A=08-06 6A72F52D=08-05 6A72F7B6=08-05 6A7327AF=09-01 6A732BAC=08-05 6A75C9EC=08-08 6A76EEE5=08-10 6A7D4235=08-13 6A7DA752=08-29 6A7DFA47=08-14 6A8091AD=08-16 6A80E6A6=08-16 6A81BDBF=08-16 6A846707=08-18 6A8D9E76=08-25 6A8F68A5=08-27 6A92108F=08-29 6A96B5FD=09-01 6A9738BB=09-02 6A9BCA77=09-08 6A9C1B72=09-05 6A9C2F72=09-05 6A9C30AA=09-05 6A9C4256=09-06 6A9C43BB=09-06 6A9C5DF9=09-06 6A9C8420=09-08 6A9C8DD1=09-08 6A9CFD14=09-06 6A9D77C0=09-06 6A9D85CC=09-11 6A9E442B=09-08 6A9E7BA0=09-07 6A9E8028=09-08 6A9EBE8C=09-07 6A9ECFF4=09-08 6A9ED828=09-07 6A9F2817=09-11 6A9F2AC5=09-08 6AA1A8C1=09-10 6AA3A832=09-11 6AA3A994=09-11 6AA3AD17=09-11 6AA3ADDB=09-11 6AA3C9E2=09-11 6AA3CA9C=09-11 6AA3CD73=09-11 6AA3D49E=09-11 6AA44F32=09-12 6AA59C2C=09-13 6AA61B1D=09-14 6AA64EFB=09-13 6AA675C7=09-13 6AA67624=09-14 6AA690F8=09-13 6AA692BA=09-13 6AA7B2B7=09-14 6AA7CD9F=09-16 6AA7CDFC=09-14 6AA82A59=09-15 6AA90945=09-17 6AA998F6=09-16 6AA99BAF=09-16 6AABCBE0=09-17 6AAC0597=09-18 6AAC0DC4=09-18 6AAC29BE=09-19 6AAC4905=09-18 6AAD51E9=09-24 6AAD5623=09-19 6AAD60A7=09-19 6AAD7FFA=09-19 6AAD9004=09-19 6AAE0EA9=09-19 6AAE4C8D=09-19 6AB05869=09-21 6AB06F18=09-21 6AB0E9EA=09-21 6AB254EB=09-22 6AB4A64B=09-24 6AB6794A=09-26 6AB68FDD=09-26 6AB704D5=09-26 6AB77E5E=09-26 6AB7BF95=09-26 6AB887E7=09-27 6AB89BED=09-27 6AB89FAA=09-27 6AB8A9A0=09-27 6AB8C44D=09-27 6AB8CDA8=09-27 6AB8FB55=09-27 6AB90EED=09-27 6AB912DC=09-27 6AB92EF7=09-27 6AB9395A=09-27 6AB9D786=09-28 6AB9F42A=09-28 6ABA1A28=09-28 6ABA6703=09-30 6ABB1CAE=09-29 6ABB408B=09-29 6ABB4BF6=09-29";
+const CR = `1542377|T|no_cash|cancelled|2026-09-27|ملغي الزبون قال معنديش فلوس
+11865457|Q|refused|cancelled|2026-09-16|الزبون رفض الشحنة
+2052458|D|no_cash|cancelled|2026-09-13|زبون قالي توا معنديش فلوس
+1842705|BL|payment_method|cancelled|2026-09-09|الزبون قال امخلص تحويل مصرفي لي المتجر
+1483326|D|no_cash|cancelled|2026-09-05|الغاء لايتوفر سيواله عندا
+1736610|BM|wrong_item|delivered|2026-09-04|الزبونه قالت حطها ف تعديل بتصفرها استبدال
+1609628|BL|wrong_item|cancelled|2026-08-29|مش نفس مواسفات يقول و ما يبش يدفع كامل توصيل
+1822596|BL|payment_method|cancelled|2026-08-28|بطاقته متعه جمهوريه مش مفعله اون لاين
+1830900|BS|no_cash|cancelled|2026-08-25|الزبون يقول لا أملك ثمن الطلبية
+1734237|BM|wrong_item|cancelled|2026-08-25|صاحب الرقم يقول مش الطلبية اللي يبيها
+1749722|BM|wrong_item|cancelled|2026-08-24|لا الون ولا المقاس صح
+1609616|BL|refused|cancelled|2026-08-23|الزبون رفض الطلبيه
+1609600|BL|wrong_item|cancelled|2026-08-23|مش نفس مطلوب
+1511509|BS|wrong_item|cancelled|2026-08-17|قال مش نفس لي في نت
+1793976|BL|wrong_item|cancelled|2026-08-15|الزبون قال مش نفس مانبي
+1511462|BL|wrong_item|returned|2026-08-14|غير مطابقة للمواصفات
+1511470|BL|wrong_item|cancelled|2026-08-10|مش نفس المطلوب
+1452085|BM|no_cash|returned|2026-08-09|تواصلت معاه وقالي الغاها معنديش حقها
+889848|Q|wrong_item|cancelled|2026-07-12|مش نفس الطلب
+1143600|BS|wrong_item|cancelled|2026-07-08|قالت معديش طلبية واصرت انها مش ليها
+1103189|BS|wrong_item|cancelled|2026-07-07|غير مطابق للمواصفات
+1146068|Q|payment_method|cancelled|2026-07-07|الزبون قال بندير تحويل مصرفي لي المتجر
+1131298|D|no_cash|cancelled|2026-07-07|لعدم وجود سيوله
+1142766|D|payment_method|cancelled|2026-07-06|بطاقه ومش مفعله اون لاين
+1143322|BM|wrong_item|cancelled|2026-06-30|يوجد خطأ في سعر الطلبيه
+1123720|Q|no_cash|cancelled|2026-06-29|قتلي لين ينزل المرتبة
+1212507|BM|refused|returned|2026-06-29|تم رفضها من قبل الزبون
+1143619|D|payment_method|cancelled|2026-06-29|الزبون البطاقه متعه مش فعله
+1142761|Q|payment_method|cancelled|2026-06-28|البطاقة لا تدعم الدفع online
+1131312|Q|no_cash|cancelled|2026-06-28|الزبون ماعنداش فلوس
+1213413|BS|wrong_item|cancelled|2026-06-24|مش نفس طالب الزبون
+1233838|BM|no_cash|cancelled|2026-06-23|الزبون معنداش كاش
+1103187|BM|refused|returned|2026-06-21|الزبون رفض الاستلام لم تعجبه تم التواصل مع المتجر
+1098854|BL|wrong_item|returned|2026-06-18|الزبون قال مش نفس الطلبيه
+1123712|BM|payment_method|out_for_delivery|2026-06-16|زبون طالب بطاقه والبطاقه مش مفعلها المتجر`;
+const TODAY = "2026-09-30";
+const PROD = {
+  Q:{ar:"القرآن تدبر وعمل",fr:"Coran « Tadabbur wa ʿamal »",k:"book",c:"#6B4226"},
+  D:{ar:"كتاب الداء والدواء",fr:"Ad-Dâʾ wa ad-Dawâʾ",k:"book",c:"#14532D"},
+  T:{ar:"مصحف التهجد و قيام الليل",fr:"Mushaf du Tahajjud",k:"book",c:"#7F1D1D"},
+  H:{ar:"كتاب الحفظ الميسر",fr:"Al-Hifz al-muyassar",k:"book",c:"#1E3A5F"},
+  BM:{ar:"دمية ملاكمة · متوسط",fr:"Sac de frappe · moyen",k:"bag",c:"#B91C1C"},
+  BS:{ar:"دمية ملاكمة · صغير",fr:"Sac de frappe · petit",k:"bag",c:"#DC2626"},
+  BL:{ar:"دمية ملاكمة · كبير",fr:"Sac de frappe · grand",k:"bag",c:"#991B1B"},
+  BX:{ar:"دمية ملاكمة · كبير (179)",fr:"Sac de frappe · grand (179)",k:"bag",c:"#7F1D1D"},
+};
+const AGC = {tasnim:"#0E7490",roqaya:"#7C3AED",hend:"#B45309",mouna:"#BE185D",riheb:"#4D7C0F",salima:"#1D4ED8",admin:"#374151",darb:"#334155"};
+const CATS = ["reclamation","objection","suggestion"];
+const TOPICS = {
+  reclamation:[["nonconform","Non conforme à la commande","غير مطابق للطلب"],["damaged","Abîmé ou incomplet","تالف أو ناقص"],["never","Jamais reçu","لم يصل"],["slow","Trop long","تأخر كثيراً"],["calls","Appels répétés","إزعاج بالاتصال"],["conduct","Mauvais accueil","سوء تعامل"]],
+  objection:[["expensive","Trop cher","السعر غالي"],["nocash","Pas de cash maintenant","لا يملك المبلغ الآن"],["card","Veut payer par carte ou virement","يريد الدفع بالبطاقة أو التحويل"],["expect","Croyait autre chose","كان يظنه شيئاً آخر"],["elsewhere","Acheté ailleurs","اشترى من مكان آخر"],["delivery","Livraison (délai, ville)","التوصيل (المدة، المدينة)"]],
+  suggestion:[["version","Autre version ou produit","نسخة أو منتج آخر"],["likes_product","Aime le produit","أعجبه المنتج"],["likes_service","Aime le service","أعجبته الخدمة"],["again","Va racheter","سيطلب مجدداً"]],
+};
+const momentOf = st => st==="delivered" ? "after" : ["returning","to_be_returned","returned","cancelled","refused"].includes(st) ? "door" : ["confirmed","uploaded","scanned","at_carrier","in_transit","out_for_delivery","delivery_delayed"].includes(st) ? "transit" : "call";
+function suggest3(cls, t){
+  if (cls === "pay") return ["objection","card"];
+  if (cls === "nc") return ["objection","nocash"];
+  if (cls === "pr") return ["objection","expensive"];
+  if (cls === "pe") return ["objection","elsewhere"];
+  if (cls === "pd") return /(حفص|قالون|رواية|مصحف ?العادي|مصحف عادي|متوسط|حجم|جهاز|قلم)/.test(t) ? ["suggestion","version"] : ["objection","expect"];
+  if (/يشمل التوصيل/.test(t)) return ["objection","expensive"];
+  return ["objection","delivery"];
+}
+function courier3(cls, t){
+  if (cls === "wrong_item") return ["reclamation","nonconform"];
+  if (cls === "payment_method") return ["objection","card"];
+  if (cls === "no_cash") return ["objection","nocash"];
+  return ["objection", /تعجبه/.test(t) ? "expect" : null];
+}
+const FN_F = ["فاطمة","عائشة","خديجة","مريم","سالمة","نجلاء","هدى","أسماء","سعاد","زينب","رحاب","آمنة","حنان","نادية","سمية"];
+const FN_M = ["محمد","أحمد","علي","عبدالله","خالد","سالم","مصطفى","عمر","إبراهيم","يوسف","طارق","حسين","عبدالسلام","مفتاح","فرج"];
+const LN = ["الورفلي","المصراتي","الزوي","العبيدي","الترهوني","القماطي","الفيتوري","البرعصي","المقريف","الشريف","الغرياني","الككلي","بن عمران","الزنتاني","السنوسي","الدرسي","العرفي"];
+function hash(s){ let h = 2166136261; for (const c of s){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function fakeCustomer(ref, note){
+  const h = hash(ref), h2 = hash(ref + "#");
+  const fem = /(قالت|تريد|تبي|اشترت|شرت|الزبونه)/.test(note) ? true : /(قال |يبي|يريد|اشترى|عنده)/.test(note) ? false : h % 2 === 0;
+  const d = String(1000000 + (Math.imul(h ^ h2, 2654435761) >>> 0) % 9000000);
+  return { name: (fem ? FN_F : FN_M)[h % 15] + " " + LN[h2 % LN.length], phone: "0" + ["91","92","94","95"][h2 % 4] + " " + d.slice(0,3) + " " + d.slice(3,7) };
+}
+const DT = {}; DATES.split(" ").forEach(x => { const [r, d] = x.split("="); DT[r] = "2026-" + d; });
+const blank = () => ({ review:false, ignored:false, status:null, owner:"", resolution:"", unread:false, ins:[], tl:[] });
+const E = RAW.trim().split("\n").map(line => {
+  const [ref, p, cls, agent, note] = line.split("|");
+  const [cat, topic] = suggest3(cls, note);
+  return Object.assign(blank(), { id:ref, ref, p, agent, note, date:DT[ref], cat, topic, src:"import", mom:"call", ost:"rejected", cust:fakeCustomer(ref, note) });
+});
+E.slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).slice(0,38).forEach(e=>e.review=true);
+CR.trim().split("\n").forEach(line => {
+  const [ref, p, cls, st, date, note] = line.split("|");
+  const [cat, topic] = courier3(cls, note);
+  const e = Object.assign(blank(), { id:"C"+ref, ref, p, agent:"darb", note, date, cat, topic, src:"courier", mom:momentOf(st), ost:st, cust:fakeCustomer(ref, note) });
+  if (date >= "2026-09-01") e.review = true;
+  else if (cat === "reclamation") Object.assign(e, { status:"resolved", owner:"Manager LY", resolution:"Retour traité avec le livreur.", tl:[{k:"confirmed",d:date,a:"Manager LY"},{k:"status",d:date,s:"resolved",a:"Manager LY"}] });
+  E.push(e);
+});
+function retype(id, topic, status, owner, opened, mom, ost){
+  const e = E.find(x => x.id === id); if (!e) return;
+  Object.assign(e, { cat:"reclamation", topic, status, owner, date:opened, review:false, mom, ost, src:"agent",
+    tl:[{k:"created",d:opened,a:e.agent}].concat(owner?[{k:"assigned",d:opened,a:"Manager LY",o:owner}]:[]).concat(status!=="open"?[{k:"status",d:opened,s:status,a:owner}]:[]) });
+}
+function agentComplaint(ref, p, agent, date, topic, note, status, mom, ost){
+  E.push(Object.assign(blank(), { id:ref, ref, p, agent, note, date, cat:"reclamation", topic, src:"agent", mom, ost, status, cust:fakeCustomer(ref, note), tl:[{k:"created",d:date,a:agent}] }));
+}
+agentComplaint("6A123B44","BX","tasnim","2026-09-26","never","حاجزه وموصلتهاش الاوله","open","after","delivered");
+agentComplaint("6A408D8B","D","roqaya","2026-09-29","calls","الغاء الطلب ومعاش تضربو عليا مرة تانيه","open","call","pending");
+retype("6A0C4E34","slow","in_progress","Manager LY","2026-09-28","transit","delivery_delayed");
+retype("6A138314","nonconform","resolved","Manager LY","2026-09-21","after","delivered");
+E.find(x=>x.id==="6A138314").resolution = "اتصلنا بالعميل وعرضنا استبدالها بالحجم المتوسط، فضّل الانتظار.";
+E.forEach(e => { if (!e.review && e.date >= "2026-09-26") e.unread = true; });
+
+const isBag = e => /^B/.test(e.p);
+const INS = [
+  { id:"i1", st:"progress", owner:"Super Admin", created:"2026-09-12",
+    title:{fr:"Activer le paiement par carte chez Darb", ar:"تفعيل الدفع بالبطاقة مع درب"},
+    note:{fr:"Des clients veulent payer par carte ou virement — à l'appel, et à la porte où le livreur note que la carte n'est pas activée pour le magasin. Activer la carte et le virement avec Darb.", ar:"عملاء يريدون الدفع بالبطاقة أو التحويل — في المكالمة وعند الباب حيث يكتب المندوب أن البطاقة غير مفعّلة للمتجر. نفعّل البطاقة والتحويل مع درب."},
+    match:e => e.cat==="objection" && e.topic==="card" },
+  { id:"i4", st:"study", owner:"", created:"2026-09-01",
+    title:{fr:"Le sac de frappe ne ressemble pas à la pub", ar:"دمية الملاكمة لا تشبه الإعلان"},
+    note:{fr:"14 des 16 remarques « pas conforme » du livreur concernent le sac de frappe : « pas comme sur internet », couleur, taille. Revoir les photos et la description.", ar:"14 من 16 ملاحظة «غير مطابق» من المندوب تخص دمية الملاكمة: «مش نفس لي في نت»، اللون، المقاس. نراجع الصور والوصف."},
+    match:e => e.cat==="reclamation" && e.topic==="nonconform" && isBag(e) },
+  { id:"i2", st:"study", owner:"Manager LY", created:"2026-09-20",
+    title:{fr:"Rappeler après le versement des salaires", ar:"إعادة الاتصال بعد نزول الرواتب"},
+    note:{fr:"« Le salaire n'est pas tombé », « je n'ai pas d'argent » — à l'appel comme à la porte. Tester une relance le 1er du mois au lieu de perdre la commande.", ar:"«الراتب لم ينزل»، «معنديش فلوس» — في المكالمة وعند الباب. نجرّب إعادة الاتصال أول الشهر بدل خسارة الطلب."},
+    match:e => e.cat==="objection" && e.topic==="nocash" },
+  { id:"i3", st:"study", owner:"", created:"2026-09-15",
+    title:{fr:"Proposer le Coran en rewāya Qalun et Hafs", ar:"توفير المصحف برواية قالون وحفص"},
+    note:{fr:"Des clients veulent une autre rewāya ou le mushaf ordinaire. Vérifier avec le fournisseur.", ar:"عملاء يريدون رواية أخرى أو المصحف العادي. نتحقق مع المورّد."},
+    match:e => e.cat==="suggestion" && e.topic==="version" && /(حفص|قالون|رواية|مصحف)/.test(e.note) },
+  { id:"i5", st:"done", owner:"Super Admin", created:"2026-09-29",
+    title:{fr:"Dire dans la pub que le livre est en papier", ar:"توضيح في الإعلان أن الكتاب ورقي"},
+    note:{fr:"Fait le 29 sept. : « كتاب ورقي » ajouté aux visuels. Ce sujet devrait maintenant disparaître.", ar:"تم في 29 سبتمبر: أضيفت «كتاب ورقي» إلى الإعلانات. يُفترض أن يختفي هذا الموضوع الآن."},
+    match:e => e.cat==="objection" && e.topic==="expect" && /(الكتروني|إلكتروني|دورة|هاتف)/.test(e.note) },
+];
+INS.forEach(i => E.forEach(e => { if (!e.review && i.match(e) && e.date <= i.created) e.ins.push(i.id); }));
+const OWNERS = ["", "Manager LY", "Super Admin"];
+
+/* ═══════════ Words ═══════════ */
+const L = {
+fr:{
+  market:"Libye", marketSub:"marché", me:{super_admin:["Super Admin","Super admin"],manager:["Manager LY","Responsable · Libye"]},
+  nav:[["Accueil",["Dashboard"]],["Commandes",["Commandes","Archivées","Doublons"]],["Entrepôt",["Banc","Retours","Stock"]],["Livraison",["Suivi livraison","Suivi transporteur"]],["Finances",["P&L global","Produits & marges","Dépenses pub"],"sa"],["Clients",["Prospects","Messages","Voix du client"]],["Équipe",["Salle de contrôle","Performance","Accès"]],["Système",["Connexions","Paramètres"]]],
+  crumb:"Clients", title:"Voix du client",
+  sub:"Tout ce que les clients disent à l'équipe — au téléphone, pendant la livraison, à la porte. Ici, on lit, on trie, et on décide quoi changer.",
+  export:"Exporter",
+  tabs:{overview:"Vue d'ensemble",all:"Tous les retours",complaints:"Réclamations",insights:"Insights",review:"À vérifier"},
+  tabdesc:{
+    overview:"L'essentiel en un coup d'œil : ce qui vous attend, ce que disent les clients, et ce que l'équipe a décidé.",
+    all:"Chaque phrase dite par un client, la plus récente en premier. Cliquez une ligne pour voir le contexte.",
+    complaints:"Les problèmes signalés par les clients. Chaque réclamation a un responsable et se termine par une note de résolution.",
+    insights:"Un insight, c'est une leçon tirée de plusieurs retours, avec une action et un responsable. Ses preuves sont les retours liés.",
+    review:"Ces phrases n'ont pas été saisies par un agent. Vérifiez la catégorie proposée avant qu'elles ne comptent.",
+    unread:"Les retours que personne n'a encore ouverts. Ouvrir une ligne la marque comme lue pour toute l'équipe."},
+  todoT:"À faire", todoS:"Ce qui attend une décision de votre part.",
+  todo1:n=>n===1?"réclamation attend une réponse":"réclamations attendent une réponse", todo1s:(u,d)=>`${u} sans responsable. La plus ancienne attend depuis ${d} jours :`, todo1go:"Traiter les réclamations",
+  todo2:n=>n===1?"phrase à vérifier":"phrases à vérifier", todo2s:(c,i)=>`${c} notées par le livreur Darb à la porte, ${i} venues d'anciennes notes de refus. Confirmez la catégorie avant qu'elles comptent.`, todo2go:"Vérifier",
+  todo3:n=>n===1?"nouveau retour à lire":"nouveaux retours à lire", todo3s:"Personne ne les a encore ouverts. Commencez par les plus récents.", todo3go:"Lire les nouveaux retours",
+  todoDone:"Rien à faire ici.",
+  sayT:"Ce que disent les clients", sayS:"Classé en 3 catégories. Pour chacune : ses sujets les plus fréquents et une phrase réelle.",
+  per:{all:"Depuis mai",d30:"30 derniers jours",d7:"7 derniers jours"},
+  catPlural:{reclamation:"Réclamations",objection:"Objections",suggestion:"Suggestions"},
+  cat:{reclamation:"Réclamation",objection:"Objection",suggestion:"Suggestion"},
+  catLong:{reclamation:"Un souci à régler : le client a eu un problème avec sa commande ou avec nous.",objection:"Pourquoi il hésite ou refuse : ce qui l'empêche d'acheter ou de recevoir.",suggestion:"Ce qu'il aimerait ou apprécie : une envie, un compliment, une idée."},
+  catShort:{reclamation:"un souci à régler",objection:"pourquoi il hésite ou refuse",suggestion:"ce qu'il aimerait ou apprécie"},
+  topTopics:"Sujets les plus fréquents", example:"Exemple récent", seeAll:(n,c)=>`Voir les ${n} ${c.toLowerCase()}`, noTopic:"Sans sujet",
+  whereT:"Où les clients nous parlent", whereS:"Le moment où le client a parlé, déduit du statut de sa commande.",
+  momT:{call:"Pendant l'appel",transit:"En attente · en route",door:"À la porte",after:"Après la livraison"},
+  momD:{call:"Quand l'agent appelle pour confirmer la commande.",transit:"Le colis est parti ; le client appelle ou le livreur note quelque chose.",door:"Le livreur sonne : refus, retour, remarque.",after:"Quand le client rappelle l'agent après avoir reçu son colis."},
+  momPhrase:{call:"pendant l'appel de confirmation",transit:"pendant l'attente de la livraison",door:"à la porte, à la livraison",after:"après la livraison"},
+  whereHint:"Après la livraison, on n'entend les clients que lorsqu'ils rappellent l'agent — c'est normal que ce chiffre soit petit.",
+  insT:"Ce que nous en avons appris", insS:"Les insights en cours : ce que l'équipe a décidé de faire à partir des retours.",
+  newIns:"Nouvel insight", allIns:"Voir tous les insights",
+  latestT:"Les derniers retours", latestS:"Les 5 plus récents. Cliquez pour voir le contexte.", allFb:"Voir tous les retours",
+  ev:(n,parts)=>`Appuyé par <b class="num">${n}</b> retours — ${parts}`, evPart:{call:n=>`${n} à l'appel`,transit:n=>`${n} en route`,door:n=>`${n} à la porte`,after:n=>`${n} après la livraison`},
+  newUnl:n=>`${n} nouveau${n>1?"x":""} retour${n>1?"s":""} sur ce sujet ${n>1?"pourraient":"pourrait"} s'y ajouter`, noOwner:"Sans responsable", ownerIs:o=>`Responsable : ${o}`,
+  ist:{study:"À étudier",progress:"En cours",done:"Fait",dismissed:"Écarté"}, st:{open:"Ouverte",in_progress:"En cours",resolved:"Résolue"},
+  /* sentences */
+  saidTo:(a,m)=>`dit à <b>${a}</b> ${m}`, notedBy:m=>`noté par <b>le livreur Darb</b> ${m}`,
+  ago:d=>d===0?"aujourd'hui":d===1?"hier":`il y a ${d} jours`,
+  linkedTo:"Lié à l'insight :", ownerLine:o=>o?`Responsable : ${o}`:"Sans responsable",
+  /* list */
+  search:"Rechercher une phrase, un client, une commande…", allCats:"Toutes", moreFilters:"Plus de filtres", lessFilters:"Moins de filtres",
+  fMoment:"Moment", fProduct:"Produit", fAgent:"Saisi par", fPer:"Période", anyM:"Tous les moments", anyP:"Tous les produits", anyA:"Toute l'équipe", clear:"Tout effacer",
+  results:(a)=>a===1?"1 retour":`${a} retours`, showMore:n=>`Afficher ${n} de plus`,
+  buckets:{today:"Aujourd'hui",yesterday:"Hier",week:"Cette semaine",month:"Ce mois-ci",older:"Plus ancien"},
+  emptyT:"Aucun retour ne correspond.", emptyS:"Essayez d'enlever un filtre.",
+  /* complaints */
+  cmpSec:{open:"À traiter",in_progress:"En cours",resolved:"Résolues"}, cmpSecD:{open:"Personne n'a encore agi.",in_progress:"Quelqu'un s'en occupe.",resolved:"Clôturées avec une note."},
+  treat:"Traiter", waits:d=>d===0?"signalée aujourd'hui":d===1?"attend depuis hier":`attend depuis ${d} jours`,
+  /* review */
+  rvExplainT:"D'où viennent ces phrases ?", rvExplain:"Le livreur Darb note ce que le client dit à la porte (« je n'ai pas d'argent », « ce n'est pas la même chose que sur internet »). Ordra propose une catégorie d'après les mots. Vous gardez, corrigez ou ignorez — seules les phrases gardées comptent.",
+  rvCourier:"Notées par le livreur Darb", rvCourierD:"À la porte ou en route, sur les commandes livrées par Darb.", rvImport:"Anciennes notes de refus", rvImportD:"Les notes « Autre » d'avant la Voix du client, qui contiennent un vrai retour.",
+  rvNoted:d=>`Le livreur a noté, le ${d}`, rvImported:d=>`Note de refus du ${d}`, rvProp:"Catégorie proposée :", keep:"Garder", fix:"Corriger", ignore:"Ignorer", keepAll:n=>`Tout garder (${n})`,
+  rvDone:"Tout est vérifié. Cet onglet disparaîtra.",
+  /* drawer */
+  dTitle:"Retour client", whatSaid:"Ce que le client a dit", class:"Classement", context:"Contexte", follow:"Suivi de la réclamation", links:"Insights",
+  saidLong:(a,m,d)=>`Dit à ${a}, ${m}, le ${d}.`, notedLong:(m,d)=>`Noté par le livreur Darb, ${m}, le ${d}.`,
+  kCust:"Client", kOrder:"Commande", kProduct:"Produit", kWhen:"Moment", history:"Historique client", open:"Ouvrir", sheet:"Fiche produit",
+  autoMom:"déduit du statut de la commande", topicOpt:"Sujet (facultatif)",
+  owner:"Responsable", unassigned:"Non assignée", resNote:"Note de résolution", resPh:"Ce qui a été fait pour le client…", resErr:"Écrivez une note pour pouvoir résoudre.",
+  tl:{created:"Saisie par {a}",assigned:"Assignée à {o}",status:"Passée en « {s} » par {a}",confirmed:"Gardée par {a}"},
+  linkIns:"Lier à un insight", mkIns:"Créer un insight", createFrom:"Créer un insight à partir de ce retour", evid:n=>`${n} retour${n>1?"s":""} en preuve`,
+  prev:"Précédent", next:"Suivant", pos:(a,b)=>`${a} sur ${b}`,
+  /* insight drawer */
+  iTitle:"Insight", iStatus:"Statut", iOwner:"Responsable", iWhy:"Pourquoi, et la prochaine étape", iEvid:n=>`Les preuves · ${n} retour${n>1?"s":""}`,
+  iNew:n=>`Nouveaux retours sur ce sujet · ${n}`, iNewS:"Arrivés après la création de l'insight. Liez-les s'ils le confirment.", link:"Lier", linkAll:"Tout lier",
+  /* bulk / modal */
+  selected:n=>`${n} retour${n>1?"s":""} sélectionné${n>1?"s":""}`, markRead:"Marquer comme lus",
+  mTitle:"Nouvel insight", mSub:"Ce que ces retours vous apprennent, et ce que vous allez en faire.", mName:"La leçon, en une phrase", mNamePh:"Ex. : Activer le paiement par carte chez Darb",
+  mNote:"Pourquoi, et la prochaine étape", mNotePh:"Ce qu'on a compris, ce qu'on va tester…", mStatus:"Statut", mOwner:"Responsable", mEv:n=>`Les preuves`, mEvN:n=>n?`${n} retour${n>1?"s":""} sélectionné${n>1?"s":""}`:"aucune pour l'instant — vous pourrez en lier ensuite",
+  cancel:"Annuler", create:"Créer l'insight", created:"Insight créé", see:"Voir", linked:"Ajouté à l'insight", kept:"Gardé",
+},
+ar:{
+  market:"ليبيا", marketSub:"السوق", me:{super_admin:["Super Admin","مدير عام"],manager:["Manager LY","مدير السوق · ليبيا"]},
+  nav:[["الرئيسية",["لوحة القيادة"]],["الطلبات",["الطلبات","المؤرشفة","المكررة"]],["المستودع",["المكتب","المرتجعات","المخزون"]],["التوصيل",["متابعة التوصيل","تتبع الناقل"]],["المالية",["الأرباح والخسائر","المنتجات والهوامش","مصاريف الإعلانات"],"sa"],["العملاء",["العملاء المحتملون","الرسائل","صوت العميل"]],["الفريق",["غرفة التحكم","أداء الفريق","الوصول"]],["النظام",["الاتصالات","الإعدادات"]]],
+  crumb:"العملاء", title:"صوت العميل",
+  sub:"كل ما يقوله العملاء للفريق — في الهاتف، أثناء التوصيل، عند الباب. هنا نقرأ، نرتّب، ونقرّر ما نغيّره.",
+  export:"تصدير",
+  tabs:{overview:"نظرة عامة",all:"كل الملاحظات",complaints:"الشكاوى",insights:"الرؤى",review:"للتحقق"},
+  tabdesc:{
+    overview:"الأهم في لمحة: ما ينتظرك، ما يقوله العملاء، وما قرّره الفريق.",
+    all:"كل جملة قالها عميل، الأحدث أولاً. اضغط على سطر لترى السياق.",
+    complaints:"المشاكل التي أبلغ عنها العملاء. لكل شكوى مسؤول، وتُغلق بملاحظة معالجة.",
+    insights:"الرؤية درس نستخلصه من عدة ملاحظات، مع إجراء ومسؤول. أدلتها هي الملاحظات المرتبطة بها.",
+    review:"هذه الجمل لم يسجّلها موظف. تحقّق من الفئة المقترحة قبل أن تُحتسب.",
+    unread:"الملاحظات التي لم يفتحها أحد بعد. فتح سطر يجعله مقروءاً لكل الفريق."},
+  todoT:"للإنجاز", todoS:"ما ينتظر قراراً منك.",
+  todo1:n=>"شكاوى تنتظر رداً", todo1s:(u,d)=>`${u} بدون مسؤول. الأقدم تنتظر منذ ${d} أيام:`, todo1go:"معالجة الشكاوى",
+  todo2:n=>"جمل للتحقق", todo2s:(c,i)=>`${c} كتبها مندوب درب عند الباب، و ${i} من ملاحظات رفض قديمة. أكّد الفئة قبل أن تُحتسب.`, todo2go:"تحقّق",
+  todo3:n=>"ملاحظات جديدة للقراءة", todo3s:"لم يفتحها أحد بعد. ابدأ بالأحدث.", todo3go:"قراءة الجديدة",
+  todoDone:"لا شيء هنا.",
+  sayT:"ماذا يقول العملاء", sayS:"مرتّبة في 3 فئات. لكل فئة: أكثر مواضيعها تكراراً وجملة حقيقية.",
+  per:{all:"منذ مايو",d30:"آخر 30 يوماً",d7:"آخر 7 أيام"},
+  catPlural:{reclamation:"الشكاوى",objection:"الاعتراضات",suggestion:"الاقتراحات"},
+  cat:{reclamation:"شكوى",objection:"اعتراض",suggestion:"اقتراح"},
+  catLong:{reclamation:"مشكلة نحلّها: واجه العميل مشكلة في طلبه أو معنا.",objection:"لماذا يتردد أو يرفض: ما يمنعه من الشراء أو الاستلام.",suggestion:"ما يتمنّاه أو يعجبه: رغبة، إشادة، أو فكرة."},
+  catShort:{reclamation:"مشكلة نحلّها",objection:"لماذا يتردد أو يرفض",suggestion:"ما يتمنّاه أو يعجبه"},
+  topTopics:"أكثر المواضيع تكراراً", example:"مثال حديث", seeAll:(n,c)=>`عرض ${c} (${n})`, noTopic:"بدون موضوع",
+  whereT:"أين يكلّمنا العملاء", whereS:"اللحظة التي تكلّم فيها العميل، مستنتجة من حالة طلبه.",
+  momT:{call:"أثناء المكالمة",transit:"في الانتظار · في الطريق",door:"عند الباب",after:"بعد التسليم"},
+  momD:{call:"عندما يتصل الموظف لتأكيد الطلب.",transit:"خرج الطرد؛ العميل يتصل أو المندوب يكتب شيئاً.",door:"المندوب عند الباب: رفض، إرجاع، ملاحظة.",after:"عندما يعاود العميل الاتصال بالموظف بعد استلام طلبه."},
+  momPhrase:{call:"أثناء مكالمة التأكيد",transit:"أثناء انتظار التوصيل",door:"عند الباب أثناء التسليم",after:"بعد التسليم"},
+  whereHint:"بعد التسليم لا نسمع العملاء إلا عندما يعاودون الاتصال بالموظف — من الطبيعي أن يكون هذا الرقم صغيراً.",
+  insT:"ما تعلّمناه", insS:"الرؤى الجارية: ما قرّر الفريق فعله انطلاقاً من الملاحظات.",
+  newIns:"رؤية جديدة", allIns:"عرض كل الرؤى",
+  latestT:"آخر الملاحظات", latestS:"أحدث 5. اضغط لترى السياق.", allFb:"عرض كل الملاحظات",
+  ev:(n,parts)=>`تدعمها <b class="num">${n}</b> ملاحظة — ${parts}`, evPart:{call:n=>`${n} في المكالمة`,transit:n=>`${n} في الطريق`,door:n=>`${n} عند الباب`,after:n=>`${n} بعد التسليم`},
+  newUnl:n=>`${n} ملاحظات جديدة في نفس الموضوع يمكن إضافتها`, noOwner:"بدون مسؤول", ownerIs:o=>`المسؤول: ${o}`,
+  ist:{study:"للدراسة",progress:"قيد التنفيذ",done:"تم",dismissed:"مستبعدة"}, st:{open:"مفتوحة",in_progress:"قيد المعالجة",resolved:"تمت المعالجة"},
+  saidTo:(a,m)=>`قالها لـ<b>${a}</b> ${m}`, notedBy:m=>`كتبها <b>مندوب درب</b> ${m}`,
+  ago:d=>d===0?"اليوم":d===1?"أمس":`منذ ${d} أيام`,
+  linkedTo:"مرتبطة بالرؤية:", ownerLine:o=>o?`المسؤول: ${o}`:"بدون مسؤول",
+  search:"ابحث عن جملة، عميل، طلب…", allCats:"الكل", moreFilters:"فلاتر إضافية", lessFilters:"فلاتر أقل",
+  fMoment:"اللحظة", fProduct:"المنتج", fAgent:"سجّلها", fPer:"الفترة", anyM:"كل اللحظات", anyP:"كل المنتجات", anyA:"كل الفريق", clear:"مسح الكل",
+  results:(a)=>`${a} ملاحظة`, showMore:n=>`عرض ${n} أخرى`,
+  buckets:{today:"اليوم",yesterday:"أمس",week:"هذا الأسبوع",month:"هذا الشهر",older:"أقدم"},
+  emptyT:"لا توجد ملاحظة مطابقة.", emptyS:"جرّب إزالة فلتر.",
+  cmpSec:{open:"للمعالجة",in_progress:"قيد المعالجة",resolved:"تمت المعالجة"}, cmpSecD:{open:"لم يتصرّف أحد بعد.",in_progress:"أحدهم يتابعها.",resolved:"أُغلقت بملاحظة."},
+  treat:"معالجة", waits:d=>d===0?"أُبلغ عنها اليوم":d===1?"تنتظر منذ أمس":`تنتظر منذ ${d} أيام`,
+  rvExplainT:"من أين تأتي هذه الجمل؟", rvExplain:"مندوب درب يكتب ما يقوله العميل عند الباب («معنديش فلوس»، «مش نفس لي في نت»). يقترح Ordra فئة من الكلمات. أنت تحتفظ أو تصحّح أو تتجاهل — الجمل المحفوظة وحدها تُحتسب.",
+  rvCourier:"كتبها مندوب درب", rvCourierD:"عند الباب أو في الطريق، على الطلبات التي يوصلها درب.", rvImport:"ملاحظات رفض قديمة", rvImportD:"ملاحظات «أخرى» من قبل صوت العميل، تحمل ملاحظة حقيقية.",
+  rvNoted:d=>`كتب المندوب في ${d}`, rvImported:d=>`ملاحظة رفض بتاريخ ${d}`, rvProp:"الفئة المقترحة:", keep:"احتفاظ", fix:"تصحيح", ignore:"تجاهل", keepAll:n=>`احتفاظ بالكل (${n})`,
+  rvDone:"تم التحقق من كل شيء. سيختفي هذا التبويب.",
+  dTitle:"ملاحظة عميل", whatSaid:"ماذا قال العميل", class:"التصنيف", context:"السياق", follow:"متابعة الشكوى", links:"الرؤى",
+  saidLong:(a,m,d)=>`قالها لـ${a}، ${m}، في ${d}.`, notedLong:(m,d)=>`كتبها مندوب درب، ${m}، في ${d}.`,
+  kCust:"العميل", kOrder:"الطلب", kProduct:"المنتج", kWhen:"اللحظة", history:"سجل العميل", open:"فتح", sheet:"بطاقة المنتج",
+  autoMom:"مستنتجة من حالة الطلب", topicOpt:"الموضوع (اختياري)",
+  owner:"المسؤول", unassigned:"غير مسندة", resNote:"ملاحظة المعالجة", resPh:"ما الذي تم للعميل…", resErr:"اكتب ملاحظة لتتمكن من الإغلاق.",
+  tl:{created:"سجّلها {a}",assigned:"أُسندت إلى {o}",status:"انتقلت إلى «{s}» بواسطة {a}",confirmed:"احتفظ بها {a}"},
+  linkIns:"ربط برؤية", mkIns:"إنشاء رؤية", createFrom:"إنشاء رؤية من هذه الملاحظة", evid:n=>`${n} ملاحظة كدليل`,
+  prev:"السابق", next:"التالي", pos:(a,b)=>`${a} من ${b}`,
+  iTitle:"رؤية", iStatus:"الحالة", iOwner:"المسؤول", iWhy:"لماذا، والخطوة التالية", iEvid:n=>`الأدلة · ${n} ملاحظة`,
+  iNew:n=>`ملاحظات جديدة في نفس الموضوع · ${n}`, iNewS:"وصلت بعد إنشاء الرؤية. اربطها إن كانت تؤكدها.", link:"ربط", linkAll:"ربط الكل",
+  selected:n=>`${n} ملاحظة محددة`, markRead:"تعليم كمقروءة",
+  mTitle:"رؤية جديدة", mSub:"ما تعلّمناه من هذه الملاحظات، وما سنفعله بها.", mName:"الدرس، في جملة", mNamePh:"مثال: تفعيل الدفع بالبطاقة مع درب",
+  mNote:"لماذا، والخطوة التالية", mNotePh:"ما فهمناه، وما سنجرّبه…", mStatus:"الحالة", mOwner:"المسؤول", mEv:n=>`الأدلة`, mEvN:n=>n?`${n} ملاحظة محددة`:"لا شيء الآن — يمكنك الربط لاحقاً",
+  cancel:"إلغاء", create:"إنشاء الرؤية", created:"تم إنشاء الرؤية", see:"عرض", linked:"أضيفت إلى الرؤية", kept:"تم الاحتفاظ",
+}};
+
+/* ═══════════ State & helpers ═══════════ */
+const U = new URLSearchParams(location.search);
+const S = { lang:U.get("lang")||"fr", role:U.get("role")||"super_admin", tab:U.get("tab")||"overview",
+  per:"all", cat:"", mom:"", prod:"", agent:"", topic:"", q:"", filtersOpen:false, limit:25,
+  sel:new Set(), focus:null, peek:null, ipeek:null, modal:null, toast:null, resErr:false, linking:false, fixing:null };
+const T = () => L[S.lang], AR = () => S.lang === "ar";
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dd = (a,b) => Math.round((new Date(b+"T12:00:00Z") - new Date(a+"T12:00:00Z"))/86400000);
+const fdate = iso => new Intl.DateTimeFormat(AR()?"ar-LY":"fr-FR",{day:"numeric",month:"long",timeZone:"UTC"}).format(new Date(iso+"T12:00:00Z"));
+const pname = k => PROD[k][S.lang];
+const toplabel = (c,k) => { const x=(TOPICS[c]||[]).find(r=>r[0]===k); return x ? (AR()?x[2]:x[1]) : ""; };
+const tag = c => `<span class="tag" data-c="${c}">${T().cat[c]}</span>`;
+const stp = s => `<span class="st" data-s="${s}">${T().st[s]}</span>`;
+const ist = s => `<span class="ist" data-i="${s}">${T().ist[s]}</span>`;
+const aname = a => a==="admin"?"Super Admin":a==="darb"?(AR()?"مندوب درب":"livreur Darb"):a;
+const IC = {
+  arrow:'<svg class="ic flip" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  search:'<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  x:'<svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  bulb:'<svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.1 1.4 1.1 2.2h5c0-.8.3-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>',
+  filter:'<svg class="ic" viewBox="0 0 24 24"><path d="M3.5 5.5h17l-6.5 7.5v6l-4 2v-8z"/></svg>',
+  ext:'<svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  up:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>',
+  dn:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  plus:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  info:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8.2v.3"/></svg>',
+  phone:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+  truck:'<svg class="ic" viewBox="0 0 24 24"><path d="M2.5 6.5h11v9.5h-11zM13.5 10h4.2l3 3.2V16h-7.2z"/><circle cx="6.5" cy="17.6" r="1.8"/><circle cx="17" cy="17.6" r="1.8"/></svg>',
+  door:'<svg class="ic" viewBox="0 0 24 24"><path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M3 21h18"/><circle cx="14.5" cy="12.5" r="1" fill="currentColor"/></svg>',
+  boxok:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4.2v5.3M4 7.2v9.6L12 21l2-1"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/><path d="M15.5 17.5l2 2 3.5-4"/></svg>',
+  flag:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  eye:'<svg class="ic" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>',
+  mail:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>',
+  import:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>',
+};
+const MOMIC = {call:"phone",transit:"truck",door:"door",after:"boxok"};
+const av = a => a==="darb" ? `<span class="av" style="background:${AGC.darb}">${IC.truck}</span>` : `<span class="av" style="background:${AGC[a]||"#6B7280"}">${esc(aname(a)[0].toUpperCase())}</span>`;
+const insOf = id => INS.find(i => i.id === id);
+const evidenceOf = i => E.filter(e => e.ins.includes(i.id) && !e.ignored);
+const newUnlinked = i => E.filter(e => !e.review && !e.ignored && i.match && i.match(e) && !e.ins.includes(i.id));
+const live = e => !e.ignored && !e.review;
+const perFrom = () => S.per==="d7" ? "2026-09-24" : S.per==="d30" ? "2026-09-01" : "0000";
+function sentence(e){ const t = T(), m = t.momPhrase[e.mom]; return e.agent==="darb" ? t.notedBy(m) : t.saidTo(esc(aname(e.agent)), m); }
+
+/* ═══════════ Shell ═══════════ */
+function sidebar(){
+  const t = T(), me = t.me[S.role], unread = E.filter(e=>live(e)&&e.unread).length;
+  return `<aside class="sb"><div class="brand"><i>O</i>Ordra</div><div class="mk">${t.market}<span>${t.marketSub}</span></div>
+    ${t.nav.filter(s=>!(s[2]==="sa"&&S.role!=="super_admin")).map(([sec, items]) => `<div class="sec">${sec}</div>${items.map(it => { const on = it===(AR()?"صوت العميل":"Voix du client"); return `<a class="it ${on?"on":""}">${it}${on&&unread?`<span class="n num">${unread}</span>`:""}</a>`; }).join("")}`).join("")}
+    <div class="grow"></div><div class="me"><i>${me[0][0]}</i><div><b>${me[0]}</b><span>${me[1]}</span></div></div></aside>`;
+}
+function tabs(){
+  const t = T();
+  const openC = E.filter(e=>live(e)&&e.cat==="reclamation"&&e.status&&e.status!=="resolved").length, rev = E.filter(e=>!e.ignored&&e.review).length;
+  const items = [["overview",""],["all",E.filter(live).length,""],["complaints",openC,"hot"],["insights",INS.length,"ins"]].concat(rev?[["review",rev,"warn"]]:[]);
+  return `<div class="tabs" role="tablist">${items.map(([k,n,cls])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k||(k==="all"&&S.tab==="unread")}">${t.tabs[k]}${n!==""&&n!==undefined?`<span class="n ${cls||""} num">${n}</span>`:""}</button>`).join("")}</div>
+    <p class="tabdesc">${t.tabdesc[S.tab]}</p>`;
+}
+
+/* ═══════════ Overview ═══════════ */
+function overview(){
+  const t = T();
+  const open = E.filter(e=>live(e)&&e.cat==="reclamation"&&e.status&&e.status!=="resolved").sort((a,b)=>a.date<b.date?-1:1);
+  const unassigned = open.filter(e=>!e.owner).length, oldest = open[0];
+  const revC = E.filter(e=>!e.ignored&&e.review&&e.src==="courier").length, revI = E.filter(e=>!e.ignored&&e.review&&e.src==="import").length;
+  const unread = E.filter(e=>live(e)&&e.unread).length;
+  const todo = (n, accent, ink, label, body, go, tabTo) => n ? `<button class="card todo" style="--accent:${accent};--accent-ink:${ink}" data-go="${tabTo}"><div class="big"><b class="num">${n}</b><span>${label}</span></div>${body}<span class="go">${go}${IC.arrow}</span></button>`
+    : `<div class="card todo done"><div class="big"><b>✓</b><span>${t.todoDone}</span></div></div>`;
+  const s1 = `<section class="section"><div class="shead"><div><h2>${t.todoT}</h2><p>${t.todoS}</p></div></div><div class="grid3">
+    ${todo(open.length,"#D72C0D","#D72C0D",t.todo1(open.length),`<p>${t.todo1s(unassigned,oldest?dd(oldest.date,TODAY):0)}</p>${oldest?`<div class="qt q">${esc(oldest.note)}</div>`:""}`,t.todo1go,"complaints")}
+    ${todo(revC+revI,"#B98900","#8A5A00",t.todo2(revC+revI),`<p>${t.todo2s(revC,revI)}</p>`,t.todo2go,"review")}
+    ${todo(unread,"#15803D","#15803D",t.todo3(unread),`<p>${t.todo3s}</p>`,t.todo3go,"unread")}</div></section>`;
+
+  const from = perFrom(), pool = E.filter(e=>live(e)&&e.date>=from);
+  const cards = CATS.map(c => {
+    const xs = pool.filter(e=>e.cat===c), cnt = {};
+    xs.forEach(e => { const k = e.topic||"-"; cnt[k]=(cnt[k]||0)+1; });
+    const top = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,4), max = top.length ? cnt[top[0]] : 1;
+    const ex = xs.slice().sort((a,b)=>a.date<b.date?1:-1)[0];
+    return `<div class="card catcard" data-c="${c}"><div class="hd"><span class="dot"></span><h3>${t.catPlural[c]}</h3><span class="cnt num">${xs.length}</span></div>
+      <p class="desc">${t.catLong[c]}</p>
+      <div><h4>${t.topTopics}</h4><ul class="tlist">${top.map(k=>`<li><button data-drill="${c}|${k}"><span class="lb">${k==="-"?t.noTopic:esc(toplabel(c,k))}</span><span class="bar"><i style="width:${cnt[k]/max*100}%"></i></span><span class="v num">${cnt[k]}</span></button></li>`).join("")||`<li style="color:var(--ink-3);font-size:13.5px">—</li>`}</ul></div>
+      ${ex?`<div class="example"><small>${t.example}</small><div class="qt q">${esc(ex.note)}</div><div class="ctx">${pname(ex.p)} · ${t.momPhrase[ex.mom]}</div></div>`:""}
+      <button class="go" data-drill="${c}|">${t.seeAll(xs.length,t.catPlural[c])}${IC.arrow}</button></div>`;
+  }).join("");
+  const s2 = `<section class="section"><div class="shead"><div><h2>${t.sayT}</h2><p>${t.sayS}</p></div><div class="end"><select class="sel" id="ovPer">${Object.keys(t.per).map(k=>`<option value="${k}" ${S.per===k?"selected":""}>${t.per[k]}</option>`).join("")}</select></div></div><div class="grid3">${cards}</div></section>`;
+
+  const mc = {call:0,transit:0,door:0,after:0}; pool.forEach(e => mc[e.mom]++);
+  const s3 = `<section class="section"><div class="shead"><div><h2>${t.whereT}</h2><p>${t.whereS}</p></div></div><div class="grid4">
+    ${Object.keys(mc).map(m=>`<button class="card moment ${mc[m]?"":"empty"}" data-mom-go="${m}"><div class="top"><span class="mic">${IC[MOMIC[m]]}</span><b class="num">${mc[m]}</b></div><h3>${t.momT[m]}</h3><p>${t.momD[m]}</p></button>`).join("")}</div>
+    <p class="hintline">${IC.info}<span>${t.whereHint}</span></p></section>`;
+
+  const ins = INS.filter(i=>i.st!=="done"&&i.st!=="dismissed").sort((a,b)=>(a.st==="progress"?0:1)-(b.st==="progress"?0:1)).slice(0,3);
+  const s4 = `<section class="section"><div class="shead"><div><h2>${t.insT}</h2><p>${t.insS}</p></div><div class="end"><button class="btn sm" data-newins>${IC.plus}${t.newIns}</button></div></div>
+    <div class="card">${ins.map(irow).join("")}<button class="more" data-go="insights">${t.allIns}${IC.arrow}</button></div></section>`;
+
+  const latest = E.filter(live).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0).slice(0,5);
+  const s5 = `<section class="section"><div class="shead"><div><h2>${t.latestT}</h2><p>${t.latestS}</p></div></div>
+    <div class="card">${latest.map(e=>frow(e,{noCb:true})).join("")}<button class="more" data-go="all">${t.allFb}${IC.arrow}</button></div></section>`;
+  return s1 + s2 + s3 + s4 + s5;
+}
+function irow(i){
+  const t = T(), ev = evidenceOf(i), nu = newUnlinked(i).length, mc = {};
+  ev.forEach(e => mc[e.mom]=(mc[e.mom]||0)+1);
+  const parts = ["call","transit","door","after"].filter(m=>mc[m]).map(m=>t.evPart[m](mc[m])).join(", ");
+  return `<button class="irow" data-ipeek="${i.id}"><span>${ist(i.st)}</span><div><h3 class="q">${esc(i.title[S.lang])}</h3><p class="why">${esc(i.note[S.lang])}</p>
+    <p class="ev">${t.ev(ev.length, parts||"—")}</p>${nu?`<span class="new">${t.newUnl(nu)}</span>`:""}</div>
+    <span class="own">${i.owner?`${av(i.owner==="Super Admin"?"admin":"hend")}${i.owner}`:t.noOwner}</span></button>`;
+}
+function frow(e, o={}){
+  const t = T(), age = dd(e.date, TODAY), sel = S.sel.has(e.id);
+  const ins = e.ins.length ? insOf(e.ins[0]) : null;
+  const topic = toplabel(e.cat, e.topic);
+  const right = e.status ? `${stp(e.status)}<span>${t.ownerLine(e.owner)}</span>` : `<span>${t.ago(age)}</span>`;
+  return `<div class="frow" data-id="${e.id}" ${S.focus===e.id?"data-focus":""} ${sel?"data-sel":""} ${S.peek===e.id?"data-peek":""} ${e.unread?"data-unread":""} ${o.noCb?'style="grid-template-columns:minmax(0,1fr) auto"':""}>
+    ${o.noCb?"":`<span class="cb" role="checkbox" data-cb="${e.id}" aria-checked="${sel}">${sel?IC.check:""}</span>`}
+    <div style="min-width:0"><div class="l1">${e.unread?`<span class="udot" title="${AR()?"غير مقروءة":"Non lu"}"></span>`:""}${tag(e.cat)}<span class="qt">${esc(e.note)}</span></div>
+      <div class="l2">${topic?`<b>${esc(topic)}</b> — `:""}${sentence(e)}${e.status?`, ${t.ago(age)}`:""}.</div>
+      <div class="l3"><span class="q">${pname(e.p)}</span> · <span class="q">${esc(e.cust.name)}</span> · <span class="num">#${e.ref}</span></div>
+      ${ins?`<span class="l4">${IC.bulb}${t.linkedTo} <span class="q">${esc(ins.title[S.lang])}</span></span>`:""}</div>
+    <div class="end">${right}</div></div>`;
+}
+
+/* ═══════════ Tous les retours ═══════════ */
+function listPool(){
+  const q = S.q.trim(), from = perFrom();
+  return E.filter(e => live(e) && e.date >= from && (!S.cat || e.cat === S.cat) && (!S.mom || e.mom === S.mom) && (!S.prod || e.p === S.prod)
+    && (!S.agent || e.agent === S.agent) && (!S.topic || e.topic === S.topic) && (S.tab!=="unread" || e.unread)
+    && (!q || e.note.includes(q) || e.cust.name.includes(q) || e.ref.toLowerCase().includes(q.toLowerCase())))
+    .sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : a.ref < b.ref ? 1 : -1);
+}
+const bucketOf = e => { const d = dd(e.date, TODAY); return d<=0?"today":d===1?"yesterday":d<7?"week":d<30?"month":"older"; };
+function allTab(){
+  const t = T(), base = E.filter(e=>live(e)&&e.date>=perFrom()), cc = {}; base.forEach(e=>cc[e.cat]=(cc[e.cat]||0)+1);
+  const xs = listPool(), shown = xs.slice(0, S.limit);
+  const agents = [...new Set(E.filter(live).map(e=>e.agent))], prods = Object.keys(PROD).filter(k=>E.some(e=>live(e)&&e.p===k));
+  const chips = [];
+  if (S.tab==="unread") chips.push([t.todo3(2).replace(/^./,c=>c.toUpperCase()),"unread"]);
+  if (S.topic) chips.push([toplabel(S.cat||E.find(e=>e.topic===S.topic)?.cat, S.topic),"topic"]);
+  if (S.mom) chips.push([t.momT[S.mom],"mom"]);
+  if (S.prod) chips.push([pname(S.prod),"prod"]);
+  if (S.agent) chips.push([aname(S.agent),"agent"]);
+  let body = "", last = "";
+  shown.forEach(e => { const b = bucketOf(e); if (b !== last){ body += `<div class="fgroup">${t.buckets[b]}</div>`; last = b; } body += frow(e); });
+  if (!xs.length) body = `<div class="empty"><b>${t.emptyT}</b>${t.emptyS}</div>`;
+  return `<div class="controls"><label class="search">${IC.search}<input id="q" value="${esc(S.q)}" placeholder="${t.search}"></label>
+      <div class="catseg"><button data-setcat="" aria-pressed="${!S.cat}">${t.allCats} <b class="num">${base.length}</b></button>${CATS.map(c=>`<button data-c="${c}" data-setcat="${c}" aria-pressed="${S.cat===c}" title="${t.catShort[c]}">${t.catPlural[c]} <b class="num">${cc[c]||0}</b></button>`).join("")}</div>
+      <button class="btn" data-filters>${IC.filter}${S.filtersOpen?t.lessFilters:t.moreFilters}</button></div>
+    ${S.filtersOpen?`<div class="filters">
+      <label>${t.fMoment}<select class="sel" id="fMom"><option value="">${t.anyM}</option>${Object.keys(t.momT).map(m=>`<option value="${m}" ${S.mom===m?"selected":""}>${t.momT[m]}</option>`).join("")}</select></label>
+      <label>${t.fProduct}<select class="sel" id="fProd"><option value="">${t.anyP}</option>${prods.map(k=>`<option value="${k}" ${S.prod===k?"selected":""}>${pname(k)}</option>`).join("")}</select></label>
+      <label>${t.fAgent}<select class="sel" id="fAgent"><option value="">${t.anyA}</option>${agents.map(a=>`<option value="${a}" ${S.agent===a?"selected":""}>${aname(a)}</option>`).join("")}</select></label>
+      <label>${t.fPer}<select class="sel" id="fPer">${Object.keys(t.per).map(k=>`<option value="${k}" ${S.per===k?"selected":""}>${t.per[k]}</option>`).join("")}</select></label></div>`:""}
+    ${chips.length?`<div class="active">${chips.map(([l,k])=>`<span class="chip"><span class="q">${esc(l)}</span><button data-unset="${k}">${IC.x}</button></span>`).join("")}<button class="btn link" data-clearall>${t.clear}</button></div>`:""}
+    <div class="listhead"><span>${t.results(xs.length)}</span><span class="grow"></span><span><kbd>j</kbd> <kbd>k</kbd> · <kbd>${AR()?"Enter":"Entrée"}</kbd> · <kbd>x</kbd></span></div>
+    <div class="card">${body}${xs.length>S.limit?`<button class="more" data-more>${t.showMore(Math.min(25, xs.length-S.limit))}</button>`:""}</div>`;
+}
+
+/* ═══════════ Réclamations ═══════════ */
+function complaintsTab(){
+  const t = T(), xs = E.filter(e=>live(e)&&e.cat==="reclamation"&&e.status);
+  return ["open","in_progress","resolved"].map(s => {
+    const ys = xs.filter(e=>e.status===s).sort((a,b)=>a.date<b.date?-1:1).slice(0, s==="resolved"?5:99);
+    return `<section class="section"><div class="shead"><div><h2>${t.cmpSec[s]} <span class="num" style="color:var(--ink-3);font-weight:600">· ${xs.filter(e=>e.status===s).length}</span></h2><p>${t.cmpSecD[s]}</p></div></div>
+      <div class="card">${ys.length?ys.map(e=>{const age=dd(e.date,TODAY);return `<div class="frow" data-id="${e.id}" ${S.peek===e.id?"data-peek":""} style="grid-template-columns:minmax(0,1fr) auto">
+        <div style="min-width:0"><div class="l1"><span class="qt">${esc(e.note)}</span></div><div class="l2"><b>${esc(toplabel(e.cat,e.topic)||"—")}</b> — ${sentence(e)}.</div>
+        <div class="l3"><span class="q">${pname(e.p)}</span> · <span class="q">${esc(e.cust.name)}</span> · <span class="num">#${e.ref}</span></div></div>
+        <div class="end"><span style="${s!=="resolved"&&age>3?"color:var(--crit);font-weight:700":""}">${s==="resolved"?t.ago(age):t.waits(age)}</span><span>${t.ownerLine(e.owner)}</span>${s!=="resolved"?`<button class="btn sm pri" data-treat="${e.id}">${t.treat}</button>`:""}</div></div>`;}).join(""):`<div class="empty">—</div>`}</div></section>`;
+  }).join("");
+}
+
+/* ═══════════ Insights ═══════════ */
+function insightsTab(){
+  const t = T();
+  return `<div class="controls" style="justify-content:flex-end"><button class="btn ins" data-newins>${IC.plus}${t.newIns}</button></div>` +
+    ["progress","study","done","dismissed"].filter(s=>INS.some(i=>i.st===s)).map(s=>`<section class="section" style="margin-top:22px"><div class="shead"><div><h2>${t.ist[s]} <span class="num" style="color:var(--ink-3);font-weight:600">· ${INS.filter(i=>i.st===s).length}</span></h2></div></div><div class="card">${INS.filter(i=>i.st===s).map(irow).join("")}</div></section>`).join("");
+}
+
+/* ═══════════ À vérifier ═══════════ */
+function reviewTab(){
+  const t = T(), xs = E.filter(e=>!e.ignored&&e.review);
+  if (!xs.length) return `<div class="explain"><span class="ico" style="background:var(--ok-bg);color:var(--ok)">${IC.check}</span><div><h3>${t.rvDone}</h3></div></div>`;
+  const sec = (src, title, desc) => { const ys = xs.filter(e=>e.src===src).sort((a,b)=>a.date<b.date?1:-1); if (!ys.length) return "";
+    return `<section class="section"><div class="shead"><div><h2>${title} <span class="num" style="color:var(--ink-3);font-weight:600">· ${ys.length}</span></h2><p>${desc}</p></div><div class="end"><button class="btn sm" data-keepall="${src}">${IC.check}${t.keepAll(ys.length)}</button></div></div>
+      <div class="card">${ys.slice(0, src==="import"?8:99).map(e=>`<div class="frow rv" data-id="${e.id}" style="grid-template-columns:minmax(0,1fr);cursor:default">
+        <div><div class="src">${src==="courier"?IC.truck:IC.import}${src==="courier"?t.rvNoted(fdate(e.date)):t.rvImported(fdate(e.date))} · <span class="q">${pname(e.p)}</span> · <span class="num">#${e.ref}</span></div>
+          <div class="l1"><span class="qt" style="white-space:normal">${esc(e.note)}</span></div>
+          <div class="prop">${t.rvProp} ${tag(e.cat)}${e.topic?`<span>${esc(toplabel(e.cat,e.topic))}</span>`:""}</div>
+          ${S.fixing===e.id?`<div class="picker">${CATS.map(c=>`<button data-c="${c}" data-fixcat="${c}" aria-pressed="${e.cat===c}"><b>${t.cat[c]}</b><small>${t.catShort[c]}</small></button>`).join("")}</div>`:""}
+          <div class="acts"><button class="btn sm pri" data-keep="${e.id}">${IC.check}${t.keep}</button><button class="btn sm" data-fix="${e.id}">${t.fix}</button><button class="btn sm" data-ignore="${e.id}">${t.ignore}</button></div></div></div>`).join("")}
+        ${ys.length>8&&src==="import"?`<button class="more" data-go="review">${t.showMore(ys.length-8)}</button>`:""}</div></section>`; };
+  return `<div class="explain"><span class="ico" style="background:var(--warn-bg);color:var(--warn)">${IC.eye}</span><div><h3>${t.rvExplainT}</h3><p>${t.rvExplain}</p></div></div>` +
+    sec("courier", t.rvCourier, t.rvCourierD) + sec("import", t.rvImport, t.rvImportD);
+}
+
+/* ═══════════ Drawers ═══════════ */
+const visibleList = () => S.tab==="all"||S.tab==="unread" ? listPool().slice(0, S.limit) : S.tab==="complaints" ? E.filter(e=>live(e)&&e.cat==="reclamation"&&e.status) : E.filter(live).sort((a,b)=>a.date<b.date?1:-1).slice(0,5);
+function peekFeedback(e){
+  const t = T(), rows = visibleList(), idx = rows.findIndex(x=>x.id===e.id);
+  const said = e.agent==="darb" ? t.notedLong(t.momPhrase[e.mom], fdate(e.date)) : t.saidLong(aname(e.agent), t.momPhrase[e.mom], fdate(e.date));
+  let follow = "";
+  if (e.status) {
+    const tlx = (e.tl||[]).map(x=>`<li><i></i><span>${(t.tl[x.k]||"").replace("{a}",aname(x.a||"")).replace("{o}",x.o||t.unassigned).replace("{s}",x.s?t.st[x.s]:"")}<small>${fdate(x.d)}</small></span></li>`).join("");
+    follow = `<div class="dsec"><h3>${t.follow}</h3><div class="steps">${["open","in_progress","resolved"].map(s=>`<button data-s="${s}" data-cst="${s}" aria-pressed="${e.status===s}">${t.st[s]}</button>`).join("")}</div>
+      <dl class="kv" style="margin-top:14px"><dt>${t.owner}</dt><dd><select class="sel" id="owner">${OWNERS.map(o=>`<option value="${o}" ${e.owner===o?"selected":""}>${o||t.unassigned}</option>`).join("")}</select></dd></dl>
+      <label style="display:block;margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--ink-2)">${t.resNote}</label><textarea class="ta" id="res" placeholder="${t.resPh}">${esc(e.resolution)}</textarea>${S.resErr?`<p class="err">${t.resErr}</p>`:""}<ul class="tl">${tlx}</ul></div>`;
+  }
+  const linked = e.ins.map(insOf).filter(Boolean), picks = INS.filter(i=>!e.ins.includes(i.id));
+  return `<div class="veil" data-closepeek></div><aside class="drawer" role="dialog">
+    <div class="hd"><h2>${t.dTitle}</h2><span class="grow"></span><button class="ibtn" data-step="-1" title="${t.prev}">${IC.up}</button><button class="ibtn" data-step="1" title="${t.next}">${IC.dn}</button><button class="ibtn" data-closepeek>${IC.x}</button></div>
+    <div class="bd">
+      <div class="dsec"><h3>${t.whatSaid}</h3><div class="bigq"><span dir="auto" style="display:block">${esc(e.note)}</span></div><p class="said">${esc(said)}</p></div>
+      <div class="dsec"><h3>${t.class}</h3><div class="catpick">${CATS.map(c=>`<button data-c="${c}" data-setcat2="${c}" aria-pressed="${e.cat===c}"><b>${t.cat[c]}</b><small>${t.catShort[c]}</small></button>`).join("")}</div>
+        <p style="font-size:12.5px;color:var(--ink-3);margin-top:12px">${t.topicOpt}</p><div class="tpick" style="margin-top:6px">${TOPICS[e.cat].map(([k,f,a])=>`<button data-c="${e.cat}" data-settopic="${k}" aria-pressed="${e.topic===k}">${AR()?a:f}</button>`).join("")}</div></div>
+      <div class="dsec"><h3>${t.context}</h3><dl class="kv">
+        <dt>${t.kWhen}</dt><dd>${IC[MOMIC[e.mom]]}<span>${t.momT[e.mom]}</span><span style="font-size:12.5px;color:var(--ink-3)">· ${t.autoMom}</span></dd>
+        <dt>${t.kCust}</dt><dd><span class="q">${esc(e.cust.name)}</span><span class="num" style="color:var(--ink-2)">${e.cust.phone}</span><a class="lnk">${t.history}${IC.ext}</a></dd>
+        <dt>${t.kOrder}</dt><dd><span class="num">#${e.ref}</span><a class="lnk">${t.open}${IC.ext}</a></dd>
+        <dt>${t.kProduct}</dt><dd><span class="q">${pname(e.p)}</span><a class="lnk">${t.sheet}${IC.ext}</a></dd></dl></div>
+      ${follow}
+      <div class="dsec"><h3>${t.links}</h3>${linked.map(i=>`<div class="lcard">${IC.bulb}<div class="grow"><b class="q">${esc(i.title[S.lang])}</b><small>${t.evid(evidenceOf(i).length)}</small></div>${ist(i.st)}</div>`).join("")}
+        ${S.linking?`<div class="pick">${picks.map(i=>`<button data-linkto="${i.id}">${IC.bulb}<span class="q">${esc(i.title[S.lang])}</span><small>${t.evid(evidenceOf(i).length)}</small></button>`).join("")}<button data-newins-one="${e.id}">${IC.plus}<span>${t.createFrom}</span></button></div>`
+          :`<div style="display:flex;gap:8px"><button class="btn sm" data-linking>${IC.bulb}${t.linkIns}</button><button class="btn sm" data-newins-one="${e.id}">${IC.plus}${t.mkIns}</button></div>`}</div>
+    </div>
+    <div class="ft"><span><kbd>j</kbd> <kbd>k</kbd> ${t.next.toLowerCase()} / ${t.prev.toLowerCase()}</span><span class="grow"></span>${idx>=0?`<span class="num">${t.pos(idx+1, rows.length)}</span>`:""}</div></aside>`;
+}
+function peekInsight(i){
+  const t = T(), ev = evidenceOf(i), nu = newUnlinked(i);
+  const mini = (e, act) => `<div class="mini"><div style="min-width:0"><div class="qt">${esc(e.note)}</div><small>${t.cat[e.cat]} · <span class="q">${pname(e.p)}</span> · ${t.momPhrase[e.mom]} · ${fdate(e.date)}</small></div>${act||""}</div>`;
+  return `<div class="veil" data-closepeek></div><aside class="drawer" role="dialog" style="width:580px">
+    <div class="hd"><h2>${t.iTitle}</h2><span class="grow"></span><button class="ibtn" data-closepeek>${IC.x}</button></div>
+    <div class="bd"><div class="dsec"><h2 class="q" style="font-size:22px;font-weight:700;line-height:1.35">${esc(i.title[S.lang])}</h2></div>
+      <div class="dsec"><h3>${t.iStatus}</h3><div class="steps" style="grid-template-columns:repeat(4,1fr)">${["study","progress","done","dismissed"].map(s=>`<button data-i="${s}" data-ist="${s}" aria-pressed="${i.st===s}">${t.ist[s]}</button>`).join("")}</div>
+        <dl class="kv" style="margin-top:14px"><dt>${t.iOwner}</dt><dd><select class="sel" id="iowner">${OWNERS.map(o=>`<option value="${o}" ${i.owner===o?"selected":""}>${o||t.noOwner}</option>`).join("")}</select></dd></dl></div>
+      <div class="dsec"><h3>${t.iWhy}</h3><textarea class="ta">${esc(i.note[S.lang])}</textarea></div>
+      ${nu.length?`<div class="dsec"><h3 style="display:flex;align-items:center;gap:8px">${t.iNew(nu.length)}<span style="flex:1"></span><button class="btn sm ins" data-linkall="${i.id}">${t.linkAll}</button></h3><p style="font-size:13px;color:var(--ink-2);margin:-2px 0 6px">${t.iNewS}</p>${nu.slice(0,5).map(e=>mini(e,`<button class="btn sm" data-link1="${i.id}|${e.id}">${t.link}</button>`)).join("")}</div>`:""}
+      <div class="dsec"><h3>${t.iEvid(ev.length)}</h3>${ev.slice(0,10).map(e=>mini(e)).join("")}</div></div></aside>`;
+}
+function modal(){
+  const t = T(), ev = S.modal.ids.map(id=>E.find(e=>e.id===id));
+  const cnt = {}; ev.forEach(e => { const k=e.cat+":"+e.topic; cnt[k]=(cnt[k]||0)+1; });
+  const top = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0], guess = top ? toplabel(...top.split(":")) : "";
+  return `<div class="mveil" data-closemodal><div class="modal" role="dialog" data-stop><div class="mh"><h3>${t.mTitle}</h3><p>${t.mSub}</p></div>
+    <div class="mb"><label class="l">${t.mName}</label><input class="in q" id="mTitle" value="${esc(S.modal.title ?? guess)}" placeholder="${t.mNamePh}">
+      <label class="l">${t.mNote}</label><textarea class="ta" id="mNote" placeholder="${t.mNotePh}"></textarea>
+      <div class="two"><div><label class="l">${t.mStatus}</label><select class="sel" id="mSt" style="width:100%">${["study","progress","done"].map(s=>`<option value="${s}">${t.ist[s]}</option>`).join("")}</select></div>
+        <div><label class="l">${t.mOwner}</label><select class="sel" id="mOw" style="width:100%">${OWNERS.map(o=>`<option value="${o}">${o||t.noOwner}</option>`).join("")}</select></div></div>
+      <label class="l">${t.mEv()} <small>· ${t.mEvN(ev.length)}</small></label>${ev.map(e=>`<div class="mini"><div style="min-width:0"><div class="qt">${esc(e.note)}</div><small>${t.cat[e.cat]} · <span class="q">${pname(e.p)}</span></small></div></div>`).join("")}</div>
+    <div class="mf"><span style="font-size:12px;color:var(--ink-3)"><kbd>Ctrl</kbd>+<kbd>↵</kbd></span><span class="grow"></span><button class="btn" data-closemodal>${t.cancel}</button><button class="btn ins" data-createins>${IC.bulb}${t.create}</button></div></div></div>`;
+}
+const bulk = () => { const t = T(), n = S.sel.size; if (!n) return ""; return `<div class="bulk"><b>${t.selected(n)}</b><button class="btn ins" data-mkins>${IC.bulb}${t.mkIns}</button><button class="btn" data-markread>${t.markRead}</button><button class="x" data-clearsel>${IC.x}</button></div>`; };
+const toast = () => S.toast ? `<div class="toast">${IC.check}<span>${S.toast.msg}</span>${S.toast.see?`<button data-seeins="${S.toast.see}">${T().see}</button>`:""}</div>` : "";
+
+/* ═══════════ Notes for the owner ═══════════ */
+const NOTES = {
+  overview:`<b>v4 — refonte.</b> Plus de barre de vues, de puces ni de « Grouper ». <b>Cinq onglets</b>, chacun avec une phrase qui dit à quoi il sert. La <b>Vue d'ensemble</b> se lit de haut en bas : <b>À faire</b> (3 cartes avec une phrase et un bouton) → <b>Ce que disent les clients</b> (les 3 catégories, chacune avec sa définition, ses sujets fréquents et une phrase réelle) → <b>Où les clients nous parlent</b> (les 4 moments, expliqués) → <b>Ce que nous en avons appris</b> (les insights, avec leurs preuves en toutes lettres) → <b>Les derniers retours</b>. Tout est cliquable vers la liste filtrée.`,
+  all:`<b>Tous les retours.</b> Une seule liste, groupée par date (Aujourd'hui, Hier, Cette semaine…). Chaque ligne se lit comme une phrase : la catégorie, les mots du client, puis « <i>Pas de cash maintenant — dit à tasnim pendant l'appel de confirmation</i> ». Les filtres secondaires (moment, produit, agent, période) sont rangés derrière « Plus de filtres ». Cochez des lignes pour créer un insight.`,
+  unread:`<b>À lire.</b> La même liste, limitée à ce que personne n'a ouvert. Ouvrir une ligne la marque lue pour toute l'équipe.`,
+  complaints:`<b>Réclamations.</b> Trois blocs dans l'ordre du travail : À traiter → En cours → Résolues. Chaque ligne dit depuis combien de temps elle attend et qui s'en occupe ; « Traiter » ouvre le suivi.`,
+  insights:`<b>Insights.</b> Groupés par statut. Chaque insight dit sa leçon, pourquoi, et ses preuves en toutes lettres (« Appuyé par 20 retours — 14 à l'appel, 5 à la porte »).`,
+  review:`<b>À vérifier.</b> Un encadré explique d'abord d'où viennent ces phrases. Chaque ligne dit qui l'a notée et quand, propose une catégorie, et offre trois gestes : Garder · Corriger · Ignorer.`,
+};
+
+/* ═══════════ Render ═══════════ */
+function render(){
+  const t = T();
+  document.documentElement.lang = S.lang;
+  document.getElementById("note").innerHTML = NOTES[S.tab] || "";
+  [["segLang","lang"],["segRole","role"]].forEach(([id,k]) => document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S[k])));
+  const body = S.tab==="overview" ? overview() : S.tab==="complaints" ? complaintsTab() : S.tab==="insights" ? insightsTab() : S.tab==="review" ? reviewTab() : allTab();
+  const pe = S.peek && E.find(e=>e.id===S.peek), pi = S.ipeek && insOf(S.ipeek);
+  document.getElementById("root").innerHTML = `<div class="app" dir="${AR()?"rtl":"ltr"}">${sidebar()}<main class="main"><div class="wrap">
+    <p class="crumb">${t.crumb}</p><div class="ph"><div><h1>${t.title}</h1><p>${t.sub}</p></div><div class="end"><button class="btn">${IC.down}${t.export}</button></div></div>
+    ${tabs()}${body}</div></main>${pe?peekFeedback(pe):""}${pi?peekInsight(pi):""}${S.modal?modal():""}${bulk()}${toast()}</div>`;
+  history.replaceState(null, "", location.pathname + "?" + new URLSearchParams({lang:S.lang, tab:S.tab, role:S.role}));
+}
+function goTab(tab, extra={}){ Object.assign(S,{tab, cat:"", mom:"", prod:"", agent:"", topic:"", q:"", limit:25, peek:null, ipeek:null, focus:null, fixing:null}, extra); S.sel.clear(); render(); window.scrollTo(0,0); }
+function openPeek(id){ const e = E.find(x=>x.id===id); if (!e) return; Object.assign(S,{peek:id, ipeek:null, focus:id, linking:false, resErr:false}); e.unread = false; render(); }
+function flash(msg, see){ S.toast = {msg, see}; render(); clearTimeout(S.tt); S.tt = setTimeout(()=>{ S.toast=null; render(); }, 3500); }
+function keepFocus(id){ render(); const el = document.getElementById(id); if (el){ el.focus(); const v = el.value||""; el.setSelectionRange && el.setSelectionRange(v.length, v.length); } }
+function keep(e){ e.review = false; e.unread = true; e.tl.push({k:"confirmed",d:TODAY,a:S.role==="super_admin"?"Super Admin":"Manager LY"}); if (e.cat==="reclamation" && !e.status) e.status = "open"; }
+function createInsight(){
+  const title = (document.getElementById("mTitle").value || "").trim(); if (!title) return;
+  const note = document.getElementById("mNote").value.trim();
+  const i = { id:"n"+Date.now(), st:document.getElementById("mSt").value, owner:document.getElementById("mOw").value, created:TODAY, title:{fr:title, ar:title}, note:{fr:note||"—", ar:note||"—"}, match:null };
+  INS.unshift(i); S.modal.ids.forEach(id => { const e = E.find(x=>x.id===id); if (e && !e.ins.includes(i.id)) e.ins.unshift(i.id); });
+  S.modal = null; S.sel.clear(); flash(T().created, i.id);
+}
+document.addEventListener("click", ev => {
+  const g = ev.target.closest.bind(ev.target); let el;
+  if ((el = g("#segLang button,#segRole button"))){ S[el.parentElement.id==="segLang"?"lang":"role"] = el.dataset.v; return render(); }
+  if (S.modal){ if (g("[data-createins]")) return createInsight(); if (ev.target.matches("[data-closemodal]") || (g("[data-closemodal]") && !g("[data-stop]")) || g(".mf [data-closemodal]")) { S.modal = null; return render(); } return; }
+  if ((el = g("[data-tab]"))) return goTab(el.dataset.tab);
+  if ((el = g("[data-go]"))){ const to = el.dataset.go; return to==="unread" ? goTab("unread") : goTab(to); }
+  if ((el = g("[data-drill]"))){ const [c,k] = el.dataset.drill.split("|"); return goTab("all", {cat:c, topic:k&&k!=="-"?k:""}); }
+  if ((el = g("[data-mom-go]"))) return goTab("all", {mom:el.dataset.momGo, filtersOpen:true});
+  if ((el = g("[data-setcat]"))){ S.cat = el.dataset.setcat; S.topic = ""; S.limit = 25; return render(); }
+  if (g("[data-filters]")){ S.filtersOpen = !S.filtersOpen; return render(); }
+  if ((el = g("[data-unset]"))){ const k = el.dataset.unset; if (k==="unread") S.tab = "all"; else S[k] = ""; return render(); }
+  if (g("[data-clearall]")){ Object.assign(S,{mom:"",prod:"",agent:"",topic:""}); if (S.tab==="unread") S.tab="all"; return render(); }
+  if (g("[data-more]")){ S.limit += 25; return render(); }
+  if ((el = g("[data-cb]"))){ ev.stopPropagation(); const id = el.dataset.cb; S.sel.has(id)?S.sel.delete(id):S.sel.add(id); S.focus = id; return render(); }
+  if ((el = g("[data-keep]"))){ keep(E.find(x=>x.id===el.dataset.keep)); S.fixing=null; return flash(T().kept); }
+  if ((el = g("[data-keepall]"))){ E.filter(e=>!e.ignored&&e.review&&e.src===el.dataset.keepall).forEach(keep); return render(); }
+  if ((el = g("[data-fix]"))){ S.fixing = S.fixing===el.dataset.fix ? null : el.dataset.fix; return render(); }
+  if ((el = g("[data-fixcat]"))){ const e = E.find(x=>x.id===S.fixing); if (e.cat!==el.dataset.fixcat){ e.cat = el.dataset.fixcat; e.topic = null; } return render(); }
+  if ((el = g("[data-ignore]"))){ E.find(x=>x.id===el.dataset.ignore).ignored = true; return render(); }
+  if ((el = g("[data-treat]"))){ ev.stopPropagation(); return openPeek(el.dataset.treat); }
+  if ((el = g("[data-ipeek]"))){ Object.assign(S,{ipeek:el.dataset.ipeek, peek:null}); return render(); }
+  if (g("[data-closepeek]")){ S.peek = null; S.ipeek = null; return render(); }
+  if ((el = g("[data-step]"))){ const rows = visibleList(), i = rows.findIndex(x=>x.id===S.peek), n = rows[i + +el.dataset.step]; if (n) openPeek(n.id); return; }
+  if ((el = g("[data-setcat2]"))){ const e = E.find(x=>x.id===S.peek); if (e.cat!==el.dataset.setcat2){ e.cat = el.dataset.setcat2; e.topic = null; if (e.cat==="reclamation" && !e.status) e.status = "open"; if (e.cat!=="reclamation") e.status = null; } return render(); }
+  if ((el = g("[data-settopic]"))){ const e = E.find(x=>x.id===S.peek); e.topic = e.topic===el.dataset.settopic ? null : el.dataset.settopic; return render(); }
+  if ((el = g("[data-cst]"))){ const e = E.find(x=>x.id===S.peek), s = el.dataset.cst, note = document.getElementById("res").value.trim();
+    if (s==="resolved" && !note){ S.resErr = true; return render(); } S.resErr = false; e.resolution = note; if (e.status!==s){ e.status = s; e.tl.push({k:"status",d:TODAY,s,a:S.role==="super_admin"?"Super Admin":"Manager LY"}); } return render(); }
+  if (g("[data-linking]")){ S.linking = true; return render(); }
+  if ((el = g("[data-linkto]"))){ E.find(x=>x.id===S.peek).ins.unshift(el.dataset.linkto); S.linking = false; return flash(T().linked); }
+  if ((el = g("[data-ist]"))){ insOf(S.ipeek).st = el.dataset.ist; return render(); }
+  if ((el = g("[data-link1]"))){ const [iid, eid] = el.dataset.link1.split("|"); E.find(x=>x.id===eid).ins.push(iid); return render(); }
+  if ((el = g("[data-linkall]"))){ const i = insOf(el.dataset.linkall); newUnlinked(i).forEach(e=>e.ins.push(i.id)); return render(); }
+  if (g("[data-mkins]")){ S.modal = {ids:[...S.sel]}; render(); return document.getElementById("mTitle")?.select(); }
+  if ((el = g("[data-newins-one]"))){ S.modal = {ids:[el.dataset.newinsOne]}; render(); return document.getElementById("mTitle")?.select(); }
+  if (g("[data-newins]")){ S.modal = {ids:[], title:""}; render(); return document.getElementById("mTitle")?.focus(); }
+  if (g("[data-markread]")){ S.sel.forEach(id=>{ E.find(x=>x.id===id).unread = false; }); S.sel.clear(); return render(); }
+  if (g("[data-clearsel]")){ S.sel.clear(); return render(); }
+  if ((el = g("[data-seeins]"))){ const id = el.dataset.seeins; goTab("insights"); S.ipeek = id; S.toast = null; return render(); }
+  if ((el = g(".main .frow[data-id]")) && !g(".rv")) return openPeek(el.dataset.id);
+});
+document.addEventListener("change", ev => {
+  const id = ev.target.id, v = ev.target.value;
+  if (id==="ovPer" || id==="fPer"){ S.per = v; return render(); }
+  if (id==="fMom"){ S.mom = v; return render(); }
+  if (id==="fProd"){ S.prod = v; return render(); }
+  if (id==="fAgent"){ S.agent = v; return render(); }
+  if (id==="owner"){ const e = E.find(x=>x.id===S.peek); e.owner = v; e.tl.push({k:"assigned",d:TODAY,a:"Manager LY",o:v}); return render(); }
+  if (id==="iowner"){ insOf(S.ipeek).owner = v; return render(); }
+});
+document.addEventListener("input", ev => { if (ev.target.id==="q"){ S.q = ev.target.value; S.limit = 25; keepFocus("q"); } });
+const editable = el => el && (el.tagName==="INPUT"||el.tagName==="TEXTAREA"||el.tagName==="SELECT");
+document.addEventListener("keydown", ev => {
+  if (S.modal){ if (ev.key==="Escape"){ S.modal = null; return render(); } if (ev.key==="Enter"&&(ev.ctrlKey||ev.metaKey)) return createInsight(); return; }
+  if (ev.key==="Escape"){ if (S.peek||S.ipeek){ S.peek = null; S.ipeek = null; return render(); } if (S.sel.size){ S.sel.clear(); return render(); } }
+  if (editable(ev.target) || !["all","unread","complaints"].includes(S.tab)) return;
+  const rows = visibleList(); if (!rows.length) return;
+  const cur = S.peek || S.focus, i = rows.findIndex(x=>x.id===cur);
+  const go = n => { if (S.peek) return openPeek(n.id); S.focus = n.id; render(); document.querySelector(`.frow[data-id="${n.id}"]`)?.scrollIntoView({block:"nearest"}); };
+  if (ev.key==="j"||ev.key==="ArrowDown"){ ev.preventDefault(); return go(rows[Math.min(i+1, rows.length-1)] || rows[0]); }
+  if (ev.key==="k"||ev.key==="ArrowUp"){ ev.preventDefault(); return go(rows[Math.max(i-1, 0)] || rows[0]); }
+  if (ev.key==="Enter" && S.focus && !S.peek){ ev.preventDefault(); return openPeek(S.focus); }
+  if (ev.key==="x" && (S.focus||S.peek) && S.tab!=="complaints"){ ev.preventDefault(); const id = S.peek||S.focus; S.sel.has(id)?S.sel.delete(id):S.sel.add(id); return render(); }
+});
+render();
+</script>
+</body>
+</html>

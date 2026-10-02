@@ -1,0 +1,1470 @@
+<!doctype html>
+<!--
+  Voix du client · manager v1 — the /feedback manager + super_admin console « صوت العميل ».
+  Date: 2026-09-30. Plan: plans/voix-du-client.md (Phase 0, Taxonomy).
+  Agent-side twin: prototypes/voix-du-client-agent-v1.html (same type tags, same F shortcut).
+
+  Copies the conventions of prototypes/team-v1.html (prototype bar, :root tokens, dark sidebar,
+  flat white cards, drawer) and these real components:
+    - src/components/layout/Sidebar.tsx NAV_SECTIONS (as coded today: Clients = Prospects, Messages;
+      Commandes includes Doublons; Livraison includes Suivi livraison) + the NEW item « Voix du client »;
+      Finances hidden for market_manager (canViewFinances = false), Marchés/Journaux super_admin only
+    - src/components/team/control-room/PeriodControls.tsx (joined segmented group, selected = #F2F2F2)
+    - src/components/dashboard/KpiCard.tsx (11px uppercase label, 28px value, 13px sub line)
+    - docs/design-system.md §4.11 underline tabs, §4.9/§4.13 drawer (480px, 56px header), §2 tokens
+  Arabic labels of the nav come from src/messages/ar.json (nav.sections / nav.items).
+
+  URL presets: ?lang=ar|fr (default ar) &tab=overview|complaints|register|review
+               &drawer=<order ref, e.g. 6A123B44> &role=super_admin|manager &period=y|d7|d12|d30|custom
+
+  REAL DATA — Supabase project vshynigvgrlihngozuwb, read-only, run 2026-09-30 22:46 UTC
+  (2026-10-01 00:46 Africa/Tripoli). Libya only.
+    Q1  the 148 insight notes: orders status='rejected', rejection_reason='autre', non-empty
+        rejection_note, classified by the plan's six keyword regexes (payment / price / payment_nocash /
+        product / price_elsewhere / delivery); agent = actor of the last order_history row with
+        status_to='rejected'. Reference shown = tracking_number, else external_id (8 chars), else id.
+    Q1b the REAL rejection date of each of the 148 = created_at of that order_history row (Tripoli day).
+        !! orders.updated_at is NOT a rejection date: all 2 584 Libyan rejections have updated_at >= 19 sept.
+        (2 181 bulk-touched at 2026-09-20 01:02 Tripoli). Only 36 of the 148 were rejected on 19–30 sept.
+    Q2  orders per product per window (orders.product_id, status <> 'deleted', Tripoli created day).
+    Q3  rejections per product x sub-reason per window, dated by the order_history rejected row,
+        labels from rejection_reason_configs (market ly).
+    Q4  calls = distinct orders each LY agent touched in order_history per window (role='agent').
+  Windows: Hier = 29 sept. · 7 j = 24–30 · 12 j = 19–30 · 30 j = 1–30 sept. · Personnalisé = 21 mai → 30 sept.
+
+  SIMULATED (said in the prototype bar and the review notes): 110 of the 148 imports are treated as
+  confirmed (the newest), 38 stay « À vérifier » (the oldest). The 5 complaints use real words, real
+  order refs and real products from « Autre » notes of May–July; their dates, statuses, owners (and
+  the capturing agent of 6A123B44) are invented to show the lifecycle.
+
+  Aucune donnée client réelle : noms et téléphones inventés.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voix du client — prototype manager v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --surface:#FFFFFF; --sunken:#FAFAFB; --hover:#F7F7F7; --selected:#F2F2F2; --track:#F1F2F3;
+    --line:#E1E3E5; --line-subtle:#ECEEF0; --line-strong:#DADCE0; --input:#D1D5DB;
+    --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+    --success:#008060; --success-bg:#F1F8F5;
+    --warning:#B98900; --warning-ink:#8A5A00; --warning-bg:#FFF8E6;
+    --critical:#D72C0D; --critical-bg:#FFF4F4;
+    --chart:#8C9196;
+    --sidebar:#0E1013; --sidebar-el:#14171C; --sidebar-ink:#E6E8EB; --sidebar-2:#B5BAC2; --sidebar-3:#7F858F; --brand-on-dark:#10B981;
+    --r-sm:6px; --r-card:8px; --r-pill:9999px;
+    --e-panel:0 4px 16px rgba(16,24,40,.06); --e-float:0 8px 24px rgba(16,24,40,.10);
+    --pb:52px;
+    --f-lat:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --f-ar:"Cairo","Noto Sans Arabic",-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font-size:14px;line-height:1.45;font-family:var(--f-lat);-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+  h1,h2,h3,p{margin:0}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .q{unicode-bidi:plaintext;text-align:start}
+  /* Arabic data (names, products, verbatims) keeps its own direction but follows the column in French */
+  .stage[dir=ltr] [dir=auto]{text-align:left}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .muted{color:var(--ink-3)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  /* ── prototype chrome (NOT part of the app, always LTR) ── */
+  .pbar{position:sticky;top:0;z-index:300;background:#1F2328;color:#E6E8EB;padding:9px 20px;display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;border-bottom:3px solid var(--brand);direction:ltr;font-family:var(--f-lat)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar .grow{flex:1}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+  .pbar .sim{flex-basis:100%;font-size:11px;color:#8B9198}
+  .pbar .sim b{color:#E8C98A;font-weight:600}
+
+  /* ── app shell ── */
+  .stage{display:flex;min-height:calc(100vh - var(--pb))}
+  .stage[dir=rtl]{font-family:var(--f-ar)}
+  .sb{width:224px;flex:none;background:var(--sidebar);color:var(--sidebar-2);padding:14px 10px 18px;font-size:13px;display:flex;flex-direction:column;gap:2px;position:sticky;top:var(--pb);height:calc(100vh - var(--pb));overflow-y:auto}
+  .sb .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:15px;padding:4px 10px 10px}
+  .sb .brand i{width:22px;height:22px;border-radius:6px;background:var(--brand);display:grid;place-items:center;font-style:normal;font-size:12px}
+  .sb .mk{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 4px 10px;padding:7px 10px;border-radius:8px;background:var(--sidebar-el);color:var(--sidebar-ink);font-size:12.5px;font-weight:600;text-align:start}
+  .sb .mk span{color:var(--sidebar-3);font-weight:500;font-size:11.5px}
+  .sb .mk.static{cursor:default}
+  .sb .sec{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 10px 4px;font-size:12.5px;color:var(--sidebar-2);font-weight:600;border-radius:6px;text-align:start}
+  .sb .sec:hover{background:rgba(255,255,255,.07)}
+  .sb .sec .ic{width:13px;height:13px;color:var(--sidebar-3);transition:transform .15s}
+  .sb .sec.open .ic{transform:rotate(90deg)}
+  [dir=rtl] .sb .sec.open .ic{transform:scaleX(-1) rotate(90deg)}
+  .sb .it{display:flex;align-items:center;gap:8px;padding:6px 10px;padding-inline-start:20px;border-radius:7px;color:#9BA1A8;cursor:pointer}
+  .sb .it:hover{background:rgba(255,255,255,.04);color:var(--sidebar-ink)}
+  .sb .it.on{background:var(--brand);color:#fff;font-weight:600}
+  .sb .it .new{margin-inline-start:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9999px;background:rgba(16,185,129,.16);color:var(--brand-on-dark)}
+  .sb .it.on .new{background:rgba(255,255,255,.2);color:#fff}
+  .sb .grow{flex:1}
+  .sb .me{display:flex;align-items:center;gap:9px;padding:10px;border-top:1px solid rgba(255,255,255,.07);margin-top:10px}
+  .sb .me b{display:block;color:var(--sidebar-ink);font-size:12.5px;font-weight:600}
+  .sb .me span{font-size:11.5px;color:var(--sidebar-3)}
+  .main{flex:1;min-width:0;padding:24px 28px 80px}
+  .page{max-width:1380px;margin:0 auto}
+
+  /* header */
+  .ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+  .ph h2{font-size:24px;font-weight:700;letter-spacing:-.01em}
+  .ph p{font-size:14px;color:var(--ink-2);margin-top:4px}
+  .ph .acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .per{display:inline-flex;overflow:hidden;border-radius:8px;border:1px solid var(--line);background:var(--surface)}
+  .per button{padding:0 14px;height:38px;font-size:13.5px;font-weight:500;color:var(--ink-1);border-inline-end:1px solid var(--line);white-space:nowrap}
+  .per button:last-child{border-inline-end:0}
+  .per button:hover{background:var(--hover)}
+  .per button[aria-pressed=true]{background:var(--selected);font-weight:600}
+  .range{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+  .range{display:inline-flex;align-items:center;gap:2px}
+  .range input{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 8px;font-size:13px;background:var(--surface);color:var(--ink-2);margin-inline:4px}
+  .btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:8px;font-size:13.5px;font-weight:500;border:1px solid var(--input);background:#fff;white-space:nowrap}
+  .btn:hover{background:var(--hover)}
+  .btn.sm{height:30px;padding:0 11px;font-size:12.5px;border-radius:7px}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn.pri:hover{background:var(--brand-hover)}
+  .btn.ghost{border-color:transparent;color:var(--ink-2)}
+  .btn.ghost:hover{background:var(--hover);color:var(--ink-1)}
+  .btn[disabled]{opacity:.45;cursor:default}
+
+  /* underline tabs §4.11 */
+  .tabs{display:flex;align-items:flex-end;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .tabs button{position:relative;display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;font-size:14px;font-weight:500;color:var(--ink-2)}
+  .tabs button:hover{color:var(--ink-1)}
+  .tabs button[aria-selected=true]{color:var(--ink-1);font-weight:600}
+  .tabs button[aria-selected=true]::after{content:"";position:absolute;inset-inline:8px;bottom:-1px;height:2px;border-radius:9999px;background:var(--brand)}
+  .cnt{display:inline-grid;place-items:center;min-width:20px;height:19px;padding:0 6px;border-radius:9999px;background:var(--selected);color:var(--ink-2);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+  .cnt.warn{background:var(--warning-bg);color:var(--warning-ink)}
+  .cnt.crit{background:var(--critical-bg);color:var(--critical)}
+
+  /* cards */
+  .card{background:var(--surface);border:1px solid var(--line-subtle);border-radius:var(--r-card);min-width:0}
+  .chead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line-subtle)}
+  .chead h3{font-size:15.5px;font-weight:600}
+  .chead span{font-size:12.5px;color:var(--ink-2)}
+  .chead .r{margin-inline-start:auto}
+  .cbody{padding:14px 16px}
+  .cfoot{padding:10px 16px;font-size:12.5px;color:var(--ink-2);border-top:1px solid var(--line-subtle)}
+  .g{display:grid;gap:14px;margin-bottom:14px}
+  .g.k4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .g.c2{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:start}
+  .g.c2b{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
+
+  /* KpiCard */
+  .kpi{padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:124px}
+  .kpi .l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+  [dir=rtl] .kpi .l{letter-spacing:0;font-size:12px}
+  .kpi .v{font-size:28px;font-weight:700;line-height:1.1}
+  .kpi .v.name{font-size:17px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .kpi .s{font-size:13px;font-weight:500;color:var(--ink-2);margin-top:auto}
+  .kpi .s.crit{color:var(--critical)}
+  .kpi .s .newp{display:inline-block;padding:1px 7px;border-radius:9999px;background:var(--selected);color:var(--ink-2);font-size:11.5px;font-weight:600;margin-inline-end:6px}
+
+  /* type tags (shared with the agent prototype) */
+  .tg{--tb:#F1F2F3;--ti:#1A1A1A;--td:#8C9196;display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:9999px;background:var(--tb);color:var(--ti);font-size:12px;font-weight:600;white-space:nowrap;line-height:1}
+  .tg::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--td);flex:none}
+  .tg.sm{height:20px;padding:0 8px;font-size:11.5px}
+  .tg[data-t=complaint]{--tb:#FEE2E2;--ti:#991B1B;--td:#EF4444}
+  .tg[data-t=product]{--tb:#EDE9FE;--ti:#5B21B6;--td:#8B5CF6}
+  .tg[data-t=price]{--tb:#FEF3C7;--ti:#92400E;--td:#F59E0B}
+  .tg[data-t=payment]{--tb:#CCFBF1;--ti:#115E59;--td:#14B8A6}
+  .tg[data-t=delivery]{--tb:#DBEAFE;--ti:#1D4ED8;--td:#3B82F6}
+  .tg[data-t=request]{--tb:#E0E7FF;--ti:#3730A3;--td:#6366F1}
+  .tg[data-t=praise]{--tb:#DCFCE7;--ti:#166534;--td:#22C55E}
+  .sp{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:9999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .sp[data-s=open]{background:#FFF4F4;color:#D72C0D}
+  .sp[data-s=in_progress]{background:#FFF8E6;color:#8A5A00}
+  .sp[data-s=resolved]{background:#F1F8F5;color:#008060}
+  .rvflag{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:9999px;background:var(--warning-bg);color:var(--warning-ink);font-size:11px;font-weight:600;white-space:nowrap}
+
+  /* chips */
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9999px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+  .chip:hover{border-color:var(--line-strong);color:var(--ink-1)}
+  .chip[aria-pressed=true]{background:var(--ink-1);border-color:var(--ink-1);color:#fff}
+  .chip .d{width:7px;height:7px;border-radius:50%}
+  .chip .num{font-weight:600}
+  .chip[disabled]{opacity:.4;cursor:default}
+  .fchip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 6px 0 10px;padding-inline:10px 6px;border-radius:9999px;background:var(--brand-bg);color:var(--brand-hover);font-size:12px;font-weight:600}
+  .fchip button{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--brand-hover)}
+  .fchip button:hover{background:rgba(21,128,61,.12)}
+
+  /* overview: type bars */
+  .tb{display:grid;grid-template-columns:148px minmax(0,1fr) 92px;grid-template-rows:auto auto;column-gap:12px;row-gap:3px;align-items:center;width:100%;padding:9px 16px;text-align:start;border-bottom:1px solid var(--line-subtle)}
+  .tb:last-child{border-bottom:0}
+  .tb:hover{background:var(--hover)}
+  .tb[disabled]{cursor:default}
+  .tb[disabled]:hover{background:none}
+  .track{height:10px;border-radius:5px;background:var(--track);overflow:hidden}
+  .track i{display:block;height:100%;border-radius:5px;opacity:.7}
+  .tb .n{text-align:end;font-size:13px;white-space:nowrap}
+  .tb .n b{font-weight:700;font-size:14px}
+  .tb .n .pc{color:var(--ink-2);margin-inline-start:6px}
+  .tb .tops{grid-column:2 / 4;font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tb .tops.none{color:var(--ink-3)}
+
+  /* overview: rising */
+  .rs{display:grid;grid-template-columns:minmax(0,1fr) 44px 56px 104px;gap:10px;align-items:center;width:100%;padding:10px 16px;border-bottom:1px solid var(--line-subtle);text-align:start}
+  .rs:last-child{border-bottom:0}
+  .rs:hover{background:var(--hover)}
+  .rs .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .rs .t b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rs .t span{font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:5px}
+  .rs .t span i{width:7px;height:7px;border-radius:50%}
+  .rs .c{text-align:end;font-weight:700;font-size:15px}
+  .rs .dl{text-align:end;font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+  .rs .dl.up{color:var(--ink-1)}
+  .spark{width:104px;height:28px;display:block}
+  [dir=rtl] .spark{transform:scaleX(-1)}
+
+  /* overview: product x type grid */
+  .pg{width:100%;border-collapse:separate;border-spacing:0}
+  .pg th{font-size:12px;font-weight:500;color:var(--ink-2);padding:10px 6px;border-bottom:1px solid var(--line);text-align:center;vertical-align:bottom;white-space:nowrap}
+  .pg th:first-child{text-align:start;padding-inline-start:16px}
+  .pg td{padding:4px;border-bottom:1px solid var(--line-subtle);text-align:center;vertical-align:middle}
+  .pg tr:last-child td{border-bottom:0}
+  .pg td:first-child{padding:8px 10px 8px 16px;padding-inline:16px 10px;text-align:start}
+  .pg .cell{display:flex;align-items:center;justify-content:center;gap:1px;width:100%;min-width:86px;height:38px;border-radius:6px;font-size:13.5px;font-weight:600}
+  button.cell:hover{outline:2px solid var(--ink-1);outline-offset:-2px}
+  .pg .cell.zero{color:var(--ink-3);font-weight:400}
+  .pg .cell.raw{color:var(--ink-2);font-weight:500;font-style:italic}
+  .pg .tot{font-weight:700;font-size:14px;min-width:72px}
+  .prod{display:flex;align-items:center;gap:10px;min-width:0}
+  .thumb{width:34px;height:34px;border-radius:7px;background:var(--track);display:grid;place-items:center;color:var(--ink-2);flex:none}
+  .thumb.sm{width:26px;height:26px;border-radius:6px}
+  .thumb.sm .ic{width:14px;height:14px}
+  .prod .nm{display:flex;flex-direction:column;min-width:0}
+  .prod .nm b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px}
+  .prod .nm span{font-size:12px;color:var(--ink-2)}
+
+  /* overview: why they refuse */
+  .alert{display:flex;gap:10px;align-items:flex-start;margin:12px 16px 4px;padding:10px 12px;border-radius:8px;background:var(--warning-bg);color:var(--warning-ink);font-size:12.5px;line-height:1.5}
+  .alert b{font-weight:700}
+  .rf{padding:10px 16px 12px;border-bottom:1px solid var(--line-subtle)}
+  .rf:last-child{border-bottom:0}
+  .rf .hd{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+  .rf .hd b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+  .rf .hd span{font-size:12px;color:var(--ink-2);white-space:nowrap}
+  .stack{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--track);gap:2px}
+  .stack i{display:block;height:100%;min-width:3px}
+  .hatch{background:repeating-linear-gradient(45deg,#C9CCCF 0 3px,#F1F2F3 3px 6px)}
+  .lg{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:7px;font-size:11.5px;color:var(--ink-2)}
+  .lg span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .lg i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .lg .num{color:var(--ink-1);font-weight:600}
+
+  /* overview: capture per agent */
+  table.t{width:100%;border-collapse:collapse}
+  .t th{font-size:12px;font-weight:500;color:var(--ink-2);text-align:start;padding:9px 12px;white-space:nowrap;border-bottom:1px solid var(--line)}
+  .t th.num,.t td.num{text-align:end}
+  .t td{padding:10px 12px;border-bottom:1px solid var(--line-subtle);vertical-align:middle}
+  .t tbody tr{cursor:pointer}
+  .t tbody tr:hover{background:var(--hover)}
+  .t tbody tr:last-child td{border-bottom:0}
+  .who{display:flex;align-items:center;gap:10px}
+  .av{width:28px;height:28px;border-radius:50%;background:#5C6166;color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px;flex:none;text-transform:uppercase}
+  .av.sm{width:22px;height:22px;font-size:10.5px}
+  .av.ghost{background:#fff;border:1px dashed var(--line-strong);color:var(--ink-3)}
+  .who b{font-weight:600}
+  .coach{display:inline-block;margin-top:3px;padding:2px 8px;border-radius:6px;line-height:1.4;background:var(--warning-bg);color:var(--warning-ink);font-size:11.5px;font-weight:600}
+  .mbar{height:6px;border-radius:3px;background:var(--track);width:72px;overflow:hidden}
+  .t.cap th:first-child{width:46%}
+  .mbar i{display:block;height:100%;background:var(--ink-1);border-radius:3px}
+
+  /* overview: verbatim wall */
+  .vw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px 16px 16px}
+  .vq{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border:1px solid var(--line-subtle);border-radius:8px;text-align:start;min-height:150px;background:#fff}
+  .vq:hover{border-color:var(--line-strong);background:#FAFBFB}
+  .vq .qt{font-family:var(--f-ar);font-size:18px;line-height:1.65;font-weight:500;color:var(--ink-1)}
+  .vq .mt{margin-top:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+  .vq .mt .pn{max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dot-sep::before{content:"·";margin-inline-end:8px;color:var(--ink-3)}
+
+  /* complaints worklist */
+  .wl-row,.wl-head{display:grid;grid-template-columns:64px 128px 170px 170px 190px minmax(0,1fr) 150px;gap:12px;align-items:center;padding:0 16px}
+  .wl-head{height:40px;font-size:12px;font-weight:500;color:var(--ink-2);border-bottom:1px solid var(--line)}
+  .wl-row{min-height:60px;border-bottom:1px solid var(--line-subtle);cursor:pointer;width:100%;text-align:start}
+  .wl-row:last-child{border-bottom:0}
+  .wl-row:hover{background:var(--hover)}
+  .age{font-weight:700;font-size:14px}
+  .age.late{color:var(--critical)}
+  .age.closed{color:var(--ink-3);font-weight:500}
+  .cust{display:flex;flex-direction:column;min-width:0}
+  .cust b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cust span{font-size:12px;color:var(--ink-2)}
+  .trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .own{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+  .own.none{color:var(--ink-3)}
+
+  /* register */
+  .toolbar{display:flex;flex-direction:column;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-subtle)}
+  .tl1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .search{position:relative;flex:1;min-width:300px}
+  .search .ic{position:absolute;top:50%;inset-inline-start:11px;transform:translateY(-50%);color:var(--ink-2)}
+  .search input{width:100%;height:36px;border:1px solid var(--input);border-radius:8px;padding:0 40px 0 34px;padding-inline:34px 40px;font-size:13.5px;background:#fff}
+  .search input::placeholder{color:var(--ink-2)}
+  kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--sunken);font-size:11px;font-weight:600;color:var(--ink-2);font-family:var(--f-lat)}
+  .search kbd{position:absolute;top:50%;inset-inline-end:9px;transform:translateY(-50%)}
+  .sel{height:36px;border:1px solid var(--input);border-radius:8px;padding:0 10px;font-size:13px;background:#fff;max-width:230px}
+  .rt{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+  .rt th{position:sticky;top:var(--pb);z-index:2;background:#fff;font-size:12px;font-weight:500;color:var(--ink-2);text-align:start;padding:0 10px;height:40px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rt td{height:48px;padding:0 10px;border-bottom:1px solid var(--line-subtle);vertical-align:middle;overflow:hidden}
+  .rt tbody tr{cursor:pointer}
+  .rt tbody tr:hover td{background:var(--hover)}
+  .rt tbody tr.kf td{background:var(--brand-tint)}
+  .rt tbody tr.kf td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+  [dir=rtl] .rt tbody tr.kf td:first-child{box-shadow:inset -3px 0 0 var(--brand)}
+  .rt .dt{font-size:13px;color:var(--ink-2);white-space:nowrap}
+  .rt .vb{font-family:var(--f-ar);font-size:14px}
+  .rt .tp{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rt .pp{display:flex;align-items:center;gap:8px;min-width:0}
+  .rt .pp span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+  .rfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--line-subtle);font-size:12.5px;color:var(--ink-2)}
+  .rfoot .hint{margin-inline-start:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .pager{display:inline-flex;gap:4px}
+  .pager button{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;background:#fff}
+  .pager button:hover{background:var(--hover)}
+  .pager button[disabled]{opacity:.4;cursor:default}
+  .empty{padding:28px 16px;text-align:center;color:var(--ink-2);font-size:13.5px}
+
+  /* review */
+  .banner{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--warning);border-radius:8px;background:#fff;margin-bottom:14px}
+  .banner h3{font-size:15px;font-weight:600;margin-bottom:4px}
+  .banner p{font-size:13px;color:var(--ink-2);line-height:1.6}
+  .banner p + p{margin-top:4px}
+  .banner .r{margin-inline-start:auto;flex:none}
+  .rv{display:grid;grid-template-columns:minmax(0,1fr) 260px auto;gap:16px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line-subtle);max-height:400px;transition:max-height .24s ease,opacity .2s ease,padding .24s ease,background .2s}
+  .rv:last-child{border-bottom:0}
+  .rv.out{max-height:0;opacity:0;padding-block:0;overflow:hidden;background:var(--brand-tint)}
+  .rv .qt{font-family:var(--f-ar);font-size:16px;line-height:1.6;font-weight:500}
+  .rv .mt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--ink-2);margin-top:4px}
+  .sug{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+  .sug .lb{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+  [dir=rtl] .sug .lb{letter-spacing:0;font-size:11.5px}
+  .sug .tpc{font-size:12.5px;color:var(--ink-1)}
+  .rv .acts{display:flex;gap:6px;align-items:center}
+  .rv .pick{grid-column:1 / -1;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:8px;background:var(--sunken);border:1px solid var(--line-subtle)}
+  .rv .pick .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .rv .pick .row > span{font-size:12px;color:var(--ink-2);min-width:52px}
+  .tchip{border-radius:9999px;outline:2px solid transparent;outline-offset:1px}
+  .tchip[aria-pressed=true]{outline-color:var(--ink-1)}
+  .kchip{height:26px;padding:0 10px;border-radius:9999px;border:1px solid var(--line);background:#fff;font-size:12px}
+  .kchip:hover{border-color:var(--line-strong)}
+  .kchip[aria-pressed=true]{background:var(--ink-1);border-color:var(--ink-1);color:#fff}
+  .alldone{padding:40px 16px;text-align:center;color:var(--ink-2)}
+  .alldone b{display:block;color:var(--ink-1);font-size:16px;margin-bottom:4px}
+
+  /* drawer §4.9 / §4.13 */
+  .backdrop{position:fixed;inset:0;background:rgba(26,26,26,.45);opacity:0;pointer-events:none;transition:opacity .15s;z-index:320}
+  .backdrop.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;inset-inline-end:0;height:100vh;width:480px;max-width:94vw;background:var(--surface);border-inline-start:1px solid var(--line-subtle);box-shadow:var(--e-panel);transform:translateX(102%);transition:transform .2s ease;z-index:321;display:flex;flex-direction:column}
+  [dir=rtl] .drawer{transform:translateX(-102%)}
+  .drawer.show{transform:translateX(0)!important}
+  .dh{height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px 0 16px;padding-inline:16px 12px;border-bottom:1px solid var(--line-subtle)}
+  .dh .ref{margin-inline-start:auto;font-size:12.5px;color:var(--ink-2)}
+  .x{width:32px;height:32px;border-radius:8px;color:var(--ink-2);display:grid;place-items:center}
+  .x:hover{background:var(--hover);color:var(--ink-1)}
+  .db{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .dsec{border:1px solid var(--line-subtle);border-radius:var(--r-card);padding:14px}
+  .sl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);margin-bottom:10px}
+  [dir=rtl] .sl{letter-spacing:0;font-size:11.5px}
+  .dq{font-family:var(--f-ar);font-size:21px;line-height:1.7;font-weight:500}
+  .dsub{font-size:12.5px;color:var(--ink-2);margin-top:8px}
+  .ctx{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-subtle)}
+  .ctx:first-of-type{padding-top:0}
+  .ctx:last-child{border-bottom:0;padding-bottom:0}
+  .ctx .k{width:74px;flex:none;font-size:12px;color:var(--ink-2)}
+  .ctx .v{flex:1;min-width:0;display:flex;flex-direction:column}
+  .ctx .v b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ctx .v span{font-size:12px;color:var(--ink-2)}
+  .lnk{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;padding:4px 6px;border-radius:6px}
+  .lnk:hover{background:var(--hover)}
+  .lnk .ic{width:14px;height:14px}
+  .seg{display:flex;background:var(--sunken);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+  .seg button{flex:1;height:32px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-2)}
+  .seg button:hover{color:var(--ink-1);background:#fff}
+  .seg button[aria-pressed=true][data-v=open]{background:#FFF4F4;color:#D72C0D;font-weight:600}
+  .seg button[aria-pressed=true][data-v=in_progress]{background:#FFF8E6;color:#8A5A00;font-weight:600}
+  .seg button[aria-pressed=true][data-v=resolved]{background:#F1F8F5;color:#008060;font-weight:600}
+  .fld{display:flex;flex-direction:column;gap:5px;margin-top:12px}
+  .fld label{font-size:13px;font-weight:500;color:var(--ink-2)}
+  .fld select,.fld textarea{border:1px solid var(--input);border-radius:6px;background:#fff;font-size:13.5px}
+  .fld select{height:36px;padding:0 10px}
+  .fld textarea{min-height:78px;padding:8px 10px;resize:vertical;unicode-bidi:plaintext}
+  .fld textarea.err{border-color:var(--critical)}
+  .ferr{font-size:12px;color:var(--critical)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .two .fld{margin-top:0}
+  .tl{list-style:none;margin:0;padding:0}
+  .tl li{position:relative;display:flex;gap:10px;padding:0 0 12px;font-size:13px}
+  .tl li:last-child{padding-bottom:0}
+  .tl li::before{content:"";position:absolute;top:14px;bottom:0;inset-inline-start:4px;width:1px;background:var(--line)}
+  .tl li:last-child::before{display:none}
+  .tl .b{width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--chart);flex:none;margin-top:4px}
+  .tl .b.k-status{border-color:var(--ink-1)}
+  .tl .b.k-resolved{border-color:var(--success);background:var(--success)}
+  .tl .w{color:var(--ink-2);font-size:12px}
+  .tl .nt{margin-top:4px;padding:7px 9px;border-radius:6px;background:var(--sunken);font-size:13px;unicode-bidi:plaintext}
+  .df{flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--line-subtle);font-size:12px;color:var(--ink-2)}
+  .df .r{margin-inline-start:auto;display:flex;gap:8px}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink-1);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:all .18s;z-index:400;pointer-events:none;max-width:90vw}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* review notes (NOT part of the app) */
+  .notes{max-width:1100px;margin:0 auto;padding:10px 28px 90px;direction:ltr;font-family:var(--f-lat)}
+  .notes h2{font-size:18px;margin:24px 0 10px}
+  .notes .n{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .notes .n.q{border-inline-start-color:var(--warning)}
+  .notes .n.bad{border-inline-start-color:var(--critical)}
+  .notes .n b{font-weight:650}
+  .notes code{font-size:12px;background:var(--sunken);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div class="pbar" id="pbar">
+  <span class="tag">Prototype</span>
+  <h1>Voix du client · manager v1</h1>
+  <span class="src">Données réelles <b>Libye</b>, lues le 30 sept. 22:46 UTC (1ᵉʳ oct. 00:46 Tripoli)</span>
+  <span class="grow"></span>
+  <span class="pctl">Langue <button data-act="lang" data-v="ar">AR</button><button data-act="lang" data-v="fr">FR</button></span>
+  <span class="pctl">Rôle <button data-act="role" data-v="super_admin">Super admin</button><button data-act="role" data-v="manager">Manager</button></span>
+  <a href="#notes">Notes de revue ↓</a>
+  <span class="sim"><b>Simulé :</b> 110 des 148 notes importées comptées comme confirmées, 38 restent « À vérifier ». Les 5 réclamations reprennent des paroles, commandes et produits réels (mai–juillet) ; dates, statuts et responsables sont inventés. Noms et téléphones des clients inventés.</span>
+</div>
+
+<div class="stage" id="stage" dir="rtl" lang="ar">
+  <aside class="sb" id="sb"></aside>
+  <main class="main"><div class="page" id="page"></div></main>
+  <div class="backdrop" id="backdrop" data-act="close"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true"></aside>
+</div>
+
+<section class="notes" id="notes">
+  <h2>Notes de revue</h2>
+  <div class="n bad"><b>Les chiffres « depuis le 19 sept. » du plan sont des totaux historiques.</b> Les 2 584 refus libyens ont tous <code>updated_at</code> ≥ 19 sept. : 2 181 ont été touchés en masse le 20 sept. à 01:02. Ce prototype date chaque refus par la ligne <code>order_history</code> <code>status_to = 'rejected'</code>. Sur la vraie période du 19 au 30 sept., on compte 456 refus, dont 141 « Autre » (31 %). Seules 36 des 148 notes utiles tombent dans cette période : les 148 couvrent le 21 mai → 30 sept. Le tableau du plan (694 / 2 584, 47 %, 148) décrit donc tout l'historique. <b>À corriger dans le plan</b>, et <code>get_feedback_insights</code> ne doit jamais filtrer les refus sur <code>updated_at</code>.</div>
+  <div class="n bad"><b>Même cause, constat 4 du plan.</b> Les « 335 refus_client sans sous-motif depuis le 19 sept. » valent 0 sur la vraie date de refus. Ce sont des refus antérieurs à l'arrivée des sous-motifs (19 sept.). Visible en période « Personnalisé ».</div>
+  <div class="n q"><b>À décider : la période ne s'applique qu'à l'Aperçu.</b> Réclamations, Registre et À vérifier sont des files de travail, donc sans période. Un clic depuis l'Aperçu ouvre le Registre filtré par la période, avec un filtre amovible. Ainsi le nombre de la cellule cliquée et le nombre de lignes affichées concordent.</div>
+  <div class="n q"><b>À décider : « nouveau » au lieu d'une variation sur les KPI.</b> L'historique importé ne contient que des refus « Autre ». Le comparer à une saisie F qui couvre tous les appels afficherait une fausse hausse. « Sujets en hausse » compare en revanche deux fenêtres de même longueur prises dans les mêmes données importées, donc comparables dans ce prototype.</div>
+  <div class="n q"><b>À décider : aucune règle d'import ne détecte une réclamation.</b> 3 des 5 réclamations réelles (« موصلتهاش », « تضربو », « عطلة ») ne font pas partie des 148 : elles restent dans les 546. Les 2 autres (6A0C4E34, 6A138314) avaient été classées Livraison et Produit ; ici elles sont retypées en Réclamation. Le Registre compte donc 151 lignes (148 + 3), pas 153. Proposition : une 7ᵉ règle « réclamation » dans l'import.</div>
+  <div class="n"><b>Deux règles de sujet affinées.</b> « ظن السعر يشمل التوصيل » donne Prix › Frais de livraison non compris, et non Livraison. « مصر » donne Livraison › Zone non desservie. Tout le reste suit le mapping demandé (carte / virement / portefeuille / pas d'argent, trop cher / remise, version / attente / accessoire / qualité, délai / retrait / hors ville).</div>
+  <div class="n"><b>Demande et Éloge restent à 0 :</b> l'import ne lit que des refus. Ces deux types n'existeront qu'avec la saisie F, qui couvre aussi les commandes confirmées.</div>
+  <div class="n"><b>salima : 0 retour sur tout l'historique.</b> Elle traite pourtant 295 commandes sur 12 jours (909 depuis le 21 mai). Le prototype affiche la ligne en ambre dans « Captation par agent ». Appels = commandes distinctes touchées dans <code>order_history</code> (Q4).</div>
+  <div class="n"><b>Barre latérale :</b> elle suit <code>Sidebar.tsx</code> tel qu'il est codé aujourd'hui (Clients = Prospects, Messages ; pas de « Relances »). Rôle Manager : pas de Finances ; Système se limite à Connexions et Paramètres.</div>
+  <div class="n"><b>Clavier du Registre :</b> j/k et ↑↓ déplacent le focus, Entrée ouvre, / cherche, Échap ferme, F annonce la fenêtre de saisie. Les touches lettres testent <code>e.code</code> (KeyJ, KeyK, KeyF, Slash) : elles marchent aussi sur un clavier arabe (constat 3 du plan).</div>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ═══════════════ REAL DATA — Libya, read-only, 2026-09-30 22:46 UTC ═══════════════ */
+const TODAY = "2026-09-30";
+const PROD = {
+  Q:{n:"القرآن تدبر وعمل", k:"book"}, D:{n:"كتاب الداء والدواء للإمام ابن القيم", k:"book"},
+  T:{n:"مصحف التهجد و قيام الليل", k:"book"}, H:{n:"كتاب الحفظ الميسر", k:"book"},
+  BM:{n:"دميه ملاكمه حجم متوسط", k:"bag"}, BS:{n:"دميه ملاكمه حجم صغير", k:"bag"},
+  BL:{n:"دميه ملاكمه حجم كبير", k:"bag"}, BX:{n:"دمية الملاكمة حجم كبير (179 دل)", k:"bag"},
+};
+const AGENTS = ["tasnim","salima","roqaya","hend","mouna","riheb"];
+const AGNAME = { tasnim:"tasnim", salima:"salima", roqaya:"roqaya", hend:"hend", mouna:"mouna", riheb:"riheb", admin:"Super Admin" };
+
+/* Q2 — orders per product per window (status <> deleted, Tripoli created day) */
+const ORDERS = {
+  Q:{y:7, d7:109, d12:205, d30:525, custom:1021}, D:{y:6, d7:103, d12:178, d30:455, custom:661},
+  T:{y:27, d7:172, d12:172, d30:172, custom:172}, H:{y:11, d7:82, d12:146, d30:344, custom:344},
+  BM:{y:0, d7:0, d12:0, d30:78, custom:1134}, BS:{y:0, d7:0, d12:0, d30:0, custom:752},
+  BL:{y:0, d7:0, d12:0, d30:13, custom:246}, BX:{y:0, d7:0, d12:0, d30:0, custom:110},
+};
+/* Q4 — calls = distinct orders touched in order_history per window */
+const CALLS = {
+  tasnim:{y:48, d7:215, d12:373, d30:805, custom:1460}, salima:{y:45, d7:169, d12:295, d30:646, custom:909},
+  roqaya:{y:56, d7:201, d12:287, d30:393, custom:1470}, hend:{y:0, d7:0, d12:0, d30:167, custom:902},
+  mouna:{y:0, d7:0, d12:0, d30:5, custom:953}, riheb:{y:0, d7:0, d12:0, d30:19, custom:54},
+};
+/* Q3 — rejections per product × sub-reason, windows y,d7,d12,d30,custom (dated by order_history) */
+const REJ_RAW = `Q|autre:none|3,23,56,123,176;Q|non_serieux|2,13,41,71,103;Q|pas_de_reponse|0,4,5,14,76;Q|refus_client:none|0,0,0,0,74;Q|non_commande|2,24,34,57,57;Q|prix_eleve|3,5,8,19,53;Q|numero_invalide|0,0,1,3,26;Q|simple_info|1,8,14,25,25;Q|changement_avis|0,3,9,20,20;Q|numero_hors_service|0,4,5,13,13;Q|doublon|0,3,3,5,12;Q|produit_non_voulu|0,0,2,7,7;Q|raccroche|0,0,1,4,4;Q|mauvais_interlocuteur|1,1,2,4,4;Q|achete_ailleurs|0,0,0,1,1
+BX|non_serieux|0,0,0,0,11;BX|refus_client:none|0,0,0,0,10;BX|autre:none|0,0,0,0,10;BX|pas_de_reponse|0,0,0,0,7;BX|numero_invalide|0,0,0,0,5;BX|prix_eleve|0,0,0,0,1
+BS|pas_de_reponse|0,0,0,0,75;BS|autre:none|0,0,0,0,75;BS|refus_client:none|0,0,0,0,72;BS|non_serieux|0,0,0,0,47;BS|numero_invalide|0,0,0,0,21;BS|doublon|0,0,0,0,17;BS|prix_eleve|0,0,0,0,13;BS|changement_avis|0,0,0,0,8;BS|non_commande|0,0,0,0,4;BS|raccroche|0,0,0,0,3;BS|simple_info|0,0,0,0,2;BS|numero_hors_service|0,0,0,0,2;BS|mauvais_interlocuteur|0,0,0,0,1
+BL|autre:none|0,0,0,4,29;BL|pas_de_reponse|0,0,0,1,19;BL|non_serieux|0,0,0,1,18;BL|refus_client:none|0,0,0,0,15;BL|numero_invalide|0,0,0,1,8;BL|changement_avis|0,0,0,0,6;BL|non_commande|0,0,0,0,5;BL|doublon|0,0,0,1,5;BL|prix_eleve|0,0,0,0,4;BL|raccroche|0,0,0,0,2;BL|achete_ailleurs|0,0,0,0,1;BL|mauvais_interlocuteur|0,0,0,0,1;BL|numero_hors_service|0,0,0,0,1
+BM|autre:none|0,0,0,42,210;BM|non_serieux|0,0,0,4,132;BM|refus_client:none|0,0,0,0,127;BM|pas_de_reponse|0,0,0,4,100;BM|changement_avis|0,0,0,17,78;BM|numero_invalide|0,0,0,3,66;BM|non_commande|0,0,0,16,32;BM|prix_eleve|0,0,0,0,16;BM|doublon|0,0,0,0,13;BM|numero_hors_service|0,0,0,1,12;BM|simple_info|0,0,0,3,11;BM|raccroche|0,0,0,1,6;BM|achete_ailleurs|0,0,0,0,4;BM|mauvais_interlocuteur|0,0,0,1,3;BM|hors_couverture|0,0,0,0,2;BM|absent_ville|0,0,0,0,1
+H|autre:none|5,20,35,82,82;H|non_commande|4,21,26,38,38;H|non_serieux|7,12,24,36,36;H|simple_info|2,5,11,17,17;H|changement_avis|0,2,8,17,17;H|prix_eleve|0,6,9,13,13;H|pas_de_reponse|0,1,2,9,9;H|numero_hors_service|0,0,1,9,9;H|doublon|0,2,2,4,4;H|mauvais_interlocuteur|0,1,2,3,3;H|numero_invalide|0,0,1,2,2;H|produit_non_voulu|0,1,1,2,2;H|hors_couverture|0,1,1,1,1;H|raccroche|0,0,0,1,1;H|achete_ailleurs|0,0,0,1,1
+D|autre:none|1,15,28,70,86;D|refus_client:none|0,0,0,0,35;D|pas_de_reponse|0,1,1,9,30;D|non_serieux|0,1,7,20,29;D|changement_avis|0,4,6,23,24;D|non_commande|3,11,13,18,18;D|prix_eleve|0,3,3,8,17;D|numero_invalide|0,0,0,4,13;D|simple_info|1,2,4,8,8;D|numero_hors_service|0,1,2,8,8;D|doublon|0,1,2,4,7;D|produit_non_voulu|1,1,1,5,5;D|achete_ailleurs|0,0,0,1,1;D|hors_couverture|0,1,1,1,1;D|mauvais_interlocuteur|0,0,0,1,1;D|raccroche|0,0,0,1,1
+T|non_commande|6,22,22,22,22;T|autre:none|4,22,22,22,22;T|simple_info|4,13,13,13,13;T|prix_eleve|3,10,10,10,10;T|changement_avis|1,7,7,7,7;T|non_serieux|2,6,6,6,6;T|doublon|0,2,2,2,2;T|pas_de_reponse|0,1,1,1,1;T|produit_non_voulu|0,1,1,1,1`;
+const WIN = ["y","d7","d12","d30","custom"];
+const REJ = REJ_RAW.split(/[;\n]/).filter(Boolean).map(s => { const [p, k, v] = s.split("|"); const n = v.split(",").map(Number); const o = { p, k }; WIN.forEach((w, i) => o[w] = n[i]); return o; });
+
+/* rejection_reason_configs (market ly): sub-reason → [group, label_fr, label_ar]; groups → [fr, ar, hue] */
+const RR = {
+  prix_eleve:["refus_client","Prix trop élevé","السعر مرتفع"], frais_livraison:["refus_client","Frais de livraison refusés","رفض رسوم التوصيل"],
+  achete_ailleurs:["refus_client","Acheté ailleurs","اشترى من مكان آخر"], changement_avis:["refus_client","A changé d'avis","غيّر رأيه"],
+  produit_non_voulu:["refus_client","Veut un autre produit","يريد منتجاً آخر"],
+  pas_de_reponse:["injoignable","Ne répond pas","لا يرد"], numero_invalide:["injoignable","Numéro faux ou inexistant","رقم خاطئ أو غير موجود"],
+  numero_hors_service:["injoignable","Éteint ou hors service","مغلق أو خارج الخدمة"], mauvais_interlocuteur:["injoignable","Le numéro est à quelqu'un d'autre","الرقم لشخص آخر"],
+  raccroche:["injoignable","Raccroche au téléphone","يغلق الخط"],
+  hors_couverture:["livraison_impossible","Hors zone de livraison","خارج نطاق التغطية"], paiement_impossible:["livraison_impossible","Moyen de paiement indisponible","وسيلة الدفع غير متاحة"],
+  adresse_invalide:["livraison_impossible","Adresse invalide","عنوان غير صحيح"], absent_ville:["livraison_impossible","Absent de la ville","خارج المدينة"],
+  simple_info:["commande_invalide","Simple demande d'info","استفسار فقط"], non_commande:["commande_invalide","N'a pas commandé","لم يطلب المنتج"],
+  doublon:["commande_invalide","Commande en double","طلب مكرر"], non_serieux:["commande_invalide","Commande non sérieuse","طلب غير جاد"],
+};
+const RG = { refus_client:["Refus client","رفض العميل","#D72C0D"], injoignable:["Injoignable","تعذر الاتصال","#B98900"],
+  livraison_impossible:["Livraison impossible","تعذر التوصيل","#7C3AED"], commande_invalide:["Commande non réelle","الطلب غير حقيقي","#0E7490"], autre:["Autre","أخرى","#8C9196"] };
+
+/* Q1 — the 148 insight notes (ref | product | class | agent | verbatim), Q1b — real rejection day */
+const RAW = `6ABA6703|T|pe|tasnim|قالت طلبت يعني من مكان آخر
+6ABB4BF6|H|pe|tasnim|شراء من المكان الثاني
+6ABB1CAE|T|nc|tasnim|قالت لا املك المبلغ
+6ABB408B|T|nc|tasnim|قالت أول ما ينزل الراتب رن عليكم
+6ABA1A28|T|nc|tasnim|قالت الراتب لم ينزل
+6AB9F42A|D|pe|tasnim|اشترت من مكان آخر
+6AB9D786|T|nc|tasnim|قال حاليا لا أملك الكاش
+6AB8FB55|T|pr|tasnim|السعر غالي
+6AB89BED|Q|pr|tasnim|قال ألغي لأن السعر غالي
+6AB887E7|T|pay|tasnim|قال يريد دفع بالبطاقة
+6AB89FAA|T|pd|roqaya|تبي رواية قالون
+6AB9395A|H|nc|tasnim|قالت لا أملك المبلغ
+6AB8CDA8|Q|nc|tasnim|قالت أول ما يكونوا فلوسي جاهزات ورن عليك
+6AB92EF7|T|pd|tasnim|تريد رواية قالون
+6AB90EED|Q|pe|tasnim|قالت توني نشتريها من مكان آخر
+6AB912DC|D|pay|tasnim|قال أريد الدفع بالخدمات
+6AB8C44D|H|nc|tasnim|قالت لا أملك المال
+6AB8A9A0|T|pd|roqaya|يحسابة براوية قالون
+6AB7BF95|H|nc|tasnim|قال ليس لدي المبلغ
+6AB77E5E|T|nc|tasnim|لا تملك الكاش
+6AB704D5|Q|pd|tasnim|قال كنت حساب الكتاب سوف ينزل في هاتف إلكتروني
+6AB68FDD|H|pd|tasnim|قال لا اريده كنت نحسابه الكتروني
+6AB6794A|Q|pd|tasnim|قال أريد حجم متوسط
+6AAD51E9|H|nc|tasnim|قالت لا أملك المال
+6AB4A64B|D|pr|tasnim|قال سعره غالي
+6AB254EB|H|nc|tasnim|قال لا أملك المال
+6AB06F18|D|nc|tasnim|قال لا املك المبلغ
+6AB05869|D|pay|tasnim|قال اريد الدفع بالبطاقة
+6AB0E9EA|D|nc|roqaya|غير متوفر عنده القيمة
+6AAD60A7|H|pd|tasnim|قالت أريد كتاب في رواية حفص
+6AAE4C8D|Q|pd|tasnim|قالت أريد مصحف عادي
+6A9ECFF4|D|pr|tasnim|قال السعر غالي
+6A9E442B|Q|pay|tasnim|قالت تريد الدفع بطريقة اخرى
+6A18C2D2|BS|dl|hend|العميل لا يريد خدمة توصيل يريد الاستلام بنفسه من مكان البيع
+6AAD9004|Q|pr|tasnim|قال سعره غالي
+6AA99BAF|Q|nc|tasnim|قال لا املك السعر حاليا
+6AA7CD9F|Q|nc|tasnim|لا يملك المبلغ بالكاش
+6A198F58|BS|dl|hend|العميل رفض بسبب التوصيل..ظن السعر يشمل التوصيل
+6A9ED828|Q|pay|tasnim|قال اريد الدفع بطريقة اخرى
+6A7327AF|BM|nc|tasnim|قال لا أملك المال ل شراء
+6A8F68A5|BM|pay|riheb|ليس لديه كاش ويريد تحويل
+6AA1A8C1|H|nc|tasnim|قالت ليس لدي كاش
+6A121940|BX|pe|mouna|قال تاخرتو وشرينا
+6A138314|BX|pd|mouna|قال طلبتها قبل ووصلتني ومعجبتنيش
+6A1775FC|BM|pe|hend|اشترى المنتج من محل في منطقته
+6A177B65|BL|pe|hend|العميل اشترى من متجر اخر
+6AA3D49E|D|nc|tasnim|قالت لا املك المبلغ
+6A367325|BM|pe|hend|الطلبية من قبل العيد وتوا شروا غيرها
+6AA61B1D|Q|nc|tasnim|قال لا املك المبلغ
+6A3456D8|BM|pd|hend|يبي القفازات قال في اعلان الفيس شاف قفازات
+6A35BA21|Q|pd|roqaya|تبي حفص
+6A9C4256|D|pr|tasnim|قال السعر غالي
+6A2FC966|BM|pe|hend|طلب من مكاننا واكد عند مكان ثاني قبلنا
+6A409CC6|BS|pe|tasnim|قال اشتريت وحدة اخرى
+6A0C4E34|Q|dl|hend|قال ان الطلب ليه مدة طويلة اساببع وتوا معاش يبي
+6A33B549|BS|dl|hend|قال انا برا المدينة نروح ونعاود نطلب توا الغيها
+6A392D3E|BM|pe|hend|شرت من مكان ثاني
+6A3D063A|BS|pr|hend|يبي تخفيض ع الطرفين
+6A3EFC03|D|pr|tasnim|قال اخذته ب 10 دينار وهذا السعر جداً غالي
+6A76EEE5|BM|pd|admin|قال نبيه بدون هواء يعني يبيه ثقيل
+6A9BCA77|H|pr|tasnim|قال الغي الطلب السعرغالي
+6A40268B|BS|pe|roqaya|طلب من مكان تاني بسعر اقل 85
+6A417F8B|Q|pr|roqaya|في حد طالب ع رقمه وشافه قال السعر غالي مايبيش
+6A732BAC|BM|pe|tasnim|لان طالب من متجر آخر لذلك لا يريد هذه
+6A197FA2|BM|pe|hend|هذا طلب هو وابنه في نفس الوقت وتوا رفض الطلبية لأن ابنه اشترى وحدة
+6A46CF95|Q|pay|tasnim|بسبب انه يريد تحويل المبلغ
+6A48A5F0|Q|nc|mouna|قال الغيلي ولمانحصل حقه تو نعاود نحجز
+6A0D56A3|BS|pd|mouna|يبيها حجم اكبر
+6A46B263|Q|nc|tasnim|قال غير قادر على السعره
+6A7DFA47|BL|dl|tasnim|قالت الغي طلبيه لاني خارج مدينتي
+6A4961AF|Q|pd|roqaya|قال يبي مصحف عادي
+6A118596|BX|pe|mouna|قال شريت وحده فالغيلي هادي
+6A4098EA|D|dl|hend|العميل في منطقة اخرى يبي يأجل التسليم لين يتصل هو
+6A490D3C|Q|nc|tasnim|قال غير قادر على السعره
+6AA3A994|H|pd|tasnim|قال اريد معه جهاز لذلك الغي الطلب
+6A4B4822|Q|nc|tasnim|قالت المبلغ غير متوفر عندي حالياً
+6A81BDBF|BM|pd|tasnim|قالت سيتم تفسيدها من الصغار لذلك منقدرش نشرها
+6A3BB27E|BM|pay|mouna|قال نقدر ندفع تحويل بس
+6AA3CA9C|H|pd|tasnim|قال الغي الطلب لان اريد حجم متوسط
+6AA3ADDB|Q|pd|tasnim|قالت الغي الطلب نبي الكتاب يلي يجي معو الجهاز
+6AA67624|H|nc|tasnim|لا يملكون الكاش ابدا
+6A8D9E76|BM|pay|tasnim|قال لا استطيع الدفع الا موبي كاش
+6A42644A|BS|pe|tasnim|قال طلبت من متجر تاني
+6A469BC8|Q|pr|tasnim|اول ما سمعت السعر رفضت فورا
+6A4AB4F7|Q|pd|roqaya|يبي المصحف براويو حفص
+6AA675C7|H|pay|tasnim|قالت لا استطيع الدفع بالكاش
+6A170CF7|BM|pay|hend|العميل قال عنده بالتحويل المصرفي فقط باقي انظمة الدفع غير متوفرة عنده
+6A9C43BB|Q|pay|tasnim|يرديد الدفع بطريقة اخرى
+6A9C30AA|H|pay|tasnim|يريد الدفع بالبطاقة
+6A9E7BA0|H|pay|tasnim|قالت اريد الدفع بالبطاقة
+6A9E8028|H|pay|tasnim|قالت اريد الدفع بالبطاقة
+6AA3A832|Q|nc|tasnim|لا يملك المبلغ
+6A80E6A6|BS|pr|tasnim|قال سعره غالي الغي الطلب
+6AA3AD17|Q|nc|tasnim|لا يملك المبلغ
+6A9738BB|BM|nc|tasnim|قال الغي لان لا يستطيع دفع ثمنها
+6AA3C9E2|Q|pd|tasnim|قال اريد المتوسط الغي الطلب
+6A0FC8D6|BS|nc|mouna|قال الغيها لانه معنداش فلوس حاليا
+6A1828D6|BM|dl|hend|بعد التأكيد قال العميل انه خرج من المجينة ولن يستطيع الاستلام وطلب الالغاء
+6A9C1B72|Q|pay|tasnim|تريد الدفع بالبطاقة
+6AA3CD73|Q|nc|tasnim|قال لا املك المبلغ حالياً
+6A18E5F0|BM|pe|hend|العميل قال حجز عند شخص تاني
+6A7D4235|BL|dl|roqaya|الطلب يبها في مصر
+6A14E8E8|BM|pd|roqaya|لانه من غير قفازات
+6A96B5FD|BM|pr|tasnim|قالت غالي و الغي الطلب
+6A7DA752|BM|pay|tasnim|قال نريد حوالة لذلك الغي الطلب
+6A2F2DD4|BM|pr|roqaya|لقها بسعر اقل
+6AA692BA|D|pr|tasnim|قالت السعر غالي
+6A1195A8|BX|pe|mouna|قال تاخرتو وشريت
+6A9CFD14|H|nc|tasnim|قالت لا يتوفر المبلغ
+6A9F2817|Q|pe|tasnim|قال طلبت من مكان اخر
+6A9F2AC5|H|pd|roqaya|الزبون يبي مصحف العادي القديم
+6A846707|BM|pr|tasnim|قالت غالي لذلك الغي الطلب
+6A92108F|BL|pe|tasnim|قال اخذت من متجر اخر و غدا ستصل
+6A9EBE8C|H|pay|tasnim|قالت لا اريد الدفع الا بطريقه اخرى
+6A9C8420|Q|pr|tasnim|قال غالي
+6A9D85CC|H|pr|tasnim|قالت الغي الطلب بعد سماع السعر
+6A3EFCF7|D|pr|tasnim|قالي غالي و معنديش فلوس ولما عندي تو نطلب من الموقع من جديد
+6A3B1C0C|BL|pe|tasnim|قال خديت من مكان آخر
+6A75C9EC|BS|pr|tasnim|قال السعر غالي لذلك الغي طلب
+6A9D77C0|D|nc|tasnim|قالت لا املك المبلغ و تو نطلب من جديد
+6A8091AD|BS|pd|tasnim|قال الغي الطلب لانه بدون قفازات
+6AA690F8|Q|pr|tasnim|قالت سعره غالي الغي الطلب
+6A71F03A|BS|pay|tasnim|قال منقدرش ندفع إلا تحويل
+6A72F52D|BM|nc|tasnim|قالت لا املك ثمنها
+6AA44F32|Q|nc|tasnim|قال لا املك المبلغ
+6AAC29BE|Q|pay|tasnim|قال أريد الدفع بتحويل
+6AA7CDFC|H|pd|tasnim|قال لا يوجد معه قلم ناطق
+6AA998F6|H|pr|tasnim|قال السعر غالي
+6A3CE4F9|D|nc|tasnim|غير متوفر عندها المبلغ
+6A42149B|Q|pd|tasnim|السبب تريد رواية اخرى للكتاب وهي حفص
+6A4BD641|BS|pr|tasnim|قال الغي الطلب لان كان يحساب ان سعرها 25
+6A9C2F72|D|pay|tasnim|قال اريد الدفع بالبطالة
+6AA64EFB|H|pe|tasnim|قال طلبت من متجر آخر كتاب اخر
+6AAC0597|Q|nc|roqaya|حطلب في وقت تاني القيمة غير متوفره
+6AA7B2B7|Q|pd|tasnim|قالت كنت نحسابكم دورة
+6AA59C2C|H|nc|hend|تبي تطلب عند نزول رواتب شهر 9 لعدم توفر كامل المبلغ الان
+6AAD5623|D|nc|tasnim|قال لا أستطيع قال لا أستطيع دفع المبلغ
+6A9C8DD1|D|pr|tasnim|قال السعر غالي الغي الطلب
+6AA82A59|D|nc|hend|لعدم توفر السعر حاليا وستعاود الطلب قريبا
+6A407016|D|pr|tasnim|قال السعر جدا غالي
+6AAE0EA9|Q|pay|tasnim|يريد الدفع بتحويل
+6A72F7B6|BM|pr|tasnim|قال غالية لا أستطيع شراءها
+6AAC0DC4|Q|nc|roqaya|مش متوفر عنده حاليا القيمة كاش لانه مش متوفر خدمات مصرفيه
+6AAC4905|Q|pd|roqaya|يبيه براوية قالون مش حفص
+6AABCBE0|Q|nc|tasnim|قالت حاليا لا أملك المبلغ
+6AAD7FFA|Q|nc|tasnim|قال لا أملك المبلغ
+6AA90945|H|nc|tasnim|قالت لا يتوفر لدي المبلغ
+6A9C5DF9|Q|pay|tasnim|قال اريد الدفع بتحويل`;
+const DATES = "6A0C4E34=06-19 6A0D56A3=05-21 6A0FC8D6=05-22 6A118596=05-23 6A1195A8=06-01 6A121940=06-01 6A138314=05-29 6A14E8E8=05-31 6A170CF7=06-01 6A1775FC=06-01 6A177B65=06-01 6A1828D6=06-01 6A18C2D2=05-29 6A18E5F0=05-30 6A197FA2=05-30 6A198F58=05-30 6A2F2DD4=06-15 6A2FC966=06-15 6A33B549=06-19 6A3456D8=06-20 6A35BA21=06-20 6A367325=06-23 6A392D3E=06-22 6A3B1C0C=08-10 6A3BB27E=06-24 6A3CE4F9=06-25 6A3D063A=06-25 6A3EFC03=06-27 6A3EFCF7=08-10 6A40268B=06-28 6A407016=06-28 6A4098EA=07-05 6A409CC6=08-10 6A417F8B=06-29 6A42149B=06-29 6A42644A=07-02 6A469BC8=07-02 6A46B263=07-04 6A46CF95=07-04 6A48A5F0=07-04 6A490D3C=07-05 6A4961AF=07-05 6A4AB4F7=07-06 6A4B4822=07-06 6A4BD641=07-07 6A71F03A=08-06 6A72F52D=08-05 6A72F7B6=08-05 6A7327AF=09-01 6A732BAC=08-05 6A75C9EC=08-08 6A76EEE5=08-10 6A7D4235=08-13 6A7DA752=08-29 6A7DFA47=08-14 6A8091AD=08-16 6A80E6A6=08-16 6A81BDBF=08-16 6A846707=08-18 6A8D9E76=08-25 6A8F68A5=08-27 6A92108F=08-29 6A96B5FD=09-01 6A9738BB=09-02 6A9BCA77=09-08 6A9C1B72=09-05 6A9C2F72=09-05 6A9C30AA=09-05 6A9C4256=09-06 6A9C43BB=09-06 6A9C5DF9=09-06 6A9C8420=09-08 6A9C8DD1=09-08 6A9CFD14=09-06 6A9D77C0=09-06 6A9D85CC=09-11 6A9E442B=09-08 6A9E7BA0=09-07 6A9E8028=09-08 6A9EBE8C=09-07 6A9ECFF4=09-08 6A9ED828=09-07 6A9F2817=09-11 6A9F2AC5=09-08 6AA1A8C1=09-10 6AA3A832=09-11 6AA3A994=09-11 6AA3AD17=09-11 6AA3ADDB=09-11 6AA3C9E2=09-11 6AA3CA9C=09-11 6AA3CD73=09-11 6AA3D49E=09-11 6AA44F32=09-12 6AA59C2C=09-13 6AA61B1D=09-14 6AA64EFB=09-13 6AA675C7=09-13 6AA67624=09-14 6AA690F8=09-13 6AA692BA=09-13 6AA7B2B7=09-14 6AA7CD9F=09-16 6AA7CDFC=09-14 6AA82A59=09-15 6AA90945=09-17 6AA998F6=09-16 6AA99BAF=09-16 6AABCBE0=09-17 6AAC0597=09-18 6AAC0DC4=09-18 6AAC29BE=09-19 6AAC4905=09-18 6AAD51E9=09-24 6AAD5623=09-19 6AAD60A7=09-19 6AAD7FFA=09-19 6AAD9004=09-19 6AAE0EA9=09-19 6AAE4C8D=09-19 6AB05869=09-21 6AB06F18=09-21 6AB0E9EA=09-21 6AB254EB=09-22 6AB4A64B=09-24 6AB6794A=09-26 6AB68FDD=09-26 6AB704D5=09-26 6AB77E5E=09-26 6AB7BF95=09-26 6AB887E7=09-27 6AB89BED=09-27 6AB89FAA=09-27 6AB8A9A0=09-27 6AB8C44D=09-27 6AB8CDA8=09-27 6AB8FB55=09-27 6AB90EED=09-27 6AB912DC=09-27 6AB92EF7=09-27 6AB9395A=09-27 6AB9D786=09-28 6AB9F42A=09-28 6ABA1A28=09-28 6ABA6703=09-30 6ABB1CAE=09-29 6ABB408B=09-29 6ABB4BF6=09-29";
+
+/* ═══════════════ taxonomy (plan › Taxonomy) ═══════════════ */
+const TYPES = ["complaint","product","price","payment","delivery","request","praise"];
+const TC = {
+  complaint:{bg:"#FEE2E2", ink:"#991B1B", dot:"#EF4444"}, product:{bg:"#EDE9FE", ink:"#5B21B6", dot:"#8B5CF6"},
+  price:{bg:"#FEF3C7", ink:"#92400E", dot:"#F59E0B"}, payment:{bg:"#CCFBF1", ink:"#115E59", dot:"#14B8A6"},
+  delivery:{bg:"#DBEAFE", ink:"#1D4ED8", dot:"#3B82F6"}, request:{bg:"#E0E7FF", ink:"#3730A3", dot:"#6366F1"},
+  praise:{bg:"#DCFCE7", ink:"#166534", dot:"#22C55E"},
+};
+const TOPICS = {
+  complaint:[["never_received","Colis jamais reçu","لم يصل الطلب"],["wrong_or_damaged","Reçu non conforme ou abîmé","وصل غير مطابق أو تالف"],["too_many_calls","Appels répétés","إزعاج بالاتصال"],["agent_conduct","Comportement de l'agent","تعامل الموظف"],["refund","Remboursement","استرجاع المبلغ"]],
+  product:[["version_wanted","Veut une autre version / taille","يريد نسخة أو مقاساً آخر"],["expectation_gap","Croyait autre chose","كان يظنه شيئاً آخر"],["missing_accessory","Accessoire attendu","ملحق ناقص"],["quality","Qualité","الجودة"]],
+  price:[["too_expensive","Trop cher","السعر غالي"],["cheaper_elsewhere","Moins cher ailleurs","أرخص عند غيرنا"],["wants_discount","Demande une remise","يطلب تخفيضاً"],["fee_surprise","Frais de livraison non compris","لم يتوقع رسوم التوصيل"]],
+  payment:[["card","Veut payer par carte","يريد الدفع بالبطاقة"],["transfer","Virement ou mandat","تحويل أو حوالة"],["mobile_wallet","Portefeuille mobile","محفظة إلكترونية"],["no_cash_now","Pas d'argent maintenant","لا يملك المبلغ الآن"]],
+  delivery:[["too_slow","Délai trop long","تأخر التوصيل"],["pickup_wanted","Veut retirer sur place","يريد الاستلام بنفسه"],["away","Hors de sa ville","خارج مدينته"],["zone","Zone non desservie","منطقة غير مغطاة"]],
+  request:[["other_product","Demande un autre produit","يطلب منتجاً آخر"],["info","Renseignement","استفسار"]],
+  praise:[["product","Produit apprécié","أعجبه المنتج"],["service","Service apprécié","أعجبته الخدمة"]],
+};
+
+/* the import's keyword suggestion (mirrors the plan's rules, class → type/topic) */
+function suggest(cls, t){
+  if (cls === "pay") return ["payment", /موبي/.test(t) ? "mobile_wallet" : /(تحويل|حوالة)/.test(t) ? "transfer" : "card"];
+  if (cls === "nc") return ["payment", "no_cash_now"];
+  if (cls === "pr") return ["price", /تخفيض/.test(t) ? "wants_discount" : "too_expensive"];
+  if (cls === "pe") return ["price", "cheaper_elsewhere"];
+  if (cls === "pd") return ["product", /(الكتروني|إلكتروني|دورة)/.test(t) ? "expectation_gap" : /(قفازات|جهاز|قلم)/.test(t) ? "missing_accessory" : /معجبتنيش/.test(t) ? "quality" : "version_wanted"];
+  if (/يشمل التوصيل/.test(t)) return ["price", "fee_surprise"];
+  if (/(مدة طويلة|تاخرتو)/.test(t)) return ["delivery", "too_slow"];
+  if (/مصر/.test(t)) return ["delivery", "zone"];
+  if (/(برا المدينة|خارج مدينتي|منطقة اخرى|المجينة|المدينة)/.test(t)) return ["delivery", "away"];
+  if (/(الاستلام بنفسه|مكان البيع)/.test(t)) return ["delivery", "pickup_wanted"];
+  return ["delivery", "too_slow"];
+}
+
+/* fake customers — deterministic from the order ref; never a real name or number */
+const FN_F = ["فاطمة","عائشة","خديجة","مريم","سالمة","نجلاء","هدى","أسماء","سعاد","زينب","رحاب","آمنة","حنان","نادية","سمية"];
+const FN_M = ["محمد","أحمد","علي","عبدالله","خالد","سالم","مصطفى","عمر","إبراهيم","يوسف","طارق","حسين","عبدالسلام","مفتاح","فرج"];
+const LN = ["الورفلي","المصراتي","الزوي","العبيدي","الترهوني","القماطي","الفيتوري","البرعصي","المقريف","الشريف","الغرياني","الككلي","بن عمران","الزنتاني","السنوسي","الدرسي","العرفي"];
+function hash(s){ let h = 2166136261; for (const c of s){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function fakeCustomer(ref, note){
+  const h = hash(ref), h2 = hash(ref + "#");
+  const fem = /(قالت|تريد|تبي|اشترت|شرت|تملك|عندها|تطلب)/.test(note) ? true : /(قال |يبي|يريد|اشترى|لديه|عنده)/.test(note) ? false : h % 2 === 0;
+  const first = (fem ? FN_F : FN_M)[h % 15], last = LN[h2 % LN.length];
+  const pre = ["91","92","94","95"][h2 % 4];
+  const d = String(1000000 + (Math.imul(h ^ h2, 2654435761) >>> 0) % 9000000);
+  return { name: first + " " + last, phone: "+218 " + pre + " " + d.slice(0, 3) + " " + d.slice(3, 7) };
+}
+
+/* ═══════════════ entries ═══════════════ */
+const D = {}; DATES.split(" ").forEach(x => { const [r, d] = x.split("="); D[r] = "2026-" + d; });
+const E = RAW.trim().split("\n").map(line => {
+  const [ref, p, cls, agent, note] = line.split("|");
+  const [type, topic] = suggest(cls, note);
+  return { id:ref, ref, p, agent, note, date:D[ref], type, topic, sug:[type, topic], src:"import", review:false, ignored:false,
+    status:null, owner:"", openedAt:null, resolution:"", cust:fakeCustomer(ref, note),
+    tl:[{ k:"rejected", d:D[ref], a:agent }, { k:"imported", t:[type, topic] }] };
+});
+/* the 38 oldest imports stay « À vérifier »; the rest are confirmed (simulation) */
+const RETYPED = { "6A0C4E34":1, "6A138314":1 };
+E.filter(e => !RETYPED[e.id]).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.ref < b.ref ? -1 : 1)
+  .slice(0, 38).forEach(e => e.review = true);
+E.forEach(e => { if (!e.review && !RETYPED[e.id]) e.tl.push({ k:"confirmed", a:"Manager LY" }); });
+
+/* the 5 complaints — real words / refs / products, simulated lifecycle */
+function retype(id, topic, openedAt, status, owner, extra){
+  const e = E.find(x => x.id === id);
+  e.tl.push({ k:"retyped", d:openedAt, a:"Manager LY", t:["complaint", topic] });
+  Object.assign(e, { type:"complaint", topic, status, owner, openedAt });
+  extra.forEach(x => e.tl.push(x));
+  return e;
+}
+retype("6A0C4E34", "never_received", "2026-09-28", "in_progress", "Manager LY",
+  [{ k:"status", d:"2026-09-28", s:"in_progress", a:"Manager LY" }, { k:"assigned", d:"2026-09-28", o:"Manager LY", a:"Manager LY" }]);
+retype("6A138314", "wrong_or_damaged", "2026-09-21", "resolved", "Manager LY",
+  [{ k:"assigned", d:"2026-09-21", o:"Manager LY", a:"Manager LY" }, { k:"status", d:"2026-09-22", s:"in_progress", a:"Manager LY" },
+   { k:"status", d:"2026-09-23", s:"resolved", a:"Manager LY", note:"اتصلنا بالعميل وعرضنا استبدالها بالحجم المتوسط، فضّل الانتظار. أُغلقت." }]);
+E.find(x => x.id === "6A138314").resolution = "اتصلنا بالعميل وعرضنا استبدالها بالحجم المتوسط، فضّل الانتظار. أُغلقت.";
+function agentComplaint(ref, p, agent, date, topic, note, status, owner, extra){
+  const e = { id:ref, ref, p, agent, note, date, type:"complaint", topic, sug:null, src:"agent", review:false, ignored:false,
+    status, owner, openedAt:date, resolution:"", cust:fakeCustomer(ref, note), tl:[{ k:"created", d:date, a:agent }] };
+  (extra || []).forEach(x => { e.tl.push(x); if (x.note) e.resolution = x.note; });
+  E.push(e);
+}
+agentComplaint("6A123B44", "BX", "tasnim", "2026-09-26", "never_received", "حاجزه وموصلتهاش الاوله", "open", "");
+agentComplaint("6A408D8B", "D", "roqaya", "2026-09-29", "too_many_calls", "الغاء الطلب ومعاش تضربو عليا مرة تانيه", "open", "");
+agentComplaint("6A1786C2", "BM", "roqaya", "2026-09-20", "never_received", "عطلة في الطلب والزيون غير رايه", "resolved", "Super Admin",
+  [{ k:"assigned", d:"2026-09-21", o:"Super Admin", a:"Super Admin" }, { k:"status", d:"2026-09-21", s:"in_progress", a:"Super Admin" },
+   { k:"status", d:"2026-09-22", s:"resolved", a:"Super Admin", note:"تأخر الشحن من المخزن. اعتذرنا للعميل، لا يريد إعادة الطلب." }]);
+const OWNERS = ["", "Manager LY", "Super Admin", "tasnim", "roqaya", "salima"];
+
+/* windows (Tripoli days) */
+const PER = {
+  y:{ from:"2026-09-29", to:"2026-09-29", prev:["2026-09-28","2026-09-28"] },
+  d7:{ from:"2026-09-24", to:TODAY, prev:["2026-09-17","2026-09-23"] },
+  d12:{ from:"2026-09-19", to:TODAY, prev:["2026-09-07","2026-09-18"] },
+  d30:{ from:"2026-09-01", to:TODAY, prev:["2026-08-02","2026-08-31"] },
+  custom:{ from:"2026-05-21", to:TODAY, prev:null },
+};
+
+/* ═══════════════ i18n ═══════════════ */
+const L = {
+  fr:{
+    title:"Voix du client", subtitle:"Ce que les clients disent aux agents, lié au produit et au client",
+    export:"Exporter CSV", periodLabel:"Période",
+    periods:{ y:"Hier", d7:"7 jours", d12:"12 jours", d30:"30 jours", custom:"Personnalisé" },
+    ranges:{ y:"mar. 29 sept.", d7:"du 24 au 30 sept.", d12:"du 19 au 30 sept.", d30:"du 1ᵉʳ au 30 sept.", custom:"fenêtre de l'import" },
+    tabs:{ overview:"Aperçu", complaints:"Réclamations", register:"Registre", review:"À vérifier" },
+    types:{ complaint:"Réclamation", product:"Produit", price:"Prix & offre", payment:"Paiement", delivery:"Livraison", request:"Demande", praise:"Éloge" },
+    st:{ open:"Ouverte", in_progress:"En cours", resolved:"Résolue" },
+    k1:"Retours clients", kNew:"nouveau", k1s:"pas encore de comparaison", k1p:"+ {n} à vérifier, pas encore comptés", k2:"Réclamations ouvertes", k2s:"la plus ancienne : {d}", k2none:"aucune en attente",
+    k3:"Captés pour 100 appels", k3s:"{e} retours · {c} appels", k4:"Produit le plus cité", k4s:"{r} pour 100 commandes · {n} retours", k4none:"—",
+    sayT:"Ce que disent les clients", sayH:"par type · cliquer pour ouvrir le registre", noTopic:"rien sur la période",
+    reqNote:"Demande et Éloge viendront de la saisie F : l'import ne lit que des refus.",
+    risT:"Sujets en hausse", risH:"comparé à la période précédente de même durée", risNew:"nouveau", risNone:"Aucun sujet sur la période.",
+    gridT:"Produits × sujets", gridCap:"pour 100 commandes du produit sur la période", total:"Total", orders:"{n} commandes", noOrd:"aucune commande sur la période",
+    rawNote:"En italique : nombre brut, le produit n'a eu aucune commande sur la période (réclamations sur d'anciennes commandes).",
+    refT:"Pourquoi ils refusent", refH:"motifs de rejet saisis au moment de l'appel — lus dans orders, pas des retours",
+    refWarn:"<b>{p} des refus de la période classés « Autre »</b> ({a} sur {t}). Sur l'historique, 47 % des notes « Autre » correspondaient pourtant à un motif existant (« لم أطلب », numéro invalide, doublon…).",
+    refN:"{n} refus", otherR:"autres motifs", noDetail:"(sans détail)", refNone:"Aucun refus sur la période.",
+    capT:"Captation par agent", capH:"appels = commandes distinctes traitées sur la période",
+    cAgent:"Agent", cCalls:"Appels", cEntries:"Retours", cRate:"Pour 100 appels", coach:"aucun retour saisi — à coacher",
+    inactive:"Sans activité sur la période : {l}", adminRow:"Hors agents : Super Admin, {n} retour(s)",
+    vwT:"Paroles de clients", vwH:"les plus récentes de la période", all:"Tous", vwNone:"Aucune parole pour ce filtre.",
+    heard:"par {a}",
+    cAll:"Toutes", cAge:"Âge", cStatus:"Statut", cTopic:"Sujet", cCust:"Client", cProd:"Produit", cSaid:"Ce que le client a dit", cOwner:"Responsable",
+    unassigned:"Non assignée", days:"{n} j", cNone:"Aucune réclamation pour ce filtre.",
+    searchPh:"Rechercher dans ce que les clients ont dit…", allProducts:"Tous les produits", allAgents:"Tous les agents",
+    allStatus:"Tous les statuts", noStatus:"Sans statut (hors réclamations)", toReviewOpt:"À vérifier",
+    cDate:"Date", cType:"Type", cAgentCol:"Agent", regFoot:"{n} retours · page {p}/{t}", regEmpty:"Aucun retour ne correspond.",
+    hint:"naviguer · <kbd>Entrée</kbd> ouvrir · <kbd>/</kbd> rechercher · <kbd>F</kbd> nouveau retour",
+    toReview:"à vérifier", fPeriod:"Période : {p}", fTopic:"Sujet : {t}", fClear:"retirer le filtre",
+    rvTitle:"148 notes importées depuis les refus « Autre »",
+    rvBody:"Du 21 mai au 30 sept. Le type est suggéré à partir des mots-clés — confirmez ou changez-le. Les 546 autres notes « Autre » n'ont pas été importées : ce sont des refus déjà couverts par un motif (« لم أطلب », numéro invalide, doublon…), des « الغي الطلب » sans raison, ou des notes inclassables.",
+    rvSim:"Dans ce prototype, les 110 plus récentes sont déjà confirmées ; il en reste {n}.",
+    sugg:"suggéré", confirm:"Confirmer", change:"Changer le type", ignore:"Ignorer", confirmAll:"Tout confirmer ({n})",
+    pickType:"Type", pickTopic:"Sujet", rvDone:"Tout est vérifié.", rvDoneS:"Les 148 notes importées sont confirmées ou ignorées.",
+    dSaid:"Ce que le client a dit", dCtx:"Liens", dOrder:"Commande", dCust:"Client", dProd:"Produit",
+    openOrder:"Ouvrir la commande", custHist:"Historique client", prodSheet:"Fiche produit",
+    dFollow:"Suivi de la réclamation", dStatus:"Statut", dOwner:"Responsable", dRes:"Note de résolution", dResPh:"Ce qui a été fait pour le client…",
+    dResReq:"Une note est obligatoire pour passer en Résolue.", dTT:"Type et sujet", dTL:"Historique", dClose:"Fermer",
+    srcImport:"importé d'un refus « Autre »", srcAgent:"saisi pendant l'appel (F)",
+    escHint:"<kbd>Échap</kbd> fermer",
+    tl:{ rejected:"Refus « Autre » noté par {a}", imported:"Importé · suggestion {t}", created:"Créé par {a} pendant l'appel",
+      confirmed:"Confirmé par {a}", retyped:"Retypé {t} par {a}", status:"{s} · par {a}", assigned:"Assignée à {o}", unassigned:"Désassignée", edited:"Type changé en {t} par {a}" },
+    tlImportWhen:"à l'import", tlSimWhen:"simulé",
+    toastConfirm:"Confirmé · compté dans l'Aperçu", toastIgnore:"Ignoré · retiré de l'import", toastAll:"{n} retours confirmés",
+    toastStatus:"Statut : {s}", toastOwner:"Responsable : {o}", toastType:"Type : {t}", toastExport:"CSV exporté · {n} lignes",
+    toastF:"F ouvre la fenêtre de saisie — voir voix-du-client-agent-v1.html", toastLink:"Ouvre {u}",
+    toastMarket:"Tunisie : aucune commande depuis le 7 juillet — rien à afficher", toastNav:"Hors du périmètre de ce prototype",
+    me:{ super_admin:["Super Admin","Super admin"], manager:["Manager LY","Responsable marché · Libye"] },
+    market:"Libye", marketSub:"marché",
+    nav:{ accueil:"Accueil", commandes:"Commandes", logistique:"Entrepôt", livraison:"Livraison", finances:"Finances", clients:"Clients", equipe:"Équipe", systeme:"Système",
+      pulse:"Dashboard", orders:"Commandes", archived:"Archivées", duplicates:"Doublons", bench:"Banc", returns:"Retours", warehouseStock:"Stock",
+      deliveryWorklist:"Suivi livraison", carrierTracking:"Suivi transporteur", inDeliveryBoard:"Tableau livraison",
+      pnl:"P&L global", productsMargins:"Produits & marges", stockInventory:"Stock & inventaire", adSpend:"Dépenses pub", investors:"Investisseurs",
+      activeProspects:"Prospects", messages:"Messages", customerVoice:"Voix du client",
+      controlRoom:"Salle de contrôle", performanceLive:"Performance", access:"Accès",
+      marketsConfig:"Marchés", connexions:"Connexions", generalSettings:"Paramètres", logs:"Journaux" },
+    newTag:"nouveau",
+  },
+  ar:{
+    title:"صوت العميل", subtitle:"ما يقوله العملاء للموظفين، مرتبطاً بالمنتج والعميل",
+    export:"تصدير CSV", periodLabel:"الفترة",
+    periods:{ y:"أمس", d7:"7 أيام", d12:"12 يوماً", d30:"30 يوماً", custom:"مخصص" },
+    ranges:{ y:"الثلاثاء 29 سبتمبر", d7:"من 24 إلى 30 سبتمبر", d12:"من 19 إلى 30 سبتمبر", d30:"من 1 إلى 30 سبتمبر", custom:"فترة الاستيراد" },
+    tabs:{ overview:"نظرة عامة", complaints:"الشكاوى", register:"السجل", review:"للمراجعة" },
+    types:{ complaint:"شكوى", product:"المنتج", price:"السعر والعرض", payment:"الدفع", delivery:"التوصيل", request:"طلب", praise:"إشادة" },
+    st:{ open:"مفتوحة", in_progress:"قيد المعالجة", resolved:"تمت المعالجة" },
+    k1:"ملاحظات العملاء", kNew:"جديد", k1s:"لا مقارنة بعد", k1p:"+ {n} للمراجعة، غير محتسبة بعد", k2:"شكاوى مفتوحة", k2s:"الأقدم: {d}", k2none:"لا شيء ينتظر",
+    k3:"ملاحظات لكل 100 مكالمة", k3s:"{e} ملاحظة · {c} مكالمة", k4:"المنتج الأكثر ذكراً", k4s:"{r} لكل 100 طلب · {n} ملاحظة", k4none:"—",
+    sayT:"ماذا يقول العملاء", sayH:"حسب النوع · اضغط لفتح السجل", noTopic:"لا شيء في الفترة",
+    reqNote:"الطلب والإشادة سيأتيان من التسجيل بزر F: الاستيراد يقرأ حالات الرفض فقط.",
+    risT:"مواضيع في ازدياد", risH:"مقارنة بالفترة السابقة بنفس المدة", risNew:"جديد", risNone:"لا توجد مواضيع في الفترة.",
+    gridT:"المنتجات × المواضيع", gridCap:"لكل 100 طلب للمنتج خلال الفترة", total:"المجموع", orders:"{n} طلب", noOrd:"لا طلبات في الفترة",
+    rawNote:"بالخط المائل: العدد الخام، لم يكن للمنتج أي طلب في الفترة (شكاوى عن طلبات قديمة).",
+    refT:"لماذا يرفضون", refH:"أسباب الرفض المسجلة عند المكالمة — من جدول الطلبات، ليست ملاحظات",
+    refWarn:"<b>{p} من حالات الرفض في الفترة مصنفة «أخرى»</b> ({a} من {t}). في السجل الكامل، 47٪ من ملاحظات «أخرى» كان لها سبب موجود أصلاً («لم أطلب»، رقم خاطئ، طلب مكرر…).",
+    refN:"{n} رفض", otherR:"أسباب أخرى", noDetail:"(بدون تفاصيل)", refNone:"لا يوجد رفض في الفترة.",
+    capT:"التسجيل حسب الموظف", capH:"المكالمات = الطلبات المختلفة التي عولجت في الفترة",
+    cAgent:"الموظف", cCalls:"المكالمات", cEntries:"الملاحظات", cRate:"لكل 100 مكالمة", coach:"لم تسجّل أي ملاحظة — تحتاج متابعة",
+    inactive:"بدون نشاط في الفترة: {l}", adminRow:"خارج الموظفين: Super Admin، {n} ملاحظة",
+    vwT:"كلام العملاء", vwH:"الأحدث في الفترة", all:"الكل", vwNone:"لا يوجد كلام لهذا الفلتر.",
+    heard:"سجّلها {a}",
+    cAll:"الكل", cAge:"العمر", cStatus:"الحالة", cTopic:"الموضوع", cCust:"العميل", cProd:"المنتج", cSaid:"ما قاله العميل", cOwner:"المسؤول",
+    unassigned:"غير مسندة", days:"{n} ي", cNone:"لا توجد شكاوى لهذا الفلتر.",
+    searchPh:"ابحث في ما قاله العملاء…", allProducts:"كل المنتجات", allAgents:"كل الموظفين",
+    allStatus:"كل الحالات", noStatus:"بدون حالة (ليست شكاوى)", toReviewOpt:"للمراجعة",
+    cDate:"التاريخ", cType:"النوع", cAgentCol:"الموظف", regFoot:"{n} ملاحظة · صفحة {p}/{t}", regEmpty:"لا توجد ملاحظات مطابقة.",
+    hint:"للتنقل · <kbd>Enter</kbd> للفتح · <kbd>/</kbd> للبحث · <kbd>F</kbd> ملاحظة جديدة",
+    toReview:"للمراجعة", fPeriod:"الفترة: {p}", fTopic:"الموضوع: {t}", fClear:"إزالة الفلتر",
+    rvTitle:"148 ملاحظة مستوردة من حالات الرفض «أخرى»",
+    rvBody:"من 21 مايو إلى 30 سبتمبر. النوع مقترح من الكلمات المفتاحية — أكّده أو غيّره. لم تُستورد ملاحظات «أخرى» الـ546 الباقية: هي حالات رفض لها سبب موجود أصلاً («لم أطلب»، رقم خاطئ، طلب مكرر…)، أو «الغي الطلب» بدون سبب، أو ملاحظات غير قابلة للتصنيف.",
+    rvSim:"في هذا النموذج، الـ110 الأحدث مؤكدة مسبقاً؛ بقي {n}.",
+    sugg:"مقترح", confirm:"تأكيد", change:"تغيير النوع", ignore:"تجاهل", confirmAll:"تأكيد الكل ({n})",
+    pickType:"النوع", pickTopic:"الموضوع", rvDone:"تمت مراجعة كل شيء.", rvDoneS:"الملاحظات المستوردة الـ148 مؤكدة أو متجاهلة.",
+    dSaid:"ما قاله العميل", dCtx:"روابط", dOrder:"الطلب", dCust:"العميل", dProd:"المنتج",
+    openOrder:"فتح الطلب", custHist:"سجل العميل", prodSheet:"صفحة المنتج",
+    dFollow:"متابعة الشكوى", dStatus:"الحالة", dOwner:"المسؤول", dRes:"ملاحظة المعالجة", dResPh:"ما الذي تم للعميل…",
+    dResReq:"الملاحظة إلزامية لإغلاق الشكوى.", dTT:"النوع والموضوع", dTL:"السجل", dClose:"إغلاق",
+    srcImport:"مستورد من رفض «أخرى»", srcAgent:"سُجّل أثناء المكالمة (F)",
+    escHint:"<kbd>Esc</kbd> إغلاق",
+    tl:{ rejected:"رفض «أخرى» سجّله {a}", imported:"استيراد · الاقتراح {t}", created:"أنشأه {a} أثناء المكالمة",
+      confirmed:"أكّده {a}", retyped:"أعاد {a} تصنيفه: {t}", status:"{s} · بواسطة {a}", assigned:"أُسندت إلى {o}", unassigned:"أُلغي الإسناد", edited:"غيّر {a} النوع إلى {t}" },
+    tlImportWhen:"عند الاستيراد", tlSimWhen:"محاكاة",
+    toastConfirm:"تم التأكيد · تُحتسب في النظرة العامة", toastIgnore:"تم التجاهل · حُذفت من الاستيراد", toastAll:"تم تأكيد {n} ملاحظة",
+    toastStatus:"الحالة: {s}", toastOwner:"المسؤول: {o}", toastType:"النوع: {t}", toastExport:"تم تصدير CSV · {n} سطر",
+    toastF:"زر F يفتح نافذة التسجيل — انظر voix-du-client-agent-v1.html", toastLink:"يفتح {u}",
+    toastMarket:"تونس: لا طلبات منذ 7 يوليو — لا شيء للعرض", toastNav:"خارج نطاق هذا النموذج",
+    me:{ super_admin:["Super Admin","مدير عام"], manager:["Manager LY","مدير السوق · ليبيا"] },
+    market:"ليبيا", marketSub:"السوق",
+    nav:{ accueil:"الرئيسية", commandes:"الطلبات", logistique:"المستودع", livraison:"التوصيل", finances:"المالية", clients:"العملاء", equipe:"الفريق", systeme:"النظام",
+      pulse:"لوحة القيادة", orders:"الطلبات", archived:"المؤرشفة", duplicates:"المكررة", bench:"المكتب", returns:"المرتجعات", warehouseStock:"المخزون",
+      deliveryWorklist:"متابعة التوصيل", carrierTracking:"تتبع الناقل", inDeliveryBoard:"لوحة التسليم",
+      pnl:"الأرباح والخسائر", productsMargins:"المنتجات والهوامش", stockInventory:"المخزون والجرد", adSpend:"مصاريف الإعلانات", investors:"المستثمرون",
+      activeProspects:"العملاء المحتملون", messages:"الرسائل", customerVoice:"صوت العميل",
+      controlRoom:"غرفة التحكم", performanceLive:"أداء الفريق", access:"الوصول",
+      marketsConfig:"الأسواق", connexions:"الاتصالات", generalSettings:"الإعدادات", logs:"السجلات" },
+    newTag:"جديد",
+  },
+};
+
+/* Sidebar.tsx NAV_SECTIONS (+ the new clients item) */
+const NAV = [
+  { id:"accueil", open:true, items:["pulse"] },
+  { id:"commandes", items:["orders","archived","duplicates"] },
+  { id:"logistique", items:["bench","returns","warehouseStock"] },
+  { id:"livraison", items:["deliveryWorklist","carrierTracking","inDeliveryBoard"] },
+  { id:"finances", open:true, sa:true, items:["pnl","productsMargins","stockInventory","adSpend","investors"] },
+  { id:"clients", open:true, items:["activeProspects","messages","customerVoice"] },
+  { id:"equipe", open:true, items:["controlRoom","performanceLive","access"] },
+  { id:"systeme", items:["marketsConfig","connexions","generalSettings","logs"], saItems:["marketsConfig","logs"] },
+];
+
+/* ═══════════════ state + helpers ═══════════════ */
+const S = { lang:"ar", role:"super_admin", tab:"overview", period:"d12", drawer:null, vf:"all", cf:"all", repick:null, res:{}, resErr:false,
+  navOpen:new Set(NAV.filter(s => s.open).map(s => s.id)),
+  reg:{ q:"", type:"all", product:"all", agent:"all", status:"all", topic:null, period:null, page:1, fi:0 } };
+const T = () => L[S.lang];
+const loc = () => S.lang === "fr" ? "fr-FR" : "ar-LY";
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+function tr(s, v){ return s.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? ""); }
+function fmt(x, d = 0){ return Number(x).toLocaleString(loc(), { minimumFractionDigits:d, maximumFractionDigits:d }); }
+function N(x, d = 0){ return `<span class="num">${fmt(x, d)}</span>`; }
+function pct(x){ return `<span class="num">${fmt(Math.round(x))}${S.lang === "fr" ? " %" : "٪"}</span>`; }
+function dayDiff(a, b){ return Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 86400000); }
+function fmtDate(iso){ return new Intl.DateTimeFormat(loc(), { day:"numeric", month:"short", timeZone:"UTC" }).format(new Date(iso + "T12:00:00Z")); }
+function rel(iso){
+  const n = dayDiff(iso, TODAY), ar = S.lang === "ar";
+  if (n <= 0) return ar ? "اليوم" : "aujourd'hui";
+  if (n === 1) return ar ? "أمس" : "hier";
+  if (n <= 30){ if (!ar) return `il y a ${n} j`; if (n === 2) return "منذ يومين"; return n <= 10 ? `منذ ${n} أيام` : `منذ ${n} يوماً`; }
+  return fmtDate(iso);
+}
+function typeLabel(t){ return T().types[t]; }
+function topicLabel(type, key){ const x = (TOPICS[type] || []).find(r => r[0] === key); return x ? (S.lang === "fr" ? x[1] : x[2]) : "—"; }
+function tag(t, sm){ return `<span class="tg${sm ? " sm" : ""}" data-t="${t}">${typeLabel(t)}</span>`; }
+function spill(s){ return `<span class="sp" data-s="${s}">${T().st[s]}</span>`; }
+function initial(n){ return n ? n.trim()[0] : "?"; }
+function ownerName(o){ return o || T().unassigned; }
+const IC = {
+  chev:'<svg class="ic flip" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
+  arrow:'<svg class="ic flip" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back:'<svg class="ic flip" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  search:'<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  x:'<svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  xs:'<svg class="ic" style="width:12px;height:12px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  book:'<svg class="ic" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z"/></svg>',
+  bag:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 2v3"/><rect x="7" y="5" width="10" height="16" rx="4"/><path d="M7 10h10"/></svg>',
+  warn:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>',
+};
+function thumb(p, sm){ return `<span class="thumb${sm ? " sm" : ""}">${IC[PROD[p].k]}</span>`; }
+function hex(h){ return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function mix(a, b, t){ const A = hex(a), B = hex(b); return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join(""); }
+
+/* data views */
+const live = e => !e.ignored;
+const confirmed = e => live(e) && !e.review;
+function inWin(e, from, to){ return e.date >= from && e.date <= to; }
+function periodEntries(){ const p = PER[S.period]; return E.filter(e => confirmed(e) && inWin(e, p.from, p.to)); }
+function complaints(){ return E.filter(e => confirmed(e) && e.type === "complaint"); }
+/* retype: a complaint gets a lifecycle, any other type loses it */
+function setType(e, ty, who){
+  if (e.type === ty) return false;
+  const was = e.type; e.type = ty; e.topic = TOPICS[ty][0][0];
+  if (ty === "complaint" && was !== "complaint"){ e.status = "open"; e.openedAt = TODAY; e.owner = ""; }
+  if (ty !== "complaint"){ e.status = null; }
+  e.tl.push({ k:"edited", d:TODAY, a:who, t:[e.type, e.topic] });
+  return true;
+}
+function pending(){ return E.filter(e => live(e) && e.review); }
+function countBy(arr, f){ const m = {}; arr.forEach(x => { const k = f(x); m[k] = (m[k] || 0) + 1; }); return m; }
+function days(from, to){ const out = []; for (let d = new Date(from + "T12:00:00Z"); d <= new Date(to + "T12:00:00Z"); d = new Date(d.getTime() + 86400000)) out.push(d.toISOString().slice(0, 10)); return out; }
+
+/* ═══════════════ sidebar ═══════════════ */
+function renderSidebar(){
+  const t = T(), sa = S.role === "super_admin";
+  const secs = NAV.filter(s => !s.sa || sa).map(s => {
+    const items = s.items.filter(k => sa || !(s.saItems || []).includes(k));
+    const open = S.navOpen.has(s.id);
+    return `<button class="sec ${open ? "open" : ""}" data-act="sec" data-v="${s.id}" aria-expanded="${open}"><span>${t.nav[s.id]}</span>${IC.chev}</button>
+      ${open ? items.map(k => `<a class="it ${k === "customerVoice" ? "on" : ""}" data-act="nav" ${k === "customerVoice" ? 'aria-current="page"' : ""}>${t.nav[k]}${k === "customerVoice" ? `<span class="new">${t.newTag}</span>` : ""}</a>`).join("") : ""}`;
+  }).join("");
+  const me = t.me[S.role];
+  $("#sb").innerHTML = `<div class="brand"><i>O</i>Ordra</div>
+    ${sa ? `<button class="mk" data-act="market"><span style="color:inherit;font-weight:600;font-size:12.5px">${t.market}</span><span>${t.marketSub} ▾</span></button>`
+         : `<div class="mk static"><span style="color:inherit;font-weight:600;font-size:12.5px">${t.market}</span><span>${t.marketSub}</span></div>`}
+    ${secs}<div class="grow"></div>
+    <div class="me"><span class="av sm">${initial(me[0])}</span><div><b>${me[0]}</b><span>${me[1]}</span></div></div>`;
+}
+
+/* ═══════════════ page ═══════════════ */
+function renderPage(){
+  const t = T();
+  const nOpen = complaints().filter(e => e.status !== "resolved").length;
+  const late = complaints().some(e => e.status !== "resolved" && dayDiff(e.openedAt, TODAY) > 3);
+  const nPend = pending().length, nAll = E.filter(live).length;
+  const perCtl = S.tab === "overview" ? `
+      <span class="per" role="group" aria-label="${t.periodLabel}">${Object.keys(PER).map(k => `<button data-act="period" data-v="${k}" aria-pressed="${S.period === k}">${t.periods[k]}</button>`).join("")}</span>` : "";
+  const range = S.tab === "overview" ? (S.period === "custom"
+      ? `<span class="range"><input type="date" value="2026-05-21" readonly aria-label="from">${IC.arrow}<input type="date" value="2026-09-30" readonly aria-label="to"></span>`
+      : `<span class="range">${t.ranges[S.period]}</span>`) : "";
+  const tabs = [["overview", null], ["complaints", nOpen, late ? "crit" : ""], ["register", nAll, ""], ["review", nPend, "warn"]];
+  let body = "";
+  if (S.tab === "overview") body = overview();
+  else if (S.tab === "complaints") body = complaintsTab();
+  else if (S.tab === "register") body = registerTab();
+  else body = reviewTab();
+  $("#page").innerHTML = `
+    <div class="ph">
+      <div><h2>${t.title}</h2><p>${t.subtitle}</p></div>
+      <div class="acts">${range}${perCtl}<button class="btn" data-act="export">${IC.down}${t.export}</button></div>
+    </div>
+    <div class="tabs" role="tablist">${tabs.map(([k, n, cls]) => `<button role="tab" data-act="tab" data-v="${k}" aria-selected="${S.tab === k}">${t.tabs[k]}${n != null && n > 0 ? `<span class="cnt ${cls}">${fmt(n)}</span>` : ""}</button>`).join("")}</div>
+    ${body}`;
+  if (S.tab === "register") { renderRegChips(); renderRegTable(); }
+}
+
+/* ── Aperçu ── */
+function overview(){
+  const t = T(), pe = periodEntries(), per = S.period;
+  /* KPIs */
+  const open = complaints().filter(e => e.status !== "resolved");
+  const pendIn = pending().filter(e => inWin(e, PER[per].from, PER[per].to)).length;
+  const oldest = open.length ? Math.max(...open.map(e => dayDiff(e.openedAt, TODAY))) : null;
+  const agentEntries = pe.filter(e => AGENTS.includes(e.agent)).length;
+  const calls = AGENTS.reduce((s, a) => s + CALLS[a][per], 0);
+  const byP = countBy(pe, e => e.p);
+  const ranked = Object.keys(PROD).filter(p => ORDERS[p][per] > 0 && byP[p]).map(p => ({ p, n:byP[p], r:byP[p] / ORDERS[p][per] * 100 })).sort((a, b) => b.r - a.r || b.n - a.n);
+  const top = ranked[0];
+  const kpis = `<div class="g k4">
+    <div class="card kpi"><div class="l">${t.k1}</div><div class="v">${N(pe.length)}</div><div class="s"><span class="newp">${t.kNew}</span>${pendIn ? tr(t.k1p, { n:N(pendIn) }) : t.k1s}</div></div>
+    <div class="card kpi"><div class="l">${t.k2}</div><div class="v">${N(open.length)}</div><div class="s ${oldest > 3 ? "crit" : ""}">${oldest != null ? tr(t.k2s, { d:N(oldest) + (S.lang === "fr" ? " j" : " ي") }) : t.k2none}</div></div>
+    <div class="card kpi"><div class="l">${t.k3}</div><div class="v">${calls ? N(agentEntries / calls * 100, 1) : "—"}</div><div class="s">${tr(t.k3s, { e:N(agentEntries), c:N(calls) })}</div></div>
+    <div class="card kpi"><div class="l">${t.k4}</div>${top ? `<div class="v name" dir="auto" title="${esc(PROD[top.p].n)}">${PROD[top.p].n}</div><div class="s">${tr(t.k4s, { r:N(top.r, 1), n:N(top.n) })}</div>` : `<div class="v">${t.k4none}</div>`}</div>
+  </div>`;
+
+  /* what customers say — by type */
+  const total = pe.length || 1, maxT = Math.max(1, ...TYPES.map(ty => pe.filter(e => e.type === ty).length));
+  const bars = TYPES.map(ty => {
+    const rows = pe.filter(e => e.type === ty), c = rows.length;
+    const tops = Object.entries(countBy(rows, e => e.topic)).sort((a, b) => b[1] - a[1]).slice(0, 2);
+    return `<button class="tb" data-act="gotype" data-t="${ty}" ${c ? "" : "disabled"}>
+      <span>${tag(ty)}</span>
+      <span class="track"><i style="width:${c / maxT * 100}%;background:${TC[ty].dot}"></i></span>
+      <span class="n">${c ? `<b>${N(c)}</b><span class="pc">${pct(c / total * 100)}</span>` : `<span class="muted">${N(0)}</span>`}</span>
+      <span class="tops ${c ? "" : "none"}">${c ? tops.map(([k, n]) => `${topicLabel(ty, k)} ${N(n)}`).join(" · ") : t.noTopic}</span>
+    </button>`;
+  }).join("");
+  const say = `<div class="card"><div class="chead"><h3>${t.sayT}</h3><span>${t.sayH}</span></div>${bars}
+    <div class="cfoot">${t.reqNote}</div></div>`;
+
+  /* rising topics */
+  const win = PER[per];
+  const prevRows = win.prev ? E.filter(e => confirmed(e) && inWin(e, win.prev[0], win.prev[1])) : [];
+  const cur = countBy(pe, e => e.type + "|" + e.topic), prv = countBy(prevRows, e => e.type + "|" + e.topic);
+  const rising = Object.keys(cur).map(k => ({ k, c:cur[k], d:win.prev ? cur[k] - (prv[k] || 0) : null, isNew:win.prev && !prv[k] }))
+    .sort((a, b) => (b.d ?? 0) - (a.d ?? 0) || b.c - a.c).slice(0, 5);
+  const sDays = per === "custom" ? null : days(per === "y" ? "2026-09-23" : win.from, win.to);
+  const rows = rising.map(r => {
+    const [ty, tp] = r.k.split("|");
+    let series;
+    if (sDays) series = sDays.map(d => pe.concat(per === "y" ? E.filter(e => confirmed(e) && inWin(e, "2026-09-23", "2026-09-28")) : []).filter(e => e.date === d && e.type === ty && e.topic === tp).length);
+    else { series = []; for (let w = new Date("2026-05-21T12:00:00Z"); w <= new Date(TODAY + "T12:00:00Z"); w = new Date(w.getTime() + 7 * 86400000)) { const a = w.toISOString().slice(0, 10), b = new Date(w.getTime() + 6 * 86400000).toISOString().slice(0, 10); series.push(pe.filter(e => e.date >= a && e.date <= b && e.type === ty && e.topic === tp).length); } }
+    const dl = r.d == null ? "" : r.isNew ? t.risNew : (r.d > 0 ? "▲ +" : r.d < 0 ? "▼ −" : "± ") + fmt(Math.abs(r.d));
+    return `<button class="rs" data-act="gotopic" data-t="${ty}" data-k="${tp}">
+      <span class="t"><b>${topicLabel(ty, tp)}</b><span><i style="background:${TC[ty].dot}"></i>${typeLabel(ty)}</span></span>
+      <span class="c">${N(r.c)}</span><span class="dl num ${r.d > 0 ? "up" : ""}">${dl}</span>${spark(series, TC[ty].dot)}</button>`;
+  }).join("");
+  const ris = `<div class="card"><div class="chead"><h3>${t.risT}</h3><span>${win.prev ? t.risH : ""}</span></div>${rows || `<div class="empty">${t.risNone}</div>`}</div>`;
+
+  /* product × type grid */
+  const prods = Object.keys(PROD).filter(p => ORDERS[p][per] > 0 || byP[p]).sort((a, b) => ORDERS[b][per] - ORDERS[a][per] || (byP[b] || 0) - (byP[a] || 0));
+  const val = (p, ty) => { const c = pe.filter(e => e.p === p && e.type === ty).length; const o = ORDERS[p][per]; return { c, r: o ? c / o * 100 : null }; };
+  const colMax = {}; TYPES.forEach(ty => colMax[ty] = Math.max(0, ...prods.map(p => val(p, ty).r || 0)));
+  let anyRaw = false;
+  const grows = prods.map(p => {
+    const o = ORDERS[p][per];
+    const cells = TYPES.map(ty => {
+      const v = val(p, ty);
+      if (!v.c) return `<td><span class="cell zero">·</span></td>`;
+      if (v.r == null){ anyRaw = true; return `<td><button class="cell raw" data-act="gocell" data-t="${ty}" data-p="${p}">(${N(v.c)})</button></td>`; }
+      const lv = colMax[ty] ? v.r / colMax[ty] : 0, c = TC[ty];
+      const bg = lv <= .5 ? mix("#FFFFFF", c.bg, .35 + lv * 1.3) : mix(c.bg, c.dot, (lv - .5) * .7);
+      return `<td><button class="cell" data-act="gocell" data-t="${ty}" data-p="${p}" style="background:${bg};color:${lv > .5 ? c.ink : "var(--ink-1)"}" title="${fmt(v.c)} / ${fmt(o)}">${N(v.r, 1)}</button></td>`;
+    }).join("");
+    const tc = byP[p] || 0;
+    return `<tr><td><div class="prod">${thumb(p)}<div class="nm"><b dir="auto" title="${esc(PROD[p].n)}">${PROD[p].n}</b><span>${o ? tr(t.orders, { n:N(o) }) : t.noOrd}</span></div></div></td>${cells}
+      <td><span class="cell tot">${o ? N(tc / o * 100, 1) : tc ? `<span class="muted">(${N(tc)})</span>` : "·"}</span></td></tr>`;
+  }).join("");
+  const grid = `<div class="card g1" style="margin-bottom:14px"><div class="chead"><h3>${t.gridT}</h3><span>${t.gridCap}</span></div>
+    <div style="overflow-x:auto"><table class="pg"><thead><tr><th></th>${TYPES.map(ty => `<th>${tag(ty, true)}</th>`).join("")}<th>${t.total}</th></tr></thead><tbody>${grows}</tbody></table></div>
+    ${anyRaw ? `<div class="cfoot">${t.rawNote}</div>` : ""}</div>`;
+
+  /* why they refuse (rejection reasons, read from orders) */
+  const rj = REJ.filter(r => r[per] > 0);
+  const rjTot = rj.reduce((s, r) => s + r[per], 0), rjAutre = rj.filter(r => r.k === "autre:none").reduce((s, r) => s + r[per], 0);
+  const byProd = {}; rj.forEach(r => { (byProd[r.p] ||= []).push(r); });
+  const refRows = Object.entries(byProd).map(([p, list]) => ({ p, list, tot:list.reduce((s, r) => s + r[per], 0) })).sort((a, b) => b.tot - a.tot).map(({ p, list, tot }) => {
+    const autre = list.filter(r => r.k === "autre:none").reduce((s, r) => s + r[per], 0);
+    const spec = list.filter(r => r.k !== "autre:none").sort((a, b) => b[per] - a[per]);
+    const top3 = spec.slice(0, 3), rest = spec.slice(3).reduce((s, r) => s + r[per], 0);
+    const seen = {};
+    const segs = top3.map(r => {
+      const g = r.k.includes(":none") ? r.k.split(":")[0] : RR[r.k][0];
+      seen[g] = (seen[g] || 0) + 1;
+      const hue = RG[g][2], op = [1, .62, .38][seen[g] - 1] ?? .3;
+      const lbl = r.k.includes(":none") ? `${RG[g][S.lang === "fr" ? 0 : 1]} ${t.noDetail}` : RR[r.k][S.lang === "fr" ? 1 : 2];
+      return { w:r[per], style:`background:${hue};opacity:${op}`, lbl, n:r[per], sw:`background:${hue};opacity:${op}` };
+    });
+    if (rest) segs.push({ w:rest, style:"background:#DADCE0", lbl:t.otherR, n:rest, sw:"background:#DADCE0" });
+    if (autre) segs.push({ w:autre, cls:"hatch", style:"", lbl:RG.autre[S.lang === "fr" ? 0 : 1], n:autre, sw:"", swc:"hatch" });
+    return `<div class="rf"><div class="hd">${thumb(p, true)}<b dir="auto">${PROD[p].n}</b><span>${tr(t.refN, { n:N(tot) })}</span></div>
+      <div class="stack">${segs.map(s => `<i class="${s.cls || ""}" style="flex:${s.w} 0 0;${s.style}" title="${esc(s.lbl)} · ${s.n}"></i>`).join("")}</div>
+      <div class="lg">${segs.map(s => `<span><i class="${s.swc || ""}" style="${s.sw}"></i>${s.lbl} ${N(s.n)}</span>`).join("")}</div></div>`;
+  }).join("");
+  const ref = `<div class="card"><div class="chead"><h3>${t.refT}</h3><span>${t.refH}</span></div>
+    ${rjTot ? `<div class="alert">${IC.warn}<span>${tr(t.refWarn, { p:pct(rjAutre / rjTot * 100), a:N(rjAutre), t:N(rjTot) })}</span></div>${refRows}` : `<div class="empty">${t.refNone}</div>`}</div>`;
+
+  /* capture per agent */
+  const entBy = countBy(pe, e => e.agent);
+  const act = AGENTS.filter(a => CALLS[a][per] > 0 || entBy[a]).map(a => ({ a, c:CALLS[a][per], e:entBy[a] || 0, r:CALLS[a][per] ? (entBy[a] || 0) / CALLS[a][per] * 100 : null })).sort((x, y) => (y.r ?? -1) - (x.r ?? -1) || y.c - x.c);
+  const maxR = Math.max(1, ...act.map(x => x.r || 0));
+  const idle = AGENTS.filter(a => !CALLS[a][per] && !entBy[a]);
+  const capRows = act.map(x => `<tr data-act="goagent" data-v="${x.a}">
+      <td><div class="who"><span class="av sm">${initial(x.a)}</span><div><b>${x.a}</b>${x.e === 0 && x.c >= 50 ? `<div><span class="coach">${t.coach}</span></div>` : ""}</div></div></td>
+      <td class="num">${N(x.c)}</td><td class="num"><b>${N(x.e)}</b></td><td class="num"><b>${x.r == null ? "—" : N(x.r, 1)}</b></td>
+      <td><div class="mbar"><i style="width:${x.r ? x.r / maxR * 100 : 0}%"></i></div></td></tr>`).join("");
+  const foot = [idle.length ? tr(t.inactive, { l:idle.join(", ") }) : "", entBy.admin ? tr(t.adminRow, { n:fmt(entBy.admin) }) : ""].filter(Boolean).join(" · ");
+  const cap = `<div class="card"><div class="chead"><h3>${t.capT}</h3><span>${t.capH}</span></div>
+    <table class="t cap"><thead><tr><th>${t.cAgent}</th><th class="num">${t.cCalls}</th><th class="num">${t.cEntries}</th><th class="num">${t.cRate}</th><th></th></tr></thead><tbody>${capRows}</tbody></table>
+    ${foot ? `<div class="cfoot">${foot}</div>` : ""}</div>`;
+
+  /* verbatim wall */
+  const byType = countBy(pe, e => e.type);
+  const vlist = pe.filter(e => S.vf === "all" || e.type === S.vf).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : a.ref < b.ref ? 1 : -1).slice(0, 9);
+  const vw = `<div class="card"><div class="chead"><h3>${t.vwT}</h3><span>${t.vwH}</span>
+      <div class="chips r"><button class="chip" data-act="vf" data-v="all" aria-pressed="${S.vf === "all"}">${t.all} ${N(pe.length)}</button>
+      ${TYPES.filter(ty => byType[ty]).map(ty => `<button class="chip" data-act="vf" data-v="${ty}" aria-pressed="${S.vf === ty}"><i class="d" style="background:${TC[ty].dot}"></i>${typeLabel(ty)} ${N(byType[ty])}</button>`).join("")}</div></div>
+    ${vlist.length ? `<div class="vw">${vlist.map(e => `<button class="vq" data-act="open" data-id="${e.id}">
+        <p class="qt q" dir="auto">${esc(e.note)}</p>
+        <div class="mt">${tag(e.type, true)}<span class="pn" dir="auto">${PROD[e.p].n}</span><span class="dot-sep">${tr(t.heard, { a:AGNAME[e.agent] })}</span><span class="dot-sep">${rel(e.date)}</span></div>
+      </button>`).join("")}</div>` : `<div class="empty">${t.vwNone}</div>`}</div>`;
+
+  return kpis + `<div class="g c2">${say}${ris}</div>` + grid + `<div class="g c2b">${ref}${cap}</div>` + vw;
+}
+
+function spark(series, color){
+  const w = 104, h = 28, pad = 3, n = series.length, mx = Math.max(1, ...series);
+  const xs = i => n > 1 ? pad + i * (w - 2 * pad) / (n - 1) : w / 2, ys = v => h - pad - v / mx * (h - 2 * pad);
+  const pts = series.map((v, i) => `${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#8C9196" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${xs(n - 1).toFixed(1)}" cy="${ys(series[n - 1]).toFixed(1)}" r="3" fill="${color}"/></svg>`;
+}
+
+/* ── Réclamations ── */
+function complaintsTab(){
+  const t = T(), all = complaints();
+  const c = countBy(all, e => e.status);
+  const rank = { open:0, in_progress:1, resolved:2 };
+  const list = all.filter(e => S.cf === "all" || e.status === S.cf).sort((a, b) => rank[a.status] - rank[b.status] || dayDiff(b.openedAt, a.openedAt));
+  const chips = `<div class="chips" style="margin-bottom:12px">
+    <button class="chip" data-act="cf" data-v="all" aria-pressed="${S.cf === "all"}">${t.cAll} ${N(all.length)}</button>
+    ${["open","in_progress","resolved"].map(s => `<button class="chip" data-act="cf" data-v="${s}" aria-pressed="${S.cf === s}">${t.st[s]} ${N(c[s] || 0)}</button>`).join("")}</div>`;
+  const rows = list.map(e => {
+    const age = dayDiff(e.openedAt, TODAY), done = e.status === "resolved";
+    return `<button class="wl-row" data-act="open" data-id="${e.id}">
+      <span class="age ${done ? "closed" : age > 3 ? "late" : ""}">${N(age)}<span style="font-size:12px;font-weight:500"> ${S.lang === "fr" ? "j" : "ي"}</span></span>
+      <span>${spill(e.status)}</span>
+      <span class="trunc" style="font-size:13px">${topicLabel("complaint", e.topic)}</span>
+      <span class="cust"><b dir="auto">${e.cust.name}</b><span class="num">${e.cust.phone}</span></span>
+      <span class="prod" style="gap:8px">${thumb(e.p, true)}<span class="trunc" dir="auto" style="font-size:13px">${PROD[e.p].n}</span></span>
+      <span class="trunc q" dir="auto" style="font-family:var(--f-ar);font-size:14px">${esc(e.note)}</span>
+      <span class="own ${e.owner ? "" : "none"}">${e.owner ? `<span class="av sm">${initial(e.owner)}</span>` : `<span class="av sm ghost">?</span>`}<span class="trunc">${ownerName(e.owner)}</span></span>
+    </button>`;
+  }).join("");
+  return chips + `<div class="card"><div class="wl-head"><span>${t.cAge}</span><span>${t.cStatus}</span><span>${t.cTopic}</span><span>${t.cCust}</span><span>${t.cProd}</span><span>${t.cSaid}</span><span>${t.cOwner}</span></div>
+    ${rows || `<div class="empty">${t.cNone}</div>`}</div>`;
+}
+
+/* ── Registre ── */
+const PAGE = 40;
+function regBase(){ /* every filter except the type chip */
+  const r = S.reg, q = r.q.trim().toLowerCase();
+  return E.filter(live).filter(e => {
+    if (r.product !== "all" && e.p !== r.product) return false;
+    if (r.agent !== "all" && e.agent !== r.agent) return false;
+    if (r.status === "none" && e.status) return false;
+    if (r.status === "review" && !e.review) return false;
+    if (["open","in_progress","resolved"].includes(r.status) && e.status !== r.status) return false;
+    if (r.topic && e.topic !== r.topic) return false;
+    if (r.period){ const p = PER[r.period]; if (!inWin(e, p.from, p.to) || e.review) return false; }
+    if (q && !(e.note.toLowerCase().includes(q) || e.ref.toLowerCase().includes(q) || e.cust.name.includes(q) || e.cust.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")) || PROD[e.p].n.includes(q) || topicLabel(e.type, e.topic).toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+function regRows(){ return regBase().filter(e => S.reg.type === "all" || e.type === S.reg.type).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : a.ref < b.ref ? 1 : -1); }
+function registerTab(){
+  const t = T(), r = S.reg;
+  const agents = [...AGENTS, "admin"];
+  return `<div class="card">
+    <div class="toolbar">
+      <div class="tl1">
+        <label class="search">${IC.search}<input id="regQ" type="search" placeholder="${t.searchPh}" value="${esc(r.q)}" autocomplete="off"><kbd>/</kbd></label>
+        <select class="sel" data-f="product" aria-label="${t.cProd}"><option value="all">${t.allProducts}</option>${Object.keys(PROD).map(p => `<option value="${p}" ${r.product === p ? "selected" : ""}>${PROD[p].n}</option>`).join("")}</select>
+        <select class="sel" data-f="agent" aria-label="${t.cAgentCol}"><option value="all">${t.allAgents}</option>${agents.map(a => `<option value="${a}" ${r.agent === a ? "selected" : ""}>${AGNAME[a]}</option>`).join("")}</select>
+        <select class="sel" data-f="status" aria-label="${t.cStatus}"><option value="all">${t.allStatus}</option>${["open","in_progress","resolved"].map(s => `<option value="${s}" ${r.status === s ? "selected" : ""}>${t.st[s]}</option>`).join("")}<option value="none" ${r.status === "none" ? "selected" : ""}>${t.noStatus}</option><option value="review" ${r.status === "review" ? "selected" : ""}>${t.toReviewOpt}</option></select>
+      </div>
+      <div class="tl1" id="regChips"></div>
+    </div>
+    <table class="rt"><colgroup><col style="width:84px"><col style="width:128px"><col style="width:168px"><col style="width:180px"><col style="width:158px"><col><col style="width:92px"><col style="width:118px"></colgroup>
+      <thead><tr><th>${t.cDate}</th><th>${t.cType}</th><th>${t.cTopic}</th><th>${t.cProd}</th><th>${t.cCust}</th><th>${t.cSaid}</th><th>${t.cAgentCol}</th><th>${t.cStatus}</th></tr></thead>
+      <tbody id="regBody"></tbody></table>
+    <div class="rfoot" id="regFoot"></div>
+  </div>`;
+}
+function renderRegChips(){
+  const t = T(), base = regBase(), c = countBy(base, e => e.type), r = S.reg;
+  const extra = [];
+  if (r.period) extra.push(`<span class="fchip">${tr(t.fPeriod, { p:t.periods[r.period] })}<button data-act="rclear" data-k="period" aria-label="${t.fClear}">${IC.xs}</button></span>`);
+  if (r.topic) extra.push(`<span class="fchip">${tr(t.fTopic, { t:topicLabel(r.type !== "all" ? r.type : (E.find(e => e.topic === r.topic) || {}).type, r.topic) })}<button data-act="rclear" data-k="topic" aria-label="${t.fClear}">${IC.xs}</button></span>`);
+  $("#regChips").innerHTML = `<div class="chips">
+    <button class="chip" data-act="rt" data-v="all" aria-pressed="${r.type === "all"}">${t.all} ${N(base.length)}</button>
+    ${TYPES.map(ty => `<button class="chip" data-act="rt" data-v="${ty}" aria-pressed="${r.type === ty}" ${c[ty] ? "" : "disabled"}><i class="d" style="background:${TC[ty].dot}"></i>${typeLabel(ty)} ${N(c[ty] || 0)}</button>`).join("")}
+    </div>${extra.join("")}`;
+}
+function renderRegTable(){
+  const t = T(), rows = regRows(), pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  S.reg.page = Math.min(S.reg.page, pages);
+  const slice = rows.slice((S.reg.page - 1) * PAGE, S.reg.page * PAGE);
+  S.reg.fi = Math.min(Math.max(0, S.reg.fi), Math.max(0, slice.length - 1));
+  $("#regBody").innerHTML = slice.length ? slice.map((e, i) => `<tr data-act="open" data-id="${e.id}" data-i="${i}" class="${i === S.reg.fi ? "kf" : ""}">
+      <td class="dt">${fmtDate(e.date)}</td>
+      <td><span style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap">${tag(e.type, true)}${e.review ? `<span class="rvflag" title="${t.toReview}">•</span>` : ""}</span></td>
+      <td class="tp">${topicLabel(e.type, e.topic)}</td>
+      <td><span class="pp">${thumb(e.p, true)}<span dir="auto" title="${esc(PROD[e.p].n)}">${PROD[e.p].n}</span></span></td>
+      <td><span class="cust"><b dir="auto" style="font-size:13px;font-weight:500">${e.cust.name}</b><span class="num" style="font-size:11.5px">${e.cust.phone}</span></span></td>
+      <td><div class="trunc vb q" dir="auto" title="${esc(e.note)}">${esc(e.note)}</div></td>
+      <td style="font-size:13px">${AGNAME[e.agent]}</td>
+      <td>${e.status ? spill(e.status) : e.review ? `<span class="rvflag">${t.toReview}</span>` : `<span class="muted">—</span>`}</td>
+    </tr>`).join("") : `<tr><td colspan="8"><div class="empty">${t.regEmpty}</div></td></tr>`;
+  $("#regFoot").innerHTML = `<span>${tr(t.regFoot, { n:N(rows.length), p:N(S.reg.page), t:N(pages) })}</span>
+    <span class="pager"><button data-act="page" data-d="-1" ${S.reg.page <= 1 ? "disabled" : ""} aria-label="prev">${IC.back}</button><button data-act="page" data-d="1" ${S.reg.page >= pages ? "disabled" : ""} aria-label="next">${IC.chev}</button></span>
+    <span class="hint"><kbd>j</kbd><kbd>k</kbd> ${t.hint}</span>`;
+}
+function regMove(d){
+  const rows = regRows(), pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const onPage = Math.min(PAGE, rows.length - (S.reg.page - 1) * PAGE);
+  let fi = S.reg.fi + d;
+  if (fi >= onPage){ if (S.reg.page < pages){ S.reg.page++; fi = 0; } else fi = onPage - 1; }
+  if (fi < 0){ if (S.reg.page > 1){ S.reg.page--; fi = PAGE - 1; } else fi = 0; }
+  S.reg.fi = fi; renderRegTable();
+  const el = document.querySelector("#regBody tr.kf"); if (el) el.scrollIntoView({ block:"nearest" });
+}
+
+/* ── À vérifier ── */
+function reviewTab(){
+  const t = T(), list = pending().sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : a.ref < b.ref ? 1 : -1);
+  const banner = `<div class="banner"><div><h3>${t.rvTitle}</h3><p>${t.rvBody}</p><p>${tr(t.rvSim, { n:N(list.length) })}</p></div>
+    ${list.length ? `<div class="r"><button class="btn pri" data-act="rv-all">${tr(t.confirmAll, { n:fmt(list.length) })}</button></div>` : ""}</div>`;
+  if (!list.length) return banner + `<div class="card"><div class="alldone"><b>${t.rvDone}</b>${t.rvDoneS}</div></div>`;
+  return banner + `<div class="card" id="rvList">${list.map(e => rvRow(e)).join("")}</div>`;
+}
+function rvRow(e){
+  const t = T();
+  const pick = S.repick === e.id ? `<div class="pick">
+      <div class="row"><span>${t.pickType}</span>${TYPES.map(ty => `<button class="tchip" data-act="rv-type" data-id="${e.id}" data-t="${ty}" aria-pressed="${e.type === ty}">${tag(ty)}</button>`).join("")}</div>
+      <div class="row"><span>${t.pickTopic}</span>${TOPICS[e.type].map(([k, fr, ar]) => `<button class="kchip" data-act="rv-topic" data-id="${e.id}" data-k="${k}" aria-pressed="${e.topic === k}">${S.lang === "fr" ? fr : ar}</button>`).join("")}</div>
+    </div>` : "";
+  return `<div class="rv" data-row="${e.id}">
+    <div><p class="qt q" dir="auto">${esc(e.note)}</p>
+      <div class="mt"><span dir="auto">${PROD[e.p].n}</span><span class="dot-sep">${AGNAME[e.agent]}</span><span class="dot-sep">${fmtDate(e.date)}</span><span class="dot-sep"><span class="num">#${e.ref}</span></span></div></div>
+    <div class="sug"><span class="lb">${t.sugg}</span>${tag(e.type)}<span class="tpc">${topicLabel(e.type, e.topic)}</span></div>
+    <div class="acts"><button class="btn sm pri" data-act="rv-ok" data-id="${e.id}">${t.confirm}</button>
+      <button class="btn sm" data-act="rv-pick" data-id="${e.id}" aria-expanded="${S.repick === e.id}">${t.change} ▾</button>
+      <button class="btn sm ghost" data-act="rv-no" data-id="${e.id}">${t.ignore}</button></div>
+    ${pick}
+  </div>`;
+}
+function rvRemove(id, kind){
+  const e = E.find(x => x.id === id), el = document.querySelector(`[data-row="${id}"]`);
+  if (kind === "ok"){ e.review = false; e.tl.push({ k:"confirmed", a:T().me[S.role][0], d:TODAY }); }
+  else e.ignored = true;
+  if (S.repick === id) S.repick = null;
+  if (el){ el.style.maxHeight = el.offsetHeight + "px"; requestAnimationFrame(() => el.classList.add("out")); }
+  const b = document.querySelector('[data-v="review"] .cnt'); const n = pending().length;
+  if (b){ if (n) b.textContent = fmt(n); else b.remove(); }
+  const all = document.querySelector('[data-act="rv-all"]'); if (all) all.textContent = tr(T().confirmAll, { n:fmt(n) });
+  clearTimeout(rvRemove.t); rvRemove.t = setTimeout(() => renderPage(), 320);
+}
+
+/* ═══════════════ drawer ═══════════════ */
+function renderDrawer(){
+  const dr = $("#drawer"), bd = $("#backdrop");
+  const e = S.drawer ? E.find(x => x.id === S.drawer && live(x)) : null;
+  if (!e){ dr.classList.remove("show"); bd.classList.remove("show"); dr.setAttribute("aria-hidden", "true"); return; }
+  const t = T(), isC = e.type === "complaint";
+  const draft = S.res[e.id] ?? e.resolution ?? "";
+  const tlText = x => {
+    const tt = x.t ? `${typeLabel(x.t[0])} › ${topicLabel(x.t[0], x.t[1])}` : "";
+    if (x.k === "status") return tr(t.tl.status, { s:t.st[x.s], a:AGNAME[x.a] || x.a });
+    if (x.k === "assigned") return x.o ? tr(t.tl.assigned, { o:x.o }) : t.tl.unassigned;
+    return tr(t.tl[x.k], { a:AGNAME[x.a] || x.a, t:tt });
+  };
+  const tlWhen = x => x.d ? fmtDate(x.d) : x.k === "imported" ? t.tlImportWhen : t.tlSimWhen;
+  const follow = isC ? `<section class="dsec"><div class="sl">${t.dFollow}</div>
+      <div class="seg" role="group" aria-label="${t.dStatus}">${["open","in_progress","resolved"].map(s => `<button data-act="cst" data-v="${s}" aria-pressed="${e.status === s}">${t.st[s]}</button>`).join("")}</div>
+      <div class="fld"><label for="dOwner">${t.dOwner}</label><select id="dOwner" data-dsel="owner">${OWNERS.map(o => `<option value="${o}" ${e.owner === o ? "selected" : ""}>${o || t.unassigned}</option>`).join("")}</select></div>
+      <div class="fld"><label for="dRes">${t.dRes}</label><textarea id="dRes" data-res="${e.id}" dir="auto" placeholder="${t.dResPh}" class="${S.resErr ? "err" : ""}">${esc(draft)}</textarea>${S.resErr ? `<span class="ferr">${t.dResReq}</span>` : ""}</div>
+    </section>` : "";
+  dr.innerHTML = `
+    <div class="dh">${tag(e.type)}${isC ? spill(e.status) : ""}${e.review ? `<span class="rvflag">${t.toReview}</span>` : ""}<span class="ref num">#${e.ref}</span><button class="x" data-act="close" aria-label="${t.dClose}" id="dClose">${IC.x}</button></div>
+    <div class="db">
+      <section class="dsec"><div class="sl">${t.dSaid}</div><p class="dq q" dir="auto">${esc(e.note)}</p>
+        <div class="dsub">${tr(t.heard, { a:AGNAME[e.agent] })} · ${fmtDate(e.date)} · ${e.src === "import" ? t.srcImport : t.srcAgent}</div></section>
+      <section class="dsec"><div class="sl">${t.dCtx}</div>
+        <div class="ctx"><span class="k">${t.dOrder}</span><span class="v"><b class="num">#${e.ref}</b><span>${fmtDate(e.date)}</span></span><button class="lnk" data-act="link" data-u="/orders?open=${e.ref}">${t.openOrder}${IC.arrow}</button></div>
+        <div class="ctx"><span class="k">${t.dCust}</span><span class="v"><b dir="auto">${e.cust.name}</b><span class="num">${e.cust.phone}</span></span><button class="lnk" data-act="link" data-u="CustomerHistoryModal">${t.custHist}${IC.arrow}</button></div>
+        <div class="ctx"><span class="k">${t.dProd}</span><span class="v" style="flex-direction:row;align-items:center;gap:8px">${thumb(e.p, true)}<b dir="auto">${PROD[e.p].n}</b></span><button class="lnk" data-act="link" data-u="/products/[id]">${t.prodSheet}${IC.arrow}</button></div>
+      </section>
+      ${follow}
+      <section class="dsec"><div class="sl">${t.dTT}</div><div class="two">
+        <div class="fld"><label for="dType">${t.cType}</label><select id="dType" data-dsel="type">${TYPES.map(ty => `<option value="${ty}" ${e.type === ty ? "selected" : ""}>${typeLabel(ty)}</option>`).join("")}</select></div>
+        <div class="fld"><label for="dTopic">${t.cTopic}</label><select id="dTopic" data-dsel="topic">${TOPICS[e.type].map(([k]) => `<option value="${k}" ${e.topic === k ? "selected" : ""}>${topicLabel(e.type, k)}</option>`).join("")}</select></div>
+      </div></section>
+      <section class="dsec"><div class="sl">${t.dTL}</div><ul class="tl">${e.tl.map(x => `<li><span class="b k-${x.k === "status" && x.s === "resolved" ? "resolved" : x.k === "status" ? "status" : x.k}"></span>
+        <div><div>${tlText(x)}</div><div class="w">${tlWhen(x)}</div>${x.note ? `<div class="nt" dir="auto">${esc(x.note)}</div>` : ""}</div></li>`).join("")}</ul></section>
+    </div>
+    <div class="df"><span>${t.escHint}</span><span class="r">${e.review ? `<button class="btn sm pri" data-act="d-ok">${t.confirm}</button>` : ""}<button class="btn sm" data-act="close">${t.dClose}</button></span></div>`;
+  const wasOpen = dr.classList.contains("show");
+  dr.classList.add("show"); bd.classList.add("show"); dr.setAttribute("aria-hidden", "false");
+  if (!wasOpen) setTimeout(() => { const c = $("#dClose"); if (c) c.focus({ preventScroll:true }); }, 30);
+}
+function openDrawer(id){ S.drawer = id; S.resErr = false; renderDrawer(); syncURL(); }
+function closeDrawer(){ S.drawer = null; S.resErr = false; renderDrawer(); syncURL(); }
+function setStatus(e, s){
+  const t = T(), me = t.me[S.role][0];
+  if (s === e.status) return;
+  if (s === "resolved"){
+    const note = (S.res[e.id] ?? e.resolution ?? "").trim();
+    if (!note){ S.resErr = true; renderDrawer(); const ta = $("#dRes"); if (ta) ta.focus(); return; }
+    e.resolution = note; e.tl.push({ k:"status", d:TODAY, s, a:me, note });
+  } else e.tl.push({ k:"status", d:TODAY, s, a:me });
+  e.status = s; S.resErr = false;
+  renderDrawer(); renderPage(); toast(tr(t.toastStatus, { s:t.st[s] }));
+}
+
+/* ═══════════════ render + URL ═══════════════ */
+function syncURL(){
+  const q = new URLSearchParams({ lang:S.lang, tab:S.tab, role:S.role, period:S.period });
+  if (S.drawer) q.set("drawer", S.drawer);
+  try { history.replaceState(null, "", "?" + q.toString() + location.hash); } catch (err) { /* file:// in some browsers */ }
+}
+function render(){
+  const st = $("#stage");
+  st.setAttribute("dir", S.lang === "ar" ? "rtl" : "ltr"); st.setAttribute("lang", S.lang);
+  document.querySelectorAll('[data-act="lang"]').forEach(b => b.classList.toggle("on", b.dataset.v === S.lang));
+  document.querySelectorAll('[data-act="role"]').forEach(b => b.classList.toggle("on", b.dataset.v === S.role));
+  renderSidebar(); renderPage(); renderDrawer(); syncURL();
+}
+function toast(msg){ const el = $("#toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
+function goRegister(patch){ S.reg = { q:"", type:"all", product:"all", agent:"all", status:"all", topic:null, period:null, page:1, fi:0, ...patch }; S.tab = "register"; renderPage(); syncURL(); window.scrollTo({ top:0 }); }
+
+function exportCSV(){
+  const t = T();
+  let rows;
+  if (S.tab === "register") rows = regRows();
+  else if (S.tab === "complaints") rows = complaints();
+  else if (S.tab === "review") rows = pending();
+  else rows = periodEntries();
+  const head = ["date","ref","type","topic","product","customer","phone","said","agent","status","needs_review","source"];
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = "﻿" + [head.join(",")].concat(rows.map(e => [e.date, e.ref, e.type, e.topic, PROD[e.p].n, e.cust.name, e.cust.phone, e.note, AGNAME[e.agent], e.status || "", e.review, e.src].map(q).join(","))).join("\n");
+  try {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8" }));
+    a.download = `voix-du-client-${S.tab}-${TODAY}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  } catch (err) { /* download blocked in some previews */ }
+  toast(tr(t.toastExport, { n:fmt(rows.length) }));
+}
+
+/* one delegated click listener */
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-act]");
+  if (!b || b.disabled) return;
+  const a = b.dataset.act, v = b.dataset.v, t = T();
+  switch (a){
+    case "lang": S.lang = v; return render();
+    case "role": S.role = v; return render();
+    case "tab": S.tab = v; S.repick = null; renderPage(); syncURL(); return;
+    case "period": S.period = v; S.vf = "all"; renderPage(); syncURL(); return;
+    case "sec": S.navOpen.has(v) ? S.navOpen.delete(v) : S.navOpen.add(v); return renderSidebar();
+    case "market": return toast(t.toastMarket);
+    case "nav": if (!b.classList.contains("on")) toast(t.toastNav); return;
+    case "gotype": return goRegister({ type:b.dataset.t, period:S.period });
+    case "gocell": return goRegister({ type:b.dataset.t, product:b.dataset.p, period:S.period });
+    case "gotopic": return goRegister({ type:b.dataset.t, topic:b.dataset.k, period:S.period });
+    case "goagent": return goRegister({ agent:v, period:S.period });
+    case "vf": S.vf = v; return renderPage();
+    case "cf": S.cf = v; return renderPage();
+    case "open": if (b.dataset.i != null) S.reg.fi = +b.dataset.i; return openDrawer(b.dataset.id);
+    case "close": return closeDrawer();
+    case "cst": return setStatus(E.find(x => x.id === S.drawer), v);
+    case "d-ok": { const id = S.drawer; closeDrawer(); if (S.tab === "review") rvRemove(id, "ok"); else { const e = E.find(x => x.id === id); e.review = false; e.tl.push({ k:"confirmed", a:t.me[S.role][0], d:TODAY }); renderPage(); } return toast(t.toastConfirm); }
+    case "link": return toast(tr(t.toastLink, { u:b.dataset.u }));
+    case "rt": S.reg.type = v; S.reg.page = 1; S.reg.fi = 0; renderRegChips(); renderRegTable(); return;
+    case "rclear": S.reg[b.dataset.k] = null; S.reg.page = 1; S.reg.fi = 0; renderRegChips(); renderRegTable(); return;
+    case "page": S.reg.page += +b.dataset.d; S.reg.fi = 0; renderRegTable(); return;
+    case "rv-ok": rvRemove(b.dataset.id, "ok"); return toast(t.toastConfirm);
+    case "rv-no": rvRemove(b.dataset.id, "no"); return toast(t.toastIgnore);
+    case "rv-pick": S.repick = S.repick === b.dataset.id ? null : b.dataset.id; return renderPage();
+    case "rv-type": { const e = E.find(x => x.id === b.dataset.id); setType(e, b.dataset.t, t.me[S.role][0]); return renderPage(); }
+    case "rv-topic": { const e = E.find(x => x.id === b.dataset.id); e.topic = b.dataset.k; S.repick = null; return renderPage(); }
+    case "rv-all": {
+      const list = pending(); let i = 0;
+      list.forEach(e => { e.review = false; e.tl.push({ k:"confirmed", a:t.me[S.role][0], d:TODAY }); });
+      document.querySelectorAll(".rv").forEach(el => { el.style.maxHeight = el.offsetHeight + "px"; setTimeout(() => el.classList.add("out"), Math.min(i++, 12) * 35); });
+      setTimeout(() => renderPage(), 760);
+      return toast(tr(t.toastAll, { n:fmt(list.length) }));
+    }
+    case "export": return exportCSV();
+  }
+});
+document.addEventListener("input", ev => {
+  const el = ev.target;
+  if (el.id === "regQ"){ S.reg.q = el.value; S.reg.page = 1; S.reg.fi = 0; renderRegChips(); renderRegTable(); }
+  else if (el.dataset.res){ S.res[el.dataset.res] = el.value; if (S.resErr && el.value.trim()){ S.resErr = false; el.classList.remove("err"); const er = el.parentElement.querySelector(".ferr"); if (er) er.remove(); } }
+});
+document.addEventListener("change", ev => {
+  const el = ev.target, t = T();
+  if (el.dataset.f){ S.reg[el.dataset.f] = el.value; S.reg.page = 1; S.reg.fi = 0; renderRegChips(); renderRegTable(); return; }
+  const e = S.drawer && E.find(x => x.id === S.drawer);
+  if (!e || !el.dataset.dsel) return;
+  const me = t.me[S.role][0];
+  if (el.dataset.dsel === "owner"){ e.owner = el.value; e.tl.push({ k:"assigned", d:TODAY, o:el.value, a:me }); toast(tr(t.toastOwner, { o:ownerName(el.value) })); }
+  if (el.dataset.dsel === "type"){
+    if (setType(e, el.value, me)) toast(tr(t.toastType, { t:typeLabel(e.type) }));
+  }
+  if (el.dataset.dsel === "topic"){ e.topic = el.value; }
+  renderDrawer(); renderPage();
+});
+
+/* keyboard — letters by e.code so they work on an Arabic layout too */
+document.addEventListener("keydown", ev => {
+  const tg = ev.target, editable = tg.closest && tg.closest("input,textarea,select,[contenteditable]");
+  if (ev.key === "Escape"){
+    if (S.drawer){ ev.preventDefault(); closeDrawer(); return; }
+    if (S.repick){ S.repick = null; renderPage(); return; }
+    if (editable){ tg.blur(); return; }
+  }
+  if (editable || ev.metaKey || ev.ctrlKey || ev.altKey || S.drawer) return;
+  if (ev.code === "KeyF"){ ev.preventDefault(); toast(T().toastF); return; }
+  if (S.tab !== "register") return;
+  if (ev.code === "Slash" || ev.key === "/"){ ev.preventDefault(); const s = $("#regQ"); if (s) s.focus(); return; }
+  if (ev.code === "KeyJ" || ev.key === "ArrowDown"){ ev.preventDefault(); regMove(1); }
+  else if (ev.code === "KeyK" || ev.key === "ArrowUp"){ ev.preventDefault(); regMove(-1); }
+  else if (ev.key === "Enter"){ const r = document.querySelector("#regBody tr.kf"); if (r && r.dataset.id){ ev.preventDefault(); openDrawer(r.dataset.id); } }
+});
+
+function measure(){ document.documentElement.style.setProperty("--pb", $("#pbar").offsetHeight + "px"); }
+window.addEventListener("resize", measure);
+
+/* URL presets */
+const q = new URLSearchParams(location.search);
+if (["fr","ar"].includes(q.get("lang"))) S.lang = q.get("lang");
+if (["overview","complaints","register","review"].includes(q.get("tab"))) S.tab = q.get("tab");
+if (["super_admin","manager"].includes(q.get("role"))) S.role = q.get("role");
+if (PER[q.get("period")]) S.period = q.get("period");
+if (q.get("drawer") && E.some(e => e.id === q.get("drawer"))) S.drawer = q.get("drawer");
+measure(); render();
+</script>
+</body>
+</html>
