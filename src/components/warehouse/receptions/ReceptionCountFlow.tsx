@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, ArrowRight, Check } from "lucide-react";
+import { ChevronLeft, ArrowRight, Check, Plus } from "lucide-react";
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import type { ProjectedReception } from "@/lib/receptions/project";
 import type { LinePatch } from "./ReceptionLineEditor";
@@ -37,15 +37,31 @@ export function ReceptionCountFlow({
   edits,
   onPatch,
   onClose,
+  onDeclare,
 }: {
   reception: ProjectedReception;
   locale: string;
   edits: Record<string, LinePatch>;
   onPatch: (lineId: string, patch: LinePatch) => void;
   onClose: () => void;
+  /**
+   * Le geste final du récapitulatif. Il ENREGISTRE toujours, et il déclare en
+   * plus si la réception peut encore l'être — c'est la feuille qui tranche,
+   * puisque c'est elle qui tient la règle « enregistrer d'abord ».
+   */
+  onDeclare: () => void;
 }) {
   const t = useTranslations("warehouse.receptions");
   const [index, setIndex] = useState(0);
+  /*
+   * LE PARCOURS A UNE FIN. On faisait compter la dernière ligne et on s'arrêtait :
+   * il n'existait aucun moment pour déclarer, donc l'agent devait ressortir et
+   * retrouver le bouton sur la feuille.
+   */
+  const [recap, setRecap] = useState(false);
+  // L'avarie est un geste : le champ n'existe que si on l'a demandé, ou si la
+  // ligne en porte déjà une.
+  const [damageOpen, setDamageOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -58,6 +74,14 @@ export function ReceptionCountFlow({
   const lines = reception.lines;
   const line = lines[Math.min(index, Math.max(lines.length - 1, 0))];
   if (!line) return null;
+
+  const shown = (l: (typeof lines)[number]) => {
+    const p = edits[l.id];
+    return {
+      received: p ? p.received_qty : l.received_qty,
+      damaged: p ? p.damaged_qty : l.damaged_qty,
+    };
+  };
 
   const patch = edits[line.id];
   const received = patch ? patch.received_qty : line.received_qty;
@@ -91,6 +115,121 @@ export function ReceptionCountFlow({
 
   const isLast = index >= lines.length - 1;
   const rtl = locale === "ar";
+
+  /* ── le récapitulatif ────────────────────────────────────────────────────── */
+  if (recap) {
+    const figures = lines.map((l) => ({ line: l, ...shown(l) }));
+    const counted = figures.filter((f) => f.received !== null);
+    const units = counted.reduce((sum, f) => sum + (f.received ?? 0), 0);
+    const damagedTotal = figures.reduce((sum, f) => sum + f.damaged, 0);
+    const uncounted = figures.length - counted.length;
+
+    return (
+      <div
+        className="fixed inset-0 z-[70] flex flex-col bg-wh-surface"
+        dir={rtl ? "rtl" : "ltr"}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("countDone")}
+      >
+        <div className="flex flex-none items-center gap-3 border-b border-wh-border px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("countExit")}
+            className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[8px] border border-wh-border text-wh-ink-2"
+          >
+            <ChevronLeft size={17} className="rtl:-scale-x-100" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate font-mono text-[15px] font-bold">{reception.reference}</h4>
+            <p className="mt-0.5 truncate text-[12px] text-wh-ink-3" dir="auto">
+              {reception.supplier_name ?? ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-5">
+          <div className="text-center">
+            <span className="mx-auto mb-3 grid h-[52px] w-[52px] place-items-center rounded-full bg-wh-ok-bg text-wh-ok">
+              <Check size={25} strokeWidth={2.3} />
+            </span>
+            <h4 className="text-[18px] font-bold">{t("countDone")}</h4>
+            <p className="mx-auto mt-1.5 max-w-[280px] text-[12.5px] text-wh-ink-2">
+              {t("countDoneHint")}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 overflow-hidden rounded-[10px] border border-wh-border">
+            <Cell label={t("totalUnits")}>{units}</Cell>
+            <Cell label={t("totalDamaged")} tone={damagedTotal > 0 ? "warn" : undefined} edge>
+              {damagedTotal}
+            </Cell>
+            <Cell label={t("totalLines")} top>
+              {counted.length} / {figures.length}
+            </Cell>
+            {/* La ligne sautée est un FAIT, pas une erreur — mais il doit la voir. */}
+            <Cell label={t("sumNotCounted")} tone={uncounted > 0 ? "dim" : undefined} top edge>
+              {uncounted}
+            </Cell>
+          </div>
+
+          <ul className="flex flex-col gap-2">
+            {figures.map((f) => (
+              <li
+                key={f.line.id}
+                data-testid="count-summary-row"
+                className={`flex items-center gap-3 rounded-[8px] border border-wh-border px-3 py-2.5 ${
+                  f.received === null ? "bg-wh-bg" : ""
+                }`}
+              >
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium" dir="auto">
+                  {f.line.product_name}
+                </span>
+                <span
+                  className={`font-mono text-[14px] font-semibold tabular-nums ${
+                    f.received === null ? "text-wh-ink-3" : ""
+                  }`}
+                >
+                  {f.received === null ? "—" : f.received}
+                </span>
+                <Delta line={f.line} received={f.received} />
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div
+          className="flex flex-none gap-2.5 border-t border-wh-border px-4 py-3"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        >
+          <button
+            type="button"
+            onClick={() => setRecap(false)}
+            className="inline-flex min-h-[52px] flex-none items-center justify-center rounded-[10px] border border-wh-border bg-wh-surface px-4 text-[15px] font-semibold text-wh-ink-1"
+          >
+            {t("back")}
+          </button>
+          {/*
+           * ON NE PROPOSE PAS DE DÉCLARER CE QUI EST DÉJÀ DÉCLARÉ. Le comptage
+           * s'ouvre aussi sur une réception déjà déclarée — un manager qui
+           * recompte avant de valider — et `POST …/submit` n'accepte qu'un
+           * brouillon. Proposer « Déclarer » là menait à un 409 sur le dernier
+           * écran du parcours : un cul-de-sac à l'instant précis où l'agent
+           * croit avoir fini. Le bouton nomme donc le geste réel.
+           */}
+          <button
+            type="button"
+            onClick={onDeclare}
+            className="inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-[10px] border border-wh-ok bg-wh-ok text-[15px] font-semibold text-white"
+          >
+            <Check size={18} strokeWidth={2.2} />
+            {reception.can.submit ? t("submit") : t("saveLines")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -249,27 +388,42 @@ export function ReceptionCountFlow({
           </div>
 
           {/*
-           * ABÎMÉ EST UN SECOND NOMBRE. Les fondre dans la quantité reçue
-           * obligerait l'agent à faire une soustraction debout sur un quai — et
-           * zéro y est la valeur NORMALE, pas une inconnue, donc le champ
-           * affiche 0.
+           * ABÎMÉ EST UN SECOND NOMBRE, ET UN GESTE.
+           *
+           * Les fondre dans la quantité reçue obligerait l'agent à faire une
+           * soustraction debout sur un quai. Mais un encadré ambre présent sur
+           * CHAQUE ligne réclame une avarie qui n'arrive presque jamais, et finit
+           * par ne plus rien signaler : il reste donc à un geste, et ne s'ouvre
+           * de lui-même que sur une ligne qui en porte déjà une.
            */}
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-[8px] border border-wh-warn-edge bg-wh-warn-bg px-3.5 py-3">
-            <label htmlFor="count-damaged" className="text-[13px] font-semibold text-wh-warn">
-              {t("damagedOnArrival")}
-            </label>
-            <input
-              id="count-damaged"
-              inputMode="numeric"
-              value={damaged}
-              onChange={(e) => {
-                const trimmed = e.target.value.trim();
-                if (trimmed !== "" && !/^\d+$/.test(trimmed)) return;
-                write({ damaged_qty: trimmed === "" ? 0 : Number.parseInt(trimmed, 10) });
-              }}
-              className="h-10 w-[62px] rounded-[6px] border border-wh-warn-edge bg-wh-surface text-center font-mono text-[16px] font-bold tabular-nums"
-            />
-          </div>
+          {damaged > 0 || damageOpen[line.id] ? (
+            <div className="mt-4 flex w-full items-center justify-between gap-3 rounded-[8px] border border-wh-warn-edge bg-wh-warn-bg px-3.5 py-3">
+              <label htmlFor="count-damaged" className="text-[13px] font-semibold text-wh-warn">
+                {t("damagedOnArrival")}
+              </label>
+              <input
+                id="count-damaged"
+                autoFocus={damaged === 0}
+                inputMode="numeric"
+                value={damaged}
+                onChange={(e) => {
+                  const trimmed = e.target.value.trim();
+                  if (trimmed !== "" && !/^\d+$/.test(trimmed)) return;
+                  write({ damaged_qty: trimmed === "" ? 0 : Number.parseInt(trimmed, 10) });
+                }}
+                className="h-[42px] w-16 rounded-[6px] border border-wh-warn-edge bg-wh-surface text-center font-mono text-[17px] font-bold tabular-nums text-wh-warn"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDamageOpen((d) => ({ ...d, [line.id]: true }))}
+              className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-wh-warn"
+            >
+              <Plus size={15} strokeWidth={2.2} />
+              {t("reportDamaged")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -289,7 +443,7 @@ export function ReceptionCountFlow({
         ) : null}
         <button
           type="button"
-          onClick={() => (isLast ? onClose() : setIndex((i) => i + 1))}
+          onClick={() => (isLast ? setRecap(true) : setIndex((i) => i + 1))}
           className="inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-[10px] border border-wh-ok bg-wh-ok text-[15px] font-semibold text-white"
         >
           {isLast ? (
@@ -306,5 +460,74 @@ export function ReceptionCountFlow({
         </button>
       </div>
     </div>
+  );
+}
+
+function Cell({
+  label,
+  tone,
+  top,
+  edge,
+  children,
+}: {
+  label: string;
+  tone?: "warn" | "dim";
+  top?: boolean;
+  edge?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`p-3.5 ${top ? "border-t border-wh-border" : ""} ${
+        edge ? "border-s border-wh-border" : ""
+      }`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-wh-ink-3">
+        {label}
+      </div>
+      <div
+        className={`mt-1 font-mono text-[21px] font-bold tabular-nums ${
+          tone === "warn" ? "text-wh-warn" : tone === "dim" ? "text-wh-ink-3" : ""
+        }`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * L'écart d'une ligne du récapitulatif.
+ *
+ * Même règle que partout : un écart suppose DEUX nombres. Sans attendu c'est un
+ * autre fait — « hors bon » — et sans comptage il n'y a rien à dire.
+ */
+function Delta({
+  line,
+  received,
+}: {
+  line: ProjectedReception["lines"][number];
+  received: number | null;
+}) {
+  const t = useTranslations("warehouse.receptions");
+  if (received === null) {
+    return <span className="font-mono text-[11px] font-bold text-wh-ink-3">{t("notCounted")}</span>;
+  }
+  if (line.expected_qty === null) {
+    return received > 0 ? (
+      <span className="font-mono text-[11px] font-bold text-wh-move">
+        {t("offDocket", { delta: `+${received}` })}
+      </span>
+    ) : null;
+  }
+  const delta = received - line.expected_qty;
+  return (
+    <span
+      className={`font-mono text-[11px] font-bold ${
+        delta === 0 ? "text-wh-ok" : delta < 0 ? "text-wh-bad" : "text-wh-move"
+      }`}
+    >
+      {delta === 0 ? t("conform") : `${delta > 0 ? "+" : "\u2212"}${Math.abs(delta)}`}
+    </span>
   );
 }

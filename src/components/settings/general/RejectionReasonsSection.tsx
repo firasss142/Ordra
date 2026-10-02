@@ -8,14 +8,13 @@ import { Plus, Trash2, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useRejectionReasons } from "@/hooks/useRejectionReasons";
-import { buildRejectionTree } from "@/lib/orders/rejection-config";
+import { buildRejectionTree, rejectionGroupIcon } from "@/lib/orders/rejection-config";
 import {
-  REJECTION_HUES,
   REJECTION_KEY_REGEX,
   type RejectionReasonConfig,
 } from "@/types/rejection-config";
-import type { StatusHue } from "@/lib/orders/status-presentation";
-import { inputClass, selectClass } from "./SectionShell";
+import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
+import { inputClass } from "./SectionShell";
 
 /**
  * Système › Paramètres › Motifs de rejet.
@@ -25,9 +24,11 @@ import { inputClass, selectClass } from "./SectionShell";
  *
  *   groups      — fixed. Their keys are values of the `rejection_reason`
  *                 Postgres enum and 1,800 orders carry one, so there is no
- *                 "add" and no "delete" here. Label, colour and order are
- *                 editable, and the colour is the one that matters: it is what
- *                 separates four kinds of failure down a thousand-row column.
+ *                 "add" and no "delete" here. Label and order are editable.
+ *                 Colour is NOT: every rejection wears the same quiet red, and
+ *                 the group is told apart by its icon. A free colour choice is
+ *                 how « Commande non réelle » came to wear the teal of a
+ *                 shipped parcel — every other hue already means a live status.
  *   sub-reasons — fully editable, because this is the list that has to keep up
  *                 with the ways an order actually dies.
  *
@@ -36,24 +37,21 @@ import { inputClass, selectClass } from "./SectionShell";
  * plainly which of the two things is about to happen.
  */
 
-const HUE_LABEL: Record<StatusHue, string> = {
-  red: "Rouge — le client a dit non",
-  amber: "Ambre — on n'a pas pu le joindre",
-  violet: "Violet — livraison impossible",
-  neutral: "Ardoise — la commande n'existait pas",
-  teal: "Bleu-vert",
-  green: "Vert",
-};
-
-/** The badge preview, so a colour is chosen against what it will look like. */
-const SWATCH: Record<StatusHue, string> = {
-  neutral: "bg-hue-neutral-fill-soft text-hue-neutral-ink",
-  amber: "bg-hue-amber-fill-soft text-hue-amber-ink",
-  violet: "bg-hue-violet-fill-soft text-hue-violet-ink",
-  teal: "bg-hue-teal-fill-soft text-hue-teal-ink",
-  green: "bg-hue-green-fill-soft text-hue-green-ink",
-  red: "bg-hue-red-fill-soft text-hue-red-ink",
-};
+/**
+ * The badge exactly as the Commandes column draws it — the same component, so
+ * the preview cannot drift from the thing it previews.
+ */
+function ReasonPreview({ groupKey, text }: { groupKey: string; text: string }) {
+  return (
+    <span title="Aperçu dans la colonne Statut" className="inline-flex max-w-[148px]">
+      <OrderStatusBadge
+        status="rejected"
+        label="Rejeté"
+        rejection={{ icon: rejectionGroupIcon(groupKey), text }}
+      />
+    </span>
+  );
+}
 
 interface Props {
   marketId: string;
@@ -225,7 +223,6 @@ export function RejectionReasonsSection({ marketId, readOnly = false }: Props) {
         <Card
           key={group.key}
           data-testid="rejection-group"
-          data-hue={group.hue}
           className={group.isActive ? "" : "opacity-60"}
         >
           <CardHeader className="flex flex-wrap items-end justify-between gap-4">
@@ -253,31 +250,9 @@ export function RejectionReasonsSection({ marketId, readOnly = false }: Props) {
                   onBlur={(e) => saveField(group.config, "label_ar", e.target.value)}
                 />
               </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium text-ink-secondary">
-                  Couleur du groupe
-                </span>
-                <select
-                  aria-label={`Couleur du groupe ${group.labelFr}`}
-                  className={`${selectClass} w-[260px]`}
-                  defaultValue={group.hue}
-                  disabled={readOnly}
-                  onChange={(e) => patch(group.config.id, { hue: e.target.value })}
-                >
-                  {REJECTION_HUES.map((h) => (
-                    <option key={h} value={h}>
-                      {HUE_LABEL[h]}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
 
-            <span
-              className={`inline-flex h-[26px] items-center rounded-pill px-2.5 text-[12.5px] font-semibold ${SWATCH[group.hue]}`}
-            >
-              {group.shortFr || group.labelFr}
-            </span>
+            <ReasonPreview groupKey={group.key} text={group.shortFr || group.labelFr} />
           </CardHeader>
 
           <CardBody className="space-y-2">
@@ -345,12 +320,7 @@ export function RejectionReasonsSection({ marketId, readOnly = false }: Props) {
                   />
                 </label>
 
-                <span
-                  className={`inline-flex h-[26px] items-center rounded-pill px-2.5 text-[12.5px] font-semibold ${SWATCH[group.hue]}`}
-                  title="Aperçu dans la colonne Statut"
-                >
-                  {sub.short_fr}
-                </span>
+                <ReasonPreview groupKey={group.key} text={sub.short_fr} />
 
                 <div className="ms-auto flex items-center gap-1">
                   <IconButton

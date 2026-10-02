@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, Check, Plus, Trash2, Image as ImageIcon, Undo2, Smartphone } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronDown,
+  Check,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
+  Undo2,
+  Smartphone,
+} from "lucide-react";
 import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
 import { canSeeReceptionCosts, canDraftReception } from "@/lib/receptions/permissions";
@@ -243,64 +252,77 @@ export function ReceptionSheet({
                 {r.reference}
                 <ReceptionStatusChip status={r.status} />
               </h3>
-              <div className="mt-2 flex flex-wrap gap-4">
-                <Fact label={t("colSite")}>
-                  {locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
-                </Fact>
+              {/*
+               * LES FAITS D'EN-TÊTE SONT UNE LIGNE, PAS CINQ BLOCS.
+               *
+               * Ils sont la LÉGENDE du document, pas son contenu : cinq couples
+               * libellé-en-capitales / valeur occupaient autant de hauteur que
+               * trois lignes de produits, et poussaient la première quantité hors
+               * du premier écran. Le libellé disparaît là où la valeur se nomme
+               * elle-même — personne ne confond « Tripoli » avec un fournisseur.
+               */}
+              <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-wh-ink-2">
                 {r.supplier_name ? (
-                  <Fact label={t("colSupplier")}>
-                    <span dir="auto">{r.supplier_name}</span>
-                  </Fact>
+                  <>
+                    <span className="font-semibold text-wh-ink-1" dir="auto">
+                      {r.supplier_name}
+                    </span>
+                    <Sep />
+                  </>
                 ) : null}
                 {r.supplier_ref ? (
-                  <Fact label={t("deliveryNote")}>
-                    <span className="font-mono text-[12.5px]">{r.supplier_ref}</span>
-                  </Fact>
+                  <>
+                    <span>
+                      {t("deliveryNote")} <span className="font-mono">{r.supplier_ref}</span>
+                    </span>
+                    <Sep />
+                  </>
                 ) : null}
+                <span>
+                  {locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
+                </span>
                 {r.submitted_by_name ? (
-                  <Fact label={t("countedBy")}>{r.submitted_by_name}</Fact>
+                  <>
+                    <Sep />
+                    <span>
+                      {t("countedBy").toLocaleLowerCase(locale)}{" "}
+                      <span className="font-semibold text-wh-ink-1">{r.submitted_by_name}</span>
+                      {/*
+                       * La maquette appelle cette date « Arrivée ». C'est en
+                       * vérité la date de la DÉCLARATION, et les deux ne
+                       * coïncident que si l'agent compte le jour de la livraison :
+                       * rien ne nous autorise à affirmer un jour d'arrivée que
+                       * personne n'a saisi.
+                       */}
+                      {r.submitted_at ? ` · ${df(r.submitted_at.slice(0, 10))}` : ""}
+                    </span>
+                  </>
                 ) : null}
-                {/*
-                 * La maquette appelle cette date « Arrivée ». C'est en vérité la
-                 * date de la DÉCLARATION, et les deux ne coïncident que si l'agent
-                 * compte le jour de la livraison. On la nomme donc pour ce qu'elle
-                 * est : rien ne nous autorise à affirmer un jour d'arrivée que
-                 * personne n'a saisi.
-                 */}
-                {r.submitted_at ? (
-                  <Fact label={t("countedOn")}>{df(r.submitted_at.slice(0, 10))}</Fact>
+                {r.expected_at && !r.submitted_at ? (
+                  <>
+                    <Sep />
+                    <span>
+                      {t("fieldExpectedAt").toLocaleLowerCase(locale)} {df(r.expected_at)}
+                    </span>
+                  </>
                 ) : null}
-                {r.expected_at ? (
-                  <Fact label={t("fieldExpectedAt")}>{df(r.expected_at)}</Fact>
+                {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
+                  <>
+                    <Sep />
+                    <span className="font-semibold text-wh-ok">
+                      {t("entryProgress", { done: counted, total: r.lines.length })}
+                    </span>
+                    {remaining > 0 ? (
+                      <span className="font-semibold text-wh-warn">
+                        {t("entryRemaining", { count: remaining })}
+                      </span>
+                    ) : null}
+                  </>
                 ) : null}
               </div>
             </div>
 
-            {r.photo_url ? (
-              <a href={r.photo_url} target="_blank" rel="noreferrer" className={WH_BTN}>
-                <ImageIcon size={16} />
-                {t("deliveryNote")}
-              </a>
-            ) : null}
-          </div>
-
-          {/* ── progression de saisie ── */}
-          {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-4 border-b border-wh-border bg-wh-ok-bg/40 px-4 py-3 md:px-5">
-              <span className="text-[13px] font-semibold text-wh-ok">
-                {t("entryProgress", { done: counted, total: r.lines.length })}
-              </span>
-              <div className="h-2 min-w-[160px] flex-1 overflow-hidden rounded-full border border-wh-border bg-wh-surface">
-                <div
-                  className="h-full rounded-full bg-wh-ok"
-                  style={{ width: `${r.lines.length ? (counted / r.lines.length) * 100 : 0}%` }}
-                />
-              </div>
-              {remaining > 0 ? (
-                <span className="text-[13px] font-semibold text-wh-warn">
-                  {t("entryRemaining", { count: remaining })}
-                </span>
-              ) : null}
+            <div className="flex flex-none flex-wrap items-center gap-2.5">
               {/*
                * L'entrée du comptage une-ligne-à-la-fois. On ne demande pas à
                * quelqu'un debout devant une palette de remplir un tableau, donc
@@ -313,6 +335,33 @@ export function ReceptionSheet({
                   {t("countOnPhone")}
                 </button>
               ) : null}
+              {r.photo_url ? (
+                <a href={r.photo_url} target="_blank" rel="noreferrer" className={WH_BTN}>
+                  <ImageIcon size={16} />
+                  {t("deliveryNote")}
+                </a>
+              ) : null}
+            </div>
+          </div>
+
+          {/*
+           * LA PROGRESSION EST UN FILET DE 3 PX, PAS UN BANDEAU.
+           *
+           * C'était la troisième bande horizontale avant la première quantité.
+           * Le chiffre — « saisie 4 / 5 » — vit maintenant dans la ligne de
+           * légende ci-dessus ; il ne reste ici que ce qui a besoin d'être
+           * continu pour être lu d'un coup d'œil : la longueur.
+           */}
+          {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
+            <div
+              data-testid="reception-progress-rail"
+              className="h-[3px] w-full bg-wh-sunken"
+              role="presentation"
+            >
+              <div
+                className="h-full bg-wh-ok"
+                style={{ width: `${r.lines.length ? (counted / r.lines.length) * 100 : 0}%` }}
+              />
             </div>
           ) : null}
 
@@ -379,26 +428,31 @@ export function ReceptionSheet({
 
           {/* ── totaux + action ── */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-wh-border bg-wh-sunken px-4 py-3.5 md:px-5">
-            <div className="flex flex-wrap gap-5">
-              <Total label={t("totalLines")}>{nf.format(liveTotals.lines)}</Total>
-              <Total label={t("totalUnits")}>{nf.format(liveTotals.units)}</Total>
-              <Total label={t("totalDamaged")} tone={liveTotals.damaged > 0 ? "warn" : undefined}>
-                {nf.format(liveTotals.damaged)}
-              </Total>
+            {/*
+             * « Valeur reçue » EST le chiffre qu'un manager vient chercher avant
+             * de valider : il passe en tête et à 25 px. Quatre totaux du même
+             * corps obligeaient à lire les quatre libellés pour trouver le bon.
+             */}
+            <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
               {withCosts ? (
-                <Total label={t("totalValue")}>
+                <Total label={t("totalValue")} lead>
                   {liveTotals.value === null ? (
                     <span className="text-wh-ink-3">—</span>
                   ) : (
                     <>
                       {nf.format(liveTotals.value)}
-                      <span className="ms-1 font-sans text-[11.5px] font-semibold text-wh-ink-2">
+                      <span className="ms-1.5 font-sans text-[11.5px] font-semibold text-wh-ink-2">
                         {currency}
                       </span>
                     </>
                   )}
                 </Total>
               ) : null}
+              <Total label={t("totalUnits")}>{nf.format(liveTotals.units)}</Total>
+              <Total label={t("totalDamaged")} tone={liveTotals.damaged > 0 ? "warn" : undefined}>
+                {nf.format(liveTotals.damaged)}
+              </Total>
+              <Total label={t("totalLines")}>{nf.format(liveTotals.lines)}</Total>
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
@@ -560,37 +614,59 @@ export function ReceptionSheet({
           edits={edits}
           onPatch={(lineId, patch) => setEdits((prev) => ({ ...prev, [lineId]: patch }))}
           onClose={() => setCounting(false)}
+          /*
+           * ENREGISTRER D'ABORD, DÉCLARER ENSUITE — la même règle que le pied de
+           * la feuille, et elle ne vit qu'ici. Déclarer sans enregistrer porterait
+           * sur les chiffres du SERVEUR et non sur ceux que l'agent vient de
+           * compter : c'est la façon la plus sûre de faire valider une quantité
+           * que personne n'a voulue. Si l'enregistrement échoue, on reste sur le
+           * récapitulatif avec le message, et rien n'est déclaré.
+           */
+          onDeclare={async () => {
+            if (dirty && !(await saveLines())) return;
+            // Déjà déclarée : il n'y a plus rien à déclarer, seulement à
+            // enregistrer. `POST …/submit` refuserait avec NOT_DRAFT.
+            if (!r.can.submit) {
+              setCounting(false);
+              return;
+            }
+            if (await act("/submit")) setCounting(false);
+          }}
         />
       ) : null}
     </div>
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+/** Le point médian de la ligne de légende. Plus clair que le texte qu'il sépare. */
+function Sep() {
   return (
-    <div className="min-w-0">
-      <div className={WH_LABEL}>{label}</div>
-      <div className="mt-0.5 text-[13px] font-medium">{children}</div>
-    </div>
+    <span className="text-wh-border-strong" aria-hidden>
+      ·
+    </span>
   );
 }
 
 function Total({
   label,
   tone,
+  lead,
   children,
 }: {
   label: string;
   tone?: "warn";
+  /** Le total dominant du pied — un seul par écran. */
+  lead?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div>
       <div className={WH_LABEL}>{label}</div>
       <div
-        className={`mt-0.5 font-mono text-[19px] font-semibold tabular-nums ${
-          tone === "warn" ? "text-wh-warn" : ""
-        }`}
+        {...(lead ? { "data-testid": "reception-total-value" } : {})}
+        className={`mt-1 font-mono font-semibold tabular-nums ${
+          lead ? "text-[25px] tracking-[-0.02em]" : "text-[19px]"
+        } ${tone === "warn" ? "text-wh-warn" : ""}`}
       >
         {children}
       </div>
@@ -627,6 +703,7 @@ function PaymentsBlock({
   onChanged: () => void;
 }) {
   const t = useTranslations("warehouse.receptions");
+  const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("bank_transfer");
@@ -699,14 +776,42 @@ function PaymentsBlock({
   };
 
   return (
-    <div className="border-t border-wh-border p-4 md:p-5">
-      <h4 className={`${WH_LABEL} flex flex-wrap items-center gap-2.5`}>
-        {t("payments")}
+    <div className="border-t border-wh-border">
+      {/*
+       * LE BLOC EST REPLIÉ, ET SON TITRE PORTE DÉJÀ LE FAIT ENTIER.
+       *
+       * « acompte 40 % · reste 11 232,000 LYD » répond à la question qu'on se
+       * pose en ouvrant une réception validée. La liste des versements, elle, ne
+       * sert qu'à en ajouter un ou à en retirer un : on l'ouvre pour AGIR, pas
+       * pour lire. Elle occupait un tiers de la feuille pour une ligne utile.
+       */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full flex-wrap items-center gap-3 p-4 text-start hover:bg-wh-sunken/60 md:px-5"
+      >
+        <ChevronDown
+          size={15}
+          className={`flex-none text-wh-ink-3 transition-transform ${open ? "" : "-rotate-90 rtl:rotate-90"}`}
+        />
+        <span className={WH_LABEL}>{t("payments")}</span>
         <PaymentChip state={state} percent={paidPercent({ value, paid: paidTotal })} />
-      </h4>
+        {outstanding !== null && outstanding > 0 ? (
+          <span className="ms-auto font-mono text-[14px] font-semibold tabular-nums text-wh-bad">
+            {t("paymentRemaining")} {cf.format(outstanding)} {currency}
+          </span>
+        ) : outstanding !== null ? (
+          <span className="ms-auto font-mono text-[14px] font-semibold text-wh-ok">
+            {t("paymentSettled")}
+          </span>
+        ) : null}
+      </button>
 
+      {!open ? null : (
+      <div className="px-4 pb-4 md:px-5 md:pb-5">
       {value !== null ? (
-        <div className="my-3 h-2 overflow-hidden rounded-full bg-wh-sunken">
+        <div className="mb-3 h-2 overflow-hidden rounded-full bg-wh-sunken">
           <div className="h-full bg-wh-ok" style={{ width: `${pct}%` }} />
         </div>
       ) : null}
@@ -819,6 +924,8 @@ function PaymentsBlock({
       ) : null}
 
       {error ? <p className="mt-2 text-[12.5px] font-medium text-wh-bad">{error}</p> : null}
+      </div>
+      )}
     </div>
   );
 }

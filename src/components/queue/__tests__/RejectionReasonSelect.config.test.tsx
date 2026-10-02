@@ -39,7 +39,6 @@ const cfg = (
   label_ar: key,
   short_fr: key,
   short_ar: key,
-  hue: "red",
   sort_order: 0,
   is_active: true,
   requires_note: false,

@@ -6,7 +6,7 @@ import {
   presentRejection,
   type RejectionLabel,
 } from "@/lib/orders/rejection-presentation";
-import type { StatusHue } from "@/lib/orders/status-presentation";
+import type { StatusIconName } from "@/lib/orders/status-presentation";
 import { useRejectionReasons } from "./useRejectionReasons";
 
 /** The three columns any surface needs to explain a rejection. */
@@ -18,12 +18,16 @@ export interface RejectableOrder {
 }
 
 export interface RejectionBadge {
-  hue: StatusHue;
+  /** The group's mark. The badge's colour stays the rejected red. */
+  icon: StatusIconName;
+  /** The short words the column has room for. */
   text: string;
+  /** The whole sentence — group, sub-reason, note — for the hover. */
+  detail: string | null;
 }
 
 /**
- * Turns a rejected order into the colour and the few words a status badge shows.
+ * Turns a rejected order into the mark and the few words a status badge shows.
  *
  * The thin adapter over `presentRejection`: that module decides *what* to say
  * (and is tested on its own), this one resolves the market's config, the active
@@ -42,7 +46,7 @@ export function useRejectionBadge(marketId: string | null) {
     (order: RejectableOrder): RejectionBadge | null => {
       if (order.status !== "rejected") return null;
 
-      const { hue, label } = presentRejection(
+      const { icon, label, detail } = presentRejection(
         {
           reason: order.rejection_reason,
           subreason: order.rejection_subreason,
@@ -53,7 +57,7 @@ export function useRejectionBadge(marketId: string | null) {
       );
 
       const text = resolve(label, tShort, tReasons);
-      return text ? { hue, text } : null;
+      return text ? { icon, text, detail } : null;
     },
     [rows, locale, tShort, tReasons],
   );

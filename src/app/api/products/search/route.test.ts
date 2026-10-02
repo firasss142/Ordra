@@ -89,16 +89,26 @@ describe("GET /api/products/search", () => {
     expect(json.data[0].product_variants).toBeDefined();
   });
 
+  /*
+   * Ce test affirmait que `.ilike()` avait été appelé — le MÉCANISME, pas le
+   * comportement — et il a donc cassé le jour où le filtre est passé à `.or()`
+   * pour couvrir la référence. Il affirme maintenant ce qui compte : qu'un `q`
+   * restreint bien la requête, et qu'il la restreint avec le texte demandé.
+   */
   test("filters by ?q= query parameter", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
 
-    let ilikeCalled = false;
+    const filters: string[] = [];
     const chain: Record<string, unknown> = {};
     chain.select = vi.fn().mockReturnValue(chain);
     chain.eq = vi.fn().mockReturnValue(chain);
     chain.is = vi.fn().mockReturnValue(chain);
-    chain.ilike = vi.fn().mockImplementation(() => {
-      ilikeCalled = true;
+    chain.or = vi.fn().mockImplementation((arg: string) => {
+      filters.push(arg);
+      return chain;
+    });
+    chain.ilike = vi.fn().mockImplementation((col: string, pattern: string) => {
+      filters.push(`${col}:${pattern}`);
       return chain;
     });
     chain.order = vi.fn().mockResolvedValue({ data: [products[0]], error: null });
@@ -111,7 +121,28 @@ describe("GET /api/products/search", () => {
 
     const res = await GET(makeRequest({ q: "iphone" }));
     expect(res.status).toBe(200);
-    expect(ilikeCalled).toBe(true);
+    expect(filters.join(" ")).toContain("iphone");
+  });
+
+  test("sans ?q=, aucune restriction de texte n'est posée", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
+    chain.or = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    await GET(makeRequest());
+    // Les autres écrans chargent la liste entière et filtrent côté client.
+    expect(chain.or).not.toHaveBeenCalled();
   });
 
   test("market isolation: only returns products from agent's market", async () => {
@@ -253,6 +284,97 @@ describe("GET /api/products/search", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data).toEqual([]);
+  });
+
+  /*
+   * LA RÉFÉRENCE EST AFFICHÉE PARTOUT, DONC ELLE DOIT ÊTRE CHERCHABLE.
+   *
+   * Le sélecteur de réception écrit « hm-01 » sous chaque produit : taper
+   * « hm-01 » est donc le geste naturel, et il ne renvoyait rien — la requête ne
+   * faisait qu'un `ilike` sur le NOM. Montrer un identifiant qu'on ne peut pas
+   * chercher est un piège qu'on se tend à soi-même.
+   */
+  test("?q= cherche aussi dans la référence, pas seulement le nom", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+
+    let orArg = "";
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
+    chain.or = vi.fn().mockImplementation((arg: string) => {
+      orArg = arg;
+      return chain;
+    });
+    chain.ilike = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    const res = await GET(makeRequest({ q: "hm-01" }));
+    expect(res.status).toBe(200);
+    expect(orArg).toContain("name.ilike");
+    expect(orArg).toContain("sku.ilike");
+    expect(orArg).toContain("hm-01");
+  });
+
+  /*
+   * Une virgule dans `q` couperait le filtre `.or()` en deux conditions et ferait
+   * fuiter des lignes qu'on n'a pas demandées ; une parenthèse casse la syntaxe.
+   * On les retire, on ne les échappe pas : aucune référence n'en contient.
+   */
+  test("neutralise les séparateurs de la syntaxe `or`", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+
+    let orArg = "";
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
+    chain.or = vi.fn().mockImplementation((arg: string) => {
+      orArg = arg;
+      return chain;
+    });
+    chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    await GET(makeRequest({ q: "a,b)c(d" }));
+    expect(orArg).not.toContain(",b");
+    expect(orArg).not.toContain("(");
+    expect(orArg).not.toContain(")");
+  });
+
+  test("select includes sku, which the picker displays", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+
+    let selectArg = "";
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockImplementation((cols: string) => {
+      selectArg = cols;
+      return chain;
+    });
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
+    chain.or = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    await GET(makeRequest());
+    expect(selectArg).toContain("sku");
   });
 
   test("select includes image_url column", async () => {

@@ -192,7 +192,8 @@ SUB-REASONS are full CRUD per market, in `rejection_reason_configs`; the old
 `orders_rejection_subreason_check` is gone, so the reject route validates against
 that table, not a compiled list. Delete = hard-delete if no order uses it, soft
 retire otherwise (history must stay readable). A rejected order's badge shows the
-short sub-reason in its GROUP's colour, never the bare word "Rejeté".
+short sub-reason in the rejected red with its GROUP's icon — never the bare word
+"Rejeté", and never a group colour (every other hue is a live status; since 2026-10-02).
 Edited at Système › Paramètres › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Agent queue sort order
@@ -266,7 +267,7 @@ entry has not meant deleting its page — check before assuming a route is dead.
   activation des sites d'entrepôt — un seul écran, Système → Connexions → Transporteurs:
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
 - Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
-  pastille porte la couleur du groupe: docs/rejection-reasons.md +
+  pastille est toujours rouge et porte l'icône du groupe: docs/rejection-reasons.md +
   plans/rejection-reasons-crud-and-badge.md
 - Intake multi-lignes — les cinq adaptateurs lisent TOUTES les lignes, le webhook écrit
   `order_items`, chaque ligne résout son produit, et `mapping_status` est le pire de
@@ -280,8 +281,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   actions (déclarer, renvoyer à l'agent, valider, contre-passer), et la limite assumée du
   modèle de paiement: docs/reception-de-marchandises.md +
   plans/reception-de-marchandises.md + plans/reception-parite-maquette.md
-  (prototypes `prototypes/reception-marchandises-v2.html` — la maquette est la référence
-  de l'écran, et le code en est la copie à la lettre depuis le 2 octobre 2026)
+  (prototypes `prototypes/reception-marchandises-v3.html` — la maquette est la référence
+  de l'écran et le code en est la copie ; la v3 du 2 octobre 2026 est presque entièrement
+  SOUSTRACTIVE : un seul signal de couleur par ligne, pas de puce « sans objet », cinq
+  colonnes au lieu de huit, un bandeau au lieu de trois, l'avarie derrière un geste, et
+  seuls les coûts qui bougent dans le dialogue de validation)
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +

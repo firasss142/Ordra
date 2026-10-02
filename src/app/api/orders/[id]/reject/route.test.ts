@@ -45,7 +45,6 @@ const cfg = (
   label_ar: key,
   short_fr: key,
   short_ar: key,
-  hue: "red",
   sort_order: 0,
   is_active: true,
   requires_note: false,
@@ -81,9 +80,9 @@ function setup(configRows: unknown[] | null, orderStatus = "attempt_1") {
 const TAXONOMY = [
   cfg("refus_client", null),
   cfg("prix_eleve", "refus_client"),
-  cfg("injoignable", null, { hue: "amber" }),
+  cfg("injoignable", null),
   cfg("raccroche", "injoignable"),
-  cfg("autre", null, { requires_note: true, hue: "neutral" }),
+  cfg("autre", null, { requires_note: true }),
 ];
 
 beforeEach(() => {

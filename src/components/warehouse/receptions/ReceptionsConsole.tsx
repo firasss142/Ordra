@@ -32,10 +32,17 @@ import { ReceptionCreateDialog } from "./ReceptionCreateDialog";
 
 type Segment = "all" | "draft" | "submitted" | "posted" | "unpaid";
 
-/** Huit colonnes : les sept de la maquette, plus la chevron qui dit « ça s'ouvre ». */
+/**
+ * CINQ COLONNES, PAS HUIT.
+ *
+ * « Bâtiment » rejoint la référence — un agent n'en voit qu'un, un manager filtre
+ * dessus — et « Statut » + « Paiement » partagent une cellule « État », parce
+ * qu'on les lit d'un même regard : dans quel état, et est-ce payé. Moins de
+ * trajet de l'œil, et de la place pour que le chiffre devienne lisible.
+ */
 const GRID =
-  "grid items-center gap-x-3 " +
-  "grid-cols-[minmax(140px,1.1fr)_minmax(96px,.7fr)_112px_minmax(150px,1.3fr)_minmax(110px,.92fr)_minmax(130px,1.06fr)_minmax(118px,.9fr)_28px]";
+  "grid items-center gap-x-4 " +
+  "grid-cols-[minmax(190px,1.3fr)_minmax(130px,1.1fr)_minmax(118px,.85fr)_minmax(124px,.9fr)_minmax(168px,1fr)_26px]";
 
 function matchesSegment(r: ProjectedReception, segment: Segment): boolean {
   switch (segment) {
@@ -176,71 +183,84 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
         </div>
       ) : (
         <div className={`${WH_CARD} overflow-hidden`}>
-          <div className={`${GRID} border-b border-wh-border px-[18px] pb-2.5 pt-3.5`}>
+          <div className={`${GRID} border-b border-wh-border px-5 pb-2.5 pt-3.5`}>
             <span className={WH_LABEL}>{t("colReference")}</span>
-            <span className={WH_LABEL}>{t("colSite")}</span>
-            <span className={WH_LABEL}>{t("colStatus")}</span>
             <span className={WH_LABEL}>{t("colSupplier")}</span>
             <span className={`${WH_LABEL} text-end`}>{t("colQuantities")}</span>
             <span className={`${WH_LABEL} text-end`}>{t("colValue")}</span>
-            <span className={WH_LABEL}>{t("colPayment")}</span>
+            <span className={WH_LABEL}>{t("colStatus")}</span>
             <span />
           </div>
 
           <ul>
             {visible.map((r) => {
-              // Le liseré n'est porté que par ce qui bloque quelqu'un.
+              /*
+               * UN SEUL SIGNAL DE COULEUR PAR LIGNE. Le liseré de 3 px se lit en
+               * balayant la colonne sans lire un mot, et il n'est porté que par
+               * ce qui bloque quelqu'un. Un fond teinté par-dessus ne dirait
+               * rien de neuf et entrerait en concurrence avec les puces, qui
+               * portent la vraie nuance — c'est ainsi qu'une ligne en retard
+               * finissait par crier sur cinq canaux à la fois.
+               */
               const stripe = r.is_late
                 ? WH_STRIPE.bad
                 : r.status === "submitted"
                   ? WH_STRIPE.warn
                   : "";
-              const band = r.is_late
-                ? "bg-wh-bad-bg/35"
-                : r.status === "submitted"
-                  ? "bg-wh-warn-bg/30"
-                  : "";
 
               const headline = headlineQuantity(r);
+              const site =
+                locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name;
 
               return (
                 <li key={r.id} className="border-b border-wh-border last:border-b-0">
                   <button
                     type="button"
                     onClick={() => setOpenId(r.id)}
-                    className={`${GRID} ${stripe} ${band} w-full px-[18px] py-3.5 text-start hover:bg-wh-sunken/60`}
+                    className={`${GRID} ${stripe} w-full px-5 py-4 text-start hover:bg-wh-ok-tint`}
                   >
+                    {/* Référence, et sous elle le fait qui compte : ce qui bloque,
+                        ou à défaut le bâtiment et la date. */}
                     <span className="min-w-0">
-                      <span className="block font-mono text-[13px] font-semibold tabular-nums">
+                      <span className="block font-mono text-[13.5px] font-semibold tabular-nums">
                         {r.reference}
                       </span>
                       {r.is_late && r.days_late !== null ? (
-                        <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-bold text-wh-bad">
+                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-wh-bad">
                           <AlertCircle size={12} strokeWidth={2.4} />
                           {t("lateBy", { days: r.days_late })}
+                          {site ? (
+                            <>
+                              {"· "}
+                              <span className="font-medium text-wh-ink-3">{site}</span>
+                            </>
+                          ) : null}
                         </span>
                       ) : r.status === "submitted" ? (
-                        <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-bold text-wh-warn">
+                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-wh-warn">
                           <Clock size={12} strokeWidth={2.4} />
                           {t("waitingManager")}
+                          {site ? (
+                            <>
+                              {"· "}
+                              <span className="font-medium text-wh-ink-3">{site}</span>
+                            </>
+                          ) : null}
                         </span>
-                      ) : r.status === "draft" && r.expected_at ? (
-                        <span className="mt-0.5 block text-[11.5px] text-wh-ink-3">
-                          {t("expectedOn", { date: r.expected_at })}
+                      ) : (
+                        <span className="mt-1 block truncate text-[11.5px] text-wh-ink-3">
+                          {[
+                            site,
+                            r.status === "draft" && r.expected_at
+                              ? t("expectedOn", { date: r.expected_at })
+                              : r.posted_by_name
+                                ? t("postedBy", { name: r.posted_by_name })
+                                : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </span>
-                      ) : r.posted_by_name ? (
-                        <span className="mt-0.5 block text-[11.5px] text-wh-ink-3">
-                          {t("postedBy", { name: r.posted_by_name })}
-                        </span>
-                      ) : null}
-                    </span>
-
-                    <span className="truncate text-[13px] font-medium">
-                      {locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
-                    </span>
-
-                    <span>
-                      <ReceptionStatusChip status={r.status} />
+                      )}
                     </span>
 
                     <span className="truncate text-[13px]" dir="auto">
@@ -248,24 +268,24 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                     </span>
 
                     {/*
-                     * LE CHIFFRE N'EST JAMAIS NU. « 300 » ne dit pas si trois
-                     * cents unités sont arrivées ou seulement promises, et
-                     * `totals.units` somme le REÇU : sur une réception annoncée
-                     * et pas encore comptée il vaut 0, ce qui se lirait « rien
-                     * n'est arrivé ». C'est donc l'attendu qu'on montre, nommé.
+                     * LE CHIFFRE EST L'ANCRE DE LA LIGNE : 16 px, et jamais nu.
+                     * `totals.units` somme le REÇU, donc sur une attendue il vaut
+                     * 0 — et un 0 affiché se lirait « rien n'est arrivé ».
                      */}
-                    <span className="text-end font-mono text-[13.5px] font-semibold tabular-nums">
+                    <span className="whitespace-nowrap text-end">
                       {headline.value === null ? (
-                        <span className="text-wh-ink-3">—</span>
+                        <span className="font-mono text-[16px] text-wh-ink-3">—</span>
                       ) : (
                         <>
-                          {nf.format(headline.value)}
+                          <span className="font-mono text-[16px] font-semibold tabular-nums">
+                            {nf.format(headline.value)}
+                          </span>
                           {r.totals.damaged > 0 && headline.kind === "units" ? (
-                            <span className="ms-1 font-sans text-[11.5px] font-medium text-wh-warn">
+                            <span className="ms-1.5 text-[11.5px] font-medium text-wh-warn">
                               {t("unitsDamagedSuffix", { count: r.totals.damaged })}
                             </span>
                           ) : (
-                            <span className="ms-1 font-sans text-[11.5px] font-medium text-wh-ink-3">
+                            <span className="ms-1.5 text-[11.5px] text-wh-ink-3">
                               {unitWord(headline.kind, r.totals.damaged)}
                             </span>
                           )}
@@ -274,24 +294,28 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                     </span>
 
                     {/*
-                     * `null` = soit rien n'est encore arrivé, soit ce lecteur
-                     * n'a pas droit aux chiffres d'argent. Dans les deux cas un
-                     * tiret dit « inconnu » ; un zéro mentirait.
+                     * `null` = soit rien n'est encore arrivé, soit ce lecteur n'a
+                     * pas droit aux chiffres d'argent. Dans les deux cas un tiret
+                     * dit « inconnu » ; un zéro mentirait.
                      */}
-                    <span className="text-end font-mono text-[13.5px] font-semibold tabular-nums">
+                    <span className="whitespace-nowrap text-end">
                       {r.totals.value === null ? (
-                        <span className="text-wh-ink-3">—</span>
+                        <span className="font-mono text-[15px] text-wh-ink-3">—</span>
                       ) : (
                         <>
-                          {nf.format(r.totals.value)}
-                          <span className="ms-1 font-sans text-[11px] font-semibold text-wh-ink-3">
+                          <span className="font-mono text-[15px] font-semibold tabular-nums">
+                            {nf.format(r.totals.value)}
+                          </span>
+                          <span className="ms-1 text-[10.5px] font-semibold text-wh-ink-3">
                             {currency}
                           </span>
                         </>
                       )}
                     </span>
 
-                    <span>
+                    {/* Statut et paiement se lisent d'un même regard. */}
+                    <span className="flex flex-wrap items-center gap-2">
+                      <ReceptionStatusChip status={r.status} />
                       <PaymentChip
                         state={r.payment_state}
                         percent={paidPercent({ value: r.totals.value, paid: r.paid_total ?? 0 })}
