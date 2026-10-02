@@ -127,7 +127,7 @@ describe("OrderStatusBadge — a rejection says why", () => {
         status="rejected"
         label="Rejeté"
         locale="fr"
-        rejection={{ hue: "amber", text: "Faux n°" }}
+        rejection={{ icon: "rejectedUnreachable", text: "Faux n°" }}
       />,
     );
 
@@ -135,20 +135,22 @@ describe("OrderStatusBadge — a rejection says why", () => {
     expect(screen.queryByText("Rejeté")).toBeNull();
   });
 
-  it("wears the group's hue, not the blanket red of 'rejected'", () => {
+  // Every other hue is a live status — amber would read "still being called".
+  // The rejected red stays; the group is the glyph.
+  it("keeps the rejected red and shows the group as its icon", () => {
     render(
       <OrderStatusBadge
         status="rejected"
         label="Rejeté"
         locale="fr"
-        rejection={{ hue: "amber", text: "Faux n°" }}
+        rejection={{ icon: "rejectedUnreachable", text: "Faux n°" }}
       />,
     );
 
-    expect(screen.getByTestId("order-status")).toHaveAttribute(
-      "data-hue",
-      "amber",
-    );
+    const badge = screen.getByTestId("order-status");
+    expect(badge).toHaveAttribute("data-hue", "red");
+    expect(badge.querySelector(".lucide-phone-off")).not.toBeNull();
+    expect(badge.querySelector(".lucide-circle-x, .lucide-x-circle")).toBeNull();
   });
 
   it("falls back to plain red when the reason is unknown", () => {
@@ -166,7 +168,7 @@ describe("OrderStatusBadge — a rejection says why", () => {
         status="rejected"
         label="Rejeté"
         locale="fr"
-        rejection={{ hue: "amber", text: "Faux n°" }}
+        rejection={{ icon: "rejectedUnreachable", text: "Faux n°" }}
       />,
     );
 
@@ -181,7 +183,7 @@ describe("OrderStatusBadge — a rejection says why", () => {
         status="delivered"
         label="Livrée"
         locale="fr"
-        rejection={{ hue: "amber", text: "Faux n°" }}
+        rejection={{ icon: "rejectedUnreachable", text: "Faux n°" }}
       />,
     );
 
@@ -200,7 +202,7 @@ describe("OrderStatusBadge — a rejection says why", () => {
         label="Rejeté"
         locale="fr"
         rejection={{
-          hue: "neutral",
+          icon: "rejectedOther",
           text: "il a dit qu'il rappellerait la semaine prochaine",
         }}
       />,

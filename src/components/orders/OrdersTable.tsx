@@ -152,7 +152,10 @@ export function OrdersTable({
             <col style={{ width: 44 }} />
             <col />
             <col style={{ width: 120 }} />
-            <col style={{ width: 120 }} />
+            {/* Status. 148, not 120: a rejected order shows its reason here,
+                and 88px of content cut « Changé d'avis » and « Sans réponse »
+                — the two commonest — to an ellipsis. */}
+            <col style={{ width: 148 }} />
             <col style={{ width: 130 }} />
             <col style={{ width: 110 }} />
             <col style={{ width: 64 }} />

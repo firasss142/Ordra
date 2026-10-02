@@ -8,23 +8,26 @@
  * which is handed an already-translated string and knows nothing about reasons.
  * This module is what they were missing.
  *
- * Two encodings, both cheap to read down a long column:
+ * Three encodings, each doing one job:
  *
- *   hue   — which *kind* of failure, from the group. A customer who said no
- *           (red) and a number that never answered (amber) are different
- *           businesses with different fixes; one red for both hides that.
- *   words — the sub-reason's short label, never the word "rejected". "Faux n°"
- *           fits the 120px status column; "Numéro faux ou inexistant" does not,
- *           which is why every row stores both.
+ *   hue    — none of its own. A rejected order keeps the quiet red of every
+ *            unsuccessful ending. Groups used to wear amber, violet, teal and
+ *            grey — and each of those already names a LIVE status, so an
+ *            unreachable customer read as an attempt in progress and a fake
+ *            order read as shipped.
+ *   icon   — which *kind* of failure, from the group (REJECTION_GROUP_ICONS).
+ *   words  — the sub-reason's short label, never the word "rejected". "Faux n°"
+ *            fits the status column; "Numéro faux ou inexistant" does not, so
+ *            the full sentence travels separately as `detail`, for the hover.
  *
  * React-free on purpose: a route handler imports it as cheaply as a client
  * component, and the label it returns is a description rather than a string, so
  * the caller resolves translations with its own `useTranslations`.
  */
 
-import type { StatusHue } from "./status-presentation";
+import type { StatusIconName } from "./status-presentation";
 import type { RejectionReasonConfig } from "@/types/rejection-config";
-import { seedGroupHue } from "./rejection-config";
+import { rejectionGroupIcon } from "./rejection-config";
 
 export type RejectionLabel =
   /** Straight from the market's config — the normal case. */
@@ -47,12 +50,22 @@ export interface RejectionInput {
 }
 
 export interface RejectionPresentation {
-  hue: StatusHue;
+  icon: StatusIconName;
   label: RejectionLabel;
+  /**
+   * Group and sub-reason in full, plus the agent's note — the sentence the
+   * column has no room for. Null until the market's config has loaded.
+   */
+  detail: string | null;
 }
 
+const isAr = (locale: string) => locale.startsWith("ar");
+
 const shortFor = (row: RejectionReasonConfig, locale: string) =>
-  locale.startsWith("ar") ? row.short_ar : row.short_fr;
+  isAr(locale) ? row.short_ar : row.short_fr;
+
+const fullFor = (row: RejectionReasonConfig, locale: string) =>
+  isAr(locale) ? row.label_ar : row.label_fr;
 
 /** One line, single-spaced — a note is pasted from a call, not typeset. */
 const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -67,20 +80,32 @@ export function presentRejection(
     : null;
 
   // The sub-reason knows its own parent, so a row whose `rejection_reason`
-  // column was never filled in still resolves a group — and therefore a colour.
+  // column was never filled in still resolves a group — and therefore an icon.
   const groupKey = reason ?? subRow?.parent_key ?? null;
 
   const groupRow = groupKey
     ? (rows.find((r) => r.key === groupKey && r.parent_key === null) ?? null)
     : null;
 
-  const hue: StatusHue = groupRow
-    ? groupRow.hue
-    : groupKey
-      ? seedGroupHue(groupKey)
-      : "red";
+  return {
+    icon: rejectionGroupIcon(groupKey),
+    label: labelFor({ reason, subreason, note }, rows, locale, subRow, groupRow),
+    detail: detailFor(note, locale, subRow, groupRow),
+  };
+}
 
-  return { hue, label: labelFor({ reason, subreason, note }, rows, locale, subRow, groupRow) };
+function detailFor(
+  note: string | null | undefined,
+  locale: string,
+  subRow: RejectionReasonConfig | null,
+  groupRow: RejectionReasonConfig | null,
+): string | null {
+  if (!groupRow) return null;
+  const parts = [fullFor(groupRow, locale)];
+  if (subRow) parts.push(fullFor(subRow, locale));
+  const text = note ? tidy(note) : "";
+  if (text) parts.push(text);
+  return parts.join(" · ");
 }
 
 function labelFor(

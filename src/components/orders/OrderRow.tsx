@@ -13,7 +13,7 @@ import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-a
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 import { isTerminalStatus, type OrderStatus } from "@/types/order-status";
-import type { StatusHue } from "@/lib/orders/status-presentation";
+import type { RejectionBadge } from "@/hooks/useRejectionBadge";
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 import { PresenceIndicator, type PresencePerson } from "./PresenceIndicator";
@@ -36,11 +36,11 @@ interface Props {
   agentAvatarUrl?: string | null;
   currencyCode: string;
   /**
-   * Why this order was rejected, resolved to a hue and a short phrase. Built
-   * once per table by `useRejectionBadge` rather than per row, so a thousand
-   * rows share one config read.
+   * Why this order was rejected: the group's icon, a short phrase, and the full
+   * sentence for the hover. Built once per table by `useRejectionBadge` rather
+   * than per row, so a thousand rows share one config read.
    */
-  rejection?: { hue: StatusHue; text: string } | null;
+  rejection?: RejectionBadge | null;
   labels: {
     status: string;
     unassigned: string;
@@ -341,7 +341,7 @@ function Row({
         </span>
       </td>
 
-      {/* Status. The column is 120px and fixed, so anything that outgrows it
+      {/* Status. The column is 148px and fixed, so anything that outgrows it
           used to paint straight over the age beside it — "Rejeté · en retard"
           on top of "18h 47m". Two rules keep that impossible: the cell clips,
           and the flags beside the badge are marks rather than sentences. Their
@@ -351,6 +351,7 @@ function Row({
           <StatusHistoryPopover
             orderId={order.id}
             sourcePlatform={order.external_platform ?? null}
+            detail={order.status === "rejected" ? (rejection?.detail ?? null) : null}
           >
             <OrderStatusBadge
               status={order.status}
@@ -485,7 +486,8 @@ export const OrderRow = React.memo(Row, (prev, next) => {
     prev.labels.callbackOverdue === next.labels.callbackOverdue &&
     prev.labels.priorRejected === next.labels.priorRejected &&
     prev.rejection?.text === next.rejection?.text &&
-    prev.rejection?.hue === next.rejection?.hue &&
+    prev.rejection?.icon === next.rejection?.icon &&
+    prev.rejection?.detail === next.rejection?.detail &&
     prevOverdue === nextOverdue
   );
 });

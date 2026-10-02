@@ -9,7 +9,7 @@ La taxonomie est à deux niveaux, et les deux niveaux n'ont pas les mêmes droit
 
 | Niveau | Clé | Ajout / suppression | Éditable |
 |---|---|---|---|
-| Groupe | valeur de l'enum `rejection_reason` | **non** | libellé, couleur, ordre |
+| Groupe | valeur de l'enum `rejection_reason` | **non** | libellé, ordre |
 | Sous-motif | `orders.rejection_subreason` (texte) | **oui** | tout sauf la clé |
 
 Les groupes sont figés parce que leur clé est une valeur d'un enum Postgres que
@@ -29,11 +29,8 @@ Colonnes qui méritent une explication :
   « Le numéro est à quelqu'un d'autre » est ce qu'il faut dans le sélecteur de
   l'agent ; « Mauvais n° » est ce qui tient dans une colonne de 120 px. Aucune
   troncature automatique ne produit la seconde à partir de la première.
-- **`hue`** — une des six teintes *nommées* du design system, jamais un hex libre.
-  Les pastilles tirent leurs tons de `--hue-*`, déjà accordés clair/sombre et RTL ;
-  un hex choisi dans un formulaire casse ce contrat. Elle n'a de sens que sur une
-  ligne de groupe : un sous-motif hérite de la couleur de son parent, sans quoi un
-  même groupe porterait quatre couleurs et la couleur ne voudrait plus rien dire.
+- **`hue`** — **n'est plus lue** (2026-10-02). La colonne reste en base, mais ni
+  l'écran, ni l'API, ni la pastille ne s'en servent. Voir §4 pour la raison.
 - **`is_active`** — le retrait doux. Voir §3.
 - **`requires_note`** — vrai pour `autre` seulement. C'est la seule chose qui
   empêche la taxonomie de retomber dans l'état mesuré avant sa refonte : `autre`
@@ -48,7 +45,8 @@ brute là où l'API sait déjà compter les usages avant de supprimer.
 | Rôle | Fichier |
 |---|---|
 | Arbre + validation (sans React, sans Supabase) | `lib/orders/rejection-config.ts` |
-| Couleur + mots d'une commande rejetée | `lib/orders/rejection-presentation.ts` |
+| Icône + mots + phrase complète d'une commande rejetée | `lib/orders/rejection-presentation.ts` |
+| Icône de chaque groupe | `lib/orders/rejection-config.ts` → `REJECTION_GROUP_ICONS` |
 | Taxonomie compilée — semis et repli | `lib/orders/rejection-taxonomy.ts` |
 | Lecture SWR | `hooks/useRejectionReasons.ts` |
 | Adaptateur pastille (locale + traductions) | `hooks/useRejectionBadge.ts` |
@@ -84,21 +82,51 @@ est le meilleur moyen de le voir recréé sous une deuxième clé.
 Avant : « Rejeté », en rouge, sur 28 % des lignes. La couleur ne distinguait rien et
 le mot ne disait rien que la croix ne disait déjà.
 
-Maintenant, deux encodages :
+### Révision du 2026-10-02 — une seule couleur, l'icône dit le groupe
 
-- **la teinte** dit *quel genre* d'échec, depuis le groupe ;
-- **les mots** disent le sous-motif court, jamais le mot « Rejeté ».
+La première version donnait une teinte à chaque groupe (rouge, ambre, violet,
+ardoise). C'était une erreur, et elle s'est vue en production :
 
-Couleurs par défaut, et le raisonnement derrière — ce ne sont pas cinq nuances de
-rouge, parce qu'un rejet recouvre quatre problèmes commerciaux différents :
-
-| Groupe | Teinte | Ce que ça veut dire |
+| Groupe | Teinte | Ce que cette teinte veut déjà dire ailleurs |
 |---|---|---|
-| `refus_client` | rouge | le client a entendu l'offre et a dit non — la vraie vente perdue |
-| `injoignable` | ambre | personne n'a décroché ; un meilleur numéro peut encore sauver la commande |
-| `livraison_impossible` | violet | joignable et d'accord, mais non livrable — problème de couverture, pas de vente |
-| `commande_invalide` | ardoise | il n'y a jamais eu de commande ; la compter comme une perte fausse tous les taux |
-| `autre` | ardoise | non classé — la note de l'agent tient lieu de motif |
+| `injoignable` | ambre | `attempt_*` — « on est encore en train d'appeler » |
+| `livraison_impossible` | violet | `confirmed`, `callback_scheduled` |
+| `commande_invalide` (LY, choisi dans l'écran) | bleu-vert | `uploaded`, `scanned` — **707 commandes mortes qui avaient l'air expédiées** |
+| `commande_invalide` (TN), `autre` | ardoise | `pending` |
+
+Toutes les teintes de la palette de statut nomment déjà un état **vivant**. Une
+commande rejetée habillée de l'une d'elles se lit comme une commande en cours.
+
+Maintenant, trois encodages, chacun avec un seul travail :
+
+- **la teinte** — celle de `rejected`, rouge discret, pour toutes. Elle dit « c'est
+  fini, sans succès », comme `cancelled` et `returned`. Aucun réglage ne la change ;
+  le sélecteur de couleur a été retiré de l'écran et `hue` de l'API PATCH.
+- **l'icône** — le groupe, depuis `REJECTION_GROUP_ICONS` :
+
+  | Groupe | Icône (lucide) | |
+  |---|---|---|
+  | `refus_client` | `ThumbsDown` | le client a entendu l'offre et a dit non |
+  | `injoignable` | `PhoneOff` | personne n'a décroché |
+  | `livraison_impossible` | `MapPinOff` | d'accord, mais on ne peut pas y aller |
+  | `commande_invalide` | `FileX` | il n'y a jamais eu de commande |
+  | `autre` | `MessageSquareText` | la note de l'agent est le motif |
+  | inconnu / nul | `XCircle` | la croix de `rejected` |
+
+  Les quatre valeurs héritées prennent l'icône du groupe qui les a absorbées.
+- **les mots** — le sous-motif court, jamais le mot « Rejeté ».
+
+La phrase entière (groupe · sous-motif · note) est `detail` : elle s'affiche en
+tête du survol de la pastille (`StatusHistoryPopover`). C'est le seul endroit du
+tableau où une note d'agent se lit en entier.
+
+### Le débordement corrigé le même jour
+La pastille avait `max-w-full truncate`, mais `StatusHistoryPopover` l'enveloppait
+de deux `inline-flex` sans largeur : `max-w-full` se calculait contre la largeur du
+contenu, `truncate` ne se déclenchait jamais, et une note de 84 caractères filait
+sous la colonne Âge. Les deux enveloppes portent `min-w-0 max-w-full`, et la
+colonne Statut passe de 120 à 148 px pour que « Changé d'avis » et « Sans
+réponse » tiennent sans points de suspension.
 
 Ordre de priorité du libellé (`presentRejection`) :
 1. le `short_*` du sous-motif, **même s'il a été retiré depuis** ;
@@ -113,10 +141,12 @@ chemin de traduction : `orders.rejectionSubreasonsShort.motif_invente` dans une
 colonne de 120 px est pire que le « Rejeté » qu'on remplace.
 
 ### Surfaces
-- **File de l'agent** — le faisait déjà, via `lib/queue/agent-status`.
-- **Commandes (manager)** — `OrderStatusBadge` accepte `rejection={{ hue, text }}`,
+- **File de l'agent** — la colonne Statut a disparu de la file (rev 3, 2026-09-19) ;
+  `lib/queue/agent-status` reste rouge, sans icône de groupe.
+- **Commandes (manager)** — `OrderStatusBadge` accepte `rejection={{ icon, text }}`,
   résolu une fois par tableau par `useRejectionBadge` (pas une fois par ligne).
 - **Archive** — la colonne « Motif » montre le sous-motif au lieu du groupe.
+- **Paramètres › Motifs de rejet** — l'aperçu EST `OrderStatusBadge`, pas une copie.
 
 `OrderStatusBadge` ignore un `rejection` sur un statut qui n'est pas `rejected` :
 garder la garde sur le statut plutôt que sur la prop évite qu'une charge périmée
