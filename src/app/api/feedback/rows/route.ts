@@ -5,6 +5,7 @@ import { canManageFeedback } from "@/lib/role-permissions";
 import { isUuid, resolveFeedbackMarket } from "@/lib/feedback/api";
 import { presetRange } from "@/lib/feedback/date-range";
 import { loadFamilies, readRange } from "@/lib/feedback/server-data";
+import { COURIER_AGENT } from "@/lib/feedback/overview";
 import { COMPLAINT_LATE_MS, isFeedbackCategory } from "@/lib/feedback/taxonomy";
 import { marketDayEndUtc, marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 import type { FeedbackRowsResponse, FeedbackSheetRow } from "@/types/feedback";
@@ -89,7 +90,8 @@ export async function GET(req: NextRequest) {
       .gte("created_at", marketDayStartUtc(range[0], marketId)!)
       .lte("created_at", marketDayEndUtc(range[1], marketId)!);
     const agent = params.get("agent");
-    if (isUuid(agent) || (agent && /^[\w-]+$/.test(agent))) q = q.eq("created_by", agent);
+    if (agent === COURIER_AGENT) q = q.eq("source", "courier");
+    else if (isUuid(agent) || (agent && /^[\w-]+$/.test(agent))) q = q.eq("created_by", agent);
     const cat = params.get("cat");
     if (isFeedbackCategory(cat)) q = q.eq("category", cat);
     const topic = params.get("topic");

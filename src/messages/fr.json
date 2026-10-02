@@ -7683,7 +7683,6 @@
       "lateChip": "Réclamations > 48 h",
       "keep": "Garder",
       "ignore": "Ignorer",
-      "keepAll": "Tout garder",
       "reviewing": "À valider",
       "back": "Retour",
       "drawer": {
@@ -7707,7 +7706,8 @@
       "selectMarket": "Choisissez un marché pour voir la voix de ses clients.",
       "error": "Impossible de charger la voix du client.",
       "retry": "Réessayer",
-      "actionFailed": "L'action a échoué. Réessayez."
+      "actionFailed": "L'action a échoué. Réessayez.",
+      "productTabs": "Produits"
     }
   }
 }

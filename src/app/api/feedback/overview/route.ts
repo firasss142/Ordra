@@ -4,7 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canManageFeedback } from "@/lib/role-permissions";
 import { resolveFeedbackMarket } from "@/lib/feedback/api";
 import { activePreset, presetRange, prevRange } from "@/lib/feedback/date-range";
-import { computeOverview, type CubeRow } from "@/lib/feedback/overview";
+import { computeOverview, COURIER_AGENT, type CubeRow } from "@/lib/feedback/overview";
 import { loadFamilies, readRange } from "@/lib/feedback/server-data";
 import { isFeedbackCategory, isLateComplaint, type FeedbackCategory } from "@/lib/feedback/taxonomy";
 import { marketTimezone } from "@/lib/markets";
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
   const o = computeOverview({
     cube, from, to, hasPrev, families, agents,
     familyId: family?.id ?? null,
-    agentId: agentParam && agents.some((a) => a.id === agentParam) ? agentParam : null,
+    agentId: agentParam === COURIER_AGENT || (agentParam && agents.some((a) => a.id === agentParam)) ? agentParam : null,
     category,
   });
 

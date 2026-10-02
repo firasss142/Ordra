@@ -71,6 +71,7 @@ describe("GET /api/feedback/rows — the sheet", () => {
     const p = "from=2026-09-01&to=2026-09-30";
     expect(await ids(`${p}&family=bs`)).toEqual(["b"]);
     expect(await ids(`${p}&agent=hend`)).toEqual(["f"]);
+    expect(await ids(`${p}&agent=darb`)).toEqual([]);
     expect(await ids(`${p}&cat=reclamation`)).toEqual(["b"]);
     expect(await ids(`${p}&cat=objection&topic=nocash`)).toEqual(["f", "a"]);
     expect(await ids(`${p}&cat=reclamation&topic=none`)).toEqual(["b"]);

@@ -40,6 +40,9 @@ export interface Overview {
 }
 
 const TOP_TOPICS = 6;
+
+/** The agent filter's « livreur Darb »: courier remarks have no author, only a source. */
+export const COURIER_AGENT = "darb";
 const sum = (rows: CubeRow[]) => rows.reduce((s, r) => s + r.n, 0);
 const emptyByCategory = (): Record<FeedbackCategory, number> => ({ reclamation: 0, objection: 0, suggestion: 0 });
 
@@ -57,7 +60,8 @@ export function computeOverview(input: OverviewInput): Overview {
 
   const famIds = familyId ? new Set(families.find((f) => f.id === familyId)?.productIds ?? []) : null;
   const inProduct = (r: CubeRow) => !famIds || (r.product_id !== null && famIds.has(r.product_id));
-  const inAgent = (r: CubeRow) => !agentId || r.created_by === agentId;
+  const inAgent = (r: CubeRow) =>
+    !agentId || (agentId === COURIER_AGENT ? r.source === "courier" : r.created_by === agentId);
 
   const cur = cube.filter((r) => r.day >= from && r.day <= to);
   const prev = hasPrev ? cube.filter((r) => r.day >= pFrom && r.day <= pTo) : [];

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { computeOverview, type CubeRow } from "../overview";
+import { computeOverview, COURIER_AGENT, type CubeRow } from "../overview";
 import type { Family } from "../product-family";
 
 const BAG: Family = { id: "bm", label: "دميه ملاكمه", imageUrl: null, productIds: ["bm", "bs"] };
@@ -111,5 +111,11 @@ describe("computeOverview", () => {
     const o = computeOverview({ ...base, familyId: "bm", agentId: "hend" });
     expect(o.agents.find((a) => a.id === "tasnim")!.count).toBe(2);
     expect(o.agents.find((a) => a.id === "hend")!.count).toBe(1);
+  });
+
+  test("« livreur Darb » as the agent filter keeps the courier's entries", () => {
+    const o = computeOverview({ ...base, agentId: COURIER_AGENT });
+    expect(o.total).toBe(2);
+    expect(o.kpis.find((k) => k.category === "reclamation")!.count).toBe(2);
   });
 });
