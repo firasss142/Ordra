@@ -8380,6 +8380,49 @@
         "required": "Tous les champs sont obligatoires pour une première connexion.",
         "failed": "Meta a refusé ces identifiants : {reason}"
       }
+    },
+    "ads": {
+      "accountsTitle": "Comptes publicitaires Meta",
+      "accountsDesc": "Ordra lit chaque jour ce que ces comptes ont dépensé.",
+      "connect": "Connecter un compte",
+      "colAccount": "Compte",
+      "colCurrency": "Devise",
+      "colSync": "Synchronisation",
+      "colActive": "Actif",
+      "syncedToday": "Synchronisé aujourd’hui à {time}",
+      "syncedOn": "Synchronisé le {date}",
+      "syncError": "Erreur de synchronisation",
+      "neverSynced": "Jamais synchronisé",
+      "test": "Tester",
+      "testOk": "{name} : connexion vérifiée",
+      "testFail": "{name} : {reason}",
+      "disconnect": "Déconnecter",
+      "disconnectTitle": "Déconnecter {name} ?",
+      "disconnectBody": "Ordra cessera de lire ses dépenses. Ce qui a déjà été importé reste dans le P&L.",
+      "disconnected": "{name} déconnecté",
+      "emptyTitle": "Aucun compte publicitaire connecté",
+      "emptyText": "Connectez un compte Meta pour que les dépenses pub de ce marché arrivent seules dans le P&L.",
+      "toastOn": "{name} activé",
+      "toastOff": "{name} désactivé",
+      "fxTitle": "Taux de change",
+      "fxDesc": "Pour convertir en monnaie locale ce que Meta facture en dollars.",
+      "fxLabel": "Taux de change du dollar",
+      "fxHelp": "Les dépenses Meta facturées en dollars sont converties à {n} {cur} pour le P&L et la page Dépenses pub.",
+      "fxHelpEmpty": "Nécessaire seulement si un compte publicitaire facture en dollars.",
+      "drawer": {
+        "title": "Connecter un compte publicitaire",
+        "accountId": "Identifiant du compte publicitaire",
+        "accountIdHelp": "Dans Meta Business, sous « Comptes publicitaires » : act_123… ou seulement les chiffres.",
+        "token": "Jeton d’accès",
+        "tokenHelp": "Un jeton d’utilisateur système avec le droit de lire les publicités. Meta le vérifie à l’enregistrement.",
+        "save": "Connecter",
+        "required": "Identifiant et jeton obligatoires.",
+        "errors": {
+          "invalid_account_id": "Cet identifiant de compte n’est pas valide.",
+          "invalid_token": "Meta refuse ce jeton.",
+          "meta_unreachable": "Meta ne répond pas. Réessayez dans un instant."
+        }
+      }
     }
   }
 }
