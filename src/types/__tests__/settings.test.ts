@@ -587,6 +587,24 @@ describe("delivery worklist settings", () => {
     }
   });
 
+  // Transporteurs (plans/transporteurs.md): the target a carrier is judged
+  // against, and the days on the road after which a parcel is late.
+  it("carrier_delivery_target_pct accepts 1..100 and carrier_late_days 1..30", () => {
+    expect(isValidMarketSettings({ ...valid, carrier_delivery_target_pct: 60 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, carrier_delivery_target_pct: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, carrier_delivery_target_pct: 101 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, carrier_late_days: 3 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, carrier_late_days: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, carrier_late_days: 2.5 })).toBe(false);
+  });
+
+  it("declares the Transporteurs thresholds, with the prototype's defaults", () => {
+    expect(MARKET_SETTINGS_KEYS).toContain("carrier_delivery_target_pct");
+    expect(MARKET_SETTINGS_KEYS).toContain("carrier_late_days");
+    expect(DEFAULT_MARKET_SETTINGS.carrier_delivery_target_pct).toBe(60);
+    expect(DEFAULT_MARKET_SETTINGS.carrier_late_days).toBe(3);
+  });
+
   it("ships defaults for the keys the page cannot run without", () => {
     expect(DEFAULT_MARKET_SETTINGS.zone_low_delivery_rate_pct).toBe(60);
     expect(DEFAULT_MARKET_SETTINGS.zone_min_sample).toBe(20);

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Route } from "lucide-react";
 import { SectionCard } from "./SectionCard";
-import { OrderTimeline } from "@/components/in-delivery/OrderTimeline";
+import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { useOrderTimeline } from "@/hooks/useOrderTimeline";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { OrderStatus } from "@/types/order-status";

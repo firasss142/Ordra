@@ -177,7 +177,7 @@ never reaches them before the serverless function is killed.
 - Status taxonomy: `src/lib/carriers/darb-assabil-statuses.ts`
 - Order-panel detail (courier, notes, cost): `src/components/queue/DarbStatusSection.tsx`
   reading `GET /api/orders/[id]/darb-shipment` — a LOCAL MIRROR read, no carrier call.
-  Rendered on all three order surfaces: agent queue, orders console, in-delivery detail.
+  Rendered on the order surfaces: agent queue and orders console (the in-delivery detail was retired 2026-10-03).
 - Panel display rules (which events to hide, who to call): `src/lib/carriers/darb-shipment-display.ts`
 - Schema/coverage check: `scripts/verify-darb-panel.ts`
 - Read path: `src/lib/carriers/darb-assabil-tracking.ts`

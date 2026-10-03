@@ -170,6 +170,11 @@ export function DeliveryTopic({ user, marketId, marketCode }: TopicProps) {
         <NumberSetting form={form} marketId={marketId} settingKey="carrier_stall_days" {...field("carrier_stall_days")} min={1} max={90} editable={editRisk} help={(n) => t("fields.carrier_stall_days.help", { n })} />
       </SettingsCard>
 
+      <SettingsCard title={t("delivery.scorecardTitle")} description={t("delivery.scorecardDesc")}>
+        <NumberSetting form={form} marketId={marketId} settingKey="carrier_delivery_target_pct" {...field("carrier_delivery_target_pct")} min={1} max={100} editable={editRisk} help={(n) => t("fields.carrier_delivery_target_pct.help", { n })} />
+        <NumberSetting form={form} marketId={marketId} settingKey="carrier_late_days" {...field("carrier_late_days")} min={1} max={30} editable={editRisk} help={(n) => t("fields.carrier_late_days.help", { n })} />
+      </SettingsCard>
+
       <SettingsCard title={t("delivery.boardTitle")} description={t("delivery.boardDesc")}>
         <NumberSetting form={form} marketId={marketId} settingKey="delivery_first_action_hours" {...field("delivery_first_action_hours")} min={1} max={72} editable={editBoard} help={(n) => t("fields.delivery_first_action_hours.help", { n })} />
         <NumberSetting form={form} marketId={marketId} settingKey="delivery_done_window_hours" {...field("delivery_done_window_hours")} min={1} max={168} editable={editBoard} help={(n) => t("fields.delivery_done_window_hours.help", { n })} />

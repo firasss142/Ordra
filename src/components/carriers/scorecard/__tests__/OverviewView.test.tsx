@@ -71,6 +71,8 @@ describe("OverviewView — the market, then one card per carrier", () => {
     const card = screen.getByRole("article", { name: "Benghazi" });
     expect(card.closest("a")).toHaveAttribute("href", `/fr/carriers/${BEN}?period=30`);
     expect(text(card)).toContain("Compte ouvert le 7 sept.");
+    // No period before a new account: no trend, and no dangling separator.
+    expect(text(card)).not.toMatch(/objectif 60\s?% ·/);
   });
 
   it("offers Comparer and the period, and lists a dormant carrier still holding parcels", () => {

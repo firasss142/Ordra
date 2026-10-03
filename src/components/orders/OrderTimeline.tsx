@@ -31,7 +31,7 @@ export function OrderTimeline({
   stages: TimelineStage[];
   currentStatus: OrderStatus;
 }) {
-  const t = useTranslations("inDelivery.timeline");
+  const t = useTranslations("orderTimeline");
   const tStatus = useTranslations("orders.statuses");
 
   const isReturnPath =
@@ -148,7 +148,7 @@ const RING: Record<StatusHue, string> = {
 
 function formatDuration(
   hours: number,
-  t: ReturnType<typeof useTranslations<"inDelivery.timeline">>,
+  t: ReturnType<typeof useTranslations<"orderTimeline">>,
 ): string {
   if (hours < 1) return t("under1h");
   if (hours < 48) return t("hours", { h: hours });

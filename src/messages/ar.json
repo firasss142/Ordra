@@ -127,8 +127,6 @@
       "warehouseOut": "إخراج",
       "warehouseReturns": "إرجاع",
       "warehouseStock": "المخزون",
-      "carrierTracking": "تتبع الناقل",
-      "inDeliveryBoard": "لوحة التسليم",
       "pnl": "الأرباح والخسائر",
       "productsMargins": "المنتجات والهوامش",
       "stockInventory": "المخزون والجرد",
@@ -166,155 +164,6 @@
     },
     "myCommissions": "عمولاتي",
     "delivery": "التوصيل"
-  },
-  "carrierTracking": {
-    "title": "تتبع الناقل",
-    "subtitle": "الطلبات قيد التوصيل، مُجمَّعة حسب الناقل.",
-    "loading": "جارٍ تحميل التتبع…",
-    "loadError": "تعذّر تحميل تتبع الناقل.",
-    "noCarriers": "لا يوجد ناقلون نشطون لهذا السوق.",
-    "unnamedCarrier": "ناقل بدون اسم",
-    "unknownCustomer": "عميل غير معروف",
-    "unassignedWarning": "{count, plural, one {# طلب مُرسَل بدون ناقل} other {# طلبات مُرسَلة بدون ناقل}}",
-    "inFlight": "{count, plural, one {# طلب قيد التوصيل} other {# طلبات قيد التوصيل}}",
-    "stuck": "{count, plural, one {# متوقف} other {# متوقفة}}",
-    "status": {
-      "dispatched": "مُرسَل",
-      "deposit": "إيداع",
-      "in_transit": "في الطريق",
-      "to_be_returned": "للإرجاع"
-    },
-    "story": "{inFlight} قيد التوصيل · متوسط {median} يوم · {rate}٪ تسليم 30 يوم",
-    "trends": {
-      "degrading": "تراجع",
-      "degradationTitle": "تراجع في أداء الناقل",
-      "degradationBody": "انخفاض معدل التسليم خلال 30 يوم عند: {names}. يُنصح بإعادة توزيع الحمولة."
-    },
-    "rates": {
-      "title": "معدل التسليم (المُسلَّم / المُسلَّم + المُرتجع)",
-      "d7": "7 أيام",
-      "d30": "30 يوم",
-      "d90": "90 يوم"
-    },
-    "cost": {
-      "title": "تكلفة الشحن (30 يوم)",
-      "periodSpend": "التكلفة الإجمالية 30 يوم",
-      "perDelivered": "التكلفة لكل طلب مُسلَّم",
-      "delivered": "المُسلَّمة خلال 30 يوم"
-    },
-    "stuckOrders": {
-      "title": "طلبات متوقفة",
-      "empty": "لا توجد طلبات متوقفة لدى هذا الناقل.",
-      "cols": {
-        "customer": "العميل",
-        "city": "المدينة",
-        "status": "الحالة",
-        "lastUpdate": "آخر تحديث",
-        "age": "العمر"
-      },
-      "ageHours": "{hours} س"
-    },
-    "transitions": {
-      "title": "التحولات الأخيرة",
-      "empty": "لا توجد تحولات حديثة."
-    }
-  },
-  "inDelivery": {
-    "title": "لوحة التسليم",
-    "subtitle": "رؤية شاملة للطلبات قيد الشحن وأداء الناقلين والطلبات العالقة.",
-    "loadError": "تعذر تحميل لوحة التسليم.",
-    "unassignedWarning": "{count, plural, one {# طلب مُرسل بدون ناقل} other {# طلبات مُرسلة بدون ناقل}}",
-    "carriers": {
-      "sectionTitle": "أداء الناقلين",
-      "sectionSubtitle": "إجماليات 30 يوماً لكل ناقل فعّال.",
-      "empty": "لا يوجد ناقل فعّال.",
-      "unnamed": "ناقل بدون اسم",
-      "inFlight": "{count, plural, one {# قيد الشحن} other {# قيد الشحن}}",
-      "medianTransit": "الوسيط للعبور",
-      "deliveryRate30d": "التسليم 30ي",
-      "returnRate30d": "الإرجاع 30ي",
-      "daysValue": "{d} ي",
-      "status": {
-        "dispatched": "تم الإرسال",
-        "deposit": "إيداع",
-        "in_transit": "عبور",
-        "to_be_returned": "مرتجع"
-      },
-      "manualStatusNote": "يتم تحديث الحالة يدويًا — لا يوفّر Dexpress تتبّعًا آليًا."
-    },
-    "stuck": {
-      "sectionTitle": "تنبيهات الطلبات العالقة",
-      "sectionSubtitle": "طلبات لم تتحدث منذ أكثر من 3 أيام — يجب التواصل مع الناقل.",
-      "empty": "لا توجد طلبات عالقة.",
-      "anonymous": "عميل بدون اسم",
-      "escalate": "تصعيد",
-      "escalated": "تم التصعيد",
-      "ageValue": "{d} ي",
-      "col": {
-        "customer": "العميل",
-        "city": "المدينة",
-        "carrier": "الناقل",
-        "status": "الحالة",
-        "age": "المدة",
-        "action": "إجراء"
-      }
-    },
-    "inFlight": {
-      "sectionTitle": "طلبات قيد الشحن",
-      "sectionSubtitle": "آخر 100 — انقر لعرض المسار.",
-      "empty": "لا توجد طلبات قيد الشحن.",
-      "expand": "عرض المسار",
-      "collapse": "إخفاء المسار",
-      "escalatedTitle": "تم التصعيد للناقل",
-      "timelineLoading": "جارٍ تحميل المسار…",
-      "timelineError": "تعذر تحميل المسار.",
-      "justNow": "الآن",
-      "hoursAgo": "منذ {h} س",
-      "daysAgo": "منذ {d} ي",
-      "col": {
-        "customer": "العميل",
-        "city": "المدينة",
-        "carrier": "الناقل",
-        "status": "الحالة",
-        "updated": "آخر تحديث"
-      }
-    },
-    "timeline": {
-      "label": "مسار الطلب",
-      "pending": "قادم",
-      "under1h": "< 1 س",
-      "hours": "{h} س",
-      "days": "{d} ي"
-    },
-    "escalate": {
-      "title": "تصعيد للناقل",
-      "subtitle": "طلب {name} — أضف ملاحظة للمتابعة اليدوية.",
-      "noteLabel": "ملاحظة المتابعة",
-      "notePlaceholder": "مثال: اتصلنا بالناقل، وعد بالتسليم خلال 48 ساعة.",
-      "cancel": "إلغاء",
-      "submit": "تصعيد",
-      "submitting": "جارٍ الإرسال…",
-      "genericError": "تعذر حفظ التصعيد."
-    },
-    "detail": {
-      "back": "العودة إلى لوحة التسليم",
-      "loading": "جارٍ التحميل…",
-      "loadError": "تعذر تحميل هذا الطلب.",
-      "anonymous": "عميل بدون اسم",
-      "status": "الحالة",
-      "carrier": "الناقل",
-      "noCarrier": "لا يوجد ناقل",
-      "escalated": "تم التصعيد",
-      "escalateCta": "تصعيد",
-      "historyTitle": "السجل الكامل",
-      "historyEmpty": "لا يوجد سجل.",
-      "initial": "(إنشاء)",
-      "actor": {
-        "system": "نظام",
-        "agent": "وكيل",
-        "manager": "مدير"
-      }
-    }
   },
   "inventory": {
     "title": "المخزون والجرد",
@@ -8123,7 +7972,9 @@
         "createdTestFail": "تمت إضافة {name}، لكن شركة الشحن لا ترد بعد.",
         "required": "الاسم والشركة وبيانات الربط إلزامية.",
         "duplicate": "توجد شركة شحن بنفس الاسم في هذا السوق."
-      }
+      },
+      "scorecardTitle": "أهداف شركات التوصيل",
+      "scorecardDesc": "صفحة شركات التوصيل تقيّم كل شركة بهذه العتبات. «طرد متوقف» أعلاه يحدد أيضاً الطرود العالقة."
     },
     "shops": {
       "title": "المتاجر",
@@ -9307,5 +9158,12 @@
       "tn": "تونس"
     },
     "dormantLabel": "شركات توصيل متوقفة"
+  },
+  "orderTimeline": {
+    "label": "مسار الطلب",
+    "pending": "قادم",
+    "under1h": "< 1 س",
+    "hours": "{h} س",
+    "days": "{d} ي"
   }
 }

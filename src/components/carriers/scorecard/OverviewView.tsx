@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Archive, ArrowRight, Truck } from "lucide-react";
 import { fmtDate, fmtInt, fmtMonth, fmtPct } from "@/lib/carriers/scorecard/format";
 import {
-  accentFor, carrierTitle, deliveryRate, isProvisional, lateTone, periodRate, rateStatus, returnsView, trimLeadingEmptyWeeks, weekRows,
+  accentFor, carrierTitle, deliveryRate, isProvisional, lateTone, periodRate, rateStatus, rateTrend, returnsView, weekRows,
 } from "@/lib/carriers/scorecard/view-model";
 import type { Scorecard, ScorecardCarrier, ScorecardPeriodDays } from "@/lib/carriers/scorecard/types";
 import { WeeklyBars } from "./charts";
@@ -179,7 +179,7 @@ function BriefCard({
                 title={t("targetIs", { target: fmtPct(locale, target) })} />
             </div>
             <StatusLine tone={RATE_TONE[st]} className="text-[12px]">{t(`statusShort.${st}`)}</StatusLine>
-            <span className={cx}>{t("targetIs", { target: fmtPct(locale, target) })}{provisional ? null : <>{" · "}{trend}</>}</span>
+            <span className={cx}>{t("targetIs", { target: fmtPct(locale, target) })}{rateTrend(card.period) ? <>{" · "}{trend}</> : null}</span>
           </div>
           <div className={pl}>
             <span className={lb}>{t("pLate")}</span>

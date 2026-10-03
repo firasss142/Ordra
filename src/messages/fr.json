@@ -127,8 +127,6 @@
       "warehouseOut": "Sortir",
       "warehouseReturns": "Rentrer",
       "warehouseStock": "Stock",
-      "carrierTracking": "Suivi transporteur",
-      "inDeliveryBoard": "Tableau livraison",
       "pnl": "P&L global",
       "productsMargins": "Produits & marges",
       "stockInventory": "Stock & inventaire",
@@ -166,155 +164,6 @@
     },
     "myCommissions": "Mes commissions",
     "delivery": "Livraison"
-  },
-  "carrierTracking": {
-    "title": "Suivi transporteur",
-    "subtitle": "Commandes en livraison, agrégées par transporteur.",
-    "loading": "Chargement du suivi…",
-    "loadError": "Impossible de charger le suivi transporteur.",
-    "noCarriers": "Aucun transporteur actif pour ce marché.",
-    "unnamedCarrier": "Transporteur sans nom",
-    "unknownCustomer": "Client inconnu",
-    "unassignedWarning": "{count, plural, one {# commande dispatchée sans transporteur assigné} other {# commandes dispatchées sans transporteur assigné}}",
-    "inFlight": "{count, plural, one {# commande en circulation} other {# commandes en circulation}}",
-    "stuck": "{count, plural, one {# bloquée} other {# bloquées}}",
-    "status": {
-      "dispatched": "Dispatché",
-      "deposit": "Dépôt",
-      "in_transit": "En transit",
-      "to_be_returned": "À retourner"
-    },
-    "story": "{inFlight} en circulation · médiane {median} j · {rate}% livrés 30 j",
-    "trends": {
-      "degrading": "Dégradation",
-      "degradationTitle": "Performance transporteur en baisse",
-      "degradationBody": "Taux de livraison en recul sur 30 j pour : {names}. Envisager d'ajuster la répartition."
-    },
-    "rates": {
-      "title": "Taux de livraison (livrés / livrés + retournés)",
-      "d7": "7 jours",
-      "d30": "30 jours",
-      "d90": "90 jours"
-    },
-    "cost": {
-      "title": "Coût transport (30 j)",
-      "periodSpend": "Coût total 30 j",
-      "perDelivered": "Coût par livrée",
-      "delivered": "Livrées 30 j"
-    },
-    "stuckOrders": {
-      "title": "Commandes bloquées",
-      "empty": "Aucune commande bloquée chez ce transporteur.",
-      "cols": {
-        "customer": "Client",
-        "city": "Ville",
-        "status": "Statut",
-        "lastUpdate": "Dernière MAJ",
-        "age": "Âge"
-      },
-      "ageHours": "{hours}h"
-    },
-    "transitions": {
-      "title": "Transitions récentes",
-      "empty": "Aucune transition récente."
-    }
-  },
-  "inDelivery": {
-    "title": "Tableau de bord livraison",
-    "subtitle": "Visibilité sur les commandes en circulation, performances des transporteurs et commandes bloquées.",
-    "loadError": "Impossible de charger le tableau de livraison.",
-    "unassignedWarning": "{count, plural, one {# commande expédiée sans transporteur assigné} other {# commandes expédiées sans transporteur assigné}}",
-    "carriers": {
-      "sectionTitle": "Performance transporteurs",
-      "sectionSubtitle": "Agrégats 30 jours par transporteur actif.",
-      "empty": "Aucun transporteur actif.",
-      "unnamed": "Transporteur sans nom",
-      "inFlight": "{count, plural, one {# en circulation} other {# en circulation}}",
-      "medianTransit": "Transit médian",
-      "deliveryRate30d": "Livraison 30j",
-      "returnRate30d": "Retour 30j",
-      "daysValue": "{d} j",
-      "status": {
-        "dispatched": "Dispatché",
-        "deposit": "Dépôt",
-        "in_transit": "Transit",
-        "to_be_returned": "Retour"
-      },
-      "manualStatusNote": "Statut mis à jour manuellement — Dexpress n'expose pas de suivi automatique."
-    },
-    "stuck": {
-      "sectionTitle": "Alertes bloquées",
-      "sectionSubtitle": "Commandes sans mise à jour depuis plus de 3 jours — à relancer auprès du transporteur.",
-      "empty": "Aucune commande bloquée.",
-      "anonymous": "Client sans nom",
-      "escalate": "Escalader",
-      "escalated": "Escaladée",
-      "ageValue": "{d} j",
-      "col": {
-        "customer": "Client",
-        "city": "Ville",
-        "carrier": "Transporteur",
-        "status": "Statut",
-        "age": "Âge",
-        "action": "Action"
-      }
-    },
-    "inFlight": {
-      "sectionTitle": "Commandes en circulation",
-      "sectionSubtitle": "100 plus récentes — cliquer pour voir le parcours.",
-      "empty": "Aucune commande en circulation.",
-      "expand": "Afficher le parcours",
-      "collapse": "Masquer le parcours",
-      "escalatedTitle": "Escaladée auprès du transporteur",
-      "timelineLoading": "Chargement du parcours…",
-      "timelineError": "Impossible de charger le parcours.",
-      "justNow": "à l'instant",
-      "hoursAgo": "il y a {h} h",
-      "daysAgo": "il y a {d} j",
-      "col": {
-        "customer": "Client",
-        "city": "Ville",
-        "carrier": "Transporteur",
-        "status": "Statut",
-        "updated": "Dernière MAJ"
-      }
-    },
-    "timeline": {
-      "label": "Parcours de la commande",
-      "pending": "À venir",
-      "under1h": "< 1 h",
-      "hours": "{h} h",
-      "days": "{d} j"
-    },
-    "escalate": {
-      "title": "Escalader auprès du transporteur",
-      "subtitle": "Commande {name} — ajouter une note pour suivi manuel.",
-      "noteLabel": "Note de suivi",
-      "notePlaceholder": "ex. Appelé le transporteur, promesse de livraison sous 48 h.",
-      "cancel": "Annuler",
-      "submit": "Escalader",
-      "submitting": "Envoi…",
-      "genericError": "Impossible d'enregistrer l'escalade."
-    },
-    "detail": {
-      "back": "Retour au tableau livraison",
-      "loading": "Chargement…",
-      "loadError": "Impossible de charger cette commande.",
-      "anonymous": "Client sans nom",
-      "status": "Statut",
-      "carrier": "Transporteur",
-      "noCarrier": "Aucun transporteur",
-      "escalated": "Escaladée",
-      "escalateCta": "Escalader",
-      "historyTitle": "Historique complet",
-      "historyEmpty": "Aucun historique.",
-      "initial": "(création)",
-      "actor": {
-        "system": "système",
-        "agent": "agent",
-        "manager": "manager"
-      }
-    }
   },
   "inventory": {
     "title": "Stock & inventaire",
@@ -7837,12 +7686,12 @@
       "carrier_delivery_target_pct": {
         "label": "Objectif de livraison",
         "unit": "%",
-        "help": "Transporteurs : un taux de livraison sous {n} % est « sous l'objectif »."
+        "help": "Transporteurs : un taux de livraison sous {n} % est « sous l'objectif »."
       },
       "carrier_late_days": {
         "label": "Colis en retard",
         "unit": "jours",
-        "help": "Transporteurs : un colis en route depuis {n} jours après le ramassage est en retard."
+        "help": "Transporteurs : un colis en route depuis {n} jours après le ramassage est en retard."
       }
     },
     "orders": {
@@ -8123,7 +7972,9 @@
         "createdTestFail": "{name} ajouté, mais le transporteur ne répond pas encore.",
         "required": "Nom, société et identifiants obligatoires.",
         "duplicate": "Un transporteur porte déjà ce nom dans ce marché."
-      }
+      },
+      "scorecardTitle": "Objectifs des transporteurs",
+      "scorecardDesc": "La page Transporteurs juge chaque transporteur sur ces seuils. « Colis immobile » ci-dessus décide aussi qui est bloqué."
     },
     "shops": {
       "title": "Boutiques",
@@ -9073,7 +8924,7 @@
       "ok": "Objectif de {target} atteint",
       "near": "Proche de l'objectif de {target}",
       "below": "Sous l'objectif de {target}",
-      "prov": "Provisoire : encore en route"
+      "prov": "Provisoire : encore en route"
     },
     "statusShort": {
       "ok": "Objectif atteint",
@@ -9103,7 +8954,7 @@
     "wDelivered": "Livrés",
     "wFailed": "Échoués",
     "wInFlight": "Encore en route",
-    "wProv": "Provisoire : des colis de cette semaine sont encore en route.",
+    "wProv": "Provisoire : des colis de cette semaine sont encore en route.",
     "wFew": "Trop peu de colis terminés pour un taux.",
     "targetLabel": "Objectif {target}",
     "open": "Voir le détail",
@@ -9142,7 +8993,7 @@
       "groupTip": {
         "client": "Ne répond pas, a annulé, n'en veut plus…",
         "carrier": "Le transporteur, ou aucun motif donné",
-        "us": "Nos erreurs : mauvais article, doublon, annulé par nous"
+        "us": "Nos erreurs : mauvais article, doublon, annulé par nous"
       },
       "none": "{carrier} n'envoie pas le motif d'un échec.",
       "noneSub": "Seul le statut arrive (livré ou retourné).",
@@ -9164,7 +9015,7 @@
         "none": "Aucun motif donné",
         "coordinated": "Reporté, puis échoué",
         "office_pickup": "À retirer à l'agence",
-        "in_progress": "Resté « en cours »"
+        "in_progress": "Resté « en cours »"
       }
     },
     "late": {
@@ -9181,8 +9032,8 @@
       "drag": "Après 3 jours en route, seul 1 colis sur 3 est livré.",
       "deliveredIn": "Livré en",
       "pickFast": {
-        "ly": "Ramassé en < 6 h",
-        "tn": "Déposé en < 24 h"
+        "ly": "Ramassé en < 6 h",
+        "tn": "Déposé en < 24 h"
       },
       "firstAttempt": "Au 1er passage",
       "days": "{n} j",
@@ -9296,9 +9147,9 @@
     },
     "copyMessage": {
       "ly": "السلام عليكم، هذه الطرود متأخرة، نرجو المتابعة:",
-      "tn": "Bonjour, ces colis sont en retard, merci de vérifier :"
+      "tn": "Bonjour, ces colis sont en retard, merci de vérifier :"
     },
-    "copied": "Copié : {n} numéros de suivi + message pour {carrier}",
+    "copied": "Copié : {n} numéros de suivi + message pour {carrier}",
     "copyFailed": "La copie a échoué.",
     "error": "Impossible de charger les transporteurs.",
     "retry": "Réessayer",
@@ -9307,5 +9158,12 @@
       "tn": "Tunisie"
     },
     "dormantLabel": "Transporteurs inactifs"
+  },
+  "orderTimeline": {
+    "label": "Parcours de la commande",
+    "pending": "À venir",
+    "under1h": "< 1 h",
+    "hours": "{h} h",
+    "days": "{d} j"
   }
 }

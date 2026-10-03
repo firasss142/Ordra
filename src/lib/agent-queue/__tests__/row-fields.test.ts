@@ -11,7 +11,11 @@ describe("QUEUE_ROW_SELECT", () => {
     expect(QUEUE_ROW_SELECT).toContain(
       "product:products!orders_product_id_fkey(image_url, name)",
     );
-    expect(QUEUE_ROW_SELECT).toContain("carrier:carriers!orders_carrier_id_fkey(code, name)");
+    // The carrier embed also brings the account colour and its warehouse city:
+    // the queue names a Darb account by city in its colour (Transporteurs, 2026-10-03).
+    expect(QUEUE_ROW_SELECT).toContain(
+      "carrier:carriers!orders_carrier_id_fkey(code, name, accent_color, warehouse:warehouses!carriers_warehouse_id_fkey(name_fr, name_ar))",
+    );
   });
 
   test("carries the fields both enrichment RPCs build their payloads from", () => {
@@ -44,9 +48,12 @@ describe("QUEUE_ROW_SELECT", () => {
   // the query uses the literal, and a field added to one but not the other
   // would mean realtime and fetch disagree about the row shape.
   test("the select literal and the field array describe the same columns", () => {
-    const selectedColumns = QUEUE_ROW_SELECT.split(",")
+    // Strip every embed — nested ones included — before reading the top-level columns.
+    let flat = QUEUE_ROW_SELECT;
+    while (/\([^()]*\)/.test(flat)) flat = flat.replace(/\([^()]*\)/g, "");
+    const selectedColumns = flat.split(",")
       .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.includes("(") && !s.includes(")"));
+      .filter((s) => s.length > 0 && !s.includes(":"));
 
     expect([...selectedColumns].sort()).toEqual([...QUEUE_ROW_FIELDS].sort());
   });
