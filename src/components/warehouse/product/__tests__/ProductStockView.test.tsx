@@ -44,8 +44,8 @@ vi.mock("swr", () => ({
   }),
 }));
 
-const TRIPOLI = { id: "T", code: "tripoli", name: "Tripoli", isDefault: true };
-const BENGHAZI = { id: "B", code: "benghazi", name: "Benghazi", isDefault: false };
+const TRIPOLI = { id: "T", code: "tripoli", name: "Tripoli", isDefault: true, marketId: "m-ly" };
+const BENGHAZI = { id: "B", code: "benghazi", name: "Benghazi", isDefault: false, marketId: "m-ly" };
 
 function renderView(productId = "qr") {
   return render(

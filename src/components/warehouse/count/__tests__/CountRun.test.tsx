@@ -40,8 +40,8 @@ vi.mock("swr", () => ({
   }),
 }));
 
-const BENGHAZI = { id: "B", code: "benghazi", name: "Benghazi", isDefault: false };
-const TRIPOLI = { id: "T", code: "tripoli", name: "Tripoli", isDefault: true };
+const BENGHAZI = { id: "B", code: "benghazi", name: "Benghazi", isDefault: false, marketId: "m-ly" };
+const TRIPOLI = { id: "T", code: "tripoli", name: "Tripoli", isDefault: true, marketId: "m-ly" };
 
 function renderRun() {
   return render(
