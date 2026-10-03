@@ -116,6 +116,26 @@ Trois questions, trois onglets, une recherche :
 Mots simples : « Échanges externes » et « Activité interne », pas webhooks ou audit ; « Problème » pour un regroupement par cause ; « Muet » quand
 un rythme attendu manque ; « Rien de nouveau » quand une tâche tourne sans rien trouver.
 
+### 2.1 v2 — la version allégée (2026-10-03, remplace v1 comme spécification)
+
+Retour du propriétaire sur v1 : trop dense. `prototypes/journaux-v2.html` garde le même système et
+les mêmes données, avec moins à l'écran :
+
+- **Deux onglets.** « Aperçu » (est-ce que tout marche ?) et « Historique » (que s'est-il passé ?).
+  Échanges externes et activité interne forment **un seul fil**, filtré par cinq puces : Tout ·
+  Systèmes externes · Équipe · Automatique · Sécurité et erreurs. Une bascule « Problèmes seulement ».
+- **Aperçu** : un verdict en une phrase, une carte par problème (titre, une phrase, un chiffre), puis
+  **9 tuiles** — Darb Tripoli, Darb Benghazi, Navex, Converty, autres boutiques, Meta, WhatsApp,
+  tâches automatiques, et **Ordra lui-même** (erreurs serveur et sécurité). Les « silences
+  expliqués » deviennent le sous-titre de la tuile.
+- **Le succès n'a pas de couleur.** Seuls un échec (rouge) et un « à vérifier » (ambre) en portent.
+- **La routine est comptée, pas listée** : une ligne grise par jour (« 312 passages sans changement »).
+- **Les panneaux** suivent toujours « Ce qui se passe · Combien · Que faire » ; barres horaires, liste
+  des 14 tâches, codes d'erreur et données reçues sont repliés dans le panneau ou sous « Détails
+  techniques ». Une modification ouvre un tableau avant → après.
+- Les lignes marquées « exemple » montrent ce que le nouveau journal enregistrera et qu'Ordra
+  n'enregistre pas aujourd'hui (le studio les masque avec « Réel seulement »).
+
 ---
 
 ## 3. Le système — ce qu'il faut construire
@@ -201,6 +221,16 @@ automatiquement** quand la règle ne se déclenche plus. Règles v1 :
 | R8 | un passage reste bloqué | 20 passages Darb |
 | R9 | WhatsApp passe en `auth_failed` / `paused`, ou Meta renvoie l'erreur 190 | — |
 | R10 | dépense pub > 0 mais aucune commande depuis X h — ou l'inverse, pour « expliquer » un silence | Libye, 30 sept. |
+| R11 | une même action renvoie une erreur serveur ≥ 3 fois en 1 h, ou 100 % de ses essais en 24 h (regroupée par route + méthode) ; se ferme après 1 h sans erreur | désactiver un utilisateur, 500 depuis le 24 sept., invisible 9 jours (PR #59) |
+| R12 | ≥ 5 échecs de connexion sur un compte en 15 min, ou un export de plus de 1 000 clients | — |
+
+**`app_errors`** — les erreurs d'Ordra lui-même, aujourd'hui seulement dans les journaux Vercel.
+Une enveloppe `withRouteErrors(handler)` autour des routes `app/api/**` écrit, pour toute réponse
+≥ 500 ou exception : `occurred_at`, `route`, `method`, `status`, `error_code`, `message` (caviardé,
+200 caractères), `actor_id`, `market_id`, `request_id`, `fingerprint` (route + méthode + code).
+Écrite par le rôle service, jamais lue par le navigateur ; purgée à 30 jours. Alimente R11 et la
+tuile « Ordra ». Pas de capture côté navigateur dans cette version.
+
 
 **`carrier_event_log`** — on ajoute `market_id`, `carrier_id`, `repeat_count` et `last_seen_at`.
 Les écrivains font une mise à jour quand le dernier événement de ce colis est identique, sinon ils
@@ -219,7 +249,13 @@ insèrent. Résultat attendu : quelques milliers de lignes au lieu de 921 017.
   - `order_history`, lu à travers une vue typée `order_history_typed` (changement de statut,
     modification de champ, réattribution, tentative, rattachement, reprise) ;
   - `inventory_log`, `agent_availability_log`, `delivery_actions` ;
-  - commissions, `lead_history`, `customer_feedback_events`, `label_prints`, `settings_history`.
+  - commissions, `lead_history` (appels Prospects), `customer_feedback_events` (Voix du client),
+    `label_prints`, `settings_history` ;
+  - `investor_statements` / `investor_deal_statements` (relevés arrêtés, côté automatismes) ;
+  - les campagnes WhatsApp : une ligne par envoi, écrite par `journal_record('whatsapp.campaign_sent')`
+    avec le nombre de destinataires, puis complétée des remis / en échec depuis `whatsapp_messages` ;
+  - `app_errors` et les événements de sécurité (`auth.login`, `auth.login_failed`, `export.*`) pour
+    la puce « Sécurité et erreurs ».
 
   Les séries sont regroupées par auteur, action et fenêtre de 60 s.
 - `order_trace(order_id)` — toutes les sources d'une commande, dans l'ordre.
@@ -290,9 +326,9 @@ Violet reste un statut de commande (« Confirmée ») et n'est jamais une famill
 | Phase | Contenu | État |
 |---|---|---|
 | **0** | PR #58 : lecteurs de réglages et archivage nocturne. PR #59 : Accès (statut des utilisateurs) et politiques de lecture des journaux | PR ouvertes, migrations à coller |
-| **1 — fondations** | `audit_events` + déclencheur générique + fil de l'auteur ; `integration_calls` + `withCallLog` ; colonnes et dédoublonnage de `carrier_event_log` ; vocabulaire des passages + réapeur ; passages de poll/dispatch ; rétention | à faire |
-| **2 — détection** | `journal_issues`, règles R1–R10, `journal_detect()` toutes les 5 min, fermeture automatique, pastille de la barre latérale | à faire |
-| **3 — écran** | Journaux selon le prototype : trois onglets, tiroirs, trace ; i18n fr (+ clés ar pour la parité) ; tests de composants et de routes | à faire |
+| **1 — fondations** | `audit_events` + déclencheur générique + fil de l'auteur ; `integration_calls` + `withCallLog` ; colonnes et dédoublonnage de `carrier_event_log` ; vocabulaire des passages + réapeur ; passages de poll/dispatch ; `app_errors` + `withRouteErrors` ; `journal_record` pour connexions, exports et campagnes WhatsApp ; rétention | à faire |
+| **2 — détection** | `journal_issues`, règles R1–R12, `journal_detect()` toutes les 5 min, fermeture automatique, pastille de la barre latérale | à faire |
+| **3 — écran** | Journaux selon **prototype v2** : Aperçu + Historique (un fil, cinq puces), 9 tuiles, panneaux, trace ; i18n fr (+ clés ar pour la parité) ; tests de composants et de routes | à faire |
 | **4 — nettoyage** | Supprimer `JournauxWorkspace` et les routes orphelines (`/api/admin/logs/summary`, `carrier-events/[id]`, `connections/overview`, `storefronts/[id]/health`) | à faire |
 
 **Hors refonte, à décider par le propriétaire** (le journal les montre, il ne les corrige pas) :
