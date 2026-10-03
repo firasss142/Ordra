@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Boxes, ChevronRight, UserRound } from "lucide-react";
-import type { DayJob } from "@/lib/warehouse/day-loop";
+import { ChevronRight, LayoutGrid } from "lucide-react";
+import { ageOf, type DayJob } from "@/lib/warehouse/day-loop";
 import type { TodayResponse } from "@/app/api/warehouse/today/route";
+import { Chip } from "./Chip";
+import { FillBar } from "./FillBar";
 
 /**
  * « Aujourd'hui » — the warehouse agent's home.
@@ -15,6 +17,10 @@ import type { TodayResponse } from "@/app/api/warehouse/today/route";
  * number, the size of that job — no KPI tiles. The dashboard deleted on
  * 2026-09-08 repeated the other screens' figures and could not be clicked;
  * that is what this screen is not.
+ *
+ * Built to the approved prototype (prototypes/entrepot-day-loop-agent-v3.html,
+ * `R.today`), its px sizes copied as px: the root font is 14px here, so rem
+ * scale classes would render everything an eighth too small.
  *
  * Each job wears its hue (`job-out`, `job-returns`, `job-receive`,
  * `job-count`, globals.css), all from the brand green's family.
@@ -36,51 +42,52 @@ const HUE: Record<DayJob["key"], string> = {
   count: "job-count",
 };
 
-/** Hours become days past two of them; nobody reads "70 h" as three days. */
-function ageLabel(hours: number, t: (k: "hours" | "days", v: { n: number }) => string): string {
-  return hours >= 48 ? t("days", { n: Math.floor(hours / 24) }) : t("hours", { n: Math.round(hours) });
-}
+const Chevron = () => (
+  <ChevronRight size={20} strokeWidth={2} className="shrink-0 text-ink-muted rtl:-scale-x-100" aria-hidden="true" />
+);
 
 export function TodayHome({
   data,
   locale,
   dateLabel,
+  initial,
   pickup,
 }: {
   data: TodayResponse;
   locale: string;
   /** The market's date, already formatted on the server in its time zone. */
   dateLabel: string;
+  /** The agent's initial, drawn in the avatar that opens Réglages. */
+  initial: string;
   /** The driver switch (Libya). A slot, so this screen stays presentational. */
   pickup?: React.ReactNode;
 }) {
   const t = useTranslations("warehouse.today");
   const tBench = useTranslations("warehouse.bench");
-  const tAge = useTranslations("warehouse.age");
 
   const header = (eyebrow: string | null) => (
-    <header className="mb-4 flex items-center justify-between gap-3">
-      <div className="min-w-0">
+    <header className="mb-[18px] flex items-center justify-between gap-[12px]">
+      <div className="min-w-0 flex-1">
         {eyebrow ? <p className="text-[12.5px] font-semibold text-wm-ink-2" dir="auto">{eyebrow}</p> : null}
-        <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em] text-wm-ink">{t("title")}</h1>
+        <h1 className="text-[28px] font-bold leading-[1.2] tracking-[-0.02em] text-wm-ink">{t("title")}</h1>
       </div>
       <Link
         href={`/${locale}/warehouse/settings`}
         aria-label={t("settings")}
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-wm-card-edge bg-wm-card text-wm-ink-2"
+        className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full border border-line bg-wm-card text-[14px] font-bold text-wm-ink-2 no-underline"
       >
-        <UserRound size={19} strokeWidth={1.8} aria-hidden="true" />
+        <span aria-hidden="true">{initial}</span>
       </Link>
     </header>
   );
 
   if (data.siteUnassigned) {
     return (
-      <div className="px-4 py-4">
+      <div className="px-[16px] pt-[18px]">
         {header(null)}
-        <div className="rounded-[16px] border border-wm-card-edge bg-wm-card px-4 py-6 text-center">
+        <div className="rounded-[16px] border border-line-subtle bg-wm-card px-[16px] py-[24px] text-center">
           <p className="text-[16px] font-bold text-wm-ink">{tBench("noSiteTitle")}</p>
-          <p className="mt-2 text-[14px] leading-relaxed text-wm-ink-2">{tBench("noSiteBody")}</p>
+          <p className="mt-[8px] text-[14px] leading-relaxed text-wm-ink-2">{tBench("noSiteBody")}</p>
         </div>
       </div>
     );
@@ -91,7 +98,15 @@ export function TodayHome({
   const { counts } = data;
   const progress = data.loop.progress;
 
-  const subtitle = (job: DayJob): React.ReactNode => {
+  const age = ageOf(counts.oldestHours);
+  const outSub = [
+    t("outSub", { n: out.count }),
+    out.count > 0 ? t("oldest", { age: t(age.unit === "days" ? "ageDays" : "ageHours", { n: age.n }) }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const subtitle = (job: DayJob): string => {
     switch (job.key) {
       case "returns":
         return [
@@ -100,73 +115,73 @@ export function TodayHome({
         ]
           .filter(Boolean)
           .join(" · ");
-      case "receive":
-        return [
-          t("receiveSub", { n: job.count }),
-          counts.receptionsLate > 0 ? t("receiveLate", { n: counts.receptionsLate }) : null,
-          counts.receptionsEmpty > 0 ? t("receiveEmpty", { n: counts.receptionsEmpty }) : null,
-        ]
+      case "receive": {
+        if (job.count === 0) {
+          return data.siteName ? t("receiveNoneAt", { site: data.siteName }) : t("receiveSub", { n: 0 });
+        }
+        const sole = data.soleReception;
+        return (
+          sole
+            ? [sole.reference, sole.lateDays > 0 ? t("receiveLateBy", { n: sole.lateDays }) : null, sole.empty ? t("receiveNoLine") : null]
+            : [
+                t("receiveSub", { n: job.count }),
+                counts.receptionsLate > 0 ? t("receiveLate", { n: counts.receptionsLate }) : null,
+                counts.receptionsEmpty > 0 ? t("receiveEmpty", { n: counts.receptionsEmpty }) : null,
+              ]
+        )
           .filter(Boolean)
           .join(" · ");
+      }
       case "count":
-        return job.state === "never" ? t("countNever") : t("countSub", { n: job.count });
+        return t("countSub", { n: job.count });
       default:
-        return null;
+        return "";
     }
   };
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-[16px] pt-[18px]">
       {header([data.siteName, dateLabel].filter(Boolean).join(" · "))}
 
-      {pickup ? <div className="mb-3">{pickup}</div> : null}
+      {pickup ? <div className="mb-[14px]">{pickup}</div> : null}
 
       {/* ── 1 · Sortir: the hero, because it is the job of every day ── */}
       <Link
         href={`/${locale}${HREF.out}`}
         data-job="out"
         data-state={out.state}
-        className={`${HUE.out} block rounded-[16px] border border-wm-card-edge bg-wm-card px-[18px] pb-[18px] pt-5 no-underline`}
+        className={`${HUE.out} block w-full rounded-[16px] border border-line-subtle bg-wm-card px-[18px] pb-[18px] pt-[20px] no-underline`}
       >
-        <div className="flex items-center gap-3">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-job text-[13px] font-bold text-white">1</span>
-          <span className="flex-1 text-[17px] font-bold text-wm-ink">{t("jobs.out")}</span>
-          <ChevronRight size={18} className="shrink-0 text-wm-ink-3 rtl:-scale-x-100" aria-hidden="true" />
+        <div className="flex items-end gap-[12px]">
+          <span className="grid h-[28px] w-[28px] shrink-0 place-items-center rounded-full bg-job text-[13px] font-bold text-white">1</span>
+          <span className="min-w-0 flex-1 text-[17px] font-bold text-wm-ink">{t("jobs.out")}</span>
+          <Chevron />
         </div>
-        <p data-testid="today-figure" className="mt-3.5 text-[44px] font-bold leading-none tracking-[-0.03em] tabular-nums text-job-ink">
-          {out.count}
-        </p>
-        <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[14px] text-wm-ink-2">
-          <span>{t("outUnit", { n: out.count })}</span>
-          {out.count > 0 ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{t("oldest", { age: ageLabel(counts.oldestHours, tAge) })}</span>
-            </>
-          ) : null}
-        </p>
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress.pct}
-          aria-label={t("scannedToday")}
-          className="mt-4 h-2 overflow-hidden rounded-pill bg-wm-track"
-        >
-          <i className="block h-full rounded-pill bg-job" style={{ width: `${progress.pct}%` }} />
+        <div className="mt-[14px]">
+          <p
+            data-testid="today-figure"
+            dir="ltr"
+            className="text-[44px] font-bold leading-none tracking-[-0.03em] tabular-nums text-job-ink"
+          >
+            {out.count}
+          </p>
+          <p className="mt-[6px] text-[14px] text-wm-ink-2" dir="auto">{outSub}</p>
         </div>
-        <div className="mt-2 flex items-center justify-between text-[13px] text-wm-ink-2">
-          <span>
+        <FillBar
+          pct={progress.pct}
+          label={t("scannedToday")}
+          className="mt-[16px] h-[8px] rounded-pill bg-wm-track"
+        />
+        <div className="mt-[8px] flex items-center gap-[12px] text-[12.5px] text-wm-ink-2">
+          <span className="min-w-0 flex-1">
             <b className="tabular-nums text-wm-ink">{progress.done}</b> {t("scannedToday")}
           </span>
-          <span className="tabular-nums">
-            {progress.hasGoal ? t("goal", { n: progress.target }) : `${progress.done} / ${progress.target}`}
-          </span>
+          <span dir="ltr" className="tabular-nums">{`${progress.done} / ${progress.target}`}</span>
         </div>
       </Link>
 
       {/* ── 2–4 · the rest of the day ─────────────────────────────── */}
-      <div className="mt-3 overflow-hidden rounded-[16px] border border-wm-card-edge bg-wm-card">
+      <div className="mt-[12px] overflow-hidden rounded-[16px] border border-line-subtle bg-wm-card">
         {(["returns", "receive", "count"] as const).map((key, i) => {
           const job = byKey[key];
           const idle = job.state === "idle";
@@ -178,30 +193,28 @@ export function TodayHome({
               data-state={job.state}
               className={[
                 HUE[key],
-                "flex min-h-[72px] items-center gap-3.5 px-4 py-3.5 no-underline",
-                i > 0 ? "border-t border-wm-card-edge" : "",
+                "flex min-h-[72px] w-full items-center gap-[14px] p-[16px] no-underline",
+                i > 0 ? "border-t border-line-subtle" : "",
               ].join(" ")}
             >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-job-bg text-[13px] font-bold text-job-ink">
+              <span className="grid h-[28px] w-[28px] shrink-0 place-items-center rounded-full bg-job-bg text-[13px] font-bold text-job-ink">
                 {i + 2}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15.5px] font-bold text-wm-ink">{t(`jobs.${key}`)}</span>
                 <span className="block text-[13px] text-wm-ink-2" dir="auto">{subtitle(job)}</span>
                 {job.state === "never" ? (
-                  <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-pill bg-status-warningBg px-2.5 py-0.5 text-[12px] font-semibold text-status-warning">
-                    <i className="h-1.5 w-1.5 rounded-full bg-status-warning" aria-hidden="true" />
-                    {t("neverChip")}
-                  </span>
+                  <Chip tone="warn" className="mt-[6px] py-[3px]">{t("neverChip")}</Chip>
                 ) : null}
               </span>
               <span
                 data-testid="today-figure"
-                className={`text-[24px] font-bold tabular-nums tracking-[-0.02em] ${idle ? "text-wm-ink-3" : "text-job-ink"}`}
+                dir="ltr"
+                className={`text-[24px] font-bold tabular-nums tracking-[-0.02em] ${idle ? "text-ink-muted" : "text-job-ink"}`}
               >
                 {job.count}
               </span>
-              <ChevronRight size={18} className="shrink-0 text-wm-ink-3 rtl:-scale-x-100" aria-hidden="true" />
+              <Chevron />
             </Link>
           );
         })}
@@ -210,18 +223,20 @@ export function TodayHome({
       {/* ── Stock: where the four jobs end up ─────────────────────── */}
       <Link
         href={`/${locale}/warehouse/stock`}
-        className="job-receive mt-3 flex items-center gap-3 rounded-[16px] border border-wm-card-edge bg-wm-card px-4 py-3.5 no-underline"
+        className="job-receive mt-[12px] flex w-full items-center gap-[12px] rounded-[16px] border border-line-subtle bg-wm-card px-[16px] py-[14px] no-underline"
       >
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-job-bg text-job-ink">
-          <Boxes size={18} strokeWidth={1.8} aria-hidden="true" />
+        <span className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-[10px] bg-job-bg text-job-ink">
+          <LayoutGrid size={18} strokeWidth={2} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-bold text-wm-ink">{t("stock")}</span>
-          <span className="block text-[13px] text-wm-ink-2">
-            {counts.neverCounted > 0 ? t("stockSub", { n: counts.products }) : t("stockSubCounted", { n: counts.products })}
+          <span className="block text-[12.5px] text-wm-ink-2">
+            {counts.products > 0 && counts.neverCounted >= counts.products
+              ? t("stockSub", { n: counts.products })
+              : t("stockSubCounted", { n: counts.products })}
           </span>
         </span>
-        <ChevronRight size={18} className="shrink-0 text-wm-ink-3 rtl:-scale-x-100" aria-hidden="true" />
+        <Chevron />
       </Link>
     </div>
   );

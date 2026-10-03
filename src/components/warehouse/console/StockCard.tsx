@@ -1,300 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, Package } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Boxes } from "lucide-react";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
-import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
+import { Num, Sparkline, Thumb, isLow } from "@/components/warehouse/product/stock-bits";
 
 /**
- * One product on the phone: a row that answers "how many do I have" at a
- * glance and opens for the rest.
+ * One product on the agent's phone — prototypes/entrepot-day-loop-agent-v3.html,
+ * `R.stock` › `.prod`, drawn in px (Ordra's root font is 14px).
  *
- * On the shelf the picker matches the name, reads the figure, moves on.
- * Reserved, the alert threshold, the last count, the last movements and the
- * count action are rare questions, so they live behind a tap, where they no
- * longer push the next product off the screen. Nothing here is faked: a
- * product nobody has counted says "jamais compté", a target nobody set is
- * not shown as a goal of zero.
+ * The whole row is the door to the product's page: thumb, the name, one line
+ * « Registre 943 · Engagé 29 · sous le seuil », fourteen days of the balance in
+ * the job's hue, and the FREE figure in bold — what can be promised. Reserved
+ * units, the split by building, the movements and the count action all live on
+ * the product's page; the row used to expand into them and push the next
+ * product off the screen.
  */
-
-import { stateOf } from "@/lib/warehouse/stock-filters";
-
-type Translate = (key: string, values?: Record<string, string | number>) => string;
-
-function relativeDay(iso: string, t: Translate): string {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return t("countedToday");
-  if (days === 1) return t("countedYesterday");
-  return t("countedDaysAgo", { days });
-}
-
-/** −1 / +3, with a real minus sign: a hyphen next to a digit reads as a dash. */
-function signed(n: number | null): string {
-  if (n === null) return "";
-  return n < 0 ? `−${Math.abs(n)}` : `+${n}`;
-}
-
-export function StockCard({
-  row,
-  onCount,
-}: {
-  row: WarehouseStockRow;
-  onCount: (row: WarehouseStockRow) => void;
-}) {
-  const t = useTranslations("warehouse.stock") as unknown as Translate;
-  const tf = useTranslations("warehouse.stock.filters") as unknown as Translate;
-  // The Libyan bench reads Arabic; a hardcoded "fr-FR" printed French dates on it.
-  const locale = useLocale();
-  const state = stateOf(row);
-  const [open, setOpen] = useState(false);
-  const [moves, setMoves] = useState<WarehouseHistoryRow[] | null>(null);
-
-  // The movements are fetched the first time the row opens, never for every
-  // row on the screen: a hundred products would mean a hundred requests.
-  useEffect(() => {
-    if (!open || moves !== null) return;
-    let cancelled = false;
-    fetch(`/api/warehouse/history?product_id=${encodeURIComponent(row.product_id)}&limit=5`)
-      .then((r) => (r.ok ? r.json() : { rows: [] }))
-      .then((body: { rows?: WarehouseHistoryRow[] }) => {
-        if (!cancelled) setMoves(body.rows ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setMoves([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, moves, row.product_id]);
+export function StockCard({ row, locale }: { row: WarehouseStockRow; locale: string }) {
+  const t = useTranslations("warehouse.stock");
+  const low = isLow(row);
 
   return (
-    <article
+    <Link
+      href={`/${locale}/warehouse/stock/${row.product_id}`}
       data-testid="wh-stock-card"
-      data-state={state}
-      data-open={open ? "true" : "false"}
-      className={`overflow-hidden rounded-[12px] border bg-wm-card ${
-        state === "negative" ? "border-wh-bad-edge" : state === "low" ? "border-wh-warn-edge" : "border-wm-card-edge"
-      }`}
+      data-low={low ? "true" : "false"}
+      className="flex min-h-[72px] w-full items-center gap-[12px] border-t border-line-subtle p-[14px] text-start text-wh-ink-1 no-underline first:border-t-0 active:bg-wh-surface-2"
     >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-0.5 px-3.5 py-3 text-start"
-      >
-        <span
-          data-testid="wh-stock-thumb"
-          aria-hidden="true"
-          className="row-span-2 grid h-11 w-11 place-items-center overflow-hidden rounded-[8px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
-        >
-          {row.image_url ? (
-            // Raw <img>: the project configures no images.remotePatterns.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-          ) : (
-            <Package size={18} />
-          )}
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[16px] font-bold leading-tight text-wm-ink">{row.name}</span>
-        </span>
-        <span
-          data-testid="wh-stock-shelf"
-          className={`text-end text-[22px] font-bold leading-none tabular-nums ${
-            state === "negative" ? "text-wh-bad" : state === "low" ? "text-wh-warn" : "text-wm-ink"
+      <Thumb src={row.image_url} size={40} radius={10} icon={<Boxes size={18} strokeWidth={2} />} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] font-bold" dir="auto">{row.name}</p>
+        <p data-testid="wh-stock-meta" className="truncate text-[12.5px] text-wh-ink-2">
+          {t("register")} <Num>{row.current_stock}</Num>
+          {row.engaged > 0 ? (
+            <>
+              {" · "}
+              {t("engaged")} <Num>{row.engaged}</Num>
+            </>
+          ) : null}
+          {low ? (
+            <>
+              {" · "}
+              <span className="text-status-critical">{t("low")}</span>
+            </>
+          ) : null}
+        </p>
+      </div>
+      <Sparkline values={row.series} width={56} />
+      <div className="shrink-0">
+        <p
+          data-testid="wh-stock-free"
+          className={`text-end text-[20px] font-bold leading-[1.5] tracking-[-0.01em] ${
+            row.free < 0 ? "text-status-critical" : ""
           }`}
         >
-          {row.current_stock}
-        </span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-wm-ink-2">
-          {row.sku ? <span className="truncate" dir="ltr">{row.sku}</span> : null}
-          {state === "negative" ? (
-            <span className="rounded-pill border border-wh-bad-edge bg-wh-bad-bg px-2 text-[11.5px] font-semibold text-wh-bad">{t("negative")}</span>
-          ) : state === "low" ? (
-            <span className="rounded-pill border border-wh-warn-edge bg-wh-warn-bg px-2 text-[11.5px] font-semibold text-wh-warn">{t("low")}</span>
-          ) : null}
-        </span>
-        <span className="flex items-center justify-end gap-1.5 text-[12.5px] text-wm-ink-2">
-          <span>{t("onShelf")}</span>
-          <span className="text-wm-ink-3">·</span>
-          <span data-testid="wh-stock-free" data-neg={row.free < 0 ? "true" : "false"} className={`tabular-nums ${row.free < 0 ? "font-bold text-wh-bad" : ""}`}>
-            {t("freeUnits", { n: row.free })}
-          </span>
-          <ChevronDown size={14} aria-hidden="true" className={`transition-transform ${open ? "rotate-180" : ""}`} />
-        </span>
-      </button>
-
-      {open ? (
-        <div data-testid="wh-stock-more" className="border-t border-wm-card-edge px-3.5 py-3 text-[14px] text-wm-ink-2">
-          <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
-            <dt>{t("reservedUnits")}</dt>
-            <dd className="text-end font-semibold tabular-nums text-wm-ink">{row.engaged}</dd>
-            <dt>{t("thresholdAt", { threshold: row.low_stock_threshold }).split(":")[0]}</dt>
-            <dd className="text-end font-semibold tabular-nums text-wm-ink">{row.low_stock_threshold}</dd>
-            {row.stock_goal !== null ? (
-              <>
-                <dt>{t("stockOfGoal", { stock: row.current_stock, goal: row.stock_goal })}</dt>
-                <dd className="text-end font-semibold tabular-nums text-wm-ink">{row.goal_pct ?? 0} %</dd>
-              </>
-            ) : null}
-            <dt>{t("lastCount")}</dt>
-            <dd className="text-end font-semibold text-wm-ink">
-              {row.last_counted_at ? relativeDay(row.last_counted_at, t) : t("never")}
-              {row.accuracy !== null ? ` · ${t("accuracyShort", { pct: row.accuracy })}` : ""}
-            </dd>
-          </dl>
-          {/* The threshold as a sentence too, so a screen reader hears the number with its meaning. */}
-          <p className="sr-only">{t("thresholdAt", { threshold: row.low_stock_threshold })}</p>
-
-          {/*
-            WHERE the units are, not just how many.
-            `product_site_stock` has ventilated the market total per building
-            since September and no screen has ever shown it — so an agent in
-            Benghazi read Tripoli's shelf as part of their own. The market total
-            stays the money truth above; this is a breakdown of it, and the gap
-            it does not account for is named rather than hidden.
-          */}
-          {row.sites.length > 0 ? (
-            <>
-              <p className="mb-1 mt-3 text-[13px] font-semibold text-wm-ink-2">{tf("sites")}</p>
-              <ul data-testid="wh-stock-sites" className="m-0 list-none p-0">
-                {row.sites.map((site) => (
-                  <li
-                    key={site.warehouse_id}
-                    data-site={site.code}
-                    className="flex items-center justify-between gap-2 border-b border-dashed border-wm-track py-1.5 last:border-0"
-                  >
-                    <span className="min-w-0 truncate text-[13.5px]">
-                      <bdi>{site.name}</bdi>
-                      {site.last_counted_at === null ? (
-                        <span className="text-wm-ink-3"> · {tf("siteNeverCounted")}</span>
-                      ) : null}
-                    </span>
-                    <b className="shrink-0 tabular-nums text-wm-ink">{site.current_stock}</b>
-                  </li>
-                ))}
-                {row.unallocated > 0 ? (
-                  <li
-                    data-testid="wh-stock-unallocated"
-                    className="flex items-center justify-between gap-2 py-1.5 text-wm-ink-2"
-                  >
-                    <span className="text-[13.5px]">{tf("unallocated")}</span>
-                    <b className="shrink-0 tabular-nums">{row.unallocated}</b>
-                  </li>
-                ) : null}
-              </ul>
-            </>
-          ) : null}
-
-          {/*
-            « En route » n'est PAS une ligne de la ventilation par bâtiment : ces
-            unités ne sont dans aucun bâtiment, c'est tout leur sens. Elles se
-            lisent à côté du stock détenu.
-
-            `null` = rien en route. On ne rend rien du tout, plutôt qu'un zéro
-            qui se lirait comme « j'ai vérifié, il n'y a rien de commandé ».
-          */}
-          {row.incoming !== null && row.incoming > 0 ? (
-            <div
-              data-testid="wh-stock-incoming"
-              className="mt-3 flex items-center justify-between gap-2 rounded-wm border border-wm-line bg-wm-sunken px-3 py-2"
-            >
-              <span className="text-[13px] text-wm-ink-2">{tf("incoming")}</span>
-              <b className="shrink-0 tabular-nums text-wm-ink">{row.incoming}</b>
-            </div>
-          ) : null}
-
-          {/* Fourteen days of on-hand level. The API has sent this all along and
-              the phone card never drew it: a figure alone cannot say whether the
-              shelf is draining or refilling. */}
-          {row.series.length > 1 ? (
-            <>
-              <p className="mb-1 mt-3 text-[13px] font-semibold text-wm-ink-2">{tf("trend")}</p>
-              <Sparkline values={row.series} />
-            </>
-          ) : null}
-
-          <p className="mb-1 mt-3 text-[13px] font-semibold text-wm-ink-2">{t("lastMovements")}</p>
-          <ul data-testid="wh-stock-movements" className="m-0 list-none p-0">
-            {moves === null ? (
-              <li className="py-1 text-[13px] text-wm-ink-3">{t("loadingMovements")}</li>
-            ) : moves.length === 0 ? (
-              <li className="py-1 text-[13px] text-wm-ink-3">{t("noMovements")}</li>
-            ) : (
-              moves.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-2 border-b border-dashed border-wm-track py-1.5 last:border-0">
-                  <span className="min-w-0 truncate text-[13.5px]">
-                    {m.detail}
-                    <span className="text-wm-ink-3"> · {new Date(m.at).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" })}</span>
-                  </span>
-                  <b dir="ltr" className="shrink-0 tabular-nums text-wm-ink">{signed(m.qty_change)}</b>
-                </li>
-              ))
-            )}
-          </ul>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {/* The whole history and the per-building view live on the
-                product's page; the card shows the last five only. */}
-            <Link
-              href={`/${locale}/warehouse/stock/${row.product_id}`}
-              className="inline-flex min-h-[48px] items-center justify-center rounded-[12px] border border-wm-card-edge bg-wm-card px-3 text-[14px] font-semibold text-wm-ink no-underline"
-            >
-              {t("openProduct")}
-            </Link>
-            <button
-              type="button"
-              onClick={() => onCount(row)}
-              className="inline-flex min-h-[48px] items-center justify-center rounded-[12px] border border-wm-accent bg-wm-card px-3 text-[15px] font-bold text-wm-accent active:bg-wm-accent-soft"
-            >
-              {t("count")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-/**
- * Fourteen days of on-hand level.
- *
- * Deliberately unlabelled and unscaled: it answers "is this draining or
- * refilling", which is a shape, not a measurement. The figures beside it are
- * the measurement. Hidden from screen readers because a fourteen-point
- * polyline read aloud is noise — the numbers above it are already announced.
- */
-function Sparkline({ values }: { values: number[] }) {
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const span = max - min || 1;
-  const points = values
-    .map((v, i) => {
-      const x = (i / (values.length - 1)) * 100;
-      const y = 24 - ((v - min) / span) * 22;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      data-testid="wh-stock-spark"
-      viewBox="0 0 100 26"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      className="h-[26px] w-full"
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="var(--wm-accent)"
-        strokeWidth="1.5"
-        vectorEffect="non-scaling-stroke"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
+          <Num>{row.free}</Num>
+        </p>
+        <p className="text-end text-[12.5px] text-wh-ink-2">{t("free")}</p>
+      </div>
+    </Link>
   );
 }

@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     const { data: order } = await supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug",
+        "id, warehouse_id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug",
       )
       .eq("id", verdict.order_id)
       .maybeSingle();

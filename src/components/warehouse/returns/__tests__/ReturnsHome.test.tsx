@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import { ReturnsHome } from "../ReturnsHome";
-import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import type { ReturnsPayload } from "@/app/api/warehouse/returns/returns-data";
+import { atDarb, onTheWay } from "./fixtures";
 
 /**
- * Returns on the phone: scan first, decide second.
+ * « Rentrer » on the agent's phone (prototype R.returns + R.verdict).
  *
- * The field is the first object on the screen because the parcel is already
- * in the agent's hand. A failed request names itself; a parcel the carrier
- * has not reported yet is refused with the rule spelled out; the three
- * decisions arrive only once a parcel is identified.
+ * Two lists for the agent's building: what Darb holds for us (receivable, one
+ * tap opens the verdict) and what is still on the road (greyed, inert). There
+ * is no scan field here — scanning lives on the centre Scan button, whose sheet
+ * lands on `?order=<id>`, which opens the same verdict.
  */
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
@@ -22,146 +23,159 @@ vi.mock("next-intl", async () => {
         resolveTranslation(messages, ns, key, params),
   };
 });
-vi.mock("@/components/warehouse/QrScanner", () => ({
-  QrScanner: () => <div data-testid="qr-scanner" />,
+
+let params = new URLSearchParams();
+const push = vi.fn();
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace }),
+  usePathname: () => "/fr/warehouse/returns",
+  useSearchParams: () => params,
 }));
 
-const stats = { queueCount: 2, doneToday: 1, currency: "LYD" };
-let statsData: typeof stats | undefined;
-let pageData: { orders: WarehouseOrderRow[]; nextCursor: string | null } | undefined;
+let pageData: ReturnsPayload | undefined;
 let pageError: Error | undefined;
 const mutate = vi.fn();
+const swrKeys: string[] = [];
 vi.mock("swr", () => ({
-  default: (key: string) => ({
-    data: key.includes("stats") ? statsData : pageData,
-    error: key.includes("stats") ? undefined : pageError,
-    isLoading: false,
-    mutate,
-  }),
+  default: (key: string) => {
+    swrKeys.push(key);
+    return { data: pageData, error: pageError, isLoading: false, mutate };
+  },
 }));
 
-const row = (id: string, name: string, days: number, ref: string): WarehouseOrderRow => ({
-  id, customer_name: name, customer_phone: "218", customer_city: "بنغازي", customer_area: null,
-  customer_address: null, uploaded_at: null, branch_group: null, tracking_number: ref,
-  carrier_sticker_ref: null, carrier_status_slug: "returned", has_carrier_ref: null,
-  product_id: "p1", product_name: "كتاب الحفظ الميسر", variant_label: null, quantity: 1, total_price: 249,
-  status: "to_be_returned", created_at: new Date(Date.now() - days * 86_400_000).toISOString(),
-  current_stock: null, low_stock_threshold: null,
+const souad = atDarb("o-souad", { hoursAtDarb: 96 });
+const mounir = atDarb("o-mounir", {
+  hoursAtDarb: 25, customer_name: "منير", customer_city: "الزاوية",
+  product_name: "دمية ملاكمة · صغير", darb_reason: "no_answer",
 });
-const older = row("aaaa1111-0000-4000-8000-000000000001", "سعاد المبروك", 4, "7700888");
-const newer = row("aaaa1111-0000-4000-8000-000000000002", "هدى القماطي", 1, "990103");
 
-function respond(body: unknown, ok = true) {
-  const f = vi.fn().mockResolvedValue({ ok, status: ok ? 200 : 500, json: async () => body });
-  vi.stubGlobal("fetch", f);
-  return f;
+function payload(over: Partial<ReturnsPayload> = {}): ReturnsPayload {
+  return {
+    orders: [mounir, souad],
+    nextCursor: null,
+    onTheWay: [onTheWay("w-1"), onTheWay("w-2", { customer_city: "مصراتة" }), onTheWay("w-3", { customer_city: "بنغازي" })],
+    processed: [],
+    ...over,
+  };
 }
-function scan(code: string) {
-  const input = screen.getByLabelText("Scannez le colis retourné…");
-  fireEvent.change(input, { target: { value: code } });
-  fireEvent.keyDown(input, { key: "Enter" });
+
+/** A label whose count sits in its own isolated span (`.num`). */
+function label(text: string) {
+  return screen.getByText(
+    (_, el) => el?.textContent === text && Array.from(el.children).every((c) => c.textContent !== text),
+  );
+}
+
+function show(p = payload()) {
+  pageData = p;
+  return render(<ReturnsHome marketId="m-ly" siteName="بنغازي" dateLabel="jeudi 2 octobre" />);
 }
 
 beforeEach(() => {
-  statsData = stats;
-  pageData = { orders: [newer, older], nextCursor: null };
+  params = new URLSearchParams();
   pageError = undefined;
+  push.mockClear();
+  replace.mockClear();
   mutate.mockClear();
+  swrKeys.length = 0;
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("ReturnsHome — the list", () => {
-  it("leads with the scan field, two counts, and the queue oldest first", () => {
-    render(<ReturnsHome marketId="m-ly" />);
-    expect(screen.getByLabelText("Scannez le colis retourné…")).toBeInTheDocument();
-    expect(screen.getByTestId("wh-returns-chip-queue")).toHaveTextContent("2");
-    expect(screen.getByTestId("wh-returns-chip-done")).toHaveTextContent("1");
-    const cards = screen.getAllByTestId("wh-return-row");
-    expect(cards[0]).toHaveTextContent("سعاد المبروك");
-    expect(cards[0]).toHaveTextContent("7700888");
-    expect(cards[1]).toHaveTextContent("هدى القماطي");
+  it("opens with building · date, the title and the rule — and no scan field", () => {
+    show();
+    expect(screen.getByText("بنغازي · jeudi 2 octobre")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Rentrer" })).toBeInTheDocument();
+    expect(screen.getByText("Aucun colis n'est reçu avant que Darb l'ait enregistré en retour.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).toBeNull();
   });
 
-  it("names a failed load and offers a retry, never a permanent placeholder", () => {
-    pageData = undefined;
+  it("lists what Darb holds for us, longest-held first", () => {
+    show();
+    expect(label("Chez Darb pour nous · 2")).toBeInTheDocument();
+    const rows = screen.getAllByTestId("wh-return-row");
+    expect(rows[0]).toHaveTextContent("مصحف القرآن تدبر وعمل");
+    expect(rows[1]).toHaveTextContent("دمية ملاكمة · صغير");
+  });
+
+  it("greys what is still on the road, and none of it can be tapped", () => {
+    show();
+    expect(label("En route — pas encore recevables · 3")).toBeInTheDocument();
+    const onway = screen.getAllByTestId("wh-return-onway");
+    expect(onway).toHaveLength(3);
+    onway.forEach((r) => expect(within(r).queryByRole("button")).toBeNull());
+  });
+
+  it("hides the road section when nothing is on the way", () => {
+    show(payload({ onTheWay: [] }));
+    expect(screen.queryByText(/En route/)).toBeNull();
+  });
+
+  it("says plainly when Darb holds nothing for us", () => {
+    show(payload({ orders: [] }));
+    expect(label("Chez Darb pour nous · 0")).toBeInTheDocument();
+    expect(screen.getByText("Rien chez Darb pour nous.")).toBeInTheDocument();
+  });
+
+  it("a tap opens the verdict through the URL, so the Scan sheet can land there too", () => {
+    show();
+    fireEvent.click(screen.getAllByTestId("wh-return-row")[0]);
+    expect(push).toHaveBeenCalledWith("/fr/warehouse/returns?order=o-souad");
+  });
+
+  it("a failed load names itself and offers a retry", () => {
     pageError = new Error("500");
-    render(<ReturnsHome marketId="m-ly" />);
-    expect(screen.getByTestId("wh-returns-error")).toBeInTheDocument();
+    show();
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de charger les retours.");
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     expect(mutate).toHaveBeenCalled();
   });
 
-  it("shows the product picture on the row", () => {
-    pageData = { orders: [{ ...older, product_image_url: "https://img/p1.png" }], nextCursor: null };
-    render(<ReturnsHome marketId="m-ly" />);
-    expect(screen.getByTestId("wh-return-row").querySelector("img")).toHaveAttribute("src", "https://img/p1.png");
-  });
-
-  it("says the queue is empty in words", () => {
-    pageData = { orders: [], nextCursor: null };
-    render(<ReturnsHome marketId="m-ly" />);
-    expect(screen.getByText(/File vide/)).toBeInTheDocument();
+  it("an agent with no building is told why the screen is empty", () => {
+    show({ orders: [], nextCursor: null, onTheWay: [], processed: [], siteUnassigned: true });
+    expect(screen.getByText(/bâtiment/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Chez Darb pour nous/)).toBeNull();
   });
 });
 
-describe("ReturnsHome — scan, then decide", () => {
-  it("a found parcel opens the decision sheet; damage needs a reason before confirming", async () => {
-    const f = respond({ outcome: "found", code: "7700888", order: older });
-    render(<ReturnsHome marketId="m-ly" />);
-    scan("7700888");
-    const sheet = await screen.findByRole("dialog");
-    expect(sheet).toHaveTextContent("سعاد المبروك");
-    const confirm = within(sheet).getByRole("button", { name: "Valider la décision" });
-    expect(confirm).toBeDisabled();
-    fireEvent.click(within(sheet).getByRole("button", { name: /Endommagé/ }));
-    expect(confirm).toBeDisabled();
-    fireEvent.click(within(sheet).getByRole("button", { name: "Emballage" }));
-    expect(confirm).toBeEnabled();
+describe("ReturnsHome — the verdict (?order=)", () => {
+  it("opens on the parcel: back, tracking number, title, the parcel in hand", () => {
+    params = new URLSearchParams("order=o-souad");
+    show();
+    expect(screen.getByRole("button", { name: "Retour à la liste" })).toBeInTheDocument();
+    expect(screen.getByText("SHo-souad")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Rentrer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Intact/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Chez Darb pour nous/)).toBeNull();
+  });
 
-    f.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, stock_after: 238 }) });
-    fireEvent.click(confirm);
-    await waitFor(() => expect(within(sheet).getByTestId("wh-return-done")).toBeInTheDocument());
-    const call = f.mock.calls.find((c) => String(c[0]).includes("scan-return"))!;
-    const body = JSON.parse((call[1] as { body: string }).body);
-    expect(body).toMatchObject({ order_id: older.id, is_damaged: true, return_reason: "packaging" });
+  it("back closes the verdict onto the list", () => {
+    params = new URLSearchParams("order=o-souad");
+    show();
+    fireEvent.click(screen.getByRole("button", { name: "Retour à la liste" }));
+    expect(replace).toHaveBeenCalledWith("/fr/warehouse/returns");
+  });
+
+  it("recording a verdict refreshes the list, returns to it and says what happened", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true }) }));
+    params = new URLSearchParams("order=o-souad");
+    const { rerender } = show();
+    fireEvent.click(screen.getByRole("button", { name: /Intact/ }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/fr/warehouse/returns"));
     expect(mutate).toHaveBeenCalled();
+    params = new URLSearchParams();
+    rerender(<ReturnsHome marketId="m-ly" siteName="بنغازي" dateLabel="jeudi 2 octobre" />);
+    expect(screen.getByRole("status")).toHaveTextContent("Reçu · en stock +1");
   });
 
-  it("offers the agent two verdicts — intact or damaged — and leaves redelivery to the manager", async () => {
-    // Scan, one tap. Sending a parcel back out to the customer is a commercial
-    // decision, taken on the manager's desk (ReturnsConsole keeps it).
-    respond({ outcome: "found", code: "7700888", order: older });
-    render(<ReturnsHome marketId="m-ly" />);
-    scan("7700888");
-    const sheet = await screen.findByRole("dialog");
-    expect(within(sheet).getByRole("button", { name: /Remettre en stock/ })).toBeInTheDocument();
-    expect(within(sheet).getByRole("button", { name: /Endommagé/ })).toBeInTheDocument();
-    expect(within(sheet).queryByRole("button", { name: /Rélivrer/ })).toBeNull();
-  });
-
-  it("refuses a parcel the carrier has not reported, and says so with the rule", async () => {
-    respond({ outcome: "wrong_status", code: "7700001", status: "in_transit", order: { ...older, customer_name: "علي" } });
-    render(<ReturnsHome marketId="m-ly" />);
-    scan("7700001");
-    const verdict = await screen.findByTestId("wh-return-verdict");
-    expect(verdict).toHaveAttribute("data-outcome", "wrong_status");
-    expect(verdict).toHaveTextContent("En transit");
-    expect(verdict).toHaveTextContent(/Ne le recevez pas/);
-    expect(screen.queryByRole("button", { name: "Valider la décision" })).toBeNull();
-  });
-
-  it("says plainly when the number is unknown", async () => {
-    respond({ outcome: "not_found", code: "999" });
-    render(<ReturnsHome marketId="m-ly" />);
-    scan("999");
-    const verdict = await screen.findByTestId("wh-return-verdict");
-    expect(verdict).toHaveAttribute("data-outcome", "not_found");
-    expect(verdict).toHaveTextContent("Introuvable dans le système");
-  });
-
-  it("a card can be tapped when the sticker cannot be read", () => {
-    render(<ReturnsHome marketId="m-ly" />);
-    fireEvent.click(screen.getAllByTestId("wh-return-row")[1]);
-    expect(screen.getByRole("dialog")).toHaveTextContent("هدى القماطي");
+  it("refuses a parcel that is not receivable at this building", () => {
+    params = new URLSearchParams("order=o-elsewhere");
+    show();
+    expect(screen.getByText("Ce colis n'est pas parmi les retours recevables ici.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Intact/ })).toBeNull();
   });
 });

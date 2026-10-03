@@ -38,6 +38,8 @@ export interface DayLoopRows {
   /** Receptions still `draft` or `submitted`. */
   receptions: Array<{
     warehouse_id: string | null;
+    /** `receptions.reference` (REC-LY-2026-0001). */
+    reference?: string | null;
     status: string;
     expected_at: string | null;
     line_count: number;
@@ -75,9 +77,27 @@ export interface DayLoopPayload {
   sites: DayLoopSite[];
   decisions: Decision[];
   team: TeamRow[];
+  /**
+   * The one reception expected in scope, named — « REC-LY-2026-0001 · en
+   * retard d'1 j · aucune ligne » says more about a single document than an
+   * aggregate does. Null when none or several are expected.
+   */
+  soleReception: SoleReception | null;
+  /** Buildings with at least one `stock_count` row — 0 means no building's stock was ever counted. */
+  countedSites: number;
 }
 
-const n = (v: number | string | null | undefined) => Number(v ?? 0) || 0;
+export interface SoleReception {
+  reference: string;
+  /** Whole days past `expected_at`; 0 when due today, later or undated. */
+  lateDays: number;
+  /** No line at all: nothing to count when the truck comes. */
+  empty: boolean;
+}
+
+const DAY_MS = 86_400_000;
+
+const n =(v: number | string | null | undefined) => Number(v ?? 0) || 0;
 
 function siteCounts(rows: DayLoopRows, siteId: string | null, today: string): DayCounts {
   const q = siteId ? rows.queueBySite[siteId] ?? {} : rows.marketQueue;
@@ -144,7 +164,31 @@ export function assembleDayLoop(
   const scannedToday = ctx.focus ? scannedAt(ctx.focus) : rows.marketScannedToday;
   const focused = ctx.focus ? rows.warehouses.find((w) => w.id === ctx.focus) : undefined;
 
+  const inScope = rows.receptions.filter((r) => ctx.focus === null || r.warehouse_id === ctx.focus);
+  const only = inScope.length === 1 ? inScope[0] : null;
+  const soleReception: SoleReception | null =
+    only && only.reference
+      ? {
+          reference: only.reference,
+          // Calendar days between two YYYY-MM-DD dates, both read as UTC
+          // midnight so no time zone can shift the difference.
+          lateDays:
+            only.expected_at && only.expected_at.slice(0, 10) < ctx.today
+              ? Math.round(
+                  (Date.parse(`${ctx.today}T00:00:00Z`) - Date.parse(`${only.expected_at.slice(0, 10)}T00:00:00Z`)) / DAY_MS,
+                )
+              : 0,
+          empty: only.line_count === 0,
+        }
+      : null;
+
+  const countedSites = new Set(
+    rows.countRows.map((c) => c.warehouse_id).filter((w): w is string => w !== null),
+  ).size;
+
   return {
+    soleReception,
+    countedSites,
     focus: ctx.focus,
     siteName: focused ? nameOf(focused) : null,
     counts,

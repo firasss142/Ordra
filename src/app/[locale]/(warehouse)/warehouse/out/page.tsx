@@ -11,6 +11,9 @@ import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { zoneForOrder } from "@/lib/warehouse/zone-index";
 import { attachProductImages } from "@/lib/warehouse/product-images";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
+import { fetchDayLoopRows, marketToday } from "@/lib/warehouse/day-loop-server";
+import { assembleDayLoop } from "@/lib/warehouse/day-loop-assemble";
+import { deadCarrierBySite, foldSummary, type SetAsideRow } from "@/lib/warehouse/desk-sortir";
 
 const BENCH_PAGE_LIMIT = 200;
 
@@ -18,10 +21,14 @@ export const dynamic = "force-dynamic";
 
 export default async function WarehouseOutPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  /** `?warehouse_id=` — the desk top bar's building switch. Ignored for an agent. */
+  searchParams?: Promise<{ warehouse_id?: string }>;
 }) {
   const { locale } = await params;
+  const requestedSite = (await searchParams)?.warehouse_id ?? null;
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
 
@@ -116,25 +123,30 @@ export default async function WarehouseOutPage({
     );
   }
 
+
   /*
-   * The manager's bench. This page used to be "Aujourd'hui", an overview that
-   * repeated every figure Préparation, Retours and Stock already showed — and
-   * whose "priority actions" were not clickable, because the parent never
-   * passed the callbacks. It is now the same two questions the agent has: what
-   * is there to prepare, and what happened to what we already scanned.
+   * The manager's Sortir — prototype `C.out`: the queue as one table grouped by
+   * roll, « Prendre » puts a parcel in hand for the top bar's scan field, and
+   * the parcels taken off the bench fold up underneath, per building.
    *
-   * The topbar switcher decides the market. This page used to force "all" for
-   * super-admins, so the header said "Libye" while the figures summed both
-   * markets — 50 Tunisian returns under a Libyan heading.
+   * The building comes from the top bar's switch (`?warehouse_id=`); the
+   * topbar's market scope decides the market. Figures come from the same
+   * assembly as Aujourd'hui, so the two screens can never disagree.
    */
   const { marketId: scope, marketCode } = await getActiveMarketScope(user);
   const supabase = await createClient();
-  const site = await resolveSiteFilter(supabase, {
-    actor: user,
-    requested: null,
-  });
+  const site = await resolveSiteFilter(supabase, { actor: user, requested: requestedSite });
 
-  const [{ data }, zoneIndex, { data: goalRow }] = await Promise.all([
+  let setAsideQuery = supabase
+    .from("orders")
+    .select("warehouse_id, carrier_extra, carrier:carriers(name, is_active)")
+    .eq("status", "uploaded")
+    .not("bench_cleared_at", "is", null)
+    .is("archived_at", null)
+    .limit(5000);
+  if (scope) setAsideQuery = setAsideQuery.eq("market_id", scope);
+
+  const [{ data }, zoneIndex, dayRows, { data: setAsideRows }] = await Promise.all([
     supabase.rpc("get_to_label_orders", {
       p_market_id: scope,
       p_limit: BENCH_PAGE_LIMIT,
@@ -143,28 +155,30 @@ export default async function WarehouseOutPage({
       p_warehouse_id: site.warehouseId,
     }),
     getZoneIndex(supabase),
-    // The daily target is a market setting, never a constant in the component.
-    supabase
-      .from("settings")
-      .select("value")
-      .eq("market_id", scope)
-      .eq("key", "goal_daily_scanned")
-      .maybeSingle<{ value: unknown }>(),
+    fetchDayLoopRows(supabase, { marketId: scope }),
+    setAsideQuery,
   ]);
 
-  // Settings are stored both as a bare value and as { value }, depending on
-  // when the row was written. Read both shapes rather than trusting one.
-  const raw = goalRow?.value;
-  const unwrapped =
-    raw && typeof raw === "object" && "value" in raw ? (raw as { value: unknown }).value : raw;
-  // Null, not a default: a goal the market never set is not a goal of 40.
-  const dailyGoal =
-    Number.isFinite(Number(unwrapped)) && Number(unwrapped) > 0 ? Number(unwrapped) : null;
+  const day = assembleDayLoop(dayRows, {
+    focus: site.warehouseId,
+    today: marketToday(scope),
+    locale: marketCode === "ly" ? "ar" : "fr",
+    withManagerViews: true,
+  });
 
   const deskOrders = ((data ?? []) as unknown as WarehouseOrderRow[]).map((row) => ({
     ...row,
     zone: zoneForOrder(row, zoneIndex),
   }));
+
+  // The fold names every building's set-aside parcels — the switch narrows the
+  // table, not what is waiting elsewhere — and the share of a dead carrier.
+  const shownSites = site.warehouseId ? day.sites.filter((s) => s.id === site.warehouseId) : day.sites;
+  const fold = foldSummary(
+    shownSites.map((s) => ({ id: s.id, name: s.name })),
+    Object.fromEntries(day.sites.map((s) => [s.id, s.counts.setAside])),
+    deadCarrierBySite((setAsideRows ?? []) as unknown as SetAsideRow[]),
+  );
 
   /*
    * What gets scanned differs by market: Libya scans Darb's pre-printed
@@ -177,8 +191,11 @@ export default async function WarehouseOutPage({
     <BenchConsole
       market={deskMarket}
       initialOrders={deskOrders}
-      dailyGoal={dailyGoal}
+      initialTotal={day.counts.toPrepare}
+      scannedToday={day.scannedToday}
       warehouseId={site.warehouseId}
+      siteNames={Object.fromEntries(day.sites.map((s) => [s.id, s.name]))}
+      fold={fold}
     />
   );
 }

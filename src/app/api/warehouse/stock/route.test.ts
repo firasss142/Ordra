@@ -26,12 +26,17 @@ import { NextRequest } from "next/server";
  */
 
 /** One thenable chain standing in for the PostgREST builder. */
-function chain(result: { data: unknown; error: unknown }) {
+function chain(
+  result: { data: unknown; error: unknown } | ((selected: string) => { data: unknown; error: unknown }),
+) {
   const c: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "in", "order", "is", "neq"]) {
+  for (const m of ["select", "eq", "in", "order", "is", "neq", "gte", "limit"]) {
     c[m] = vi.fn().mockReturnValue(c);
   }
-  c.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
+  c.then = (resolve: (v: unknown) => unknown) => {
+    const selected = String((c.select as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] ?? "");
+    return Promise.resolve(typeof result === "function" ? result(selected) : result).then(resolve);
+  };
   return c;
 }
 
@@ -39,37 +44,42 @@ interface Wire {
   products?: unknown[];
   orders?: unknown[];
   counts?: unknown[];
-  series?: unknown[];
+  /** Ledger rows the 14-day line is read from (product_id, change, balance_after, created_at). */
+  ledger?: unknown[];
   accuracy?: unknown;
   siteStock?: unknown[];
   warehouses?: unknown[];
+  variants?: unknown[];
   /** The market the signed-in agent belongs to. Defaults to the fake "m-1". */
-  actorMarket?: string;
+  actorMarket?: string | null;
+  actorRole?: string;
 }
 
 function wire({
-  products = [], orders = [], counts = [], series = [], accuracy = null,
-  siteStock = [], warehouses = [], actorMarket = "m-1",
+  products = [], orders = [], counts = [], ledger = [], accuracy = null,
+  siteStock = [], warehouses = [], variants = [], actorMarket = "m-1", actorRole = "warehouse_agent",
 }: Wire) {
   mockFrom.mockImplementation((table: string) => {
-    if (table === "users") return chain({ data: { role: "warehouse_agent", market_id: actorMarket }, error: null });
+    if (table === "users") return chain({ data: { role: actorRole, market_id: actorMarket }, error: null });
     if (table === "products") return chain({ data: products, error: null });
     if (table === "orders") return chain({ data: orders, error: null });
-    if (table === "inventory_log") return chain({ data: counts, error: null });
+    if (table === "inventory_log") {
+      return chain((selected) => ({ data: selected.includes("balance_after") ? ledger : counts, error: null }));
+    }
     if (table === "product_site_stock") return chain({ data: siteStock, error: null });
     if (table === "warehouses") return chain({ data: warehouses, error: null });
+    if (table === "product_variants") return chain({ data: variants, error: null });
     return chain({ data: [], error: null });
   });
   // getActor reads users via .single(); give the chain one.
   const original = mockFrom.getMockImplementation()!;
   mockFrom.mockImplementation((table: string) => {
     const c = original(table) as Record<string, unknown>;
-    c.single = vi.fn().mockResolvedValue({ data: { role: "warehouse_agent", market_id: actorMarket }, error: null });
+    c.single = vi.fn().mockResolvedValue({ data: { role: actorRole, market_id: actorMarket }, error: null });
     c.maybeSingle = c.single;
     return c;
   });
   mockRpc.mockImplementation((fn: string) => {
-    if (fn === "get_product_stock_series") return Promise.resolve({ data: series, error: null });
     if (fn === "get_count_accuracy") return Promise.resolve({ data: accuracy, error: null });
     return Promise.resolve({ data: null, error: null });
   });
@@ -135,22 +145,36 @@ describe("GET /api/warehouse/stock — the fields the phone card needs", () => {
     expect(byId["p-2"].accuracy).toBeNull();
   });
 
-  test("each row carries its own fourteen-day line", async () => {
+  test("each row carries its own fourteen-day line, ending at today's balance", async () => {
+    // Today 14 units left (943 → 929): the line must show it. The RPC this
+    // replaces drew 929 for all fourteen days.
+    const now = new Date().toISOString();
     wire({
-      products: [product()],
-      series: [
-        { product_id: "p-1", day: "2026-08-22", balance: 160 },
-        { product_id: "p-1", day: "2026-08-23", balance: 150 },
+      products: [product({ current_stock: 929 })],
+      ledger: [
+        { product_id: "p-1", change: -13, balance_after: 930, created_at: now },
+        { product_id: "p-1", change: -1, balance_after: 929, created_at: now },
       ],
     });
     const { rows } = await (await GET(req())).json();
-    expect(rows[0].series).toEqual([160, 150]);
+    expect(rows[0].series).toHaveLength(14);
+    expect(rows[0].series[0]).toBe(943);
+    expect(rows[0].series[13]).toBe(929);
   });
 
-  test("a product with no movement still gets a line rather than a gap", async () => {
-    wire({ products: [product()], series: [] });
+  test("a product with no movement still gets a line rather than a gap: flat", async () => {
+    wire({ products: [product({ current_stock: 216 })], ledger: [] });
     const { rows } = await (await GET(req())).json();
-    expect(rows[0].series).toEqual([]);
+    expect(rows[0].series).toEqual(Array(14).fill(216));
+  });
+
+  test("reads the whole market's line in ONE ledger query, not one per product", async () => {
+    wire({ products: [product(), product({ id: "p-2" })], ledger: [] });
+    await GET(req());
+    const seriesReads = mockFrom.mock.results
+      .map((r, i) => ({ table: mockFrom.mock.calls[i][0], c: r.value as { select: { mock: { calls: unknown[][] } } } }))
+      .filter((x) => x.table === "inventory_log" && String(x.c.select.mock.calls[0]?.[0]).includes("balance_after"));
+    expect(seriesReads).toHaveLength(1);
   });
 });
 
@@ -336,5 +360,98 @@ describe("GET /api/warehouse/stock — naming and scoping the buildings", () => 
     const { rows } = await (await GET(req())).json();
     expect(rows[0].sites).toEqual([]);
     expect(rows[0].unallocated).toBe(0);
+  });
+});
+
+/**
+ * What the Entrepôt v3 screens need from this route (2026-10-02).
+ *
+ * The desk table has ONE COLUMN PER BUILDING, so the route names the market's
+ * buildings even when none has counted (the columns exist and are empty — that
+ * is the truth of the model). The product page lists the product's attribute
+ * variants. And a building's figure is ONE number, however many variant rows
+ * `product_site_stock` keeps for it.
+ */
+describe("GET /api/warehouse/stock — the v3 screens", () => {
+  const LY = "00000000-0000-0000-0000-000000000002";
+  const sites = [
+    { id: "w-tri", code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس", market_id: "m-1" },
+    { id: "w-ben", code: "benghazi", name_fr: "Benghazi", name_ar: "بنغازي", market_id: "m-1" },
+  ];
+
+  test("names the market's buildings, in order, so the desk can draw one column each", async () => {
+    wire({ products: [product()], warehouses: sites });
+    const body = await (await GET(req())).json();
+    expect(body.warehouses).toEqual([
+      { id: "w-tri", code: "tripoli", name: "Tripoli" },
+      { id: "w-ben", code: "benghazi", name: "Benghazi" },
+    ]);
+  });
+
+  test("names no building in a market that has only one", async () => {
+    wire({ products: [product()], warehouses: [sites[0]] });
+    const body = await (await GET(req())).json();
+    expect(body.warehouses).toEqual([]);
+  });
+
+  test("with two buildings and nothing counted, the whole register is non ventilé", async () => {
+    // It read 0 — the opposite of the truth: no building accounts for any unit.
+    wire({ products: [product({ current_stock: 943 })], warehouses: sites, siteStock: [] });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites).toEqual([]);
+    expect(rows[0].unallocated).toBe(943);
+  });
+
+  test("a building is one figure, however many variant rows it keeps", async () => {
+    // product_site_stock is keyed (product, variant, site): a product with sizes
+    // has several rows per building. Listing them drew the building twice.
+    wire({
+      products: [product({ current_stock: 40 })],
+      warehouses: sites,
+      siteStock: [
+        { product_id: "p-1", warehouse_id: "w-tri", variant_id: null, current_stock: 10, last_counted_at: null },
+        { product_id: "p-1", warehouse_id: "w-tri", variant_id: "v-s", current_stock: 5, last_counted_at: "2026-09-01T00:00:00Z" },
+      ],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites).toEqual([
+      { warehouse_id: "w-tri", code: "tripoli", name: "Tripoli", current_stock: 15, last_counted_at: "2026-09-01T00:00:00Z" },
+    ]);
+    expect(rows[0].unallocated).toBe(25);
+  });
+
+  test("carries the product's attribute variants and their stock — not its pack tiers", async () => {
+    wire({
+      products: [product()],
+      variants: [
+        { id: "v-s", product_id: "p-1", label: "Petit", current_stock: 40 },
+        { id: "v-l", product_id: "p-1", label: "Grand", current_stock: 62 },
+      ],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].variants).toEqual([
+      { id: "v-s", label: "Petit", current_stock: 40 },
+      { id: "v-l", label: "Grand", current_stock: 62 },
+    ]);
+    const variantsChain = mockFrom.mock.results
+      .map((r, i) => ({ table: mockFrom.mock.calls[i][0], c: r.value as { eq: { mock: { calls: unknown[][] } } } }))
+      .find((x) => x.table === "product_variants")!.c;
+    // A pack is not an object on a shelf; only an attribute variant holds stock.
+    expect(variantsChain.eq.mock.calls).toContainEqual(["kind", "attribute"]);
+  });
+
+  test("a super_admin sees the market picked in the top bar, like every warehouse screen", async () => {
+    // The route read only ?market_id=, so a super_admin with « Libye » picked
+    // got both markets' products — and, mixed, no building breakdown at all.
+    wire({ actorRole: "super_admin", actorMarket: null, products: [product({ market_id: LY })] });
+    await GET(
+      new NextRequest(new URL("http://localhost/api/warehouse/stock"), {
+        headers: { cookie: "oms_scope_market=ly" },
+      }),
+    );
+    const productsChain = mockFrom.mock.results
+      .map((r, i) => ({ table: mockFrom.mock.calls[i][0], c: r.value as { eq: { mock: { calls: unknown[][] } } } }))
+      .find((x) => x.table === "products")!.c;
+    expect(productsChain.eq.mock.calls).toContainEqual(["market_id", LY]);
   });
 });

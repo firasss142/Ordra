@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
-import { marketIdToCode } from "@/lib/markets";
+import { marketIdToCode, marketTimezone } from "@/lib/markets";
 import { incomingByProduct } from "@/lib/receptions/incoming";
+import { resolveWarehouseScope } from "@/lib/warehouse/scope";
+import { lastDays, stockSeries, type SeriesLedgerRow } from "@/lib/warehouse/stock-series";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,34 @@ export interface WarehouseStockRow {
    * counting — otherwise this figure would never come back down.
    */
   incoming: number | null;
+  /**
+   * The product's attribute variants (sizes, colours) and their stock. Pack
+   * tiers are not here: a pack is not an object on a shelf. Empty for a product
+   * that does not come in variants.
+   */
+  variants: StockVariantRow[];
+}
+
+export interface StockVariantRow {
+  id: string;
+  label: string;
+  current_stock: number;
+}
+
+/** A building of the market, for the desk's one-column-per-building table. */
+export interface StockWarehouse {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface WarehouseStockResponse {
+  rows: WarehouseStockRow[];
+  /**
+   * The market's active buildings, in a stable order — empty in a market with
+   * one building, where a breakdown of one line is noise (same rule as `sites`).
+   */
+  warehouses: StockWarehouse[];
 }
 
 export interface StockSiteRow {
@@ -78,6 +108,12 @@ export interface StockSiteRow {
 
 /** Two weeks is what fits a 56px sparkline without the line becoming noise. */
 const SERIES_DAYS = 14;
+/**
+ * Ceiling on the ledger rows read for the lines (newest first). A busy market
+ * moves a few hundred units in two weeks; past the cap only the OLDEST days of
+ * the line lose precision, never today's figure.
+ */
+const SERIES_ROW_CAP = 5000;
 /** A count older than a quarter is not evidence about today's shelf. */
 const ACCURACY_DAYS = 90;
 
@@ -121,10 +157,11 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = await createClient();
-  const marketId =
-    actor.role === "super_admin"
-      ? req.nextUrl.searchParams.get("market_id")
-      : actor.market_id;
+  // The same rule as every other warehouse route: a super_admin sees the market
+  // picked in the top bar (or an explicit ?market_id). This route read only the
+  // parameter, so « Libye » picked still returned both markets' products — and,
+  // mixed, no building breakdown at all.
+  const { marketId } = resolveWarehouseScope(req, actor);
 
   let productQuery = supabase
     .from("products")
@@ -141,13 +178,13 @@ export async function GET(req: NextRequest) {
   }
 
   const ids = (products ?? []).map((p) => p.id);
-  if (ids.length === 0) return NextResponse.json({ rows: [] });
+  if (ids.length === 0) return NextResponse.json({ rows: [], warehouses: [] } satisfies WarehouseStockResponse);
 
   // Engaged units and the last count are two small reads rather than a view,
   // so this route stays deletable without a migration behind it.
   const [
     { data: engagedRows }, { data: counts }, { data: seriesRows }, { data: accuracyData },
-    { data: siteRows }, { data: warehouseRows },
+    { data: siteRows }, { data: warehouseRows }, { data: variantRows },
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -160,18 +197,43 @@ export async function GET(req: NextRequest) {
       .in("product_id", ids)
       .eq("reason", "stock_count")
       .order("created_at", { ascending: false }),
-    // The card's sparkline. balance_after is on every inventory_log row and
-    // the table is append-only, so the history needs no store of its own.
-    supabase.rpc("get_product_stock_series", { p_product_ids: ids, p_days: SERIES_DAYS }),
+    // The 14-day line. balance_after is on every inventory_log row and the
+    // table is append-only, so the history needs no store of its own: ONE read
+    // of the window's movements for every product, folded per day in
+    // lib/warehouse/stock-series.ts. A day longer than the window, so the
+    // first day's opening balance is known whatever the time zone.
+    // (Not `get_product_stock_series`: it drew today's stock for every day
+    // before the first movement, flattening the drop the line exists to show.)
+    supabase
+      .from("inventory_log")
+      .select("product_id, change, balance_after, created_at")
+      .in("product_id", ids)
+      .gte("created_at", new Date(Date.now() - (SERIES_DAYS + 1) * 86_400_000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(SERIES_ROW_CAP),
     supabase.rpc("get_count_accuracy", { p_market_id: marketId ?? null, p_days: ACCURACY_DAYS }),
     // Where the units are. Libya runs two buildings and the ventilation has
     // existed in the database since September without ever reaching a screen —
     // an agent in Benghazi was reading Tripoli's shelf as part of their own.
     supabase
       .from("product_site_stock")
-      .select("product_id, warehouse_id, current_stock, last_counted_at")
+      .select("product_id, warehouse_id, variant_id, current_stock, last_counted_at")
       .in("product_id", ids),
-    supabase.from("warehouses").select("id, code, name_fr, name_ar, market_id").eq("is_active", true),
+    supabase
+      .from("warehouses")
+      .select("id, code, name_fr, name_ar, market_id, is_default")
+      .eq("is_active", true)
+      .order("is_default", { ascending: false })
+      .order("code", { ascending: true }),
+    // The product page's « Variantes » card. Attribute variants only: a pack
+    // tier multiplies a quantity, it holds no stock of its own.
+    supabase
+      .from("product_variants")
+      .select("id, product_id, label, current_stock")
+      .in("product_id", ids)
+      .eq("kind", "attribute")
+      .eq("is_active", true)
+      .order("label", { ascending: true }),
   ]);
 
   const engagedBy = new Map<string, number>();
@@ -184,13 +246,11 @@ export async function GET(req: NextRequest) {
     if (c.product_id && !countedBy.has(c.product_id)) countedBy.set(c.product_id, c.created_at);
   }
 
-  // The RPC returns one row per product per day, already ordered; collecting
-  // in arrival order keeps the line chronological without a second sort.
-  const seriesBy = new Map<string, number[]>();
-  for (const r of (seriesRows ?? []) as Array<{ product_id: string; balance: number }>) {
-    const bucket = seriesBy.get(r.product_id);
-    if (bucket) bucket.push(r.balance);
-    else seriesBy.set(r.product_id, [r.balance]);
+  const ledgerBy = new Map<string, SeriesLedgerRow[]>();
+  for (const r of (seriesRows ?? []) as Array<SeriesLedgerRow & { product_id: string }>) {
+    const bucket = ledgerBy.get(r.product_id);
+    if (bucket) bucket.push(r);
+    else ledgerBy.set(r.product_id, [r]);
   }
 
   /*
@@ -221,6 +281,9 @@ export async function GET(req: NextRequest) {
   // Libya reads Arabic. The site name is a place painted on a wall, so it is
   // never translated by key — it is picked, like everywhere else in the shell.
   const arabicNames = marketIdToCode(scopeMarket) === "ly";
+  // A day closes at midnight in the MARKET, not in UTC.
+  const seriesZone = marketTimezone(scopeMarket);
+  const seriesDays = lastDays(SERIES_DAYS, seriesZone);
   const warehouseById = new Map(marketWarehouses.map((w) => [w.id, w]));
 
   const sitesBy = new Map<string, StockSiteRow[]>();
@@ -230,7 +293,21 @@ export async function GET(req: NextRequest) {
     }>) {
       const w = warehouseById.get(r.warehouse_id);
       if (!w) continue;
-      const line: StockSiteRow = {
+      const bucket = sitesBy.get(r.product_id) ?? [];
+      /*
+       * ONE line per building. `product_site_stock` is keyed (product, variant,
+       * site), so a product with sizes keeps several rows per building; the
+       * building holds their sum, and was last counted when any of them was.
+       */
+      const same = bucket.find((l) => l.warehouse_id === r.warehouse_id);
+      if (same) {
+        same.current_stock += r.current_stock ?? 0;
+        if (r.last_counted_at && (!same.last_counted_at || r.last_counted_at > same.last_counted_at)) {
+          same.last_counted_at = r.last_counted_at;
+        }
+        continue;
+      }
+      bucket.push({
         warehouse_id: r.warehouse_id,
         code: w.code,
         // The name painted on the wall, in the market's language. Libya's bench
@@ -238,10 +315,8 @@ export async function GET(req: NextRequest) {
         name: (arabicNames ? w.name_ar : w.name_fr) || w.name_fr,
         current_stock: r.current_stock ?? 0,
         last_counted_at: r.last_counted_at ?? null,
-      };
-      const bucket = sitesBy.get(r.product_id);
-      if (bucket) bucket.push(line);
-      else sitesBy.set(r.product_id, [line]);
+      });
+      sitesBy.set(r.product_id, bucket);
     }
     // Buildings in a stable order — the warehouses table's, not the arrival
     // order of the stock rows, which would reshuffle the card between refreshes.
@@ -279,6 +354,15 @@ export async function GET(req: NextRequest) {
     })),
   );
 
+  const variantsBy = new Map<string, StockVariantRow[]>();
+  for (const v of (variantRows ?? []) as Array<{
+    id: string; product_id: string; label: string; current_stock: number | null;
+  }>) {
+    const bucket = variantsBy.get(v.product_id) ?? [];
+    bucket.push({ id: v.id, label: v.label, current_stock: v.current_stock ?? 0 });
+    variantsBy.set(v.product_id, bucket);
+  }
+
   const accuracyBy = new Map<string, number | null>();
   for (const a of ((accuracyData as { products?: Array<{ product_id: string; accuracy: number | null }> } | null)
     ?.products ?? [])) {
@@ -307,25 +391,39 @@ export async function GET(req: NextRequest) {
       free: (p.current_stock ?? 0) - engaged,
       last_counted_at: countedBy.get(p.id) ?? null,
       accuracy: accuracyBy.get(p.id) ?? null,
-      series: seriesBy.get(p.id) ?? [],
+      series: stockSeries(ledgerBy.get(p.id) ?? [], p.current_stock ?? 0, seriesDays, seriesZone),
       sites,
       // Absent de la Map = rien en route. On rend null, pas 0.
       incoming: incomingBy.get(p.id) ?? null,
       /*
        * The gap between the market total and what the buildings account for.
        *
-       * Zero where there is no breakdown at all: in a one-warehouse market the
+       * Zero in a one-warehouse market, where there is no breakdown at all: the
        * whole stock would otherwise read as "unallocated", which is the exact
-       * opposite of the truth. Clamped at zero above too — a site holding more
-       * than the market total is a broken invariant to investigate, not a
-       * negative quantity to paint on a card.
+       * opposite of the truth. In a market with several buildings and nothing
+       * counted it is the WHOLE register — it read 0 until 2026-10-02, which
+       * said the buildings accounted for everything when they accounted for
+       * nothing. Clamped at zero above too — a site holding more than the market
+       * total is a broken invariant to investigate, not a negative quantity to
+       * paint on a card.
        */
-      unallocated: sites.length > 0 ? Math.max((p.current_stock ?? 0) - allocated, 0) : 0,
+      unallocated: multiSite ? Math.max((p.current_stock ?? 0) - allocated, 0) : 0,
+      variants: variantsBy.get(p.id) ?? [],
     };
   });
 
-  return NextResponse.json(
-    { rows },
-    { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" } },
-  );
+  const body: WarehouseStockResponse = {
+    rows,
+    warehouses: multiSite
+      ? marketWarehouses.map((w) => ({
+          id: w.id,
+          code: w.code,
+          name: (arabicNames ? w.name_ar : w.name_fr) || w.name_fr,
+        }))
+      : [],
+  };
+
+  return NextResponse.json(body, {
+    headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" },
+  });
 }

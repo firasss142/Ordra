@@ -1,442 +1,203 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
-import { useTranslations } from "next-intl";
-import { Copy, Download, Search, Info, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { X } from "lucide-react";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
-import { WhCard, WhKpiCard, WhKpiGrid } from "./primitives";
-import { WH_BTN, WH_LABEL, WH_TONE, type WhTone } from "./tokens";
+import type { WarehouseHistoryKind } from "@/lib/warehouse/list-filters";
+import type { HistoryCounts } from "@/app/api/warehouse/history/counts/route";
+import type { WarehouseStockResponse } from "@/app/api/warehouse/stock/route";
+import { jsonFetcher } from "@/lib/fetchers";
+import { Chip, Num, eventKey, signed, whenLabel } from "@/components/warehouse/product/stock-bits";
 
 /**
- * Journal — the append-only ledger.
+ * Stock › Mouvements — the append-only ledger, as `C.journal` of
+ * prototypes/entrepot-day-loop-manager-v3.html draws it: « Filtré : » with
+ * the product, the family chips with their counts, then one table — Quand,
+ * Événement, Produit, Qui, Δ → solde. Px sizes, Ordra tokens.
  *
- * Follows docs/design/entrepot/entrepot-light.html §Journal. The prototype
- * shows eight filters; "Transferts" (stock moved to the carrier's warehouse)
- * still has no source — that flow does not exist in the data model — so it is
- * absent rather than present and permanently empty. "Remises" is real: it reads
- * order_history for the uploaded → dispatched step.
+ * What it no longer carries, and why: the three KPI cards (today's events,
+ * anomalies, traceability), the day bands, the search box, the copy button
+ * and the client-side CSV export are not in the prototype, and none of them
+ * guarded anything — the anomaly tags were a hint computed on the visible page
+ * only. The server CSV (/api/warehouse/history/export.csv) still exists for
+ * whoever needs the raw ledger.
  *
- * "Réceptions" IS real as of 2026-09-30: `receptions` + the `reception` /
- * `reception_reversal` ledger reasons. The same change fixed what this screen
- * was hiding — the reason list was written inline and "Tout" named four of the
- * twelve the constraint allows, so `stock_count`, `received_back`,
- * `initial_stock`, `scan_reversal` and `manual_delete_reversal` never appeared,
- * here or in the CSV export. A product's opening stock was invisible, and so was
- * every physical count. The list now lives in `lib/warehouse/history-reasons.ts`,
- * tested, with a guard that the families cover the whole vocabulary.
+ * FAMILIES. A chip stays visible whatever its count: « Retours 0 » is a fact,
+ * and a chip that appears and disappears makes the row jump. « Remises » and
+ * « Impressions » have a source (order_history, label_prints) but no product,
+ * so they show only when no product narrows the view. « Transferts » has no
+ * source in the data model and is absent rather than permanently empty.
+ *
+ * The balance after each row is the product's MARKET total on every ledger row
+ * (variants and buildings never change it), which is why this ledger is not
+ * narrowed by building: a Benghazi-only view would show a balance that jumps
+ * with every Tripoli movement in between. The building is named in « Qui ».
  */
 
-type Kind = "all" | "scan" | "handover" | "return" | "reception" | "count" | "adjust" | "print";
+type Family = Extract<WarehouseHistoryKind, keyof HistoryCounts>;
 
-const FILTERS: Kind[] = ["all", "scan", "handover", "return", "reception", "count", "adjust", "print"];
+const LEDGER_FAMILIES: Family[] = ["all", "scan", "return", "reception", "count", "adjust"];
+const PRODUCTLESS: Family[] = ["handover", "print"];
 
-const FILTER_KEY: Record<Kind, string> = {
+const FAMILY_LABEL: Record<Family, string> = {
   all: "filterAll",
   scan: "filterScan",
-  handover: "filterHandover",
   return: "filterReturn",
   reception: "filterReception",
   count: "filterCount",
   adjust: "filterAdjust",
+  handover: "filterHandover",
   print: "filterPrint",
 };
 
-/** Row kind → the chip's family and wording. */
-const KIND_STYLE: Record<WarehouseHistoryRow["kind"], { tone: WhTone; key: string }> = {
-  scan: { tone: "scan", key: "typeScan" },
-  handover: { tone: "move", key: "typeHandover" },
-  return: { tone: "warn", key: "typeReturn" },
-  // La réception FAIT ENTRER du stock : elle prend le vert, la seule famille qui
-  // ajoute des unités pour une raison commerciale.
-  reception: { tone: "ok", key: "typeReception" },
-  count: { tone: "move", key: "typeCount" },
-  writeoff: { tone: "bad", key: "typeWriteoff" },
-  adjust: { tone: "muted", key: "typeAdjust" },
-  print: { tone: "muted", key: "typePrint" },
-};
+const PAGE = 100;
 
-const fetcher = (u: string) => fetch(u).then((r) => {
-  if (!r.ok) throw new Error(String(r.status));
-  return r.json();
-});
-
-function startOfDay(d: Date): number {
-  const c = new Date(d);
-  c.setHours(0, 0, 0, 0);
-  return c.getTime();
-}
-
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
+const TH =
+  "sticky top-0 whitespace-nowrap border-b border-line-subtle bg-wh-surface px-[14px] py-[11px] text-start text-[11px] font-semibold uppercase tracking-[0.05em] text-wh-ink-2 rtl:text-[12px] rtl:normal-case rtl:tracking-normal";
+const TD = "border-b border-line-subtle px-[14px] py-[12px] align-middle group-last:border-b-0";
 
 export function JournalConsole({
-  locale,
   productId = null,
-  productName = null,
+  kind,
+  onKindChange,
   onClearProduct,
 }: {
   locale: string;
-  /**
-   * One product's movements — « Mouvements » on a stock row or a product page.
-   * The link used to point at /warehouse/history, which redirected and dropped
-   * the product. It now arrives through Stock's address (?product=).
-   */
+  /** One product's movements — « Mouvements » on a stock row or a product page. */
   productId?: string | null;
-  productName?: string | null;
+  /** The family in view, from the address (`?kind=`). */
+  kind: WarehouseHistoryKind;
+  onKindChange: (kind: WarehouseHistoryKind) => void;
   onClearProduct?: () => void;
 }) {
   const t = useTranslations("warehouse.journal");
-  const [kind, setKind] = useState<Kind>("all");
-  const [query, setQuery] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
+  const intlLocale = useLocale();
+  const productParam = productId ? `&product_id=${encodeURIComponent(productId)}` : "";
 
-  const key = `/api/warehouse/history?limit=100&kind=${kind}${
-    query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""
-  }${productId ? `&product_id=${encodeURIComponent(productId)}` : ""}`;
   const { data } = useSWR<{ rows: WarehouseHistoryRow[]; nextCursor: string | null }>(
-    key,
-    fetcher,
+    `/api/warehouse/history?limit=${PAGE}&kind=${kind}${productParam}`,
+    jsonFetcher,
     { revalidateOnFocus: true },
   );
+  const { data: counts } = useSWR<HistoryCounts>(
+    `/api/warehouse/history/counts${productId ? `?product_id=${encodeURIComponent(productId)}` : ""}`,
+    jsonFetcher,
+  );
+  // The product's NAME for the « Filtré : » chip, even before it has moved:
+  // the stock list is the one place every product of the market is named (and
+  // it is already in cache when the reader came from Stock).
+  const { data: stock } = useSWR<WarehouseStockResponse>(productId ? "/api/warehouse/stock" : null, jsonFetcher);
 
-  const rows = useMemo(() => data?.rows ?? [], [data]);
-
-  /** Day label + how many rows fall on that day, for the sticky bands. */
-  const days = useMemo(() => {
-    const today = startOfDay(new Date());
-    const counts = new Map<number, number>();
-    for (const r of rows) counts.set(startOfDay(new Date(r.at)), (counts.get(startOfDay(new Date(r.at))) ?? 0) + 1);
-    const label = (ms: number) => {
-      if (ms === today) return t("today");
-      if (ms === today - 86_400_000) return t("yesterday");
-      return new Date(ms).toLocaleDateString(locale === "ar" ? "ar" : "fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      });
-    };
-    return { counts, label, today };
-  }, [rows, t, locale]);
-
-  const stats = useMemo(() => {
-    const todayRows = rows.filter((r) => startOfDay(new Date(r.at)) === days.today);
-    const movements = rows.filter((r) => r.qty_change !== null);
-    const anomalies = rows.filter((r) => r.anomalies.length > 0);
-    const withActor = rows.filter((r) => r.actor !== null);
-    const operators = new Set(rows.map((r) => r.actor?.id).filter(Boolean));
-    const gap = anomalies.reduce((n, r) => n + (r.qty_change ?? 0), 0);
-    return {
-      today: todayRows.length,
-      todayScans: todayRows.filter((r) => r.kind === "scan").length,
-      movements: movements.length,
-      anomalies: anomalies.length,
-      gap,
-      operators: operators.size,
-      withoutActor: rows.length - withActor.length,
-      // A ledger with no rows is fully traceable, not 0 % traceable.
-      traceability: rows.length === 0 ? 100 : Math.round((withActor.length / rows.length) * 100),
-    };
-  }, [rows, days.today]);
-
-  const exportCsv = useCallback(() => {
-    const header = ["date", "heure", "type", "evenement", "operateur", "delta", "solde"];
-    const body = rows.map((r) => [
-      new Date(r.at).toISOString().slice(0, 10),
-      timeOf(r.at),
-      r.kind,
-      r.detail.replace(/"/g, '""'),
-      r.actor?.full_name ?? "",
-      r.qty_change ?? "",
-      r.balance_after ?? "",
-    ]);
-    const csv = [header, ...body].map((line) => line.map((c) => `"${c}"`).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `journal-entrepot-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [rows]);
-
-  const copyRef = useCallback((r: WarehouseHistoryRow) => {
-    const text = r.order_number ? `#${r.order_number}` : r.id;
-    void navigator.clipboard?.writeText(text).catch(() => {});
-    setCopied(r.id);
-    setTimeout(() => setCopied(null), 1600);
-  }, []);
-
-  let lastDay: number | null = null;
+  const rows = data?.rows ?? [];
+  const productName = productId
+    ? (stock?.rows.find((r) => r.product_id === productId)?.name ??
+      rows.find((r) => r.product_id === productId)?.product_name ??
+      null)
+    : null;
+  const families = productId ? LEDGER_FAMILIES : [...LEDGER_FAMILIES, ...PRODUCTLESS];
 
   return (
-    <div className="mx-auto w-full max-w-[1460px] px-4 py-5 md:px-6 md:py-6">
-      <header className="mb-5 flex flex-wrap items-start gap-4">
-        <div>
-          <h1 className="text-[24px] font-bold tracking-[-0.02em] text-wh-ink-1">{t("title")}</h1>
-          <p className="mt-[5px] text-[13px] text-wh-ink-2">{t("subtitle")}</p>
-        </div>
-        <button type="button" onClick={exportCsv} className={`${WH_BTN} ms-auto`}>
-          <Download size={16} aria-hidden="true" />
-          {t("exportCsv")}
-        </button>
-      </header>
-
+    <div className="text-[14px] leading-[1.5] text-wh-ink-1">
       {productId ? (
-        <p data-testid="wh-journal-product" className="mb-4 flex items-center gap-2 text-[13px] text-wh-ink-2">
-          {t("filteredBy")}
-          <span className="inline-flex items-center gap-1.5 rounded-pill border border-wh-border bg-wh-surface py-1 pe-1.5 ps-3 font-semibold text-wh-ink-1" dir="auto">
-            {productName ?? rows.find((r) => r.product_id === productId)?.product_name ?? productId}
+        <div data-testid="wh-journal-product" className="mb-[12px] flex items-center gap-[12px]">
+          <span className="text-[12.5px] text-wh-ink-2">{t("filteredBy")}</span>
+          <Chip tone="info" dense>
+            <bdi>{productName ?? "…"}</bdi>
             {onClearProduct ? (
               <button
                 type="button"
                 onClick={onClearProduct}
                 aria-label={t("clearFilter")}
-                className="grid h-5 w-5 place-items-center rounded-full text-wh-ink-2 hover:bg-wh-sunken"
+                className="inline-grid place-items-center"
               >
-                <X size={13} strokeWidth={2.4} aria-hidden="true" />
+                <X size={13} strokeWidth={2.5} aria-hidden="true" />
               </button>
             ) : null}
-          </span>
-        </p>
+          </Chip>
+        </div>
       ) : null}
 
-      <div className="mb-[18px]">
-        <WhKpiGrid min={280}>
-          <WhKpiCard
-            id="events"
-            label={t("kpiEvents")}
-            value={stats.today}
-            unit={t("kpiEventsUnit")}
-            note={t("kpiEventsNote")}
-            foot={[
-              { value: stats.todayScans, label: t("footScans") },
-              { value: stats.movements, label: t("footMoves") },
-            ]}
-          />
-          <WhKpiCard
-            id="anomalies"
-            label={t("kpiAnomalies")}
-            value={stats.anomalies}
-            edge={stats.anomalies > 0 ? "warn" : undefined}
-            valueTone="warn"
-            dim={stats.anomalies === 0}
-            note={
-              stats.anomalies > 0
-                ? t("kpiAnomaliesNote", { count: stats.anomalies })
-                : t("kpiAnomaliesNone")
-            }
-            foot={[
-              { value: `${stats.gap > 0 ? "+" : ""}${stats.gap} u`, label: t("footGap") },
-              { value: stats.anomalies, label: t("footReview") },
-            ]}
-          />
-          <WhKpiCard
-            id="trace"
-            label={t("kpiTraceability")}
-            value={stats.traceability}
-            unit="%"
-            edge={stats.withoutActor === 0 ? "ok" : "warn"}
-            valueTone={stats.withoutActor === 0 ? "ok" : "warn"}
-            note={t("kpiTraceabilityNote")}
-            foot={[
-              { value: stats.operators, label: t("footOperators") },
-              { value: stats.withoutActor, label: t("footNoActor") },
-            ]}
-          />
-        </WhKpiGrid>
+      <div role="group" aria-label={t("families")} className="mb-[14px] flex flex-wrap gap-[6px]">
+        {families.map((f) => {
+          const on = kind === f;
+          return (
+            <button
+              key={f}
+              type="button"
+              data-testid={`wh-filter-${f}`}
+              aria-pressed={on}
+              onClick={() => onKindChange(f)}
+              className={`rounded-full border px-[12px] py-[6px] text-[13px] font-semibold ${
+                on ? "border-wh-ink-1 bg-wh-ink-1 text-white" : "border-line bg-wh-surface text-wh-ink-2 hover:text-wh-ink-1"
+              }`}
+            >
+              {t(FAMILY_LABEL[f])}
+              <span className="ms-[5px] text-[11.5px] opacity-75">
+                <Num>{counts?.[f] ?? "…"}</Num>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      <WhCard
-        title={t("eventsTitle")}
-        hint={<span className="font-mono tabular-nums">{rows.length}</span>}
-        actions={
-          <div className="flex flex-wrap gap-[7px]">
-            {FILTERS.map((f) => (
-              <button
-                key={f}
-                type="button"
-                data-testid={`wh-filter-${f}`}
-                aria-pressed={kind === f}
-                onClick={() => setKind(f)}
-                className={`rounded-pill border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  kind === f
-                    ? "border-wh-ok bg-wh-ok text-white"
-                    : "border-wh-border bg-wh-surface text-wh-ink-2 hover:border-wh-border-strong"
-                }`}
-              >
-                {t(FILTER_KEY[f])}
-              </button>
-            ))}
-          </div>
-        }
-        footer={
-          <div className="flex flex-wrap items-center gap-3.5">
-            <span>{t("footNote")}</span>
-            <span className="ms-auto flex flex-wrap gap-3.5">
-              {(["scan", "handover", "return", "reception", "count", "adjust"] as const).map((k) => (
-                <span key={k} className="inline-flex items-center gap-1.5">
-                  <span className={`inline-block h-2 w-2 rounded-pill ${WH_TONE[KIND_STYLE[k].tone].fill}`} />
-                  {t(KIND_STYLE[k].key)}
-                </span>
-              ))}
-            </span>
-          </div>
-        }
-      >
-        <div className="border-b border-wh-border px-[18px] py-3">
-          <div className="flex max-w-[380px] items-center gap-2.5 rounded-[10px] border border-wh-border bg-wh-surface px-3.5 py-2.5 shadow-sm">
-            <Search size={15} className="shrink-0 text-wh-ink-3" aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("search")}
-              aria-label={t("search")}
-              className="w-full border-none bg-transparent text-[13px] outline-none placeholder:text-wh-ink-3"
-            />
-          </div>
-        </div>
-
-        <div className="max-h-[640px] overflow-y-auto">
-          <table className="w-full border-collapse text-[13px]">
+      <div className="overflow-hidden rounded-[16px] border border-line-subtle bg-wh-surface">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className={`w-[76px] border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>
-                  {t("colTime")}
-                </th>
-                <th className={`w-[120px] border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>
-                  {t("colType")}
-                </th>
-                <th className={`border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>
-                  {t("colEvent")}
-                </th>
-                <th className={`w-[110px] border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>
-                  {t("colOperator")}
-                </th>
-                <th className={`w-[130px] border-b border-wh-border px-3.5 py-2.5 text-end ${WH_LABEL}`}>
-                  <span className="inline-flex items-center gap-1.5">
-                    {t("colDelta")}
-                    <span title={t("deltaHint")} className="inline-flex">
-                      <Info size={12} aria-hidden="true" />
-                    </span>
-                  </span>
-                </th>
-                <th className="w-[44px] border-b border-wh-border" />
+                <th className={TH}>{t("colWhen")}</th>
+                <th className={TH}>{t("colEvent")}</th>
+                <th className={`${TH} min-w-[260px]`}>{t("colProduct")}</th>
+                <th className={TH}>{t("colWho")}</th>
+                <th className={`${TH} text-end`}>{t("colDelta")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3.5 py-8 text-center text-[13px] text-wh-ink-3">
-                    {t("empty")}
+                  <td colSpan={5} className="px-[14px] py-[32px] text-center text-[13px] text-wh-ink-2">
+                    {data ? t("empty") : "…"}
                   </td>
                 </tr>
               ) : (
-                rows.flatMap((r) => {
-                  const day = startOfDay(new Date(r.at));
-                  const band =
-                    day !== lastDay ? (
-                      <tr key={`d-${day}`} data-testid={`wh-day-${day}`}>
-                        <td
-                          colSpan={6}
-                          className="sticky top-0 z-[5] border-b border-wh-border bg-wh-sunken px-3.5 py-[7px] text-[11px] font-semibold uppercase tracking-[0.07em] text-wh-ink-2"
-                        >
-                          {days.label(day)}
-                          <span className="ms-2 rounded-pill border border-wh-border bg-wh-surface px-[7px] font-mono text-[10.5px] tabular-nums">
-                            {days.counts.get(day) ?? 0}
+                rows.map((r) => (
+                  <tr key={`${r.kind}-${r.id}`} data-testid={`wh-row-${r.id}`} className="group hover:bg-wh-surface-2">
+                    <td className={`${TD} whitespace-nowrap text-wh-ink-2`}>{whenLabel(r.at, intlLocale)}</td>
+                    <td className={TD}>
+                      <Chip tone="mute" dense>{t(`event.${eventKey(r)}`)}</Chip>
+                    </td>
+                    <td className={`${TD} font-semibold`}>
+                      {r.product_name ? <bdi>{r.product_name}</bdi> : <span className="text-ink-muted">—</span>}
+                    </td>
+                    <td className={`${TD} whitespace-nowrap`}>
+                      <bdi>{r.actor?.full_name ?? "—"}</bdi>
+                      {r.warehouse_name ? (
+                        <>
+                          {" · "}
+                          <span className="text-wh-ink-2"><bdi>{r.warehouse_name}</bdi></span>
+                        </>
+                      ) : null}
+                    </td>
+                    <td className={`${TD} whitespace-nowrap text-end`}>
+                      {r.qty_change === null ? (
+                        <span className="text-ink-muted">—</span>
+                      ) : (
+                        <>
+                          <b className="font-bold"><Num>{signed(r.qty_change)}</Num></b>{" "}
+                          <span className="text-wh-ink-2">
+                            <Num>→ {r.balance_after ?? "—"}</Num>
                           </span>
-                        </td>
-                      </tr>
-                    ) : null;
-                  lastDay = day;
-
-                  const style = KIND_STYLE[r.kind];
-                  const anomalous = r.anomalies.length > 0;
-
-                  return [
-                    band,
-                    <tr
-                      key={r.id}
-                      data-testid={`wh-row-${r.id}`}
-                      data-anomaly={anomalous ? "true" : "false"}
-                      className={`transition-colors hover:bg-wh-sunken ${
-                        anomalous ? "bg-wh-warn-bg/40 shadow-[inset_3px_0_0_var(--wh-warn)]" : ""
-                      }`}
-                    >
-                      <td className="whitespace-nowrap border-b border-wh-border px-3.5 py-2.5 font-mono text-[12px] tabular-nums text-wh-ink-3">
-                        {timeOf(r.at)}
-                      </td>
-                      <td className="border-b border-wh-border px-3.5 py-2.5">
-                        <span
-                          className={`inline-flex whitespace-nowrap rounded-pill px-2.5 py-[2.5px] text-[11.5px] font-semibold ${WH_TONE[style.tone].tint}`}
-                        >
-                          {t(style.key)}
-                        </span>
-                      </td>
-                      <td className="border-b border-wh-border px-3.5 py-2.5 text-[13px] text-wh-ink-1">
-                        <bdi>{r.detail}</bdi>
-                        {anomalous ? (
-                          <span className="ms-2 inline-block rounded-pill bg-wh-warn-bg px-2 py-px text-[10.5px] font-semibold text-wh-warn">
-                            {t("toJustify")}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="border-b border-wh-border px-3.5 py-2.5 text-[12.5px] text-wh-ink-2">
-                        {r.actor?.full_name ?? t("noActor")}
-                      </td>
-                      <td
-                        data-testid="wh-delta"
-                        className="whitespace-nowrap border-b border-wh-border px-3.5 py-2.5 text-end font-mono text-[12.5px] tabular-nums"
-                      >
-                        {r.qty_change === null ? (
-                          <span className="text-wh-ink-3">—</span>
-                        ) : (
-                          <>
-                            <span
-                              className={`font-bold ${
-                                r.qty_change > 0
-                                  ? "text-wh-ok"
-                                  : r.qty_change < 0
-                                    ? "text-wh-bad"
-                                    : "text-wh-ink-3"
-                              }`}
-                            >
-                              {r.qty_change > 0 ? "+" : ""}
-                              {r.qty_change}
-                            </span>
-                            <span className="mx-1.5 text-wh-ink-3">→</span>
-                            <span className="text-wh-ink-2">{r.balance_after ?? "—"}</span>
-                          </>
-                        )}
-                      </td>
-                      <td className="border-b border-wh-border px-2 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => copyRef(r)}
-                          title={t("copy")}
-                          aria-label={t("copy")}
-                          className="rounded-[6px] p-1 text-wh-ink-3 transition-colors hover:bg-wh-sunken hover:text-wh-ink-1"
-                        >
-                          <Copy size={14} aria-hidden="true" />
-                        </button>
-                      </td>
-                    </tr>,
-                  ];
-                })
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-      </WhCard>
-
-      {copied ? (
-        <p
-          role="status"
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 rounded-pill bg-wh-ink-1 px-4 py-2.5 text-[13px] font-semibold text-white shadow-lg"
-        >
-          {t("copied")}
-        </p>
-      ) : null}
+      </div>
     </div>
   );
 }

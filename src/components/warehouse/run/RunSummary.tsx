@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Check, TriangleAlert } from "lucide-react";
 import type { Bucket } from "@/lib/warehouse/scan-buckets";
+import { BTN_GHOST, BTN_PRI, BTN_SEC } from "./ui";
 
 /**
  * What the batch actually cost, and what it left behind.
@@ -49,9 +50,9 @@ export function RunSummary({
   const rate = tally.bound > 0 && minutes > 0 ? Math.round((tally.bound / minutes) * 10) / 10 : null;
 
   return (
-    <div data-testid="wh-run-summary" className="mx-auto w-full max-w-[640px] px-4 pb-8 pt-4">
-      <div className="grid place-items-center gap-2 rounded-[14px] border border-wh-ok-edge bg-wm-card p-5 text-center">
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-wh-ok-bg text-wh-ok">
+    <div data-testid="wh-run-summary" className="mx-auto w-full max-w-[640px] px-[16px] pb-[32px] pt-[16px]">
+      <div className="grid place-items-center gap-[8px] rounded-[16px] border border-wh-ok-edge bg-white p-[20px] text-center">
+        <span className="grid h-[48px] w-[48px] place-items-center rounded-full bg-wh-ok-bg text-wh-ok">
           <Check size={26} strokeWidth={2.5} aria-hidden="true" />
         </span>
         <p className="text-[19px] font-bold text-wm-ink">{t("summaryTitle")}</p>
@@ -71,14 +72,14 @@ export function RunSummary({
       </div>
 
       {tally.problems.length > 0 ? (
-        <div className="mt-3 rounded-[14px] border border-wh-warn-edge bg-wh-warn-bg p-3">
-          <p className="flex items-center gap-1.5 text-[13.5px] font-bold text-wh-warn">
+        <div className="mt-[12px] rounded-[16px] border border-wh-warn-edge bg-wh-warn-bg p-[12px]">
+          <p className="flex items-center gap-[6px] text-[13.5px] font-bold text-wh-warn">
             <TriangleAlert size={15} aria-hidden="true" />
             {t("summaryRefusedTitle")}
           </p>
-          <ul className="m-0 mt-1.5 list-none p-0">
+          <ul className="m-0 mt-[6px] list-none p-0">
             {tally.problems.map((p) => (
-              <li key={p.id} className="border-t border-wh-warn-edge/50 py-1.5 text-[13px] text-wm-ink first:border-0">
+              <li key={p.id} className="border-t border-wh-warn-edge/50 py-[6px] text-[13px] text-wm-ink first:border-0">
                 <b><bdi>{p.name}</bdi></b>
                 <span className="text-wm-ink-2"> — {p.message}</span>
               </li>
@@ -87,12 +88,12 @@ export function RunSummary({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2">
+      <div className="mt-[16px] grid gap-[8px]">
         {next ? (
           <button
             type="button"
             onClick={onNext}
-            className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep"
+            className={`${BTN_PRI} w-full`}
           >
             {t("nextBucket", { name: next.label })}
           </button>
@@ -100,14 +101,14 @@ export function RunSummary({
         <button
           type="button"
           onClick={onChangeMode}
-          className="inline-flex min-h-[48px] w-full items-center justify-center rounded-[12px] border border-wm-card-edge bg-wm-card px-4 text-[15px] font-semibold text-wm-ink"
+          className={`${BTN_SEC} w-full`}
         >
           {t("changeMode")}
         </button>
         <button
           type="button"
           onClick={onExit}
-          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
+          className={`${BTN_GHOST} w-full`}
         >
           {t("backToBench")}
         </button>

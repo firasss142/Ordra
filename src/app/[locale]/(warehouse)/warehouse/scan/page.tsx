@@ -10,6 +10,7 @@ import { attachOrderLines } from "@/lib/warehouse/order-lines";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { ScanRun } from "@/components/warehouse/run/ScanRun";
+import { parseRunParams } from "@/components/warehouse/run/run-url";
 
 /**
  * La tournée de scan.
@@ -33,12 +34,12 @@ export default async function ScanRunPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ roll?: string }>;
+  searchParams: Promise<{ roll?: string | string[]; order?: string | string[] }>;
 }) {
   const { locale } = await params;
-  // « Commencer » on a roll in Sortir: open the run on that roll.
-  const { roll } = await searchParams;
-  const initialRoll = roll && /^#[0-9a-f]{6}$/i.test(roll) ? roll.toLowerCase() : null;
+  // « Commencer » on a roll in Sortir, or a parcel tapped there: the run opens
+  // on it. The address contract lives in run-url.ts.
+  const { roll: initialRoll, order: initialOrder } = parseRunParams(await searchParams);
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
@@ -99,6 +100,7 @@ export default async function ScanRunPage({
       initialOrders={orders}
       siteName={siteName}
       initialRoll={initialRoll}
+      initialOrder={initialOrder}
     />
   );
 }

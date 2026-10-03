@@ -2,11 +2,13 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { JournalConsole } from "../JournalConsole";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
+import type { HistoryCounts } from "@/app/api/warehouse/history/counts/route";
 
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>
@@ -15,17 +17,21 @@ vi.mock("next-intl", async () => {
 });
 
 let rows: WarehouseHistoryRow[] = [];
-const mutate = vi.fn();
-let lastKey = "";
+let counts: HistoryCounts;
+const keys: string[] = [];
 
 vi.mock("swr", () => ({
-  default: (key: string) => {
-    lastKey = key;
-    return { data: { rows, nextCursor: null }, error: undefined, isLoading: false, mutate };
+  default: (key: string | null) => {
+    if (key) keys.push(key);
+    if (key?.startsWith("/api/warehouse/history/counts")) {
+      return { data: counts, error: undefined, isLoading: false };
+    }
+    if (key?.startsWith("/api/warehouse/stock")) {
+      return { data: { rows: [{ product_id: "p1", name: "Coran « Tadabbur wa ʿAmal »" }], warehouses: [] }, error: undefined, isLoading: false };
+    }
+    return { data: key ? { rows, nextCursor: null } : undefined, error: undefined, isLoading: false };
   },
 }));
-
-const at = (iso: string) => new Date(iso).toISOString();
 
 function row(over: Partial<WarehouseHistoryRow>): WarehouseHistoryRow {
   return {
@@ -34,154 +40,142 @@ function row(over: Partial<WarehouseHistoryRow>): WarehouseHistoryRow {
     order_id: "o1",
     order_number: "1042",
     product_id: "p1",
-    product_name: "دمية ملاكمة",
+    product_name: "Coran « Tadabbur wa ʿAmal »",
     qty_change: -1,
-    balance_after: 200,
-    at: at(new Date().toISOString()),
-    detail: "#1042 · دمية ملاكمة · Salima",
+    balance_after: 943,
+    at: "2026-09-29T12:42:00Z",
+    detail: "1042 · Coran · Souad",
     is_damaged: false,
     is_reprint: false,
     note: null,
-    actor: { id: "u1", full_name: "Salima", role: "warehouse_agent", avatar_url: null },
+    actor: { id: "u1", full_name: "adel", role: "warehouse_agent", avatar_url: null },
     anomalies: [],
+    reason: "scanned",
+    warehouse_name: "Benghazi",
     ...over,
   };
 }
 
 beforeEach(() => {
-  const today = new Date();
-  const yesterday = new Date(Date.now() - 86_400_000);
+  keys.length = 0;
   rows = [
-    row({ id: "a", kind: "scan", at: today.toISOString() }),
-    row({ id: "b", kind: "handover", at: today.toISOString(), qty_change: null, balance_after: null }),
-    row({
-      id: "c", kind: "adjust", at: yesterday.toISOString(),
-      qty_change: -2, balance_after: 216, anomalies: ["post_scan_adjustment"],
-    }),
+    row({ id: "a" }),
+    row({ id: "b", kind: "handover", reason: null, product_id: null, qty_change: null, balance_after: null, warehouse_name: null }),
+    row({ id: "c", kind: "count", reason: "stock_count", qty_change: 3, balance_after: 946, anomalies: ["post_scan_adjustment"] }),
   ];
-  vi.stubGlobal("fetch", vi.fn());
+  counts = { all: 230, scan: 225, return: 0, reception: 0, count: 1, adjust: 0, handover: 3, print: 1 };
 });
-afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-const setup = () => render(<JournalConsole locale="fr" />);
+const lastHistoryKey = () => [...keys].reverse().find((k) => k.startsWith("/api/warehouse/history?"))!;
 
-describe("Journal — one product's movements", () => {
-  // « Mouvements » on a stock row used to link to /warehouse/history, which
-  // redirected and dropped the product: the reader landed on the wrong tab,
-  // unfiltered. The Journal now takes the product from the address.
-  it("asks the server for that product only", () => {
-    render(<JournalConsole locale="fr" productId="p1" productName="دمية ملاكمة" />);
-    expect(lastKey).toContain("product_id=p1");
+/**
+ * Stock › Mouvements on the desk — `C.journal` of
+ * prototypes/entrepot-day-loop-manager-v3.html: « Filtré : » with the
+ * product, the family chips WITH their counts, then one table — Quand,
+ * Événement, Produit, Qui, Δ → solde. No KPI cards, no search, no CSV.
+ */
+describe("Mouvements — one product", () => {
+  it("asks the server for that product only, rows and counts alike", () => {
+    render(<JournalConsole locale="fr" productId="p1" kind="all" onKindChange={vi.fn()} />);
+    expect(lastHistoryKey()).toContain("product_id=p1");
+    expect(keys.find((k) => k.startsWith("/api/warehouse/history/counts"))).toContain("product_id=p1");
   });
 
-  it("says what it is filtered on, and lets the reader clear it", () => {
+  it("says what it is filtered on, by the product's name, and lets the reader clear it", () => {
     const onClear = vi.fn();
-    render(<JournalConsole locale="fr" productId="p1" productName="دمية ملاكمة" onClearProduct={onClear} />);
+    render(<JournalConsole locale="fr" productId="p1" kind="all" onKindChange={vi.fn()} onClearProduct={onClear} />);
     const chip = screen.getByTestId("wh-journal-product");
-    expect(chip).toHaveTextContent("دمية ملاكمة");
-    fireEvent.click(within(chip).getByRole("button"));
+    expect(chip).toHaveTextContent("Filtré :");
+    expect(chip).toHaveTextContent("Coran « Tadabbur wa ʿAmal »");
+    fireEvent.click(within(chip).getByRole("button", { name: "Retirer le filtre" }));
     expect(onClear).toHaveBeenCalled();
   });
 
+  it("names the product even when it has no movement yet", () => {
+    rows = [];
+    render(<JournalConsole locale="fr" productId="p1" kind="all" onKindChange={vi.fn()} />);
+    expect(screen.getByTestId("wh-journal-product")).toHaveTextContent("Coran « Tadabbur wa ʿAmal »");
+  });
+
   it("asks for every product when none is given", () => {
-    setup();
-    expect(lastKey).not.toContain("product_id");
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    expect(lastHistoryKey()).not.toContain("product_id");
+    expect(screen.queryByTestId("wh-journal-product")).toBeNull();
   });
 });
 
-describe("Journal — the ledger", () => {
-  it("groups rows under a day band that counts its own day", () => {
-    setup();
-    const bands = screen.getAllByTestId(/^wh-day-/);
-    expect(bands).toHaveLength(2);
-    expect(within(bands[0]).getByText(/Aujourd'hui/)).toBeInTheDocument();
-    expect(within(bands[0]).getByText("2")).toBeInTheDocument();
-  });
+describe("Mouvements — families", () => {
+  const chips = () => screen.getAllByTestId(/^wh-filter-/);
 
-  it("shows a delta and a resulting balance for stock movements", () => {
-    setup();
-    const scan = screen.getByTestId("wh-row-a");
-    expect(within(scan).getByTestId("wh-delta")).toHaveTextContent("-1");
-    expect(within(scan).getByTestId("wh-delta")).toHaveTextContent("200");
-  });
-
-  it("draws a dash for a handover, which moves no stock", () => {
-    setup();
-    // The units left the shelf at scan-out; a handover is a status change.
-    expect(within(screen.getByTestId("wh-row-b")).getByTestId("wh-delta")).toHaveTextContent("—");
-  });
-
-  it("marks an anomaly on the row itself, not only in a counter", () => {
-    setup();
-    const anomalous = screen.getByTestId("wh-row-c");
-    expect(anomalous.dataset.anomaly).toBe("true");
-    expect(within(anomalous).getByText(/à justifier/)).toBeInTheDocument();
-  });
-});
-
-describe("Journal — filters", () => {
-  /*
-   * Huit catégories, et toujours seulement celles qui ont une source.
-   *
-   * « Réceptions » en a une depuis le 2026-09-30 (`receptions` + les motifs
-   * `reception` / `reception_reversal`), et « Inventaires » en avait déjà une
-   * sans filtre : `stock_count` existait en base mais aucune pastille ne le
-   * montrait, donc pas un comptage physique n'était visible ici.
-   *
-   * « Transferts » reste absent : ce flux n'existe pas dans le modèle de
-   * données, et une pastille vide pour toujours vaut moins que pas de pastille.
-   */
-  it("offers only the categories that have a source", () => {
-    setup();
-    const pills = screen.getAllByTestId(/^wh-filter-/);
-    expect(pills.map((p) => p.getAttribute("data-testid"))).toEqual([
-      "wh-filter-all",
-      "wh-filter-scan",
-      "wh-filter-handover",
-      "wh-filter-return",
-      "wh-filter-reception",
-      "wh-filter-count",
-      "wh-filter-adjust",
-      "wh-filter-print",
+  it("shows each family with its count, empty families included", () => {
+    render(<JournalConsole locale="fr" productId="p1" kind="all" onKindChange={vi.fn()} />);
+    expect(chips().map((c) => c.textContent)).toEqual([
+      "Tout230", "Sorties225", "Retours0", "Réceptions0", "Inventaires1", "Ajustements0",
     ]);
-    expect(screen.queryByTestId("wh-filter-transfer")).not.toBeInTheDocument();
   });
 
-  it("asks the server for the chosen category rather than filtering the page", () => {
-    setup();
-    fireEvent.click(screen.getByTestId("wh-filter-handover"));
-    // Filtering client-side would silently hide rows that live on later pages.
-    expect(lastKey).toContain("kind=handover");
+  it("adds the handovers and the label prints when no product narrows the view", () => {
+    // Neither has a product: filtered on one, they have no source at all.
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    expect(chips().map((c) => c.dataset.testid)).toEqual([
+      "wh-filter-all", "wh-filter-scan", "wh-filter-return", "wh-filter-reception",
+      "wh-filter-count", "wh-filter-adjust", "wh-filter-handover", "wh-filter-print",
+    ]);
   });
 
-  it("marks the active pill for assistive tech, not just visually", () => {
-    setup();
-    expect(screen.getByTestId("wh-filter-all")).toHaveAttribute("aria-pressed", "true");
+  it("asks the server for the chosen family rather than filtering the page", () => {
+    const onKind = vi.fn();
+    const { rerender } = render(<JournalConsole locale="fr" kind="all" onKindChange={onKind} />);
     fireEvent.click(screen.getByTestId("wh-filter-scan"));
+    expect(onKind).toHaveBeenCalledWith("scan");
+    rerender(<JournalConsole locale="fr" kind="scan" onKindChange={onKind} />);
+    expect(lastHistoryKey()).toContain("kind=scan");
     expect(screen.getByTestId("wh-filter-scan")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("wh-filter-all")).toHaveAttribute("aria-pressed", "false");
   });
 });
 
-describe("Journal — counters", () => {
-  it("counts today's events, and says how many are stock movements", () => {
-    setup();
-    const card = screen.getByTestId("wh-kpi-events");
-    expect(within(card).getByTestId("wh-value")).toHaveTextContent("2");
+describe("Mouvements — the table", () => {
+  it("has the prototype's five columns", () => {
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+      "Quand", "Événement", "Produit", "Qui", "Δ → solde",
+    ]);
   });
 
-  it("reports traceability from rows that actually carry an author", () => {
-    rows = [...rows, row({ id: "d", actor: null })];
-    setup();
-    const card = screen.getByTestId("wh-kpi-trace");
-    // Three of four rows have an author.
-    expect(within(card).getByTestId("wh-value")).toHaveTextContent("75");
+  it("reads a scan as the prototype row does", () => {
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    const cells = within(screen.getByTestId("wh-row-a")).getAllByRole("cell").map((c) => c.textContent);
+    expect(cells[0]).toMatch(/^29 sept\. · \d\d:42$/);
+    expect(cells[1]).toBe("Sortie scannée");
+    expect(cells[2]).toBe("Coran « Tadabbur wa ʿAmal »");
+    expect(cells[3]).toBe("adel · Benghazi");
+    expect(cells[4]).toBe("−1 → 943");
   });
-});
 
-describe("Journal — house rules", () => {
+  it("names the event by its ledger reason", () => {
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    expect(within(screen.getByTestId("wh-row-c")).getAllByRole("cell")[1]).toHaveTextContent("Comptage");
+    expect(within(screen.getByTestId("wh-row-c")).getAllByRole("cell")[4]).toHaveTextContent("+3 → 946");
+    expect(within(screen.getByTestId("wh-row-b")).getAllByRole("cell")[1]).toHaveTextContent("Remise au transporteur");
+  });
+
+  it("draws a dash for a handover, which moves no stock", () => {
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    expect(within(screen.getByTestId("wh-row-b")).getAllByRole("cell")[4]).toHaveTextContent("—");
+  });
+
+  it("carries no KPI card, no search, no CSV export", () => {
+    render(<JournalConsole locale="fr" kind="all" onKindChange={vi.fn()} />);
+    expect(screen.queryByTestId(/^wh-kpi-/)).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByText(/CSV/)).toBeNull();
+  });
+
   it("styles through tokens, never raw hex", () => {
-    const { container } = setup();
+    const { container } = render(<JournalConsole locale="fr" productId="p1" kind="all" onKindChange={vi.fn()} />);
     const classes = Array.from(container.querySelectorAll<HTMLElement>("*"))
       .map((el) => el.className)
       .filter((c): c is string => typeof c === "string")

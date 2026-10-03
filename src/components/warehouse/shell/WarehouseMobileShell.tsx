@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Boxes, Home, PackageOpen, RotateCcw } from "lucide-react";
+import { House, LayoutGrid, Package, RotateCcw } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { jsonFetcher } from "@/lib/fetchers";
 import type { TodayResponse } from "@/app/api/warehouse/today/route";
@@ -50,11 +50,11 @@ export function WarehouseMobileShell({
 
   const tabs: BottomTab[] = useMemo(
     () => [
-      { href: `/${locale}/warehouse`, label: t("nav.today"), icon: Home, exact: true, prefetchKey: "/api/warehouse/today" },
+      { href: `/${locale}/warehouse`, label: t("nav.today"), icon: House, exact: true, prefetchKey: "/api/warehouse/today" },
       {
         href: `/${locale}/warehouse/out`,
         label: t("nav.out"),
-        icon: PackageOpen,
+        icon: Package,
         hue: "job-out",
         prefetchKey: "/api/warehouse/to-label?limit=200",
       },
@@ -71,7 +71,7 @@ export function WarehouseMobileShell({
       {
         href: `/${locale}/warehouse/stock`,
         label: t("nav.stock"),
-        icon: Boxes,
+        icon: LayoutGrid,
         hue: "job-receive",
         prefetchKey: "/api/warehouse/stock",
       },
@@ -99,7 +99,7 @@ export function WarehouseMobileShell({
         id="main-content"
         data-testid="wh-mobile-main"
         // Clears the fixed bar, the raised scan button and the home indicator.
-        className={inRun ? "wh-safe-top" : "wh-safe-top pb-[calc(56px+env(safe-area-inset-bottom,0px)+40px)]"}
+        className={inRun ? "wh-safe-top" : "wh-safe-top pb-[calc(84px+env(safe-area-inset-bottom,0px)+36px)]"}
       >
         {children}
       </main>

@@ -1,111 +1,135 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Camera, Check, Package, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, ScanLine, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { PrepRow } from "@/components/warehouse/console/PrepCard";
-import { QrScanner } from "@/components/warehouse/QrScanner";
-import { ScanViewfinder } from "@/components/warehouse/mobile/ScanViewfinder";
-import { zoneLabels } from "@/lib/carriers/darb-zones";
+import type { ScannedRow } from "@/app/api/warehouse/scanned/route";
+import type { WarehouseSitesResponse } from "@/app/api/warehouse/sites/route";
+import { DARB_ZONE_ORDER, zoneLabels } from "@/lib/carriers/darb-zones";
+import { MARKET_TIMEZONE } from "@/lib/markets";
+import { isDarbStickerPayload } from "@/lib/preparation/sticker-payload";
 import { readScannerPrefs, signalOutcome } from "@/lib/warehouse/scanner-prefs";
-import type { ScanOutcome } from "@/lib/preparation/scan-outcome";
-import { useScanOut } from "./useScanOut";
+import { RunViewfinder } from "@/components/warehouse/run/RunViewfinder";
+import { OutcomeCard, StockChip, Thumb } from "@/components/warehouse/run/RunOutcome";
+import { BTN_DANGER, BTN_GHOST, BTN_PRI, BTN_SEC, CARD, MONO, XL } from "@/components/warehouse/run/ui";
+import { useScanOut, type ScanOutEntry } from "./useScanOut";
+import { canUnscan, useScannedActions } from "./useScannedActions";
+import { benchAge, firstName, runHref } from "./bench-format";
 
 /**
- * The scan sheet: the parcel in hand, its roll, the camera, one outcome.
+ * The centre Scan button with nothing in hand (prototype `sheet()`).
  *
- * It slides over the bench rather than being a screen of its own, so the
- * parcel the agent took is the parcel that gets bound; the old station forgot
- * the hand on every navigation. With nothing in hand it is a lookup: what does
- * the system know about this sticker.
+ * « Scannez n'importe quel sticker »: the scan says what the sticker is, and
+ * each answer leads to its own next act —
  *
- * THE COLOUR IS THE LOUDEST THING HERE. Darb routes by the sticker colour and
- * binds any number without complaint, so the band names the roll before the
- * camera opens, and the viewfinder brackets take the same colour.
+ *   already scanned   when, who, whether Darb has it, and Dé-scanner while it can
+ *   a return          straight to Rentrer, on that parcel
+ *   another building  « Ne le scannez pas ici »
+ *   one of my parcels « Dans votre file » → the run on that parcel
+ *   a free sticker    « Sur quel colis l'avez-vous collé ? » → the ordinary bind
+ *
+ * A FREE STICKER IS AN INFERENCE. The lookup (`find_return_by_code`) answers
+ * `not_found` for anything it cannot match; Darb's stickers are pre-printed bare
+ * numbers that only become known to us once bound. So "a bare number nobody
+ * holds" is the free sticker, and anything else nobody holds is unknown. The
+ * bind that follows is the same POST as the run's, with every guard of it.
  */
 
-interface Lookup {
+interface LookupBody {
   outcome: "found" | "wrong_status" | "ambiguous" | "not_found" | "empty";
-  code: string;
-  order?: WarehouseOrderRow;
+  order?: WarehouseOrderRow & { warehouse_id?: string | null };
   status?: string;
+  matches?: number;
 }
 
-export function ScanSheet({
-  open,
-  market,
-  hand,
-  orders,
-  currency: _currency,
-  next,
-  onTakeNext,
-  onPutBack,
-  onClose,
-  onBound,
-}: {
+type View =
+  | { kind: "scan" }
+  | { kind: "already"; code: string; row: ScannedRow }
+  | { kind: "queue"; code: string; row: PrepRow }
+  | { kind: "known"; code: string; order: WarehouseOrderRow; status: string }
+  | { kind: "unknown"; code: string; matches?: number }
+  | { kind: "wrong"; code: string; order: WarehouseOrderRow; warehouse: string }
+  | { kind: "free"; code: string };
+
+const RETURN_STATUSES = new Set(["to_be_returned", "returning"]);
+const SCANNED_STATUSES = new Set(["scanned", "at_carrier"]);
+
+export interface ScanSheetProps {
   open: boolean;
   market: "ly" | "tn";
-  hand: PrepRow | null;
-  orders: WarehouseOrderRow[];
-  currency: string;
-  /** The parcel to offer after a bind: same roll first. */
-  next: PrepRow | null;
-  onTakeNext: (row: PrepRow) => void;
-  onPutBack: () => void;
+  locale: string;
+  /** The bench as it stands: the parcels a free sticker can go on. */
+  orders: PrepRow[];
+  /** The roll the agent last worked (hex), for the free sticker's shortlist. */
+  lastRoll: string | null;
   onClose: () => void;
-  onBound: () => void;
-}) {
+  /** A parcel left the bench through this sheet. */
+  onBound: (orderId: string) => void;
+  /** A parcel came back to the bench through Dé-scanner. */
+  onUnscanned?: () => void;
+}
+
+export function ScanSheet(props: ScanSheetProps) {
+  // Unmounted when closed, so every opening starts from a clean scan.
+  return props.open ? <LookupSheet {...props} /> : null;
+}
+
+/** Darb's poster order, then the parcels with no known roll. */
+function inRollOrder(rows: PrepRow[]): PrepRow[] {
+  const rank = (hex: string | null) => {
+    const i = hex ? DARB_ZONE_ORDER.indexOf(hex.toLowerCase()) : -1;
+    return i === -1 ? DARB_ZONE_ORDER.length : i;
+  };
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => rank(a.r.zone.colorHex) - rank(b.r.zone.colorHex) || a.i - b.i)
+    .map(({ r }) => r);
+}
+
+function LookupSheet({ market, locale, orders, lastRoll, onClose, onBound, onUnscanned }: ScanSheetProps) {
   const t = useTranslations("warehouse.bench");
   const ts = useTranslations("warehouse.scan");
+  const tScanned = useTranslations("warehouse.scanned");
   const tStatus = useTranslations("orders.statuses");
-  const locale = useLocale();
+  const uiLocale = useLocale();
+  const router = useRouter();
   const isLy = market === "ly";
 
   const prefs = useMemo(() => readScannerPrefs(), []);
   const [value, setValue] = useState("");
   const [camera, setCamera] = useState(false);
-  /*
-   * The parcel is confirmed by eye before the camera opens.
-   *
-   * There is no printer and no barcode on the box, so nothing mechanical can
-   * prove the parcel in hand is the parcel on screen. The product photo is the
-   * only witness available, and it is already on the row. Showing it large and
-   * asking for one deliberate tap is what stands between "scanned the next
-   * sticker onto the wrong box" and a wrong parcel leaving the building.
-   *
-   * Held per order id, so taking a different parcel re-arms it.
-   */
-  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
-  const [lookup, setLookup] = useState<Lookup | null>(null);
   const [looking, setLooking] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [view, setView] = useState<View>({ kind: "scan" });
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const sitesRef = useRef<WarehouseSitesResponse | null>(null);
 
-  const { submit, busy, last, clear } = useScanOut({ market, hand, orders, onScanned: onBound });
+  const scanned = useScannedActions();
 
-  // The parcel a result is about. `hand` is cleared the moment a bind lands,
-  // and the result must still name who it was for.
-  const lastHandRef = useRef<PrepRow | null>(hand);
-  if (hand) lastHandRef.current = hand;
+  // The free sticker's shortlist: the next parcels of the roll in hand, or of
+  // the queue when no roll was worked yet.
+  const queue = useMemo(() => inRollOrder(orders), [orders]);
+  const rollRows = useMemo(
+    () => (lastRoll ? queue.filter((o) => o.zone.colorHex === lastRoll) : []),
+    [queue, lastRoll],
+  );
+  const shortlist = showAll ? queue : (rollRows.length > 0 ? rollRows : queue).slice(0, 3);
+  const chosen = shortlist.find((o) => o.id === chosenId) ?? null;
 
-  const handId = hand?.id ?? null;
-  useEffect(() => {
-    if (!handId) return;
-    clear();
-    setLookup(null);
-    setValue("");
-    setConfirmedFor(null);
-    setCamera(prefs.cameraFirst);
-  }, [handId, clear, prefs.cameraFirst]);
-
-  useEffect(() => {
-    if (open) return;
-    clear();
-    setLookup(null);
-    setValue("");
-    setConfirmedFor(null);
-    setCamera(false);
-  }, [open, clear]);
+  /*
+   * The bind. Libya binds the sticker to the parcel the agent CHOSE; Tunisia's
+   * QR is the order id and resolves itself against the bench.
+   */
+  // The parcel the bind is about, held past the moment it leaves `orders`.
+  const boundRef = useRef<PrepRow | null>(null);
+  const onScanned = useCallback(() => {
+    if (boundRef.current) onBound(boundRef.current.id);
+  }, [onBound]);
+  const { submit, busy, last, clear } = useScanOut({ market, hand: isLy ? chosen : null, orders, onScanned });
 
   const lastId = last?.id;
   useEffect(() => {
@@ -113,39 +137,376 @@ export function ScanSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
 
-  const doLookup = useCallback(
+  // Dé-scanner landed: the parcel is back on the bench.
+  const flashText = scanned.flash?.tone === "ok" ? scanned.flash.text : null;
+  useEffect(() => {
+    if (flashText) onUnscanned?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashText]);
+
+  const ownBuilding = useCallback(async (): Promise<WarehouseSitesResponse | null> => {
+    if (sitesRef.current) return sitesRef.current;
+    try {
+      const res = await fetch("/api/warehouse/sites");
+      if (!res.ok) return null;
+      sitesRef.current = (await res.json()) as WarehouseSitesResponse;
+      return sitesRef.current;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const resolve = useCallback(
+    async (code: string, body: LookupBody) => {
+      const order = body.outcome === "found" || body.outcome === "wrong_status" ? body.order : undefined;
+      const status = body.outcome === "found" ? "to_be_returned" : (body.status ?? order?.status ?? "");
+
+      if (!order) {
+        if (body.outcome === "not_found" && isLy && isDarbStickerPayload(code)) {
+          setChosenId(null);
+          setShowAll(false);
+          setView({ kind: "free", code });
+          return;
+        }
+        setView({ kind: "unknown", code, matches: body.outcome === "ambiguous" ? body.matches : undefined });
+        signalOutcome("refused_here", prefs);
+        return;
+      }
+
+      // A return is received on Rentrer, never here.
+      if (RETURN_STATUSES.has(status)) {
+        onClose();
+        router.push(`/${locale}/warehouse/returns?order=${order.id}`);
+        return;
+      }
+
+      signalOutcome("lookup", prefs);
+
+      // Another building — only on positive evidence: the lookup names the
+      // parcel's building and it is not the agent's own.
+      if (order.warehouse_id) {
+        const sites = await ownBuilding();
+        if (sites?.mine && sites.mine !== order.warehouse_id) {
+          const name = sites.sites.find((s) => s.id === order.warehouse_id)?.name ?? "—";
+          setView({ kind: "wrong", code, order, warehouse: name });
+          return;
+        }
+      }
+
+      if (SCANNED_STATUSES.has(status)) {
+        let row = scanned.data?.orders.find((o) => o.id === order.id);
+        if (!row) row = (await scanned.mutate())?.orders.find((o) => o.id === order.id);
+        setView(row ? { kind: "already", code, row } : { kind: "known", code, order, status });
+        return;
+      }
+
+      const mine = orders.find((o) => o.id === order.id);
+      setView(mine ? { kind: "queue", code, row: mine } : { kind: "known", code, order, status });
+    },
+    [isLy, prefs, onClose, router, locale, ownBuilding, scanned, orders],
+  );
+
+  const lookup = useCallback(
     async (raw: string) => {
       const code = raw.trim();
-      if (!code || looking) return;
+      if (!code || looking || busy) return;
+      setValue("");
+      clear();
+
+      // Tunisia: our own label QR is the order id. On the bench, it scans out.
+      if (!isLy) {
+        const hit = orders.find((o) => o.id === code || o.id.startsWith(code));
+        if (hit) {
+          boundRef.current = hit;
+          setView({ kind: "scan" });
+          void submit(code);
+          return;
+        }
+      }
+
       setLooking(true);
       try {
         const res = await fetch(`/api/warehouse/returns/lookup?code=${encodeURIComponent(code)}`);
-        const body = res.ok ? ((await res.json()) as Lookup) : { outcome: "not_found" as const };
-        setLookup({ ...body, code });
-        signalOutcome(body.outcome === "found" || body.outcome === "wrong_status" ? "lookup" : "refused_here", prefs);
+        const body = res.ok ? ((await res.json()) as LookupBody) : ({ outcome: "not_found" } as LookupBody);
+        if (body.outcome === "empty") return;
+        await resolve(code, body);
       } catch {
-        setLookup({ outcome: "not_found", code });
+        setView({ kind: "unknown", code });
       } finally {
         setLooking(false);
       }
     },
-    [looking, prefs],
+    [looking, busy, clear, isLy, orders, submit, resolve],
   );
 
-  const act = useCallback(
-    (raw: string) => {
-      setValue("");
-      if (hand) void submit(raw);
-      else void doLookup(raw);
-    },
-    [hand, submit, doLookup],
+  const bindFree = useCallback(() => {
+    if (view.kind !== "free" || !chosen || busy) return;
+    boundRef.current = chosen;
+    void submit(view.code);
+  }, [view, chosen, busy, submit]);
+
+  // The preselected parcel, as the prototype has it — the explicit tap on
+  // « C'est bien ce colis — lier » is the confirmation, not the radio.
+  const firstShort = shortlist[0]?.id ?? null;
+  useEffect(() => {
+    if (view.kind === "free" && chosenId === null && firstShort) setChosenId(firstShort);
+  }, [view.kind, chosenId, firstShort]);
+
+  const backToScan = () => {
+    clear();
+    setView({ kind: "scan" });
+  };
+
+  const tz = MARKET_TIMEZONE[market];
+  const timeOf = (iso: string) =>
+    new Intl.DateTimeFormat(uiLocale === "ar" ? "ar-LY" : "fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: tz,
+    }).format(new Date(iso));
+
+  const place = (o: { product_name: string; customer_city: string | null }) => (
+    <>
+      <bdi>{o.product_name}</bdi>
+      {o.customer_city ? (
+        <>
+          {" · "}
+          <bdi>{o.customer_city}</bdi>
+        </>
+      ) : null}
+    </>
   );
 
-  if (!open) return null;
+  /* ── What to draw ─────────────────────────────────────────────────── */
+  let body: React.ReactNode;
 
-  const zone = hand ? zoneLabels(hand.zone, locale) : { colour: null, name: null };
-  const hex = isLy && hand ? (hand.zone.colorHex ?? "") : "";
-  const plate = hand?.zone.branchGroup ?? "?";
+  if (last) {
+    body = (
+      <BindResult
+        entry={last}
+        parcel={boundRef.current}
+        onClose={onClose}
+        onRetry={() => clear()}
+        onAgain={backToScan}
+      />
+    );
+  } else if (view.kind === "free") {
+    const colour = lastRoll && rollRows.length > 0 ? zoneLabels(rollRows[0].zone, uiLocale).colour : null;
+    body = (
+      <div data-testid="wh-sheet-free">
+        <SheetTop eyebrow={t("scan")} title={t("freeT")} back={t("back")} onBack={backToScan} />
+        <div className={`${CARD} flex items-center gap-[12px] p-[16px]`}>
+          <span aria-hidden="true" className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-[10px] bg-job-bg text-job-ink">
+            <ScanLine size={18} strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p dir="ltr" className={`text-start text-[24px] font-semibold tracking-[.04em] text-wm-ink ${MONO}`}>{view.code}</p>
+            <p className="text-[12.5px] text-wm-ink-2">{t("freeNone")}</p>
+          </div>
+        </div>
+        <h3 className="mb-[4px] mt-[20px] text-[17px] font-bold text-wm-ink">{t("freeQ")}</h3>
+        <p className="mb-[12px] text-[12.5px] text-wm-ink-2">
+          {colour ? t("freeHint", { colour }) : t("freeHintAny")}
+        </p>
+        {shortlist.length === 0 ? (
+          <p className="py-[12px] text-center text-[14px] text-wm-ink-2">{t("emptyBench")}</p>
+        ) : (
+          <div role="radiogroup" aria-label={t("freeQ")} className="flex flex-col gap-[8px]">
+            {shortlist.map((o) => {
+              const on = o.id === chosenId;
+              const age = benchAge(o);
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setChosenId(o.id)}
+                  className={`flex w-full items-center gap-[12px] rounded-[12px] border-[1.5px] p-[14px] text-start ${
+                    on ? "border-brand bg-brand-tint" : "border-line bg-white"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`grid h-[20px] w-[20px] shrink-0 place-items-center rounded-full border-2 ${on ? "border-brand" : "border-[var(--border-strong)]"}`}
+                  >
+                    {on ? <span className="h-[10px] w-[10px] rounded-full bg-brand" /> : null}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="h-[32px] w-[10px] shrink-0 rounded-[5px] shadow-[inset_0_0_0_1px_rgba(0,0,0,.08)]"
+                    style={{ background: o.zone.colorHex ?? "transparent" }}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold text-wm-ink">
+                      <bdi>{o.product_name}</bdi> <span dir="ltr" className="tabular-nums">×{o.quantity}</span>
+                    </span>
+                    <span className="block truncate text-[12.5px] text-wm-ink-2">
+                      {o.customer_city ? <><bdi>{o.customer_city}</bdi>{" · "}</> : null}
+                      <bdi>{firstName(o.customer_name)}</bdi>
+                      {" · "}
+                      {t(age.key, { n: age.n })}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {!showAll && queue.length > shortlist.length ? (
+          <button type="button" onClick={() => setShowAll(true)} className={`${BTN_GHOST} mt-[6px] w-full`}>
+            {t("seeAll")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={bindFree}
+          disabled={!chosen || busy}
+          className={`${BTN_PRI} ${XL} mt-[10px] w-full`}
+        >
+          {busy ? ts("binding") : t("confirmBind")}
+        </button>
+      </div>
+    );
+  } else if (view.kind === "wrong") {
+    body = (
+      <>
+        <SheetTop eyebrow={t("title")} title={t("scan")} back={t("back")} onBack={backToScan} />
+        <OutcomeCard
+          tone="bad"
+          outcome="wrong_site"
+          title={t("wrongT")}
+          body={t("wrongB", { warehouse: view.warehouse })}
+          code={view.code}
+          codeSize={22}
+          sub={place(view.order)}
+          testId="wh-sheet-result"
+        />
+        <button type="button" onClick={onClose} className={`${BTN_SEC} ${XL} mt-[16px] w-full`}>
+          {t("ok")}
+        </button>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        <div className="mb-[12px] flex items-center gap-[12px]">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[17px] font-bold text-wm-ink">{t("lookT")}</h2>
+            <p className="text-[12.5px] text-wm-ink-2">{t("lookB")}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("close")}
+            className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full border border-line bg-white text-wm-ink"
+          >
+            <X size={18} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
+
+        <RunViewfinder
+          hex={null}
+          camera={camera}
+          onToggle={() => setCamera((c) => !c)}
+          onScan={(text) => void lookup(text)}
+          busyLabel={busy ? (isLy ? ts("binding") : ts("bindingTn")) : null}
+          className="mt-0"
+          testId="wh-sheet-viewfinder"
+        />
+
+        <div className="mt-[12px] flex gap-[8px]">
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void lookup(value);
+              }
+            }}
+            inputMode={isLy ? "numeric" : "text"}
+            autoComplete="off"
+            dir="ltr"
+            aria-label={ts("stickerNumber")}
+            placeholder={isLy ? t("typeNumber") : t("typeQr")}
+            className={`h-[48px] min-w-0 flex-1 rounded-[12px] border border-[var(--border-strong)] bg-white px-[14px] text-start text-[16px] text-wm-ink outline-none placeholder:text-wm-ink-3 focus:border-brand ${MONO}`}
+          />
+          <button type="button" onClick={() => void lookup(value)} disabled={looking || busy} className={BTN_SEC}>
+            {t("scan")}
+          </button>
+        </div>
+
+        {view.kind === "already" ? (
+          <div data-testid="wh-sheet-already" className={`${CARD} mt-[12px] p-[16px]`}>
+            <div className="flex items-center gap-[12px]">
+              <Thumb size={40} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-wm-ink">{place(view.row)}</p>
+                <p className="text-[12.5px] text-wm-ink-2">
+                  {view.row.scanned_at
+                    ? `${t("outAlready", { time: timeOf(view.row.scanned_at), who: view.row.scanned_by_name ?? "—" })} · `
+                    : ""}
+                  {canUnscan(view.row) ? t("notTaken") : t("taken")}
+                </p>
+              </div>
+            </div>
+            {canUnscan(view.row) ? (
+              <button
+                type="button"
+                disabled={scanned.busyId === view.row.id}
+                onClick={() => void scanned.unscan(view.row)}
+                className={`${BTN_DANGER} mt-[12px] w-full`}
+              >
+                {tScanned("unscan")}
+              </button>
+            ) : null}
+            {scanned.flash ? (
+              <p
+                role="status"
+                className={`mt-[8px] text-center text-[13px] font-semibold ${scanned.flash.tone === "ok" ? "text-wh-ok" : "text-wh-bad"}`}
+              >
+                {scanned.flash.text}
+              </p>
+            ) : null}
+          </div>
+        ) : view.kind === "queue" ? (
+          <div data-testid="wh-sheet-queue" className={`${CARD} mt-[12px] p-[16px]`}>
+            <div className="flex items-center gap-[12px]">
+              <Thumb size={40} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-wm-ink">{place(view.row)}</p>
+                <p className="text-[12.5px] text-wm-ink-2">{t("inQueue")}</p>
+              </div>
+            </div>
+            <Link href={runHref(locale, view.row)} className={`${BTN_PRI} mt-[12px] w-full no-underline`}>
+              {t("takeInHand")}
+            </Link>
+          </div>
+        ) : view.kind === "known" ? (
+          <div data-testid="wh-sheet-known" className={`${CARD} mt-[12px] flex items-center gap-[12px] p-[16px]`}>
+            <Thumb size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-bold text-wm-ink">{place(view.order)}</p>
+              <p className="text-[12.5px] text-wm-ink-2">
+                <span dir="ltr" className={MONO}>{view.code}</span>
+                {view.status ? ` · ${tStatus(view.status)}` : ""}
+              </p>
+            </div>
+          </div>
+        ) : view.kind === "unknown" ? (
+          <div data-testid="wh-sheet-unknown" className={`${CARD} mt-[12px] p-[16px] text-center`}>
+            <p dir="ltr" className={`text-[22px] font-semibold tracking-[.04em] text-wm-ink ${MONO}`}>{view.code}</p>
+            <p className="mt-[4px] text-[15px] font-semibold text-wm-ink">
+              {view.matches ? t("lookupAmbiguous", { n: view.matches }) : t("lookupUnknown")}
+            </p>
+            {view.matches ? null : <p className="mt-[2px] text-[12.5px] text-wm-ink-2">{t("lookupUnknownHint")}</p>}
+          </div>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <>
@@ -153,386 +514,152 @@ export function ScanSheet({
         data-testid="wh-sheet-scrim"
         aria-hidden="true"
         onClick={onClose}
-        className="fixed inset-0 z-[60] bg-[rgba(26,26,26,.35)]"
+        className="fixed inset-0 z-[60] bg-[rgba(26,26,26,.45)]"
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={t("sheetTitle")}
-        className="fixed inset-x-0 bottom-0 z-[61] max-h-[92vh] overflow-y-auto rounded-t-[20px] bg-wm-ground px-4 pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-2"
+        aria-label={t("lookT")}
+        className="job-out fixed inset-x-0 bottom-0 z-[61] max-h-[92vh] overflow-y-auto rounded-t-[20px] bg-white px-[16px] pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-[10px]"
       >
-        <span aria-hidden="true" className="mx-auto mb-2.5 block h-1 w-10 rounded-pill bg-wm-ink-3/50" />
-
-        {hand ? (
-          <p className="mb-2.5 text-[15px] font-semibold text-wm-ink">
-            {`${t("handTitle")} ${hand.customer_name}${hand.customer_city ? ` · ${hand.customer_city}` : ""} · ${hand.product_name} × ${hand.quantity}`}
-          </p>
-        ) : (
-          <p className="mb-2.5 text-[15px] text-wm-ink-2">{t("noHand")}</p>
-        )}
-
-        {isLy ? (
-          <>
-            <div
-              data-testid="wh-sheet-band"
-              data-roll={hex}
-              className="flex min-h-[56px] items-center gap-3 rounded-[12px] px-3.5"
-              style={{ background: hex || "var(--wm-track)" }}
-            >
-              {/* Solid white plates: over nine hues an alpha tint lands anywhere
-                  between 1.1:1 and 12.9:1; opaque white is 16.97:1 on all. */}
-              <span className="min-w-0 flex-1 truncate rounded-[8px] bg-white px-3 py-1 text-[16px] font-bold text-wm-ink">
-                {!hand ? t("noRoll") : hex && zone.colour ? t("roll", { colour: zone.colour }) : t("zoneUnknown")}
-              </span>
-              <span
-                data-testid="wh-sheet-plate"
-                dir="ltr"
-                className="shrink-0 rounded-[6px] bg-white px-2.5 py-0.5 text-[15px] font-bold tracking-[0.04em] text-wm-ink"
-              >
-                {plate}
-              </span>
-            </div>
-            <p className="mb-3 mt-1.5 px-0.5 text-[14px] text-wm-ink-2">
-              {!hand ? "" : hex && zone.name ? zone.name : t("unknownZoneHint")}
-            </p>
-          </>
-        ) : (
-          <div className="mb-3" />
-        )}
-
-        {hand && confirmedFor !== hand.id && !last ? (
-          <ParcelConfirm hand={hand} onConfirm={() => setConfirmedFor(hand.id)} onPutBack={onPutBack} t={t} />
-        ) : busy ? (
-          <div
-            role="status"
-            className="grid min-h-[200px] place-items-center gap-2.5 rounded-[12px] border border-wm-card-edge bg-wm-card p-4 text-center"
-          >
-            <span
-              aria-hidden="true"
-              className="h-9 w-9 animate-spin rounded-full border-4 border-wm-track border-t-wm-accent motion-reduce:animate-none"
-            />
-            <span className="text-[16px] font-semibold text-wm-ink">{isLy ? ts("binding") : ts("bindingTn")}</span>
-          </div>
-        ) : last ? (
-          <Result
-            outcome={last.outcome}
-            code={last.code}
-            from={last.from}
-            to={last.to}
-            message={last.message}
-            carrierRef={last.carrierRef}
-            forName={lastHandRef.current?.customer_name ?? ""}
-            next={next}
-            sameRoll={
-              !!next && !!lastHandRef.current && next.zone.colorHex !== null && next.zone.colorHex === lastHandRef.current.zone.colorHex
-            }
-            onTakeNext={onTakeNext}
-            onRetry={clear}
-            onPutBack={onPutBack}
-            onClose={onClose}
-            t={t}
-            ts={ts}
-          />
-        ) : (
-          <>
-            {camera ? (
-              <QrScanner
-                active={camera}
-                frameColor={hex || null}
-                onScan={(text) => act(text)}
-                onClose={() => setCamera(false)}
-              />
-            ) : (
-              <ScanViewfinder frameColor={hex || null}>
-                <button
-                  type="button"
-                  data-testid="wh-camera-primary"
-                  onClick={() => setCamera(true)}
-                  className="absolute inset-x-0 bottom-5 mx-auto inline-flex min-h-[52px] w-max items-center justify-center gap-2.5 rounded-pill bg-wm-accent px-6 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-                >
-                  <Camera size={20} aria-hidden="true" />
-                  {ts("camera")}
-                </button>
-              </ScanViewfinder>
-            )}
-
-            <p className="mb-1.5 mt-3 text-[12.5px] text-wm-ink-3">{isLy ? t("typeNumber") : t("typeQr")}</p>
-            <input
-              ref={inputRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  act(value);
-                }
-              }}
-              inputMode={isLy ? "numeric" : "text"}
-              pattern={isLy ? "[0-9]*" : undefined}
-              autoComplete="off"
-              dir="ltr"
-              aria-label={ts("stickerNumber")}
-              placeholder={isLy ? "1213123" : ts("placeholderTn")}
-              className="min-h-[48px] w-full rounded-[12px] border border-wm-card-edge bg-wm-card px-3.5 text-start text-[20px] font-semibold tracking-[0.06em] tabular-nums text-wm-ink outline-none focus:border-wm-accent focus:ring-2 focus:ring-wm-accent"
-            />
-            <button
-              type="button"
-              onClick={() => act(value)}
-              disabled={looking}
-              className="mt-2.5 inline-flex min-h-[48px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep disabled:opacity-50"
-            >
-              {hand ? t("bind") : t("lookup")}
-            </button>
-
-            {lookup ? <LookupResult lookup={lookup} t={t} tStatus={tStatus} /> : null}
-
-            {hand ? (
-              <button
-                type="button"
-                onClick={onPutBack}
-                className="mt-1 inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-              >
-                {t("putBack")}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="mt-1 inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-              >
-                {t("close")}
-              </button>
-            )}
-          </>
-        )}
+        <span aria-hidden="true" className="mx-auto mb-[12px] block h-[4px] w-[40px] rounded-[2px] bg-line" />
+        {body}
       </div>
     </>
   );
 }
 
-type Translate = (key: string, values?: Record<string, string | number>) => string;
-
-/**
- * "Is this the parcel?" — the last check a human can make.
- *
- * No printer, no barcode: nothing here can be verified mechanically. So the
- * photo is shown at a size you can match against a box at arm's length, with
- * the product, the quantity and the customer beside it, and the camera stays
- * shut until the agent says yes. One tap, and it re-arms for the next parcel.
- */
-function ParcelConfirm({
-  hand,
-  onConfirm,
-  onPutBack,
-  t,
-}: {
-  hand: PrepRow;
-  onConfirm: () => void;
-  onPutBack: () => void;
-  t: Translate;
-}) {
+/** The prototype's `.top` with a back button, as R.free and R.wrongsite draw it. */
+function SheetTop({ eyebrow, title, back, onBack }: { eyebrow: string; title: string; back: string; onBack: () => void }) {
   return (
-    <div data-testid="wh-parcel-confirm" className="grid gap-3">
-      <div className="grid place-items-center gap-2.5 rounded-[12px] border border-wm-card-edge bg-wm-card p-4">
-        <span
-          aria-hidden="true"
-          className="grid h-[160px] w-[160px] place-items-center overflow-hidden rounded-[12px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
-        >
-          {hand.product_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hand.product_image_url} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <Package size={48} strokeWidth={1.5} />
-          )}
-        </span>
-        <p className="text-center text-[17px] font-bold leading-snug text-wm-ink">
-          <bdi>{hand.product_name}</bdi>
-          {hand.variant_label ? ` · ${hand.variant_label}` : ""}
-          {" × "}
-          <span className="tabular-nums">{hand.quantity}</span>
-        </p>
-        <p className="text-center text-[14px] text-wm-ink-2">
-          <bdi>{hand.customer_name}</bdi>
-          {hand.customer_city ? (
-            <>
-              {" · "}
-              <bdi>{hand.customer_city}</bdi>
-            </>
-          ) : null}
-        </p>
+    <div className="mb-[18px] flex items-center gap-[12px]">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label={back}
+        className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full border border-line bg-white text-wm-ink"
+      >
+        <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" className="rtl:-scale-x-100" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] font-semibold text-wm-ink-2">{eyebrow}</p>
+        <h2 className="text-[28px] font-bold leading-[1.2] tracking-[-0.02em] text-wm-ink">{title}</h2>
       </div>
-      <button
-        type="button"
-        data-testid="wh-parcel-confirm-yes"
-        onClick={onConfirm}
-        className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[16px] font-bold text-white active:bg-wm-accent-deep"
-      >
-        {t("confirmParcel")}
-      </button>
-      <button
-        type="button"
-        onClick={onPutBack}
-        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-      >
-        {t("wrongParcel")}
-      </button>
     </div>
   );
 }
 
-const TONE: Record<ScanOutcome, string> = {
-  bound: "border-wh-ok",
-  refused_here: "border-wh-bad",
-  refused_darb: "border-wh-bad",
-  bound_not_committed: "border-wh-warn bg-wh-warn-bg",
-  bind_unverified: "border-wh-warn bg-wh-warn-bg",
-};
-
 /**
- * The outcome, as a card the agent acts from. Four states, four looks: the
- * amber one is a parcel already live at Darb whose stock did not move, and it
- * must never read as a plain error, or the agent re-stickers it.
+ * What the free sticker's bind turned into — the run's outcomes, unchanged:
+ * green when the parcel left, amber when Darb holds the sticker but somebody
+ * must read this, red with Darb's own words on a refusal, and the
+ * wrong-building card when the server says the parcel is not ours to scan.
  */
-function Result({
-  outcome, code, from, to, message, carrierRef, forName, next, sameRoll, onTakeNext, onRetry, onPutBack, onClose, t, ts,
+function BindResult({
+  entry,
+  parcel,
+  onClose,
+  onRetry,
+  onAgain,
 }: {
-  outcome: ScanOutcome;
-  code: string;
-  from?: number;
-  to?: number;
-  message?: string;
-  carrierRef?: string;
-  forName: string;
-  next: PrepRow | null;
-  sameRoll: boolean;
-  onTakeNext: (row: PrepRow) => void;
-  onRetry: () => void;
-  onPutBack: () => void;
+  entry: ScanOutEntry;
+  parcel: PrepRow | null;
   onClose: () => void;
-  t: Translate;
-  ts: Translate;
+  onRetry: () => void;
+  onAgain: () => void;
 }) {
-  const heading: Record<ScanOutcome, string> = {
-    bound: t("bound", { name: forName }),
-    refused_here: ts("errRefused"),
-    refused_darb: ts("errCarrier"),
-    bound_not_committed: ts("errBoundNotCommitted"),
-    bind_unverified: ts("errBindUnverified"),
-  };
-  const warn = outcome === "bound_not_committed" || outcome === "bind_unverified";
-  // The parcel left and the stock moved. `bind_unverified` differs from `bound`
-  // only in that the carrier is holding a different number — so it keeps the
-  // success layout (stock effect, next parcel) and gains a warning line.
-  const committed = outcome === "bound" || outcome === "bind_unverified";
-  const Icon = outcome === "bound" ? Check : warn ? TriangleAlert : X;
-  const ink = outcome === "bound" ? "text-wh-ok" : warn ? "text-wh-warn" : "text-wh-bad";
+  const t = useTranslations("warehouse.bench");
+  const ts = useTranslations("warehouse.scan");
+  const tr = useTranslations("warehouse.run");
 
-  return (
-    <div>
-      <div
-        data-testid="wh-sheet-result"
-        data-outcome={outcome}
-        className={`grid min-h-[200px] place-items-center gap-2 rounded-[12px] border bg-wm-card p-4 text-center ${TONE[outcome]}`}
-      >
-        <Icon size={40} strokeWidth={2} className={ink} aria-hidden="true" />
-        <b dir="ltr" className="text-[28px] font-bold tracking-[0.06em] tabular-nums text-wm-ink">{code}</b>
-        <p className="text-[16px] font-semibold text-wm-ink">{heading[outcome]}</p>
-        {committed ? (
-          <p className="text-[15px] tabular-nums text-wm-ink-2">{t("stockEffect", { from: from ?? "—", to: to ?? "—" })}</p>
-        ) : (
-          <p className="text-[14px] text-wm-ink-2">{message}</p>
-        )}
-        {/*
-          Where the parcel went. The card used to prove the sticker was bound
-          and the stock moved, but never that the parcel had LEFT the bench —
-          and the queue only catches up on the next revalidation. Agents
-          re-scanned to check, which is precisely what hit Darb's duplicate-key
-          refusal and stranded the parcel for good.
-        */}
-        {committed ? (
-          <p
-            data-testid="wh-sheet-moved"
-            className="mt-0.5 text-[13.5px] font-semibold text-wh-ok"
-          >
-            {t("movedToScanned")}
-          </p>
-        ) : null}
-        {outcome === "bound_not_committed" ? (
-          <p className="text-[14px] text-wm-ink-2">{t("notCommittedHint")}</p>
-        ) : null}
-        {outcome === "bind_unverified" ? (
-          <p data-testid="wh-sheet-unverified" className="text-[14px] text-wm-ink-2">
-            {t("unverifiedHint", { ref: carrierRef ?? "—" })}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="mt-2.5 grid gap-2">
-        {committed ? (
-          <>
-            {next ? (
-              <button
-                type="button"
-                onClick={() => onTakeNext(next)}
-                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-              >
-                {t(sameRoll ? "nextSameRoll" : "nextAny", { name: next.customer_name, city: next.customer_city ?? "" })}
-              </button>
-            ) : (
-              <p className="text-center text-[13px] text-wm-ink-2">{t("rollDone")}</p>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-            >
-              {t("close")}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-            >
-              {t("retry")}
-            </button>
-            <button
-              type="button"
-              onClick={onPutBack}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-            >
-              {t("putBack")}
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** What the system knows about a sticker scanned with nothing in hand. */
-function LookupResult({ lookup, t, tStatus }: { lookup: Lookup; t: Translate; tStatus: Translate }) {
-  const known = (lookup.outcome === "found" || lookup.outcome === "wrong_status") && lookup.order;
-  const status = lookup.outcome === "found" ? "to_be_returned" : (lookup.status ?? "");
-  return (
-    <div
-      data-testid="wh-sheet-lookup"
-      data-outcome={lookup.outcome}
-      className={`mt-3 grid place-items-center gap-1.5 rounded-[12px] border bg-wm-card p-4 text-center ${known ? "border-wh-ok" : "border-wm-card-edge"}`}
-    >
-      <b dir="ltr" className="text-[22px] font-bold tracking-[0.06em] tabular-nums text-wm-ink">{lookup.code}</b>
-      {known ? (
-        <p className="text-[15px] font-semibold text-wm-ink">
-          {t("lookupKnown", { name: lookup.order!.customer_name, status: status ? tStatus(status) : "" })}
-        </p>
-      ) : (
+  const sub = parcel ? (
+    <>
+      <bdi>{parcel.product_name}</bdi>
+      {parcel.customer_city ? (
         <>
-          <p className="text-[15px] font-semibold text-wm-ink">{t("lookupUnknown")}</p>
-          <p className="text-[13px] text-wm-ink-2">{t("lookupUnknownHint")}</p>
+          {" · "}
+          <bdi>{parcel.customer_city}</bdi>
         </>
-      )}
-    </div>
+      ) : null}
+    </>
+  ) : undefined;
+
+  const refused = entry.outcome === "refused_here" || entry.outcome === "refused_darb";
+  if (refused && entry.errorCode === "WRONG_SITE") {
+    return (
+      <>
+        <OutcomeCard
+          tone="bad"
+          outcome="wrong_site"
+          title={t("wrongT")}
+          body={t("wrongB", { warehouse: entry.warehouseName ?? "—" })}
+          code={entry.code}
+          codeSize={22}
+          sub={sub}
+          testId="wh-sheet-result"
+        />
+        <button type="button" onClick={onClose} className={`${BTN_SEC} ${XL} mt-[16px] w-full`}>
+          {t("ok")}
+        </button>
+      </>
+    );
+  }
+
+  const committed = entry.outcome === "bound" || entry.outcome === "bind_unverified";
+  const tone = entry.outcome === "bound" ? "ok" : refused ? "bad" : "warn";
+  const title =
+    entry.outcome === "bound"
+      ? tr("bound")
+      : entry.outcome === "bind_unverified"
+        ? ts("errBindUnverified")
+        : entry.outcome === "bound_not_committed"
+          ? ts("errBoundNotCommitted")
+          : entry.outcome === "refused_darb"
+            ? ts("errCarrier")
+            : ts("errRefused");
+  const body =
+    entry.outcome === "bind_unverified"
+      ? t("unverifiedHint", { ref: entry.carrierRef ?? "—" })
+      : entry.outcome === "bound_not_committed"
+        ? [entry.message, t("notCommittedHint")].filter(Boolean).join(" ")
+        : refused
+          ? entry.message
+          : undefined;
+
+  return (
+    <>
+      <OutcomeCard
+        tone={tone}
+        outcome={entry.outcome}
+        title={title}
+        body={body}
+        code={entry.code}
+        sub={sub}
+        testId="wh-sheet-result"
+      >
+        {committed ? <StockChip from={entry.from} to={entry.to} /> : null}
+      </OutcomeCard>
+      {/* Where the parcel went: agents re-scanned to check, which is exactly
+          what hit Darb's duplicate-key refusal and stranded the parcel. */}
+      {committed ? (
+        <p data-testid="wh-sheet-moved" className="mt-[8px] text-center text-[13px] font-semibold text-wh-ok">
+          {t("movedToScanned")}
+        </p>
+      ) : null}
+      <div className="mt-[16px] flex gap-[12px]">
+        <button type="button" onClick={onClose} className={`${BTN_SEC} flex-1`}>
+          {t("close")}
+        </button>
+        {committed ? (
+          <button type="button" onClick={onAgain} className={`${BTN_PRI} flex-1`}>
+            {t("scan")}
+          </button>
+        ) : refused ? (
+          <button type="button" onClick={onRetry} className={`${BTN_PRI} flex-1`}>
+            {t("retry")}
+          </button>
+        ) : null}
+      </div>
+    </>
   );
 }

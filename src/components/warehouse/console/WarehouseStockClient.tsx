@@ -1,304 +1,267 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import useSWR from "swr";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { Boxes, Lock, PackageCheck, Search, TriangleAlert, ClipboardList } from "lucide-react";
-import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
-import { WhCard, WhKpiCard, WhKpiGrid, WhPill } from "./primitives";
-import { WH_LABEL } from "./tokens";
+import useSWR from "swr";
+import { useLocale, useTranslations } from "next-intl";
+import { Boxes, Tally5, TriangleAlert } from "lucide-react";
+import type { WarehouseStockResponse, WarehouseStockRow, StockWarehouse } from "@/app/api/warehouse/stock/route";
+import { jsonFetcher } from "@/lib/fetchers";
 import { StockCard } from "./StockCard";
 import {
-  applyStockFilters, stockFacets, stateOf, EMPTY_STOCK_FILTER,
-  type StockFilter, type StockSegment, type StockSort,
-} from "@/lib/warehouse/stock-filters";
+  Chip, Num, Sparkline, Thumb, countMinutes, lastCountedAt, neverCounted, shortDate,
+} from "@/components/warehouse/product/stock-bits";
 
-const fetcher = (url: string) => fetch(url).then((r) => {
-  if (!r.ok) throw new Error(String(r.status));
-  return r.json();
-});
+/**
+ * Stock › Niveaux — what the market holds, product by product.
+ *
+ * Two drawings of one payload (/api/warehouse/stock), both straight from the
+ * approved v3 prototypes, in px (Ordra's root font is 14px):
+ *
+ *  - `agent` — the phone, `R.stock` of entrepot-day-loop-agent-v3.html: the
+ *    building and the day, the title, the truth said FIRST while nothing has
+ *    been counted, then one card of product rows. No tabs, no search, no
+ *    filters, no sort: seven products fit on a screen.
+ *  - `desk` — `C.stock` of entrepot-day-loop-manager-v3.html: one line of
+ *    truth with the way to fix it, then one table — a column per building,
+ *    the unallocated stock, the last count, fourteen days of line. No search,
+ *    no filter chips, no KPI tiles.
+ *
+ * « Jamais compté » is judged at the building in view — the agent's own, or
+ * the one the desk's top bar chose — because a count is per building
+ * (`record_stock_count` poses a SITE's value): Tripoli having counted says
+ * nothing about Benghazi's shelf.
+ *
+ * Wears the Recevoir/Stock hue (`job-receive`): the sparklines draw in it.
+ */
 
-type StockTranslate = (key: string, values?: Record<string, string | number>) => string;
+const STOCK_KEY = "/api/warehouse/stock";
 
-function relativeDay(iso: string | null, t: StockTranslate): string {
-  if (!iso) return t("never");
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return t("countedToday");
-  if (days === 1) return t("countedYesterday");
-  return t("countedDaysAgo", { days });
-}
-
-/** The four states of a shelf, in the order the floor cares about them. */
-const SEGMENTS: StockSegment[] = ["all", "low", "negative", "uncounted"];
-
-export function WarehouseStockClient({ locale }: { locale: string }) {
+export function WarehouseStockClient({
+  locale,
+  variant,
+  siteId,
+  eyebrow = null,
+}: {
+  locale: string;
+  variant: "agent" | "desk";
+  /** The building in view: the agent's own, or the desk's `?warehouse_id=`. Null = every building. */
+  siteId: string | null;
+  /** « Benghazi · jeudi 2 octobre » — the phone's line above the title. */
+  eyebrow?: string | null;
+}) {
   const t = useTranslations("warehouse.stock");
-  const tf = useTranslations("warehouse.stock.filters");
-  const router = useRouter();
-  /*
-   * One way to count: the count run, narrowed to this product. The dialog it
-   * replaces compared a BUILDING's count with the MARKET total, which in Libya
-   * (two buildings, one total) showed a gap that did not exist.
-   */
-  const countHref = (r: WarehouseStockRow) => `/${locale}/warehouse/count?product=${r.product_id}`;
-  const { data, error, isLoading } = useSWR<{ rows: WarehouseStockRow[] }>(
-    "/api/warehouse/stock",
-    fetcher,
-    { revalidateOnFocus: true },
-  );
-  const [filter, setFilter] = useState<StockFilter>(EMPTY_STOCK_FILTER);
-  const patch = (next: Partial<StockFilter>) => setFilter((f) => ({ ...f, ...next }));
-  const query = filter.q;
+  const { data, error, isLoading } = useSWR<WarehouseStockResponse>(STOCK_KEY, jsonFetcher, {
+    revalidateOnFocus: true,
+  });
+  const rows = data?.rows ?? [];
+  const warehouses = data?.warehouses ?? [];
+  const uncounted = rows.filter((r) => neverCounted(r, siteId, warehouses));
+  // « Aucun produit n'a encore été compté » is a claim about EVERY product: it
+  // is said only while it is true.
+  const nothingCounted = rows.length > 0 && uncounted.length === rows.length;
+  const countBase = `/${locale}/warehouse/count`;
 
-  const all = useMemo(() => data?.rows ?? [], [data]);
+  const status = error ? (
+    <p className="px-[16px] py-[32px] text-center text-[13px] text-status-critical">{t("loadError")}</p>
+  ) : isLoading ? (
+    <div className="space-y-[8px] p-[14px]" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-[44px] rounded-[8px] bg-wh-sunken" />
+      ))}
+    </div>
+  ) : rows.length === 0 ? (
+    <p className="px-[16px] py-[32px] text-center text-[13px] text-wh-ink-2">{t("empty")}</p>
+  ) : null;
 
-  /*
-   * The search the mockup promises. A picker standing at a shelf knows the
-   * code or the name, not the position in an alphabetical list, so both are
-   * matched — and the KPIs above deliberately keep describing the WHOLE
-   * catalogue, not the filtered view.
-   */
-  const rows = useMemo(() => applyStockFilters(all, filter), [all, filter]);
-  // The segment counts describe what the SEARCH left, so a tab never promises
-  // rows the search has already removed.
-  const searched = useMemo(
-    () => applyStockFilters(all, { ...EMPTY_STOCK_FILTER, q: filter.q }),
-    [all, filter.q],
-  );
-  const facets = useMemo(() => stockFacets(searched), [searched]);
-
-  /*
-   * The phone's two chips follow the SEARCH: a chip that ignores the filter
-   * under it reads as a bug. The desk KPI grid keeps describing the whole
-   * catalogue, which is what a manager compares day to day.
-   */
-  const neverCountedAll = all.length > 0 && all.every((r) => r.last_counted_at === null);
-
-  const cells = useMemo(() => {
-    const low = all.filter((r) => r.current_stock <= r.low_stock_threshold);
-    const negative = all.filter((r) => r.free < 0);
-    const engaged = all.reduce((n, r) => n + r.engaged, 0);
-    return [
-      { id: "products", label: t("kpiProducts"), value: all.length, tone: "muted" as const, icon: Boxes },
-      {
-        id: "low", label: t("kpiLow"), value: low.length,
-        tone: low.length ? ("warn" as const) : ("muted" as const), icon: TriangleAlert,
-        edge: low.length ? ("warn" as const) : undefined, dim: low.length === 0,
-      },
-      { id: "engaged", label: t("kpiEngaged"), value: engaged, tone: "scan" as const, icon: Lock },
-      {
-        id: "negative", label: t("kpiNegative"), value: negative.length,
-        tone: negative.length ? ("bad" as const) : ("muted" as const), icon: PackageCheck,
-        edge: negative.length ? ("bad" as const) : undefined, dim: negative.length === 0,
-      },
-    ];
-  }, [all, t]);
-
-  return (
-    <div className="mx-auto w-full max-w-[1440px] px-4 py-5 md:px-6 md:py-6">
-      <header className="mb-4 md:mb-5">
-        <h1 className="text-[22px] font-bold tracking-[-0.02em] text-wh-ink-1 md:text-[24px] md:font-semibold">
-          {t("title")}
-        </h1>
-        <p className="mt-1 text-[13px] text-wh-ink-2">{t("subtitle")}</p>
-      </header>
-
-      <label className="mb-4 flex items-center gap-2.5 rounded-wh border border-wh-border bg-wh-surface px-3.5 py-2.5 focus-within:border-wh-ok">
-        <Search size={16} className="shrink-0 text-wh-ink-3" aria-hidden="true" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => patch({ q: e.target.value })}
-          placeholder={t("searchPlaceholder")}
-          aria-label={t("searchPlaceholder")}
-          className="min-w-0 flex-1 bg-transparent text-[14px] text-wh-ink-1 outline-none placeholder:text-wh-ink-3"
-        />
-      </label>
-
-      <div className="mb-3 flex flex-col gap-2">
-        <div
-          role="group"
-          aria-label={tf("all")}
-          // Bleeds to the screen edge so the last chip is visibly cut and reads
-          // as scrollable. The bleed must match the page padding at BOTH widths
-          // (px-4 phone, px-6 desk) or the row sits off-grid on a desk.
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] md:-mx-6 md:px-6 [&::-webkit-scrollbar]:hidden"
-        >
-          {SEGMENTS.map((key) => {
-            const on = filter.seg === key;
-            const count = facets[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                data-testid="wh-stock-seg"
-                data-key={key}
-                aria-pressed={on}
-                onClick={() => patch({ seg: key })}
-                className={[
-                  "inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-[10px] border px-3 text-[13.5px] font-semibold",
-                  on
-                    ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
-                    : key === "negative" && count > 0
-                      ? "border-wh-bad-edge bg-wh-bad-bg text-wh-bad"
-                      : key === "low" && count > 0
-                        ? "border-wh-warn-edge bg-wh-warn-bg text-wh-warn"
-                        : "border-wh-border bg-wh-surface text-wh-ink-2",
-                  count === 0 && !on ? "opacity-45" : "",
-                ].join(" ")}
-              >
-                {tf(key)}
-                <b className="tabular-nums">{count}</b>
-              </button>
-            );
-          })}
-          <label className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-[10px] border border-wh-border bg-wh-surface px-3 text-[13px] text-wh-ink-2">
-            <span>{tf("sort")}</span>
-            <select
-              value={filter.sort}
-              onChange={(e) => patch({ sort: e.target.value as StockSort })}
-              aria-label={tf("sort")}
-              className="bg-transparent text-[13px] font-semibold text-wh-ink-1 outline-none"
-            >
-              <option value="name">{tf("sortName")}</option>
-              <option value="stock">{tf("sortStock")}</option>
-              <option value="free">{tf("sortFree")}</option>
-            </select>
-          </label>
-        </div>
-        {neverCountedAll ? (
-          /* Said once, plainly, with the gesture that fixes it. On 2026-10-02
-             not one product had ever been counted: every figure on this screen
-             was the register alone. */
-          <div
-            data-testid="wh-stock-never-counted"
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-wh border border-wh-warn-edge bg-wh-warn-bg px-4 py-3 text-wh-warn"
-          >
-            <TriangleAlert size={18} className="shrink-0" aria-hidden="true" />
-            <p className="min-w-0 flex-1 text-[13px]">
-              <b className="font-semibold">{t("neverCountedAll")}</b>{" "}
-              <span>{t("neverCountedHint", { n: all.length })}</span>
+  if (variant === "agent") {
+    return (
+      <div className="job-receive px-[16px] pb-[24px] pt-[18px] text-[14px] leading-[1.5] text-wh-ink-1">
+        <header className="mb-[18px]">
+          {eyebrow ? (
+            <p className="text-[12.5px] font-semibold text-wh-ink-2" dir="auto">
+              {eyebrow}
             </p>
-            <Link
-              href={`/${locale}/warehouse/count`}
-              className="inline-flex min-h-[38px] items-center rounded-[10px] bg-wh-ink-1 px-3.5 text-[13px] font-semibold text-white no-underline"
-            >
-              {t("startCount")}
-            </Link>
+          ) : null}
+          <h1 className="text-[28px] font-bold leading-[1.2] tracking-[-0.02em]">{t("title")}</h1>
+        </header>
+
+        {nothingCounted ? (
+          <div
+            data-testid="wh-stock-truth"
+            className="mb-[14px] flex items-start gap-[12px] rounded-[12px] border border-wh-warn-edge bg-wh-warn-bg p-[14px] text-wh-warn"
+          >
+            <TriangleAlert size={20} strokeWidth={2} className="mt-[2px] shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-bold">{t("truthTitle")}</p>
+              <p className="mt-[2px] text-[12.5px]">{t("truthBody")}</p>
+              <Link
+                href={countBase}
+                className="mt-[10px] inline-flex min-h-[40px] items-center justify-center gap-[8px] whitespace-nowrap rounded-[12px] bg-wh-ink-1 px-[18px] text-[13.5px] font-bold text-white no-underline"
+              >
+                {t("truthStart", { n: uncounted.length, min: countMinutes(uncounted.length) })}
+              </Link>
+            </div>
           </div>
         ) : null}
-      </div>
-      <div className="mb-4 hidden md:block">
-        <WhKpiGrid>
-        {cells.map((c) => (
-          <WhKpiCard key={c.id} {...c} />
-        ))}
-      </WhKpiGrid>
-      </div>
 
-      <WhCard title={t("title")} hint={`${rows.length}`}>
-        {error ? (
-          <p className="px-4 py-8 text-center text-[13px] text-wh-bad">{t("loadError")}</p>
-        ) : isLoading ? (
-          <div className="space-y-2 p-4" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-11 rounded-[8px] bg-wh-sunken" />
-            ))}
+        <div className="overflow-hidden rounded-[16px] border border-line-subtle bg-wh-surface">
+          {status ?? rows.map((r) => <StockCard key={r.product_id} row={r} locale={locale} />)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {nothingCounted ? (
+        <div
+          data-testid="wh-stock-truth"
+          className="mb-[16px] flex items-center gap-[14px] rounded-[16px] border border-wh-warn-edge bg-wh-warn-bg px-[18px] py-[14px] text-wh-warn"
+        >
+          <TriangleAlert size={20} strokeWidth={2} className="shrink-0" aria-hidden="true" />
+          <p className="min-w-0 flex-1">
+            <b className="font-bold">{t("deskTruthTitle")}</b>{" "}
+            {/* The building columns are only promised where they exist. */}
+            <span className="text-[12.5px]">{warehouses.length > 1 ? t("deskTruthBody") : t("truthBody")}</span>
+          </p>
+          <Link
+            href={siteId ? `${countBase}?warehouse_id=${siteId}` : countBase}
+            className="inline-flex h-[36px] shrink-0 items-center justify-center gap-[8px] whitespace-nowrap rounded-[12px] bg-wh-ink-1 px-[14px] text-[13.5px] font-semibold text-white no-underline"
+          >
+            <Tally5 size={16} strokeWidth={2} aria-hidden="true" />
+            {t("deskTruthStart")}
+          </Link>
+        </div>
+      ) : null}
+
+      <div className="overflow-hidden rounded-[16px] border border-line-subtle bg-wh-surface">
+        {status ?? (
+          <div className="overflow-x-auto">
+            <StockTable rows={rows} warehouses={warehouses} siteId={siteId} locale={locale} />
           </div>
-        ) : all.length === 0 ? (
-          <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("empty")}</p>
-        ) : rows.length === 0 ? (
-          <div className="px-4 py-8 text-center">
-            <p className="text-[13px] text-wh-ink-3">{tf("noMatch")}</p>
-            <button
-              type="button"
-              onClick={() => setFilter(EMPTY_STOCK_FILTER)}
-              className="mt-2 inline-flex h-9 items-center rounded-[8px] border border-wh-border px-3 text-[13px] font-semibold text-wh-ink-1"
-            >
-              {tf("clear")}
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* The phone gets cards: a six-column table on a 390px screen is a
-                horizontal scroll, and a picker cannot scroll sideways with a
-                parcel in the other hand. */}
-            <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
-              {rows.map((r) => (
-                <StockCard key={r.product_id} row={r} onCount={(row) => router.push(countHref(row))} />
-              ))}
-            </div>
-            <div className="hidden overflow-x-auto md:block">
-            <table className="w-full border-collapse text-[13px]">
-              <thead>
-                <tr className="border-b border-wh-border">
-                  <th className={`px-4 py-2.5 text-start ${WH_LABEL}`}>{t("colProduct")}</th>
-                  <th className={`px-4 py-2.5 text-end ${WH_LABEL}`}>{t("colHeld")}</th>
-                  <th className={`px-4 py-2.5 text-end ${WH_LABEL}`}>{t("colEngaged")}</th>
-                  <th className={`px-4 py-2.5 text-end ${WH_LABEL}`}>{t("colFree")}</th>
-                  <th className={`px-4 py-2.5 text-start ${WH_LABEL}`}>{t("colCounted")}</th>
-                  <th className="px-4 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const low = r.current_stock <= r.low_stock_threshold;
-                  const negative = r.free < 0;
-                  return (
-                    <tr key={r.product_id} className="border-b border-wh-border last:border-0 hover:bg-wh-surface-2">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <Link
-                            href={`/${locale}/warehouse/stock/${r.product_id}`}
-                            className="font-semibold text-wh-ink-1 no-underline hover:underline"
-                          >
-                            {r.name}
-                          </Link>
-                          {negative ? (
-                            <WhPill tone="bad">{t("negative")}</WhPill>
-                          ) : low ? (
-                            <WhPill tone="warn">{t("low")}</WhPill>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-end tabular-nums text-wh-ink-1">{r.current_stock}</td>
-                      <td className="px-4 py-3 text-end tabular-nums text-wh-ink-2">{r.engaged}</td>
-                      <td className={`px-4 py-3 text-end font-semibold tabular-nums ${negative ? "text-wh-bad" : "text-wh-ink-1"}`}>
-                        {r.free}
-                      </td>
-                      <td className="px-4 py-3 text-[12.5px] text-wh-ink-3">
-                        {relativeDay(r.last_counted_at, t)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Movements live in the Journal, filtered — not duplicated here. */}
-                          <Link
-                            href={`/${locale}/warehouse/stock?tab=journal&product=${r.product_id}`}
-                            className="inline-flex items-center gap-1.5 rounded-[8px] border border-wh-border px-2.5 py-1.5 text-[12.5px] font-semibold text-wh-ink-2 hover:border-wh-border-strong"
-                          >
-                            <ClipboardList size={13} aria-hidden="true" />
-                            {t("movements")}
-                          </Link>
-                          <Link
-                            href={countHref(r)}
-                            className="rounded-[8px] border border-wh-ok bg-wh-ok px-3 py-1.5 text-[12.5px] font-semibold text-white no-underline hover:opacity-90"
-                          >
-                            {t("count")}
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            </div>
-          </>
         )}
-      </WhCard>
+      </div>
+    </>
+  );
+}
 
-    </div>
+/** The prototype's `th`: 11px uppercase, .05em — no capitals or tracking in Arabic. */
+const TH =
+  "sticky top-0 whitespace-nowrap border-b border-line-subtle bg-wh-surface px-[14px] py-[11px] text-start text-[11px] font-semibold uppercase tracking-[0.05em] text-wh-ink-2 rtl:text-[12px] rtl:normal-case rtl:tracking-normal";
+const TD = "border-b border-line-subtle px-[14px] py-[12px] align-middle group-last:border-b-0";
+
+function StockTable({
+  rows,
+  warehouses,
+  siteId,
+  locale,
+}: {
+  rows: WarehouseStockRow[];
+  warehouses: StockWarehouse[];
+  siteId: string | null;
+  locale: string;
+}) {
+  const t = useTranslations("warehouse.stock");
+  const intlLocale = useLocale();
+  const site = siteId ? `&warehouse_id=${siteId}` : "";
+  // One building is not a breakdown: Tunisia gets no building column and no
+  // « Non ventilé », which would only repeat the register.
+  const split = warehouses.length > 1;
+
+  return (
+    <table className="w-full border-collapse text-[14px]">
+      <thead>
+        <tr>
+          <th className={`${TH} min-w-[260px]`}>{t("colProduct")}</th>
+          <th className={`${TH} text-end`}>{t("colRegister")}</th>
+          <th className={`${TH} text-end`}>{t("colEngaged")}</th>
+          <th className={`${TH} text-end`}>{t("colFree")}</th>
+          {split
+            ? warehouses.map((w) => (
+                <th key={w.id} className={`${TH} text-end`}>
+                  <bdi>{w.name}</bdi>
+                </th>
+              ))
+            : null}
+          {split ? <th className={`${TH} text-end`}>{t("colUnallocated")}</th> : null}
+          <th className={TH}>{t("colLastCount")}</th>
+          <th className={TH}>{t("colDays14")}</th>
+          <th className={`${TH} text-end`} />
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => {
+          const counted = lastCountedAt(r, siteId, warehouses);
+          return (
+            <tr key={r.product_id} data-testid={`wh-stock-row-${r.product_id}`} className="group hover:bg-wh-surface-2">
+              <td className={TD}>
+                <Link
+                  href={`/${locale}/warehouse/stock/${r.product_id}`}
+                  className="flex items-center gap-[12px] text-start text-wh-ink-1 no-underline"
+                >
+                  <Thumb src={r.image_url} size={34} radius={9} icon={<Boxes size={16} strokeWidth={2} />} />
+                  <span className="min-w-0">
+                    <span className="block font-semibold" dir="auto">{r.name}</span>
+                    {r.sku ? (
+                      <span className="block font-mono text-[12.5px] text-wh-ink-2" dir="ltr">{r.sku}</span>
+                    ) : null}
+                  </span>
+                </Link>
+              </td>
+              <td className={`${TD} text-end`}><Num>{r.current_stock}</Num></td>
+              <td className={`${TD} text-end ${r.engaged ? "" : "text-ink-muted"}`}>
+                {r.engaged ? <Num>{r.engaged}</Num> : "—"}
+              </td>
+              <td className={`${TD} text-end`}>
+                <b className={`text-[15px] font-bold ${r.free < 0 ? "text-status-critical" : ""}`}>
+                  <Num>{r.free}</Num>
+                </b>
+              </td>
+              {split
+                ? warehouses.map((w) => {
+                    // A building with no row holds no ventilated share: « — »,
+                    // never a 0 that would read as an empty shelf.
+                    const line = r.sites.find((s) => s.warehouse_id === w.id);
+                    return (
+                      <td key={w.id} className={`${TD} text-end ${line ? "" : "text-ink-muted"}`}>
+                        {line ? <Num>{line.current_stock}</Num> : "—"}
+                      </td>
+                    );
+                  })
+                : null}
+              {split ? (
+                <td className={`${TD} text-end text-wh-ink-2`}><Num>{r.unallocated}</Num></td>
+              ) : null}
+              <td className={TD}>
+                {counted ? (
+                  <span className="whitespace-nowrap text-[12.5px] text-wh-ink-2">{shortDate(counted, intlLocale)}</span>
+                ) : (
+                  <Chip tone="warn" dense>{t("never")}</Chip>
+                )}
+              </td>
+              <td className={TD}>
+                <Sparkline values={r.series} width={64} />
+              </td>
+              <td className={`${TD} text-end`}>
+                <div className="flex items-center justify-end gap-[6px]">
+                  <Link
+                    href={`/${locale}/warehouse/stock?tab=journal&product=${r.product_id}${site}`}
+                    className="inline-flex h-[30px] items-center whitespace-nowrap rounded-[8px] px-[10px] text-[12.5px] font-semibold text-wh-ink-2 no-underline hover:bg-wh-surface-2"
+                  >
+                    {t("movements")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/warehouse/count?product=${r.product_id}${site}`}
+                    className="inline-flex h-[30px] items-center whitespace-nowrap rounded-[8px] border border-wh-border-strong bg-wh-surface px-[10px] text-[12.5px] font-semibold text-wh-ink-1 no-underline hover:bg-wh-surface-2"
+                  >
+                    {t("count")}
+                  </Link>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

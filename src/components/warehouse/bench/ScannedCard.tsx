@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Check, Package, RotateCcw, Undo2, XCircle } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw, Undo2, XCircle } from "lucide-react";
 import type { ScannedRow } from "@/app/api/warehouse/scanned/route";
+import { Thumb } from "@/components/warehouse/run/RunOutcome";
+import { firstName } from "./bench-format";
 
 /**
  * One parcel that has already been scanned out.
@@ -37,7 +39,7 @@ function BindPill({ state, actual, t }: { state: BindState; actual: string | nul
     <span
       data-testid="wh-bind-state"
       data-state={key}
-      className={`inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-[12.5px] font-semibold ${
+      className={`inline-flex items-center gap-[6px] rounded-pill border px-[10px] py-[4px] text-[12.5px] font-semibold ${
         state ? TONE[state] : TONE.unknown
       }`}
     >
@@ -82,60 +84,51 @@ export function ScannedCard({
     <article
       data-testid="wh-scanned-card"
       data-status={row.status}
-      className={`relative rounded-[14px] border border-wm-card-edge bg-wm-card p-3 ${hex ? "ps-[18px]" : ""}`}
+      className={`relative overflow-hidden rounded-[16px] border border-line-subtle bg-white p-[14px] ${hex ? "ps-[20px]" : ""}`}
     >
       {hex ? (
         <span
           aria-hidden="true"
-          className="absolute inset-y-0 start-0 w-[6px] rounded-s-[13px]"
+          className="absolute inset-y-0 start-0 w-[6px]"
           style={{ background: hex }}
         />
       ) : null}
 
-      <div className="flex items-center gap-2.5">
-        <span
-          aria-hidden="true"
-          className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[8px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
-        >
-          {row.product_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.product_image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-          ) : (
-            <Package size={18} />
-          )}
-        </span>
+      <div className="flex items-center gap-[12px]">
+        <Thumb size={40} imageUrl={row.product_image_url} />
         <div className="min-w-0 flex-1">
-          <b className="block truncate text-[16px] font-bold leading-tight text-wm-ink">
-            <bdi>{row.customer_name}</bdi>
-          </b>
-          <span className="block truncate text-[13.5px] text-wm-ink-2">
-            <bdi>{row.product_name}</bdi> × {row.quantity}
+          <p data-line className="truncate font-semibold text-wm-ink">
+            <bdi>{row.product_name}</bdi>{" "}
+            <span dir="ltr" className="font-bold tabular-nums">×{row.quantity}</span>
+          </p>
+          <p data-line className="truncate text-[12.5px] text-wm-ink-2">
             {row.customer_city ? (
               <>
-                {" · "}
                 <bdi>{row.customer_city}</bdi>
+                {" · "}
               </>
             ) : null}
-          </span>
+            <bdi>{firstName(row.customer_name)}</bdi>
+          </p>
         </div>
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <div className="mt-[10px] flex flex-wrap items-center gap-[8px]">
         <span
           data-testid="wh-scanned-sticker"
           dir="ltr"
-          className="rounded-[8px] border border-wm-card-edge bg-wm-ground px-2.5 py-1 text-[16px] font-bold tracking-[0.04em] tabular-nums text-wm-ink"
+          className="rounded-[8px] border border-wm-card-edge bg-wm-ground px-[10px] py-[4px] text-[16px] font-bold tracking-[0.04em] tabular-nums text-wm-ink"
         >
           {row.carrier_sticker_ref ?? "—"}
         </span>
         <BindPill state={row.sticker_bind_state} actual={row.carrier_reference_actual} t={t} />
-        <span className="rounded-pill border border-wm-card-edge px-2.5 py-1 text-[12.5px] text-wm-ink-2">
+        <span className="rounded-pill border border-wm-card-edge px-[10px] py-[4px] text-[12.5px] text-wm-ink-2">
           {tStatus(row.status)}
         </span>
       </div>
 
       {row.scanned_at ? (
-        <p className="mt-1.5 text-[12.5px] text-wm-ink-3">
+        <p className="mt-[6px] text-[12.5px] text-wm-ink-3">
           {t("scannedBy", {
             who: row.scanned_by_name ?? "—",
             when: new Date(row.scanned_at).toLocaleString(),
@@ -144,7 +137,7 @@ export function ScannedCard({
       ) : null}
 
       {rebinding ? (
-        <div className="mt-2.5 grid gap-2">
+        <div className="mt-[10px] grid gap-[8px]">
           <input
             value={sticker}
             onChange={(e) => setSticker(e.target.value)}
@@ -153,9 +146,9 @@ export function ScannedCard({
             autoFocus
             aria-label={t("newSticker")}
             placeholder="1213123"
-            className="min-h-[48px] w-full rounded-[12px] border border-wm-card-edge bg-wm-ground px-3.5 text-start text-[18px] font-semibold tracking-[0.06em] tabular-nums text-wm-ink outline-none focus:border-wm-accent"
+            className="min-h-[48px] w-full rounded-[12px] border border-wm-card-edge bg-wm-ground px-[14px] text-start text-[18px] font-semibold tracking-[0.06em] tabular-nums text-wm-ink outline-none focus:border-brand"
           />
-          <div className="flex gap-2">
+          <div className="flex gap-[8px]">
             <button
               type="button"
               disabled={busy || !sticker.trim()}
@@ -164,26 +157,26 @@ export function ScannedCard({
                 setRebinding(false);
                 setSticker("");
               }}
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-[12px] bg-wm-accent px-3 text-[14px] font-bold text-white disabled:opacity-40"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-[12px] bg-brand px-[12px] text-[14px] font-bold text-white disabled:opacity-40"
             >
               {t("sendSticker")}
             </button>
             <button
               type="button"
               onClick={() => setRebinding(false)}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-[12px] px-3 text-[14px] font-semibold text-wm-ink-2"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-[12px] px-[12px] text-[14px] font-semibold text-wm-ink-2"
             >
               {t("cancel")}
             </button>
           </div>
         </div>
       ) : (
-        <div className="mt-2.5 flex flex-wrap gap-2">
+        <div className="mt-[10px] flex flex-wrap gap-[8px]">
           <button
             type="button"
             disabled={busy}
             onClick={() => onRecheck(row)}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[12px] border border-wm-card-edge px-3 text-[13.5px] font-semibold text-wm-ink disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center gap-[6px] rounded-[12px] border border-wm-card-edge px-[12px] text-[13.5px] font-semibold text-wm-ink disabled:opacity-40"
           >
             <RotateCcw size={14} aria-hidden="true" />
             {t("recheck")}
@@ -192,7 +185,7 @@ export function ScannedCard({
             type="button"
             disabled={busy}
             onClick={() => setRebinding(true)}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[12px] border border-wm-card-edge px-3 text-[13.5px] font-semibold text-wm-ink disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center gap-[6px] rounded-[12px] border border-wm-card-edge px-[12px] text-[13.5px] font-semibold text-wm-ink disabled:opacity-40"
           >
             {t("rebind")}
           </button>
@@ -202,7 +195,7 @@ export function ScannedCard({
               data-testid="wh-unscan"
               disabled={busy}
               onClick={() => onUnscan(row)}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[12px] border border-wh-bad-edge px-3 text-[13.5px] font-semibold text-wh-bad disabled:opacity-40"
+              className="inline-flex min-h-[44px] items-center gap-[6px] rounded-[12px] border border-wh-bad-edge px-[12px] text-[13.5px] font-semibold text-wh-bad disabled:opacity-40"
             >
               <Undo2 size={14} aria-hidden="true" />
               {t("unscan")}

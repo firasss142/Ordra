@@ -1,141 +1,80 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Boxes, Clock, Package } from "lucide-react";
 import { linesOf, isMixed, type RunRow } from "@/lib/warehouse/scan-buckets";
-import { benchAgeLabel, type AgeTranslate } from "@/components/warehouse/console/PrepCard";
+import { CARD } from "./ui";
+import { Thumb } from "./RunOutcome";
 
 /**
- * The parcel in hand, before anything irreversible happens.
+ * The parcel in hand (`.card.inhand`): the product large, where it goes and to
+ * whom, and the quantity at a size you can read at arm's length.
  *
- * There is no printer and no barcode on the box: nothing mechanical can prove
- * the parcel in hand is the parcel on screen. The photo and the product lines
- * are the only witnesses, so they are shown at a size you can match against a
- * box at arm's length, and the scanner stays shut until the agent says yes.
+ * There is no "is this the parcel?" step any more — the agent took this box off
+ * the table, it IS in hand. What that step guarded (a sticker on the wrong box)
+ * is now guarded by this card staying on screen, above the camera, for the
+ * whole scan, and by the bound card naming the product and city right after.
  *
  * EVERY LINE IS LISTED. A parcel holding three products used to render as one —
  * the denormalised product on `orders` — so a picker packed one item and the
- * sticker went on anyway. The count is stated as a sentence too, because "3
- * produits" is the fact that makes someone look twice at a box.
+ * sticker went on anyway.
  */
-export function RunParcel({
-  row,
-  currency,
-  onConfirm,
-  onSkip,
-}: {
-  row: RunRow;
-  currency: string;
-  onConfirm: () => void;
-  onSkip: () => void;
-}) {
+export function RunParcel({ row }: { row: RunRow }) {
   const t = useTranslations("warehouse.run");
-  const tb = useTranslations("warehouse.bench");
-  const tAge = useTranslations("warehouse.age") as unknown as AgeTranslate;
-
   const lines = linesOf(row);
-  const mixed = isMixed(row);
-  const since = row.uploaded_at ?? row.created_at;
-  const hours = Math.max(0, (Date.now() - new Date(since).getTime()) / 3_600_000);
-  const late = hours >= 48;
-  const stock = row.current_stock ?? 0;
-  const low = stock <= (row.low_stock_threshold ?? 0);
-  const hero = lines.find((l) => l.image_url)?.image_url ?? row.product_image_url ?? null;
+  const mixed = isMixed(row) || lines.length > 1;
+  const units = lines.reduce((n, l) => n + (l.quantity ?? 0), 0);
+  const image = lines.find((l) => l.image_url)?.image_url ?? row.product_image_url ?? null;
+  const first = lines[0];
 
   return (
-    <div data-testid="wh-run-parcel" className="grid gap-3">
-      <div className="grid place-items-center gap-2.5 rounded-[14px] border border-wm-card-edge bg-wm-card p-4">
-        <span
-          aria-hidden="true"
-          className="grid h-[150px] w-[150px] place-items-center overflow-hidden rounded-[12px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
-        >
-          {hero ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero} alt="" className="h-full w-full object-cover" />
-          ) : mixed ? (
-            <Boxes size={48} strokeWidth={1.5} />
-          ) : (
-            <Package size={48} strokeWidth={1.5} />
-          )}
+    <div data-testid="wh-run-parcel" className={`${CARD} p-[18px]`}>
+      <div className="flex items-start gap-[12px]">
+        <Thumb size={56} imageUrl={image} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[20px] font-bold leading-[1.3] text-wm-ink">
+            {mixed ? (
+              t("linesTitle", { n: lines.length })
+            ) : (
+              <>
+                <bdi>{first.product_name}</bdi>
+                {first.variant_label ? <span className="text-wm-ink-2"> · {first.variant_label}</span> : null}
+              </>
+            )}
+          </p>
+          <p className="mt-[4px] text-[14px] text-wm-ink-2">
+            {row.customer_city ? (
+              <>
+                <bdi>{row.customer_city}</bdi>
+                {" · "}
+              </>
+            ) : null}
+            <bdi>{row.customer_name}</bdi>
+          </p>
+        </div>
+        <span dir="ltr" className="shrink-0 text-[34px] font-bold leading-[1.2] tabular-nums text-wm-ink">
+          ×{mixed ? units : first.quantity}
         </span>
+      </div>
 
-        {/* The contents, one row per product. Never a single summarised line. */}
-        <p className="text-[13px] font-semibold text-wm-ink-2">{t("linesTitle", { n: lines.length })}</p>
-        <ul className="m-0 w-full list-none p-0">
+      {mixed ? (
+        <ul className="m-0 mt-[14px] list-none border-t border-line-subtle p-0 pt-[6px]">
           {lines.map((l, i) => (
             <li
               key={`${l.product_id ?? l.product_name}-${i}`}
               data-testid="wh-run-line"
-              className="flex items-center gap-2.5 border-b border-dashed border-wm-track py-1.5 last:border-0"
+              className="flex items-center gap-[10px] py-[6px]"
             >
-              <span
-                aria-hidden="true"
-                className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[8px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
-              >
-                {l.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={l.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                ) : (
-                  <Package size={15} />
-                )}
-              </span>
-              <span className="min-w-0 flex-1 text-[15px] font-semibold leading-tight text-wm-ink">
+              <span className="min-w-0 flex-1 text-[15px] font-semibold text-wm-ink">
                 <bdi>{l.product_name}</bdi>
                 {l.variant_label ? <span className="text-wm-ink-2"> · {l.variant_label}</span> : null}
               </span>
-              <b className="shrink-0 text-[16px] tabular-nums text-wm-ink">{t("lineQty", { n: l.quantity })}</b>
+              <b dir="ltr" className="shrink-0 text-[16px] tabular-nums text-wm-ink">
+                ×{l.quantity}
+              </b>
             </li>
           ))}
         </ul>
-
-        <p className="text-center text-[15px] font-bold text-wm-ink">
-          <bdi>{row.customer_name}</bdi>
-        </p>
-        <p className="text-center text-[13.5px] text-wm-ink-2">
-          {row.customer_city ? <bdi>{row.customer_city}</bdi> : null}
-          {row.customer_city ? " · " : null}
-          <span dir="ltr" className="tabular-nums">
-            {Number(row.total_price).toFixed(2)} {currency}
-          </span>
-        </p>
-
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span
-            data-testid="wh-run-age"
-            data-late={late ? "true" : "false"}
-            className={`inline-flex items-center gap-1 rounded-pill border px-2 py-0.5 text-[12.5px] tabular-nums ${
-              late ? "border-wh-warn-edge bg-wh-warn-bg font-bold text-wh-warn" : "border-wm-card-edge text-wm-ink-2"
-            }`}
-          >
-            <Clock size={12} aria-hidden="true" />
-            {benchAgeLabel(hours, tAge)}
-          </span>
-          <span
-            data-low={low ? "true" : "false"}
-            className={`inline-flex items-center rounded-pill border px-2 py-0.5 text-[12.5px] ${
-              low ? "border-wh-warn-edge bg-wh-warn-bg font-semibold text-wh-warn" : "border-wm-card-edge text-wm-ink-2"
-            }`}
-          >
-            {tb("inStock", { n: stock })}
-            {low ? ` · ${tb("lowStock")}` : ""}
-          </span>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={onConfirm}
-        className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[16px] font-bold text-white active:bg-wm-accent-deep"
-      >
-        {t("confirm")}
-      </button>
-      <button
-        type="button"
-        onClick={onSkip}
-        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-      >
-        {t("skip")}
-      </button>
+      ) : null}
     </div>
   );
 }

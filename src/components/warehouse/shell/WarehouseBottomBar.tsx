@@ -67,7 +67,12 @@ function WarehouseBottomBarInner({ tabs, center }: { tabs: BottomTab[]; center?:
       // Opaque, not translucent: a list scrolls underneath this bar, and at
       // 95 % the product names blurred through it and read as smudges under
       // the labels. A navigation bar has nothing to gain from transparency.
-      className="wh-safe-bottom fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-wm-card-edge bg-wm-card"
+      // Prototype `.tabbar`: five equal columns, items from the top (8px), the
+      // scan button in the middle one; ~84px tall with the home-indicator room.
+      className={[
+        "wh-safe-bottom fixed inset-x-0 bottom-0 z-40 grid min-h-[84px] items-start border-t border-line-subtle bg-wm-card pt-[8px]",
+        center ? "grid-cols-5" : "grid-cols-4",
+      ].join(" ")}
     >
       {tabs.map((tab, index) => {
         const active = tab.exact
@@ -77,7 +82,7 @@ function WarehouseBottomBarInner({ tabs, center }: { tabs: BottomTab[]; center?:
         const middle = center && index === Math.ceil(tabs.length / 2);
         return (
           <Fragment key={tab.href}>
-          {middle ? <div className="relative flex flex-1 justify-center">{center}</div> : null}
+          {middle ? <div className="relative flex justify-center">{center}</div> : null}
           <Link
             href={tab.href}
             prefetch
@@ -86,31 +91,23 @@ function WarehouseBottomBarInner({ tabs, center }: { tabs: BottomTab[]; center?:
             onMouseEnter={() => prefetchData(tab.prefetchKey)}
             className={[
               tab.hue ?? "",
-              "relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 px-1 py-2",
-              "text-[10.5px] font-semibold no-underline transition-colors duration-fast",
-              active ? "text-job-ink" : "text-wm-ink-2 active:text-wm-ink",
+              "flex min-h-[56px] min-w-0 flex-col items-center gap-[3px] pt-[4px]",
+              "text-[11.5px] font-semibold no-underline transition-colors duration-fast",
+              active ? "text-wm-ink" : "text-ink-muted active:text-wm-ink",
             ].join(" ")}
           >
-            <span className="relative">
-              {/* The active tab is marked by a tinted plate as well as by
-                  colour — colour alone fails the moment the phone is in
-                  sunlight on a loading dock. */}
-              <span
-                aria-hidden="true"
-                className={`absolute -inset-x-3.5 -inset-y-1.5 rounded-pill transition-opacity ${
-                  active ? "bg-job-bg opacity-100" : "opacity-0"
-                }`}
-              />
-              <Icon
-                size={20}
-                strokeWidth={active ? 2.2 : 1.6}
-                aria-hidden="true"
-                className="relative"
-              />
+            {/* `.plate`: 52×30 pill. The current tab's plate takes its job's
+                tint — colour alone fails in sunlight on a loading dock. */}
+            <span
+              className={`relative grid h-[30px] w-[52px] place-items-center rounded-pill transition-colors duration-fast ${
+                active ? "bg-job-bg text-job-ink" : ""
+              }`}
+            >
+              <Icon size={20} strokeWidth={2} aria-hidden="true" />
               {tab.count ? (
                 <span
                   data-testid={`wh-tab-count-${tab.label}`}
-                  className="absolute -end-2.5 -top-1.5 z-10 grid min-w-[17px] place-items-center rounded-pill bg-wh-bad px-1 py-px text-[9.5px] font-bold leading-[13px] tabular-nums text-white"
+                  className="absolute -end-[4px] -top-[4px] z-10 grid h-[18px] min-w-[18px] place-items-center rounded-[9px] bg-status-critical px-[5px] text-[11px] font-bold tabular-nums text-white"
                 >
                   {badge(tab.count)}
                 </span>

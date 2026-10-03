@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { ReturnCard } from "../ReturnCard";
-import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import { ReturnCard, OnTheWayCard } from "../ReturnCard";
+import { atDarb, onTheWay } from "@/components/warehouse/returns/__tests__/fixtures";
 
+/**
+ * One returned parcel on the phone (prototype `.parcel`): product and quantity
+ * first, then city · first name · Darb's reason, then how long Darb has held
+ * it — amber past two days. A parcel still on the road is the same row, greyed
+ * and inert: it is not receivable yet.
+ */
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>
@@ -14,107 +21,44 @@ vi.mock("next-intl", async () => {
   };
 });
 
-/**
- * One returned parcel (mockup 04).
- *
- * The desk console kept the decision in a side panel; on a phone that panel
- * sits a screen away from the parcel it describes. The three decisions are on
- * the card, and the stepper says where this parcel is — not where the console
- * is.
- */
-const row = (over: Partial<WarehouseOrderRow> = {}) =>
-  ({
-    id: "aaaaaaaa-1111-2222-3333-444444444444",
-    customer_name: "Mouna Zouaghi",
-    customer_phone: "216",
-    customer_city: "Tunis",
-    customer_area: null,
-    customer_address: null,
-    uploaded_at: null,
-    branch_group: null,
-    product_id: "p1",
-    product_name: "Biovera - Routine Anti-Cellulite",
-    variant_label: null,
-    quantity: 2,
-    total_price: 49,
-    status: "to_be_returned",
-    created_at: new Date(Date.now() - 5 * 86_400_000).toISOString(),
-    tracking_number: "000000221137",
-    carrier_sticker_ref: null,
-    carrier_status_slug: null,
-    has_carrier_ref: null,
-    current_stock: null,
-    low_stock_threshold: null,
-    returned_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
-    ...over,
-  }) as WarehouseOrderRow;
-
-const props = {
-  row: row(),
-  picked: false,
-  decision: null as null | "restock" | "damage" | "redeliver",
-  busy: false,
-  currency: "TND",
-  onPick: vi.fn(),
-  onDecide: vi.fn(),
-};
-
 afterEach(cleanup);
 
-describe("ReturnCard", () => {
-  it("leads with the reference printed on the parcel", () => {
-    render(<ReturnCard {...props} />);
-    expect(screen.getByTestId("wm-return-ref").textContent).toContain("000000221137");
+describe("ReturnCard — chez Darb pour nous", () => {
+  it("reads product ×qty, then city · first name · reason", () => {
+    render(<ReturnCard row={atDarb("1")} onOpen={() => {}} />);
+    const row = screen.getByRole("button");
+    expect(row).toHaveTextContent("مصحف القرآن تدبر وعمل");
+    expect(row).toHaveTextContent("×1");
+    expect(screen.getByText("طبرق · سعاد · Refusé par le client")).toBeInTheDocument();
   });
 
-  it("names the product and how many came back", () => {
-    render(<ReturnCard {...props} />);
-    expect(screen.getByText(/Biovera/)).toBeInTheDocument();
-    expect(screen.getByTestId("wm-return-qty").textContent).toContain("2");
+  it("drops the reason when Darb gave none", () => {
+    render(<ReturnCard row={atDarb("1", { darb_reason: null })} onOpen={() => {}} />);
+    expect(screen.getByText("طبرق · سعاد")).toBeInTheDocument();
   });
 
-  it("offers the three decisions the system actually supports", () => {
-    render(<ReturnCard {...props} />);
-    for (const name of [/remettre en stock/i, /endommagé/i, /rélivrer/i]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument();
-    }
+  it("ages from when Darb marked it returned, amber past two days", () => {
+    const { rerender } = render(<ReturnCard row={atDarb("1", { hoursAtDarb: 96 })} onOpen={() => {}} />);
+    expect(screen.getByText("il y a 4 j").closest("[data-tone]")).toHaveAttribute("data-tone", "warn");
+    rerender(<ReturnCard row={atDarb("1", { hoursAtDarb: 25 })} onOpen={() => {}} />);
+    expect(screen.getByText("il y a 1 j").closest("[data-tone]")).toHaveAttribute("data-tone", "mute");
+    rerender(<ReturnCard row={atDarb("1", { hoursAtDarb: 5 })} onOpen={() => {}} />);
+    expect(screen.getByText("il y a 5 h")).toBeInTheDocument();
   });
 
-  it("walks the stepper as the parcel moves, not as the console moves", () => {
-    const { rerender } = render(<ReturnCard {...props} />);
-    expect(screen.getByTestId("wm-step").dataset.step).toBe("1");
-    rerender(<ReturnCard {...props} picked />);
-    expect(screen.getByTestId("wm-step").dataset.step).toBe("2");
-    rerender(<ReturnCard {...props} picked decision="restock" />);
-    expect(screen.getByTestId("wm-step").dataset.step).toBe("3");
+  it("opens the verdict for its parcel", () => {
+    const onOpen = vi.fn();
+    render(<ReturnCard row={atDarb("o-7")} onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(onOpen).toHaveBeenCalledWith("o-7");
   });
+});
 
-  it("picks the parcel when a decision is tapped on an untouched card", () => {
-    // The agent has the parcel in hand; making them tap "select" first is a
-    // step that exists only because the desk console had a side panel.
-    const onPick = vi.fn();
-    const onDecide = vi.fn();
-    render(<ReturnCard {...props} onPick={onPick} onDecide={onDecide} />);
-    fireEvent.click(screen.getByRole("button", { name: /remettre en stock/i }));
-    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: props.row.id }));
-    expect(onDecide).toHaveBeenCalledWith("restock");
-  });
-
-  it("marks the chosen decision so a mis-tap is visible before validating", () => {
-    render(<ReturnCard {...props} picked decision="damage" />);
-    expect(screen.getByRole("button", { name: /endommagé/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-  });
-
-  it("shows how long the parcel has been waiting", () => {
-    render(<ReturnCard {...props} />);
-    expect(screen.getByTestId("wm-return-age").textContent).toMatch(/3 j/);
-  });
-
-  it("locks every decision while a submission is in flight", () => {
-    render(<ReturnCard {...props} picked decision="restock" busy />);
-    expect(screen.getByRole("button", { name: /rélivrer/i })).toBeDisabled();
+describe("OnTheWayCard — en route", () => {
+  it("shows the product and « city · à scanner à l'arrivée », and is not a button", () => {
+    render(<OnTheWayCard row={onTheWay("w-1")} />);
+    expect(screen.getByText("مصحف القرآن تدبر وعمل")).toBeInTheDocument();
+    expect(screen.getByText("سرت · à scanner à l'arrivée")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

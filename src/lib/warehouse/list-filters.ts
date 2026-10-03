@@ -137,7 +137,9 @@ export const warehouseHistoryQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   kind: z
-    .enum(["all", "print", "scan", "handover", "return", "adjust", "writeoff"])
+    // « reception » and « count » are families of their own since 2026-09-30;
+    // left out of this list, their chips answered 400 and drew an empty ledger.
+    .enum(["all", "print", "scan", "handover", "return", "reception", "count", "adjust", "writeoff"])
     .default("all"),
   date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

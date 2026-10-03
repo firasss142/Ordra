@@ -23,7 +23,7 @@ function rows(over: Partial<DayLoopRows> = {}): DayLoopRows {
     marketQueue: { to_prepare: 32, oldest_prepare_hours: 70, returns_inbox: 3, set_aside: 393 },
     returning: [{ warehouse_id: "B" }, { warehouse_id: "B" }, { warehouse_id: "B" }],
     receptions: [
-      { warehouse_id: "T", status: "draft", expected_at: "2026-10-01", line_count: 0 },
+      { warehouse_id: "T", reference: "REC-LY-2026-0001", status: "draft", expected_at: "2026-10-01", line_count: 0 },
     ],
     productIds: ["p1", "p2", "p3", "p4", "p5", "p6", "p7"],
     countRows: [],
@@ -84,6 +84,35 @@ describe("assembleDayLoop — receptions", () => {
     expect(out.counts.receptionsEmpty).toBe(0);
   });
 
+  it("names the reception when exactly one is expected, with how late it is and whether it has lines", () => {
+    // The desk card says « REC-LY-2026-0001 · en retard d'1 j · aucune ligne »
+    // rather than « 1 en retard · 1 sans ligne » about a single document.
+    const market = assembleDayLoop(rows(), { focus: null, today: TODAY, locale: "fr", withManagerViews: true });
+    expect(market.soleReception).toEqual({ reference: "REC-LY-2026-0001", lateDays: 1, empty: true });
+
+    const benghazi = assembleDayLoop(rows(), { focus: "B", today: TODAY, locale: "fr", withManagerViews: false });
+    expect(benghazi.soleReception).toBeNull();
+  });
+
+  it("names no reception when several are expected — the aggregate speaks for them", () => {
+    const out = assembleDayLoop(
+      rows({ receptions: [
+        { warehouse_id: "T", reference: "REC-1", status: "draft", expected_at: null, line_count: 2 },
+        { warehouse_id: "T", reference: "REC-2", status: "submitted", expected_at: "2026-09-28", line_count: 0 },
+      ] }),
+      { focus: null, today: TODAY, locale: "fr", withManagerViews: true },
+    );
+    expect(out.soleReception).toBeNull();
+  });
+
+  it("does not call a reception due in the future late", () => {
+    const out = assembleDayLoop(
+      rows({ receptions: [{ warehouse_id: "T", reference: "REC-3", status: "draft", expected_at: "2026-10-09", line_count: 4 }] }),
+      { focus: null, today: TODAY, locale: "fr", withManagerViews: true },
+    );
+    expect(out.soleReception).toEqual({ reference: "REC-3", lateDays: 0, empty: false });
+  });
+
   it("never calls a reception with no expected date late", () => {
     const out = assembleDayLoop(
       rows({ receptions: [{ warehouse_id: "T", status: "draft", expected_at: null, line_count: 1 }] }),
@@ -115,6 +144,22 @@ describe("assembleDayLoop — counts", () => {
     );
     expect(out.counts.products).toBe(7);
     expect(out.counts.neverCounted).toBe(5);
+  });
+
+  it("says how many buildings have ever been counted, so the desk can say « none »", () => {
+    const none = assembleDayLoop(rows(), { focus: null, today: TODAY, locale: "fr", withManagerViews: true });
+    expect(none.countedSites).toBe(0);
+
+    const one = assembleDayLoop(
+      rows({ countRows: [
+        { product_id: "p1", warehouse_id: "B" },
+        { product_id: "p2", warehouse_id: "B" },
+        // A market-level count before buildings existed counts no building.
+        { product_id: "p3", warehouse_id: null },
+      ] }),
+      { focus: null, today: TODAY, locale: "fr", withManagerViews: true },
+    );
+    expect(one.countedSites).toBe(1);
   });
 
   it("marks the count job `never` when nothing has ever been counted — the state of prod on 2026-10-02", () => {

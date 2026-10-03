@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
@@ -57,16 +58,23 @@ export default async function WarehouseTodayPage({
   }
 
   // The market's date, in the reader's language and the market's time zone.
-  const dateLabel = new Intl.DateTimeFormat(locale === "ar" ? "ar-LY" : "fr-FR", {
+  const date = new Intl.DateTimeFormat(locale === "ar" ? "ar-LY" : "fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     timeZone: marketTimezone(marketId),
   }).format(new Date());
+  // The desk names the market after the date (« jeudi 2 octobre · Libye »);
+  // the agent's eyebrow already starts with their building.
+  const t = await getTranslations({ locale, namespace: "warehouse.settings" });
+  const market = marketCode === "ly" ? t("marketLy") : marketCode === "tn" ? t("marketTn") : null;
+  const dateLabel = !isAgent && market ? `${date} · ${market}` : date;
+  const avatarInitial = (user.full_name || user.email || "?").trim().charAt(0).toUpperCase();
 
   return (
     <TodayLive
       initial={initial}
+      avatarInitial={avatarInitial}
       variant={isAgent ? "agent" : "desk"}
       locale={locale}
       dateLabel={dateLabel}

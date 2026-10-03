@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { marketIdToCode } from "@/lib/markets";
 import { reasonsForKind, kindForReason, type HistoryKind } from "./history-reasons";
 import {
   decodeWarehouseHistoryCursor,
@@ -35,6 +36,18 @@ export interface WarehouseHistoryRow {
   note: string | null;
   actor: WarehouseActor | null;
   anomalies: WarehouseAnomalyTag[];
+  /**
+   * The ledger reason (`scanned`, `initial_stock`…) — the EVENT, which the
+   * family alone cannot name: `adjust` holds four reasons. Null for a print or
+   * a handover, which do not read the ledger.
+   */
+  reason?: string | null;
+  /**
+   * The building the movement happened in, named as the market reads it
+   * (Libya in Arabic). Null where the row predates buildings or is not a
+   * stock movement.
+   */
+  warehouse_name?: string | null;
 }
 
 export interface WarehouseHistoryPage {
@@ -97,6 +110,7 @@ interface InvRow {
     customer_city?: string | null;
   } | null;
   actor: ActorRow | null;
+  warehouse?: { name_fr?: string | null; name_ar?: string | null } | null;
 }
 
 function toKindCursor(kind: WarehouseHistoryRow["kind"]): WarehouseHistoryKindCursor {
@@ -314,7 +328,7 @@ export async function getWarehouseHistoryPage(
     if (!includeInventory || scanReasons.length === 0) return { data: [] as InvRow[] };
     let qb = supabase
       .from("inventory_log")
-      .select("id, order_id, reason, change, balance_after, created_at, is_damaged, note, actor_id, product_id, products!inner(market_id, name), orders(customer_name, customer_city), actor:users!actor_id(id, full_name, role, avatar_url)")
+      .select("id, order_id, reason, change, balance_after, created_at, is_damaged, note, actor_id, product_id, products!inner(market_id, name), orders(customer_name, customer_city), actor:users!actor_id(id, full_name, role, avatar_url), warehouse:warehouses!warehouse_id(name_fr, name_ar)")
       .in("reason", scanReasons)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
@@ -395,6 +409,7 @@ export async function getWarehouseHistoryPage(
     anomalies: [],
   }));
 
+  const arabicSites = marketIdToCode(scopeMarket) === "ly";
   const scanRows: WarehouseHistoryRow[] = scans.map((s) => {
     // Le classement vient de la même table que la sélection : une ligne ne peut
     // pas être interrogée dans une famille et affichée dans une autre.
@@ -423,6 +438,11 @@ export async function getWarehouseHistoryPage(
       note: s.note ?? null,
       actor: mapActor(s.actor),
       anomalies: [],
+      reason: s.reason,
+      // A building is a place name painted on a wall: Libya reads it in Arabic.
+      warehouse_name: s.warehouse
+        ? ((arabicSites ? s.warehouse.name_ar : s.warehouse.name_fr) || s.warehouse.name_fr || null)
+        : null,
     };
   });
 

@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  if (!canScanWarehouse(actor.role)) {
+  // A manager's decision (2026-10-02): the agent's phone has only Intact /
+  // Abîmé, and the route says so too rather than trusting the screen.
+  if (!canScanWarehouse(actor.role) || actor.role === "warehouse_agent") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

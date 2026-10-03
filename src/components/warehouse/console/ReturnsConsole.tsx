@@ -1,837 +1,520 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import {
-  Undo2, PackageCheck, TrendingDown, Trash2, Bell, ScanLine, Camera, CircleAlert,
-  RotateCcw, Send, Lock,
-} from "lucide-react";
-import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
-import type { ReturnsStats } from "@/app/api/warehouse/returns/stats/route";
-import { RETURN_REASONS, type ReturnReason } from "@/lib/warehouse/returns-validation";
-import { QrScanner } from "@/components/warehouse/QrScanner";
-import { WhCard, WhChip, WhKpiCard, WhKpiGrid } from "./primitives";
-import { WH_BTN, WH_BTN_PRIMARY, WH_LABEL, WH_TONE } from "./tokens";
-import { ReturnCard, ProcessingTime } from "@/components/warehouse/mobile/ReturnCard";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Inbox, X } from "lucide-react";
+import type {
+  OnTheWayRow,
+  ProcessedRow,
+  ReturnRow,
+  ReturnsPayload,
+} from "@/app/api/warehouse/returns/returns-data";
+import { jsonFetcher } from "@/lib/fetchers";
+import { ReturnVerdict, type VerdictResult } from "@/components/warehouse/returns/ReturnVerdict";
+import { AgeChip, Thumb, ageParts, hoursSince, isLate, parcelRef } from "@/components/warehouse/returns/parts";
 
 /**
- * Retours — "which parcels came back, and what happens to each one?"
+ * « Rentrer » on the desk — prototype C.returns.
  *
- * Follows docs/design/entrepot/entrepot-light.html §Retours. One deliberate
- * departure: the prototype's "Répartition par raison" strip is absent. Nothing
- * records WHY a delivery failed — every to_be_returned order carries a null
- * carrier status — so the strip would have been four chips of nothing.
+ * Three stacked sections for the building the top bar chose (`?warehouse_id=`,
+ * absent = every building):
+ *   · Chez Darb pour nous — `to_be_returned`, the only receivable status. Each
+ *     row carries the manager's two moves: « Relivrer au client »
+ *     (scan_received_in, stock UNTOUCHED — the parcel goes back out) and
+ *     « Recevoir… » (the Intact / Abîmé verdict, scan_return_in).
+ *   · En route — `returning`, greyed and inert: Darb has not registered it yet.
+ *   · Traités — what was decided in the last seven days.
  *
- * The three decisions are not variations of one action:
- *   · restock  → scan_return_in, stock +qty
- *   · damaged  → scan_return_in with a cause, damaged_return_count +qty
- *   · redeliver→ scan_received_in, stock UNTOUCHED — the parcel goes back out,
- *                so crediting the shelf would invent a unit.
+ * Scanning is the top bar's job on the desk; a scan that lands on
+ * `?order=<id>` opens that parcel's verdict here.
  */
 
-type Decision = "restock" | "damage" | "redeliver";
+const TH =
+  "whitespace-nowrap border-b border-line-subtle bg-white px-[14px] py-[11px] text-start text-[11px] font-semibold uppercase tracking-[0.05em] text-wh-ink-2 rtl:text-[12px] rtl:normal-case rtl:tracking-normal";
+const TD = "border-b border-line-subtle px-[14px] py-[12px] align-middle";
+const TBODY = "[&>tr:last-child>td]:border-b-0 [&>tr:hover>td]:bg-wh-surface-2";
+const CARD = "overflow-hidden rounded-[16px] border border-line-subtle bg-white";
+const BTN_SM =
+  "inline-flex h-[30px] items-center justify-center whitespace-nowrap rounded-[8px] px-[10px] text-[12.5px] font-semibold disabled:opacity-50";
 
-/** What the lookup endpoint decided the scanned code was. */
-interface ScanLookup {
-  outcome: "found" | "wrong_status" | "ambiguous" | "not_found" | "empty";
-  code?: string;
-  order?: WarehouseOrderRow;
-  status?: string;
-  matches?: number;
-}
-
-/**
- * What is printed on the parcel, which is what an operator can read off the box
- * and what a scanner emits. The OMS id appears nowhere on it, so it is the last
- * resort rather than the default.
- */
-function parcelRef(o: WarehouseOrderRow): string {
-  return o.carrier_sticker_ref ?? o.tracking_number ?? o.id.slice(0, 8).toUpperCase();
-}
-
-const fetcher = (u: string) => fetch(u).then((r) => {
-  if (!r.ok) throw new Error(String(r.status));
-  return r.json();
-});
-
-const REASON_KEY: Record<ReturnReason, string> = {
-  packaging: "reasonPackaging",
-  product_defect: "reasonProductDefect",
-  customer_damage: "reasonCustomerDamage",
-  carrier_damage: "reasonCarrierDamage",
-  other: "reasonOther",
-};
-
-function dec(n: number, digits = 1): string {
-  return n.toFixed(digits).replace(".", ",");
-}
-
-/** 21 stays "21"; 12,4 keeps its decimal. A trailing ",0" is noise. */
-function pct(n: number): string {
-  return Number.isInteger(n) ? String(n) : dec(n);
-}
-
-function money(n: number, currency: string): string {
-  return `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`.trimEnd();
-}
-
-/**
- * Whether the viewport is at Tailwind's `md` breakpoint or wider. Used for one
- * decision only: which of the two scan fields hosts the camera preview, so that
- * the camera is mounted once. It is never true on the server, and the camera
- * is never open on the server, so hydration has nothing to disagree about.
- */
-const DESK_QUERY = "(min-width: 768px)";
-function subscribeDesk(cb: () => void) {
-  if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const mq = window.matchMedia(DESK_QUERY);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-function readDesk() {
-  return typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(DESK_QUERY).matches;
-}
-function useIsDesk() {
-  return useSyncExternalStore(subscribeDesk, readDesk, () => false);
-}
-
-function daysSince(iso: string): number {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-}
-
-/** The four-point weekly curve in the rate card. */
-function Sparkline({ points }: { points: Array<{ week: number; rate: number | null }> }) {
-  const t = useTranslations("warehouse.returns2");
-  const usable = points.filter((p) => p.rate !== null) as Array<{ week: number; rate: number }>;
-  if (usable.length < 2) return null;
-
-  const max = Math.max(...usable.map((p) => p.rate), 1);
-  const x = (i: number) => 10 + (i * 200) / (points.length - 1);
-  const y = (v: number) => 34 - (v / max) * 24;
-
+function Label({ children }: { children: React.ReactNode }) {
   return (
-    <svg
-      data-testid="wh-spark"
-      viewBox="0 0 220 44"
-      width="100%"
-      height="44"
-      className="mt-2 block"
-      aria-hidden="true"
-    >
-      <polyline
-        points={points.map((p, i) => `${x(i)},${y(p.rate ?? 0)}`).join(" ")}
-        fill="none"
-        stroke="var(--wh-bad)"
-        strokeWidth="2"
-      />
-      {points.map((p, i) => (
-        <circle
-          key={p.week}
-          cx={x(i)}
-          cy={y(p.rate ?? 0)}
-          r={i === points.length - 1 ? 3 : 2.5}
-          fill="var(--wh-bad)"
-        />
-      ))}
-      {points.map((p, i) => (
-        <text key={`l${p.week}`} x={x(i) - 8} y={42} fontSize="9" fill="var(--wh-ink-3)">
-          {t("weekShort", { n: p.week })}
-        </text>
-      ))}
-    </svg>
+    <div className="mb-[8px] text-[11px] font-semibold uppercase tracking-[0.06em] text-wh-ink-2 rtl:text-[12px] rtl:normal-case rtl:tracking-normal">
+      {children}
+    </div>
   );
 }
 
-/* ── The scan field ───────────────────────────────────────────────────── */
+function Num({ children }: { children: React.ReactNode }) {
+  return (
+    <span dir="ltr" className="tabular-nums [unicode-bidi:isolate]">
+      {children}
+    </span>
+  );
+}
 
-/**
- * Field + camera toggle + verdict. Rendered twice — once above the queue for
- * the phone, once in the decision panel for the desk — with only one of the
- * two visible at any width, so the operator always has a field in reach
- * without two inputs fighting for focus. The camera preview is passed in by
- * whichever instance is on screen; the other gets nothing.
- */
-function ScanField({
-  value,
-  onChange,
-  onSubmit,
-  disabled,
-  camera,
-  onToggleCamera,
-  inputRef,
-  cameraNode,
-  verdict,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onSubmit: (v: string) => void;
-  disabled: boolean;
-  camera: boolean;
-  onToggleCamera: () => void;
-  inputRef: (el: HTMLInputElement | null) => void;
-  cameraNode: ReactNode;
-  verdict: ScanLookup | null;
-}) {
+/** The prototype's `age()` on the desk: « 4 j », « 5 h », « à l'instant ». */
+function useAge() {
   const t = useTranslations("warehouse.returns2");
+  return useCallback(
+    (hours: number) => {
+      const a = ageParts(hours);
+      return a.unit === "now" ? t("now") : t(a.unit === "hours" ? "hours" : "days", { n: a.n });
+    },
+    [t],
+  );
+}
+
+/** Thumb + « product ×n » + the reference printed on the parcel. */
+function ParcelCell({
+  product,
+  quantity,
+  image,
+  reference,
+}: {
+  product: string;
+  quantity?: number;
+  image: string | null | undefined;
+  reference?: string;
+}) {
+  return (
+    <div className="flex items-center gap-[12px]">
+      <Thumb src={image} size={34} icon={16} />
+      <div className="min-w-0">
+        <div className="font-semibold">
+          <bdi>{product}</bdi>
+          {quantity !== undefined ? (
+            <>
+              {" "}
+              <span dir="ltr" className="tabular-nums text-wh-ink-2 [unicode-bidi:isolate]">
+                ×{quantity}
+              </span>
+            </>
+          ) : null}
+        </div>
+        {reference ? (
+          <div dir="ltr" className="font-mono text-[12.5px] tabular-nums text-wh-ink-2 [unicode-bidi:isolate] rtl:text-end">
+            {reference}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ClientCell({ name, city }: { name: string; city: string | null }) {
   return (
     <>
-      <div className="mx-4 mt-4 flex items-center gap-2">
-        <label className="flex flex-1 items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">
-          <ScanLine size={18} className="shrink-0 text-wh-ok" aria-hidden="true" />
-          <input
-            ref={inputRef}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onSubmit(value);
-              }
-            }}
-            disabled={disabled}
-            placeholder={t("scanPlaceholder")}
-            autoComplete="off"
-            aria-label={t("scanPlaceholder")}
-            className="w-full border-none bg-transparent font-mono text-[16px] font-semibold tracking-wide outline-none placeholder:font-sans placeholder:text-[13.5px] placeholder:font-medium placeholder:tracking-normal placeholder:text-wh-ink-3"
-          />
-        </label>
-        {/* A tablet at the returns table has no barcode gun. */}
-        <button
-          type="button"
-          onClick={onToggleCamera}
-          aria-pressed={camera}
-          aria-label={t("camera")}
-          className={`grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[12px] border ${
-            camera
-              ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
-              : "border-wh-border bg-wh-surface text-wh-ink-2 hover:border-wh-border-strong"
-          }`}
-        >
-          <Camera size={18} aria-hidden="true" />
-        </button>
-      </div>
-
-      {cameraNode ? <div className="mx-4 mt-3">{cameraNode}</div> : null}
-
-      {/* What the scan actually resolved to. A parcel in the operator's
-          hands is never "introuvable" without a reason worth reading. */}
-      {verdict && verdict.outcome !== "found" ? (
-        <div
-          role="status"
-          data-testid="wh-scan-verdict"
-          className="mx-4 mt-3 flex items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn"
-        >
-          <CircleAlert size={16} className="mt-px shrink-0" aria-hidden="true" />
-          <span>
-            <b className="block font-mono text-[13px] tabular-nums text-wh-ink-1">
-              {verdict.code}
-            </b>
-            {verdict.outcome === "wrong_status"
-              ? t("scanWrongStatus", {
-                  status: verdict.status ?? "?",
-                  customer: verdict.order?.customer_name ?? "—",
-                })
-              : verdict.outcome === "ambiguous"
-                ? t("scanAmbiguous", { n: verdict.matches ?? 0 })
-                : t("scanNotFound")}
+      <bdi>{name}</bdi>
+      {city ? (
+        <>
+          {" · "}
+          <span className="text-wh-ink-2">
+            <bdi>{city}</bdi>
           </span>
-        </div>
+        </>
       ) : null}
     </>
   );
 }
 
-/* ── The screen ───────────────────────────────────────────────────────── */
+/* ── Chez Darb pour nous ─────────────────────────────────────────────── */
 
-export function ReturnsConsole({ marketId }: { marketId: string | null }) {
+function AtDarbRow({
+  row,
+  confirming,
+  busy,
+  onRedeliver,
+  onReceive,
+}: {
+  row: ReturnRow;
+  confirming: boolean;
+  busy: boolean;
+  onRedeliver: (row: ReturnRow) => void;
+  onReceive: (id: string) => void;
+}) {
   const t = useTranslations("warehouse.returns2");
-
-  const { data: stats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", fetcher, {
-    revalidateOnFocus: true,
-  });
-  const { data: page, error: pageError, mutate } = useSWR<{ orders: WarehouseOrderRow[]; nextCursor: string | null }>(
-    `/api/warehouse/returns?limit=100${marketId ? `&market_id=${marketId}` : ""}`,
-    fetcher,
-    { revalidateOnFocus: true },
+  const age = useAge();
+  const hours = hoursSince(row.returned_at ?? row.created_at);
+  return (
+    <tr data-testid="wh-return-row">
+      <td className={TD}>
+        <ParcelCell
+          product={row.product_name}
+          quantity={row.quantity}
+          image={row.product_image_url}
+          reference={parcelRef(row)}
+        />
+      </td>
+      <td className={TD}>
+        <ClientCell name={row.customer_name} city={row.customer_city} />
+      </td>
+      <td className={TD}>
+        {row.darb_reason ? t(`reasons.${row.darb_reason}`) : <span className="text-wh-ink-3">—</span>}
+      </td>
+      <td className={TD}>
+        {isLate(hours) ? (
+          <AgeChip tone="warn" dense>
+            {age(hours)}
+          </AgeChip>
+        ) : (
+          <span className="text-wh-ink-2">{age(hours)}</span>
+        )}
+      </td>
+      <td className={`${TD} text-wh-ink-2`}>{row.warehouse_name ?? "—"}</td>
+      <td className={`${TD} text-end`}>
+        <div className="flex items-center justify-end gap-[6px]">
+          {/* A parcel back on the road is not undone by a click: the first press asks. */}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onRedeliver(row)}
+            className={`${BTN_SM} border bg-white ${
+              confirming ? "border-brand text-brand" : "border-wh-border-strong text-wh-ink-1"
+            }`}
+          >
+            {confirming ? t("redeliverConfirm") : t("redeliver")}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onReceive(row.id)}
+            className={`${BTN_SM} bg-brand text-white hover:bg-brand-hover`}
+          >
+            {t("receive")}
+          </button>
+        </div>
+      </td>
+    </tr>
   );
+}
 
-  const orders = useMemo(
-    () => [...(page?.orders ?? [])].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at)),
-    [page],
+/* ── En route ────────────────────────────────────────────────────────── */
+
+function OnTheWayRowView({ row }: { row: OnTheWayRow }) {
+  return (
+    <tr data-testid="wh-return-onway">
+      <td className={`${TD} min-w-[260px]`}>
+        <ParcelCell product={row.product_name} image={row.product_image_url} />
+      </td>
+      <td className={TD}>{row.customer_city ? <bdi>{row.customer_city}</bdi> : "—"}</td>
+      <td className={`${TD} text-end text-wh-ink-2`}>{row.warehouse_name ?? "—"}</td>
+    </tr>
   );
+}
 
-  const [picked, setPicked] = useState<WarehouseOrderRow | null>(null);
-  const [decision, setDecision] = useState<Decision | null>(null);
-  const [reason, setReason] = useState<ReturnReason | null>(null);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
+/* ── Traités ─────────────────────────────────────────────────────────── */
+
+function ProcessedRowView({ row }: { row: ProcessedRow }) {
+  const t = useTranslations("warehouse.returns2");
+  const age = useAge();
+  const outcome =
+    row.outcome === "damaged"
+      ? [t("outcomes.damaged"), row.return_reason ? t(`causes.${row.return_reason}`) : null].filter(Boolean).join(" · ")
+      : t(`outcomes.${row.outcome}`);
+  const tone = row.outcome === "restocked" ? "ok" : row.outcome === "damaged" ? "bad" : "mute";
+  return (
+    <tr data-testid="wh-return-processed">
+      <td className={`${TD} min-w-[260px]`}>
+        <ParcelCell
+          product={row.product_name}
+          quantity={row.quantity}
+          image={null}
+          reference={row.tracking_number ?? row.carrier_sticker_ref ?? row.id.slice(0, 8).toUpperCase()}
+        />
+      </td>
+      <td className={TD}>
+        <ClientCell name={row.customer_name} city={row.customer_city} />
+      </td>
+      <td className={TD}>
+        <AgeChip tone={tone} dense>
+          {outcome}
+        </AgeChip>
+      </td>
+      <td className={`${TD} text-wh-ink-2`}>{age(hoursSince(row.processed_at))}</td>
+      <td className={`${TD} text-end text-wh-ink-2`}>{row.warehouse_name ?? "—"}</td>
+    </tr>
+  );
+}
+
+/* ── Recevoir… ───────────────────────────────────────────────────────── */
+
+function ReceiveDialog({
+  row,
+  loaded,
+  onClose,
+  onRecorded,
+}: {
+  row: ReturnRow | null;
+  loaded: boolean;
+  onClose: () => void;
+  onRecorded: (r: VerdictResult) => void;
+}) {
+  const t = useTranslations("warehouse.returns2");
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!row && !loaded) return null;
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-[rgba(26,26,26,.35)] p-[16px]" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wh-receive-title"
+        onClick={(e) => e.stopPropagation()}
+        className="job-returns w-full max-w-[460px] rounded-[16px] bg-wh-bg p-[20px] text-[14px] leading-[1.5] text-wh-ink-1"
+      >
+        <div className="mb-[16px] flex items-center gap-[12px]">
+          <div className="min-w-0 flex-1">
+            {row ? (
+              <p dir="ltr" className="font-mono text-[12.5px] font-semibold text-wh-ink-2 [unicode-bidi:isolate] rtl:text-end">
+                {parcelRef(row)}
+              </p>
+            ) : null}
+            <h2 id="wh-receive-title" className="text-[20px] font-bold tracking-[-0.02em]">
+              {t("title")}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("close")}
+            className="grid h-[36px] w-[36px] shrink-0 place-items-center rounded-full border border-wh-border bg-white text-wh-ink-1"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+        {row ? (
+          <ReturnVerdict key={row.id} row={row} onRecorded={onRecorded} />
+        ) : (
+          <div className="rounded-[16px] border border-line-subtle bg-white p-[16px] text-wh-ink-2">{t("notHere")}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── The screen ──────────────────────────────────────────────────────── */
+
+export function ReturnsConsole({
+  marketId,
+  warehouseId,
+}: {
+  marketId: string | null;
+  /** From `?warehouse_id=`; null = every building. */
+  warehouseId: string | null;
+}) {
+  const t = useTranslations("warehouse.returns2");
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const orderParam = search?.get("order") ?? null;
+
+  const key = `/api/warehouse/returns?limit=100${marketId ? `&market_id=${encodeURIComponent(marketId)}` : ""}${
+    warehouseId ? `&warehouse_id=${encodeURIComponent(warehouseId)}` : ""
+  }`;
+  const { data, error, mutate } = useSWR<ReturnsPayload>(key, jsonFetcher, { revalidateOnFocus: true });
+
+  // Longest at Darb first: that is the one costing money on their shelf.
+  const atDarb = useMemo(
+    () =>
+      [...(data?.orders ?? [])].sort(
+        (a, b) => +new Date(a.returned_at ?? a.created_at) - +new Date(b.returned_at ?? b.created_at),
+      ),
+    [data],
+  );
+  const onTheWay = data?.onTheWay ?? [];
+  const processed = data?.processed ?? [];
+
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
-  const [scan, setScan] = useState("");
-  const [camera, setCamera] = useState(false);
-  const [looking, setLooking] = useState(false);
-  const [scanResult, setScanResult] = useState<ScanLookup | null>(null);
-  const [jumpTo, setJumpTo] = useState<string | null>(null);
-  // One field per viewport is mounted; focusing a hidden one is a browser
-  // no-op, so focusing every registered field lands on the visible one.
-  const scanInputs = useRef(new Set<HTMLInputElement>());
-  const registerScanInput = useCallback((el: HTMLInputElement | null) => {
-    if (el) scanInputs.current.add(el);
-  }, []);
-  const focusScan = useCallback(() => {
-    scanInputs.current.forEach((el) => {
-      if (el.isConnected) el.focus();
-      else scanInputs.current.delete(el);
-    });
-  }, []);
-  const isDesk = useIsDesk();
-  // Nothing is printed as money until the market has said what it pays in.
-  const currency = stats?.currency ?? "";
+  useEffect(() => {
+    if (!flash?.ok) return;
+    const id = setTimeout(() => setFlash(null), 5000);
+    return () => clearTimeout(id);
+  }, [flash]);
 
-  const take = useCallback((o: WarehouseOrderRow) => {
-    setPicked(o);
-    setDecision(null);
-    setReason(null);
-    setNote("");
-    setFlash(null);
-    setScanResult(null);
-  }, []);
-
-  /**
-   * Resolve what was scanned.
-   *
-   * Server-side, and across the whole market: nothing printed on a parcel looks
-   * like an OMS uuid — Tunisia carries a twelve-digit Cosmos tracking number,
-   * Libya carries Darb's sticker — and the parcel an operator cannot find by
-   * eye is precisely the one deep in a queue the browser has not loaded.
-   */
-  const submitScan = useCallback(
-    async (raw: string) => {
-      const code = raw.trim();
-      setScan("");
-      if (!code || looking) return;
-
-      setLooking(true);
-      setFlash(null);
-      try {
-        const res = await fetch(
-          `/api/warehouse/returns/lookup?code=${encodeURIComponent(code)}`,
-        );
-        if (!res.ok) {
-          setScanResult({ outcome: "not_found", code });
-          return;
-        }
-        const body = (await res.json()) as ScanLookup;
-        setScanResult(body);
-        // Only a parcel that IS a return arms the decision panel. Anything else
-        // is explained on screen and left alone.
-        if (body.outcome === "found" && body.order) {
-          take(body.order);
-          setJumpTo(body.order.id);
-        }
-      } catch {
-        setScanResult({ outcome: "not_found", code });
-      } finally {
-        setLooking(false);
-        if (!camera) focusScan();
-      }
+  /* Recevoir… — opened by a row, or by a scan landing on ?order=. */
+  const [receivingId, setReceivingId] = useState<string | null>(orderParam);
+  useEffect(() => {
+    if (orderParam) setReceivingId(orderParam);
+  }, [orderParam]);
+  const closeReceive = useCallback(() => {
+    setReceivingId(null);
+    if (!orderParam) return;
+    const rest = new URLSearchParams(search?.toString() ?? "");
+    rest.delete("order");
+    const qs = rest.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }, [orderParam, search, router, pathname]);
+  const onRecorded = useCallback(
+    (r: VerdictResult) => {
+      setFlash({ ok: true, text: r.kind === "intact" ? t("savedIntact", { n: r.quantity }) : t("savedDamaged") });
+      void mutate();
+      closeReceive();
     },
-    [looking, camera, take, focusScan],
+    [mutate, closeReceive, t],
   );
 
-  // The bench's hands are on a parcel; the field has to be ready without a click.
+  /* Relivrer au client — two presses, then scan_received_in. */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [redelivering, setRedelivering] = useState<string | null>(null);
   useEffect(() => {
-    if (!camera) focusScan();
-  }, [camera, picked, focusScan]);
-
-  // A scan picked a parcel the phone may have scrolled past; bring it back.
-  useEffect(() => {
-    if (!jumpTo) return;
-    document
-      .querySelectorAll<HTMLElement>(`[data-return-id="${jumpTo}"]`)
-      .forEach((el) => {
-        if (typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center" });
-      });
-    setJumpTo(null);
-  }, [jumpTo]);
-
-  const cameraNode = camera ? (
-    <QrScanner
-      active={camera}
-      onScan={(text) => void submitScan(text)}
-      onClose={() => setCamera(false)}
-    />
-  ) : null;
-  const scanFieldProps = {
-    value: scan,
-    onChange: setScan,
-    onSubmit: (v: string) => void submitScan(v),
-    disabled: looking,
-    camera,
-    onToggleCamera: () => setCamera((v) => !v),
-    inputRef: registerScanInput,
-    verdict: scanResult,
-  };
-
-  // Damage is a financial act: it writes off units. It never lands without a
-  // stated cause, and "other" never lands without a note.
-  const canValidate =
-    picked !== null &&
-    decision !== null &&
-    (decision !== "damage" || (reason !== null && (reason !== "other" || note.trim().length > 0)));
-
-  const validate = useCallback(async () => {
-    if (!picked || !decision || busy) return;
-    setBusy(true);
-    try {
-      const res =
-        decision === "redeliver"
-          ? await fetch("/api/warehouse/scan-received", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ order_id: picked.id }),
-            })
-          : await fetch("/api/warehouse/scan-return", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                order_id: picked.id,
-                is_damaged: decision === "damage",
-                return_reason: decision === "damage" ? reason : null,
-                return_reason_note: decision === "damage" && reason === "other" ? note.trim() : null,
-                return_photo_url: null,
-              }),
-            });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setFlash({ ok: false, text: body.error ?? t("failed") });
+    if (!confirming) return;
+    const id = setTimeout(() => setConfirming(null), 4000);
+    return () => clearTimeout(id);
+  }, [confirming]);
+  const redeliver = useCallback(
+    async (row: ReturnRow) => {
+      if (redelivering) return;
+      if (confirming !== row.id) {
+        setConfirming(row.id);
         return;
       }
-      setFlash({ ok: true, text: t("saved") });
-      setPicked(null);
-      setDecision(null);
-      setReason(null);
-      setNote("");
-      void mutate();
-    } finally {
-      setBusy(false);
-    }
-  }, [picked, decision, reason, note, busy, mutate, t]);
+      setConfirming(null);
+      setRedelivering(row.id);
+      setFlash(null);
+      try {
+        const res = await fetch("/api/warehouse/scan-received", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: row.id }),
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          setFlash({ ok: false, text: body.error ?? t("failed") });
+          return;
+        }
+        setFlash({ ok: true, text: t("savedRedelivered") });
+        void mutate();
+      } catch {
+        setFlash({ ok: false, text: t("failed") });
+      } finally {
+        setRedelivering(null);
+      }
+    },
+    [confirming, redelivering, mutate, t],
+  );
 
-  const step = picked ? (decision ? 3 : 2) : 1;
-
-  /*
-   * Below this, a percentage is arithmetic rather than a measurement. Tunisia's
-   * 28-day window holds three terminal orders and zero deliveries, which the
-   * card rendered as "100 %" — a figure nobody could act on and everybody would
-   * read as a crisis. Its all-time rate is 23 %.
-   */
-  const MIN_RATE_SAMPLE = 20;
-  const rateShowable =
-    stats?.rate28d !== null &&
-    stats?.rate28d !== undefined &&
-    (stats?.sample28d ?? 0) >= MIN_RATE_SAMPLE;
-
-  const rateDelta =
-    rateShowable &&
-    stats?.ratePrev28d !== null && stats?.ratePrev28d !== undefined &&
-    (stats?.samplePrev28d ?? 0) >= MIN_RATE_SAMPLE
-      ? stats!.rate28d! - stats.ratePrev28d
-      : null;
+  const receivingRow = receivingId ? (atDarb.find((o) => o.id === receivingId) ?? null) : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1460px] px-4 py-5 md:px-6 md:py-6">
-      <header className="mb-5">
-        <h1 className="text-[24px] font-bold tracking-[-0.02em] text-wh-ink-1">{t("title")}</h1>
-        <p className="mt-[5px] text-[13px] text-wh-ink-2">{t("subtitle")}</p>
-      </header>
-
-      <div className="mb-[18px]">
-        <WhKpiGrid min={250}>
-          <WhKpiCard
-            id="queue"
-            label={t("kpiQueue")}
-            icon={Undo2}
-            tone={stats && stats.queueCount > 0 ? "warn" : "muted"}
-            edge={stats && stats.queueCount > 0 ? "warn" : undefined}
-            valueTone="warn"
-            dim={!stats || stats.queueCount === 0}
-            value={stats ? stats.queueCount : "—"}
-            note={
-              !stats
-                ? undefined
-                : stats.queueCount > 0
-                  ? t("kpiQueueOldest", { age: t("days", { count: stats.oldestDays }) })
-                  : t("kpiQueueEmpty")
-            }
-            foot={stats ? [{ value: money(stats.queueValue, currency), label: t("kpiQueueValue") }] : undefined}
-          />
-
-          <WhKpiCard
-            id="done"
-            label={t("kpiDone")}
-            icon={PackageCheck}
-            tone={stats && stats.doneToday > 0 ? "ok" : "muted"}
-            edge={stats && stats.doneToday > 0 ? "ok" : undefined}
-            valueTone="ok"
-            dim={!stats || stats.doneToday === 0}
-            value={stats ? stats.doneToday : "—"}
-            note={
-              stats
-                ? t("kpiDoneDetail", { restocked: stats.restockedToday, damaged: stats.depreciatedToday })
-                : undefined
-            }
-            foot={stats ? [{ value: money(stats.doneTodayValue, currency), label: t("kpiDoneValue") }] : undefined}
-          />
-
-          <WhKpiCard
-            id="rate"
-            label={t("kpiRate")}
-            icon={TrendingDown}
-            tone="bad"
-            value={rateShowable ? pct(stats!.rate28d!) : "—"}
-            unit={rateShowable ? "%" : undefined}
-            chip={
-              rateDelta !== null && Math.abs(rateDelta) >= 0.05 ? (
-                <WhChip tone={rateDelta > 0 ? "bad" : "ok"}>
-                  {rateDelta > 0 ? "▲" : "▼"}{" "}
-                  {t("kpiRateDelta", { delta: `${rateDelta > 0 ? "+" : "−"}${dec(Math.abs(rateDelta))}` })}
-                </WhChip>
-              ) : undefined
-            }
-            note={
-              !stats
-                ? undefined
-                : rateShowable
-                  ? t("kpiRateNote")
-                  : stats.sample28d > 0
-                    ? t("kpiRateThin", { n: stats.sample28d })
-                    : t("kpiRateNone")
-            }
-          >
-            <Sparkline points={stats?.weekly ?? []} />
-          </WhKpiCard>
-
-          <WhKpiCard
-            id="depreciated"
-            label={t("kpiDepreciated")}
-            icon={Trash2}
-            tone={stats && stats.depreciatedUnits > 0 ? "bad" : "muted"}
-            edge={stats && stats.depreciatedUnits > 0 ? "bad" : undefined}
-            dim={!stats || stats.depreciatedUnits === 0}
-            value={stats ? stats.depreciatedUnits : "—"}
-            unit={stats ? t("unitShort") : undefined}
-            note={!stats || stats.depreciatedUnits > 0 ? undefined : t("kpiDepreciatedNone")}
-            foot={
-              stats
-                ? [{ value: money(stats.depreciatedValue, currency), label: t("kpiDepreciatedValue") }]
-                : undefined
-            }
-          />
-        </WhKpiGrid>
+    <div className="job-returns px-[28px] pb-[40px] pt-[12px] text-[14px] leading-[1.5] text-wh-ink-1">
+      <div className="mb-[20px] flex items-end gap-[16px]">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[24px] font-bold tracking-[-0.02em]">{t("title")}</h1>
+          <p className="mt-[4px] text-[12.5px] text-wh-ink-2">{t("ruleDesk")}</p>
+        </div>
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(380px,1fr)]">
-        {/* ── The queue ─────────────────────────────────────────────── */}
-        <WhCard title={t("queueTitle")} hint={t("queueSort")} className="min-w-0">
-          {/* Phone: the field the screen exists for, in reach before any card
-              is tapped. The desk has it in the panel alongside. */}
-          <div data-testid="wh-scan-phone" className="md:hidden">
-            <ScanField {...scanFieldProps} cameraNode={isDesk ? null : cameraNode} />
-          </div>
-
-          {/* A failed request is not a loading state. The Libyan agent watched
-              these placeholder bars for a whole shift on 2026-09-08 because
-              the failure had no words of its own. */}
-          {pageError ? (
-            <div
-              data-testid="wh-returns-error"
-              role="alert"
-              className="m-4 flex flex-col items-center gap-3 rounded-[10px] border border-wh-bad-edge bg-wh-bad-bg px-4 py-6 text-center"
-            >
-              <p className="text-[13.5px] font-semibold text-wh-ink-1">{t("loadError")}</p>
-              <p className="text-[12.5px] text-wh-ink-2">{t("loadErrorHint")}</p>
-              <button type="button" onClick={() => void mutate()} className={WH_BTN}>
-                {t("retry")}
-              </button>
-            </div>
-          ) : page === undefined ? (
-            <div data-testid="wh-returns-skeleton" className="space-y-2 p-4" aria-hidden="true">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-11 rounded-[8px] bg-wh-sunken" />
-              ))}
-            </div>
-          ) : orders.length === 0 ? (
-            <p data-testid="wh-returns-empty" className="px-4 py-8 text-center text-[13px] text-wh-ink-3">
-              {t("queueEmpty")}
-            </p>
-          ) : (
-            <>
-            {/* Phone: one card per parcel with its decisions on it (mockup
-                04). The desk keeps the row + side panel, which is faster with
-                a mouse and a full-width table. */}
-            <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
-              {orders.map((o) => (
-                <div key={o.id} data-return-id={o.id}>
-                <ReturnCard
-                  row={o}
-                  picked={picked?.id === o.id}
-                  decision={picked?.id === o.id ? decision : null}
-                  busy={busy}
-                  currency={currency}
-                  onPick={take}
-                  onDecide={(d) => {
-                    setDecision(d);
-                    if (d !== "damage") setReason(null);
-                  }}
-                />
-                </div>
-              ))}
-              <ProcessingTime
-                minutes={stats?.avgProcessingMinutes ?? null}
-                sample={stats?.processedSample ?? 0}
-              />
-            </div>
-
-            <div
-              // The inner scroller is a desk affordance. On a phone a scroll
-              // region inside a scrolling page traps the thumb and hides how
-              // long the queue actually is.
-              className="hidden divide-y divide-wh-border md:block md:max-h-[640px] md:overflow-y-auto"
-            >
-              {orders.map((o) => {
-                const age = daysSince(o.created_at);
-                const tone = age >= 10 ? "bad" : age >= 5 ? "warn" : "muted";
-                return (
-                  <div
-                    key={o.id}
-                    data-testid={`wh-return-${o.id}`}
-                    data-return-id={o.id}
-                    // Stacked on a phone, one row at a desk. Squeezed into a
-                    // single row at 390px the name column got ~30px and every
-                    // customer read as "a…", which is not an identification.
-                    className={`px-4 py-3 transition-colors sm:flex sm:items-center sm:gap-3.5 sm:px-[18px] sm:py-[13px] sm:hover:bg-wh-sunken ${
-                      picked?.id === o.id ? "bg-wh-ok-tint" : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5 sm:contents">
-                      {/* Ten days on the shelf is money standing still. */}
-                      <Bell
-                        size={16}
-                        className={`mt-0.5 shrink-0 text-wh-bad sm:mt-0 ${age >= 10 ? "" : "invisible"}`}
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 flex-1 sm:flex-[1.2]">
-                        <b className="block truncate text-[14px] font-semibold text-wh-ink-1 sm:text-[13.5px]">
-                          <bdi>{o.customer_name}</bdi>
-                        </b>
-                        <span className="block truncate font-mono text-[11.5px] tabular-nums text-wh-ink-3">
-                          {parcelRef(o)} · <bdi>{o.customer_city ?? "—"}</bdi>
-                        </span>
-                      </span>
-                      <span
-                        className={`inline-block min-w-[46px] shrink-0 rounded-pill px-2.5 py-1 text-center font-mono text-[11.5px] font-semibold tabular-nums sm:order-4 ${WH_TONE[tone].tint}`}
-                      >
-                        {t("days", { count: age })}
-                      </span>
-                    </div>
-
-                    <span className="mt-2 block min-w-0 truncate text-[12.5px] text-wh-ink-2 sm:order-2 sm:mt-0 sm:flex-[1.1]">
-                      {o.product_name}
-                      {o.variant_label ? ` · ${o.variant_label}` : ""} × {o.quantity}
-                    </span>
-
-                    <div className="mt-2 flex items-center gap-3 sm:contents">
-                      <span className="shrink-0 font-mono text-[14px] font-semibold tabular-nums text-wh-ink-1 sm:order-3 sm:w-[92px] sm:text-end sm:text-[13px]">
-                        {money(o.total_price, currency)}
-                      </span>
-                      <button
-                        type="button"
-                        data-testid={`wh-take-${o.id}`}
-                        onClick={() => take(o)}
-                        className={`${WH_BTN} ms-auto min-h-[44px] shrink-0 sm:order-5 sm:ms-0 sm:min-h-0 sm:px-[11px] sm:py-[5px] sm:text-[12.5px]`}
-                      >
-                        {t("process")}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            </>
-          )}
-        </WhCard>
-
-        {/* ── The decision panel ────────────────────────────────────── */}
-        <WhCard
-          title={t("decision")}
-          hint={picked ? t("decisionPicked", { ref: parcelRef(picked) }) : t("decisionNone")}
-          // On a phone the cards carry the decisions, so this panel only
-          // appears once a parcel is held — it is then the confirm step and
-          // the damage-reason sheet, which the card deliberately does not
-          // duplicate.
-          className={`xl:sticky xl:top-4 ${picked ? "" : "hidden md:block"}`}
+      {flash ? (
+        <p
+          role={flash.ok ? "status" : "alert"}
+          className={`mb-[14px] text-[13px] font-semibold ${flash.ok ? "text-wh-ok" : "text-status-critical"}`}
         >
-          <ScanField {...scanFieldProps} cameraNode={isDesk ? cameraNode : null} />
+          {flash.text}
+        </p>
+      ) : null}
 
-          {/* Where the operator is in the three-step motion. */}
-          <div className="mx-4 mt-4 flex items-center gap-2 text-[12px] text-wh-ink-3">
-            {[t("step1"), t("step2"), t("step3")].map((label, i) => (
-              <div key={label} className="flex flex-1 items-center gap-2 last:flex-none">
-                <span
-                  data-testid={`wh-step-${i + 1}`}
-                  data-on={step > i ? "true" : "false"}
-                  className={`flex flex-col items-center gap-1.5 ${
-                    step > i ? "font-semibold text-wh-ok" : ""
-                  }`}
-                >
-                  <span
-                    className={`grid h-6 w-6 place-items-center rounded-pill border-[1.5px] font-mono text-[11px] font-semibold ${
-                      step > i ? "border-wh-ok bg-wh-ok-bg text-wh-ok" : "border-wh-border-strong"
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  {label}
-                </span>
-                {i < 2 ? <span className="-mt-4 flex-1 border-t-[1.5px] border-dashed border-wh-border-strong" /> : null}
-              </div>
-            ))}
-          </div>
-
-          {picked ? (
-            <div className="mx-4 mt-4 rounded-[11px] border border-wh-border bg-wh-sunken px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="min-w-0 flex-1">
-                  <b className="block truncate text-[13.5px] font-semibold text-wh-ink-1">
-                    <bdi>{picked.customer_name}</bdi>
-                  </b>
-                  <span className="block truncate text-[11.5px] text-wh-ink-3">
-                    <span className="font-mono tabular-nums">{parcelRef(picked)}</span>
-                    {" · "}
-                    <bdi>{picked.customer_city ?? "—"}</bdi> · {picked.product_name}
-                  </span>
-                </span>
-                <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-wh-ink-1">
-                  {money(picked.total_price, currency)}
-                </span>
-              </div>
+      {error ? (
+        <div
+          role="alert"
+          className="flex flex-col items-center gap-[10px] rounded-[16px] border border-wh-bad-edge bg-wh-bad-bg px-[16px] py-[24px] text-center"
+        >
+          <p className="text-[14px] font-semibold">{t("loadError")}</p>
+          <p className="text-[12.5px] text-wh-ink-2">{t("loadErrorHint")}</p>
+          <button
+            type="button"
+            onClick={() => void mutate()}
+            className={`${BTN_SM} border border-wh-border-strong bg-white text-wh-ink-1`}
+          >
+            {t("retry")}
+          </button>
+        </div>
+      ) : data === undefined ? (
+        <div data-testid="wh-returns-skeleton" aria-hidden="true" className="h-[160px] rounded-[16px] bg-wm-track" />
+      ) : (
+        <>
+          <Label>
+            {t("atDarb")} · <Num>{atDarb.length}</Num>
+          </Label>
+          {atDarb.length === 0 ? (
+            <div className={`${CARD} mb-[20px] p-[18px] text-[12.5px] text-wh-ink-2`}>{t("emptyAtDarb")}</div>
+          ) : (
+            <div className={`${CARD} mb-[20px]`}>
+              <table data-testid="wh-returns-atdarb" className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className={`${TH} min-w-[260px]`}>{t("parcel")}</th>
+                    <th className={TH}>{t("client")}</th>
+                    <th className={TH}>{t("darbReason")}</th>
+                    <th className={TH}>{t("since")}</th>
+                    <th className={TH}>{t("site")}</th>
+                    <th className={`${TH} text-end`} />
+                  </tr>
+                </thead>
+                <tbody className={TBODY}>
+                  {atDarb.map((o) => (
+                    <AtDarbRow
+                      key={o.id}
+                      row={o}
+                      confirming={confirming === o.id}
+                      busy={redelivering === o.id}
+                      onRedeliver={(r) => void redeliver(r)}
+                      onReceive={setReceivingId}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : null}
+          )}
 
-          <div className={`mx-4 mb-1.5 mt-4 ${WH_LABEL}`}>
-            {picked ? t("chooseLabel") : t("previewLabel")}
-          </div>
-
-          <div className="mx-4 grid grid-cols-3 gap-2.5">
-            {(
-              [
-                { key: "restock", icon: RotateCcw, tone: "ok", label: t("restock"), hint: t("restockHint") },
-                { key: "damage", icon: Trash2, tone: "bad", label: t("damage"), hint: t("damageHint") },
-                { key: "redeliver", icon: Send, tone: "move", label: t("redeliver"), hint: t("redeliverHint") },
-              ] as const
-            ).map((d) => {
-              const Icon = d.icon;
-              const on = decision === d.key;
-              return (
-                <button
-                  key={d.key}
-                  type="button"
-                  data-testid={`wh-tile-${d.key}`}
-                  disabled={!picked}
-                  onClick={() => {
-                    setDecision(d.key);
-                    if (d.key !== "damage") setReason(null);
-                  }}
-                  className={`rounded-[11px] border-[1.5px] px-3 py-4 text-center transition-[opacity,transform,box-shadow] ${
-                    picked ? "cursor-pointer opacity-100 hover:-translate-y-0.5 hover:shadow-md" : "opacity-55"
-                  } ${
-                    d.tone === "ok"
-                      ? "border-wh-ok-edge text-wh-ok"
-                      : d.tone === "bad"
-                        ? "border-wh-bad-edge text-wh-bad"
-                        : "border-wh-move-edge text-wh-move"
-                  } ${on ? WH_TONE[d.tone].tint : "bg-wh-surface"}`}
-                >
-                  <Icon size={18} className="mx-auto" aria-hidden="true" />
-                  <b className="mt-2 block text-[12.5px]">{d.label}</b>
-                  <span className="mt-1 block text-[11px] leading-[1.35] text-wh-ink-2">{d.hint}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {decision === "damage" ? (
-            <div data-testid="wh-damage-reasons" className="mx-4 mt-3.5">
-              <div className={WH_LABEL}>{t("damageReason")}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {RETURN_REASONS.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    data-testid={`wh-reason-${r}`}
-                    onClick={() => setReason(r)}
-                    className={`rounded-pill border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                      reason === r
-                        ? "border-wh-bad-edge bg-wh-bad-bg text-wh-bad"
-                        : "border-wh-border bg-wh-surface text-wh-ink-2 hover:border-wh-border-strong"
-                    }`}
-                  >
-                    {t(REASON_KEY[r])}
-                  </button>
-                ))}
+          {onTheWay.length > 0 ? (
+            <>
+              <Label>
+                {t("onWayDesk")} · <Num>{onTheWay.length}</Num>
+              </Label>
+              <div className={`${CARD} mb-[20px] opacity-[.65]`}>
+                <table className="w-full border-collapse">
+                  <tbody className={TBODY}>
+                    {onTheWay.map((o) => (
+                      <OnTheWayRowView key={o.id} row={o} />
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              {reason === "other" ? (
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={t("reasonNote")}
-                  aria-label={t("reasonNote")}
-                  className="mt-2.5 w-full rounded-[8px] border border-wh-border bg-wh-surface px-3 py-2 text-[13px] outline-none focus:border-wh-ok"
-                />
-              ) : null}
-              {reason === null ? (
-                <p className="mt-2 text-[11.5px] text-wh-ink-3">{t("damageReasonRequired")}</p>
-              ) : null}
+            </>
+          ) : null}
+
+          <Label>{t("processed")}</Label>
+          {processed.length === 0 ? (
+            <div className={`${CARD} flex items-center gap-[12px] p-[18px] text-[12.5px] text-wh-ink-2`}>
+              <Inbox size={18} aria-hidden="true" className="shrink-0" />
+              {t("none7")}
             </div>
-          ) : null}
-
-          <div className="mx-4 mb-4 mt-4">
-            <button
-              type="button"
-              data-testid="wh-validate"
-              disabled={!canValidate || busy}
-              onClick={validate}
-              className={`${WH_BTN_PRIMARY} w-full justify-center disabled:cursor-not-allowed disabled:opacity-50`}
-            >
-              {t("validate")}
-            </button>
-          </div>
-
-          {flash ? (
-            <p
-              data-testid="wh-flash"
-              className={`mx-4 mb-4 rounded-[10px] px-3.5 py-2.5 text-[12.5px] font-semibold ${
-                flash.ok ? "bg-wh-ok-bg text-wh-ok" : "bg-wh-bad-bg text-wh-bad"
-              }`}
-            >
-              {flash.text}
-            </p>
-          ) : null}
-
-          {!picked ? (
-            <div
-              data-testid="wh-lock-note"
-              className="mx-4 mb-4 flex items-center gap-2 text-[12px] text-wh-ink-3"
-            >
-              <Lock size={13} aria-hidden="true" />
-              {t("lockNote")}
+          ) : (
+            <div className={CARD}>
+              <table className="w-full border-collapse">
+                <tbody className={TBODY}>
+                  {processed.map((o) => (
+                    <ProcessedRowView key={o.id} row={o} />
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : null}
-        </WhCard>
-      </div>
+          )}
+        </>
+      )}
+
+      {receivingId ? (
+        <ReceiveDialog row={receivingRow} loaded={data !== undefined} onClose={closeReceive} onRecorded={onRecorded} />
+      ) : null}
     </div>
   );
 }

@@ -1,12 +1,23 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, within, fireEvent, waitFor } from "@testing-library/react";
 import { ReturnsConsole } from "../ReturnsConsole";
-import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import type { ReturnsPayload } from "@/app/api/warehouse/returns/returns-data";
+import { atDarb, onTheWay, processed } from "../../returns/__tests__/fixtures";
 
+/**
+ * « Rentrer » on the desk — prototype C.returns.
+ *
+ * Three stacked sections for the building the top bar chose: what Darb holds
+ * for us (a table, each row with « Relivrer au client » and « Recevoir… »),
+ * what is still on the road (greyed, inert) and what was decided in the last
+ * seven days. No KPI tiles, no decision panel, no scan field — the top bar owns
+ * scanning on the desk.
+ */
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>
@@ -14,428 +25,268 @@ vi.mock("next-intl", async () => {
   };
 });
 
-const stats = {
-  queueCount: 6, queueValue: 944, oldestDays: 14,
-  doneToday: 1, doneTodayValue: 129, restockedToday: 1, depreciatedToday: 0,
-  depreciatedUnits: 0, depreciatedValue: 0,
-  rate28d: 21, ratePrev28d: 16.8,
-  // Both windows hold enough terminal orders for the rate to mean something.
-  sample28d: 116, samplePrev28d: 120,
-  weekly: [
-    { week: 4, rate: 12 }, { week: 3, rate: 15 },
-    { week: 2, rate: 14 }, { week: 1, rate: 21 },
-  ],
-  currency: "LYD",
-};
+let params = new URLSearchParams();
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace }),
+  usePathname: () => "/fr/warehouse/returns",
+  useSearchParams: () => params,
+}));
 
-// What each SWR key resolves to. `undefined` is the in-flight state — the
-// screen must not pretend it is an answer.
-let statsData: typeof stats | undefined;
-let pageData: { orders: WarehouseOrderRow[]; nextCursor: string | null } | undefined;
-// A rejected fetch. SWR keeps `data` undefined and sets `error`; the screen
-// must tell those two states apart.
+let pageData: ReturnsPayload | undefined;
 let pageError: Error | undefined;
-const mutateMock = vi.fn();
-
+const mutate = vi.fn();
+const swrKeys: string[] = [];
 vi.mock("swr", () => ({
-  default: (key: string) => ({
-    data: key.includes("stats") ? statsData : pageData,
-    error: key.includes("stats") ? undefined : pageError,
-    isLoading: false,
-    mutate: mutateMock,
-  }),
+  default: (key: string) => {
+    swrKeys.push(key);
+    return { data: pageData, error: pageError, isLoading: false, mutate };
+  },
 }));
 
-// The camera is a hardware surface; one live preview is the only correct count.
-vi.mock("@/components/warehouse/QrScanner", () => ({
-  QrScanner: () => <div data-testid="qr-scanner" />,
-}));
-
-const row = (id: string, name: string, days: number, price: number): WarehouseOrderRow => ({
-  id,
-  customer_name: name,
-  customer_phone: "216...",
-  customer_city: "طرابلس",
-  customer_area: null,
-  customer_address: null,
-  // Routing facts the returns queue does not use, but the row type carries.
-  uploaded_at: null,
-  branch_group: null,
-  tracking_number: null,
-  carrier_sticker_ref: null,
-  carrier_status_slug: null,
-  has_carrier_ref: null,
-  product_id: "p1",
-  product_name: "Sac de frappe",
-  variant_label: "petit",
-  quantity: 1,
-  total_price: price,
-  status: "to_be_returned",
-  created_at: new Date(Date.now() - days * 86_400_000).toISOString(),
-  current_stock: null,
-  low_stock_threshold: null,
+const souad = atDarb("o-souad", { hoursAtDarb: 96, customer_name: "Souad Mabrouk", customer_city: "Tobrouk" });
+const mounir = atDarb("o-mounir", {
+  hoursAtDarb: 25,
+  customer_name: "Mounir",
+  customer_city: "Zawiya",
+  product_name: "Sac de frappe · petit",
+  darb_reason: "no_answer",
 });
 
-let rows: WarehouseOrderRow[] = [];
-
-beforeEach(() => {
-  rows = [row("aaaa1111-0000-0000-0000-000000000001", "عبد السلام", 14, 179)];
-  statsData = stats;
-  pageData = { orders: rows, nextCursor: null };
-  pageError = undefined;
-  mutateMock.mockClear();
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) }));
-});
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-
-function setup() {
-  return render(<ReturnsConsole marketId="m-ly" />);
+function payload(over: Partial<ReturnsPayload> = {}): ReturnsPayload {
+  return {
+    orders: [mounir, souad],
+    nextCursor: null,
+    onTheWay: [onTheWay("w-1"), onTheWay("w-2", { customer_city: "Misrata" }), onTheWay("w-3", { customer_city: "Benghazi" })],
+    processed: [],
+    ...over,
+  };
 }
 
-describe("Retours — the KPI row", () => {
-  it("shows the four cards the prototype names", () => {
-    setup();
-    for (const id of ["queue", "done", "rate", "depreciated"]) {
-      expect(screen.getByTestId(`wh-kpi-${id}`)).toBeInTheDocument();
-    }
+function show(p: ReturnsPayload | null = payload(), warehouseId: string | null = null) {
+  pageData = p ?? undefined;
+  return render(<ReturnsConsole marketId="m-ly" warehouseId={warehouseId} />);
+}
+
+/** A label whose count sits in its own isolated span. */
+function label(text: string) {
+  return screen.getByText(
+    (_, el) => el?.textContent === text && Array.from(el.children).every((c) => c.textContent !== text),
+  );
+}
+
+function fetchMock() {
+  return fetch as unknown as ReturnType<typeof vi.fn>;
+}
+
+beforeEach(() => {
+  params = new URLSearchParams();
+  pageError = undefined;
+  replace.mockClear();
+  mutate.mockClear();
+  swrKeys.length = 0;
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true }) }));
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe("ReturnsConsole — the page", () => {
+  it("opens with the title and Darb's rule, and nothing the prototype does not draw", () => {
+    show();
+    expect(screen.getByRole("heading", { level: 1, name: "Rentrer" })).toBeInTheDocument();
+    expect(screen.getByText("Un colis n'est reçu qu'une fois enregistré en retour par Darb.")).toBeInTheDocument();
+    // No KPI tiles, no scan field, no decision panel.
+    expect(screen.queryByTestId(/wh-kpi-/)).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByText("Décision")).toBeNull();
   });
 
-  it("carries the queue value and the age of the oldest parcel", () => {
-    setup();
-    const card = screen.getByTestId("wh-kpi-queue");
-    expect(within(card).getByText("6")).toBeInTheDocument();
-    expect(within(card).getByText(/14 j/)).toBeInTheDocument();
-    expect(within(card).getByText(/944/)).toBeInTheDocument();
+  it("reads the building the top bar chose", () => {
+    show(payload(), "w-ben");
+    expect(swrKeys.at(-1)).toContain("warehouse_id=w-ben");
+    cleanup();
+    swrKeys.length = 0;
+    show(payload(), null);
+    expect(swrKeys.at(-1)).not.toContain("warehouse_id");
   });
 
-  it("shows the rate against the previous window, in points not percent", () => {
-    setup();
-    const card = screen.getByTestId("wh-kpi-rate");
-    expect(within(card).getByText("21")).toBeInTheDocument();
-    // 21 − 16,8 = +4,2 points. A rise in returns is bad news.
-    expect(within(card).getByText(/\+4,2 pts/)).toBeInTheDocument();
+  it("shows a placeholder while the list is in flight, not an empty verdict", () => {
+    show(null);
+    expect(screen.getByTestId("wh-returns-skeleton")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText(/Chez Darb pour nous/)).toBeNull();
   });
 
-  it("dims the loss card when nothing was written off", () => {
-    setup();
-    expect(screen.getByTestId("wh-kpi-depreciated").dataset.dim).toBe("true");
-  });
-
-  it("draws a sparkline from the four weekly points", () => {
-    setup();
-    const spark = within(screen.getByTestId("wh-kpi-rate")).getByTestId("wh-spark");
-    expect(spark.querySelectorAll("circle")).toHaveLength(4);
-  });
-
-  it("labels the weeks and the unit through the catalogue, not in French", () => {
-    setup();
-    const spark = within(screen.getByTestId("wh-kpi-rate")).getByTestId("wh-spark");
-    expect(spark).toHaveTextContent("S-4");
-    expect(within(screen.getByTestId("wh-kpi-depreciated")).getByText("u")).toBeInTheDocument();
+  it("a failed load names itself and offers a retry", () => {
+    pageError = new Error("500");
+    show(null);
+    expect(screen.queryByTestId("wh-returns-skeleton")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de charger les retours.");
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    expect(mutate).toHaveBeenCalled();
   });
 });
 
-/**
- * Before the two fetches answer, the screen used to print "0 in queue", "queue
- * empty — every return has its decision" and "0,00 TND" — for a Libyan market
- * that pays in LYD. A screen that has not been told yet must say so.
- */
-describe("Retours — while the data is still in flight", () => {
-  beforeEach(() => {
-    statsData = undefined;
-    pageData = undefined;
+describe("ReturnsConsole — Chez Darb pour nous", () => {
+  it("counts the receivable parcels and heads the table with the prototype's columns", () => {
+    show();
+    expect(label("Chez Darb pour nous · 2")).toBeInTheDocument();
+    const table = screen.getByTestId("wh-returns-atdarb");
+    const heads = within(table).getAllByRole("columnheader").map((h) => h.textContent);
+    expect(heads).toEqual(["Colis", "Client", "Motif Darb", "Chez Darb depuis", "Bâtiment", ""]);
   });
 
-  it("shows a placeholder, no figure and no currency, on the KPI cards", () => {
-    setup();
-    for (const id of ["queue", "done", "depreciated"]) {
-      const card = screen.getByTestId(`wh-kpi-${id}`);
-      expect(within(card).getByTestId("wh-value")).toHaveTextContent("—");
-      expect(card).not.toHaveTextContent("0");
-      expect(card).not.toHaveTextContent(/TND|LYD/);
-    }
-    expect(screen.queryByText(/File vide/)).not.toBeInTheDocument();
+  it("lists the longest-held first, each row carrying product, tracking, client, reason, age and building", () => {
+    show();
+    const rows = screen.getAllByTestId("wh-return-row");
+    expect(rows).toHaveLength(2);
+    const first = rows[0];
+    expect(first).toHaveTextContent("مصحف القرآن تدبر وعمل");
+    expect(first).toHaveTextContent("×1");
+    expect(first).toHaveTextContent("SHo-souad");
+    expect(first).toHaveTextContent("Souad Mabrouk · Tobrouk");
+    expect(first).toHaveTextContent("Refusé par le client");
+    expect(first).toHaveTextContent("بنغازي");
+    expect(rows[1]).toHaveTextContent("Client injoignable");
   });
 
-  it("renders skeleton rows, not the empty-queue verdict", () => {
-    setup();
-    expect(screen.queryByTestId("wh-returns-empty")).not.toBeInTheDocument();
-    const skeleton = screen.getByTestId("wh-returns-skeleton");
-    expect(skeleton).toHaveAttribute("aria-hidden", "true");
-    expect(skeleton.querySelectorAll(".bg-wh-sunken")).toHaveLength(3);
+  it("flags more than two days at Darb with an amber chip, and leaves a day plain", () => {
+    show();
+    const [late, fresh] = screen.getAllByTestId("wh-return-row");
+    expect(within(late).getByText("4 j").closest("[data-tone]")).toHaveAttribute("data-tone", "warn");
+    expect(within(fresh).getByText("1 j").closest("[data-tone]")).toBeNull();
   });
 
-  it("only calls the queue empty once the fetch said so", () => {
-    pageData = { orders: [], nextCursor: null };
-    setup();
-    expect(screen.queryByTestId("wh-returns-skeleton")).not.toBeInTheDocument();
-    expect(screen.getByTestId("wh-returns-empty")).toBeInTheDocument();
-  });
-});
-
-/**
- * The agent in Tripoli works this screen on a phone. The scan field lived only
- * in the decision panel, which the phone hides until a card is tapped — so the
- * one gesture the screen exists for, "parcel in hand → scan it", was
- * unreachable there.
- */
-describe("Retours — the scan field on a phone", () => {
-  it("mounts a scan field above the queue that the phone always shows", () => {
-    setup();
-    const phone = screen.getByTestId("wh-scan-phone");
-    expect(phone.className).toMatch(/\bmd:hidden\b/);
-    expect(within(phone).getByLabelText(/Scannez/i)).toBeInTheDocument();
-    // The queue follows the field, never precedes it.
-    expect(
-      phone.compareDocumentPosition(screen.getByTestId("wh-return-aaaa1111-0000-0000-0000-000000000001")),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-
-  it("mounts exactly one field per viewport", () => {
-    setup();
-    expect(screen.getAllByLabelText(/Scannez/i)).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: /caméra/i })).toHaveLength(2);
-  });
-
-  it("opens the camera once, never in both places", () => {
-    setup();
-    fireEvent.click(screen.getAllByRole("button", { name: /caméra/i })[0]);
-    expect(screen.getAllByTestId("qr-scanner")).toHaveLength(1);
-  });
-
-  it("shows the scan verdict where the phone can see it", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ outcome: "not_found", code: "999999999999" }),
-    }));
-    setup();
-    const input = within(screen.getByTestId("wh-scan-phone")).getByLabelText(/Scannez/i);
-    fireEvent.change(input, { target: { value: "999999999999" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() =>
-      expect(within(screen.getByTestId("wh-scan-phone")).getByTestId("wh-scan-verdict")).toBeInTheDocument(),
-    );
-  });
-
-  it("scrolls the parcel a scan resolved into view", async () => {
-    const scrolled = vi.fn();
-    Element.prototype.scrollIntoView = scrolled;
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ outcome: "found", code: "000000227104", order: rows[0] }),
-    }));
-    setup();
-    const input = within(screen.getByTestId("wh-scan-phone")).getByLabelText(/Scannez/i);
-    fireEvent.change(input, { target: { value: "000000227104" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await waitFor(() => expect(scrolled).toHaveBeenCalledWith({ block: "center" }));
+  it("says plainly when Darb holds nothing for us", () => {
+    show(payload({ orders: [] }));
+    expect(label("Chez Darb pour nous · 0")).toBeInTheDocument();
+    expect(screen.getByText("Rien chez Darb pour nous.")).toBeInTheDocument();
   });
 });
 
-describe("Retours — the decision flow", () => {
-  it("locks the decision tiles until a parcel is in hand", () => {
-    setup();
-    expect(screen.getByTestId("wh-lock-note")).toBeInTheDocument();
-    for (const d of ["restock", "damage", "redeliver"]) {
-      expect(screen.getByTestId(`wh-tile-${d}`)).toBeDisabled();
-    }
+describe("ReturnsConsole — Recevoir… (the verdict)", () => {
+  it("opens the parcel's verdict with two equal choices", () => {
+    show();
+    fireEvent.click(within(screen.getAllByTestId("wh-return-row")[0]).getByRole("button", { name: "Recevoir…" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("SHo-souad");
+    expect(within(dialog).getByRole("button", { name: /Intact/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /Abîmé/ })).toBeInTheDocument();
   });
 
-  it("arms the tiles and advances the stepper once a parcel is taken", () => {
-    setup();
-    fireEvent.click(screen.getByTestId("wh-take-aaaa1111-0000-0000-0000-000000000001"));
-    expect(screen.getByTestId("wh-tile-restock")).not.toBeDisabled();
-    expect(screen.getByTestId("wh-step-2").dataset.on).toBe("true");
-    expect(screen.getByTestId("wh-step-3").dataset.on).toBe("false");
-  });
-
-  it("keeps validation disabled until a decision is actually chosen", () => {
-    setup();
-    fireEvent.click(screen.getByTestId("wh-take-aaaa1111-0000-0000-0000-000000000001"));
-    expect(screen.getByTestId("wh-validate")).toBeDisabled();
-    fireEvent.click(screen.getByTestId("wh-tile-restock"));
-    expect(screen.getByTestId("wh-validate")).not.toBeDisabled();
-  });
-
-  it("restocks through scan_return_in", async () => {
-    setup();
-    fireEvent.click(screen.getByTestId("wh-take-aaaa1111-0000-0000-0000-000000000001"));
-    fireEvent.click(screen.getByTestId("wh-tile-restock"));
-    fireEvent.click(screen.getByTestId("wh-validate"));
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+  it("restocks through scan_return_in, then refreshes, closes and says so", async () => {
+    show();
+    fireEvent.click(within(screen.getAllByTestId("wh-return-row")[0]).getByRole("button", { name: "Recevoir…" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Intact/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const [url, init] = fetchMock().mock.calls[0];
     expect(url).toBe("/api/warehouse/scan-return");
-    expect(JSON.parse(init.body).is_damaged).toBe(false);
-  });
-
-  it("sends a re-delivery to scan_received_in, never to the restock path", async () => {
-    setup();
-    fireEvent.click(screen.getByTestId("wh-take-aaaa1111-0000-0000-0000-000000000001"));
-    fireEvent.click(screen.getByTestId("wh-tile-redeliver"));
-    fireEvent.click(screen.getByTestId("wh-validate"));
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    // The units never rejoin the shelf: crediting stock here would be a
-    // phantom unit we are about to ship again.
-    expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0])
-      .toBe("/api/warehouse/scan-received");
+    expect(JSON.parse(init.body)).toMatchObject({ order_id: "o-souad", is_damaged: false });
+    expect(mutate).toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Reçu · en stock +1");
   });
 
   it("will not write off a parcel without a cause", async () => {
-    setup();
-    fireEvent.click(screen.getByTestId("wh-take-aaaa1111-0000-0000-0000-000000000001"));
-    fireEvent.click(screen.getByTestId("wh-tile-damage"));
-    // The damage causes appear, and validation waits for one.
-    expect(screen.getByTestId("wh-damage-reasons")).toBeInTheDocument();
-    expect(screen.getByTestId("wh-validate")).toBeDisabled();
-    fireEvent.click(screen.getByTestId("wh-reason-carrier_damage"));
-    expect(screen.getByTestId("wh-validate")).not.toBeDisabled();
+    show();
+    fireEvent.click(within(screen.getAllByTestId("wh-return-row")[0]).getByRole("button", { name: "Recevoir…" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Abîmé/ }));
+    const record = within(dialog).getByRole("button", { name: "Enregistrer comme abîmé" });
+    expect(record).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dommage transporteur" }));
+    expect(record).not.toBeDisabled();
+    fireEvent.click(record);
+    await waitFor(() => expect(fetchMock()).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock().mock.calls[0][1].body)).toMatchObject({
+      is_damaged: true,
+      return_reason: "carrier_damage",
+    });
+  });
+
+  it("closes without recording anything", () => {
+    show();
+    fireEvent.click(within(screen.getAllByTestId("wh-return-row")[0]).getByRole("button", { name: "Recevoir…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fermer" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(fetchMock()).not.toHaveBeenCalled();
+  });
+
+  it("?order= opens that parcel's verdict, so a scan can land on it", () => {
+    params = new URLSearchParams("order=o-mounir&warehouse_id=w-ben");
+    show();
+    expect(screen.getByRole("dialog")).toHaveTextContent("SHo-mounir");
+    fireEvent.click(screen.getByRole("button", { name: "Fermer" }));
+    // Closing drops the order and keeps the building.
+    expect(replace).toHaveBeenCalledWith("/fr/warehouse/returns?warehouse_id=w-ben");
   });
 });
 
-describe("Retours — house rules", () => {
-  it("styles through tokens, never raw hex", () => {
-    const { container } = setup();
-    const classes = Array.from(container.querySelectorAll<HTMLElement>("*"))
-      .map((el) => el.className)
-      .filter((c): c is string => typeof c === "string")
-      .join(" ");
-    expect(classes).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+describe("ReturnsConsole — Relivrer au client", () => {
+  it("asks once more, then sends the parcel to scan_received_in — never to the restock path", async () => {
+    show();
+    const row = screen.getAllByTestId("wh-return-row")[0];
+    fireEvent.click(within(row).getByRole("button", { name: "Relivrer au client" }));
+    // A parcel back on the road is not undone by a click: the first press asks.
+    expect(fetchMock()).not.toHaveBeenCalled();
+    fireEvent.click(within(row).getByRole("button", { name: "Confirmer la relivraison" }));
+    await waitFor(() => expect(fetchMock()).toHaveBeenCalled());
+    const [url, init] = fetchMock().mock.calls[0];
+    expect(url).toBe("/api/warehouse/scan-received");
+    expect(JSON.parse(init.body)).toEqual({ order_id: "o-souad" });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Relivraison enregistrée"));
+    expect(mutate).toHaveBeenCalled();
+  });
+
+  it("says why when the server refuses", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({ error: "not to_be_returned" }) }));
+    show();
+    const row = screen.getAllByTestId("wh-return-row")[0];
+    fireEvent.click(within(row).getByRole("button", { name: "Relivrer au client" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Confirmer la relivraison" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("not to_be_returned"));
+    expect(mutate).not.toHaveBeenCalled();
   });
 });
 
-/**
- * The scanner.
- *
- * It used to match the scanned code against `orders.id`, the OMS uuid, and only
- * against the page the browser held. Nothing printed on a returned parcel looks
- * like a uuid — Tunisia's fifty returns carry a twelve-digit Cosmos tracking
- * number and none carries a sticker — so scanning a real parcel could not work.
- */
-describe("Retours — the return rate withholds itself when the sample is thin", () => {
-  it("shows a dash and the sample instead of a percentage nobody can act on", async () => {
-    // Tunisia's real 28-day window: three terminal orders, zero deliveries.
-    // The arithmetic says 100 %. Presenting that as a rate reads as a crisis.
-    const thin = { ...stats, rate28d: 100, ratePrev28d: null, sample28d: 3, samplePrev28d: 0 };
-    vi.doMock("swr", () => ({
-      default: (key: string) => ({
-        data: key.includes("stats") ? thin : { orders: rows, nextCursor: null },
-        error: undefined,
-        isLoading: false,
-        mutate: vi.fn(),
+describe("ReturnsConsole — En route", () => {
+  it("greys what is still on the road, and none of it can be acted on", () => {
+    show();
+    expect(label("En route — pas encore recevables · 3")).toBeInTheDocument();
+    const rows = screen.getAllByTestId("wh-return-onway");
+    expect(rows).toHaveLength(3);
+    rows.forEach((r) => expect(within(r).queryByRole("button")).toBeNull());
+    expect(rows[1]).toHaveTextContent("Misrata");
+  });
+
+  it("hides the road section when nothing is on the way", () => {
+    show(payload({ onTheWay: [] }));
+    expect(screen.queryByText(/En route/)).toBeNull();
+  });
+});
+
+describe("ReturnsConsole — Traités, 7 derniers jours", () => {
+  it("says so when nothing was decided this week", () => {
+    show();
+    expect(screen.getByText("Traités — 7 derniers jours")).toBeInTheDocument();
+    expect(screen.getByText("Aucun retour traité cette semaine.")).toBeInTheDocument();
+  });
+
+  it("lists each decision with its outcome", () => {
+    show(
+      payload({
+        processed: [
+          processed("p-1"),
+          processed("p-2", { outcome: "damaged", return_reason: "packaging" }),
+          processed("p-3", { outcome: "redelivered" }),
+        ],
       }),
-    }));
-    vi.resetModules();
-    const { ReturnsConsole: Fresh } = await import("../ReturnsConsole");
-    render(<Fresh marketId="00000000-0000-0000-0000-000000000001" />);
-
-    const card = screen.getByTestId("wh-kpi-rate");
-    expect(card).toHaveTextContent("—");
-    expect(card).not.toHaveTextContent("100");
-    expect(card).toHaveTextContent(/3 commandes terminées/);
-    vi.doUnmock("swr");
-  });
-});
-
-describe("ReturnsConsole — the scanner", () => {
-  function scan(code: string) {
-    const [input] = screen.getAllByLabelText(/Scannez/i);
-    fireEvent.change(input, { target: { value: code } });
-    fireEvent.keyDown(input, { key: "Enter" });
-  }
-
-  // One verdict per viewport, like the field it sits under; both say the same.
-  async function verdict() {
-    return (await screen.findAllByTestId("wh-scan-verdict"))[0];
-  }
-
-  function lookupReturns(body: unknown) {
-    const mock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body });
-    vi.stubGlobal("fetch", mock);
-    return mock;
-  }
-
-  it("resolves a carrier tracking number, not just an OMS id", async () => {
-    const mock = lookupReturns({
-      outcome: "found",
-      code: "000000227104",
-      order: rows[0],
-    });
-    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
-
-    scan("000000227104");
-
-    await waitFor(() =>
-      expect(mock).toHaveBeenCalledWith(
-        "/api/warehouse/returns/lookup?code=000000227104",
-      ),
     );
-    // The decision panel arms on the parcel the scan found. Asserted on the
-    // step indicator: the customer's name also appears in the queue row behind.
-    await waitFor(() =>
-      expect(screen.getByTestId("wh-step-2")).toHaveAttribute("data-on", "true"),
-    );
-  });
-
-  it("says what a parcel is when it is not a return, rather than 'introuvable'", async () => {
-    // The operator is holding it. "Not found" would be false and unactionable.
-    lookupReturns({
-      outcome: "wrong_status",
-      code: "000000227999",
-      status: "delivered",
-      order: { ...rows[0], customer_name: "Ali" },
-    });
-    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
-
-    scan("000000227999");
-
-    const v = await verdict();
-    expect(v).toHaveTextContent(/delivered/);
-    expect(v).toHaveTextContent(/Ali/);
-  });
-
-  it("refuses to guess when a short code matches several orders", async () => {
-    lookupReturns({ outcome: "ambiguous", code: "af69d0", matches: 3 });
-    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
-
-    scan("af69d0");
-
-    const v = await verdict();
-    expect(v).toHaveTextContent(/3/);
-    expect(v).toHaveTextContent(/complet/i);
-  });
-
-  it("reports a code no order carries", async () => {
-    lookupReturns({ outcome: "not_found", code: "999999999999" });
-    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
-
-    scan("999999999999");
-
-    expect(await verdict()).toHaveTextContent(/Aucune commande/i);
-  });
-
-  it("does not arm the decision panel on a failed scan", async () => {
-    lookupReturns({ outcome: "not_found", code: "999999999999" });
-    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
-
-    scan("999999999999");
-    await verdict();
-
-    // Step 2 is "Décision"; it must stay unreached.
-    expect(screen.getByTestId("wh-step-2")).toHaveAttribute("data-on", "false");
-  });
-});
-
-describe("ReturnsConsole — a failed request is not a loading state", () => {
-  it("names the failure and offers a retry instead of a permanent placeholder", () => {
-    // Production, 2026-09-08: the Libyan agent saw grey placeholder bars that
-    // never filled in. The component read only `data` from SWR, so a failed
-    // request was indistinguishable from one still in flight.
-    pageData = undefined;
-    pageError = new Error("500");
-    render(<ReturnsConsole marketId="m-ly" />);
-    expect(screen.queryByTestId("wh-returns-skeleton")).not.toBeInTheDocument();
-    expect(screen.getByTestId("wh-returns-error")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
-    expect(mutateMock).toHaveBeenCalled();
+    const rows = screen.getAllByTestId("wh-return-processed");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent("Intact · en stock");
+    expect(rows[1]).toHaveTextContent("Abîmé · Emballage");
+    expect(rows[2]).toHaveTextContent("Relivré");
+    expect(screen.queryByText("Aucun retour traité cette semaine.")).toBeNull();
   });
 });

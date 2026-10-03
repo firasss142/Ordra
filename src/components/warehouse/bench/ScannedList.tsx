@@ -33,12 +33,12 @@ export function ScannedList({ isLy }: { isLy: boolean }) {
 
   if (error) {
     return (
-      <div className="mt-4 rounded-[14px] border border-wh-bad-edge bg-wh-bad-bg p-4 text-center">
+      <div className="rounded-[16px] border border-wh-bad-edge bg-wh-bad-bg p-[16px] text-center">
         <p className="text-[15px] font-semibold text-wh-bad">{t("loadFailed")}</p>
         <button
           type="button"
           onClick={() => void mutate()}
-          className="mt-2 inline-flex min-h-[44px] items-center rounded-[12px] bg-wm-accent px-4 text-[14px] font-bold text-white"
+          className="mt-[8px] inline-flex min-h-[44px] items-center rounded-[12px] bg-brand px-[16px] text-[14px] font-bold text-white"
         >
           {t("retry")}
         </button>
@@ -47,12 +47,12 @@ export function ScannedList({ isLy }: { isLy: boolean }) {
   }
 
   if (isLoading && !data) {
-    return <p role="status" className="py-6 text-center text-[14px] text-wm-ink-2">{t("loading")}</p>;
+    return <p role="status" className="py-[24px] text-center text-[14px] text-wm-ink-2">{t("loading")}</p>;
   }
 
   return (
     <div>
-      <div className="mt-3">
+      <div>
         <ScannedFilters
           isLy={isLy}
           filter={view.filter}
@@ -67,7 +67,7 @@ export function ScannedList({ isLy }: { isLy: boolean }) {
         <p
           role="status"
           data-testid="wh-scanned-flash"
-          className={`mt-2.5 rounded-[12px] border px-3 py-2 text-[13.5px] ${
+          className={`mt-[10px] rounded-[12px] border px-[12px] py-[8px] text-[13.5px] ${
             flash.tone === "ok"
               ? "border-wh-ok-edge bg-wh-ok-bg text-wh-ok"
               : "border-wh-bad-edge bg-wh-bad-bg text-wh-bad"
@@ -78,22 +78,22 @@ export function ScannedList({ isLy }: { isLy: boolean }) {
       ) : null}
 
       {rows.length === 0 ? (
-        <p className="py-6 text-center text-[14px] text-wm-ink-2">{t("empty")}</p>
+        <p className="py-[24px] text-center text-[14px] text-wm-ink-2">{t("empty")}</p>
       ) : view.shown.length === 0 ? (
         // Not the same fact as an empty list: the bench has parcels, these
         // filters just hide them. Say which, and offer the way back.
-        <div className="py-6 text-center">
+        <div className="py-[24px] text-center">
           <p className="text-[14px] text-wm-ink-2">{tf("noMatch")}</p>
           <button
             type="button"
             onClick={view.clear}
-            className="mt-2 inline-flex min-h-[44px] items-center rounded-[12px] border border-wm-card-edge px-4 text-[14px] font-semibold text-wm-ink"
+            className="mt-[8px] inline-flex min-h-[44px] items-center rounded-[12px] border border-[var(--border-strong)] px-[16px] text-[14px] font-semibold text-wm-ink"
           >
             {tf("clear")}
           </button>
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-[12px] flex flex-col gap-[8px]">
           {view.shown.map((row) => (
             <ScannedCard
               key={row.id}
@@ -108,7 +108,7 @@ export function ScannedList({ isLy }: { isLy: boolean }) {
           {/* The counts above describe the page that was loaded, not the whole
               history. Saying so beats a filter that silently misses rows. */}
           {data?.nextCursor ? (
-            <p className="pt-1 text-center text-[12.5px] text-wm-ink-3">
+            <p className="pt-[4px] text-center text-[12.5px] text-wm-ink-3">
               {tf("partial", { n: rows.length })}
             </p>
           ) : null}

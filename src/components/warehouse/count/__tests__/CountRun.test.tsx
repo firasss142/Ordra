@@ -24,7 +24,7 @@ vi.mock("next/link", () => ({
 const row = (over: Partial<WarehouseStockRow>): WarehouseStockRow => ({
   product_id: "p", name: "x", sku: null, image_url: null, current_stock: 0, low_stock_threshold: 0,
   stock_goal: null, goal_pct: null, damaged_return_count: 0, engaged: 0, free: 0,
-  last_counted_at: null, accuracy: null, series: [], sites: [], unallocated: 0, incoming: null,
+  last_counted_at: null, accuracy: null, series: [], sites: [], unallocated: 0, incoming: null, variants: [],
   ...over,
 });
 
@@ -75,7 +75,7 @@ describe("CountRun", () => {
   it("counts the agent's own building, with the reason already written", async () => {
     renderRun();
     fireEvent.change(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?"), { target: { value: "900" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer et suivant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/warehouse/stock/count");
@@ -90,7 +90,7 @@ describe("CountRun", () => {
   it("moves on to the next product after a save", async () => {
     renderRun();
     fireEvent.change(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?"), { target: { value: "900" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer et suivant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
     await waitFor(() => expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Mushaf Tahajjud"));
   });
 
@@ -111,7 +111,51 @@ describe("CountRun", () => {
     renderRun();
     fireEvent.click(screen.getByRole("button", { name: "Passer" }));
     fireEvent.change(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?"), { target: { value: "212" } });
-    expect(screen.getByTestId("count-delta")).toHaveTextContent("−4");
+    expect(screen.getByTestId("count-delta")).toHaveTextContent("Écart −4");
+  });
+
+  it("names the building being counted above the progress, as the prototype does", () => {
+    renderRun();
+    expect(screen.getByText("Comptage · Benghazi")).toBeInTheDocument();
+  });
+
+  it("writes the reason under the gap, so nobody has to type it", () => {
+    renderRun();
+    expect(screen.getByText("Motif : comptage")).toBeInTheDocument();
+  });
+
+  it("starts from this building's own last count, which already reads « Identique »", () => {
+    renderRun();
+    fireEvent.click(screen.getByRole("button", { name: "Passer" }));
+    expect(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?")).toHaveValue("216");
+    expect(screen.getByTestId("count-delta")).toHaveTextContent("Identique");
+  });
+
+  it("starts from the register when the market has one building — the register IS that building", () => {
+    sites = { sites: [BENGHAZI], mine: "B", pinned: true, unassigned: false };
+    renderRun();
+    expect(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?")).toHaveValue("943");
+  });
+
+  it("leaves a building's first count blank when other buildings share the register", () => {
+    // Pre-filling the market's 943 into Benghazi would record a count nobody
+    // made: the register is the sum of every building, not this one's shelf.
+    renderRun();
+    expect(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Suivant" })).toBeDisabled();
+  });
+
+  it("does not wipe what the agent typed when the stock refreshes behind it", () => {
+    const { rerender } = renderRun();
+    fireEvent.click(screen.getByRole("button", { name: "Passer" }));
+    fireEvent.change(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?"), { target: { value: "205" } });
+    stock = stock.map((r) => ({ ...r }));
+    rerender(
+      <NextIntlClientProvider locale="fr" messages={frMessages}>
+        <CountRun locale="fr" />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?")).toHaveValue("205");
   });
 
   it("ends with what was done and a way back", async () => {
@@ -128,7 +172,7 @@ describe("CountRun", () => {
     renderRun();
     fireEvent.change(screen.getByLabelText("Bâtiment"), { target: { value: "T" } });
     fireEvent.change(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?"), { target: { value: "30" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer et suivant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).warehouse_id).toBe("T");
   });
@@ -164,7 +208,7 @@ describe("CountRun", () => {
     fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Stock insuffisant" }) });
     renderRun();
     fireEvent.change(screen.getByLabelText("Combien en comptez-vous sur l'étagère ?"), { target: { value: "900" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer et suivant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
     await screen.findByRole("alert");
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Coran Tadabbur");
   });

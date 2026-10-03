@@ -144,6 +144,8 @@ export interface OrderLine {
 
 export interface WarehouseOrderRow {
   id: string;
+  /** The building the parcel leaves from (`get_to_label_orders` returns it). */
+  warehouse_id?: string | null;
   customer_name: string;
   customer_phone: string;
   customer_city: string | null;

@@ -95,6 +95,16 @@ export function buildDayLoop(input: {
 }
 
 /**
+ * How old a parcel reads: hours under a day, then days ROUNDED — 70 h is three
+ * days to anyone holding the parcel, and flooring it to « 2 j » understated the
+ * oldest one on the bench. Never « 0 h »: the oldest parcel is at least here.
+ */
+export function ageOf(hours: number): { unit: "hours" | "days"; n: number } {
+  if (hours < 24) return { unit: "hours", n: Math.max(1, Math.round(hours)) };
+  return { unit: "days", n: Math.round(hours / 24) };
+}
+
+/**
  * The market seen across its buildings.
  *
  * Queue figures add up; the oldest parcel is the oldest of the oldest, not a

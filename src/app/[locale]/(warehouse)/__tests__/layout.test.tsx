@@ -12,20 +12,30 @@ let mockPathname = "/fr/warehouse/preparation";
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
   useSearchParams: () => new URLSearchParams(""),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock("next/link", () => ({
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
     <a href={href} {...rest}>{children}</a>
   ),
 }));
+let mockSites: Array<{ id: string; code: string; name: string; isDefault: boolean }> = [];
 vi.mock("swr", () => ({
-  default: () => ({ data: undefined, error: undefined, isLoading: false }),
+  default: (key: string) => ({
+    data: typeof key === "string" && key.startsWith("/api/warehouse/sites")
+      ? { sites: mockSites, mine: null, pinned: false, unassigned: false }
+      : undefined,
+    error: undefined,
+    isLoading: false,
+  }),
+  useSWRConfig: () => ({ mutate: vi.fn() }),
   preload: vi.fn(),
 }));
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>
@@ -134,6 +144,27 @@ describe("Entrepôt shell — navigation", () => {
     ]);
   });
 
+  it("draws each tab with the prototype's icon: house, package, back arrow, grid — and a scan line in the centre", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    const bar = screen.getByTestId("wh-bottom-bar");
+    const icon = (href: string) => bar.querySelector(`a[href="${href}"] svg`)?.getAttribute("class") ?? "";
+    expect(icon("/fr/warehouse")).toMatch(/lucide-house|lucide-home/);
+    expect(icon("/fr/warehouse/out")).toMatch(/lucide-package(\s|$)/);
+    expect(icon("/fr/warehouse/returns")).toMatch(/lucide-rotate-ccw/);
+    expect(icon("/fr/warehouse/stock")).toMatch(/lucide-layout-grid/);
+    expect(icon("/fr/warehouse/out?scan=1")).toMatch(/lucide-scan-line/);
+  });
+
+  it("lays the bar out as five equal columns, the scan button in the middle one", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    const bar = screen.getByTestId("wh-bottom-bar");
+    expect(bar.className).toMatch(/grid-cols-5/);
+    expect(bar.children).toHaveLength(5);
+    expect(bar.children[2].querySelector('a[href="/fr/warehouse/out?scan=1"]')).not.toBeNull();
+  });
+
   it("opens the scan sheet from the centre of the bar, on any screen", () => {
     // With a parcel in hand the sheet binds its sticker; with nothing in hand
     // it looks the sticker up. Runs start from a roll on Sortir.
@@ -169,6 +200,35 @@ describe("Entrepôt shell — navigation", () => {
     // Without this the final card sits behind the fixed bar and cannot be
     // tapped — the classic bottom-navigation bug.
     expect(screen.getByTestId("wh-mobile-main").className).toMatch(/pb-\[/);
+  });
+
+  it("gives a manager the desk top bar: the permanent scan field, the building switch, the avatar", () => {
+    mockUser = user("market_manager");
+    mockSites = [
+      { id: "t", code: "tripoli", name: "Tripoli", isDefault: true },
+      { id: "b", code: "benghazi", name: "Benghazi", isDefault: false },
+    ];
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    const bar = screen.getByTestId("wh-desk-topbar");
+    expect(bar).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Scannez un sticker/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Bâtiment" }).textContent).toBe("TousTripoliBenghazi");
+    expect(screen.getByTestId("wh-desk-avatar")).toBeInTheDocument();
+    // The sidebar and its bell are still there beside it.
+    expect(screen.getByTestId("sidebar")).toBeInTheDocument();
+    mockSites = [];
+  });
+
+  it("gives a super_admin the same top bar", () => {
+    mockUser = user("super_admin");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    expect(screen.getByTestId("wh-desk-topbar")).toBeInTheDocument();
+  });
+
+  it("never gives the warehouse agent the desk top bar — the phone shell is unchanged", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    expect(screen.queryByTestId("wh-desk-topbar")).toBeNull();
   });
 
   it("renders the page in every shell", () => {

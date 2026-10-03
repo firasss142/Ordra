@@ -1,64 +1,130 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import type { FoldSummary } from "@/lib/warehouse/desk-sortir";
+import { useDeskScan } from "@/components/warehouse/desk/DeskScanContext";
 import { PreparationConsole } from "./PreparationConsole";
 import { ScannedTable } from "./ScannedTable";
 import type { PrepRow } from "./PrepCard";
-import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
 
 /**
- * Entrepôt › Banc — one screen for the whole life of a parcel in the building.
+ * Entrepôt › Sortir, at a desk (market_manager / super_admin).
  *
- * The section used to be seven entries: Aujourd'hui, Préparation, Mode scan,
- * Retours, Stock, Journal, Suivi transporteur, plus an unreachable À expédier.
- * Aujourd'hui repeated every figure the other screens already showed, its
- * "priority actions" were not even clickable, and Mode scan was a third
- * rendering of the same queue and the same scanner.
- *
- * What is left is the question the bench actually asks, in order: what do I
- * prepare, what did I already scan, and what is nobody dealing with.
+ * « Sortir » and two tabs: what waits to be scanned, grouped by sticker roll,
+ * and what already left today. The building comes from the top bar's switch
+ * (`?warehouse_id=`); the scanner is the top bar's permanent field, fed by the
+ * parcel taken here with « Prendre ». The pickup strip lives on Aujourd'hui.
  */
 
 export type BenchTab = "prepare" | "scanned";
 
+interface QueuePage {
+  orders: PrepRow[];
+  /** The whole queue for this building, not the page of rows held here. */
+  total?: number;
+}
+
+const fetcher = (u: string) =>
+  fetch(u).then((r) => {
+    if (!r.ok) throw new Error(String(r.status));
+    return r.json();
+  });
+
 export function BenchConsole({
   market,
   initialOrders,
-  dailyGoal,
+  initialTotal,
+  scannedToday,
   warehouseId,
+  siteNames,
+  fold,
 }: {
   market: "ly" | "tn";
   initialOrders: PrepRow[];
-  dailyGoal: number | null;
-  warehouseId?: string | null;
+  initialTotal: number;
+  /** Parcels scanned out today in this building (or the market). */
+  scannedToday: number;
+  /** From `?warehouse_id=`; null = every building. */
+  warehouseId: string | null;
+  siteNames: Record<string, string>;
+  fold: FoldSummary;
 }) {
-  const t = useTranslations("warehouse.bench");
+  const t = useTranslations("warehouse.desk");
   const [tab, setTab] = useState<BenchTab>("prepare");
 
-  return (
-    <div className="mx-auto w-full max-w-[1460px] px-4 py-4 md:px-6">
-      {/* Whether Darb's driver has already collected today, per building. It
-          sits above the tabs because it governs every upload from this market,
-          not one tab's list. Libya only: Darb is the carrier that books a
-          pickup on upload, and Tunisia's carriers have no such notion. */}
-      {market === "ly" ? <PickupSwitch variant="console" className="mb-4" /> : null}
+  const key = `/api/warehouse/to-label?limit=200${
+    warehouseId ? `&warehouse_id=${encodeURIComponent(warehouseId)}` : ""
+  }`;
+  // A fresh fallback object on every render is a render loop waiting to happen.
+  const fallbackData = useMemo<QueuePage>(
+    () => ({ orders: initialOrders, total: initialTotal }),
+    [initialOrders, initialTotal],
+  );
+  const { data } = useSWR<QueuePage>(key, fetcher, { fallbackData, revalidateOnFocus: true });
+  const orders = useMemo(() => data?.orders ?? [], [data]);
+  const total = data?.total ?? orders.length;
 
-      <SegmentedTabs
-        className="mb-4"
-        role="tablist"
-        ariaLabel={t("segments")}
-        value={tab}
-        onChange={(k) => setTab(k as BenchTab)}
-        segments={[
-          { key: "prepare", label: t("segmentBench") },
-          { key: "scanned", label: t("segmentScanned") },
-        ]}
-      />
+  /*
+   * The top bar's field binds to the parcel in hand. It needs this queue too:
+   * Tunisia's label QR is the order id and resolves against it. Leaving the
+   * page drops both, so the field never binds to a parcel no longer on screen.
+   */
+  const { hand, take, setQueue } = useDeskScan();
+  useEffect(() => {
+    setQueue({ market, orders });
+  }, [market, orders, setQueue]);
+  useEffect(
+    () => () => {
+      setQueue(null);
+      take(null);
+    },
+    [setQueue, take],
+  );
+  // Scanned from another desk or a phone: it is not in anyone's hand here.
+  useEffect(() => {
+    if (hand && !orders.some((o) => o.id === hand.id)) take(null);
+  }, [hand, orders, take]);
+
+  const tabs: Array<{ key: BenchTab; label: string; n: number }> = [
+    { key: "prepare", label: t("tabToScan"), n: total },
+    { key: "scanned", label: t("tabScanned"), n: scannedToday },
+  ];
+
+  return (
+    <div className="job-out px-[28px] pb-[40px] pt-[12px] text-[14px] leading-[1.5] text-[#1A1A1A]">
+      <div className="mb-[20px] flex items-end gap-[16px]">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[24px] font-bold tracking-[-0.02em]">{t("title")}</h1>
+        </div>
+        <div role="tablist" aria-label={t("title")} className="inline-flex gap-[3px] rounded-[10px] bg-[#ECEDEF] p-[3px]">
+          {tabs.map((x) => (
+            <button
+              key={x.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === x.key}
+              onClick={() => setTab(x.key)}
+              className={`whitespace-nowrap rounded-[8px] px-[16px] py-[7px] text-[13.5px] font-semibold ${
+                tab === x.key ? "bg-white text-[#1A1A1A]" : "text-[#6D7175] hover:text-[#1A1A1A]"
+              }`}
+            >
+              {x.label}{" "}
+              <span dir="ltr" className="tabular-nums text-[#6D7175]">{x.n}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {tab === "prepare" ? (
-        <PreparationConsole market={market} initialOrders={initialOrders} dailyGoal={dailyGoal} />
+        <PreparationConsole
+          market={market}
+          orders={orders}
+          siteNames={siteNames}
+          fold={fold}
+          warehouseId={warehouseId}
+        />
       ) : (
         <ScannedTable warehouseId={warehouseId} isLy={market === "ly"} />
       )}

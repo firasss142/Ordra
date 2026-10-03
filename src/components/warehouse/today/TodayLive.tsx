@@ -14,6 +14,7 @@ import { TodayDesk } from "./TodayDesk";
  */
 export function TodayLive({
   initial,
+  avatarInitial,
   variant,
   locale,
   dateLabel,
@@ -21,6 +22,8 @@ export function TodayLive({
   showPickup,
 }: {
   initial: TodayResponse;
+  /** The agent's initial, for the avatar that opens Réglages. */
+  avatarInitial: string;
   variant: "agent" | "desk";
   locale: string;
   dateLabel: string;
@@ -43,6 +46,7 @@ export function TodayLive({
         data={payload}
         locale={locale}
         dateLabel={dateLabel}
+        initial={avatarInitial}
         pickup={showPickup ? <PickupSwitch variant="bench" /> : undefined}
       />
     );

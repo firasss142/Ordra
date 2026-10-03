@@ -110,14 +110,53 @@ describe("TodayDesk", () => {
     expect(within(team).getByText("aucun scan aujourd'hui")).toBeInTheDocument();
   });
 
-  it("switches building through the address, so a view can be shared", () => {
+  it("leaves the building switch to the desk top bar — one switch, not two", () => {
+    // Prototype C.today: « Tous | Tripoli | Benghazi » lives in the top bar
+    // beside the scan field, on every desk screen (DeskTopBar).
     renderDesk(payload("T"));
-    const nav = screen.getByRole("navigation", { name: "Bâtiment" });
-    const links = within(nav).getAllByRole("link");
-    expect(links.map((a) => [a.textContent, a.getAttribute("href"), a.getAttribute("aria-current")])).toEqual([
-      ["Tous", "/fr/warehouse", null],
-      ["Tripoli", "/fr/warehouse?warehouse_id=T", "page"],
-      ["Benghazi", "/fr/warehouse?warehouse_id=B", null],
-    ]);
+    expect(screen.queryByRole("navigation")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Bâtiment" })).toBeNull();
+  });
+
+  it("puts the unit beside the figure: « 47 colis à scanner »", () => {
+    renderDesk(payload());
+    expect(jobCard("out")).toHaveTextContent(/47\s*colis à scanner/);
+    expect(jobCard("returns")).toHaveTextContent(/2\s*retours chez Darb pour nous/);
+  });
+
+  it("counts the parcels set aside beside today's scans on Sortir", () => {
+    renderDesk(payload());
+    const chip = within(jobCard("out")).getByText(/anciens \(> 10 j\)/).closest("[data-tone]");
+    expect(chip).toHaveAttribute("data-tone", "warn");
+    expect(chip).toHaveTextContent("393 anciens (> 10 j)");
+  });
+
+  it("names the one reception expected, with how late it is and that it is empty", () => {
+    renderDesk(payload(null, {
+      receptions: [{ warehouse_id: "T", reference: "REC-LY-2026-0001", status: "draft", expected_at: "2026-10-01", line_count: 0 }],
+    }));
+    expect(jobCard("receive")).toHaveTextContent("REC-LY-2026-0001 · en retard d'1 j · aucune ligne");
+    expect(within(screen.getByRole("region", { name: "À décider" })).getByText("Réception REC-LY-2026-0001 en retard"))
+      .toBeInTheDocument();
+  });
+
+  it("says no building has counted stock, on the card and as a decision", () => {
+    renderDesk(payload());
+    expect(jobCard("count")).toHaveTextContent("aucun bâtiment n'a de stock compté");
+    const list = screen.getByRole("region", { name: "À décider" });
+    expect(within(list).getByText("Aucun comptage n'a jamais eu lieu")).toBeInTheDocument();
+    expect(within(list).getByText("7 produits × 2 bâtiments — le stock par bâtiment reste éteint d'ici là"))
+      .toBeInTheDocument();
+  });
+
+  it("carries the number of decisions on the card's title", () => {
+    renderDesk(payload());
+    expect(screen.getByTestId("decide-count")).toHaveTextContent("4");
+  });
+
+  it("marks an agent without a scan today with a red chip", () => {
+    renderDesk(payload());
+    const team = screen.getByRole("region", { name: "Équipe aujourd'hui" });
+    expect(within(team).getByText("aucun scan aujourd'hui").closest("[data-tone]")).toHaveAttribute("data-tone", "bad");
   });
 });

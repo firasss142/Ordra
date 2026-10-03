@@ -22,15 +22,30 @@ replaced by colours from the brand green's family. Built, test-first:
 Supabase MCP needed re-authentication. Apply it BEFORE deploying this branch;
 without it the count run doubles stock on a building's first count.
 
-**Deviations from the prototype, decided while building:**
-- No « Anciens » fold on Sortir: the bench already hides stale parcels
-  (`bench_cleared_at`, « mis de côté »: Tripoli 351, Benghazi 42). They surface on
-  the desk as the first « À décider » line instead. My earlier « ghost queue »
-  claim was wrong — the agent never saw them.
-- The Scan button opens the bench's existing scan sheet (`?scan=1`), which binds
-  with a parcel in hand and looks the sticker up otherwise. Sticker-first and the
-  return verdict from the sheet are NOT built yet.
-- The desk keeps PreparationConsole for Sortir (no permanent top scan field yet).
+**2026-10-03 — prototype fidelity rebuild (branch `fix/entrepot-prototype-fidelity`).**
+PR #56 shipped the new screens (Aujourd'hui, count, product) but only RE-COLOURED the
+old bench, returns, stock and desk consoles. The owner: "you didn't follow the
+prototype". Every screen of both v3 prototypes was then rebuilt and checked by
+screenshot against the prototype on a local stack seeded with the prototype's day:
+Sortir (rolls, first roll open, « Plus de 10 jours » fold), the run (no confirmation
+step, roll band, outcomes), the scan sheet (lookup, « déjà sorti » + Dé-scanner,
+free sticker, returns → `/warehouse/returns?order=`), Rentrer + verdict (phone and
+desk table), Stock / product / Mouvements (phone and desk, building columns,
+14-day sparkline), Réglages, the count run, the bottom bar, and the desk top bar
+(permanent scan field + building switch writing `?warehouse_id=`). Sizes are px
+(root font 14px). The old « deviations » list above this line is void.
+
+Remaining differences — data boundaries, not choices:
+- No product category → thumbs use a parcel icon (or the photo), not book/boxes.
+- A free Darb sticker is INFERRED (bare number + `not_found` + Libya); the roll
+  offered is the one last worked (`wh.bench.roll`).
+- The count run pre-fills only when the reference is this building's own figure (its
+  last count, or a one-building market's register); a building's first count in a
+  shared register stays blank — pre-filling the market total would plant a false count.
+- The Darb return reason shows only when Darb's remark carries one.
+- « Plus de 10 jours » expands to a sentence: no route lists set-aside parcels for agents.
+- `.wh-console .bg-surface-selected` is remapped to the green row tint, so the
+  prototype's grey is `bg-wm-track` (guard test `warehouse/__tests__/no-remapped-grey`).
 
 Original status line, kept for history:
 Branch / worktree: `feat/warehouse-day-loop` in `.claude/worktrees/warehouse-day-loop`, cut

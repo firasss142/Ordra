@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  ageOf,
   buildDayLoop,
   buildDecisions,
   buildTeam,
@@ -148,6 +149,19 @@ describe("buildDecisions", () => {
   it("flags a reception with no line even when it is not late", () => {
     const decisions = buildDecisions({ ...EMPTY, receptionsExpected: 1, receptionsEmpty: 1 });
     expect(decisions.map((d) => d.key)).toEqual(["receptionsEmpty"]);
+  });
+});
+
+describe("ageOf — how old the oldest parcel reads", () => {
+  it("rounds to the nearest day past a day: 70 h is « 3 j », not a floored « 2 j »", () => {
+    expect(ageOf(70)).toEqual({ unit: "days", n: 3 });
+    expect(ageOf(36)).toEqual({ unit: "days", n: 2 });
+    expect(ageOf(24)).toEqual({ unit: "days", n: 1 });
+  });
+
+  it("stays in hours under a day, and never says « 0 h »", () => {
+    expect(ageOf(5.4)).toEqual({ unit: "hours", n: 5 });
+    expect(ageOf(0.2)).toEqual({ unit: "hours", n: 1 });
   });
 });
 

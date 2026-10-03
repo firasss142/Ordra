@@ -35,7 +35,7 @@ export async function fetchDayLoopRows(
   let returningQuery = supabase.from("orders").select("warehouse_id").eq("status", "returning").is("archived_at", null);
   let receptionsQuery = supabase
     .from("receptions")
-    .select("warehouse_id, status, expected_at, reception_lines(count)")
+    .select("warehouse_id, reference, status, expected_at, reception_lines(count)")
     .in("status", ["draft", "submitted"]);
   let productsQuery = supabase.from("products").select("id").eq("is_active", true);
   let agentsQuery = supabase
@@ -106,11 +106,13 @@ export async function fetchDayLoopRows(
     returning: (returning ?? []) as DayLoopRows["returning"],
     receptions: ((receptions ?? []) as Array<{
       warehouse_id: string | null;
+      reference: string | null;
       status: string;
       expected_at: string | null;
       reception_lines: Array<{ count: number }> | null;
     }>).map((r) => ({
       warehouse_id: r.warehouse_id,
+      reference: r.reference,
       status: r.status,
       expected_at: r.expected_at,
       line_count: Number(r.reception_lines?.[0]?.count ?? 0),

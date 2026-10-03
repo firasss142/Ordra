@@ -13,6 +13,19 @@ import {
 } from "@/lib/preparation/scan-outcome";
 
 /**
+ * A scan, plus what the refusal was about.
+ *
+ * The phone draws WRONG_SITE as its own card — "do not scan it here, it leaves
+ * from Tripoli" — rather than as a generic refusal, so the code and the
+ * building travel with the entry.
+ */
+export type ScanOutEntry = ScanEntry & {
+  errorCode?: string;
+  warehouseName?: string;
+  warehouseId?: string;
+};
+
+/**
  * The scan-out act, without a screen around it.
  *
  * Libya binds Darb's pre-printed sticker to the parcel in hand; Tunisia scans
@@ -34,9 +47,9 @@ export function useScanOut({
   const t = useTranslations("warehouse.scan");
   const isLy = market === "ly";
   const [busy, setBusy] = useState(false);
-  const [scans, setScans] = useState<ScanEntry[]>([]);
+  const [scans, setScans] = useState<ScanOutEntry[]>([]);
 
-  const push = useCallback((entry: ScanEntry) => {
+  const push = useCallback((entry: ScanOutEntry) => {
     setScans((s) => [entry, ...s].slice(0, 8));
   }, []);
 
@@ -106,6 +119,11 @@ export function useScanOut({
                 ? `${label} ${detail}`
                 : label
               : body.message ?? body.error,
+          ...(res.ok ? {} : { errorCode: body.error_code }),
+          ...(body.warehouse_name ? { warehouseName: body.warehouse_name } : {}),
+          ...((body as { warehouse_id?: string }).warehouse_id
+            ? { warehouseId: (body as { warehouse_id?: string }).warehouse_id }
+            : {}),
         });
 
         if (res.ok) onScanned();

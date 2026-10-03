@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Languages, LogOut, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { jsonFetcher } from "@/lib/fetchers";
 import { readScannerPrefs, writeScannerPrefs, type ScannerPrefs } from "@/lib/warehouse/scanner-prefs";
-import { WmCard, WmTitle } from "./primitives";
 
 /**
  * Réglages — the screen that exists because the mockups have no header.
@@ -27,11 +27,17 @@ export function AgentSettings({
   user,
   marketName,
   marketCode = null,
+  siteName = null,
+  locale,
 }: {
   user: AuthUser;
   /** The database name, shown only when the code cannot be translated. */
   marketName: string;
   marketCode?: "ly" | "tn" | null;
+  /** The agent's building, in the market's language — under their name. */
+  siteName?: string | null;
+  /** The route's locale (the back link); falls back to the user's. */
+  locale?: string;
 }) {
   const t = useTranslations("warehouse.settings");
   const router = useRouter();
@@ -64,126 +70,104 @@ export function AgentSettings({
   }, [signingOut, router, user.locale]);
 
   const initial = (user.full_name || user.email || "?").trim().charAt(0).toUpperCase();
+  const role = user.role === "warehouse_agent" ? t("roleAgent") : t("roleManager");
 
+  // Prototype R.settings, px for px (the root font is 14px, so no rem classes).
   return (
-    <div className="px-4 py-5">
-      <WmTitle>{t("title")}</WmTitle>
-
-      <WmCard className="mt-4 p-4">
-        <div className="flex items-center gap-3.5">
-          <span
-            data-testid="wm-avatar"
-            className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-wm-accent-soft text-[20px] font-bold text-wm-accent"
-          >
-            {user.avatar_url ? (
-              // Raw <img>: the project configures no images.remotePatterns.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              initial
-            )}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-[17px] font-bold text-wm-ink">
-              <bdi>{user.full_name}</bdi>
-            </p>
-            <p className="truncate text-[13px] text-wm-ink-2">{user.email}</p>
-          </div>
-        </div>
-
-        <dl className="mt-4 grid grid-cols-2 gap-2.5 border-t border-wm-card-edge pt-3.5">
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={15} className="shrink-0 text-wm-accent" aria-hidden="true" />
-            <div className="min-w-0">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-wm-ink-2">
-                {t("role")}
-              </dt>
-              <dd className="truncate text-[13.5px] font-semibold text-wm-ink">
-                {t("roleAgent")}
-              </dd>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin size={15} className="shrink-0 text-wm-accent" aria-hidden="true" />
-            <div className="min-w-0">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-wm-ink-2">
-                {t("market")}
-              </dt>
-              <dd className="truncate text-[13.5px] font-semibold text-wm-ink">{marketLabel}</dd>
-            </div>
-          </div>
-          <div className="col-span-2 flex items-center gap-2">
-            <Languages size={15} className="shrink-0 text-wm-accent" aria-hidden="true" />
-            <div className="min-w-0">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-wm-ink-2">
-                {t("language")}
-              </dt>
-              {/* The locale follows the market (middleware.ts), so there is no
-                  switch: a control that flips straight back reads as broken. */}
-              <dd className="truncate text-[13.5px] font-semibold text-wm-ink">{t("languageFollowsMarket")}</dd>
-            </div>
-          </div>
-        </dl>
-      </WmCard>
-
-      <p className="mb-2 mt-4 text-[13px] font-semibold text-wm-ink-2">{t("myDay")}</p>
-      <WmCard className="p-4">
-        <dl className="grid gap-2.5 text-[15px]">
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-wm-ink-2">{t("scannedToday")}</dt>
-            <dd data-testid="wh-my-scans" className="font-semibold tabular-nums text-wm-ink">{op?.orders_scanned_today ?? 0}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-wm-ink-2">{t("returnsToday")}</dt>
-            <dd data-testid="wh-my-returns" className="font-semibold tabular-nums text-wm-ink">{summary?.day?.returnsToday ?? 0}</dd>
-          </div>
-        </dl>
-      </WmCard>
-
-      <p className="mb-2 mt-4 text-[13px] font-semibold text-wm-ink-2">{t("scanner")}</p>
-      <WmCard className="p-4">
-        <div className="grid gap-2.5">
-          {(
-            [
-              ["sound", t("prefSound")],
-              ["vibrate", t("prefVibrate")],
-              ["cameraFirst", t("prefCameraFirst")],
-            ] as Array<[keyof ScannerPrefs, string]>
-          ).map(([key, label]) => (
-            <div key={key} className="flex items-center justify-between gap-3">
-              <span id={`wh-pref-${key}`} className="text-[15px] text-wm-ink-2">{label}</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs[key]}
-                aria-labelledby={`wh-pref-${key}`}
-                onClick={() => toggle(key)}
-                className={`relative h-7 w-[46px] shrink-0 rounded-pill transition-colors ${prefs[key] ? "bg-wm-accent" : "bg-wm-track"}`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-white transition-[inset-inline-start] ${
-                    prefs[key] ? "start-[21px]" : "start-[3px]"
-                  }`}
-                />
-              </button>
-            </div>
-          ))}
-        </div>
-      </WmCard>
-
-      <WmCard className="mt-3 p-4">
-        <button
-          type="button"
-          onClick={logout}
-          disabled={signingOut}
-          className="inline-flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-pill border border-wm-accent px-5 text-[14.5px] font-bold text-wm-accent transition-colors active:bg-wm-accent-soft disabled:opacity-50"
+    <div className="px-[16px] pb-[24px] pt-[18px]">
+      <header className="mb-[18px] flex items-center gap-[12px]">
+        <Link
+          href={`/${locale ?? user.locale}/warehouse`}
+          aria-label={t("back")}
+          className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full border border-wm-card-edge bg-wm-card text-wm-ink"
         >
-          <LogOut size={18} aria-hidden="true" />
-          {signingOut ? t("signingOut") : t("signOut")}
-        </button>
-        <p className="mt-2.5 text-center text-[12px] text-wm-ink-2">{t("signOutHint")}</p>
-      </WmCard>
+          <ArrowLeft size={18} className="rtl:-scale-x-100" aria-hidden="true" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12.5px] font-semibold text-wm-ink-2">{`${role} · ${marketLabel}`}</p>
+          <h1 className="text-[28px] font-bold leading-[1.2] tracking-[-0.02em] text-wm-ink">{t("title")}</h1>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-[12px] rounded-[16px] border border-line-subtle bg-wm-card p-[16px]">
+        <span
+          data-testid="wm-avatar"
+          className="grid h-[48px] w-[48px] shrink-0 place-items-center overflow-hidden rounded-full border border-wm-card-edge bg-wm-card font-bold text-wm-ink-2"
+        >
+          {user.avatar_url ? (
+            // Raw <img>: the project configures no images.remotePatterns.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-wm-ink">
+            <bdi>{user.full_name}</bdi>
+          </p>
+          {siteName ? <p className="truncate text-[12.5px] text-wm-ink-2">{siteName}</p> : null}
+        </div>
+      </div>
+
+      <p className="mb-[8px] mt-[18px] text-[11.5px] font-semibold uppercase tracking-[0.05em] text-wm-ink-2 rtl:text-[12.5px] rtl:normal-case rtl:tracking-normal">
+        {t("myDay")}
+      </p>
+      <div className="flex items-center gap-[12px] rounded-[16px] border border-line-subtle bg-wm-card p-[16px]">
+        <div className="min-w-0 flex-1">
+          <p data-testid="wh-my-scans" className="text-[26px] font-bold leading-[1.1] tracking-[-0.02em] tabular-nums text-wm-ink" dir="ltr">
+            {op?.orders_scanned_today ?? 0}
+          </p>
+          <p className="text-[12.5px] text-wm-ink-2">{t("scannedToday")}</p>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p data-testid="wh-my-returns" className="text-[26px] font-bold leading-[1.1] tracking-[-0.02em] tabular-nums text-wm-ink" dir="ltr">
+            {summary?.day?.returnsToday ?? 0}
+          </p>
+          <p className="text-[12.5px] text-wm-ink-2">{t("returnsToday")}</p>
+        </div>
+      </div>
+
+      <div className="mt-[12px] overflow-hidden rounded-[16px] border border-line-subtle bg-wm-card">
+        {(
+          [
+            ["sound", t("prefSound")],
+            ["vibrate", t("prefVibrate")],
+            ["cameraFirst", t("prefCameraFirst")],
+          ] as Array<[keyof ScannerPrefs, string]>
+        ).map(([key, label], i) => (
+          <div
+            key={key}
+            className={`flex min-h-[56px] items-center gap-[12px] px-[16px] py-[14px] ${i > 0 ? "border-t border-line-subtle" : ""}`}
+          >
+            <span id={`wh-pref-${key}`} className="flex-1 font-semibold text-wm-ink">{label}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs[key]}
+              aria-labelledby={`wh-pref-${key}`}
+              onClick={() => toggle(key)}
+              className={`relative h-[26px] w-[44px] shrink-0 rounded-pill transition-colors ${prefs[key] ? "bg-brand" : "bg-wm-track"}`}
+            >
+              <span
+                aria-hidden="true"
+                className={`absolute top-[3px] h-[20px] w-[20px] rounded-full bg-white transition-[inset-inline-start] ${
+                  prefs[key] ? "start-[21px]" : "start-[3px]"
+                }`}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={logout}
+        disabled={signingOut}
+        className="mt-[16px] inline-flex min-h-[48px] w-full items-center justify-center rounded-[12px] border border-wh-border-strong bg-wm-card px-[18px] text-[15px] font-bold text-status-critical disabled:opacity-50"
+      >
+        {signingOut ? t("signingOut") : t("signOut")}
+      </button>
     </div>
   );
 }

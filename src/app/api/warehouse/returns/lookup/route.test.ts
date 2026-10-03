@@ -112,6 +112,28 @@ describe("GET /api/warehouse/returns/lookup", () => {
     expect(json.order.customer_name).toBe("Ali");
   });
 
+  test("returns the parcel's building, so the scan sheet can say « not here »", async () => {
+    // The centre Scan button's sheet shows the wrong-building card from a
+    // lookup only when it knows which building the parcel belongs to.
+    const selects: string[] = [];
+    mockFrom.mockImplementation((table: string) => {
+      const c: Record<string, unknown> = {};
+      c.select = vi.fn((cols: string) => {
+        if (table === "orders") selects.push(cols);
+        return c;
+      });
+      c.eq = vi.fn().mockReturnValue(c);
+      const row = table === "users" ? { role: "warehouse_agent", market_id: "m-1" } : { id: "o-3", warehouse_id: "T" };
+      c.single = vi.fn().mockResolvedValue({ data: row, error: null });
+      c.maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
+      return c;
+    });
+    mockRpc.mockResolvedValue({ data: { outcome: "wrong_status", order_id: "o-3", status: "scanned" }, error: null });
+    const json = await (await GET(req("1213140"))).json();
+    expect(selects.join(",")).toMatch(/\bwarehouse_id\b/);
+    expect(json.order.warehouse_id).toBe("T");
+  });
+
   test("not_found comes back as not_found", async () => {
     wire();
     mockRpc.mockResolvedValue({ data: { outcome: "not_found" }, error: null });

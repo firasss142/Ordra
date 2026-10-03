@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { WarehouseMobileShell } from "@/components/warehouse/shell/WarehouseMobileShell";
 import { useAuth } from "@/context/auth";
 import { AlertsPanelProvider } from "@/context/alerts-panel";
+import { DeskScanProvider } from "@/components/warehouse/desk/DeskScanContext";
+import { DeskTopBar } from "@/components/warehouse/desk/DeskTopBar";
 
 export default function WarehouseLayout({
   children,
@@ -68,6 +70,8 @@ function WarehouseManagerShell({
     // The sidebar's alerts bell opens this provider's panel. Without it the bell
     // fell back to an empty default and did nothing on every Entrepôt page.
     <AlertsPanelProvider user={user}>
+    {/* The parcel in hand, shared by the top bar's scan field and Sortir. */}
+    <DeskScanProvider>
     <div className="wh-console flex min-h-screen bg-wh-bg" style={{ direction }}>
       <Sidebar
         user={user}
@@ -99,15 +103,19 @@ function WarehouseManagerShell({
       </button>
       <main
         id="main-content"
-        // The tab band used to sit above the page and gave the title its
-        // breathing room. Without it the heading would start flush against
-        // the viewport edge, so the shell carries that space now.
-        className="flex-1 md:ms-[240px] min-h-screen bg-wh-bg pt-14 md:pt-3"
+        // Below md the fixed menu button needs the first 56px. On a desk the
+        // top bar sits flush at the top, and the 12px under it is the room
+        // every page's own padding was measured against.
+        className="flex-1 md:ms-[240px] min-h-screen bg-wh-bg pt-14 md:pt-0"
         style={{ minWidth: 0 }}
       >
-        {children}
+        {/* The desk top bar: the permanent scan field, the building switch
+            (?warehouse_id=), the avatar — on every Entrepôt screen. */}
+        <DeskTopBar user={user} />
+        <div className="md:pt-3">{children}</div>
       </main>
     </div>
+    </DeskScanProvider>
     </AlertsPanelProvider>
   );
 }

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import { WarehouseStockClient } from "../WarehouseStockClient";
-import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
+import type { WarehouseStockRow, WarehouseStockResponse } from "@/app/api/warehouse/stock/route";
 
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
@@ -15,108 +15,92 @@ vi.mock("next-intl", async () => {
   };
 });
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>{children}</a>
+  ),
 }));
 
-const row = (id: string, name: string, stock: number, free: number): WarehouseStockRow => ({
-  product_id: id, name, sku: null, image_url: null, current_stock: stock, low_stock_threshold: 20,
-  stock_goal: null, goal_pct: null, damaged_return_count: 0, engaged: stock - free, free,
-  last_counted_at: null, accuracy: null, series: [], sites: [], unallocated: 0,
-    incoming: null,
+const row = (id: string, over: Partial<WarehouseStockRow> = {}): WarehouseStockRow => ({
+  product_id: id, name: `Produit ${id}`, sku: null, image_url: null, current_stock: 100,
+  low_stock_threshold: 5, stock_goal: null, goal_pct: null, damaged_return_count: 0,
+  engaged: 0, free: 100, last_counted_at: null, accuracy: null, series: [], sites: [],
+  unallocated: 100, incoming: null, variants: [],
+  ...over,
 });
 
-const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+const TRIPOLI = { id: "T", code: "TIP", name: "Tripoli" };
+const BENGHAZI = { id: "B", code: "BEN", name: "Benghazi" };
 
+let body: WarehouseStockResponse;
 vi.mock("swr", () => ({
-  default: () => ({
-    data: { rows: [row("a", "القرآن تدبر وعمل", 1000, 924), row("b", "دمية صغيرة", 12, -2)] },
-    error: undefined,
-    isLoading: false,
-    mutate: vi.fn(),
-  }),
+  default: () => ({ data: body, error: undefined, isLoading: false, mutate: vi.fn() }),
 }));
+
+beforeEach(() => {
+  body = {
+    rows: Array.from({ length: 7 }, (_, i) => row(`p${i}`)),
+    warehouses: [TRIPOLI, BENGHAZI],
+  };
+});
 afterEach(cleanup);
 
+const renderPhone = () =>
+  render(<WarehouseStockClient locale="fr" variant="agent" siteId="B" eyebrow="Benghazi · jeudi 2 octobre" />);
+
 /**
- * The stock list on the phone. The segments count the whole catalogue until a
- * search narrows it, then they answer the search: a count that ignores the
- * filter under it reads as a bug. They are also the filter itself now — the
- * screen used to show these figures and give no way to act on them.
+ * Stock on the agent's phone — `R.stock` of
+ * prototypes/entrepot-day-loop-agent-v3.html. The eyebrow and title, the
+ * truth said first while nothing has ever been counted, then ONE card of
+ * product rows. No tabs, no search, no filters, no sort.
  */
-function seg(key: string) {
-  return screen.getAllByTestId("wh-stock-seg").find((s) => s.dataset.key === key)!;
-}
-
 describe("WarehouseStockClient — phone", () => {
-  it("segments count the states of the shelf, and follow the search", () => {
-    render(<WarehouseStockClient locale="fr" />);
-    expect(seg("all")).toHaveTextContent("2");
-    // "دمية صغيرة" holds 12 against a threshold of 20 AND owes more than it
-    // holds. Owing outranks being low, so it is counted once, as negative.
-    expect(seg("negative")).toHaveTextContent("1");
-    expect(seg("low")).toHaveTextContent("0");
-    fireEvent.change(screen.getByLabelText(/Rechercher/), { target: { value: "القرآن" } });
-    expect(seg("negative")).toHaveTextContent("0");
+  it("names the building and the day above the title", () => {
+    renderPhone();
+    expect(screen.getByText("Benghazi · jeudi 2 octobre")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Stock");
   });
 
-  it("narrows the list to a single state when a segment is tapped", () => {
-    render(<WarehouseStockClient locale="fr" />);
-    expect(screen.getAllByTestId("wh-stock-card")).toHaveLength(2);
-    fireEvent.click(seg("negative"));
-    const after = screen.getAllByTestId("wh-stock-card");
-    expect(after).toHaveLength(1);
-    expect(after[0]).toHaveTextContent("دمية صغيرة");
+  it("says first that nothing has been counted, and prices the count in minutes", () => {
+    renderPhone();
+    const truth = screen.getByTestId("wh-stock-truth");
+    expect(truth).toHaveTextContent("Aucun produit n'a encore été compté");
+    expect(truth).toHaveTextContent("Ces chiffres viennent du registre seul");
+    // 7 products × ~25 s ≈ 3 min.
+    const start = screen.getByRole("link", { name: "Commencer · 7 produits · ≈ 3 min" });
+    expect(start).toHaveAttribute("href", "/fr/warehouse/count");
   });
 
-  it("says no product matches, not that there are no products", () => {
-    render(<WarehouseStockClient locale="fr" />);
-    fireEvent.change(screen.getByLabelText(/Rechercher/), { target: { value: "zzz" } });
-    expect(screen.getByText("Aucun produit pour ces filtres.")).toBeInTheDocument();
+  it("judges « never counted » at the agent's own building, not the market", () => {
+    // Tripoli counted every product; Benghazi — this agent's — never did.
+    body.rows = body.rows.map((r) => ({
+      ...r,
+      last_counted_at: "2026-10-01T09:00:00Z",
+      sites: [{ warehouse_id: "T", code: "TIP", name: "Tripoli", current_stock: 40, last_counted_at: "2026-10-01T09:00:00Z" }],
+    }));
+    renderPhone();
+    expect(screen.getByTestId("wh-stock-truth")).toBeInTheDocument();
   });
 
-  it("says once, above the list, that nothing was ever counted", () => {
-    render(<WarehouseStockClient locale="fr" />);
-    expect(screen.getByTestId("wh-stock-never-counted")).toBeInTheDocument();
+  it("drops the banner once the building has counted", () => {
+    body.rows = body.rows.map((r) => ({
+      ...r,
+      last_counted_at: "2026-10-01T09:00:00Z",
+      sites: [{ warehouse_id: "B", code: "BEN", name: "Benghazi", current_stock: 40, last_counted_at: "2026-10-01T09:00:00Z" }],
+    }));
+    renderPhone();
+    expect(screen.queryByTestId("wh-stock-truth")).toBeNull();
   });
 
-  it("turns that statement into the way out: the count run", () => {
-    // 0 stock_count rows in prod on 2026-10-02. Saying it is not enough; the
-    // screen offers the gesture that fixes it.
-    render(<WarehouseStockClient locale="fr" />);
-    const banner = screen.getByTestId("wh-stock-never-counted");
-    expect(banner).toHaveTextContent("Aucun produit n'a encore été compté.");
-    expect(screen.getByRole("link", { name: /Commencer le comptage/ })).toHaveAttribute("href", "/fr/warehouse/count");
-  });
-});
-
-describe("WarehouseStockClient — links", () => {
-  it("counts through the count run, the one way to count", () => {
-    // The old dialog compared a building's count with the MARKET total — a
-    // false gap in Libya, where two buildings share one total.
-    render(<WarehouseStockClient locale="fr" />);
-    const [first] = screen.getAllByRole("link", { name: "Compter" });
-    expect(first).toHaveAttribute("href", "/fr/warehouse/count?product=a");
+  it("lists every product in one card", () => {
+    renderPhone();
+    expect(screen.getAllByTestId("wh-stock-card")).toHaveLength(7);
   });
 
-  it("opens the count run from a phone card too", () => {
-    render(<WarehouseStockClient locale="fr" />);
-    fireEvent.click(screen.getAllByTestId("wh-stock-card")[0].querySelector("button")!);
-    fireEvent.click(screen.getAllByRole("button", { name: "Compter" })[0]);
-    expect(push).toHaveBeenCalledWith("/fr/warehouse/count?product=a");
-  });
-
-  it("opens a product's own page from its name", () => {
-    render(<WarehouseStockClient locale="fr" />);
-    const links = screen.getAllByRole("link", { name: "القرآن تدبر وعمل" });
-    expect(links[0]).toHaveAttribute("href", "/fr/warehouse/stock/a");
-  });
-
-  it("sends « Mouvements » to the Journal filtered on the product, not to a redirect", () => {
-    // It pointed at /warehouse/history?product_id=…, which redirected to Stock,
-    // dropped the product and landed on the levels tab.
-    render(<WarehouseStockClient locale="fr" />);
-    const [first] = screen.getAllByRole("link", { name: /Mouvements/ });
-    expect(first).toHaveAttribute("href", "/fr/warehouse/stock?tab=journal&product=a");
+  it("offers no search, no filter chips, no sort and no tabs", () => {
+    renderPhone();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 });

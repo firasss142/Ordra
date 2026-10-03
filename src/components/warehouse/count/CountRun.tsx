@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { Minus, Package, Plus, X } from "lucide-react";
+import { Package, X } from "lucide-react";
 import { jsonFetcher } from "@/lib/fetchers";
+import { Chip } from "@/components/warehouse/today/Chip";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
 import type { WarehouseSitesResponse } from "@/app/api/warehouse/sites/route";
 
@@ -90,6 +91,19 @@ export function CountRun({
   const typed = value.trim() === "" ? null : Number(value);
   const valid = typed !== null && Number.isInteger(typed) && typed >= 0;
 
+  // The prototype opens each product on its reference figure, so a shelf that
+  // matches is one tap. Only when that figure IS this building's: its own last
+  // count, or the register of a one-building market. Once per product and
+  // building — a background refresh must never overwrite what was typed.
+  const prefilledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!current || siteId === null && sites.length > 0) return;
+    const key = `${current.product_id}|${siteId ?? ""}`;
+    if (prefilledFor.current === key) return;
+    prefilledFor.current = key;
+    setValue(previous !== null ? String(previous) : "");
+  }, [current, siteId, sites.length, previous]);
+
   const next = (kind: "counted" | "skipped") => {
     setTally((s) => ({ ...s, [kind]: s[kind] + 1 }));
     setIndex((i) => i + 1);
@@ -134,31 +148,36 @@ export function CountRun({
     );
   }
 
+  // `.top` of the prototype: a 40px close button, then « Comptage · Benghazi »
+  // over the bold « 2 / 7 ».
+  const siteName = sites.find((s) => s.id === siteId)?.name ?? null;
   const header = (
-    <header className="mb-4 flex items-center gap-3">
+    <header className="mb-[18px] flex items-center gap-[12px]">
       <Link
         href={`/${locale}/warehouse/stock`}
         aria-label={t("exit")}
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-wm-card-edge bg-wm-card text-wm-ink"
+        className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full border border-wm-card-edge bg-wm-card text-wm-ink"
       >
         <X size={18} aria-hidden="true" />
       </Link>
       <div className="min-w-0 flex-1">
-        <h1 className="text-[13px] font-semibold text-wm-ink-2">{t("title")}</h1>
+        <h1 className="text-[12.5px] font-semibold text-wm-ink-2" dir="auto">
+          {siteName ? `${t("title")} · ${siteName}` : t("title")}
+        </h1>
         {queue.length > 0 && current ? (
-          <p data-testid="count-progress" className="text-[15px] font-bold tabular-nums text-wm-ink">
+          <p data-testid="count-progress" className="text-[14px] font-bold tabular-nums text-wm-ink" dir="ltr">
             {`${index + 1} / ${queue.length}`}
           </p>
         ) : null}
       </div>
       {!pinned && sites.length > 1 ? (
-        <label className="flex items-center gap-2 text-[13px] text-wm-ink-2">
+        <label className="flex items-center gap-[8px] text-[13px] text-wm-ink-2">
           <span>{t("site")}</span>
           <select
             aria-label={t("site")}
             value={siteId ?? ""}
             onChange={(e) => setSiteId(e.target.value)}
-            className="h-10 rounded-[10px] border border-wm-card-edge bg-wm-card px-2.5 text-[14px] font-semibold text-wm-ink"
+            className="h-[40px] rounded-[10px] border border-wm-card-edge bg-wm-card px-[10px] text-[14px] font-semibold text-wm-ink"
           >
             {sites.map((s) => (
               <option key={s.id} value={s.id}>
@@ -199,98 +218,103 @@ export function CountRun({
   }
 
   const gap = valid && previous !== null ? (typed as number) - previous : null;
+  const step = (d: number) => setValue(String(Math.max(0, (valid ? (typed as number) : previous ?? 0) + d)));
 
   return (
-    <div className="job-count mx-auto w-full max-w-[560px] px-4 py-4">
+    <div className="job-count mx-auto w-full max-w-[560px] px-[16px] pb-[24px] pt-[18px]">
       {header}
 
-      <div className="mb-5 flex gap-1" aria-hidden="true">
+      {/* `.progress-dots`: done products in the job's hue. */}
+      <div className="mb-[18px] flex gap-[4px]" aria-hidden="true">
         {queue.map((q, i) => (
-          <i key={q.product_id} className={`h-1 flex-1 rounded-full ${i < index ? "bg-job" : i === index ? "bg-wm-ink-3" : "bg-wm-track"}`} />
+          <i key={q.product_id} className={`h-[4px] flex-1 rounded-[2px] ${i < index ? "bg-job" : "bg-wm-track"}`} />
         ))}
       </div>
 
+      {/* `.card.inhand` */}
       <div className="rounded-[16px] border border-wm-card-edge bg-wm-card p-[18px]">
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-[12px]">
           {current.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={current.image_url} alt="" className="h-14 w-14 shrink-0 rounded-[12px] object-cover" />
+            <img src={current.image_url} alt="" className="h-[56px] w-[56px] shrink-0 rounded-[10px] object-cover" />
           ) : (
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[12px] bg-job-bg text-job-ink">
+            <span className="grid h-[56px] w-[56px] shrink-0 place-items-center rounded-[10px] bg-job-bg text-job-ink">
               <Package size={24} aria-hidden="true" />
             </span>
           )}
-          <div className="min-w-0">
-            <h2 className="text-[19px] font-bold leading-snug text-wm-ink" dir="auto">{current.name}</h2>
-            {current.sku ? <p className="font-mono text-[12.5px] text-wm-ink-2" dir="ltr">{current.sku}</p> : null}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[20px] font-bold leading-[1.3] text-wm-ink" dir="auto">{current.name}</h2>
+            {current.sku ? (
+              <p className="mt-[2px] font-mono text-[12.5px] text-wm-ink-2" dir="ltr">{current.sku}</p>
+            ) : null}
           </div>
         </div>
-        <div className="mt-3.5 flex justify-between border-t border-wm-card-edge pt-3 text-[13.5px] text-wm-ink-2">
-          <span>{t("register")}</span>
-          <b className="tabular-nums text-wm-ink">{current.current_stock}</b>
+        <div className="my-[14px] h-px bg-wm-card-edge" />
+        <div className="flex items-center gap-[12px] text-[12.5px]">
+          <span className="flex-1 text-wm-ink-2">{t("register")}</span>
+          <b className="tabular-nums text-wm-ink" dir="ltr">{current.current_stock}</b>
         </div>
       </div>
 
-      <label htmlFor="count-input" className="mt-6 block text-[17px] font-bold text-wm-ink">
+      <label htmlFor="count-input" className="mt-[20px] block text-[17px] font-bold text-wm-ink">
         {t("question")}
       </label>
-      <div className="mt-3 flex items-center gap-2.5">
+      {/* `.stepper` */}
+      <div className="mt-[16px] flex items-center gap-[10px]">
         <button
           type="button"
           aria-label={t("minus")}
-          onClick={() => setValue(String(Math.max(0, (valid ? (typed as number) : previous ?? 0) - 1)))}
-          className="grid h-16 w-16 shrink-0 place-items-center rounded-[16px] border border-wm-card-edge bg-wm-card text-wm-ink"
+          onClick={() => step(-1)}
+          className="grid h-[64px] w-[64px] shrink-0 place-items-center rounded-[16px] border border-wh-border-strong bg-wm-card text-[26px] font-semibold text-wm-ink"
         >
-          <Minus size={24} aria-hidden="true" />
+          −
         </button>
         <input
           id="count-input"
           inputMode="numeric"
           value={value}
           onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, ""))}
-          placeholder={previous !== null ? String(previous) : "0"}
-          className="h-[72px] min-w-0 flex-1 rounded-[16px] border-2 border-job bg-wm-card text-center text-[38px] font-bold tabular-nums text-wm-ink outline-none placeholder:text-wm-ink-3"
+          className="h-[72px] min-w-0 flex-1 rounded-[16px] border-2 border-job bg-wm-card text-center text-[38px] font-bold tabular-nums text-wm-ink outline-none"
+          dir="ltr"
         />
         <button
           type="button"
           aria-label={t("plus")}
-          onClick={() => setValue(String((valid ? (typed as number) : previous ?? 0) + 1))}
-          className="grid h-16 w-16 shrink-0 place-items-center rounded-[16px] border border-wm-card-edge bg-wm-card text-wm-ink"
+          onClick={() => step(1)}
+          className="grid h-[64px] w-[64px] shrink-0 place-items-center rounded-[16px] border border-wh-border-strong bg-wm-card text-[26px] font-semibold text-wm-ink"
         >
-          <Plus size={24} aria-hidden="true" />
+          +
         </button>
       </div>
 
-      <p data-testid="count-delta" className="mt-3 min-h-[28px] text-center text-[14px] font-semibold">
-        {!valid ? (
-          previous !== null && sites.length > 1 ? (
-            <span className="text-wm-ink-2">{t("lastHere", { n: previous })}</span>
-          ) : null
-        ) : previous === null ? (
-          <span className="rounded-pill bg-job-bg px-3 py-1 text-job-ink">{t("firstHere")}</span>
-        ) : gap === 0 ? (
-          <span className="rounded-pill bg-status-successBg px-3 py-1 text-status-success">{t("same")}</span>
+      {/* `.delta`: Identique / Écart −4 / Écart +3, live. A building's first
+          count in a shared register has nothing honest to compare with. */}
+      <div data-testid="count-delta" className="mt-[12px] min-h-[24px] text-center text-[15px] font-bold">
+        {previous === null ? (
+          <Chip tone="mute">{t("firstHere")}</Chip>
+        ) : !valid ? null : gap === 0 ? (
+          <Chip tone="ok">{t("same")}</Chip>
         ) : (
-          <span
-            className={`rounded-pill px-3 py-1 ${(gap ?? 0) < 0 ? "bg-wh-bad-bg text-wh-bad" : "bg-job-bg text-job-ink"}`}
-          >
-            {t("gap", { d: sign(gap ?? 0) })}
-          </span>
+          <Chip tone={(gap ?? 0) < 0 ? "bad" : "info"}>
+            {t("gap", { d: "" })}
+            <span className="tabular-nums" dir="ltr">{sign(gap ?? 0)}</span>
+          </Chip>
         )}
-      </p>
+      </div>
+      <p className="mt-[4px] text-center text-[12.5px] text-wm-ink-2">{t("reason")}</p>
 
       {failed ? (
-        <p role="alert" className="mt-2 text-center text-[13.5px] text-wh-bad">
+        <p role="alert" className="mt-[8px] text-center text-[13.5px] text-wh-bad">
           {t("failed")}
         </p>
       ) : null}
 
-      <div className="mt-6 flex gap-2.5">
+      <div className="mt-[22px] flex gap-[12px]">
         <button
           type="button"
           onClick={() => next("skipped")}
           disabled={busy}
-          className="min-h-[52px] flex-1 rounded-[14px] border border-wm-card-edge bg-wm-card text-[15px] font-semibold text-wm-ink"
+          className="min-h-[48px] flex-1 rounded-[12px] border border-wh-border-strong bg-wm-card px-[18px] text-[15px] font-bold text-wm-ink"
         >
           {t("skip")}
         </button>
@@ -298,9 +322,9 @@ export function CountRun({
           type="button"
           onClick={save}
           disabled={!valid || busy}
-          className="min-h-[52px] flex-[2] rounded-[14px] bg-job text-[15px] font-bold text-white disabled:opacity-40"
+          className="min-h-[48px] flex-[2] rounded-[12px] bg-brand px-[18px] text-[15px] font-bold text-white disabled:opacity-40"
         >
-          {t("saveNext")}
+          {t("next")}
         </button>
       </div>
     </div>

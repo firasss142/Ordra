@@ -1,67 +1,78 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, Check, TriangleAlert, X } from "lucide-react";
-import { QrScanner } from "@/components/warehouse/QrScanner";
-import { ScanViewfinder } from "@/components/warehouse/mobile/ScanViewfinder";
 import { useScanOut } from "@/components/warehouse/bench/useScanOut";
 import { readScannerPrefs, signalOutcome } from "@/lib/warehouse/scanner-prefs";
 import { createScannerInputHandler } from "@/lib/preparation/scanner-input";
-import type { ScanOutcome } from "@/lib/preparation/scan-outcome";
 import type { RunRow } from "@/lib/warehouse/scan-buckets";
+import { RunParcel } from "./RunParcel";
+import { RunViewfinder } from "./RunViewfinder";
+import { NextParcel, OutcomeCard, StockChip } from "./RunOutcome";
+import { RING_MS } from "./motion";
+import { BTN_GHOST, BTN_PRI, BTN_SEC, MONO, XL } from "./ui";
 
 /**
- * Bind the sticker, then get out of the way.
+ * The parcel in hand, the camera, and what the scan turned into
+ * (`R.run`, `R.bound`, `R.wrongsite` in the v3 prototype).
  *
- * The run's whole point is that the agent never has to decide what happens
- * next: a good bind advances on its own. Two outcomes deliberately do NOT
- * advance, because both need a human to read them:
+ * Mounted once per parcel (the run keys it by order id), so an outcome can
+ * never be read against the wrong box.
  *
- *   bind_unverified      Darb kept a different number. The parcel is leaving
- *                        under a reference we do not hold; scrolling past it is
- *                        how eight parcels went out untracked on 2026-09-08.
+ * The run's point is that the agent never has to decide what happens next: a
+ * clean bind shows the next parcel of the same roll and moves to it on its own
+ * in 1.4 s. The amber outcomes deliberately do NOT advance, because each needs
+ * a human to read it:
+ *
+ *   bind_unverified      Darb kept a different number, or dropped ours. The
+ *                        parcel is live under a reference we do not hold.
  *   bound_not_committed  Live at Darb, no stock moved. A manager must know.
  *
- * The hardware gun is wired here at last: `createScannerInputHandler` has been
- * implemented and tested since the first bench and was never mounted, so a
- * wedge only worked if the right field happened to hold focus.
+ * The hardware gun is wired on the document: the agent's hands are on a parcel
+ * and nothing guarantees focus is anywhere useful.
  */
-
-const TONE: Record<ScanOutcome, string> = {
-  bound: "border-wh-ok",
-  refused_here: "border-wh-bad",
-  refused_darb: "border-wh-bad",
-  bound_not_committed: "border-wh-warn bg-wh-warn-bg",
-  bind_unverified: "border-wh-warn bg-wh-warn-bg",
-};
-
-/** Long enough to read the number and the stock, short enough to keep moving. */
-const ADVANCE_MS = 1400;
 
 export function RunScanner({
   market,
   row,
   hex,
+  colourName,
+  position,
+  total,
+  done,
+  next,
+  sameRoll,
   onBound,
   onUnresolved,
   onNext,
   onSkip,
+  onSetAside,
+  onClose,
 }: {
   market: "ly" | "tn";
   row: RunRow;
+  /** The roll's colour, for the viewfinder; null outside a roll. */
   hex: string | null;
+  /** The roll's name, for the instruction; null when the roll is unknown. */
+  colourName: string | null;
+  /** « k / n » */
+  position: number;
+  total: number;
+  /** Parcels of this batch already handled — the filled dots. */
+  done: number;
+  /** The parcel that follows a clean bind. */
+  next: RunRow | null;
+  sameRoll: boolean;
   /** A parcel left the bench: the caller drops it and counts the scan. */
   onBound: () => void;
-  /**
-   * A parcel that did NOT leave: refused here or at Darb, or bound without a
-   * commit. The batch summary names these, because a count tells the agent
-   * something went wrong while a list tells them which box is still on the table.
-   */
+  /** A parcel that did NOT leave, with the reason shown at the time. */
   onUnresolved: (message: string) => void;
-  /** Move to the next parcel of the batch. */
   onNext: () => void;
+  /** Put it down; it comes back once at the end of the batch. */
   onSkip: () => void;
+  /** It belongs to the other building: out of this batch for good. */
+  onSetAside: () => void;
+  onClose: () => void;
 }) {
   const t = useTranslations("warehouse.run");
   const tb = useTranslations("warehouse.bench");
@@ -71,44 +82,25 @@ export function RunScanner({
   const prefs = useMemo(() => readScannerPrefs(), []);
   const [value, setValue] = useState("");
   const [camera, setCamera] = useState(prefs.cameraFirst);
-  const [held, setHeld] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const { submit, busy, last, clear } = useScanOut({
-    market,
-    hand: row,
-    orders: [row],
-    onScanned: onBound,
-  });
-
-  // A new parcel: forget the previous outcome, re-arm the camera.
-  useEffect(() => {
-    clear();
-    setValue("");
-    setHeld(false);
-    setCamera(prefs.cameraFirst);
-  }, [row.id, clear, prefs.cameraFirst]);
+  const { submit, busy, last, clear } = useScanOut({ market, hand: row, orders: [row], onScanned: onBound });
 
   const lastId = last?.id;
   useEffect(() => {
     if (!lastId || !last) return;
     signalOutcome(last.outcome, prefs);
-    // Anything that is not a clean bind is reported once, when it happens: the
-    // result card is about to be replaced by the next parcel and the agent
-    // needs it back at the end of the batch.
-    if (last.outcome !== "bound") {
-      onUnresolved(last.message ?? last.outcome);
-    }
+    if (last.outcome !== "bound") onUnresolved(last.message ?? last.outcome);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
 
-  /*
-   * The hardware gun. Mounted on the document, not on an input, because the
-   * agent's hands are on a parcel and nothing guarantees focus is anywhere
-   * useful. Typing into the field still works: the handler only fires on a
-   * burst faster than a human can type.
-   */
   const onScan = useCallback((text: string) => void submit(text), [submit]);
+
+  /*
+   * The gun, on the document. React flushes a keydown's state synchronously,
+   * so once the sticker field has answered its own Enter this listener is
+   * already gone (`busy`) before the event reaches the document: one bind,
+   * not two.
+   */
   useEffect(() => {
     if (busy || last) return;
     const { handler, cleanup } = createScannerInputHandler(onScan);
@@ -119,169 +111,203 @@ export function RunScanner({
     };
   }, [onScan, busy, last]);
 
-  const committed = last?.outcome === "bound";
-  // Only a clean bind advances on its own. The two amber outcomes are exactly
-  // the ones somebody has to read.
+  // The server moved stock: the parcel has left, whatever the sticker's fate.
+  const moved = !!last && last.to !== undefined;
+  const clean = moved && last?.outcome === "bound";
+  // Only a clean bind with a parcel to go to advances on its own.
   useEffect(() => {
-    if (!committed || held) return;
-    const id = setTimeout(onNext, ADVANCE_MS);
+    if (!clean || !next) return;
+    const id = setTimeout(onNext, RING_MS);
     return () => clearTimeout(id);
-  }, [committed, held, onNext]);
+  }, [clean, next, onNext]);
 
-  if (busy) {
-    return (
-      <div
-        role="status"
-        className="grid min-h-[220px] place-items-center gap-2.5 rounded-[14px] border border-wm-card-edge bg-wm-card p-4 text-center"
-      >
-        <span
-          aria-hidden="true"
-          className="h-9 w-9 animate-spin rounded-full border-4 border-wm-track border-t-wm-accent motion-reduce:animate-none"
-        />
-        <span className="text-[16px] font-semibold text-wm-ink">{isLy ? ts("binding") : ts("bindingTn")}</span>
-      </div>
-    );
-  }
+  const sub = (
+    <>
+      <bdi>{row.product_name}</bdi>
+      {row.customer_city ? (
+        <>
+          {" · "}
+          <bdi>{row.customer_city}</bdi>
+        </>
+      ) : null}
+    </>
+  );
 
   if (last) {
     const outcome = last.outcome;
+
+    // R.wrongsite — what to do, not the error code.
+    if (last.errorCode === "WRONG_SITE") {
+      return (
+        <>
+          <OutcomeCard
+            tone="bad"
+            outcome="wrong_site"
+            title={tb("wrongT")}
+            body={tb("wrongB", { warehouse: last.warehouseName ?? "—" })}
+            code={last.code}
+            codeSize={22}
+            sub={sub}
+          />
+          <button type="button" onClick={onSetAside} className={`${BTN_SEC} ${XL} mt-[16px] w-full`}>
+            {tb("ok")}
+          </button>
+        </>
+      );
+    }
+
+    // R.bound — and its amber twin, when Darb kept another number.
+    if (moved) {
+      return (
+        <>
+          <OutcomeCard
+            tone={clean ? "ok" : "warn"}
+            outcome={outcome}
+            title={clean ? t("bound") : ts("errBindUnverified")}
+            code={last.code}
+            sub={sub}
+          >
+            <StockChip from={last.from} to={last.to} />
+            {outcome === "bind_unverified" ? (
+              <p data-testid="wh-run-unverified" className="relative mt-[10px] text-[14px] text-wm-ink">
+                {tb("unverifiedHint", { ref: last.carrierRef ?? "—" })}
+              </p>
+            ) : null}
+          </OutcomeCard>
+          {next ? (
+            <NextParcel
+              label={sameRoll ? t("next") : t("nextAny")}
+              product={next.product_name}
+              quantity={next.quantity}
+              imageUrl={next.product_image_url}
+              line={
+                <>
+                  {next.customer_city ? (
+                    <>
+                      <bdi>{next.customer_city}</bdi>
+                      {" · "}
+                    </>
+                  ) : null}
+                  <bdi>{next.customer_name}</bdi>
+                </>
+              }
+              auto={clean}
+            />
+          ) : (
+            <p className="mt-[20px] text-center text-[14px] text-wm-ink-2">{t("lastOne")}</p>
+          )}
+          <div className="mt-[16px] flex gap-[12px]">
+            <button type="button" onClick={onClose} className={`${BTN_SEC} flex-1`}>
+              {t("close")}
+            </button>
+            <button type="button" onClick={onNext} className={`${BTN_PRI} flex-1`}>
+              {t("nextBtn")}
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    // Nothing left: a refusal (here or at Darb), or amber with no stock moved.
     const warn = outcome === "bound_not_committed" || outcome === "bind_unverified";
-    const moved = outcome === "bound" || outcome === "bind_unverified";
-    const Icon = outcome === "bound" ? Check : warn ? TriangleAlert : X;
-    const ink = outcome === "bound" ? "text-wh-ok" : warn ? "text-wh-warn" : "text-wh-bad";
-    const heading: Record<ScanOutcome, string> = {
-      bound: tb("bound", { name: row.customer_name }),
-      refused_here: ts("errRefused"),
-      refused_darb: ts("errCarrier"),
-      bound_not_committed: ts("errBoundNotCommitted"),
-      bind_unverified: ts("errBindUnverified"),
-    };
-
+    const title =
+      outcome === "bound_not_committed"
+        ? ts("errBoundNotCommitted")
+        : outcome === "bind_unverified"
+          ? ts("errBindUnverified")
+          : outcome === "refused_darb"
+            ? ts("errCarrier")
+            : ts("errRefused");
     return (
-      <div>
-        <div
-          data-testid="wh-run-result"
-          data-outcome={outcome}
-          className={`grid min-h-[200px] place-items-center gap-2 rounded-[14px] border bg-wm-card p-4 text-center ${TONE[outcome]}`}
-        >
-          <Icon size={40} strokeWidth={2} className={ink} aria-hidden="true" />
-          <b dir="ltr" className="text-[26px] font-bold tracking-[0.06em] tabular-nums text-wm-ink">{last.code}</b>
-          <p className="text-[16px] font-semibold text-wm-ink">{heading[outcome]}</p>
-          {moved ? (
-            <p className="text-[15px] tabular-nums text-wm-ink-2">
-              {tb("stockEffect", { from: last.from ?? "—", to: last.to ?? "—" })}
-            </p>
-          ) : (
-            <p className="text-[14px] text-wm-ink-2">{last.message}</p>
-          )}
-          {outcome === "bound_not_committed" ? (
-            <p className="text-[14px] text-wm-ink-2">{tb("notCommittedHint")}</p>
-          ) : null}
-          {outcome === "bind_unverified" ? (
-            <p data-testid="wh-run-unverified" className="text-[14px] text-wm-ink-2">
-              {tb("unverifiedHint", { ref: last.carrierRef ?? "—" })}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="mt-2.5 grid gap-2">
-          {moved ? (
-            <>
-              <button
-                type="button"
-                onClick={onNext}
-                className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-              >
-                {t("nextNow")}
-              </button>
-              {committed && !held ? (
-                <button
-                  type="button"
-                  onClick={() => setHeld(true)}
-                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[13.5px] font-semibold text-wm-ink-2"
-                >
-                  {t("stay")}
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={clear}
-                className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-              >
-                {tb("retry")}
-              </button>
-              <button
-                type="button"
-                onClick={onSkip}
-                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-              >
-                {t("skip")}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <>
+        <OutcomeCard
+          tone={warn ? "warn" : "bad"}
+          outcome={outcome}
+          title={title}
+          body={outcome === "bound_not_committed" ? tb("notCommittedHint") : last.message}
+          code={last.code}
+          codeSize={22}
+          sub={sub}
+        />
+        <button type="button" onClick={clear} className={`${BTN_PRI} mt-[16px] w-full`}>
+          {tb("retry")}
+        </button>
+        <button type="button" onClick={onSkip} className={`${BTN_GHOST} mt-[6px] w-full`}>
+          {t("skip")}
+        </button>
+      </>
     );
   }
 
+  // R.run — the parcel in hand, with the scanner already under it.
+  const dots = Math.max(0, Math.min(total, 40));
+  const filled = total > 0 ? Math.round((done / total) * dots) : 0;
+  const hint = !isLy ? t("stickHintTn") : colourName ? t("stickHint", { colour: colourName }) : tb("unknownZoneHint");
+  const send = () => {
+    const code = value;
+    setValue("");
+    onScan(code);
+  };
+
   return (
     <div data-testid="wh-run-scanner">
-      {camera ? (
-        <QrScanner active={camera} frameColor={hex} onScan={onScan} onClose={() => setCamera(false)} />
-      ) : (
-        <ScanViewfinder frameColor={hex}>
-          <button
-            type="button"
-            data-testid="wh-camera-primary"
-            onClick={() => setCamera(true)}
-            className="absolute inset-x-0 bottom-5 mx-auto inline-flex min-h-[52px] w-max items-center justify-center gap-2.5 rounded-pill bg-wm-accent px-6 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-          >
-            <Camera size={20} aria-hidden="true" />
-            {ts("camera")}
-          </button>
-        </ScanViewfinder>
-      )}
+      <div className="mb-[6px] flex items-center gap-[12px] text-[12.5px] text-wm-ink-2">
+        <span className="flex-1">{t("inHand")}</span>
+        <span
+          data-testid="wh-run-progress"
+          dir="ltr"
+          aria-label={t("progressLabel", { done: position, total })}
+          className="tabular-nums"
+        >
+          <b className="text-wm-ink">{position}</b> / {total}
+        </span>
+      </div>
+      <div aria-hidden="true" className="mb-[14px] mt-[2px] flex gap-[4px]">
+        {Array.from({ length: dots }, (_, i) => (
+          <i
+            key={i}
+            data-testid="wh-run-dot"
+            className={`h-[4px] flex-1 rounded-[2px] ${i < filled ? "bg-job" : "bg-line"}`}
+          />
+        ))}
+      </div>
 
-      <p className="mb-1.5 mt-3 text-[12.5px] text-wm-ink-3">{isLy ? tb("typeNumber") : tb("typeQr")}</p>
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            const code = value;
-            setValue("");
-            onScan(code);
-          }
-        }}
-        inputMode={isLy ? "numeric" : "text"}
-        pattern={isLy ? "[0-9]*" : undefined}
-        autoComplete="off"
-        dir="ltr"
-        aria-label={ts("stickerNumber")}
-        placeholder={isLy ? "1213123" : ts("placeholderTn")}
-        className="min-h-[48px] w-full rounded-[12px] border border-wm-card-edge bg-wm-card px-3.5 text-start text-[20px] font-semibold tracking-[0.06em] tabular-nums text-wm-ink outline-none focus:border-wm-accent focus:ring-2 focus:ring-wm-accent"
+      <RunParcel row={row} />
+
+      <p className="mt-[12px] text-[12.5px] text-wm-ink-2">{hint}</p>
+
+      <RunViewfinder
+        hex={isLy ? hex : null}
+        camera={camera}
+        onToggle={() => setCamera((c) => !c)}
+        onScan={onScan}
+        busyLabel={busy ? (isLy ? ts("binding") : ts("bindingTn")) : null}
       />
-      <button
-        type="button"
-        onClick={() => {
-          const code = value;
-          setValue("");
-          onScan(code);
-        }}
-        className="mt-2.5 inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[15px] font-bold text-white active:bg-wm-accent-deep"
-      >
-        {tb("bind")}
-      </button>
-      <button
-        type="button"
-        onClick={onSkip}
-        className="mt-1 inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
-      >
+
+      <div className="mt-[12px] flex gap-[8px]">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              send();
+            }
+          }}
+          inputMode={isLy ? "numeric" : "text"}
+          pattern={isLy ? "[0-9]*" : undefined}
+          autoComplete="off"
+          dir="ltr"
+          disabled={busy}
+          aria-label={isLy ? tb("typeNumber") : tb("typeQr")}
+          placeholder={isLy ? tb("typeNumber") : tb("typeQr")}
+          className={`h-[48px] min-w-0 flex-1 rounded-[12px] border border-[var(--border-strong)] bg-white px-[14px] text-start text-[16px] text-wm-ink outline-none placeholder:text-wm-ink-3 focus:border-brand ${MONO}`}
+        />
+        <button type="button" onClick={send} disabled={busy} className={BTN_SEC}>
+          {tb("bind")}
+        </button>
+      </div>
+      <button type="button" onClick={onSkip} className={`${BTN_GHOST} mt-[6px] w-full`}>
         {t("skip")}
       </button>
     </div>

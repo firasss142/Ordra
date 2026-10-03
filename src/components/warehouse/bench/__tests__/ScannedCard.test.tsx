@@ -119,4 +119,17 @@ describe("ScannedCard", () => {
     await userEvent.click(screen.getByRole("button", { name: /envoyer/i }));
     expect(onRebind).toHaveBeenCalledWith(expect.objectContaining({ id: "o1" }), "1633019");
   });
+
+  test("reads like Sortir's rows: product first, then city and first name", () => {
+    render(
+      <Intl locale="fr">
+        <ScannedCard row={scanned()} isLy busy={false} onRecheck={noop} onRebind={noop} onUnscan={noop} />
+      </Intl>,
+    );
+    const card = screen.getByTestId("wh-scanned-card");
+    const [first, second] = card.querySelectorAll("[data-line]");
+    expect(first).toHaveTextContent("كتاب الحفظ الميسر ×1");
+    expect(second).toHaveTextContent("بنغازي · سعاد");
+    expect(second).not.toHaveTextContent("المبروك");
+  });
 });
