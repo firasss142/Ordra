@@ -1,0 +1,826 @@
+<!doctype html>
+<!--
+  Voix du client — côté RESPONSABLE, prototype v6. Construit 2026-10-02 (v5 + retours du propriétaire : plage de dates libre, visuels sujets/agents, images produit).
+  Plan : plans/voix-du-client.md. Repart de la v2 (feuille type Notion), que le propriétaire préférait ;
+  la v4 (phrases explicatives) est abandonnée : « des mots simples, des données courtes, faciles à analyser ».
+  Décisions du propriétaire (2026-10-02) :
+   · en tête : le VOLUME PAR CATÉGORIE (Réclamations / Objections / Suggestions) avec la tendance
+     contre la période précédente ;
+   · sous-onglets PAR PRODUIT (Tout · un onglet par produit ; les 4 tailles du sac de frappe = un onglet) ;
+   · filtres toujours visibles : Période, Agent (le produit, ce sont les onglets) ;
+   · une petite ligne « Saisies » par agent, pas un onglet.
+  Le reste vient de la v4 : 3 catégories + sujet, réclamations suivies, suggestions du livreur à valider.
+  URL : ?lang=fr|ar &prod=all|B|Q|D|T|H &per=today|d7|d30|all &agent=<nom> &cat=… &topic=… &peek=<id>
+  DONNÉES : les mêmes que la v4 (réelles, Libye, lues le 2026-09-30) ; noms/téléphones clients inventés.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voix du client — responsable, prototype v6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFF; --sunken:#F9FAFB; --hover:#F7F8F9;
+    --line:#E1E3E5; --line-subtle:#EDEEF0;
+    --ink-1:#1A1A1A; --ink-2:#5C6166; --ink-3:#8A9096;
+    --brand:#15803D; --brand-bg:#EAF6EE;
+    --crit:#D72C0D; --ok:#008060; --warn:#8A5A00;
+    --sidebar:#0E1013; --sidebar-el:#1A1D21; --sidebar-ink:#E6E8EB; --sidebar-3:#6B7178;
+    --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; --f-ar:"Cairo","Noto Sans Arabic",system-ui,sans-serif;
+  }
+  [data-c=reclamation]{--tb:#FEE2E2;--ti:#991B1B;--td:#EF4444}
+  [data-c=objection]  {--tb:#FEF3C7;--ti:#92400E;--td:#F59E0B}
+  [data-c=suggestion] {--tb:#DCFCE7;--ti:#166534;--td:#22C55E}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+  [dir=rtl] body,[dir=rtl] button,[dir=rtl] input,[dir=rtl] select,[dir=rtl] textarea{font-family:var(--f-ar)}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .q{unicode-bidi:plaintext}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+
+  .app{display:flex;min-height:100vh}
+  .side{width:224px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);padding:14px 10px;font-size:13px}
+  .side .brand{font-weight:700;font-size:15px;padding:4px 10px 16px}
+  .side .sec{color:var(--sidebar-3);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:12px 10px 4px}
+  .side a{display:block;padding:6px 10px;border-radius:6px;color:#B5BAC2;text-decoration:none}
+  .side a.on{background:var(--sidebar-el);color:#fff;box-shadow:inset 3px 0 0 var(--brand)}
+  [dir=rtl] .side a.on{box-shadow:inset -3px 0 0 var(--brand)}
+  main{flex:1;min-width:0;padding:22px 28px 60px}
+
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .top h1{font-size:20px;margin:0;font-weight:650}
+  .grow{flex:1}
+  .seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:2px}
+  .seg button{padding:5px 11px;border-radius:6px;color:var(--ink-2);font-size:13px}
+  .seg button.on{background:var(--ink-1);color:#fff}
+  .sel{height:32px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:0 10px;font-size:13px}
+  .btn{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+
+  .ptabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+  .ptabs button{padding:8px 12px;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-size:13.5px}
+  .ptabs button.on{color:var(--ink-1);border-color:var(--ink-1);font-weight:600}
+  .ptabs .n{color:var(--ink-3);font-size:12px}
+
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:start;position:relative}
+  .kpi:hover{border-color:#C9CCCF}
+  .kpi.on{border-color:var(--td);box-shadow:inset 0 0 0 1px var(--td)}
+  .kpi .lab{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);font-weight:500}
+  .kpi .dot{width:8px;height:8px;border-radius:50%;background:var(--td)}
+  .kpi .big{font-size:28px;font-weight:650;margin:4px 0 2px;display:flex;align-items:baseline;gap:10px}
+  .delta{font-size:12.5px;font-weight:600}
+  .delta.up{color:var(--crit)} .delta.dn{color:var(--ok)} .delta.eq{color:var(--ink-3)}
+  [data-c=suggestion] .delta.up{color:var(--ok)} [data-c=suggestion] .delta.dn{color:var(--ink-3)}
+  .kpi .sub{font-size:12.5px;color:var(--ink-3)}
+  .kpi .sub b{color:var(--crit);font-weight:600}
+
+  .row2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:12px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+  .box h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:0 0 8px;font-weight:600;display:flex;gap:8px}
+  .bar{display:grid;grid-template-columns:minmax(0,190px) 1fr 34px;align-items:center;gap:10px;width:100%;padding:4px 0;font-size:13px;text-align:start}
+  .bar:hover .t{text-decoration:underline}
+  .bar.on .t{font-weight:650}
+  .bar .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+  .bar .t i{width:7px;height:7px;border-radius:50%;background:var(--td);flex:none}
+  .bar .tr{height:8px;background:var(--line-subtle);border-radius:4px;overflow:hidden}
+  .bar .tr span{display:block;height:100%;background:var(--td);border-radius:4px}
+  .bar .c{text-align:end;color:var(--ink-2)}
+  .agents{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .agents button{display:inline-flex;gap:5px;align-items:center;color:var(--ink-2)}
+  .agents button b{color:var(--ink-1);font-weight:600}
+  .agents button.zero b{color:var(--crit)}
+  .agents button.on{color:var(--ink-1);text-decoration:underline}
+  .todo{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-subtle);font-size:13px}
+  .todo button{display:flex;justify-content:space-between;color:var(--ink-1)}
+  .todo button:hover{text-decoration:underline}
+  .todo .num{font-weight:650}
+  .todo .hot{color:var(--crit)}
+
+  .chips{display:flex;gap:6px;align-items:center;margin:4px 0 8px;min-height:26px;font-size:13px;color:var(--ink-2)}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:2px 6px 2px 10px;font-size:12.5px;color:var(--ink-1)}
+  .chip button{color:var(--ink-3);display:flex}
+  .chip .ic{width:13px;height:13px}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+  th{font-weight:500;color:var(--ink-3);text-align:start;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--sunken);font-size:12px;white-space:nowrap}
+  td{padding:8px 12px;border-bottom:1px solid var(--line-subtle);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  tbody tr{cursor:pointer}
+  tbody tr:hover td{background:var(--hover)}
+  tbody tr.sel td{background:#F1F5F9}
+  td.say{max-width:380px}
+  td.say .q{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-ar)}
+  td.muted{color:var(--ink-2);white-space:nowrap}
+  .tag{display:inline-flex;align-items:center;gap:5px;background:var(--tb);color:var(--ti);border-radius:5px;padding:1px 7px;font-size:12px;font-weight:550;white-space:nowrap}
+  .st{font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+  .st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink-3)}
+  .st[data-s=open]::before{background:var(--crit)} .st[data-s=in_progress]::before{background:#F59E0B} .st[data-s=resolved]::before{background:var(--ok)}
+  .st.late{color:var(--crit);font-weight:600}
+  .av{width:20px;height:20px;border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;vertical-align:middle;margin-inline-end:6px}
+  .av .ic{width:12px;height:12px}
+  .more{display:block;margin:10px auto 0;color:var(--ink-2);font-size:13px}
+  .empty{padding:30px;text-align:center;color:var(--ink-3)}
+  .rv{display:flex;gap:6px}
+  .rv button{border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:12px;background:var(--card)}
+  .rv button.k{border-color:var(--brand);color:var(--brand)}
+
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.18)}
+  .drawer{position:fixed;top:0;bottom:0;inset-inline-end:0;width:440px;background:var(--card);border-inline-start:1px solid var(--line);padding:20px 22px;overflow:auto}
+  .drawer h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .drawer .x{margin-inline-start:auto;color:var(--ink-3)}
+  .quote{font-family:var(--f-ar);font-size:16px;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:8px;padding:12px 14px;margin:0 0 14px;direction:rtl;text-align:right}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:8px 12px;font-size:13px;margin-bottom:16px}
+  .kv dt{color:var(--ink-3)} .kv dd{margin:0}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line-subtle);padding-top:14px}
+  .lang{font-size:12px;color:var(--ink-3)}
+
+  /* ── v6 ── */
+  .thumb{width:22px;height:22px;border-radius:5px;object-fit:cover;flex:none;background:var(--line-subtle);border:1px solid var(--line-subtle)}
+  .thumb.lg{width:40px;height:40px;border-radius:8px}
+  .ptabs{border:0;gap:8px;margin-bottom:16px;padding-bottom:2px}
+  .ptabs button{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1px solid var(--line);border-radius:99px;background:var(--card);margin:0;color:var(--ink-1);font-size:13px}
+  [dir=rtl] .ptabs button{padding:5px 6px 5px 12px}
+  .ptabs button.all{padding:5px 14px}
+  .ptabs button:hover{border-color:#C9CCCF}
+  .ptabs button.on{background:var(--ink-1);border-color:var(--ink-1);color:#fff;font-weight:500}
+  .ptabs button.on .n{color:#B5BAC2}
+  .ptabs .thumb{width:24px;height:24px;border-radius:50%}
+
+  .dp{position:relative}
+  .dpbtn{height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:13px;display:inline-flex;align-items:center;gap:7px}
+  .dpbtn.on{border-color:var(--ink-1)}
+  .pop{position:absolute;top:38px;inset-inline-end:0;z-index:20;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.12);display:flex;overflow:hidden}
+  .pre{display:flex;flex-direction:column;padding:8px;border-inline-end:1px solid var(--line-subtle);min-width:168px}
+  .pre button{text-align:start;padding:7px 10px;border-radius:6px;font-size:13px;color:var(--ink-2)}
+  .pre button:hover{background:var(--hover);color:var(--ink-1)}
+  .pre button.on{background:var(--brand-bg);color:var(--brand);font-weight:600}
+  .cal{padding:14px 16px}
+  .months{display:flex;gap:24px}
+  .mh{display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:13px;margin-bottom:8px;min-height:24px}
+  .mh button{color:var(--ink-3);width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+  .mh button:hover{background:var(--hover);color:var(--ink-1)}
+  .grid{display:grid;grid-template-columns:repeat(7,34px);row-gap:2px}
+  .grid .wd{font-size:11px;color:var(--ink-3);text-align:center;padding-bottom:4px}
+  .day{height:32px;font-size:12.5px;text-align:center;position:relative;border-radius:0}
+  .day span{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%}
+  .day:hover span{background:var(--line-subtle)}
+  .day.in{background:var(--brand-bg)}
+  .day.s,.day.e{background:var(--brand-bg)}
+  .day.s{border-start-start-radius:16px;border-end-start-radius:16px}
+  .day.e{border-start-end-radius:16px;border-end-end-radius:16px}
+  .day.s span,.day.e span{background:var(--brand);color:#fff;font-weight:600}
+  .day.today span{box-shadow:inset 0 0 0 1px var(--ink-3)}
+  .day.off{color:var(--line);pointer-events:none}
+  .day.has::after{content:"";position:absolute;bottom:3px;left:50%;width:3px;height:3px;border-radius:50%;background:var(--ink-3);transform:translateX(-50%)}
+  .calf{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line-subtle);margin-top:10px;padding-top:10px;font-size:12.5px;color:var(--ink-2)}
+  .calf .grow{flex:1}
+
+  .alert{display:flex;align-items:center;gap:14px;background:#FFF8F6;border:1px solid #F8D3CB;border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:13px}
+  .alert .ic{color:var(--crit)}
+  .alert button{font-weight:600;color:var(--ink-1);display:inline-flex;gap:6px;align-items:center}
+  .alert button:hover{text-decoration:underline}
+  .alert .sep{width:1px;height:16px;background:#F0C8BF}
+  .alert .num{color:var(--crit)}
+  .alert .muted .num{color:var(--ink-1)}
+
+  .kpi{padding:14px 16px 10px;overflow:hidden}
+  .kpi .big{font-size:30px;letter-spacing:-.01em}
+  .spark{display:block;width:100%;height:38px;margin-top:6px}
+  .kpi .sub{display:flex;justify-content:space-between}
+
+  .row2{grid-template-columns:1.25fr 1fr}
+  .box{padding:14px 16px}
+  .boxh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+  .boxh h3{margin:0}
+  .boxh small{color:var(--ink-3);font-size:12px}
+  .mix{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin-bottom:6px}
+  .mix span{background:var(--td)}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-2);margin-bottom:12px}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--td);margin-inline-end:5px}
+  .trow{display:grid;grid-template-columns:22px minmax(0,1fr) 120px 40px 52px;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:8px;text-align:start;font-size:13px}
+  .trow:hover{background:var(--hover)}
+  .trow.on{background:color-mix(in srgb,var(--tb) 55%,#fff);box-shadow:inset 0 0 0 1px var(--td)}
+  .trow .rk{width:22px;height:22px;border-radius:6px;background:var(--tb);color:var(--ti);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .trow .lb{min-width:0}
+  .trow .lb b{display:block;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .lb small{color:var(--ink-3);font-size:11.5px}
+  .trow .tr{height:6px;background:var(--line-subtle);border-radius:3px;overflow:hidden}
+  .trow .tr span{display:block;height:100%;background:var(--td);border-radius:3px}
+  .trow .c{text-align:end;font-weight:650}
+  .trow .dl{font-size:11.5px;font-weight:600;text-align:end}
+  .dl.up{color:var(--crit)} .dl.dn{color:var(--ok)} .dl.eq{color:var(--ink-3)} .dl.nw{color:#6D28D9}
+  [data-c=suggestion] .dl.up{color:var(--ok)}
+
+  .ag{display:grid;grid-template-columns:28px minmax(0,1fr) 34px;gap:4px 10px;align-items:center;width:100%;padding:7px 8px;border-radius:8px;text-align:start}
+  .ag:hover{background:var(--hover)}
+  .ag.on{background:var(--sunken);box-shadow:inset 0 0 0 1px var(--line)}
+  .ag .av{width:28px;height:28px;font-size:12px;margin:0;grid-row:span 2}
+  .ag .nm{font-size:13px;font-weight:550;display:flex;gap:6px;align-items:center}
+  .ag .c{font-weight:650;text-align:end;grid-row:span 2;font-size:15px}
+  .ag .stack{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--line-subtle);gap:1px}
+  .ag .stack span{background:var(--td)}
+  .ag.zero .c{color:var(--crit)}
+  .ag .warn{font-size:11px;color:var(--crit);font-weight:600;background:#FFF1EE;border-radius:4px;padding:0 5px}
+  .ag .med{font-size:11px;color:var(--warn);font-weight:600;background:#FFF8E6;border-radius:4px;padding:0 5px}
+  td.prod{white-space:nowrap;color:var(--ink-2)}
+  td.prod span{display:inline-flex;align-items:center;gap:8px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ═══════════ Real data (Libya) ═══════════ */
+const RAW = `6ABA6703|T|pe|tasnim|قالت طلبت يعني من مكان آخر
+6ABB4BF6|H|pe|tasnim|شراء من المكان الثاني
+6ABB1CAE|T|nc|tasnim|قالت لا املك المبلغ
+6ABB408B|T|nc|tasnim|قالت أول ما ينزل الراتب رن عليكم
+6ABA1A28|T|nc|tasnim|قالت الراتب لم ينزل
+6AB9F42A|D|pe|tasnim|اشترت من مكان آخر
+6AB9D786|T|nc|tasnim|قال حاليا لا أملك الكاش
+6AB8FB55|T|pr|tasnim|السعر غالي
+6AB89BED|Q|pr|tasnim|قال ألغي لأن السعر غالي
+6AB887E7|T|pay|tasnim|قال يريد دفع بالبطاقة
+6AB89FAA|T|pd|roqaya|تبي رواية قالون
+6AB9395A|H|nc|tasnim|قالت لا أملك المبلغ
+6AB8CDA8|Q|nc|tasnim|قالت أول ما يكونوا فلوسي جاهزات ورن عليك
+6AB92EF7|T|pd|tasnim|تريد رواية قالون
+6AB90EED|Q|pe|tasnim|قالت توني نشتريها من مكان آخر
+6AB912DC|D|pay|tasnim|قال أريد الدفع بالخدمات
+6AB8C44D|H|nc|tasnim|قالت لا أملك المال
+6AB8A9A0|T|pd|roqaya|يحسابة براوية قالون
+6AB7BF95|H|nc|tasnim|قال ليس لدي المبلغ
+6AB77E5E|T|nc|tasnim|لا تملك الكاش
+6AB704D5|Q|pd|tasnim|قال كنت حساب الكتاب سوف ينزل في هاتف إلكتروني
+6AB68FDD|H|pd|tasnim|قال لا اريده كنت نحسابه الكتروني
+6AB6794A|Q|pd|tasnim|قال أريد حجم متوسط
+6AAD51E9|H|nc|tasnim|قالت لا أملك المال
+6AB4A64B|D|pr|tasnim|قال سعره غالي
+6AB254EB|H|nc|tasnim|قال لا أملك المال
+6AB06F18|D|nc|tasnim|قال لا املك المبلغ
+6AB05869|D|pay|tasnim|قال اريد الدفع بالبطاقة
+6AB0E9EA|D|nc|roqaya|غير متوفر عنده القيمة
+6AAD60A7|H|pd|tasnim|قالت أريد كتاب في رواية حفص
+6AAE4C8D|Q|pd|tasnim|قالت أريد مصحف عادي
+6A9ECFF4|D|pr|tasnim|قال السعر غالي
+6A9E442B|Q|pay|tasnim|قالت تريد الدفع بطريقة اخرى
+6A18C2D2|BS|dl|hend|العميل لا يريد خدمة توصيل يريد الاستلام بنفسه من مكان البيع
+6AAD9004|Q|pr|tasnim|قال سعره غالي
+6AA99BAF|Q|nc|tasnim|قال لا املك السعر حاليا
+6AA7CD9F|Q|nc|tasnim|لا يملك المبلغ بالكاش
+6A198F58|BS|dl|hend|العميل رفض بسبب التوصيل..ظن السعر يشمل التوصيل
+6A9ED828|Q|pay|tasnim|قال اريد الدفع بطريقة اخرى
+6A7327AF|BM|nc|tasnim|قال لا أملك المال ل شراء
+6A8F68A5|BM|pay|riheb|ليس لديه كاش ويريد تحويل
+6AA1A8C1|H|nc|tasnim|قالت ليس لدي كاش
+6A121940|BX|pe|mouna|قال تاخرتو وشرينا
+6A138314|BX|pd|mouna|قال طلبتها قبل ووصلتني ومعجبتنيش
+6A1775FC|BM|pe|hend|اشترى المنتج من محل في منطقته
+6A177B65|BL|pe|hend|العميل اشترى من متجر اخر
+6AA3D49E|D|nc|tasnim|قالت لا املك المبلغ
+6A367325|BM|pe|hend|الطلبية من قبل العيد وتوا شروا غيرها
+6AA61B1D|Q|nc|tasnim|قال لا املك المبلغ
+6A3456D8|BM|pd|hend|يبي القفازات قال في اعلان الفيس شاف قفازات
+6A35BA21|Q|pd|roqaya|تبي حفص
+6A9C4256|D|pr|tasnim|قال السعر غالي
+6A2FC966|BM|pe|hend|طلب من مكاننا واكد عند مكان ثاني قبلنا
+6A409CC6|BS|pe|tasnim|قال اشتريت وحدة اخرى
+6A0C4E34|Q|dl|hend|قال ان الطلب ليه مدة طويلة اساببع وتوا معاش يبي
+6A33B549|BS|dl|hend|قال انا برا المدينة نروح ونعاود نطلب توا الغيها
+6A392D3E|BM|pe|hend|شرت من مكان ثاني
+6A3D063A|BS|pr|hend|يبي تخفيض ع الطرفين
+6A3EFC03|D|pr|tasnim|قال اخذته ب 10 دينار وهذا السعر جداً غالي
+6A76EEE5|BM|pd|admin|قال نبيه بدون هواء يعني يبيه ثقيل
+6A9BCA77|H|pr|tasnim|قال الغي الطلب السعرغالي
+6A40268B|BS|pe|roqaya|طلب من مكان تاني بسعر اقل 85
+6A417F8B|Q|pr|roqaya|في حد طالب ع رقمه وشافه قال السعر غالي مايبيش
+6A732BAC|BM|pe|tasnim|لان طالب من متجر آخر لذلك لا يريد هذه
+6A197FA2|BM|pe|hend|هذا طلب هو وابنه في نفس الوقت وتوا رفض الطلبية لأن ابنه اشترى وحدة
+6A46CF95|Q|pay|tasnim|بسبب انه يريد تحويل المبلغ
+6A48A5F0|Q|nc|mouna|قال الغيلي ولمانحصل حقه تو نعاود نحجز
+6A0D56A3|BS|pd|mouna|يبيها حجم اكبر
+6A46B263|Q|nc|tasnim|قال غير قادر على السعره
+6A7DFA47|BL|dl|tasnim|قالت الغي طلبيه لاني خارج مدينتي
+6A4961AF|Q|pd|roqaya|قال يبي مصحف عادي
+6A118596|BX|pe|mouna|قال شريت وحده فالغيلي هادي
+6A4098EA|D|dl|hend|العميل في منطقة اخرى يبي يأجل التسليم لين يتصل هو
+6A490D3C|Q|nc|tasnim|قال غير قادر على السعره
+6AA3A994|H|pd|tasnim|قال اريد معه جهاز لذلك الغي الطلب
+6A4B4822|Q|nc|tasnim|قالت المبلغ غير متوفر عندي حالياً
+6A81BDBF|BM|pd|tasnim|قالت سيتم تفسيدها من الصغار لذلك منقدرش نشرها
+6A3BB27E|BM|pay|mouna|قال نقدر ندفع تحويل بس
+6AA3CA9C|H|pd|tasnim|قال الغي الطلب لان اريد حجم متوسط
+6AA3ADDB|Q|pd|tasnim|قالت الغي الطلب نبي الكتاب يلي يجي معو الجهاز
+6AA67624|H|nc|tasnim|لا يملكون الكاش ابدا
+6A8D9E76|BM|pay|tasnim|قال لا استطيع الدفع الا موبي كاش
+6A42644A|BS|pe|tasnim|قال طلبت من متجر تاني
+6A469BC8|Q|pr|tasnim|اول ما سمعت السعر رفضت فورا
+6A4AB4F7|Q|pd|roqaya|يبي المصحف براويو حفص
+6AA675C7|H|pay|tasnim|قالت لا استطيع الدفع بالكاش
+6A170CF7|BM|pay|hend|العميل قال عنده بالتحويل المصرفي فقط باقي انظمة الدفع غير متوفرة عنده
+6A9C43BB|Q|pay|tasnim|يرديد الدفع بطريقة اخرى
+6A9C30AA|H|pay|tasnim|يريد الدفع بالبطاقة
+6A9E7BA0|H|pay|tasnim|قالت اريد الدفع بالبطاقة
+6A9E8028|H|pay|tasnim|قالت اريد الدفع بالبطاقة
+6AA3A832|Q|nc|tasnim|لا يملك المبلغ
+6A80E6A6|BS|pr|tasnim|قال سعره غالي الغي الطلب
+6AA3AD17|Q|nc|tasnim|لا يملك المبلغ
+6A9738BB|BM|nc|tasnim|قال الغي لان لا يستطيع دفع ثمنها
+6AA3C9E2|Q|pd|tasnim|قال اريد المتوسط الغي الطلب
+6A0FC8D6|BS|nc|mouna|قال الغيها لانه معنداش فلوس حاليا
+6A1828D6|BM|dl|hend|بعد التأكيد قال العميل انه خرج من المجينة ولن يستطيع الاستلام وطلب الالغاء
+6A9C1B72|Q|pay|tasnim|تريد الدفع بالبطاقة
+6AA3CD73|Q|nc|tasnim|قال لا املك المبلغ حالياً
+6A18E5F0|BM|pe|hend|العميل قال حجز عند شخص تاني
+6A7D4235|BL|dl|roqaya|الطلب يبها في مصر
+6A14E8E8|BM|pd|roqaya|لانه من غير قفازات
+6A96B5FD|BM|pr|tasnim|قالت غالي و الغي الطلب
+6A7DA752|BM|pay|tasnim|قال نريد حوالة لذلك الغي الطلب
+6A2F2DD4|BM|pr|roqaya|لقها بسعر اقل
+6AA692BA|D|pr|tasnim|قالت السعر غالي
+6A1195A8|BX|pe|mouna|قال تاخرتو وشريت
+6A9CFD14|H|nc|tasnim|قالت لا يتوفر المبلغ
+6A9F2817|Q|pe|tasnim|قال طلبت من مكان اخر
+6A9F2AC5|H|pd|roqaya|الزبون يبي مصحف العادي القديم
+6A846707|BM|pr|tasnim|قالت غالي لذلك الغي الطلب
+6A92108F|BL|pe|tasnim|قال اخذت من متجر اخر و غدا ستصل
+6A9EBE8C|H|pay|tasnim|قالت لا اريد الدفع الا بطريقه اخرى
+6A9C8420|Q|pr|tasnim|قال غالي
+6A9D85CC|H|pr|tasnim|قالت الغي الطلب بعد سماع السعر
+6A3EFCF7|D|pr|tasnim|قالي غالي و معنديش فلوس ولما عندي تو نطلب من الموقع من جديد
+6A3B1C0C|BL|pe|tasnim|قال خديت من مكان آخر
+6A75C9EC|BS|pr|tasnim|قال السعر غالي لذلك الغي طلب
+6A9D77C0|D|nc|tasnim|قالت لا املك المبلغ و تو نطلب من جديد
+6A8091AD|BS|pd|tasnim|قال الغي الطلب لانه بدون قفازات
+6AA690F8|Q|pr|tasnim|قالت سعره غالي الغي الطلب
+6A71F03A|BS|pay|tasnim|قال منقدرش ندفع إلا تحويل
+6A72F52D|BM|nc|tasnim|قالت لا املك ثمنها
+6AA44F32|Q|nc|tasnim|قال لا املك المبلغ
+6AAC29BE|Q|pay|tasnim|قال أريد الدفع بتحويل
+6AA7CDFC|H|pd|tasnim|قال لا يوجد معه قلم ناطق
+6AA998F6|H|pr|tasnim|قال السعر غالي
+6A3CE4F9|D|nc|tasnim|غير متوفر عندها المبلغ
+6A42149B|Q|pd|tasnim|السبب تريد رواية اخرى للكتاب وهي حفص
+6A4BD641|BS|pr|tasnim|قال الغي الطلب لان كان يحساب ان سعرها 25
+6A9C2F72|D|pay|tasnim|قال اريد الدفع بالبطالة
+6AA64EFB|H|pe|tasnim|قال طلبت من متجر آخر كتاب اخر
+6AAC0597|Q|nc|roqaya|حطلب في وقت تاني القيمة غير متوفره
+6AA7B2B7|Q|pd|tasnim|قالت كنت نحسابكم دورة
+6AA59C2C|H|nc|hend|تبي تطلب عند نزول رواتب شهر 9 لعدم توفر كامل المبلغ الان
+6AAD5623|D|nc|tasnim|قال لا أستطيع قال لا أستطيع دفع المبلغ
+6A9C8DD1|D|pr|tasnim|قال السعر غالي الغي الطلب
+6AA82A59|D|nc|hend|لعدم توفر السعر حاليا وستعاود الطلب قريبا
+6A407016|D|pr|tasnim|قال السعر جدا غالي
+6AAE0EA9|Q|pay|tasnim|يريد الدفع بتحويل
+6A72F7B6|BM|pr|tasnim|قال غالية لا أستطيع شراءها
+6AAC0DC4|Q|nc|roqaya|مش متوفر عنده حاليا القيمة كاش لانه مش متوفر خدمات مصرفيه
+6AAC4905|Q|pd|roqaya|يبيه براوية قالون مش حفص
+6AABCBE0|Q|nc|tasnim|قالت حاليا لا أملك المبلغ
+6AAD7FFA|Q|nc|tasnim|قال لا أملك المبلغ
+6AA90945|H|nc|tasnim|قالت لا يتوفر لدي المبلغ
+6A9C5DF9|Q|pay|tasnim|قال اريد الدفع بتحويل`;
+const DATES = "6A0C4E34=06-19 6A0D56A3=05-21 6A0FC8D6=05-22 6A118596=05-23 6A1195A8=06-01 6A121940=06-01 6A138314=05-29 6A14E8E8=05-31 6A170CF7=06-01 6A1775FC=06-01 6A177B65=06-01 6A1828D6=06-01 6A18C2D2=05-29 6A18E5F0=05-30 6A197FA2=05-30 6A198F58=05-30 6A2F2DD4=06-15 6A2FC966=06-15 6A33B549=06-19 6A3456D8=06-20 6A35BA21=06-20 6A367325=06-23 6A392D3E=06-22 6A3B1C0C=08-10 6A3BB27E=06-24 6A3CE4F9=06-25 6A3D063A=06-25 6A3EFC03=06-27 6A3EFCF7=08-10 6A40268B=06-28 6A407016=06-28 6A4098EA=07-05 6A409CC6=08-10 6A417F8B=06-29 6A42149B=06-29 6A42644A=07-02 6A469BC8=07-02 6A46B263=07-04 6A46CF95=07-04 6A48A5F0=07-04 6A490D3C=07-05 6A4961AF=07-05 6A4AB4F7=07-06 6A4B4822=07-06 6A4BD641=07-07 6A71F03A=08-06 6A72F52D=08-05 6A72F7B6=08-05 6A7327AF=09-01 6A732BAC=08-05 6A75C9EC=08-08 6A76EEE5=08-10 6A7D4235=08-13 6A7DA752=08-29 6A7DFA47=08-14 6A8091AD=08-16 6A80E6A6=08-16 6A81BDBF=08-16 6A846707=08-18 6A8D9E76=08-25 6A8F68A5=08-27 6A92108F=08-29 6A96B5FD=09-01 6A9738BB=09-02 6A9BCA77=09-08 6A9C1B72=09-05 6A9C2F72=09-05 6A9C30AA=09-05 6A9C4256=09-06 6A9C43BB=09-06 6A9C5DF9=09-06 6A9C8420=09-08 6A9C8DD1=09-08 6A9CFD14=09-06 6A9D77C0=09-06 6A9D85CC=09-11 6A9E442B=09-08 6A9E7BA0=09-07 6A9E8028=09-08 6A9EBE8C=09-07 6A9ECFF4=09-08 6A9ED828=09-07 6A9F2817=09-11 6A9F2AC5=09-08 6AA1A8C1=09-10 6AA3A832=09-11 6AA3A994=09-11 6AA3AD17=09-11 6AA3ADDB=09-11 6AA3C9E2=09-11 6AA3CA9C=09-11 6AA3CD73=09-11 6AA3D49E=09-11 6AA44F32=09-12 6AA59C2C=09-13 6AA61B1D=09-14 6AA64EFB=09-13 6AA675C7=09-13 6AA67624=09-14 6AA690F8=09-13 6AA692BA=09-13 6AA7B2B7=09-14 6AA7CD9F=09-16 6AA7CDFC=09-14 6AA82A59=09-15 6AA90945=09-17 6AA998F6=09-16 6AA99BAF=09-16 6AABCBE0=09-17 6AAC0597=09-18 6AAC0DC4=09-18 6AAC29BE=09-19 6AAC4905=09-18 6AAD51E9=09-24 6AAD5623=09-19 6AAD60A7=09-19 6AAD7FFA=09-19 6AAD9004=09-19 6AAE0EA9=09-19 6AAE4C8D=09-19 6AB05869=09-21 6AB06F18=09-21 6AB0E9EA=09-21 6AB254EB=09-22 6AB4A64B=09-24 6AB6794A=09-26 6AB68FDD=09-26 6AB704D5=09-26 6AB77E5E=09-26 6AB7BF95=09-26 6AB887E7=09-27 6AB89BED=09-27 6AB89FAA=09-27 6AB8A9A0=09-27 6AB8C44D=09-27 6AB8CDA8=09-27 6AB8FB55=09-27 6AB90EED=09-27 6AB912DC=09-27 6AB92EF7=09-27 6AB9395A=09-27 6AB9D786=09-28 6AB9F42A=09-28 6ABA1A28=09-28 6ABA6703=09-30 6ABB1CAE=09-29 6ABB408B=09-29 6ABB4BF6=09-29";
+const CR = `1542377|T|no_cash|cancelled|2026-09-27|ملغي الزبون قال معنديش فلوس
+11865457|Q|refused|cancelled|2026-09-16|الزبون رفض الشحنة
+2052458|D|no_cash|cancelled|2026-09-13|زبون قالي توا معنديش فلوس
+1842705|BL|payment_method|cancelled|2026-09-09|الزبون قال امخلص تحويل مصرفي لي المتجر
+1483326|D|no_cash|cancelled|2026-09-05|الغاء لايتوفر سيواله عندا
+1736610|BM|wrong_item|delivered|2026-09-04|الزبونه قالت حطها ف تعديل بتصفرها استبدال
+1609628|BL|wrong_item|cancelled|2026-08-29|مش نفس مواسفات يقول و ما يبش يدفع كامل توصيل
+1822596|BL|payment_method|cancelled|2026-08-28|بطاقته متعه جمهوريه مش مفعله اون لاين
+1830900|BS|no_cash|cancelled|2026-08-25|الزبون يقول لا أملك ثمن الطلبية
+1734237|BM|wrong_item|cancelled|2026-08-25|صاحب الرقم يقول مش الطلبية اللي يبيها
+1749722|BM|wrong_item|cancelled|2026-08-24|لا الون ولا المقاس صح
+1609616|BL|refused|cancelled|2026-08-23|الزبون رفض الطلبيه
+1609600|BL|wrong_item|cancelled|2026-08-23|مش نفس مطلوب
+1511509|BS|wrong_item|cancelled|2026-08-17|قال مش نفس لي في نت
+1793976|BL|wrong_item|cancelled|2026-08-15|الزبون قال مش نفس مانبي
+1511462|BL|wrong_item|returned|2026-08-14|غير مطابقة للمواصفات
+1511470|BL|wrong_item|cancelled|2026-08-10|مش نفس المطلوب
+1452085|BM|no_cash|returned|2026-08-09|تواصلت معاه وقالي الغاها معنديش حقها
+889848|Q|wrong_item|cancelled|2026-07-12|مش نفس الطلب
+1143600|BS|wrong_item|cancelled|2026-07-08|قالت معديش طلبية واصرت انها مش ليها
+1103189|BS|wrong_item|cancelled|2026-07-07|غير مطابق للمواصفات
+1146068|Q|payment_method|cancelled|2026-07-07|الزبون قال بندير تحويل مصرفي لي المتجر
+1131298|D|no_cash|cancelled|2026-07-07|لعدم وجود سيوله
+1142766|D|payment_method|cancelled|2026-07-06|بطاقه ومش مفعله اون لاين
+1143322|BM|wrong_item|cancelled|2026-06-30|يوجد خطأ في سعر الطلبيه
+1123720|Q|no_cash|cancelled|2026-06-29|قتلي لين ينزل المرتبة
+1212507|BM|refused|returned|2026-06-29|تم رفضها من قبل الزبون
+1143619|D|payment_method|cancelled|2026-06-29|الزبون البطاقه متعه مش فعله
+1142761|Q|payment_method|cancelled|2026-06-28|البطاقة لا تدعم الدفع online
+1131312|Q|no_cash|cancelled|2026-06-28|الزبون ماعنداش فلوس
+1213413|BS|wrong_item|cancelled|2026-06-24|مش نفس طالب الزبون
+1233838|BM|no_cash|cancelled|2026-06-23|الزبون معنداش كاش
+1103187|BM|refused|returned|2026-06-21|الزبون رفض الاستلام لم تعجبه تم التواصل مع المتجر
+1098854|BL|wrong_item|returned|2026-06-18|الزبون قال مش نفس الطلبيه
+1123712|BM|payment_method|out_for_delivery|2026-06-16|زبون طالب بطاقه والبطاقه مش مفعلها المتجر`;
+const TODAY = "2026-09-30";
+const PROD = {
+  Q:{ar:"القرآن تدبر وعمل",fr:"Coran « Tadabbur wa ʿamal »",k:"book",c:"#6B4226"},
+  D:{ar:"كتاب الداء والدواء",fr:"Ad-Dâʾ wa ad-Dawâʾ",k:"book",c:"#14532D"},
+  T:{ar:"مصحف التهجد و قيام الليل",fr:"Mushaf du Tahajjud",k:"book",c:"#7F1D1D"},
+  H:{ar:"كتاب الحفظ الميسر",fr:"Al-Hifz al-muyassar",k:"book",c:"#1E3A5F"},
+  BM:{ar:"دمية ملاكمة · متوسط",fr:"Sac de frappe · moyen",k:"bag",c:"#B91C1C"},
+  BS:{ar:"دمية ملاكمة · صغير",fr:"Sac de frappe · petit",k:"bag",c:"#DC2626"},
+  BL:{ar:"دمية ملاكمة · كبير",fr:"Sac de frappe · grand",k:"bag",c:"#991B1B"},
+  BX:{ar:"دمية ملاكمة · كبير (179)",fr:"Sac de frappe · grand (179)",k:"bag",c:"#7F1D1D"},
+};
+const AGC = {tasnim:"#0E7490",roqaya:"#7C3AED",hend:"#B45309",mouna:"#BE185D",riheb:"#4D7C0F",salima:"#1D4ED8",admin:"#374151",darb:"#334155"};
+const CATS = ["reclamation","objection","suggestion"];
+const TOPICS = {
+  reclamation:[["nonconform","Non conforme à la commande","غير مطابق للطلب"],["damaged","Abîmé ou incomplet","تالف أو ناقص"],["never","Jamais reçu","لم يصل"],["slow","Trop long","تأخر كثيراً"],["calls","Appels répétés","إزعاج بالاتصال"],["conduct","Mauvais accueil","سوء تعامل"]],
+  objection:[["expensive","Trop cher","السعر غالي"],["nocash","Pas de cash maintenant","لا يملك المبلغ الآن"],["card","Veut payer par carte ou virement","يريد الدفع بالبطاقة أو التحويل"],["expect","Croyait autre chose","كان يظنه شيئاً آخر"],["elsewhere","Acheté ailleurs","اشترى من مكان آخر"],["delivery","Livraison (délai, ville)","التوصيل (المدة، المدينة)"]],
+  suggestion:[["version","Autre version ou produit","نسخة أو منتج آخر"],["likes_product","Aime le produit","أعجبه المنتج"],["likes_service","Aime le service","أعجبته الخدمة"],["again","Va racheter","سيطلب مجدداً"]],
+};
+const momentOf = st => st==="delivered" ? "after" : ["returning","to_be_returned","returned","cancelled","refused"].includes(st) ? "door" : ["confirmed","uploaded","scanned","at_carrier","in_transit","out_for_delivery","delivery_delayed"].includes(st) ? "transit" : "call";
+function suggest3(cls, t){
+  if (cls === "pay") return ["objection","card"];
+  if (cls === "nc") return ["objection","nocash"];
+  if (cls === "pr") return ["objection","expensive"];
+  if (cls === "pe") return ["objection","elsewhere"];
+  if (cls === "pd") return /(حفص|قالون|رواية|مصحف ?العادي|مصحف عادي|متوسط|حجم|جهاز|قلم)/.test(t) ? ["suggestion","version"] : ["objection","expect"];
+  if (/يشمل التوصيل/.test(t)) return ["objection","expensive"];
+  return ["objection","delivery"];
+}
+function courier3(cls, t){
+  if (cls === "wrong_item") return ["reclamation","nonconform"];
+  if (cls === "payment_method") return ["objection","card"];
+  if (cls === "no_cash") return ["objection","nocash"];
+  return ["objection", /تعجبه/.test(t) ? "expect" : null];
+}
+const FN_F = ["فاطمة","عائشة","خديجة","مريم","سالمة","نجلاء","هدى","أسماء","سعاد","زينب","رحاب","آمنة","حنان","نادية","سمية"];
+const FN_M = ["محمد","أحمد","علي","عبدالله","خالد","سالم","مصطفى","عمر","إبراهيم","يوسف","طارق","حسين","عبدالسلام","مفتاح","فرج"];
+const LN = ["الورفلي","المصراتي","الزوي","العبيدي","الترهوني","القماطي","الفيتوري","البرعصي","المقريف","الشريف","الغرياني","الككلي","بن عمران","الزنتاني","السنوسي","الدرسي","العرفي"];
+function hash(s){ let h = 2166136261; for (const c of s){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function fakeCustomer(ref, note){
+  const h = hash(ref), h2 = hash(ref + "#");
+  const fem = /(قالت|تريد|تبي|اشترت|شرت|الزبونه)/.test(note) ? true : /(قال |يبي|يريد|اشترى|عنده)/.test(note) ? false : h % 2 === 0;
+  const d = String(1000000 + (Math.imul(h ^ h2, 2654435761) >>> 0) % 9000000);
+  return { name: (fem ? FN_F : FN_M)[h % 15] + " " + LN[h2 % LN.length], phone: "0" + ["91","92","94","95"][h2 % 4] + " " + d.slice(0,3) + " " + d.slice(3,7) };
+}
+const DT = {}; DATES.split(" ").forEach(x => { const [r, d] = x.split("="); DT[r] = "2026-" + d; });
+const blank = () => ({ review:false, ignored:false, status:null, owner:"", resolution:"", unread:false, ins:[], tl:[] });
+const E = RAW.trim().split("\n").map(line => {
+  const [ref, p, cls, agent, note] = line.split("|");
+  const [cat, topic] = suggest3(cls, note);
+  return Object.assign(blank(), { id:ref, ref, p, agent, note, date:DT[ref], cat, topic, src:"import", mom:"call", ost:"rejected", cust:fakeCustomer(ref, note) });
+});
+E.slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).slice(0,38).forEach(e=>e.review=true);
+CR.trim().split("\n").forEach(line => {
+  const [ref, p, cls, st, date, note] = line.split("|");
+  const [cat, topic] = courier3(cls, note);
+  const e = Object.assign(blank(), { id:"C"+ref, ref, p, agent:"darb", note, date, cat, topic, src:"courier", mom:momentOf(st), ost:st, cust:fakeCustomer(ref, note) });
+  if (date >= "2026-09-01") e.review = true;
+  else if (cat === "reclamation") Object.assign(e, { status:"resolved", owner:"Manager LY", resolution:"Retour traité avec le livreur.", tl:[{k:"confirmed",d:date,a:"Manager LY"},{k:"status",d:date,s:"resolved",a:"Manager LY"}] });
+  E.push(e);
+});
+function retype(id, topic, status, owner, opened, mom, ost){
+  const e = E.find(x => x.id === id); if (!e) return;
+  Object.assign(e, { cat:"reclamation", topic, status, owner, date:opened, review:false, mom, ost, src:"agent",
+    tl:[{k:"created",d:opened,a:e.agent}].concat(owner?[{k:"assigned",d:opened,a:"Manager LY",o:owner}]:[]).concat(status!=="open"?[{k:"status",d:opened,s:status,a:owner}]:[]) });
+}
+function agentComplaint(ref, p, agent, date, topic, note, status, mom, ost){
+  E.push(Object.assign(blank(), { id:ref, ref, p, agent, note, date, cat:"reclamation", topic, src:"agent", mom, ost, status, cust:fakeCustomer(ref, note), tl:[{k:"created",d:date,a:agent}] }));
+}
+agentComplaint("6A123B44","BX","tasnim","2026-09-26","never","حاجزه وموصلتهاش الاوله","open","after","delivered");
+agentComplaint("6A408D8B","D","roqaya","2026-09-29","calls","الغاء الطلب ومعاش تضربو عليا مرة تانيه","open","call","pending");
+retype("6A0C4E34","slow","in_progress","Manager LY","2026-09-28","transit","delivery_delayed");
+retype("6A138314","nonconform","resolved","Manager LY","2026-09-21","after","delivered");
+E.find(x=>x.id==="6A138314").resolution = "اتصلنا بالعميل وعرضنا استبدالها بالحجم المتوسط، فضّل الانتظار.";
+E.forEach(e => { if (!e.review && e.date >= "2026-09-26") e.unread = true; });
+
+const isBag = e => /^B/.test(e.p);
+const INS = [
+  { id:"i1", st:"progress", owner:"Super Admin", created:"2026-09-12",
+    title:{fr:"Activer le paiement par carte chez Darb", ar:"تفعيل الدفع بالبطاقة مع درب"},
+    note:{fr:"Des clients veulent payer par carte ou virement — à l'appel, et à la porte où le livreur note que la carte n'est pas activée pour le magasin. Activer la carte et le virement avec Darb.", ar:"عملاء يريدون الدفع بالبطاقة أو التحويل — في المكالمة وعند الباب حيث يكتب المندوب أن البطاقة غير مفعّلة للمتجر. نفعّل البطاقة والتحويل مع درب."},
+    match:e => e.cat==="objection" && e.topic==="card" },
+  { id:"i4", st:"study", owner:"", created:"2026-09-01",
+    title:{fr:"Le sac de frappe ne ressemble pas à la pub", ar:"دمية الملاكمة لا تشبه الإعلان"},
+    note:{fr:"14 des 16 remarques « pas conforme » du livreur concernent le sac de frappe : « pas comme sur internet », couleur, taille. Revoir les photos et la description.", ar:"14 من 16 ملاحظة «غير مطابق» من المندوب تخص دمية الملاكمة: «مش نفس لي في نت»، اللون، المقاس. نراجع الصور والوصف."},
+    match:e => e.cat==="reclamation" && e.topic==="nonconform" && isBag(e) },
+  { id:"i2", st:"study", owner:"Manager LY", created:"2026-09-20",
+    title:{fr:"Rappeler après le versement des salaires", ar:"إعادة الاتصال بعد نزول الرواتب"},
+    note:{fr:"« Le salaire n'est pas tombé », « je n'ai pas d'argent » — à l'appel comme à la porte. Tester une relance le 1er du mois au lieu de perdre la commande.", ar:"«الراتب لم ينزل»، «معنديش فلوس» — في المكالمة وعند الباب. نجرّب إعادة الاتصال أول الشهر بدل خسارة الطلب."},
+    match:e => e.cat==="objection" && e.topic==="nocash" },
+  { id:"i3", st:"study", owner:"", created:"2026-09-15",
+    title:{fr:"Proposer le Coran en rewāya Qalun et Hafs", ar:"توفير المصحف برواية قالون وحفص"},
+    note:{fr:"Des clients veulent une autre rewāya ou le mushaf ordinaire. Vérifier avec le fournisseur.", ar:"عملاء يريدون رواية أخرى أو المصحف العادي. نتحقق مع المورّد."},
+    match:e => e.cat==="suggestion" && e.topic==="version" && /(حفص|قالون|رواية|مصحف)/.test(e.note) },
+  { id:"i5", st:"done", owner:"Super Admin", created:"2026-09-29",
+    title:{fr:"Dire dans la pub que le livre est en papier", ar:"توضيح في الإعلان أن الكتاب ورقي"},
+    note:{fr:"Fait le 29 sept. : « كتاب ورقي » ajouté aux visuels. Ce sujet devrait maintenant disparaître.", ar:"تم في 29 سبتمبر: أضيفت «كتاب ورقي» إلى الإعلانات. يُفترض أن يختفي هذا الموضوع الآن."},
+    match:e => e.cat==="objection" && e.topic==="expect" && /(الكتروني|إلكتروني|دورة|هاتف)/.test(e.note) },
+];
+INS.forEach(i => E.forEach(e => { if (!e.review && i.match(e) && e.date <= i.created) e.ins.push(i.id); }));
+const OWNERS = ["", "Manager LY", "Super Admin"];
+const IC = {
+  arrow:'<svg class="ic flip" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  search:'<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  x:'<svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  check:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  down:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  bulb:'<svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.1 1.4 1.1 2.2h5c0-.8.3-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>',
+  filter:'<svg class="ic" viewBox="0 0 24 24"><path d="M3.5 5.5h17l-6.5 7.5v6l-4 2v-8z"/></svg>',
+  ext:'<svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  up:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>',
+  dn:'<svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  plus:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  info:'<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8.2v.3"/></svg>',
+  phone:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+  truck:'<svg class="ic" viewBox="0 0 24 24"><path d="M2.5 6.5h11v9.5h-11zM13.5 10h4.2l3 3.2V16h-7.2z"/><circle cx="6.5" cy="17.6" r="1.8"/><circle cx="17" cy="17.6" r="1.8"/></svg>',
+  door:'<svg class="ic" viewBox="0 0 24 24"><path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M3 21h18"/><circle cx="14.5" cy="12.5" r="1" fill="currentColor"/></svg>',
+  boxok:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4.2v5.3M4 7.2v9.6L12 21l2-1"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/><path d="M15.5 17.5l2 2 3.5-4"/></svg>',
+  flag:'<svg class="ic" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  eye:'<svg class="ic" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>',
+  mail:'<svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>',
+  import:'<svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>',
+};
+const MOMIC = {call:"phone",transit:"truck",door:"door",after:"boxok"};
+
+/* ═══════════ v6 ═══════════ */
+const IMG = "https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/";
+const FAM = {
+  B:{fr:"Sac de frappe",ar:"دمية ملاكمة",img:IMG+"70afbf75-be0c-4ae1-8595-2a9cb9f1da21/image.jpeg"},
+  Q:{fr:"Coran Tadabbur",ar:"القرآن تدبر وعمل",img:IMG+"7bfabff2-7f13-49b4-98df-b33db5ad235a/image.jpeg"},
+  D:{fr:"Ad-Dâʾ wa ad-Dawâʾ",ar:"الداء والدواء",img:IMG+"e907b151-0b2e-4b72-9d05-91e25621af4d/image.jpeg"},
+  T:{fr:"Mushaf Tahajjud",ar:"مصحف التهجد",img:IMG+"6d394d37-ded2-495a-a58b-abd0e22248e9/image.png"},
+  H:{fr:"Al-Hifz al-muyassar",ar:"الحفظ الميسر",img:IMG+"25fc3a87-9c48-40ac-b2d1-5dddb3feb0d7/image.png"},
+};
+const famOf = e => isBag(e) ? "B" : e.p;
+const thumb = (k, cls="") => `<img class="thumb ${cls}" src="${FAM[k].img}" alt="" onerror="this.style.visibility='hidden'">`;
+const FIRST = "2026-05-20";
+const L = {
+  fr:{ title:"Voix du client", all:"Tous les produits", agentAll:"Tous les agents",
+    pre:{today:"Aujourd'hui",yest:"Hier",d7:"7 derniers jours",d30:"30 derniers jours",month:"Ce mois-ci",last:"Mois dernier",all:"Depuis le début"},
+    vsPrev:"vs période précédente", days:n=>`${n} jour${n>1?"s":""}`, apply:"Appliquer", cancel:"Annuler", pick:"Choisissez la fin",
+    wd:["L","M","M","J","V","S","D"],
+    cat:{reclamation:"Réclamations",objection:"Objections",suggestion:"Suggestions"}, cat1:{reclamation:"Réclamation",objection:"Objection",suggestion:"Suggestion"},
+    openLate:(o,l)=>`${o} ouvertes · <b style="color:var(--crit)">${l} > 48 h</b>`, open:o=>`${o} ouvertes`, ofTotal:p=>`${p} % des retours`,
+    topics:"Top sujets", topicsSub:"Cliquez pour filtrer", mixOf:n=>`${n} retours`, saisies:"Saisies par agent", share:p=>`${p} %`,
+    noEntry:"aucune saisie", low:"faible",
+    lateA:n=>`<span class="num">${n}</span> réclamation${n>1?"s":""} sans réponse depuis plus de 48 h`, revA:n=>`<span class="num">${n}</span> retours à valider`, see:"Voir",
+    cols:["Date","Catégorie","Sujet","Le client dit","Produit","Agent","Statut"], more:n=>`Voir ${n} de plus`, none:"Aucun retour pour ce filtre.",
+    st:{open:"Ouverte",in_progress:"En cours",resolved:"Résolue"}, filters:"Filtres :", clear:"Effacer", noTopic:"Sans sujet", lateC:"Réclamations > 48 h",
+    keep:"Garder", ignore:"Ignorer", reviewing:"À valider", back:"Retour",
+    d:{cust:"Client",phone:"Téléphone",order:"Commande",prod:"Produit",agent:"Saisi par",when:"Date",status:"Statut",owner:"Responsable"},
+    act:{take:"Prendre en charge",resolve:"Marquer résolue",reopen:"Rouvrir"}, darb:"livreur Darb", lang:"العربية", newT:"nouveau", j:"j" },
+  ar:{ title:"صوت العميل", all:"كل المنتجات", agentAll:"كل الوكلاء",
+    pre:{today:"اليوم",yest:"أمس",d7:"آخر 7 أيام",d30:"آخر 30 يوماً",month:"هذا الشهر",last:"الشهر الماضي",all:"منذ البداية"},
+    vsPrev:"مقارنة بالفترة السابقة", days:n=>`${n} يوم`, apply:"تطبيق", cancel:"إلغاء", pick:"اختر تاريخ النهاية",
+    wd:["ن","ث","ر","خ","ج","س","ح"],
+    cat:{reclamation:"شكاوى",objection:"اعتراضات",suggestion:"اقتراحات"}, cat1:{reclamation:"شكوى",objection:"اعتراض",suggestion:"اقتراح"},
+    openLate:(o,l)=>`${o} مفتوحة · <b style="color:var(--crit)">${l} > 48 س</b>`, open:o=>`${o} مفتوحة`, ofTotal:p=>`${p} % من الملاحظات`,
+    topics:"أهم المواضيع", topicsSub:"انقر للتصفية", mixOf:n=>`${n} ملاحظة`, saisies:"الإدخالات حسب الوكيل", share:p=>`${p} %`,
+    noEntry:"لا إدخالات", low:"قليل",
+    lateA:n=>`<span class="num">${n}</span> شكوى بدون رد منذ أكثر من 48 ساعة`, revA:n=>`<span class="num">${n}</span> ملاحظة للتأكيد`, see:"عرض",
+    cols:["التاريخ","الفئة","الموضوع","يقول العميل","المنتج","الوكيل","الحالة"], more:n=>`عرض ${n} أخرى`, none:"لا توجد ملاحظات لهذا الفلتر.",
+    st:{open:"مفتوحة",in_progress:"قيد المعالجة",resolved:"محلولة"}, filters:"الفلاتر:", clear:"مسح", noTopic:"بدون موضوع", lateC:"شكاوى > 48 ساعة",
+    keep:"احتفظ", ignore:"تجاهل", reviewing:"للتأكيد", back:"رجوع",
+    d:{cust:"العميل",phone:"الهاتف",order:"الطلب",prod:"المنتج",agent:"أدخلها",when:"التاريخ",status:"الحالة",owner:"المسؤول"},
+    act:{take:"تولّي المعالجة",resolve:"تم الحل",reopen:"إعادة فتح"}, darb:"مندوب درب", lang:"Français", newT:"جديد", j:"ي" },
+};
+const shift = (iso,n) => new Date(new Date(iso+"T12:00:00Z").getTime()+n*86400000).toISOString().slice(0,10);
+const dd = (a,b) => Math.round((new Date(b+"T12:00:00Z") - new Date(a+"T12:00:00Z"))/86400000);
+function presetRange(k){
+  const m0 = TODAY.slice(0,8)+"01";
+  if (k==="today") return [TODAY,TODAY];
+  if (k==="yest") return [shift(TODAY,-1),shift(TODAY,-1)];
+  if (k==="d7") return [shift(TODAY,-6),TODAY];
+  if (k==="d30") return [shift(TODAY,-29),TODAY];
+  if (k==="month") return [m0,TODAY];
+  if (k==="last"){ const e = shift(m0,-1); return [e.slice(0,8)+"01", e]; }
+  return [FIRST,TODAY];
+}
+const QUICK = ["today","d7","d30"];
+const U = new URLSearchParams(location.search);
+const S = { lang:U.get("lang")||"fr", prod:U.get("prod")||"all", from:U.get("from")||"", to:U.get("to")||"", agent:U.get("agent")||"", cat:U.get("cat")||"", topic:U.get("topic")||"", peek:U.get("peek")||"", review:U.get("review")==="1", late:false, limit:20, cal:U.get("cal")==="1", dA:"", dB:"", calM:"" };
+if (!S.from){ [S.from,S.to] = presetRange("d30"); }
+const T = () => L[S.lang], AR = () => S.lang==="ar";
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fdate = (iso, y) => new Intl.DateTimeFormat(AR()?"ar-LY":"fr-FR",{day:"numeric",month:"short",...(y?{year:"numeric"}:{}),timeZone:"UTC"}).format(new Date(iso+"T12:00:00Z"));
+const toplabel = (c,k) => { const x=(TOPICS[c]||[]).find(r=>r[0]===k); return x ? (AR()?x[2]:x[1]) : T().noTopic; };
+const aname = a => a==="admin"?"Super Admin":a==="darb"?T().darb:a;
+const av = a => a==="darb" ? `<span class="av" style="background:${AGC.darb}">${IC.truck}</span>` : `<span class="av" style="background:${AGC[a]||"#6B7280"}">${esc(aname(a)[0].toUpperCase())}</span>`;
+const activePreset = () => Object.keys(L.fr.pre).find(k => { const [a,b] = presetRange(k); return a===S.from && b===S.to; }) || "";
+const span = () => dd(S.from,S.to)+1;
+const prevRange = () => [shift(S.from,-span()), shift(S.from,-1)];
+const inR = (e,[a,b]) => e.date>=a && e.date<=b;
+const isLate = e => e.cat==="reclamation" && (e.status==="open"||e.status==="in_progress") && dd(e.date,TODAY) > 2;
+const prodOk = e => S.prod==="all"||famOf(e)===S.prod;
+const base = (prev=false) => E.filter(e => !e.ignored && !e.review && inR(e, prev?prevRange():[S.from,S.to]) && prodOk(e) && (!S.agent||e.agent===S.agent));
+const hasPrev = () => S.from > FIRST;
+const rows = () => S.review
+  ? E.filter(e => e.review && !e.ignored && prodOk(e)).sort((a,b)=>a.date<b.date?1:-1)
+  : S.late ? E.filter(e=>!e.ignored&&isLate(e)&&prodOk(e))
+  : base().filter(e => (!S.cat||e.cat===S.cat) && (!S.topic||e.topic===S.topic)).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+
+function sync(){ const q = new URLSearchParams(); if (S.lang!=="fr") q.set("lang",S.lang); if (S.prod!=="all") q.set("prod",S.prod); if (activePreset()!=="d30"){ q.set("from",S.from); q.set("to",S.to); } for (const k of ["agent","cat","topic","peek"]) if (S[k]) q.set(k,S[k]); if (S.review) q.set("review","1"); history.replaceState(null,"","?"+q); }
+function set(p){ Object.assign(S, p); if (!("limit" in p)) S.limit = 20; sync(); render(); }
+
+function sidebar(){
+  const fr = !AR();
+  return `<nav class="side"><div class="brand">Ordra</div>
+    <div class="sec">${fr?"Commandes":"الطلبات"}</div><a>${fr?"Commandes":"الطلبات"}</a>
+    <div class="sec">${fr?"Clients":"العملاء"}</div><a>${fr?"Prospects":"العملاء المحتملون"}</a><a class="on">${T().title}</a>
+    <div class="sec">${fr?"Équipe":"الفريق"}</div><a>${fr?"Performance":"الأداء"}</a></nav>`;
+}
+
+/* ── Date range ── */
+const CAL_IC = '<svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+const CHEV = d => `<svg class="ic ${d==="l"?"":""}" viewBox="0 0 24 24"><path d="${d==="l"?"m15 6-6 6 6 6":"m9 6 6 6-6 6"}"/></svg>`;
+function rangeLabel(){
+  const p = activePreset();
+  if (p && !QUICK.includes(p)) return T().pre[p];
+  if (S.from===S.to) return fdate(S.from);
+  return `${fdate(S.from)} – ${fdate(S.to)}`;
+}
+function month(ym){
+  const t = T(), first = new Date(ym+"-01T12:00:00Z"), dow = (first.getUTCDay()+6)%7, n = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth()+1, 0)).getUTCDate();
+  const a = S.dA || S.from, b = S.dA && !S.dB ? "" : (S.dB || S.to), lo = b && a>b ? b : a, hi = b && a>b ? a : b;
+  const days = new Set(E.filter(e=>!e.ignored&&!e.review&&prodOk(e)).map(e=>e.date));
+  let h = t.wd.map(w=>`<span class="wd">${w}</span>`).join("") + "<span></span>".repeat(dow);
+  for (let i=1;i<=n;i++){ const iso = ym+"-"+String(i).padStart(2,"0");
+    const off = iso>TODAY || iso<FIRST, cls = [off?"off":"", iso===TODAY?"today":"", days.has(iso)?"has":"", hi&&iso>lo&&iso<hi?"in":"", iso===lo?"s":"", (hi?iso===hi:iso===lo)?"e":""].join(" ");
+    h += `<button class="day ${cls}" data-day="${iso}"><span class="num">${i}</span></button>`; }
+  const name = new Intl.DateTimeFormat(AR()?"ar-LY":"fr-FR",{month:"long",year:"numeric",timeZone:"UTC"}).format(first);
+  return [name, `<div class="grid">${h}</div>`];
+}
+const addM = (ym,n) => { const d = new Date(ym+"-01T12:00:00Z"); d.setUTCMonth(d.getUTCMonth()+n); return d.toISOString().slice(0,7); };
+function datePicker(){
+  const t = T(), p = activePreset();
+  const quick = `<div class="seg">${QUICK.map(k=>`<button class="${p===k?"on":""}" data-pre="${k}">${k==="today"?t.pre.today:k==="d7"?(AR()?"7 أيام":"7 j"):(AR()?"30 يوماً":"30 j")}</button>`).join("")}</div>`;
+  const custom = !QUICK.includes(p);
+  let pop = "";
+  if (S.cal){
+    const right = S.calM || TODAY.slice(0,7), left = addM(right,-1), [n1,g1] = month(left), [n2,g2] = month(right);
+    const a = S.dA || S.from, b = S.dA ? S.dB : S.to, lo = b && a>b ? b : a, hi = b && a>b ? a : b;
+    pop = `<div class="pop"><div class="pre">${Object.keys(t.pre).map(k=>`<button class="${!S.dA&&p===k?"on":""}" data-pre="${k}">${t.pre[k]}</button>`).join("")}</div>
+      <div class="cal"><div class="months">
+        <div><div class="mh"><button data-calm="-1">${CHEV(AR()?"r":"l")}</button><span>${n1}</span><span style="width:24px"></span></div>${g1}</div>
+        <div><div class="mh"><span style="width:24px"></span><span>${n2}</span><button data-calm="1" ${right>=TODAY.slice(0,7)?'style="visibility:hidden"':""}>${CHEV(AR()?"l":"r")}</button></div>${g2}</div>
+      </div><div class="calf"><span>${hi ? `<b class="num">${fdate(lo,1)} – ${fdate(hi,1)}</b> · ${t.days(dd(lo,hi)+1)}` : t.pick}</span><span class="grow"></span>
+        <button class="btn" data-calx="1">${t.cancel}</button><button class="btn pri" data-calok="1" ${hi?"":"disabled"}>${t.apply}</button></div></div></div>`;
+  }
+  return `${quick}<div class="dp"><button class="dpbtn ${custom?"on":""}" data-cal="1">${CAL_IC}<span>${custom ? rangeLabel() : `${fdate(S.from)} – ${fdate(S.to)}`}</span>${IC.dn}</button>${pop}</div>`;
+}
+
+/* ── Blocks ── */
+function ptabs(){
+  const b = E.filter(e => !e.ignored && !e.review && inR(e,[S.from,S.to]) && (!S.agent||e.agent===S.agent));
+  const n = k => b.filter(e => k==="all"||famOf(e)===k).length;
+  const keys = Object.keys(FAM).sort((x,y)=>n(y)-n(x));
+  return `<div class="ptabs"><button class="all ${S.prod==="all"?"on":""}" data-prod="all">${T().all}<span class="n num">${n("all")}</span></button>${keys.map(k => `<button class="${S.prod===k?"on":""}" data-prod="${k}">${thumb(k)}${FAM[k][S.lang]}<span class="n num">${n(k)}</span></button>`).join("")}</div>`;
+}
+function alertStrip(){
+  const t = T(), late = E.filter(e=>!e.ignored&&isLate(e)&&prodOk(e)).length, rev = E.filter(e=>e.review&&!e.ignored&&prodOk(e)).length;
+  if (!late && !rev) return "";
+  return `<div class="alert">${IC.flag}${late?`<button data-late="1">${t.lateA(late)}</button>`:""}${late&&rev?`<span class="sep"></span>`:""}${rev?`<button class="muted" data-review="1" style="font-weight:500">${t.revA(rev)}</button>`:""}</div>`;
+}
+function series(xs){
+  const n = span(), step = n>90 ? 14 : n>31 ? 7 : 1, buckets = Math.max(1, Math.ceil(n/step)), v = Array(buckets).fill(0);
+  xs.forEach(e => { const i = Math.min(buckets-1, Math.floor(dd(S.from,e.date)/step)); if (i>=0) v[i]++; });
+  return v;
+}
+function spark(v, c){
+  if (v.length < 2) return `<svg class="spark"></svg>`;
+  const W = 300, H = 38, mx = Math.max(1, ...v), pts = v.map((y,i)=>[i*W/(v.length-1), H-3-(y/mx)*(H-8)]);
+  const d = pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join("");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}L${W},${H}L0,${H}Z" fill="var(--tb)" opacity=".7"/><path d="${d}" fill="none" stroke="var(--td)" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function delta(cur, prev, big){
+  if (!hasPrev()) return "";
+  const d = cur - prev, cls = d>0?"up":d<0?"dn":"eq", arrow = d>0?"↑":d<0?"↓":"=";
+  return big ? `<span class="delta ${cls}" title="${T().vsPrev} : ${prev}"><span class="num">${arrow} ${Math.abs(d)}</span> <span style="font-weight:400;color:var(--ink-3)">${T().vsPrev}</span></span>`
+    : `<span class="dl ${prev===0&&cur>0?"nw":cls}">${prev===0&&cur>0?T().newT:`<span class="num">${arrow}${d?Math.abs(d):""}</span>`}</span>`;
+}
+function kpis(){
+  const b = base(), pb = base(true), tot = b.length || 1;
+  return `<div class="kpis">${CATS.map(c => {
+    const xs = b.filter(e=>e.cat===c), n = xs.length;
+    let sub = T().ofTotal(Math.round(n*100/tot));
+    if (c==="reclamation"){ const all = E.filter(e=>!e.ignored&&e.cat===c&&(e.status==="open"||e.status==="in_progress")&&prodOk(e)); const late = all.filter(isLate).length; sub = late ? T().openLate(all.length, late) : T().open(all.length); }
+    return `<button class="kpi ${S.cat===c?"on":""}" data-c="${c}" data-cat="${c}"><div class="lab"><span class="dot"></span>${T().cat[c]}</div>
+      <div class="big"><span class="num">${n}</span>${delta(n, pb.filter(e=>e.cat===c).length, true)}</div><div class="sub"><span>${sub}</span></div>${spark(series(xs))}</button>`;
+  }).join("")}</div>`;
+}
+function topics(){
+  const t = T(), all = base(), b = all.filter(e => !S.cat || e.cat===S.cat), pb = base(true), m = {};
+  b.forEach(e => { const k = e.cat+"|"+(e.topic||""); m[k] = (m[k]||0)+1; });
+  const top = Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,6), max = top.length ? top[0][1] : 1, tot = b.length||1;
+  const mix = CATS.map(c=>[c, all.filter(e=>e.cat===c).length]).filter(x=>x[1]);
+  return `<div class="box"><div class="boxh"><h3>${t.topics}</h3><small>${t.topicsSub}</small></div>
+    <div class="mix">${mix.map(([c,n])=>`<span data-c="${c}" style="flex:${n}"></span>`).join("")}</div>
+    <div class="legend">${mix.map(([c,n])=>`<span data-c="${c}"><i></i>${t.cat[c]} <b class="num">${Math.round(n*100/(all.length||1))} %</b></span>`).join("")}</div>
+    ${top.length ? top.map(([k,n],i) => { const [c,tp] = k.split("|"), pn = pb.filter(e=>e.cat===c&&(e.topic||"")===tp).length;
+    return `<button class="trow ${S.topic===tp&&S.cat===c?"on":""}" data-c="${c}" data-topic="${tp}" data-tcat="${c}">
+      <span class="rk num">${i+1}</span><span class="lb"><b>${esc(toplabel(c,tp))}</b><small>${t.cat1[c]} · <span class="num">${Math.round(n*100/tot)} %</span></small></span>
+      <span class="tr"><span style="width:${Math.max(5,n*100/max)}%"></span></span><span class="c num">${n}</span>${delta(n,pn,false)||"<span></span>"}</button>`; }).join("") : `<div class="empty">${t.none}</div>`}</div>`;
+}
+function agents(){
+  const t = T(), b = E.filter(e => !e.ignored && !e.review && inR(e,[S.from,S.to]) && prodOk(e) && e.agent!=="darb" && e.agent!=="admin");
+  const names = Object.keys(AGC).filter(a=>a!=="darb"&&a!=="admin"), cnt = a => b.filter(e=>e.agent===a);
+  const ag = names.map(a=>[a,cnt(a)]).sort((x,y)=>y[1].length-x[1].length), max = Math.max(1, ag[0][1].length), tot = b.length||1;
+  return `<div class="box"><div class="boxh"><h3>${t.saisies}</h3><small class="num">${t.mixOf(b.length)}</small></div>
+    <div class="legend">${CATS.map(c=>`<span data-c="${c}"><i></i>${t.cat[c]}</span>`).join("")}</div>
+    ${ag.map(([a,xs]) => { const n = xs.length, flag = !n ? `<span class="warn">${t.noEntry}</span>` : n < max*0.1 ? `<span class="med">${t.low}</span>` : "";
+      return `<button class="ag ${n?"":"zero"} ${S.agent===a?"on":""}" data-agent="${a}">${av(a)}<span class="nm">${esc(a)} ${flag}</span><span class="c num">${n}</span>
+        <span class="stack" style="width:${Math.max(n?4:100, n*100/max)}%">${n ? CATS.map(c=>{ const k = xs.filter(e=>e.cat===c).length; return k?`<span data-c="${c}" style="flex:${k}" title="${t.cat[c]} : ${k}"></span>`:""; }).join("") : ""}</span></button>`; }).join("")}</div>`;
+}
+let CHIPS = [];
+function chips(){
+  const c = [];
+  if (S.cat) c.push([T().cat[S.cat], {cat:"",topic:""}]);
+  if (S.topic) c.push([toplabel(S.cat,S.topic), {topic:""}]);
+  if (S.agent) c.push([S.agent, {agent:""}]);
+  if (S.late) c.push([T().lateC, {late:false}]);
+  CHIPS = c.map(x=>x[1]);
+  return c.length ? `<div class="chips">${T().filters} ${c.map(([l],i) => `<span class="chip">${esc(l)}<button data-unchip="${i}">${IC.x}</button></span>`).join("")} <button class="lang" data-clear="1">${T().clear}</button></div>` : `<div style="height:8px"></div>`;
+}
+function sheet(){
+  const xs = rows(), shown = xs.slice(0, S.limit), t = T();
+  const head = S.review ? [t.cols[0],t.cols[1],t.cols[2],t.cols[3],t.cols[4],""] : t.cols;
+  return `<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${shown.length ? shown.map(e => `<tr data-peek="${e.id}" class="${S.peek===e.id?"sel":""}">
+    <td class="muted num">${fdate(e.date)}</td>
+    <td><span class="tag" data-c="${e.cat}">${t.cat1[e.cat]}</span></td>
+    <td class="muted">${esc(toplabel(e.cat,e.topic))}</td>
+    <td class="say"><span class="q">${esc(e.note)}</span></td>
+    <td class="prod"><span>${thumb(famOf(e))}${esc(PROD[e.p][S.lang])}</span></td>
+    ${S.review ? `<td><span class="rv"><button class="k" data-keep="${e.id}">${t.keep}</button><button data-ign="${e.id}">${t.ignore}</button></span></td>` :
+    `<td class="muted">${av(e.agent)}${esc(aname(e.agent))}</td>
+    <td>${e.status ? `<span class="st ${isLate(e)?"late":""}" data-s="${e.status}">${t.st[e.status]}${isLate(e)?` · <span class="num">${dd(e.date,TODAY)} ${t.j}</span>`:""}</span>` : ""}</td>`}
+  </tr>`).join("") : `<tr><td colspan="7" class="empty">${t.none}</td></tr>`}</tbody></table>
+  ${xs.length > S.limit ? `<button class="more" data-more="1">${t.more(Math.min(20, xs.length-S.limit))}</button>` : ""}`;
+}
+function drawer(){
+  const e = E.find(x=>x.id===S.peek); if (!e) return "";
+  const t = T();
+  const acts = e.cat==="reclamation" ? (e.status==="resolved" ? `<button class="btn" data-st="open">${t.act.reopen}</button>` :
+    `${e.status==="open"?`<button class="btn" data-st="in_progress">${t.act.take}</button>`:""}<button class="btn pri" data-st="resolved">${IC.check} ${t.act.resolve}</button>`) : "";
+  return `<div class="scrim" data-close="1"></div><aside class="drawer">
+    <h2><span class="tag" data-c="${e.cat}">${t.cat1[e.cat]}</span> ${esc(toplabel(e.cat,e.topic))}<button class="x" data-close="1">${IC.x}</button></h2>
+    <p class="quote">${esc(e.note)}</p>
+    <dl class="kv">
+      <dt>${t.d.prod}</dt><dd style="display:flex;align-items:center;gap:10px">${thumb(famOf(e),"lg")}${esc(PROD[e.p][S.lang])}</dd>
+      <dt>${t.d.cust}</dt><dd class="q">${esc(e.cust.name)}</dd>
+      <dt>${t.d.phone}</dt><dd class="num">${esc(e.cust.phone)}</dd>
+      <dt>${t.d.order}</dt><dd class="num">#${esc(e.ref)} ${IC.ext}</dd>
+      <dt>${t.d.agent}</dt><dd>${av(e.agent)}${esc(aname(e.agent))}</dd>
+      <dt>${t.d.when}</dt><dd>${fdate(e.date,1)}</dd>
+      ${e.status?`<dt>${t.d.status}</dt><dd><span class="st" data-s="${e.status}">${t.st[e.status]}</span></dd><dt>${t.d.owner}</dt><dd>${esc(e.owner||"—")}</dd>`:""}
+    </dl><div class="actions">${acts}</div></aside>`;
+}
+function render(){
+  document.documentElement.lang = S.lang; document.documentElement.dir = AR() ? "rtl" : "ltr";
+  const t = T(), ags = Object.keys(AGC).filter(a=>a!=="admin");
+  document.getElementById("app").innerHTML = `<div class="app">${sidebar()}<main>
+    <div class="top"><h1>${S.review ? `<button class="lang" data-review="0" style="font-size:14px">${IC.arrow.replace("flip","")} </button> ${t.reviewing}` : t.title}</h1><span class="grow"></span>
+      ${datePicker()}
+      <select class="sel" id="agentSel"><option value="">${t.agentAll}</option>${ags.map(a=>`<option value="${a}" ${S.agent===a?"selected":""}>${esc(aname(a))}</option>`).join("")}</select>
+      <button class="btn" data-lang="1">${t.lang}</button></div>
+    ${ptabs()}
+    ${S.review ? "" : alertStrip() + kpis() + `<div class="row2">${topics()}${agents()}</div>`}
+    ${chips()}${sheet()}
+  </main></div>${drawer()}`;
+}
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("button,tr[data-peek],.scrim");
+  if (S.cal && !ev.target.closest(".dp")){ S.cal = false; S.dA = S.dB = ""; render(); if (!el) return; }
+  if (!el) return;
+  const d = el.dataset;
+  if (d.day){ if (!S.dA || S.dB){ S.dA = d.day; S.dB = ""; } else S.dB = d.day; render(); }
+  else if (d.calm){ S.calM = addM(S.calM || TODAY.slice(0,7), +d.calm); if (S.calM > TODAY.slice(0,7)) S.calM = TODAY.slice(0,7); render(); }
+  else if (d.cal){ S.cal = !S.cal; S.dA = S.dB = ""; S.calM = S.to.slice(0,7); render(); }
+  else if (d.calx){ S.cal = false; S.dA = S.dB = ""; render(); }
+  else if (d.calok){ let [a,b] = [S.dA||S.from, S.dB||S.to]; if (a>b) [a,b]=[b,a]; S.dA = S.dB = ""; set({from:a, to:b, cal:false}); }
+  else if (d.pre){ const [a,b] = presetRange(d.pre); S.dA = S.dB = ""; set({from:a, to:b, cal:false}); }
+  else if (d.prod) set({prod:d.prod, topic:""});
+  else if (d.cat) set(S.cat===d.cat ? {cat:"",topic:""} : {cat:d.cat, topic:"", late:false});
+  else if (d.topic!==undefined && d.tcat) set(S.topic===d.topic&&S.cat===d.tcat ? {topic:""} : {cat:d.tcat, topic:d.topic, late:false});
+  else if (d.agent) set({agent:S.agent===d.agent?"":d.agent});
+  else if (d.late) set({late:true, cat:"", topic:"", review:false});
+  else if (d.review) set({review:d.review==="1", late:false, peek:""});
+  else if (d.unchip) set(CHIPS[+d.unchip]);
+  else if (d.clear) set({cat:"",topic:"",agent:"",late:false});
+  else if (d.more) set({limit:S.limit+20});
+  else if (d.lang) set({lang:AR()?"fr":"ar", limit:S.limit});
+  else if (d.keep){ ev.stopPropagation(); const e = E.find(x=>x.id===d.keep); e.review=false; if (e.cat==="reclamation"&&!e.status) e.status="open"; set({limit:S.limit}); }
+  else if (d.ign){ ev.stopPropagation(); E.find(x=>x.id===d.ign).ignored=true; set({limit:S.limit}); }
+  else if (d.st){ const e = E.find(x=>x.id===S.peek); e.status=d.st; if (!e.owner) e.owner="Super Admin"; set({limit:S.limit}); }
+  else if (d.close) set({peek:"", limit:S.limit});
+  else if (d.peek && !S.review) set({peek:d.peek, limit:S.limit});
+});
+document.addEventListener("change", ev => { if (ev.target.id==="agentSel") set({agent:ev.target.value}); });
+document.addEventListener("keydown", ev => { if (ev.key==="Escape"){ if (S.cal){ S.cal=false; S.dA=S.dB=""; render(); } else if (S.peek) set({peek:"", limit:S.limit}); } });
+render();
+</script>
+</body>
+</html>

@@ -181,6 +181,14 @@ const config: Config = {
           track: "var(--wm-track)",
           viewfinder: "var(--wm-viewfinder)",
         },
+        /* The warehouse day's four jobs. A wrapper sets the hue with the
+           `.job-out | .job-returns | .job-receive | .job-count` class
+           (globals.css); everything inside reads `job`, `job-bg`, `job-ink`. */
+        job: {
+          DEFAULT: "var(--job, var(--brand))",
+          bg: "var(--job-bg, var(--brand-bg))",
+          ink: "var(--job-ink, var(--brand-hover))",
+        },
         ads: {
           line: "var(--ads-line)",
           "line-2": "var(--ads-line-2)",

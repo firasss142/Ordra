@@ -167,15 +167,15 @@ composer preview, so the preview is what is sent. The greeting is always the fir
 `whatsapp_event_shipped`, `whatsapp_event_out_for_delivery`, `whatsapp_event_last_chance`,
 `whatsapp_event_delivered` (all bool, default false), `whatsapp_default_language`
 (`ar|fr`, unset = market language), `whatsapp_send_window` (`"HH-HH"`, empty = always).
-Edited at Système › Paramètres › WhatsApp.
+Edited at Réglages › WhatsApp (since 2026-10-02; see docs/reglages.md).
 
 ## Surfaces
 
 | Surface | File | Notes |
 |---|---|---|
-| Connexions › Services › WhatsApp | `src/components/connections/WhatsAppSection.tsx` | per-market card, verify-before-store (save toast), staged test kept after reload (filled-circle stages, « dernière passe » as a clock time), verify token « Afficher / Masquer » and one row per market in the webhook block (super_admin) |
+| Réglages › WhatsApp (number) | `src/components/reglages/topics/WhatsAppTopic.tsx` + `whatsapp/WhatsAppConnectDrawer.tsx` | per-market card, verify-before-store (save toast), staged test kept after reload (filled-circle stages, « dernière passe » as a clock time), verify token « Afficher / Masquer » and one row per market in the webhook block (super_admin) |
 | Modèles | `/messages/templates` (switch « Conversations · Modèles » in `messages/MessagesHeader.tsx`), `src/components/whatsapp/TemplatesTable.tsx` | market pills with counts, sync/create in the top bar with the prototype's toasts, « Campagne · {nom} », 520 px drawer: phone preview, coloured JSON, « Corriger et resoumettre (v2) », « Supprimer »; not connected: the table stays with an explanation |
-| Paramètres › WhatsApp | `src/components/settings/general/WhatsAppSection.tsx` | master + 5 events with template state per language, default language, send window |
+| Réglages › WhatsApp (automatic messages) | `src/components/reglages/topics/WhatsAppTopic.tsx` | master + 5 events with template state per language, default language, send window |
 | Order panel Messages tab | `OrderDetailPanel/{index,CustomerHero}.tsx`, `components/whatsapp/{MessageThread,WhatsAppComposer}.tsx` | hero button in three states (active with the unread count on its corner, muted when not connected, inert when opted out); tab always present; thread opens on the newest message, signs agents' messages, keeps the new-reply ring after mark-read, « Réessayer » resends a failed one; « Fenêtre ouverte jusqu'à demain 10:12 »; the bell's `?openOrderId=&tab=messages` applies to that order only |
 | Queue rows | `OrderCard.tsx`; `/api/agent/queue` stamps `wa_conversation`, `wa_unread` | « WhatsApp · produit », « a répondu · produit » while a reply is unread |
 | Bell | `NotificationBell.tsx`; `/api/notifications` attaches `excerpt` | green tile, « {client} a répondu sur WhatsApp », the customer's words, « il y a 2 min »; a WhatsApp reply turns the badge green |

@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ordra — Réglages (v2)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v2 — RÉGLAGES : la refonte complète de Système (Marchés · Connexions · Paramètres · Journaux).
+  v2 (2026-10-02, retour du propriétaire sur v1) : Marchés devient une simple liste — plus de « À vérifier »,
+  plus de compteurs d'attention dans le menu. Le reste est identique à v1.
+  Construit 2026-10-02. Plan : plans/reglages-redesign.md (Phase 0 — rien dans src/ avant validation).
+  Console claire de docs/design-system.md, barre latérale sombre, atomes de whatsapp-manager-v1.html.
+
+  Une seule page « Réglages » avec un menu de sujets, rangés dans l'ordre du trajet d'une commande :
+  Marchés → Boutiques → Commandes → Motifs de rejet → Équipe → Entrepôts → Livraison → WhatsApp → Publicité.
+  Pas d'onglets dans Réglages. Journaux reste à part (super_admin).
+
+  Données : lues en production le 2026-10-02 — marchés, boutiques et leurs commandes sur 30 jours,
+  transporteurs (frais, colis livrés), sites, motifs de rejet et leur usage, agents, commissions,
+  compte Meta, valeurs des réglages, historique des réglages. Ce qui est illustratif est dit dans
+  la note de chaque écran.
+
+  URL : ?lang=fr|ar &role=super_admin|manager &screen=markets|shops|orders|rejections|team|warehouses|delivery|whatsapp|ads|logs
+        &scope=ly|tn|all &dirty=1 &drawer=<id> &algo=percentage &wa=on &pending=1 &tab=received|carrier|sync|audit
+-->
+<style>
+:root{
+  --page:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F7; --sunken:#FAFAFB; --selected:#F2F2F2;
+  --text:#1A1A1A; --text2:#6D7175; --text3:#8C9196;
+  --line:#ECEEF0; --border:#E1E3E5; --input:#D2D5D9; --border-strong:#C9CCCF;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4; --brand-line:#BBF7D0;
+  --sb:#0E1013; --sb-el:#161A20; --sb-text:#E6E8EB; --sb-text2:#B5BAC2; --sb-muted:#7F858F; --sb-active:#10B981;
+  --action:#2C6ECB; --action-bg:#EAF1FB; --success:#008060; --success-bg:#F1F8F5; --warning:#B98900; --warning-bg:#FFF8E6; --warning-line:#F0DCA4;
+  --critical:#D72C0D; --critical-bg:#FFF4F4; --neutral:#6D7175; --neutral-bg:#F1F2F3;
+  --studio:#E9EBEE;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic","Geeza Pro",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--studio);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;direction:ltr;unicode-bidi:isolate}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+[dir=rtl] .flip{transform:scaleX(-1)}
+
+/* ── studio (always LTR) ───────────────────────────────── */
+.studio{padding:16px 20px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;max-width:1440px;margin:0 auto 10px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:#6B7280;font-weight:500}
+.bar .grp{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B7280}
+.seg{display:inline-flex;flex-wrap:wrap;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:5px 10px;border-radius:7px;font-size:12.5px;font-weight:500;color:#6B7280;border:0;background:none}
+.seg button[aria-pressed=true]{background:#111;color:#fff}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.bar select{padding:6px 8px;border-radius:8px;border:1px solid #E5E7EB;background:#fff;font-size:12.5px}
+.note{max-width:1440px;margin:0 auto 12px;font-size:12.5px;color:#4B5563;line-height:1.6;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 14px}
+.note b{color:#111827}
+.note code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#F3F4F6;padding:1px 4px;border-radius:4px}
+.note ul{margin:4px 0 0;padding-inline-start:18px}
+.stagewrap{max-width:1440px;margin:0 auto;overflow-x:auto}
+
+/* ── frame ──────────────────────────────────────────────── */
+.frame{width:1440px;height:980px;border:1px solid #C9CDD3;border-radius:12px;overflow:hidden;background:var(--page);display:flex;text-align:start;position:relative}
+.sb{width:232px;flex:0 0 auto;background:var(--sb);color:var(--sb-text);padding:14px 12px;display:flex;flex-direction:column;gap:1px;font-size:13.5px;overflow-y:auto;scrollbar-width:none}
+.sb .logo{font-weight:700;padding:4px 10px 12px;color:#fff;font-size:17px;letter-spacing:-.01em}
+.sb .mk{margin:0 2px 12px;padding:8px 10px;border-radius:8px;background:var(--sb-el);color:var(--sb-text2);font-size:12.5px;display:flex;align-items:center;gap:8px;border:0;width:calc(100% - 4px);text-align:start}
+.sb .mk b{color:#fff;font-weight:600}
+.sb .mk svg{margin-inline-start:auto;width:14px;height:14px}
+.sb .sh{display:flex;align-items:center;gap:9px;padding:8px 10px;color:var(--sb-text2);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:7px}
+[dir=rtl] .sb .sh{letter-spacing:0;font-size:13px}
+.sb .sh svg{width:15px;height:15px;color:var(--sb-muted)}
+.sb .sh .chev{margin-inline-start:auto;width:14px;height:14px}
+.sb .sh .adm{margin-inline-start:auto;font-size:10px;letter-spacing:.06em;padding:1px 6px;border-radius:4px;background:#232830;color:var(--sb-text2)}
+.sb .sh .adm + .chev{margin-inline-start:6px}
+.sb .si{display:flex;align-items:center;gap:9px;padding:7px 10px 7px 30px;border-radius:7px;color:var(--sb-text);text-decoration:none;cursor:pointer;font-size:13.5px}
+[dir=rtl] .sb .si{padding:7px 30px 7px 10px}
+.sb .si svg{width:15px;height:15px;color:var(--sb-muted)}
+.sb .si:hover{background:#171B21}
+.sb .si[aria-current=page]{background:#1B2027;color:#fff;font-weight:600}
+.sb .si[aria-current=page] svg{color:var(--sb-active)}
+.sb .me{margin-top:auto;padding:10px;border-radius:8px;background:var(--sb-el);display:flex;gap:10px;align-items:center;font-size:12.5px}
+.sb .me .av{width:28px;height:28px;border-radius:50%;background:#2A3038;display:grid;place-items:center;font-weight:700;font-size:11.5px;color:#fff}
+.sb .me small{display:block;color:var(--sb-muted);font-size:11.5px}
+
+.main{flex:1 1 auto;min-width:0;position:relative;display:flex;flex-direction:column}
+.body{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 24px 48px}
+
+/* ── Réglages layout ─────────────────────────────────────── */
+.rg{display:grid;grid-template-columns:232px minmax(0,1fr);gap:32px;align-items:start}
+.menu{position:sticky;top:0;display:flex;flex-direction:column;gap:2px;padding-top:2px}
+.menu h1{font-size:20px;font-weight:600;margin:0 0 14px;letter-spacing:-.01em}
+.mkctl{margin:0 0 16px}
+.mkctl .l{font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.mkctl .fixed{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:600}
+.code{display:inline-grid;place-items:center;min-width:24px;height:20px;padding:0 5px;border-radius:5px;background:var(--neutral-bg);color:var(--text2);font-size:10.5px;font-weight:700;letter-spacing:.04em}
+.track{display:flex;padding:3px;border-radius:9px;background:#E9EAEC;gap:2px}
+.track button{flex:1;border:0;background:none;padding:6px 8px;border-radius:7px;font-weight:500;color:var(--text2);font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.track button[aria-pressed=true]{background:#fff;color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--border)}
+.track button[aria-pressed=true] .code{background:var(--brand-bg);color:var(--brand)}
+.mkctl .hint{font-size:12px;color:var(--warning);margin-top:6px}
+.mi{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--text);font-weight:500;border:1px solid transparent;cursor:pointer;background:none;width:100%;text-align:start}
+.mi svg{color:var(--text2)}
+.mi:hover{background:#EDEEF0}
+.mi[aria-current=page]{background:#fff;border-color:var(--line);font-weight:600}
+.mi[aria-current=page] svg{color:var(--brand)}
+.mi .cnt{margin-inline-start:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;font-size:11.5px;font-weight:700;display:inline-grid;place-items:center}
+.mi .cnt[data-t=warn]{background:var(--warning-bg);color:var(--warning)}
+.mi .cnt[data-t=info]{background:var(--neutral-bg);color:var(--text2)}
+.menu .sep{height:1px;background:var(--border);margin:10px 4px}
+.menu .foot{font-size:12px;color:var(--text2);padding:0 10px;line-height:1.5}
+
+.th{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px}
+.th .crumb{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:4px}
+.th .crumb svg{width:13px;height:13px}
+.th h2{font-size:20px;font-weight:600;margin:2px 0 4px;letter-spacing:-.01em}
+.th p{margin:0;color:var(--text2);font-size:14px;max-width:64ch}
+.mchip{margin-inline-start:auto;display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 6px;border-radius:999px;background:#fff;border:1px solid var(--border);font-size:13px;font-weight:600;white-space:nowrap;flex:0 0 auto}
+[dir=rtl] .mchip{padding:5px 6px 5px 11px}
+
+/* ── cards & rows ────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:16px}
+.ch{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.ch h3{margin:0;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ch p{margin:3px 0 0;font-size:13px;color:var(--text2);max-width:72ch}
+.ch .end{margin-inline-start:auto;display:flex;gap:8px;align-items:center;flex:0 0 auto}
+.lockline{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);white-space:nowrap}
+.lockline svg{width:14px;height:14px}
+.sr{display:grid;grid-template-columns:minmax(0,1fr) auto 32px;gap:4px 20px;align-items:start;padding:14px 16px;border-bottom:1px solid var(--line);position:relative}
+.sr:last-child{border-bottom:0}
+.sr .lb{font-weight:500;font-size:14px;display:flex;align-items:center;gap:8px}
+.sr[data-dirty] .lb::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--warning)}
+.sr .hp{font-size:13px;color:var(--text2);margin-top:3px;line-height:1.5;max-width:60ch}
+.sr .ctl{display:flex;align-items:center;gap:8px;justify-content:flex-end;min-height:36px}
+.sr.stack{grid-template-columns:minmax(0,1fr) 32px}
+.sr.stack .full{grid-column:1 / -1;margin-top:10px}
+.hb{width:32px;height:32px;border-radius:6px;border:0;background:none;color:#A0A5AA;display:grid;place-items:center;margin-top:2px}
+.hb:hover,.hb[aria-expanded=true]{background:var(--selected);color:var(--text)}
+.nin{display:inline-flex;align-items:stretch;border:1px solid var(--input);border-radius:6px;height:36px;background:#fff;overflow:hidden}
+.nin input{width:76px;border:0;padding:0 10px;text-align:end;font-variant-numeric:tabular-nums;outline:0;background:none;direction:ltr}
+.nin input::-webkit-inner-spin-button{opacity:.4}
+.nin span{padding:0 10px;color:var(--text2);font-size:13px;border-inline-start:1px solid var(--line);background:var(--sunken);display:flex;align-items:center;white-space:nowrap}
+.nin span.pre{border-inline-start:0;border-inline-end:1px solid var(--line)}
+.nin:focus-within{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand)}
+.sr[data-dirty] > .ctl .nin{border-color:var(--warning)}
+.rov{font-weight:600;font-size:14px;white-space:nowrap}
+.rov small{font-weight:400;color:var(--text2);font-size:13px}
+.slots{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.slot{display:inline-flex;align-items:center;gap:2px;height:36px;padding:0 4px 0 8px;border:1px solid var(--input);border-radius:6px;background:#fff}
+[dir=rtl] .slot{padding:0 8px 0 4px}
+.slot input{border:0;width:52px;text-align:center;outline:0;background:none;direction:ltr;font-variant-numeric:tabular-nums}
+.slot button{border:0;background:none;color:var(--text2);width:24px;height:24px;display:grid;place-items:center;border-radius:4px}
+.slot button:hover{background:var(--selected)}
+.slot button svg{width:14px;height:14px}
+
+/* option cards */
+.opts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.opt{display:flex;flex-direction:column;gap:3px;padding:11px 12px;border:1px solid var(--input);border-radius:8px;background:#fff;text-align:start}
+.opt b{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.opt b i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border-strong);flex:0 0 auto;display:grid;place-items:center}
+.opt span{font-size:12.5px;color:var(--text2);line-height:1.4}
+.opt[aria-pressed=true]{border:1.5px solid var(--brand);background:var(--brand-tint);padding:10.5px 11.5px}
+.opt[aria-pressed=true] b i{border-color:var(--brand);background:var(--brand);box-shadow:inset 0 0 0 3px #fff}
+.opt:disabled{cursor:default}
+.opts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:8px;border:1px solid var(--input);background:#fff;font-weight:500;font-size:13.5px;color:var(--text);white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn[data-primary]{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+.btn[data-primary]:hover{background:var(--brand-hover)}
+.btn[data-danger]{color:var(--critical);border-color:#F2C1B8}
+.btn[data-quiet]{border-color:transparent;background:transparent;color:var(--text2)}
+.btn[data-quiet]:hover{background:var(--selected);color:var(--text)}
+.btn.sm{height:32px;padding:0 10px;font-size:13px}
+.btn svg{width:15px;height:15px}
+.ib{width:32px;height:32px;border-radius:7px;border:0;background:none;color:var(--text2);display:inline-grid;place-items:center}
+.ib:hover{background:var(--selected);color:var(--text)}
+.link{border:0;background:none;padding:0;color:var(--action);font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.link svg{width:14px;height:14px}
+
+/* switch */
+.sw{display:inline-flex;align-items:center;border:0;background:none;padding:2px;border-radius:999px}
+.sw i{width:36px;height:20px;border-radius:999px;background:#C9CDD2;position:relative;transition:background .15s;flex:0 0 auto}
+.sw i::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw[aria-checked=true] i{background:var(--brand)}
+.sw[aria-checked=true] i::after{transform:translateX(16px)}
+[dir=rtl] .sw[aria-checked=true] i::after{transform:translateX(-16px)}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;line-height:1.6}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.badge[data-s=neutral]{background:var(--neutral-bg);color:var(--neutral)}
+.badge[data-s=warn]{background:var(--warning-bg);color:var(--warning)}
+.badge[data-s=info]{background:var(--action-bg);color:var(--action)}
+.badge[data-s=ok]{background:var(--success-bg);color:var(--success)}
+.badge[data-s=bad]{background:var(--critical-bg);color:var(--critical)}
+.badge[data-s=plain]{background:#fff;border:1px solid var(--border);color:var(--text2);font-weight:500}
+.rj{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:999px;background:var(--critical-bg);color:var(--critical);font-size:12px;font-weight:600;white-space:nowrap}
+[dir=rtl] .rj{padding:2px 7px 2px 9px}
+.rj svg{width:13px;height:13px}
+
+/* tables */
+table.t{width:100%;border-collapse:collapse}
+.t th{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);text-align:start;padding:9px 16px;background:var(--sunken);border-bottom:1px solid var(--line);white-space:nowrap}
+[dir=rtl] .t th{letter-spacing:0;text-transform:none;font-size:12.5px}
+.t td{padding:11px 16px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
+.t tbody tr:last-child td{border-bottom:0}
+.t tbody tr[data-a]{cursor:pointer}
+.t tbody tr[data-a]:hover td{background:var(--hover)}
+.t .sub{font-size:12.5px;color:var(--text2)}
+.t .end{text-align:end}
+.t td.w0{width:1%;white-space:nowrap}
+.t tr[data-off] td:not(:last-child){color:var(--text2)}
+.nm{display:flex;align-items:center;gap:10px;min-width:0}
+.nm b{font-weight:600;display:block}
+.pf{width:30px;height:30px;border-radius:7px;background:var(--neutral-bg);border:1px solid var(--line);display:grid;place-items:center;font-size:10.5px;font-weight:700;color:var(--text2);flex:0 0 auto;letter-spacing:.02em}
+.grip{color:#B5BAC0;cursor:grab;display:grid;place-items:center}
+.pills{display:inline-flex;padding:3px;border-radius:9px;background:#EEEFF1;gap:2px}
+.pills button{border:0;background:none;padding:5px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--text2);display:inline-flex;align-items:center;gap:6px}
+.pills button b{font-size:11.5px;font-weight:600;color:var(--text3)}
+.pills button[aria-pressed=true]{background:#fff;color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--border)}
+.pills button[aria-pressed=true] b{color:var(--text2)}
+.toolbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.cfoot{padding:10px 16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--text2);display:flex;gap:8px;align-items:center;background:var(--sunken);border-radius:0 0 10px 10px}
+.cfoot svg{width:14px;height:14px}
+
+/* notice, empty, kv */
+.notice{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;line-height:1.5;background:#fff;border:1px solid var(--line);color:var(--text)}
+.notice svg{margin-top:1px;color:var(--text2)}
+.notice[data-t=warn]{background:var(--warning-bg);border-color:var(--warning-line);color:#6B5000}
+.notice[data-t=warn] svg{color:var(--warning)}
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:28px 20px}
+.empty .ei{width:40px;height:40px;border-radius:50%;background:var(--neutral-bg);display:grid;place-items:center;color:var(--text2);margin-bottom:4px}
+.empty .ei[data-t=ok]{background:var(--success-bg);color:var(--success)}
+.empty b{font-size:14.5px;font-weight:600}
+.empty p{margin:0;color:var(--text2);font-size:13px;max-width:56ch}
+.empty .acts{display:flex;gap:8px;margin-top:8px}
+dl.kv{display:grid;grid-template-columns:170px minmax(0,1fr);gap:9px 14px;margin:0;font-size:13.5px}
+dl.kv dt{color:var(--text2)}
+dl.kv dd{margin:0;font-weight:500;display:flex;align-items:center;gap:8px;min-width:0}
+.miss{display:inline-flex;align-items:center;gap:5px;color:var(--warning);font-weight:600}
+.miss svg{width:14px;height:14px}
+.sub-h{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);margin:0 0 10px}
+[dir=rtl] .sub-h{letter-spacing:0;text-transform:none;font-size:13px}
+
+/* markets */
+.mlist td{padding:16px}
+.mlist .tile{width:36px;height:36px;border-radius:9px;background:var(--neutral-bg);display:grid;place-items:center;font-weight:700;font-size:12px;letter-spacing:.04em;color:var(--text);flex:0 0 auto}
+.mlist .nm b{font-size:15px;font-weight:600}
+.mlist .go{color:var(--text3);display:grid;place-items:center}
+.mlist tbody tr:hover .go{color:var(--text)}
+
+/* matching */
+.mt{display:grid;grid-template-columns:1fr 1fr}
+.mt > div{min-width:0}
+.mt > div + div{border-inline-start:1px solid var(--line)}
+.mt h4{margin:0;padding:12px 16px 4px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--line)}
+.mrow b{font-weight:600;display:block}
+.mrow small{color:var(--text2);font-size:12.5px}
+
+/* shares */
+.shares{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.shr{display:grid;grid-template-columns:minmax(0,1fr) 120px 220px;gap:16px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line)}
+.shr:last-child{border-bottom:0}
+.shr .sbar{height:8px;border-radius:999px;background:var(--neutral-bg);overflow:hidden}
+.shr .sbar i{display:block;height:100%;background:#9CA3AF;border-radius:999px}
+.shr.tot{background:var(--sunken);font-weight:600}
+.av{width:28px;height:28px;border-radius:50%;background:var(--neutral-bg);display:inline-grid;place-items:center;font-size:11.5px;font-weight:700;color:var(--text2);flex:0 0 auto}
+
+/* save bar */
+.savebar{position:sticky;top:12px;z-index:20;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;margin-bottom:16px;background:#fff;border:1px solid var(--warning-line);border-radius:10px;box-shadow:0 0 0 4px var(--page)}
+[dir=rtl] .savebar{padding:8px 16px 8px 8px}
+.savebar .msg{display:flex;align-items:center;gap:9px;font-weight:600;font-size:14px}
+.savebar .msg i{width:8px;height:8px;border-radius:50%;background:var(--warning)}
+.savebar .sp{flex:1}
+
+/* history popover */
+.pop{position:absolute;top:50px;inset-inline-end:16px;width:340px;background:#fff;border:1px solid var(--border);border-radius:10px;z-index:30;box-shadow:0 8px 24px rgba(15,23,42,.12)}
+.pop h5{margin:0;padding:10px 12px;font-size:13px;font-weight:600;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.pop h5 button{margin-inline-start:auto}
+.pop ol{list-style:none;margin:0;padding:4px 0}
+.pop li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 12px;font-size:13px}
+.pop li + li{border-top:1px solid var(--line)}
+.pop li small{grid-column:1 / -1;color:var(--text2);font-size:12px}
+.pop .chg{font-weight:600;white-space:nowrap}
+.pop .chg s{color:var(--text3);font-weight:400;text-decoration:none}
+.pop .none{padding:12px;color:var(--text2);font-size:13px}
+
+/* drawer */
+.dw{position:absolute;inset:0;background:rgba(17,24,39,.28);z-index:50;display:flex;justify-content:flex-end}
+.dp{width:500px;height:100%;background:#fff;border-inline-start:1px solid var(--border);display:flex;flex-direction:column;box-shadow:-8px 0 32px rgba(15,23,42,.10)}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dh h3{margin:0;font-size:17px;font-weight:600}
+.dh p{margin:2px 0 0;font-size:13px;color:var(--text2)}
+.dh .x{margin-inline-start:auto;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--border);background:#fff;flex:0 0 auto}
+.db{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.ds{padding:16px 20px;border-bottom:1px solid var(--line)}
+.ds:last-child{border-bottom:0}
+.ds h4{margin:0 0 12px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ds h4 .end{margin-inline-start:auto}
+.df{display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--line);background:var(--sunken);align-items:center}
+.df .sp{flex:1}
+.f{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.f:last-child{margin-bottom:0}
+.f label,.f .fl{font-size:13px;font-weight:500}
+.f .in{height:38px;border:1px solid var(--input);border-radius:7px;padding:0 11px;background:#fff;width:100%}
+.f .in:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand)}
+.f .in[readonly]{background:var(--sunken);color:var(--text2)}
+.f .hp{font-size:12.5px;color:var(--text2);line-height:1.45}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cpy{display:flex;align-items:center;gap:6px;height:38px;border:1px solid var(--input);border-radius:7px;padding:0 4px 0 11px;background:var(--sunken)}
+[dir=rtl] .cpy{padding:0 11px 0 4px}
+.cpy .mono{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.swrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.swrow:last-child{border-bottom:0}
+.swrow b{font-weight:500;display:block}
+.swrow small{color:var(--text2);font-size:12.5px}
+.optt td{padding:9px 10px;font-size:13.5px}
+.optt th{padding:8px 10px}
+.check{width:18px;height:18px;accent-color:var(--brand)}
+.result{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--success);margin-top:10px}
+.result svg{width:15px;height:15px}
+.typec{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* modal + toast */
+.modal{position:absolute;inset:0;background:rgba(17,24,39,.36);z-index:60;display:grid;place-items:center}
+.modal .mb{width:420px;background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:0 16px 40px rgba(15,23,42,.18)}
+.modal .mb h3{margin:0;padding:16px 20px 6px;font-size:16px}
+.modal .mb p{margin:0;padding:0 20px 16px;color:var(--text2);font-size:13.5px}
+.modal .mb .df{border-radius:0 0 12px 12px;justify-content:flex-end}
+.toast{position:absolute;bottom:20px;inset-inline:0;margin:auto;width:max-content;max-width:90%;background:#1A1A1A;color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;z-index:70;display:flex;gap:8px;align-items:center}
+.toast svg{width:15px;height:15px;color:#6EE7B7}
+
+/* logs */
+.lh{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px}
+.lh h1{font-size:20px;font-weight:600;margin:0 0 4px}
+.lh p{margin:0;color:var(--text2);max-width:76ch}
+.ltabs{display:inline-flex;padding:3px;border-radius:10px;background:#E9EAEC;gap:2px;margin-bottom:14px}
+.ltabs button{border:0;background:none;padding:7px 14px;border-radius:8px;font-size:13.5px;font-weight:500;color:var(--text2);display:inline-flex;align-items:center;gap:8px}
+.ltabs button b{font-size:11.5px;font-weight:600;padding:0 7px;border-radius:999px;background:rgba(0,0,0,.05);color:var(--text2)}
+.ltabs button b[data-t=bad]{background:var(--critical-bg);color:var(--critical)}
+.ltabs button[aria-pressed=true]{background:#fff;color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--border)}
+.lsearch{display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--input);border-radius:8px;padding:0 10px;background:#fff;flex:1;max-width:360px}
+.lsearch input{border:0;outline:0;flex:1;background:none}
+.lsearch svg{color:var(--text2)}
+.sel{height:36px;border:1px solid var(--input);border-radius:8px;padding:0 10px;background:#fff;font-size:13.5px}
+.chip{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;border:1px solid var(--input);background:#fff;font-size:13px;font-weight:500;color:var(--text2)}
+.chip[aria-pressed=true]{background:var(--critical-bg);border-color:#F5C6BC;color:var(--critical);font-weight:600}
+.json{margin:0;padding:12px 14px;border-radius:8px;background:var(--sunken);border:1px solid var(--line);font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;white-space:pre;overflow:auto;direction:ltr;text-align:left;color:#374151}
+.json .k{color:#1D4ED8}.json .s{color:#047857}.json .n{color:#B45309}
+.arrow{color:var(--text3);margin:0 4px}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="bar" id="bar"></div>
+  <div class="note" id="note"></div>
+  <div class="stagewrap"><div id="stage"></div></div>
+</div>
+
+<script>
+/* ═════════════ icons (lucide) ═════════════ */
+const ICON = {
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  clipboard:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  warehouse:'<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><rect x="6" y="10" width="12" height="12"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  msg:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  megaphone:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  history:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  more:'<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  checkc:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  grip:'<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',
+  chevd:'<path d="m6 9 6 6 6-6"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  refresh:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  phoneoff:'<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><path d="M22 2 2 22"/>',
+  thumbsdown:'<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>',
+  filex:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m14.5 12.5-5 5"/><path d="m9.5 12.5 5 5"/>',
+  mapoff:'<path d="M12.75 7.09a3 3 0 0 1 2.16 2.16"/><path d="M17.072 17.072c-1.634 2.17-3.527 3.912-4.471 4.727a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 1.432-4.568"/><path d="m2 2 20 20"/><path d="M8.475 2.818A8 8 0 0 1 20 10c0 1.183-.31 2.377-.81 3.533"/><path d="M9.13 9.13a3 3 0 0 0 3.74 3.74"/>',
+  msgtext:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>',
+  ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+  gear:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  file:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/>',
+  chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  box:'<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  plug:'<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  pause:'<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  pencil:'<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  archive:'<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+};
+const ic = (n, c='') => `<svg viewBox="0 0 24 24" class="${c}" aria-hidden="true">${ICON[n]||''}</svg>`;
+
+/* ═════════════ state ═════════════ */
+const q = new URLSearchParams(location.search);
+const S = {
+  lang: q.get('lang')==='ar' ? 'ar' : 'fr',
+  role: q.get('role')==='manager' ? 'manager' : 'super_admin',
+  screen: q.get('screen') || 'markets',
+  scope: ['ly','tn','all'].includes(q.get('scope')) ? q.get('scope') : 'ly',
+  drawer: q.get('drawer') || '',
+  wa: q.get('wa')==='on',
+  pending: q.get('pending')==='1',
+  tab: q.get('tab') || 'received',
+  shopFilter: 'all',
+  edits: {},
+  hist: '',
+  leave: '',
+  toast: '',
+  errorsOnly: true,
+};
+const isSA = () => S.role === 'super_admin';
+const nb = s => typeof s === 'string' ? s.replace(/« /g,'«\u00a0').replace(/ ([»:;?!])/g,'\u00a0$1') : s;
+const T = (fr, ar) => S.lang === 'ar' ? ar : nb(fr);
+const curMk = () => S.role === 'manager' ? 'ly' : (S.scope === 'all' ? null : S.scope);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = x => Number(x).toLocaleString('fr-FR', {maximumFractionDigits: 3}).replace(/ /g, ' ');
+const nn = x => `<span class="num">${fmt(x)}</span>`;
+const MONTHS = {fr:['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'], ar:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']};
+function dt(iso, year){ if(!iso) return '—'; const [y,m,d] = iso.slice(0,10).split('-').map(Number); const t = iso.length>10 ? ` · <span class="num">${iso.slice(11,16)}</span>` : ''; return `<span class="num">${d}</span> ${MONTHS[S.lang][m-1]}${year?` <span class="num">${y}</span>`:''}${t}`; }
+const TODAY = new Date('2026-10-02T14:00:00');
+const daysSince = iso => Math.floor((TODAY - new Date(iso.slice(0,10)+'T12:00:00')) / 86400000);
+
+/* ═════════════ real data (prod, 2026-10-02) ═════════════ */
+const MK = {
+  ly: { code:'LY', name:'Libya', label:['Libye','ليبيا'], lang:'ar', cur:'LYD', orders30:1665, last:'2026-09-29', sender:{name:'Libya', address:'', phone:''} },
+  tn: { code:'TN', name:'Tunisia', label:['Tunisie','تونس'], lang:'fr', cur:'TND', orders30:0, last:'2026-07-07', sender:{name:'Tunisia', address:'', phone:''} },
+};
+const V = {
+  ly: { max_call_attempts:8, attempt_retry_times:['11:00','14:00','18:00'], sla_minutes:120, duplicate_window_hours:24, duplicate_autoselect_window_hours:1, merge_window_hours:24, auto_archive_after_days:30,
+        assignment_algorithm:'manual', goal_daily_treated:12, goal_min_rate:40, goal_conf_per_hour:3, goal_team_weekly_conf:150, supplier_lead_time_days:14,
+        high_value_threshold:0, risk_min_prior_failures:1, zone_low_delivery_rate_pct:60, zone_min_sample:20, carrier_stall_days:5, delivery_first_action_hours:4, delivery_done_window_hours:24,
+        fx_usd:8.4, commission_enabled:true, commission_amount:9, commission_from:'2026-09-12' },
+  tn: { max_call_attempts:9, attempt_retry_times:['11:00','14:00','18:00'], sla_minutes:120, duplicate_window_hours:24, duplicate_autoselect_window_hours:1, merge_window_hours:0, auto_archive_after_days:30,
+        assignment_algorithm:'manual', goal_daily_treated:12, goal_min_rate:40, goal_conf_per_hour:3, goal_team_weekly_conf:150, supplier_lead_time_days:14,
+        high_value_threshold:0, risk_min_prior_failures:1, zone_low_delivery_rate_pct:60, zone_min_sample:20, carrier_stall_days:5, delivery_first_action_hours:4, delivery_done_window_hours:24,
+        fx_usd:'', commission_enabled:false, commission_amount:0, commission_from:'' },
+};
+const HIST = {
+  ly: { max_call_attempts:[['2026-05-22','Super Admin','5','8'],['2026-05-18','Admin','9','5'],['2026-05-18','Admin','3','9']],
+        fx_usd:[['2026-08-15','Super Admin','8','8,4'],['2026-08-15','Super Admin','—','8']] },
+  tn: { max_call_attempts:[['2026-05-18','Admin','5','9'],['2026-05-18','Admin','3','5']],
+        assignment_algorithm:[['2026-08-21','Admin',['Selon la charge','حسب ضغط العمل'],['Manuelle','يدوي']],['2026-05-18','Admin',['Tour à tour','بالتناوب'],['Manuelle','يدوي']]],
+        sla_minutes:[['2026-08-21','Admin','—','137']], carrier_stall_days:[['2026-08-21','Admin','—','5']], duplicate_window_hours:[['2026-08-21','Admin','—','24']], supplier_lead_time_days:[['2026-08-21','Admin','—','14']] },
+};
+const PF = { google_sheets:['GS','Google Sheets'], easy_orders:['EO','EasyOrders'], shopify:['SH','Shopify'], buybox:['BB','BuyBox'], woocommerce:['WC','WooCommerce'], converty:['CV','Converty'], lightfunnels:['LF','LightFunnels'] };
+const SHOPS = {
+  ly: [
+    {id:'s1', name:'Converty Libya (Sheets)', pf:'google_sheets', active:true, o30:1656, last:'2026-09-29T15:30'},
+    {id:'s2', name:'Test', pf:'shopify', active:true, o30:4, last:'2026-09-23T16:37'},
+    {id:'s3', name:'EasyOrdersLY - Quran', pf:'easy_orders', active:true, o30:5, last:'2026-09-07T16:06'},
+    {id:'s4', name:'Shopify', pf:'shopify', active:true, o30:0, last:'2026-05-12'},
+    {id:'s5', name:'bard', pf:'shopify', active:true, o30:0, last:'2026-05-14'},
+    {id:'s6', name:'easyorders-firas-dev', pf:'easy_orders', active:true, o30:0, last:'2026-05-14'},
+    {id:'s7', name:'MyStore', pf:'buybox', active:true, o30:0, last:'2026-05-14'},
+    {id:'s8', name:'Easy Orders LY', pf:'easy_orders', active:false, o30:0, last:null},
+  ],
+  tn: [
+    {id:'t1', name:'Shopify-Biovera', pf:'shopify', active:true, o30:0, last:null},
+    {id:'t2', name:'Converty-Biovera', pf:'converty', active:true, o30:0, last:null},
+    {id:'t3', name:'Easy Orders TN', pf:'easy_orders', active:true, o30:0, last:null},
+    {id:'t4', name:'woocommerce', pf:'woocommerce', active:true, o30:0, last:null},
+    {id:'t5', name:'TestSF', pf:'easy_orders', active:true, o30:0, last:null},
+  ],
+};
+const SITES = {
+  ly: [ {id:'w1', fr:'Tripoli', ar:'طرابلس', def:true, active:true, agents:1}, {id:'w2', fr:'Benghazi', ar:'بنغازي', def:false, active:true, agents:1} ],
+  tn: [ {id:'w3', fr:'Tunis', ar:'تونس', def:true, active:true, agents:0} ],
+};
+const CARRIERS = {
+  ly: [
+    {id:'c1', name:'Darb Assabil - Tripoli', type:'darb_assabil', site:'w1', fee:10, ret:5, active:true, del:174, ship:202},
+    {id:'c2', name:'Darb Assabil — Benghazi', type:'darb_assabil', site:'w2', fee:10, ret:5, active:false, del:111, ship:136},
+    {id:'c3', name:'Dexpress', type:'dexpress', site:'w1', fee:15, ret:5, active:false, del:0, ship:0},
+  ],
+  tn: [
+    {id:'c4', name:'Navex', type:'navex', site:'w3', fee:6, ret:4, active:true, del:0, ship:0},
+    {id:'c5', name:'Cosmos', type:'navex', site:'w3', fee:0, ret:0, active:true, del:0, ship:0},
+    {id:'c6', name:'TestCarrier3', type:'navex', site:'w3', fee:0, ret:0, active:true, del:0, ship:0},
+  ],
+};
+const ADAPTERS = {
+  darb_assabil: {label:'Darb Assabil', mk:'ly', d:['Clé API et identifiant de compte.','مفتاح API ومعرّف الحساب.'],
+    fields:[['api_key',['Clé API','مفتاح API'],true,''],['account_id',['Identifiant de compte','معرّف الحساب'],false,'692637b42f63874515cebd63'],['default_service_id',['Service de livraison par défaut','خدمة التوصيل الافتراضية'],false,'6783c612dcf305c9e775c987']]},
+  dexpress: {label:'Dexpress', mk:'ly', d:['Compte marchand du portail Dexpress.','حساب التاجر في بوابة Dexpress.'],
+    fields:[['email',['E-mail du compte marchand','البريد الإلكتروني لحساب التاجر'],false,''],['password',['Mot de passe','كلمة المرور'],true,''],['merchant_id',['Identifiant marchand','معرّف التاجر'],false,'807'],['from_state',['Région de départ (identifiant)','منطقة الانطلاق (المعرّف)'],false,'62']]},
+  navex: {label:'Navex', mk:'tn', d:['Jeton API et expéditeur.','رمز API والمرسِل.'],
+    fields:[['token',['Jeton API','رمز API'],true,''],['sender_name',['Nom de l’expéditeur','اسم المرسِل'],false,''],['sender_location',['Localité de l’expéditeur','منطقة المرسِل'],false,'']]},
+};
+const ORDER_OPTS = [
+  ['is_pickup', ['Ramassage','الاستلام من المستودع'], ['Le transporteur passe chercher le colis chez nous.','تأتي شركة الشحن لأخذ الطرد من عندنا.'], true],
+  ['allow_inspection', ['Ouverture du colis','فتح الطرد'], ['Le client peut ouvrir avant de payer. Plus de retours possibles.','يمكن للعميل فتح الطرد قبل الدفع. قد تزيد المرتجعات.'], false],
+  ['is_fragile', ['Fragile','قابل للكسر'], ['Le transporteur manipule le colis avec soin.','تتعامل شركة الشحن مع الطرد بحذر.'], false],
+  ['allow_card_payment', ['Paiement par carte','الدفع بالبطاقة'], ['Le client peut payer par carte au lieu du comptant.','يمكن للعميل الدفع بالبطاقة بدل النقد.'], false],
+  ['allow_testing', ['Essai','التجربة'], ['Le client peut essayer le produit. Plus de retours possibles.','يمكن للعميل تجربة المنتج. قد تزيد المرتجعات.'], false],
+  ['is_replacement', ['Échange','استبدال'], ['Le colis remplace une commande précédente.','الطرد يحل محل طلب سابق.'], false],
+];
+const AGENTS = {
+  ly: [ ['salima',9,'2026-09-14',true], ['tasnim',10,'2026-09-30',true], ['roqaya',9,'2026-09-17',true], ['riheb',10,'2026-08-25',true], ['hend',9,'2026-09-09',true], ['mouna',0,'2026-08-25',false] ],
+  tn: [ ['asma',0,'',false], ['Agent TN 1',0,'',false], ['Agent TN 2',0,'',false], ['Test Agent 88',0,'',false] ],
+};
+const SHARES = { ly:{salima:20,tasnim:20,roqaya:15,riheb:15,hend:15,mouna:15}, tn:{asma:25,'Agent TN 1':25,'Agent TN 2':25,'Test Agent 88':25} };
+const GROUPS = [
+  {k:'refus_client', icon:'thumbsdown', l:['Refus client','رفض العميل'], d:['Le client a entendu l’offre et a dit non.','سمع العميل العرض ورفضه.']},
+  {k:'commande_invalide', icon:'filex', l:['Commande non réelle','الطلب غير حقيقي'], d:['Il n’y a jamais eu de vraie commande.','لم يكن هناك طلب حقيقي أصلاً.']},
+  {k:'injoignable', icon:'phoneoff', l:['Injoignable','تعذر الاتصال'], d:['Personne ne répond, ou le numéro ne mène pas au client.','لا أحد يرد، أو الرقم لا يوصل إلى العميل.']},
+  {k:'livraison_impossible', icon:'mapoff', l:['Livraison impossible','تعذر التوصيل'], d:['Le client veut le produit, mais on ne peut pas le livrer.','العميل يريد المنتج، لكن لا يمكننا توصيله.']},
+  {k:'autre', icon:'msgtext', l:['Autre','أخرى'], d:['Aucun motif ne convient : l’agent écrit la raison.','لا يناسب أي سبب: يكتب الموظف السبب بنفسه.']},
+];
+// [group, key, label fr, label ar, short fr, short ar, uses LY, uses TN]
+const REASONS = [
+  ['refus_client','prix_eleve','Prix trop élevé','السعر مرتفع','Prix','السعر',127,0],
+  ['refus_client','frais_livraison','Frais de livraison refusés','رفض رسوم التوصيل','Livraison','التوصيل',0,0],
+  ['refus_client','achete_ailleurs','Acheté ailleurs','اشترى من مكان آخر','Ailleurs','مكان آخر',8,0],
+  ['refus_client','changement_avis','A changé d’avis','غيّر رأيه','Changé d’avis','غيّر رأيه',167,0],
+  ['refus_client','produit_non_voulu','Veut un autre produit','يريد منتجاً آخر','Autre produit','منتج آخر',15,0],
+  ['commande_invalide','simple_info','Simple demande d’info','استفسار فقط','Info','استفسار',79,0],
+  ['commande_invalide','non_commande','N’a pas commandé','لم يطلب المنتج','Pas commandé','لم يطلب',185,0],
+  ['commande_invalide','doublon','Commande en double','طلب مكرر','Doublon','مكرر',60,1],
+  ['commande_invalide','non_serieux','Commande non sérieuse','طلب غير جاد','Non sérieux','غير جاد',388,0],
+  ['injoignable','pas_de_reponse','Ne répond pas','لا يرد','Sans réponse','لا يرد',331,5],
+  ['injoignable','numero_invalide','Numéro faux ou inexistant','رقم خاطئ أو غير موجود','Faux n°','رقم خاطئ',143,1],
+  ['injoignable','numero_hors_service','Éteint ou hors service','مغلق أو خارج الخدمة','Hors service','خارج الخدمة',45,0],
+  ['injoignable','mauvais_interlocuteur','Le numéro est à quelqu’un d’autre','الرقم لشخص آخر','Mauvais n°','رقم آخر',13,0],
+  ['injoignable','raccroche','Raccroche au téléphone','يغلق الخط','Raccroche','يغلق الخط',17,0],
+  ['livraison_impossible','hors_couverture','Hors zone de livraison','خارج نطاق التغطية','Hors zone','خارج النطاق',4,0],
+  ['livraison_impossible','paiement_impossible','Moyen de paiement indisponible','وسيلة الدفع غير متاحة','Paiement','الدفع',0,0],
+  ['livraison_impossible','adresse_invalide','Adresse invalide','عنوان غير صحيح','Adresse','العنوان',0,0],
+  ['livraison_impossible','absent_ville','Absent de la ville','خارج المدينة','Absent','غائب',1,0],
+];
+
+/* ═════════════ topics ═════════════ */
+const TOPICS = [
+  {id:'markets', icon:'globe', l:['Marchés','الأسواق'], sa:true, global:true,
+    s:['Les pays où Ordra vend. Chacun a sa langue, sa devise et ses propres réglages.','البلدان التي يبيع فيها أوردرا. لكل منها لغته وعملته وإعداداته الخاصة.']},
+  {id:'shops', icon:'bag', l:['Boutiques','المتاجر'],
+    s:['Les boutiques qui envoient leurs commandes à Ordra, et les produits ou villes reçus qu’il faut associer.','المتاجر التي ترسل طلباتها إلى أوردرا، والمنتجات أو المدن المستلمة التي يجب ربطها.']},
+  {id:'orders', icon:'clipboard', l:['Commandes','الطلبات'],
+    s:['Combien de fois on appelle, quand on rappelle, ce qu’on fait des doublons et quand on range.','كم مرة نتصل، ومتى نعيد الاتصال، وماذا نفعل بالطلبات المكررة، ومتى نؤرشف.']},
+  {id:'rejections', icon:'ban', l:['Motifs de rejet','أسباب الرفض'],
+    s:['Les raisons qu’un agent choisit quand une commande n’aboutit pas.','الأسباب التي يختارها الموظف عندما لا يكتمل الطلب.']},
+  {id:'team', icon:'users', l:['Équipe','الفريق'],
+    s:['Comment les commandes sont réparties entre les agents, leurs objectifs et leurs commissions.','كيف توزَّع الطلبات على الموظفين، وأهدافهم وعمولاتهم.']},
+  {id:'warehouses', icon:'warehouse', l:['Entrepôts','المستودعات'],
+    s:['Les bâtiments d’où partent les colis, et le délai pour réapprovisionner le stock.','المباني التي تخرج منها الطرود، ومدة إعادة تموين المخزون.']},
+  {id:'delivery', icon:'truck', l:['Livraison','التوصيل'],
+    s:['Les transporteurs et leurs frais, et quand un colis en route mérite un appel.','شركات الشحن ورسومها، ومتى يستحق طرد في الطريق اتصالاً.']},
+  {id:'whatsapp', icon:'msg', l:['WhatsApp','واتساب'],
+    s:['Le numéro WhatsApp de la marque, et les messages envoyés automatiquement aux clients.','رقم واتساب الخاص بالعلامة، والرسائل التي تُرسل تلقائياً إلى العملاء.']},
+  {id:'ads', icon:'megaphone', l:['Publicité','الإعلانات'], sa:true,
+    s:['Les comptes publicitaires Meta dont Ordra lit les dépenses, et le taux de change utilisé.','حسابات ميتا الإعلانية التي يقرأ أوردرا مصاريفها، وسعر الصرف المستخدم.']},
+];
+const visibleTopics = () => TOPICS.filter(t => isSA() || !t.sa);
+
+/* ═════════════ fields ═════════════ */
+const EDIT_AREAS_MANAGER = ['orders','rejections','team','risk','board','matching'];
+const canEdit = area => isSA() || EDIT_AREAS_MANAGER.includes(area);
+const cur = () => MK[curMk()].cur;
+const hrs = v => S.lang==='ar' ? `${v} ساعة` : `${v} h`;
+const F = {
+  max_call_attempts:{area:'orders', min:1, max:20, u:['appels','مكالمات'], l:['Nombre maximum d’appels','الحد الأقصى للمكالمات'],
+    h:v=>T(`Au ${v}<sup>e</sup> appel sans réponse, la commande est rejetée automatiquement avec le motif « Injoignable ».`, `عند المكالمة رقم ${v} دون رد، يُرفض الطلب تلقائياً بسبب «تعذر الاتصال».`)},
+  sla_minutes:{area:'orders', min:5, u:['minutes','دقيقة'], l:['Délai de confirmation visé','المهلة المستهدفة للتأكيد'],
+    h:v=>{const d = v%60===0 ? T(`${v/60} h`,`${v/60} ساعة`) : T(`${v} min`,`${v} دقيقة`); return T(`Dans le panneau d’une commande, le compteur passe au rouge quand elle attend sa confirmation depuis plus de ${d}.`, `في لوحة الطلب، يتحول العدّاد إلى الأحمر عندما ينتظر الطلب تأكيده أكثر من ${d}.`);}},
+  duplicate_window_hours:{area:'orders', u:['heures','ساعة'], l:['Doublon probable','طلب مكرر محتمل'],
+    h:v=>T(`Si un client recommande dans les ${v} h, la nouvelle commande porte le badge « doublon probable ». Un doublon exact est déjà écarté.`, `إذا أعاد العميل الطلب خلال ${v} ساعة، يحمل الطلب الجديد شارة «مكرر محتمل». التكرار المطابق تماماً يُستبعد تلقائياً.`)},
+  duplicate_autoselect_window_hours:{area:'orders', u:['heures','ساعة'], l:['Pré-sélection sur l’écran Doublons','التحديد المسبق في شاشة المكررات'],
+    h:v=>Number(v)===0 ? T('Rien n’est coché d’avance : vous choisissez chaque doublon.','لا شيء محدد مسبقاً: تختار كل مكرر بنفسك.') : T(`Les commandes identiques arrivées à moins de ${v} h d’écart sont cochées d’avance. 0 = rien n’est coché.`, `الطلبات المتطابقة التي وصلت بفارق أقل من ${v} ساعة تكون محددة مسبقاً. 0 = لا شيء محدد.`)},
+  merge_window_hours:{area:'orders', u:['heures','ساعة'], l:['Fusion de commandes','دمج الطلبات'],
+    h:v=>Number(v)===0 ? T('Désactivée : l’agent ne peut pas réunir deux commandes d’un même client. Saisissez un nombre d’heures pour l’activer.','معطّل: لا يمكن للموظف جمع طلبين لنفس العميل. أدخل عدد ساعات لتفعيله.') : T(`Même client, produits différents, à moins de ${v} h d’écart : l’agent peut les réunir en un seul colis, avec un seul frais de livraison. 0 = désactivée.`, `نفس العميل ومنتجات مختلفة بفارق أقل من ${v} ساعة: يمكن للموظف جمعها في طرد واحد برسوم توصيل واحدة. 0 = معطّل.`)},
+  auto_archive_after_days:{area:'orders', min:1, u:['jours','يوماً'], l:['Archiver les commandes terminées après','أرشفة الطلبات المنتهية بعد'],
+    h:v=>T(`Une commande livrée, retournée, rejetée ou annulée depuis ${v} jours passe dans « Archivées ». Son statut ne change pas.`, `الطلب الذي سُلّم أو أُرجع أو رُفض أو أُلغي منذ ${v} يوماً ينتقل إلى «المؤرشفة». لا تتغير حالته.`)},
+  goal_daily_treated:{area:'team', u:['commandes','طلباً'], l:['Commandes traitées par agent et par jour','الطلبات المعالجة لكل موظف يومياً'],
+    h:()=>T('Affiché dans la salle de contrôle et sur la fiche de chaque agent.','يظهر في غرفة التحكم وفي بطاقة كل موظف.')},
+  goal_min_rate:{area:'team', max:100, u:['%','٪'], l:['Taux de confirmation minimum','الحد الأدنى لنسبة التأكيد'],
+    h:v=>T(`En dessous de ${v} %, le taux d’un agent ou du marché s’affiche en alerte.`, `تحت ${v}٪، تظهر نسبة الموظف أو السوق كتنبيه.`)},
+  goal_conf_per_hour:{area:'team', u:['par heure','في الساعة'], l:['Confirmations par heure, par agent','التأكيدات في الساعة لكل موظف'], h:()=>''},
+  goal_team_weekly_conf:{area:'team', u:['par semaine','في الأسبوع'], l:['Confirmations par semaine, toute l’équipe','التأكيدات الأسبوعية للفريق كله'], h:()=>''},
+  supplier_lead_time_days:{area:'warehouses', u:['jours','يوماً'], l:['Délai fournisseur','مدة توريد المورّد'],
+    h:v=>T(`Temps entre la commande au fournisseur et l’arrivée en stock. La page Stock vous dit de recommander ${v} jours avant la rupture prévue.`, `الوقت بين الطلب من المورّد ووصول البضاعة إلى المخزون. تنبهك صفحة المخزون لإعادة الطلب قبل ${v} يوماً من النفاد المتوقع.`)},
+  high_value_threshold:{area:'risk', u:'CUR', l:['Montant élevé','مبلغ مرتفع'],
+    h:v=>Number(v)===0 ? T('Désactivé : le montant ne rend jamais un colis à risque. Saisissez un montant pour l’activer.','معطّل: المبلغ لا يجعل الطرد في خطر أبداً. أدخل مبلغاً لتفعيله.') : T(`Un colis de ${v} ${cur()} ou plus est à risque. 0 = désactivé.`, `الطرد بقيمة ${v} ${cur()} أو أكثر في خطر. 0 = معطّل.`)},
+  risk_min_prior_failures:{area:'risk', min:1, u:['échecs','إخفاقات'], l:['Client déjà en échec','عميل سبق أن فشل طلبه'],
+    h:v=>T(`Un client qui a déjà refusé ou renvoyé ${v} colis est à risque. Un nouveau client ne l’est jamais.`, `العميل الذي رفض أو أرجع ${v} طرداً من قبل يكون في خطر. العميل الجديد لا يكون كذلك أبداً.`)},
+  zone_low_delivery_rate_pct:{area:'risk', max:100, u:['%','٪'], l:['Zone difficile','منطقة صعبة'],
+    h:v=>T(`Une destination où moins de ${v} % des colis sont livrés rend le colis à risque…`, `الوجهة التي يُسلَّم فيها أقل من ${v}٪ من الطرود تجعل الطرد في خطر…`)},
+  zone_min_sample:{area:'risk', min:1, u:['colis','طرداً'], l:['Échantillon minimum d’une zone','الحد الأدنى للعينة في المنطقة'],
+    h:v=>T(`…mais seulement après ${v} colis terminés vers cette zone. Avant, le taux ne veut rien dire.`, `…لكن فقط بعد ${v} طرداً منتهياً نحو هذه المنطقة. قبل ذلك لا معنى للنسبة.`)},
+  carrier_stall_days:{area:'risk', min:1, u:['jours','أيام'], l:['Colis immobile','طرد متوقف'],
+    h:v=>T(`Un colis sans aucun mouvement chez le transporteur depuis ${v} jours remonte dans le suivi de livraison.`, `الطرد الذي لم يتحرك لدى شركة الشحن منذ ${v} أيام يظهر في متابعة التوصيل.`)},
+  delivery_first_action_hours:{area:'board', min:1, u:['heures','ساعات'], l:['Délai de première action','مهلة الإجراء الأول'],
+    h:v=>T(`Un colis à traiter qui attend plus de ${v} h (heures de service) signale son agent en retard sur le tableau.`, `الطرد الذي ينتظر المعالجة أكثر من ${v} ساعات (ساعات العمل) يُظهر موظفه متأخراً في اللوحة.`)},
+  delivery_done_window_hours:{area:'board', min:1, u:['heures','ساعة'], l:['Colis terminés visibles','الطرود المنتهية الظاهرة'],
+    h:v=>T(`Un colis livré ou retourné reste ${v} h dans « Terminés » : l’agent peut encore y noter l’appel qui l’a clos.`, `يبقى الطرد المسلَّم أو المرتجع ${v} ساعة في «المنتهية»: يمكن للموظف تسجيل المكالمة التي أنهته.`)},
+  fx_usd:{area:'ads', step:0.1, pre:'1 USD =', u:'CUR', l:['Taux de change du dollar','سعر صرف الدولار'],
+    h:v=>v ? T(`Les dépenses Meta facturées en dollars sont converties à ${v} ${cur()} pour le P&L et la page Dépenses pub.`, `تُحوَّل مصاريف ميتا المفوترة بالدولار بسعر ${v} ${cur()} في الأرباح والخسائر وصفحة مصاريف الإعلانات.`) : T('Nécessaire seulement si un compte publicitaire facture en dollars.','ضروري فقط إذا كان حساب إعلاني يفوتر بالدولار.')},
+  commission_amount:{area:'commissions', step:0.5, u:'CUR', l:['Montant par commande livrée','المبلغ لكل طلب مسلَّم'],
+    h:()=>{const f = V[curMk()].commission_from; return f ? T(`En vigueur depuis le ${dt(f,true)}. Un nouveau montant s’applique à partir de la date choisie ; ce qui est déjà gagné ne change pas.`, `ساري منذ ${dt(f,true)}. يُطبَّق المبلغ الجديد ابتداءً من التاريخ المختار؛ ما تم كسبه لا يتغير.`) : '';}},
+};
+const val = k => (k in S.edits) ? S.edits[k] : V[curMk()][k];
+const unitOf = f => f.u === 'CUR' ? cur() : T(f.u[0], f.u[1]);
+const DIRTY_PRESET = { orders:{max_call_attempts:6, merge_window_hours:12}, team:{goal_daily_treated:15}, delivery:{high_value_threshold:400, carrier_stall_days:4}, warehouses:{supplier_lead_time_days:21}, ads:{fx_usd:8.6} };
+if (q.get('dirty')==='1') S.edits = {...(DIRTY_PRESET[S.screen]||{})};
+if (q.get('algo')==='percentage') S.edits.assignment_algorithm = 'percentage';
+
+/* ═════════════ atoms ═════════════ */
+const card = ({title, desc='', end='', body='', foot=''}) =>
+  `<section class="card"><header class="ch"><div><h3>${title}</h3>${desc?`<p>${desc}</p>`:''}</div>${end?`<div class="end">${end}</div>`:''}</header>${body}${foot?`<div class="cfoot">${foot}</div>`:''}</section>`;
+const lockLine = () => `<span class="lockline">${ic('lock')}${T('Modifiable par un administrateur','يعدّله المسؤول فقط')}</span>`;
+const sw = (on, a, label, disabled) => disabled
+  ? `<span class="badge" data-s="${on?'ok':'neutral'}"><i></i>${on?T('Actif','مفعّل'):T('Désactivé','معطّل')}</span>`
+  : `<button class="sw" role="switch" aria-checked="${on}" aria-label="${esc(label)}" data-a="${a}"><i></i></button>`;
+const histBtn = k => `<button class="hb" data-a="hist:${k}" aria-expanded="${S.hist===k}" title="${T('Historique des modifications','سجل التعديلات')}" aria-label="${T('Historique des modifications','سجل التعديلات')}">${ic('history')}</button>`;
+function histPop(k, label){
+  const rows = (HIST[curMk()]||{})[k] || [];
+  const v = x => Array.isArray(x) ? T(x[0], x[1]) : x;
+  return `<div class="pop" role="dialog"><h5>${ic('history')}${esc(label)}<button class="ib" data-a="hist:">${ic('x')}</button></h5>${rows.length ? `<ol>${rows.map(r=>`<li><span>${esc(r[1])}</span><span class="chg"><s>${v(r[2])}</s><span class="arrow">→</span>${v(r[3])}</span><small>${dt(r[0],true)}</small></li>`).join('')}</ol>` : `<div class="none">${T('Aucune modification enregistrée : c’est la valeur d’origine.','لا توجد تعديلات مسجلة: هذه هي القيمة الأصلية.')}</div>`}</div>`;
+}
+function numRow(k){
+  const f = F[k], v = val(k), ed = canEdit(f.area), label = T(f.l[0], f.l[1]);
+  const ctl = ed
+    ? `<label class="nin">${f.pre?`<span class="pre">${f.pre}</span>`:''}<input type="number" data-k="${k}" value="${v}" min="${f.min??0}" ${f.max?`max="${f.max}"`:''} step="${f.step||1}" aria-label="${esc(label)}"><span>${unitOf(f)}</span></label>`
+    : `<span class="rov">${f.pre?`<small>${f.pre}</small> `:''}${v===''?'—':nn(v)} <small>${unitOf(f)}</small></span>`;
+  return `<div class="sr" data-row="${k}" ${k in S.edits?'data-dirty':''}><div><div class="lb">${label}</div><div class="hp" data-help="${k}">${f.h(v)}</div></div><div class="ctl">${ctl}</div>${histBtn(k)}${S.hist===k?histPop(k,label):''}</div>`;
+}
+const pf = p => `<span class="pf" title="${PF[p][1]}">${PF[p][0]}</span>`;
+const siteName = id => { for (const m in SITES) { const s = SITES[m].find(x=>x.id===id); if (s) return T(s.fr, s.ar); } return '—'; };
+const empty = (icon, title, text, acts='', tone='') => `<div class="empty"><span class="ei" ${tone?`data-t="${tone}"`:''}>${ic(icon)}</span><b>${title}</b>${text?`<p>${text}</p>`:''}${acts?`<div class="acts">${acts}</div>`:''}</div>`;
+const initials = s => s.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+/* ═════════════ sidebar ═════════════ */
+function sidebar(){
+  const sa = isSA();
+  const scopeLabel = S.role==='manager' ? T('Libye','ليبيا') : S.scope==='all' ? T('Tous les marchés','كل الأسواق') : T(MK[S.scope].label[0], MK[S.scope].label[1]);
+  const sec = (icon, fr, ar) => `<div class="sh">${ic(icon)}<span>${T(fr,ar)}</span>${ic('chev','chev flip')}</div>`;
+  const first = visibleTopics()[0].id;
+  return `<nav class="sb">
+    <div class="logo">Ordra</div>
+    ${sa ? `<button class="mk" data-a="cyclescope" title="${T('Changer de marché','تغيير السوق')}">${T('Marché','السوق')} <b>${scopeLabel}</b>${ic('chevd')}</button>` : `<div class="mk">${T('Marché','السوق')} <b>${scopeLabel}</b></div>`}
+    ${sec('home','Accueil','الرئيسية')}${sec('bag','Commandes','الطلبات')}${sec('box','Entrepôt','المستودع')}${sec('truck','Livraison','التوصيل')}
+    ${sa ? sec('chart','Finances','المالية') : ''}${sec('users','Clients','العملاء')}${sec('gauge','Équipe','الفريق')}
+    <div class="sh">${ic('server')}<span>${T('Système','النظام')}</span>${sa?'<b class="adm">ADMIN</b>':''}${ic('chevd','chev')}</div>
+    <a class="si" data-a="go:${S.screen==='logs'?first:S.screen}" ${S.screen!=='logs'?'aria-current="page"':''}>${ic('gear')}${T('Réglages','الإعدادات')}</a>
+    ${sa ? `<a class="si" data-a="go:logs" ${S.screen==='logs'?'aria-current="page"':''}>${ic('file')}${T('Journaux','السجلات')}</a>` : ''}
+    <div class="me"><span class="av">${sa?'AD':'HA'}</span><div>${sa?'Admin':'hamidaly'}<small>${sa?T('Administrateur','المسؤول'):T('Manager · Libye','مدير · ليبيا')}</small></div></div>
+  </nav>`;
+}
+
+/* ═════════════ settings shell ═════════════ */
+function menu(){
+  const m = curMk();
+  const mk = isSA()
+    ? `<div class="mkctl"><div class="l">${T('Marché réglé','السوق المعروض')}</div><div class="track" role="group">${['tn','ly'].map(x=>`<button aria-pressed="${S.scope===x}" data-a="mk:${x}"><span class="code">${MK[x].code}</span>${T(MK[x].label[0],MK[x].label[1])}</button>`).join('')}</div>${S.scope==='all'?`<div class="hint">${T('Vous regardez « Tous les marchés ». Choisissez-en un.','أنت تعرض «كل الأسواق». اختر سوقاً واحداً.')}</div>`:''}</div>`
+    : `<div class="mkctl"><div class="l">${T('Votre marché','سوقك')}</div><div class="fixed"><span class="code">LY</span>${T('Libye','ليبيا')}</div></div>`;
+  return `<aside class="menu"><h1>${T('Réglages','الإعدادات')}</h1>${mk}
+    ${visibleTopics().map(t=>`<button class="mi" data-a="go:${t.id}" ${S.screen===t.id?'aria-current="page"':''}>${ic(t.icon)}<span>${T(t.l[0],t.l[1])}</span></button>`).join('')}
+    <div class="sep"></div>
+    <div class="foot">${isSA() ? T('Chaque modification est enregistrée avec son auteur. Cliquez sur l’horloge d’un réglage pour voir son historique.','يُسجَّل كل تعديل مع صاحبه. اضغط على الساعة بجانب أي إعداد لعرض سجله.') : T('Vous pouvez modifier les règles du quotidien de votre marché. Le reste est réglé par un administrateur.','يمكنك تعديل قواعد العمل اليومية لسوقك. الباقي يضبطه المسؤول.')}</div>
+  </aside>`;
+}
+function countTxt(c){ return S.lang==='ar' ? (c===1 ? 'تعديل واحد غير محفوظ' : `${c} تعديلات غير محفوظة`) : (c===1 ? '1 modification non enregistrée' : `${c} modifications non enregistrées`); }
+function saveBar(){
+  const c = Object.keys(S.edits).length;
+  return `<div class="savebar" id="savebar" ${c?'':'hidden'}><span class="msg"><i></i><span id="savecount">${countTxt(c)}</span></span><span class="sp"></span><button class="btn" data-a="cancel">${T('Annuler','إلغاء')}</button><button class="btn" data-primary data-a="save">${T('Enregistrer','حفظ')}</button></div>`;
+}
+function topicHead(t){
+  const m = curMk();
+  const chip = (!t.global && m) ? `<span class="mchip"><span class="code">${MK[m].code}</span>${T(MK[m].label[0],MK[m].label[1])} · ${MK[m].cur}</span>` : '';
+  return `<div class="th"><div><div class="crumb">${T('Réglages','الإعدادات')}${ic('chev','flip')}</div><h2>${T(t.l[0],t.l[1])}</h2><p>${T(t.s[0],t.s[1])}</p></div>${chip}</div>`;
+}
+function scopePrompt(){
+  return card({title:T('Les réglages se font marché par marché','تُضبط الإعدادات لكل سوق على حدة'),
+    body: empty('globe', T('Quel marché voulez-vous régler ?','أي سوق تريد ضبطه؟'), T('Vous regardez « Tous les marchés ». Une règle d’appel ou un transporteur appartient toujours à un seul marché.','أنت تعرض «كل الأسواق». قاعدة الاتصال أو شركة الشحن تخص دائماً سوقاً واحداً.'),
+      ['tn','ly'].map(x=>`<button class="btn" data-a="mk:${x}"><span class="code">${MK[x].code}</span>${T(MK[x].label[0],MK[x].label[1])}</button>`).join(''))});
+}
+function settingsPage(){
+  const t = TOPICS.find(x=>x.id===S.screen) || visibleTopics()[0];
+  const needMk = !t.global && !curMk();
+  const content = needMk ? scopePrompt() : PAGES[t.id]();
+  return `<div class="rg">${menu()}<div class="content">${saveBar()}${topicHead(t)}${content}</div></div>`;
+}
+
+/* ═════════════ pages ═════════════ */
+const PAGES = {};
+
+PAGES.markets = () => {
+  const row = m => { const M = MK[m];
+    return `<tr data-a="drawer:market:${m}">
+      <td><div class="nm"><span class="tile">${M.code}</span><b>${T(M.label[0],M.label[1])}</b></div></td>
+      <td>${M.lang==='ar' ? T('Arabe','العربية') : T('Français','الفرنسية')}</td>
+      <td><span class="num">${M.cur}</span></td>
+      <td><span class="badge" data-s="ok"><i></i>${T('Actif','مفعّل')}</span></td>
+      <td class="w0 end"><span class="go">${ic('chev','flip')}</span></td></tr>`; };
+  return `<section class="card"><table class="t mlist"><thead><tr><th>${T('Marché','السوق')}</th><th>${T('Langue de l\u2019équipe','لغة الفريق')}</th><th>${T('Devise','العملة')}</th><th>${T('État','الحالة')}</th><th class="w0"></th></tr></thead><tbody>${['ly','tn'].map(row).join('')}</tbody></table>
+    <div class="cfoot">${ic('info')}<span>${T('Ajouter un marché demande une intervention technique : devise, transporteurs et villes de livraison.','إضافة سوق جديدة تتطلب تدخلاً تقنياً: العملة وشركات الشحن ومدن التوصيل.')}</span></div></section>`;
+};
+
+function shopState(s){
+  if (!s.active) return ['neutral', T('Désactivée','معطّل')];
+  if (!s.last) return ['neutral', T('Jamais reçu de commande','لم يستلم أي طلب')];
+  const d = daysSince(s.last);
+  if (d > 14) return ['warn', T(`Silencieuse depuis ${d} j`,`صامت منذ ${d} يوماً`)];
+  return ['ok', T('Reçoit des commandes','يستقبل الطلبات')];
+}
+PAGES.shops = () => {
+  const m = curMk(), all = SHOPS[m], ed = isSA();
+  const groups = { all, ok: all.filter(s=>shopState(s)[0]==='ok'), quiet: all.filter(s=>s.active && shopState(s)[0]!=='ok'), off: all.filter(s=>!s.active) };
+  const list = groups[S.shopFilter] || all;
+  const pills = [['all',T('Toutes','الكل')],['ok',T('Reçoivent','تستقبل')],['quiet',T('Silencieuses','صامتة')],['off',T('Désactivées','معطّلة')]]
+    .map(([k,l])=>`<button aria-pressed="${S.shopFilter===k}" data-a="pill:${k}">${l}<b class="num">${groups[k].length}</b></button>`).join('');
+  const rows = list.map(s=>{ const [st, lbl] = shopState(s); return `<tr data-a="drawer:shop:${s.id}" ${s.active?'':'data-off'}>
+      <td><div class="nm">${pf(s.pf)}<div><b>${esc(s.name)}</b><span class="sub">${PF[s.pf][1]}</span></div></div></td>
+      <td class="end">${nn(s.o30)}</td><td>${s.last?dt(s.last, daysSince(s.last)>200):'—'}</td>
+      <td><span class="badge" data-s="${st}"><i></i>${lbl}</span></td>
+      ${ed?`<td class="w0 end">${sw(s.active, `tg:shop:${s.id}`, s.name, false)}</td>`:''}</tr>`; }).join('');
+  const shopsCard = card({ title:T('Boutiques','المتاجر'),
+    desc:T('Chaque boutique envoie ses commandes à Ordra. Une boutique silencieuse est active, mais n’a rien envoyé depuis plus de 14 jours.','يرسل كل متجر طلباته إلى أوردرا. المتجر الصامت مفعّل لكنه لم يرسل شيئاً منذ أكثر من 14 يوماً.'),
+    end: ed ? `<button class="btn" data-primary data-a="drawer:addShop">${ic('plus')}${T('Ajouter une boutique','إضافة متجر')}</button>` : lockLine(),
+    body:`<div class="toolbar"><div class="pills" role="group">${pills}</div></div><table class="t"><thead><tr><th>${T('Boutique','المتجر')}</th><th class="end">${T('Commandes · 30 j','الطلبات · 30 يوماً')}</th><th>${T('Dernière commande','آخر طلب')}</th><th>${T('État','الحالة')}</th>${ed?`<th class="end">${T('Active','مفعّل')}</th>`:''}</tr></thead><tbody>${rows || `<tr><td colspan="5">${empty('bag', T('Aucune boutique ici','لا متاجر هنا'), '')}</td></tr>`}</tbody></table>`});
+  const P = S.pending ? [['Crème Biovera 50 ml','4471','Converty Libya (Sheets)',12],['Sérum Vit C — pack x2','4519','Converty Libya (Sheets)',5],['Huile de nigelle 100ml','88213','EasyOrdersLY - Quran',2]] : [];
+  const C = S.pending ? [['Tarhuna','ترهونة',4],['Al Khums','الخمس',2]] : [];
+  const okEmpty = (txt) => `<div class="mrow" style="grid-template-columns:auto 1fr"><span class="badge" data-s="ok">${ic('check')}${T('Tout est associé','كل شيء مربوط')}</span><small>${txt}</small></div>`;
+  const matchCard = card({ title:T('Produits et villes à associer','منتجات ومدن يجب ربطها'),
+    desc:T('Quand une boutique envoie un produit ou une ville qu’Ordra ne reconnaît pas, la commande attend ici avant d’être confirmée. Une fois associé, le nom est reconnu pour toutes les commandes suivantes.','عندما يرسل متجر منتجاً أو مدينة لا يعرفها أوردرا، ينتظر الطلب هنا قبل تأكيده. بعد الربط، يُعرَف الاسم في كل الطلبات التالية.'),
+    body:`<div class="mt"><div><h4>${T('Produits','المنتجات')} <span class="badge" data-s="${P.length?'warn':'neutral'}">${nn(P.length)}</span></h4>${P.length ? P.map((p,i)=>`<div class="mrow"><div><b>${p[0]}</b><small>${p[2]} · ${T('réf.','مرجع')} <span class="num">${p[1]}</span> · ${T(`${p[3]} commandes en attente`,`${p[3]} طلبات معلقة`)}</small></div><button class="btn sm" data-a="drawer:match:${i}">${T('Associer','ربط')}</button></div>`).join('') : okEmpty(T('Aucune commande en attente d’un produit.','لا طلبات تنتظر منتجاً.'))}</div>
+      <div><h4>${T('Villes','المدن')} <span class="badge" data-s="${C.length?'warn':'neutral'}">${nn(C.length)}</span></h4>${C.length ? C.map(c=>`<div class="mrow"><div><b>${T(c[0],c[1])}</b><small>${T(`${c[2]} commandes en attente`,`${c[2]} طلبات معلقة`)}</small></div><button class="btn sm" data-a="drawer:matchCity">${T('Associer','ربط')}</button></div>`).join('') : okEmpty(T('Aucune commande en attente d’une ville.','لا طلبات تنتظر مدينة.'))}</div></div>`});
+  return shopsCard + matchCard;
+};
+
+PAGES.orders = () => {
+  const k = 'attempt_retry_times', v = val(k), ed = canEdit('orders');
+  const slots = ed
+    ? `<div class="slots">${v.map((t,i)=>`<span class="slot"><input type="text" inputmode="numeric" maxlength="5" value="${t}" data-slot="${i}" aria-label="${T('Heure','الساعة')} ${i+1}"><button data-a="slotdel:${i}" aria-label="${T('Retirer','إزالة')}">${ic('x')}</button></span>`).join('')}${v.length<3?`<button class="btn sm" data-a="slotadd">${ic('plus')}${T('Ajouter','إضافة')}</button>`:''}</div>`
+    : `<span class="rov num">${v.join(' · ')}</span>`;
+  const help = v.length ? T(`Une commande restée sans réponse revient en haut de la file de l’agent à <span class="num">${v.join(', ')}</span>, dans cet ordre. 3 heures au maximum.`, `الطلب الذي بقي دون رد يعود إلى أعلى قائمة الموظف في الساعات <span class="num">${v.join('، ')}</span> بهذا الترتيب. 3 ساعات كحد أقصى.`) : T('Aucune heure : la commande revient quand l’agent le décide.','لا ساعات: يعود الطلب عندما يقرر الموظف.');
+  const label = T('Heures de rappel','ساعات إعادة الاتصال');
+  const slotRow = `<div class="sr" data-row="${k}" ${k in S.edits?'data-dirty':''}><div><div class="lb">${label}</div><div class="hp">${help}</div></div><div class="ctl">${slots}</div>${histBtn(k)}${S.hist===k?histPop(k,label):''}</div>`;
+  return card({title:T('Appels de confirmation','مكالمات التأكيد'), desc:T('Combien de fois un agent appelle, et quand une commande sans réponse revient.','كم مرة يتصل الموظف، ومتى يعود الطلب الذي لم يُرَد عليه.'), body: numRow('max_call_attempts') + slotRow + numRow('sla_minutes')})
+       + card({title:T('Doublons et fusion','المكررات والدمج'), desc:T('Ce qui se passe quand un même client commande plusieurs fois.','ماذا يحدث عندما يطلب نفس العميل عدة مرات.'), body: numRow('duplicate_window_hours') + numRow('duplicate_autoselect_window_hours') + numRow('merge_window_hours')})
+       + card({title:T('Archivage','الأرشفة'), desc:T('Ranger les commandes terminées pour alléger les listes.','ترتيب الطلبات المنتهية لتخفيف القوائم.'), body: numRow('auto_archive_after_days')});
+};
+
+PAGES.rejections = () => {
+  const m = curMk(), ui = m==='ly' ? 6 : 7;
+  const intro = `<div class="notice">${ic('info')}<div>${T('Les cinq groupes sont fixes : ils servent aux statistiques. Dans chaque groupe, ajoutez, renommez, réordonnez ou retirez les motifs précis. Sur une commande rejetée, la pastille affiche le motif court, en rouge, avec l’icône du groupe.','المجموعات الخمس ثابتة: تُستخدم في الإحصائيات. داخل كل مجموعة يمكنك إضافة الأسباب الدقيقة أو إعادة تسميتها أو ترتيبها أو سحبها. على الطلب المرفوض تعرض الشارة السبب المختصر باللون الأحمر مع أيقونة المجموعة.')}</div></div>`;
+  return intro + GROUPS.map(g=>{
+    const rs = REASONS.filter(r=>r[0]===g.k), total = rs.reduce((a,r)=>a+r[ui],0);
+    const body = rs.length ? `<table class="t"><thead><tr><th class="w0"></th><th>${T('Motif','السبب')}</th><th>${T('Pastille','الشارة')}</th><th class="end">${T('Commandes','الطلبات')}</th><th class="w0"></th></tr></thead><tbody>${rs.map(r=>`<tr>
+        <td class="w0"><span class="grip" title="${T('Glisser pour réordonner','اسحب لإعادة الترتيب')}">${ic('grip')}</span></td>
+        <td><b style="font-weight:500">${T(r[2],r[3])}</b><div class="sub">${T(r[3],r[2])}</div></td>
+        <td><span class="rj">${ic(g.icon)}${T(r[4],r[5])}</span></td>
+        <td class="end">${nn(r[ui])}</td>
+        <td class="w0 end"><button class="btn sm" data-a="drawer:reason:${r[1]}">${ic('pencil')}${T('Modifier','تعديل')}</button></td></tr>`).join('')}</tbody></table>`
+      : empty('msgtext', T('Pas de motif précis dans ce groupe','لا أسباب دقيقة في هذه المجموعة'), T('L’agent écrit lui-même la raison dans une note.','يكتب الموظف السبب بنفسه في ملاحظة.'));
+    return card({ title:`<span class="rj" style="padding:4px">${ic(g.icon)}</span>${T(g.l[0],g.l[1])}`,
+      desc:`${T(g.d[0],g.d[1])} · ${T(`${nn(total)} commandes`, `${nn(total)} طلباً`)}`,
+      end: g.k==='autre' ? '' : `<button class="btn" data-a="drawer:addReason:${g.k}">${ic('plus')}${T('Ajouter un motif','إضافة سبب')}</button>`, body });
+  }).join('');
+};
+
+PAGES.team = () => {
+  const m = curMk(), algo = val('assignment_algorithm'), ed = canEdit('team');
+  const ALG = [['manual',['Manuelle','يدوي'],['Un manager affecte chaque commande lui-même.','يوزّع المدير كل طلب بنفسه.']],
+               ['round_robin',['Tour à tour','بالتناوب'],['Chaque agent disponible reçoit la suivante, à tour de rôle.','يتلقى كل موظف متاح الطلب التالي بالدور.']],
+               ['workload',['Selon la charge','حسب ضغط العمل'],['La commande va à l’agent qui en a le moins en cours.','يذهب الطلب إلى الموظف الذي لديه أقل عدد من الطلبات الجارية.']],
+               ['percentage',['Par pourcentages','بالنسب'],['Chaque agent reçoit la part que vous fixez.','يتلقى كل موظف الحصة التي تحددها.']]];
+  const opts = `<div class="opts">${ALG.map(([k,l,d])=>`<button class="opt" aria-pressed="${algo===k}" ${ed?`data-a="algo:${k}"`:'disabled'}><b><i></i>${T(l[0],l[1])}</b><span>${T(d[0],d[1])}</span></button>`).join('')}</div>`;
+  let shares = '';
+  if (algo === 'percentage') {
+    const sh = {...SHARES[m], ...(S.edits.shares||{})}; const total = Object.values(sh).reduce((a,b)=>a+Number(b||0),0);
+    shares = `<div class="shares" style="margin-top:14px">${AGENTS[m].map(([a])=>`<div class="shr"><div class="nm"><span class="av">${initials(a)}</span><b style="font-weight:500">${a}</b></div><label class="nin"><input type="number" min="0" max="100" value="${sh[a]}" data-share="${esc(a)}" aria-label="${esc(a)}"><span>%</span></label><div class="sbar"><i style="width:${sh[a]}%"></i></div></div>`).join('')}
+      <div class="shr tot"><span>${T('Total','المجموع')}</span><span class="num" style="text-align:end;padding-inline-end:12px">${total} %</span><span>${total===100?`<span class="badge" data-s="ok">${ic('check')}${T('Prêt','جاهز')}</span>`:`<span class="badge" data-s="warn"><i></i>${T(`Il manque ${100-total} %`,`ينقص ${100-total}٪`)}</span>`}</span></div></div>
+      <div class="hp" style="margin-top:8px">${T('Le total doit faire exactement 100 %. Un agent à 0 % ne reçoit rien. Seuls les agents disponibles reçoivent leur part.','يجب أن يساوي المجموع 100٪ تماماً. الموظف بنسبة 0٪ لا يتلقى شيئاً. فقط الموظفون المتاحون يتلقون حصتهم.')}</div>`;
+  }
+  const algoLbl = T('Méthode de distribution','طريقة التوزيع');
+  const dist = card({ title:T('Distribution des commandes','توزيع الطلبات'), desc:T('Comment une commande en attente trouve son agent, à chaque distribution automatique.','كيف يجد الطلب المعلق موظفه عند كل توزيع تلقائي.'),
+    body:`<div class="sr stack" data-row="assignment_algorithm" ${'assignment_algorithm' in S.edits?'data-dirty':''}><div><div class="lb">${algoLbl}</div><div class="hp">${T('Les commandes déjà affectées ne bougent pas quand vous changez de méthode.','الطلبات الموزعة مسبقاً لا تتغير عند تغيير الطريقة.')}</div></div>${histBtn('assignment_algorithm')}${S.hist==='assignment_algorithm'?histPop('assignment_algorithm',algoLbl):''}<div class="full">${opts}${shares}</div></div>`});
+  const goals = card({ title:T('Objectifs','الأهداف'), desc:T('Les cibles affichées dans la salle de contrôle et sur la fiche de chaque agent.','الأهداف المعروضة في غرفة التحكم وفي بطاقة كل موظف.'),
+    body: numRow('goal_daily_treated') + numRow('goal_min_rate') + numRow('goal_conf_per_hour') + numRow('goal_team_weekly_conf') });
+  if (!isSA()) return dist + goals;
+  const C = V[m];
+  const agentRows = AGENTS[m].map(([a, amt, from, on])=>{ const diff = on && amt !== C.commission_amount;
+    return `<tr><td><div class="nm"><span class="av">${initials(a)}</span><b style="font-weight:500">${a}</b></div></td><td>${on?`<span class="badge" data-s="ok"><i></i>${T('Payé','مدفوع')}</span>`:`<span class="badge" data-s="neutral"><i></i>${T('Non payé','غير مدفوع')}</span>`}</td>
+      <td class="end">${on?`${nn(amt)} ${cur()}${diff?` <span class="badge" data-s="info">${T('montant propre','مبلغ خاص')}</span>`:''}`:'—'}</td><td>${from?dt(from):'—'}</td><td class="w0 end"><button class="btn sm" data-a="drawer:rate:${esc(a)}">${T('Modifier','تعديل')}</button></td></tr>`;}).join('');
+  const comm = card({ title:T('Commissions','العمولات'), desc:T('Ce qu’un agent gagne pour chaque commande livrée qu’il a confirmée.','ما يكسبه الموظف عن كل طلب مسلَّم قام بتأكيده.'),
+    end:`<span class="lockline">${ic('lock')}${T('Visible par l’administrateur seulement','يراه المسؤول فقط')}</span>`,
+    body:`<div class="sr"><div><div class="lb">${T('Payer des commissions','دفع العمولات')}</div><div class="hp">${C.commission_enabled?T('Activé : chaque commande livrée crédite son agent.','مفعّل: كل طلب مسلَّم يُضاف إلى رصيد موظفه.'):T('Désactivé : aucune commande ne crédite d’agent.','معطّل: لا يُضاف أي طلب إلى رصيد أي موظف.')}</div></div><div class="ctl">${sw(C.commission_enabled,'toast:commission',T('Payer des commissions','دفع العمولات'))}</div><span></span></div>`
+      + (C.commission_enabled ? numRow('commission_amount') : '')
+      + `<table class="t"><thead><tr><th>${T('Agent','الموظف')}</th><th>${T('Commission','العمولة')}</th><th class="end">${T('Montant','المبلغ')}</th><th>${T('Depuis','منذ')}</th><th class="w0"></th></tr></thead><tbody>${agentRows}</tbody></table>`});
+  return dist + goals + comm;
+};
+
+PAGES.warehouses = () => {
+  const m = curMk(), ed = isSA();
+  const rows = SITES[m].map(s=>{ const cs = CARRIERS[m].filter(c=>c.site===s.id);
+    return `<tr><td><div class="nm"><span class="pf">${ic('warehouse')}</span><div><b>${T(s.fr,s.ar)} ${s.def?`<span class="badge" data-s="plain">${T('par défaut','افتراضي')}</span>`:''}</b><span class="sub">${T(s.ar,s.fr)}</span></div></div></td>
+      <td>${s.agents ? T(`${nn(s.agents)} agent`,`${nn(s.agents)} موظف`) : `<span class="miss">${ic('alert')}${T('aucun agent','لا موظفين')}</span>`}</td>
+      <td>${cs.map(c=>`<div>${esc(c.name)} ${c.active?'':`<span class="badge" data-s="warn"><i></i>${T('désactivé','معطّل')}</span>`}</div>`).join('')||'—'}</td>
+      <td class="w0 end">${sw(s.active, `tg:site:${s.id}`, T(s.fr,s.ar), !ed)}</td></tr>`;}).join('');
+  return card({ title:T('Sites','المواقع'), desc:T('Chaque site est un bâtiment avec son propre stock et ses agents d’entrepôt. Un colis part du site de son transporteur.','كل موقع مبنى له مخزونه وموظفو مستودعه. يخرج الطرد من موقع شركة الشحن الخاصة به.'),
+      end: ed ? '' : lockLine(),
+      body:`<table class="t"><thead><tr><th>${T('Site','الموقع')}</th><th>${T('Agents d’entrepôt','موظفو المستودع')}</th><th>${T('Transporteurs rattachés','شركات الشحن المرتبطة')}</th><th class="end">${T('Actif','مفعّل')}</th></tr></thead><tbody>${rows}</tbody></table>`,
+      foot:`${ic('info')}<span>${T('Un agent d’entrepôt sans site ne voit rien et ne peut rien scanner.','موظف المستودع بلا موقع لا يرى شيئاً ولا يستطيع المسح.')}</span><button class="link" data-a="toast:access">${T('Affecter dans Équipe › Accès','التعيين في الفريق › الوصول')}${ic('chev','flip')}</button>`})
+    + card({ title:T('Réapprovisionnement','إعادة التموين'), desc:T('Le temps qu’il faut pour refaire le stock.','الوقت اللازم لإعادة ملء المخزون.'), end: ed ? '' : lockLine(), body: numRow('supplier_lead_time_days') });
+};
+
+PAGES.delivery = () => {
+  const m = curMk(), ed = isSA();
+  const rows = CARRIERS[m].map(c=>`<tr data-a="drawer:carrier:${c.id}" ${c.active?'':'data-off'}>
+      <td><div class="nm"><span class="pf">${ic('truck')}</span><div><b>${esc(c.name)}</b><span class="sub">${ADAPTERS[c.type].label}</span></div></div></td>
+      <td>${siteName(c.site)}</td>
+      <td class="end">${c.fee||c.ret ? `${nn(c.fee)} · ${nn(c.ret)} <span class="sub">${cur()}</span>` : `<span class="miss">${ic('alert')}${T('non renseignés','غير مسجلة')}</span>`}</td>
+      <td class="end">${c.ship ? `${nn(c.del)} <span class="sub">${T(`sur ${fmt(c.ship)}`,`من ${fmt(c.ship)}`)}</span>` : '—'}</td>
+      <td class="w0 end">${sw(c.active, `tg:carrier:${c.id}`, c.name, !ed)}</td></tr>`).join('');
+  return card({ title:T('Transporteurs','شركات الشحن'), desc:T('Les sociétés qui livrent les colis de ce marché, et ce qu’elles facturent.','الشركات التي توصل طرود هذا السوق، وما تفرضه من رسوم.'),
+      end: ed ? `<button class="btn" data-primary data-a="drawer:addCarrier">${ic('plus')}${T('Ajouter un transporteur','إضافة شركة شحن')}</button>` : lockLine(),
+      body:`<table class="t"><thead><tr><th>${T('Transporteur','شركة الشحن')}</th><th>${T('Site','الموقع')}</th><th class="end">${T('Frais livraison · retour','رسوم التوصيل · الإرجاع')}</th><th class="end">${T('Livrés · 30 j','المسلَّمة · 30 يوماً')}</th><th class="end">${T('Actif','مفعّل')}</th></tr></thead><tbody>${rows}</tbody></table>`})
+    + card({ title:T('Colis à risque','الطرود المعرضة للخطر'), desc:T('Un colis à risque est appelé avant le passage du livreur. Ces seuils décident lesquels.','يُتصل بالطرد المعرض للخطر قبل مرور المندوب. هذه الحدود تحدد أيّها.'),
+      body: numRow('high_value_threshold') + numRow('risk_min_prior_failures') + numRow('zone_low_delivery_rate_pct') + numRow('zone_min_sample') + numRow('carrier_stall_days') })
+    + card({ title:T('Tableau de suivi','لوحة المتابعة'), desc:T('Les règles du tableau de livraison du manager.','قواعد لوحة التوصيل الخاصة بالمدير.'),
+      body: numRow('delivery_first_action_hours') + numRow('delivery_done_window_hours') });
+};
+
+PAGES.whatsapp = () => {
+  const m = curMk(), ed = isSA();
+  const EV = [['could_not_reach',['Injoignable','تعذر الاتصال'],['Après le premier appel sans réponse, une seule fois par commande.','بعد أول مكالمة دون رد، مرة واحدة لكل طلب.']],
+              ['shipped',['Expédié','تم الشحن'],['Le numéro de suivi, au moment où le colis quitte l’entrepôt.','رقم التتبع لحظة خروج الطرد من المستودع.']],
+              ['out_for_delivery',['En livraison','قيد التوصيل'],['« Le livreur passe aujourd’hui, gardez votre téléphone allumé. »','«المندوب يمر اليوم، أبقِ هاتفك مفتوحاً.»']],
+              ['last_chance',['Dernière chance','الفرصة الأخيرة'],['Livraison retardée ou colis sur le retour : « répondez aujourd’hui ».','توصيل متأخر أو طرد في طريق الإرجاع: «رُدّ اليوم».']],
+              ['delivered',['Livré','تم التسليم'],['Un remerciement une fois le colis remis.','رسالة شكر بعد تسليم الطرد.']]];
+  if (!S.wa) {
+    return card({ title:T('Numéro WhatsApp','رقم واتساب'), end: ed?'':lockLine(),
+        body: empty('msg', T(`WhatsApp n’est pas connecté pour la ${MK[m].label[0]}`, `واتساب غير متصل في ${MK[m].label[1]}`),
+          T('Connectez le numéro WhatsApp Business de la marque pour envoyer des messages automatiques et répondre aux clients depuis Ordra.','اربط رقم واتساب للأعمال الخاص بالعلامة لإرسال رسائل تلقائية والرد على العملاء من أوردرا.'),
+          ed ? `<button class="btn" data-primary data-a="toast:connect">${ic('plug')}${T('Connecter le numéro','ربط الرقم')}</button>` : `<span class="lockline">${T('Un administrateur doit connecter le numéro.','يجب أن يربط المسؤول الرقم.')}</span>`)})
+      + card({ title:T('Messages automatiques','الرسائل التلقائية'), desc:T('Disponible une fois le numéro connecté.','متاح بعد ربط الرقم.'),
+        body: EV.map(([k,l,d])=>`<div class="sr" style="opacity:.55"><div><div class="lb">${T(l[0],l[1])}</div><div class="hp">${T(d[0],d[1])}</div></div><div class="ctl"><span class="badge" data-s="neutral"><i></i>${T('Désactivé','معطّل')}</span></div><span></span></div>`).join('') });
+  }
+  const tpl = [['ok',T('modèle approuvé','نموذج معتمد')],['ok',T('modèle approuvé','نموذج معتمد')],['warn',T('en attente d’approbation','بانتظار الموافقة')],['neutral',T('aucun modèle approuvé','لا نموذج معتمد')],['ok',T('modèle approuvé','نموذج معتمد')]];
+  const on = [true,true,false,false,true];
+  return card({ title:T('Numéro WhatsApp','رقم واتساب'), end: ed ? `<button class="btn" data-a="toast:test">${T('Tester','اختبار')}</button><button class="btn" data-a="toast:edit">${T('Modifier les identifiants','تعديل بيانات الربط')}</button><button class="btn" data-quiet data-a="toast:pause">${ic('pause')}${T('Mettre en pause','إيقاف مؤقت')}</button>` : lockLine(),
+      body:`<div class="ds"><dl class="kv"><dt>${T('Numéro','الرقم')}</dt><dd class="num">+218 91 000 0000</dd><dt>${T('Nom vérifié','الاسم الموثق')}</dt><dd>Totella</dd><dt>${T('Qualité','الجودة')}</dt><dd><span class="badge" data-s="ok"><i></i>${T('Bonne','جيدة')}</span></dd><dt>${T('Limite d’envoi','حد الإرسال')}</dt><dd>${T('250 clients par 24 h — entreprise pas encore vérifiée','250 عميلاً كل 24 ساعة — النشاط غير موثق بعد')}</dd><dt>${T('Dernier message reçu','آخر رسالة مستلمة')}</dt><dd>${T('il y a 12 min','منذ 12 دقيقة')}</dd></dl></div>`})
+    + card({ title:T('Messages automatiques','الرسائل التلقائية'), desc:T('Un message part quand la commande atteint l’un de ces moments. Chacun s’active séparément.','تُرسل رسالة عندما يصل الطلب إلى إحدى هذه المراحل. كل واحدة تُفعَّل على حدة.'), end: ed?'':lockLine(),
+      body:`<div class="sr" style="background:var(--sunken)"><div><div class="lb">${T('Envoyer les messages automatiques','إرسال الرسائل التلقائية')}</div><div class="hp">${T('Interrupteur général : coupé, plus rien ne part, quels que soient les réglages ci-dessous.','المفتاح العام: عند إيقافه لا يُرسل شيء مهما كانت الإعدادات أدناه.')}</div></div><div class="ctl">${sw(true,'toast:wa',T('Envoyer','إرسال'),!ed)}</div><span></span></div>`
+        + EV.map(([k,l,d],i)=>`<div class="sr"><div><div class="lb">${T(l[0],l[1])}</div><div class="hp">${T(d[0],d[1])}</div><div style="margin-top:6px"><span class="badge" data-s="${tpl[i][0]}"><i></i>FR · ${tpl[i][1]}</span> <span class="badge" data-s="${tpl[i][0]}"><i></i>AR · ${tpl[i][1]}</span></div></div><div class="ctl">${sw(on[i],'toast:wa',T(l[0],l[1]),!ed)}</div><span></span></div>`).join('')
+        + `<div class="sr stack"><div><div class="lb">${T('Langue par défaut','اللغة الافتراضية')}</div><div class="hp">${T('Pour un client dont la langue n’a pas encore été choisie par un agent.','للعميل الذي لم يختر الموظف لغته بعد.')}</div></div><span></span><div class="full"><div class="opts two"><button class="opt" aria-pressed="false" ${ed?'':'disabled'}><b><i></i>${T('Français','الفرنسية')}</b></button><button class="opt" aria-pressed="true" ${ed?'':'disabled'}><b><i></i>${T('Arabe','العربية')}</b></button></div></div></div>`
+        + `<div class="sr"><div><div class="lb">${T('Heures d’envoi','ساعات الإرسال')}</div><div class="hp">${T('En dehors, les messages attendent le lendemain matin. Personne ne doit être réveillé à 3 h.','خارجها تنتظر الرسائل إلى صباح اليوم التالي. لا يجب إيقاظ أحد في الثالثة فجراً.')}</div></div><div class="ctl">${ed?`<label class="nin"><input type="number" value="10" min="0" max="23"><span>→</span></label><label class="nin"><input type="number" value="20" min="1" max="24"><span>h</span></label>`:`<span class="rov num">10 h → 20 h</span>`}</div><span></span></div>`})
+    + card({ title:T('Modèles de message','نماذج الرسائل'), desc:T('Les textes approuvés par Meta. Un message automatique ne part que si son modèle est approuvé.','النصوص المعتمدة من ميتا. لا تُرسل رسالة تلقائية إلا إذا كان نموذجها معتمداً.'),
+      end:`<button class="btn" data-a="toast:templates">${T('Gérer les modèles','إدارة النماذج')}${ic('chev','flip')}</button>` });
+};
+
+PAGES.ads = () => {
+  const m = curMk();
+  const acc = m==='ly' ? `<table class="t"><thead><tr><th>${T('Compte','الحساب')}</th><th>${T('Devise','العملة')}</th><th>${T('Synchronisation','المزامنة')}</th><th class="end">${T('Actif','مفعّل')}</th><th class="w0"></th></tr></thead><tbody>
+      <tr><td><div class="nm"><span class="pf">${ic('megaphone')}</span><div><b>Totella AdAccount 5</b><span class="sub">Meta · act_…</span></div></div></td><td>USD</td><td><span class="badge" data-s="ok"><i></i>${T('Synchronisé aujourd’hui à 13:42','تمت المزامنة اليوم 13:42')}</span></td><td class="w0 end">${sw(true,'toast:meta','Totella AdAccount 5')}</td><td class="w0 end"><button class="btn sm" data-a="toast:test">${T('Tester','اختبار')}</button> <button class="btn sm" data-quiet data-a="toast:disc">${T('Déconnecter','فصل')}</button></td></tr></tbody></table>`
+    : empty('megaphone', T('Aucun compte publicitaire connecté','لا يوجد حساب إعلاني مربوط'), T('Connectez un compte Meta pour que les dépenses pub de ce marché arrivent seules dans le P&L.','اربط حساب ميتا لتصل مصاريف الإعلانات لهذا السوق تلقائياً إلى الأرباح والخسائر.'));
+  return card({ title:T('Comptes publicitaires Meta','حسابات ميتا الإعلانية'), desc:T('Ordra lit chaque jour ce que ces comptes ont dépensé.','يقرأ أوردرا يومياً ما أنفقته هذه الحسابات.'), end:`<button class="btn" data-primary data-a="toast:connectMeta">${ic('plus')}${T('Connecter un compte','ربط حساب')}</button>`, body: acc })
+       + card({ title:T('Taux de change','سعر الصرف'), desc:T('Pour convertir en monnaie locale ce que Meta facture en dollars.','لتحويل ما تفوتره ميتا بالدولار إلى العملة المحلية.'), body: numRow('fx_usd') });
+};
+
+/* ═════════════ Journaux ═════════════ */
+function logsPage(){
+  const TABS = [['received','Commandes reçues',58,0],['carrier','Transporteurs',412,3],['sync','Synchronisations',290,1],['audit','Modifications',null,null]];
+  const tabs = `<div class="ltabs" role="tablist">${TABS.map(([k,l,n,e])=>`<button role="tab" aria-pressed="${S.tab===k}" data-a="tab:${k}">${l}${n!==null?`<b ${e?'data-t="bad"':''}>${e?`${e} erreur${e>1?'s':''}`:fmt(n)}</b>`:''}</button>`).join('')}</div>`;
+  const toolbar = `<div class="toolbar"><label class="lsearch">${ic('search')}<input placeholder="${S.tab==='audit'?'Rechercher un réglage, une personne…':'Commande, n° de suivi…'}"></label>
+    <select class="sel"><option>Tous les marchés</option><option>Libye</option><option>Tunisie</option></select>
+    ${S.tab==='audit'?'':`<select class="sel"><option>Tous les résultats</option><option>Traités</option><option>Ignorés</option><option>En erreur</option></select><button class="chip" aria-pressed="${S.errorsOnly}" data-a="errs">${ic('alert')}Erreurs seulement</button>`}
+    <span style="flex:1"></span><button class="btn sm" data-quiet data-a="toast:refresh">${ic('refresh')}Actualiser</button></div>`;
+  const res = (s) => s==='ok' ? `<span class="badge" data-s="ok"><i></i>Traitée</span>` : s==='skip' ? `<span class="badge" data-s="neutral"><i></i>Ignorée</span>` : `<span class="badge" data-s="bad"><i></i>Erreur</span>`;
+  let table = '';
+  if (S.tab === 'received') {
+    const R = [['2026-09-23T16:37','Test','Shopify','#1042','ok','Commande créée'],['2026-09-23T16:35','Test','Shopify','#1041','ok','Commande créée'],['2026-09-07T16:06','EasyOrdersLY - Quran','EasyOrders','EO-77120','ok','Commande créée'],['2026-09-07T15:58','EasyOrdersLY - Quran','EasyOrders','EO-77118','skip','Déjà reçue : doublon exact écarté'],['2026-05-14T11:02','bard','Shopify','#1003','bad','Clé secrète incorrecte : la boutique n’utilise pas la clé d’Ordra']];
+    const rows = (S.errorsOnly ? R.filter(r=>r[4]!=='ok') : R);
+    table = `<table class="t"><thead><tr><th>Reçue le</th><th>Boutique</th><th>Commande</th><th>Résultat</th><th>Détail</th><th class="w0"></th></tr></thead><tbody>${rows.map((r,i)=>`<tr data-a="drawer:log:${i}"><td>${dt(r[0])}</td><td><div class="nm">${pf(r[2]==='Shopify'?'shopify':'easy_orders')}<b style="font-weight:500">${r[1]}</b></div></td><td class="mono">${r[3]}</td><td>${res(r[4])}</td><td class="sub">${r[5]}</td><td class="w0"><button class="btn sm">Voir les données</button></td></tr>`).join('')}</tbody></table>`;
+  } else if (S.tab === 'carrier') {
+    const R = [['2026-10-02T13:42','Darb Assabil - Tripoli','DRB-4418273','En livraison → Livré','ok'],['2026-10-02T13:42','Darb Assabil — Benghazi','DRB-4417990','En transit → Retour en cours','ok'],['2026-10-02T13:12','Darb Assabil - Tripoli','DRB-4418101','Statut inconnu « hold_at_hub »','bad'],['2026-10-02T11:40','Darb Assabil — Benghazi','DRB-4416502','Numéro de suivi introuvable chez Ordra','bad']];
+    const rows = S.errorsOnly ? R.filter(r=>r[4]!=='ok') : R;
+    table = `<table class="t"><thead><tr><th>Reçu le</th><th>Transporteur</th><th>N° de suivi</th><th>Changement</th><th>Résultat</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${dt(r[0])}</td><td>${r[1]}</td><td class="mono">${r[2]}</td><td>${r[3]}</td><td>${res(r[4])}</td></tr>`).join('')}</tbody></table>`;
+  } else if (S.tab === 'sync') {
+    const R = [['2026-10-02T13:42','Statuts Darb Assabil','Libye','Toutes les 15 min','ok','126 colis relus, 9 changements'],['2026-10-02T13:40','Converty Libya (Sheets)','Libye','Toutes les 5 min','ok','0 nouvelle commande depuis le 29 sept.'],['2026-10-02T06:00','Dépenses Meta','Libye','Chaque jour','ok','1 compte, 1 jour importé'],['2026-10-02T03:00','Archivage','Tous','Chaque nuit','ok','212 commandes archivées']];
+    table = `<table class="t"><thead><tr><th>Dernier passage</th><th>Tâche</th><th>Marché</th><th>Rythme</th><th>Résultat</th><th>Détail</th></tr></thead><tbody>${R.map(r=>`<tr><td>${dt(r[0])}</td><td><b style="font-weight:500">${r[1]}</b></td><td>${r[2]}</td><td class="sub">${r[3]}</td><td>${res(r[4])}</td><td class="sub">${r[5]}</td></tr>`).join('')}</tbody></table>`;
+  } else {
+    const R = [['2026-08-21','Admin','TN','Méthode de distribution','Selon la charge','Manuelle'],['2026-08-21','Admin','TN','Délai de confirmation visé','—','137 min'],['2026-08-21','Admin','TN','Colis immobile','—','5 jours'],['2026-08-15','Super Admin','LY','Taux de change du dollar','8','8,4'],['2026-05-22','Super Admin','LY','Nombre maximum d’appels','5','8'],['2026-05-18','Admin','LY','Nombre maximum d’appels','9','5'],['2026-05-18','Admin','TN','Nombre maximum d’appels','5','9']];
+    table = `<table class="t"><thead><tr><th>Date</th><th>Par</th><th>Marché</th><th>Réglage</th><th>Avant</th><th>Après</th></tr></thead><tbody>${R.map(r=>`<tr><td>${dt(r[0],true)}</td><td>${r[1]}</td><td><span class="code">${r[2]}</span></td><td><b style="font-weight:500">${r[3]}</b></td><td class="sub">${r[4]}</td><td><b>${r[5]}</b></td></tr>`).join('')}</tbody></table>`;
+  }
+  return nb(`<div class="lh"><div><h1>Journaux</h1><p>Tout ce qui entre dans Ordra et en sort : les commandes reçues des boutiques, les échanges avec les transporteurs, les tâches automatiques et les modifications de réglages.</p></div></div>${tabs}<section class="card">${toolbar}${table}</section>`);
+}
+
+/* ═════════════ drawers ═════════════ */
+function drawerShell(title, sub, body, foot){ return `<div class="dw" data-a="close"><aside class="dp" role="dialog" aria-label="${esc(title)}" data-stop><header class="dh"><div><h3>${title}</h3>${sub?`<p>${sub}</p>`:''}</div><button class="x" data-a="close" aria-label="${T('Fermer','إغلاق')}">${ic('x')}</button></header><div class="db">${body}</div>${foot?`<footer class="df">${foot}</footer>`:''}</aside></div>`; }
+const saveFoot = (danger='') => `${danger}<span class="sp"></span><button class="btn" data-a="close">${T('Annuler','إلغاء')}</button><button class="btn" data-primary data-a="dsave">${T('Enregistrer','حفظ')}</button>`;
+const closeFoot = () => `<span class="sp"></span><button class="btn" data-a="close">${T('Fermer','إغلاق')}</button>`;
+const fld = (label, input, help='') => `<div class="f"><label>${label}</label>${input}${help?`<div class="hp">${help}</div>`:''}</div>`;
+const inp = (v, ph='', ro=false, mono=false) => `<input class="in ${mono?'mono':''}" value="${esc(v)}" placeholder="${esc(ph)}" ${ro?'readonly':''}>`;
+const copyBox = v => `<div class="cpy"><span class="mono">${esc(v)}</span><button class="ib" data-a="toast:copied" title="${T('Copier','نسخ')}">${ic('copy')}</button></div>`;
+
+function drawer(){
+  const [kind, id] = [S.drawer.split(':')[0], S.drawer.split(':').slice(1).join(':')];
+  const m = curMk() || 'ly', ed = isSA();
+  if (kind === 'market') {
+    const M = MK[id];
+    return drawerShell(T(M.label[0],M.label[1]), T('Modifier le marché','تعديل السوق'),
+      `<div class="ds"><h4>${T('Identité','الهوية')}</h4>${fld(T('Nom','الاسم'), inp(M.name))}
+        ${fld(T('Langue de l’équipe','لغة الفريق'), `<div class="opts two"><button class="opt" aria-pressed="${M.lang==='fr'}"><b><i></i>Français</b><span>${T('de gauche à droite','من اليسار إلى اليمين')}</span></button><button class="opt" aria-pressed="${M.lang==='ar'}"><b><i></i>العربية</b><span>${T('de droite à gauche','من اليمين إلى اليسار')}</span></button></div>`, T('La langue des agents et managers de ce marché. L’administrateur voit toujours le français.','لغة موظفي ومديري هذا السوق. المسؤول يرى الفرنسية دائماً.'))}
+        ${fld(T('Devise','العملة'), inp(M.cur,'',true), T('Fixée à la création : toutes les sommes du marché en dépendent.','ثابتة منذ الإنشاء: كل مبالغ السوق تعتمد عليها.'))}
+        <div class="swrow"><div><b>${T('Marché actif','السوق مفعّل')}</b><small>${T('Désactivé, il disparaît du sélecteur de marché ; ses commandes et réglages sont conservés.','عند تعطيله يختفي من قائمة الأسواق؛ تبقى طلباته وإعداداته محفوظة.')}</small></div>${sw(true,'toast:mk',T('Marché actif','السوق مفعّل'))}</div></div>
+       <div class="ds"><h4>${T('Expéditeur sur les étiquettes','المرسِل على الملصقات')}</h4><p class="hp" style="margin:-6px 0 12px;font-size:12.5px;color:var(--text2)">${T('Imprimé sur chaque étiquette de colis de ce marché. Le transporteur s’en sert pour un retour.','يُطبع على كل ملصق طرد في هذا السوق. تستخدمه شركة الشحن عند الإرجاع.')}</p>
+        ${fld(T('Nom','الاسم'), inp(M.sender.name))}${fld(T('Adresse','العنوان'), inp('', T('ex. Rue du 1er Septembre, Tripoli','مثال: شارع أول سبتمبر، طرابلس')))}${fld(T('Téléphone','الهاتف'), inp('', '+218 …'))}</div>`, saveFoot());
+  }
+  if (kind === 'shop' || kind === 'addShop') {
+    if (kind === 'addShop') return drawerShell(T('Ajouter une boutique','إضافة متجر'), T('Deux étapes : nommez-la, puis collez le lien de réception dans la boutique.','خطوتان: سمّه، ثم الصق رابط الاستلام في المتجر.'),
+      `<div class="ds">${fld(T('Nom','الاسم'), inp('', T('ex. Biovera Libye','مثال: Biovera ليبيا')), T('Le nom que l’équipe verra sur chaque commande.','الاسم الذي سيراه الفريق على كل طلب.'))}
+        <div class="f"><span class="fl">${T('Plateforme','المنصة')}</span><div class="typec">${Object.entries(PF).map(([k,[c,l]],i)=>`<button class="opt" aria-pressed="${i===2}"><b>${pf(k)} ${l}</b></button>`).join('')}</div></div></div>
+       <div class="ds"><h4>${T('Après la création','بعد الإنشاء')}</h4><p style="margin:0;font-size:13px;color:var(--text2)">${T('Ordra affichera le lien de réception des commandes et sa clé secrète. Copiez-les tout de suite dans les réglages de la boutique : la clé ne sera plus affichée.','سيعرض أوردرا رابط استلام الطلبات ومفتاحه السري. انسخهما فوراً في إعدادات المتجر: لن يُعرض المفتاح مرة أخرى.')}</p></div>`,
+      `<span class="sp"></span><button class="btn" data-a="close">${T('Annuler','إلغاء')}</button><button class="btn" data-primary data-a="dsave">${T('Créer la boutique','إنشاء المتجر')}</button>`);
+    const s = SHOPS[m].find(x=>x.id===id) || SHOPS.ly[0]; const [st, lbl] = shopState(s);
+    const recv = s.pf === 'google_sheets'
+      ? `<dl class="kv"><dt>${T('Source','المصدر')}</dt><dd>Google Sheets</dd><dt>${T('Lecture','القراءة')}</dt><dd>${T('toutes les 5 minutes','كل 5 دقائق')}</dd><dt>${T('Dernière lecture','آخر قراءة')}</dt><dd>${T('aujourd’hui à 13:40 · 0 nouvelle commande','اليوم 13:40 · 0 طلب جديد')}</dd></dl>`
+      : `${fld(T('Lien de réception des commandes','رابط استلام الطلبات'), copyBox(`https://ordra.app/api/webhooks/${s.pf.replace('_','-')}/${s.id}`), T(`À coller dans ${PF[s.pf][1]} › Webhooks. Chaque commande passée sur la boutique arrive alors dans Ordra.`,`يُلصق في ${PF[s.pf][1]} › Webhooks. عندها تصل كل طلبية من المتجر إلى أوردرا.`))}
+         ${fld(T('Clé secrète','المفتاح السري'), ed?`<div class="cpy"><span class="mono">••••••••••••••••••••</span><button class="btn sm" data-a="toast:regen">${T('Régénérer','إعادة توليد')}</button></div>`:`<div class="cpy"><span class="mono">••••••••••••</span></div>`, T('Prouve que la commande vient bien de votre boutique. Après une régénération, mettez la nouvelle clé dans la boutique.','تثبت أن الطلب جاء فعلاً من متجرك. بعد إعادة التوليد ضع المفتاح الجديد في المتجر.'))}`;
+    return drawerShell(esc(s.name), `${PF[s.pf][1]} · <span class="badge" data-s="${st}"><i></i>${lbl}</span>`,
+      `<div class="ds"><h4>${T('Boutique','المتجر')}${ed?'':`<span class="end">${lockLine()}</span>`}</h4>${ed?fld(T('Nom','الاسم'), inp(s.name)):`<dl class="kv"><dt>${T('Nom','الاسم')}</dt><dd>${esc(s.name)}</dd></dl>`}
+        <div class="swrow"><div><b>${T('Active','مفعّل')}</b><small>${T('Désactivée, la boutique peut toujours envoyer, mais Ordra refuse ses commandes.','عند التعطيل يمكن للمتجر الإرسال، لكن أوردرا يرفض طلباته.')}</small></div>${sw(s.active,`tg:shop:${s.id}`,s.name,!ed)}</div></div>
+       <div class="ds"><h4>${T('Réception des commandes','استلام الطلبات')}</h4>${recv}</div>
+       <div class="ds"><h4>${T('Activité','النشاط')}</h4><dl class="kv"><dt>${T('Commandes · 30 j','الطلبات · 30 يوماً')}</dt><dd>${nn(s.o30)}</dd><dt>${T('Dernière commande','آخر طلب')}</dt><dd>${s.last?dt(s.last,true):'—'}</dd></dl><div style="margin-top:12px"><button class="link" data-a="go:logs">${T('Voir ses commandes reçues dans les Journaux','عرض طلباته المستلمة في السجلات')}${ic('chev','flip')}</button></div></div>`,
+      ed ? saveFoot(`<button class="btn" data-quiet data-a="toast:archive">${ic('archive')}${T('Archiver','أرشفة')}</button>`) : closeFoot());
+  }
+  if (kind === 'reason' || kind === 'addReason') {
+    const r = kind==='reason' ? REASONS.find(x=>x[1]===id) : [id,'','','','','',0,0];
+    const g = GROUPS.find(x=>x.k===r[0]); const uses = r[curMk()==='tn'?7:6];
+    return drawerShell(kind==='reason' ? T('Modifier le motif','تعديل السبب') : T('Ajouter un motif','إضافة سبب'), `${T('Groupe','المجموعة')} : ${T(g.l[0],g.l[1])}`,
+      `<div class="ds"><div class="f2">${fld(T('Libellé en français','التسمية بالفرنسية'), inp(r[2]))}${fld(T('Libellé en arabe','التسمية بالعربية'), `<input class="in" dir="rtl" value="${esc(r[3])}">`)}</div>
+        <div class="f2">${fld(T('Court, en français','مختصر بالفرنسية'), inp(r[4]), T('Sur la pastille.','على الشارة.'))}${fld(T('Court, en arabe','مختصر بالعربية'), `<input class="in" dir="rtl" value="${esc(r[5])}">`, T('Sur la pastille.','على الشارة.'))}</div>
+        <div class="swrow"><div><b>${T('Note obligatoire','ملاحظة إلزامية')}</b><small>${T('L’agent doit écrire un mot pour justifier ce motif.','يجب على الموظف كتابة كلمة لتبرير هذا السبب.')}</small></div>${sw(false,'toast:note',T('Note obligatoire','ملاحظة إلزامية'))}</div></div>
+       <div class="ds"><h4>${T('Aperçu sur une commande','معاينة على طلب')}</h4><span class="rj">${ic(g.icon)}${r[4]?T(r[4],r[5]):T('Court','مختصر')}</span></div>
+       ${kind==='reason'?`<div class="ds"><h4>${T('Retirer ce motif','سحب هذا السبب')}</h4><p style="margin:0 0 10px;font-size:13px;color:var(--text2)">${uses ? T(`Utilisé par ${fmt(uses)} commandes : il disparaîtra de la liste des agents, mais restera lisible sur ces commandes.`,`مستخدم في ${fmt(uses)} طلباً: سيختفي من قائمة الموظفين لكنه يبقى مقروءاً على هذه الطلبات.`) : T('Jamais utilisé : il sera supprimé.','لم يُستخدم قط: سيُحذف.')}</p><button class="btn" data-danger data-a="toast:retire">${ic('trash')}${T('Retirer','سحب')}</button></div>`:''}`, saveFoot());
+  }
+  if (kind === 'carrier' || kind === 'addCarrier') {
+    if (kind === 'addCarrier') {
+      const types = Object.entries(ADAPTERS).filter(([,a])=>a.mk===m); const sel = types[0];
+      return drawerShell(T('Ajouter un transporteur','إضافة شركة شحن'), T(`Pour la ${MK[m].label[0]}`,`لسوق ${MK[m].label[1]}`),
+        `<div class="ds"><div class="f"><span class="fl">${T('Société','الشركة')}</span><div class="typec">${types.map(([k,a],i)=>`<button class="opt" aria-pressed="${i===0}"><b><i></i>${a.label}</b><span>${T(a.d[0],a.d[1])}</span></button>`).join('')}</div><div class="hp">${T('Une autre société demande une intégration technique.','أي شركة أخرى تتطلب ربطاً تقنياً.')}</div></div>
+          ${fld(T('Nom affiché','الاسم المعروض'), inp('', T('ex. Darb Assabil - Misrata','مثال: Darb Assabil - مصراتة')), T('Utile quand un même transporteur a un compte par site.','مفيد عندما يكون لنفس الشركة حساب لكل موقع.'))}
+          ${fld(T('Site d’où partent ses colis','الموقع الذي تخرج منه طروده'), `<select class="in">${SITES[m].map(s=>`<option>${T(s.fr,s.ar)}</option>`).join('')}</select>`)}</div>
+         <div class="ds"><h4>${ic('key')}${T('Connexion','الاتصال')}</h4>${sel[1].fields.map(([k,l,sec,ph])=>fld(T(l[0],l[1]), `<input class="in mono" ${sec?'type="password"':''} placeholder="${esc(ph)}">`)).join('')}</div>
+         <div class="ds"><h4>${T('Frais','الرسوم')}</h4><div class="f2">${fld(T('Livraison','التوصيل'), `<label class="nin" style="width:100%"><input type="number" style="flex:1"><span>${MK[m].cur}</span></label>`)}${fld(T('Retour','الإرجاع'), `<label class="nin" style="width:100%"><input type="number" style="flex:1"><span>${MK[m].cur}</span></label>`)}</div></div>`,
+        `<span class="sp"></span><button class="btn" data-a="close">${T('Annuler','إلغاء')}</button><button class="btn" data-primary data-a="dsave">${T('Tester et créer','اختبار وإنشاء')}</button>`);
+    }
+    const c = CARRIERS[m].find(x=>x.id===id) || CARRIERS.ly[0], A = ADAPTERS[c.type];
+    const conn = ed
+      ? `${A.fields.map(([k,l,sec,ph])=>fld(T(l[0],l[1]), sec ? `<div class="cpy"><span class="mono">••••••••••••••••</span><button class="btn sm" data-a="toast:replace">${T('Remplacer','استبدال')}</button></div>` : `<input class="in mono" value="${esc(ph)}">`)).join('')}<button class="btn" data-a="testok">${T('Tester la connexion','اختبار الاتصال')}</button>${S.tested?`<div class="result">${ic('checkc')}${T('Connexion réussie — le transporteur a répondu en 0,4 s.','نجح الاتصال — ردّت شركة الشحن خلال 0.4 ثانية.')}</div>`:''}`
+      : `<p style="margin:0;font-size:13px;color:var(--text2)">${T('Les identifiants ne sont visibles que par un administrateur.','بيانات الربط يراها المسؤول فقط.')}</p>`;
+    const optRows = ORDER_OPTS.map(([k,l,h,d])=>`<tr><td><b style="font-weight:500">${T(l[0],l[1])}</b><div class="sub">${T(h[0],h[1])}</div></td><td class="end"><input type="checkbox" class="check" ${d?'checked':''} ${ed?'':'disabled'} aria-label="${T('Coché par défaut','محدد افتراضياً')}"></td><td class="end">${sw(true,'toast:opt',T('L’agent peut changer','يمكن للموظف التغيير'),!ed)}</td></tr>`).join('');
+    return drawerShell(esc(c.name), `${A.label} · ${siteName(c.site)}`,
+      `<div class="ds"><h4>${T('Transporteur','شركة الشحن')}${ed?'':`<span class="end">${lockLine()}</span>`}</h4>${ed?fld(T('Nom affiché','الاسم المعروض'), inp(c.name)):''}${ed?fld(T('Site d’où partent ses colis','الموقع الذي تخرج منه طروده'), `<select class="in">${SITES[m].map(s=>`<option ${s.id===c.site?'selected':''}>${T(s.fr,s.ar)}</option>`).join('')}</select>`):`<dl class="kv"><dt>${T('Site','الموقع')}</dt><dd>${siteName(c.site)}</dd></dl>`}
+        <div class="swrow"><div><b>${T('Actif','مفعّل')}</b><small>${T('Désactivé, les agents ne peuvent plus lui envoyer de colis. Les colis déjà partis restent suivis.','عند تعطيلها لا يمكن للموظفين إرسال طرود إليها. الطرود التي خرجت تبقى قيد المتابعة.')}</small></div>${sw(c.active,`tg:carrier:${c.id}`,c.name,!ed)}</div></div>
+       <div class="ds"><h4>${ic('key')}${T('Connexion','الاتصال')}</h4>${conn}</div>
+       <div class="ds"><h4>${T('Frais','الرسوم')}</h4>${ed?`<div class="f2">${fld(T('Livraison','التوصيل'), `<label class="nin" style="width:100%"><input type="number" value="${c.fee}" style="flex:1"><span>${cur()}</span></label>`)}${fld(T('Retour','الإرجاع'), `<label class="nin" style="width:100%"><input type="number" value="${c.ret}" style="flex:1"><span>${cur()}</span></label>`)}</div><div class="hp" style="font-size:12.5px;color:var(--text2)">${T('Comptés dans le P&L à partir du dépôt chez le transporteur.','تُحتسب في الأرباح والخسائر منذ إيداع الطرد لدى شركة الشحن.')}</div>`:`<dl class="kv"><dt>${T('Livraison','التوصيل')}</dt><dd>${nn(c.fee)} ${cur()}</dd><dt>${T('Retour','الإرجاع')}</dt><dd>${nn(c.ret)} ${cur()}</dd></dl>`}</div>
+       ${c.type==='darb_assabil'?`<div class="ds"><h4>${T('D’où part le stock','من أين يخرج المخزون')}</h4>
+         <div class="swrow"><div><b>${T('Notre entrepôt','مستودعنا')}</b><small>${T('Nous gardons le stock ; Darb vient chercher les colis.','نحتفظ بالمخزون؛ تأتي درب لأخذ الطرود.')}</small></div>${sw(true,'toast:mode',T('Notre entrepôt','مستودعنا'),!ed)}</div>
+         <div class="swrow"><div><b>${T('Entrepôt Darb Assabil','مستودع درب السبيل')}</b><small>${T('Darb garde le stock et prépare lui-même les colis.','تحتفظ درب بالمخزون وتجهز الطرود بنفسها.')}</small></div>${sw(false,'toast:mode',T('Entrepôt Darb Assabil','مستودع درب السبيل'),!ed)}</div></div>`:''}
+       <div class="ds"><h4>${T('Options de commande','خيارات الطلب')}</h4><p style="margin:-6px 0 10px;font-size:12.5px;color:var(--text2)">${T('Ce qui est coché d’avance quand un agent envoie un colis, et s’il peut le changer.','ما يكون محدداً مسبقاً عندما يرسل الموظف طرداً، وهل يمكنه تغييره.')}</p>
+         <table class="t optt"><thead><tr><th>${T('Option','الخيار')}</th><th class="end">${T('Coché','محدد')}</th><th class="end">${T('Modifiable','قابل للتغيير')}</th></tr></thead><tbody>${optRows}</tbody></table></div>`,
+      ed ? saveFoot(`<button class="btn" data-quiet data-a="toast:archive">${ic('archive')}${T('Archiver','أرشفة')}</button>`) : closeFoot());
+  }
+  if (kind === 'rate') {
+    const a = AGENTS[m].find(x=>x[0]===id) || AGENTS.ly[0];
+    return drawerShell(T(`Commission de ${a[0]}`,`عمولة ${a[0]}`), T(`Montant de l’équipe : ${V[m].commission_amount} ${cur()} par commande livrée`,`مبلغ الفريق: ${V[m].commission_amount} ${cur()} لكل طلب مسلَّم`),
+      `<div class="ds"><div class="swrow"><div><b>${T('Payer cet agent','الدفع لهذا الموظف')}</b><small>${T('Désactivé, ses commandes livrées ne lui rapportent rien.','عند التعطيل لا تُكسبه طلباته المسلَّمة شيئاً.')}</small></div>${sw(a[3],'toast:x','')}</div>
+        <div class="opts two" style="margin:14px 0"><button class="opt" aria-pressed="${a[1]===V[m].commission_amount}"><b><i></i>${T('Montant de l’équipe','مبلغ الفريق')}</b><span>${nn(V[m].commission_amount)} ${cur()}</span></button><button class="opt" aria-pressed="${a[1]!==V[m].commission_amount}"><b><i></i>${T('Montant propre','مبلغ خاص')}</b><span>${T('pour cet agent seulement','لهذا الموظف فقط')}</span></button></div>
+        <div class="f2">${fld(T('Montant','المبلغ'), `<label class="nin" style="width:100%"><input type="number" value="${a[1]}" style="flex:1"><span>${cur()}</span></label>`)}${fld(T('À partir du','ابتداءً من'), `<input class="in" type="date" value="2026-10-02">`)}</div>
+        <div class="hp" style="font-size:12.5px;color:var(--text2)">${T('Ce qui est déjà gagné ne change pas : le nouveau montant vaut pour les commandes livrées à partir de cette date.','ما تم كسبه لا يتغير: المبلغ الجديد يسري على الطلبات المسلَّمة ابتداءً من هذا التاريخ.')}</div></div>`, saveFoot());
+  }
+  if (kind === 'match' || kind === 'matchCity') {
+    const opts = kind==='match' ? ['Crème Biovera — 50 ml','Crème Biovera — 100 ml','Sérum Vitamine C','Huile de nigelle'] : ['ترهونة · Tarhuna','الخمس · Al Khums','مصراتة · Misrata','زليتن · Zliten'];
+    return drawerShell(kind==='match'?T('Associer un produit','ربط منتج'):T('Associer une ville','ربط مدينة'), kind==='match'?T('« Crème Biovera 50 ml » · Converty Libya (Sheets) · 12 commandes en attente','«Crème Biovera 50 ml» · Converty Libya (Sheets) · 12 طلباً معلقاً'):T('« Tarhuna » · 4 commandes en attente','«Tarhuna» · 4 طلبات معلقة'),
+      `<div class="ds"><label class="lsearch" style="max-width:none;margin-bottom:12px">${ic('search')}<input placeholder="${kind==='match'?T('Chercher un produit Ordra','ابحث عن منتج في أوردرا'):T('Chercher une destination','ابحث عن وجهة')}"></label>${opts.map((o,i)=>`<label class="swrow" style="cursor:pointer"><div><b>${o}</b></div><input type="radio" name="mt" class="check" ${i===0?'checked':''}></label>`).join('')}</div>
+       <div class="ds"><p style="margin:0;font-size:13px;color:var(--text2)">${kind==='match'?T('Les 12 commandes en attente sont corrigées, et les prochaines commandes de cette boutique avec ce produit seront reconnues seules.','تُصحَّح الطلبات الـ12 المعلقة، وتُعرَف الطلبات القادمة من هذا المتجر بهذا المنتج تلقائياً.'):T('Les 4 commandes en attente reçoivent cette destination.','تحصل الطلبات الأربعة المعلقة على هذه الوجهة.')}</p></div>`,
+      `<span class="sp"></span><button class="btn" data-a="close">${T('Annuler','إلغاء')}</button><button class="btn" data-primary data-a="dsave">${T('Associer','ربط')}</button>`);
+  }
+  if (kind === 'log') {
+    return drawerShell('Données reçues · #1042', 'Test · Shopify · 23 sept. à 16:37 · <span class="badge" data-s="ok"><i></i>Traitée</span>',
+      `<div class="ds"><h4>Ce qu’Ordra en a fait</h4><dl class="kv"><dt>Commande créée</dt><dd>LY-26-04418</dd><dt>Produit</dt><dd>reconnu (associé le 12 sept.)</dd><dt>Ville</dt><dd>Tripoli — Souq al Jumaa</dd></dl></div>
+       <div class="ds"><h4>Données reçues<span class="end"><button class="btn sm" data-a="toast:copied">${ic('copy')}Copier</button></span></h4><pre class="json">{
+  <span class="k">"id"</span>: <span class="n">1042</span>,
+  <span class="k">"customer"</span>: { <span class="k">"name"</span>: <span class="s">"…"</span>, <span class="k">"phone"</span>: <span class="s">"+218 9• ••• ••••"</span> },
+  <span class="k">"line_items"</span>: [ { <span class="k">"variant_id"</span>: <span class="n">4471</span>, <span class="k">"quantity"</span>: <span class="n">1</span> } ],
+  <span class="k">"shipping_address"</span>: { <span class="k">"city"</span>: <span class="s">"Tripoli"</span> },
+  <span class="k">"total_price"</span>: <span class="s">"145.00"</span>
+}</pre></div>`,
+      `<button class="btn" data-a="toast:replay">${ic('refresh')}Relancer le traitement</button><span class="sp"></span><button class="btn" data-a="close">Fermer</button>`);
+  }
+  return '';
+}
+
+/* ═════════════ frame + studio ═════════════ */
+function frame(){
+  const body = S.screen === 'logs' ? logsPage() : settingsPage();
+  const leave = S.leave ? `<div class="modal"><div class="mb"><h3>${T('Quitter sans enregistrer ?','المغادرة دون حفظ؟')}</h3><p>${T(`Vous avez ${Object.keys(S.edits).length} modification(s) non enregistrée(s) sur cette page. Elles seront perdues.`,`لديك ${Object.keys(S.edits).length} تعديلات غير محفوظة في هذه الصفحة. ستضيع.`)}</p><div class="df"><button class="btn" data-a="leave:stay">${T('Rester','البقاء')}</button><button class="btn" data-danger data-a="leave:go">${T('Quitter sans enregistrer','المغادرة دون حفظ')}</button></div></div></div>` : '';
+  return `<div class="frame">${sidebar()}<main class="main"><div class="body" id="scroll"><div class="wrap">${body}</div></div>${S.drawer?drawer():''}${leave}${S.toast?`<div class="toast">${ic('checkc')}${S.toast}</div>`:''}</main></div>`;
+}
+const SCREENS = [['markets','Marchés'],['shops','Boutiques'],['orders','Commandes'],['rejections','Motifs'],['team','Équipe'],['warehouses','Entrepôts'],['delivery','Livraison'],['whatsapp','WhatsApp'],['ads','Publicité'],['logs','Journaux']];
+const DRAWERS = {
+  markets:[['market:ly','Modifier Libye']], shops:[['shop:s1','Converty (Sheets)'],['shop:s5','bard (Shopify)'],['addShop','Ajouter'],['match:0','Associer un produit']],
+  rejections:[['reason:non_serieux','Modifier un motif'],['addReason:injoignable','Ajouter un motif']], team:[['rate:riheb','Commission d’un agent']],
+  delivery:[['carrier:c1','Darb Tripoli'],['addCarrier','Ajouter un transporteur']], logs:[['log:0','Données reçues']],
+};
+const NOTES = {
+  markets:`<b>v2 — Marchés, simple.</b> Une liste : le marché, la langue de son équipe, sa devise, son état. Une ligne ouvre le tiroir pour modifier le nom, la langue, l'état et l'<b>expéditeur imprimé sur les étiquettes</b> (vide en prod : adresse et téléphone manquants — on le voit en ouvrant Libye). Plus de « À vérifier » ni de compteurs dans le menu : un écran de réglages règle, il ne surveille pas. Super_admin seulement.`,
+  shops:`<b>Boutiques</b> = l'ancien onglet Storefronts + Correspondances (sans onglet imbriqué). « Silencieuse » = active et rien depuis 14 jours ; la date vient de la dernière commande, pas du dernier webhook (Converty Libya passe par Sheets et n'a jamais reçu de webhook, mais a envoyé 1 656 commandes en 30 jours). La file à associer est <b>vide en prod</b> ; <code>?pending=1</code> montre l'état avec des lignes (illustratives). Manager : boutiques en lecture, <b>association modifiable</b>.`,
+  orders:`<b>Commandes</b> = ce qui reste d'Opérations après avoir retiré les 13 réglages qu'aucun code ne lit (affectation à l'arrivée, montants min/max, ville inconnue, heure limite, téléversement auto, colis sans nouvelle, retours, après la dernière tentative, fenêtre de rappel…). Chaque aide <b>reprend la valeur</b> (« Au 8<sup>e</sup> appel… ») et se met à jour pendant la saisie. Modifier un champ fait apparaître la barre d'enregistrement ; changer de sujet avec des modifications demande confirmation. L'horloge ouvre l'historique réel (Libye : 3 → 9 → 5 → 8). ⚠ En Tunisie, <code>sla_minutes</code> vaut 120 mais sa seule ligne d'historique dit 137 : l'historique a des trous.`,
+  rejections:`<b>Motifs de rejet</b> : un groupe = une carte, avec l'icône du groupe et le nombre réel de commandes par motif (Libye). La modification passe par un tiroir avec aperçu de la pastille — plus d'enregistrement « au blur » sans bouton. La règle de suppression est dite en clair dans le tiroir. Manager : modifiable.`,
+  team:`<b>Équipe</b> = Affectation + Objectifs + Commissions. Retirés car sans effet : plafond par agent, inactivité, files orphelines, hors heures, heures ouvrées (qui en plus disait <code>Africa/Tunis</code> pour la Libye). « Round Robin » devient « Tour à tour ». <code>?algo=percentage</code> montre l'éditeur de parts (répartition illustrative : aucune part n'est enregistrée en prod). Commissions : montants réels de la Libye, visibles par l'administrateur seulement.`,
+  warehouses:`<b>Entrepôts</b> : les sites quittent l'onglet Transporteurs. Le tableau dit quel transporteur part de quel site — c'est ce qui rend visible l'anomalie Benghazi. Manager : lecture seule (aujourd'hui il reçoit un 403 et voit « Aucun site »).`,
+  delivery:`<b>Livraison</b> rassemble ce qui était éparpillé sur 4 écrans : transporteurs, colis à risque, tableau de suivi, et « Colis immobile » (venu d'Alertes, le seul seuil d'Alertes lu par le code). <b>« Ajouter un transporteur » fonctionne de nouveau</b> (aujourd'hui il boucle). Le tiroir réunit identifiants, test de connexion, frais, modes d'expédition et options — sans onglets. « Livrés · 30 j » = livrés sur expédiés ces 30 jours (réel). Manager : transporteurs en lecture, seuils modifiables.`,
+  whatsapp:`<b>WhatsApp</b> réunit la carte de Connexions › Services tiers et l'onglet Paramètres › WhatsApp. En prod, <b>aucun marché n'est connecté</b> : c'est l'état par défaut. <code>?wa=on</code> montre l'état connecté (données illustratives). Manager : lecture seule.`,
+  ads:`<b>Publicité</b> (administrateur) : le compte Meta réel de la Libye et le taux de change réel (8 → 8,4 le 15 août). Plus de formulaire Meta montré au manager qui échouait toujours en 403. La Tunisie montre l'état vide.`,
+  logs:`<b>Journaux</b> (administrateur, toujours en français) : les quatre vues dans la piste douce à pastille blanche, un filtre marché qui n'existait pas, des mots clairs (« Commandes reçues » au lieu de Webhooks, « Modifications » au lieu d'Audit, « Relancer le traitement » au lieu de Rejouer), et les données reçues en clair (plus de bloc noir). L'onglet Modifications montre l'historique réel ; les trois autres sont illustratifs.`,
+};
+function studio(){
+  const seg = (name, items, cur, dis=()=>false) => `<div class="seg" role="group" aria-label="${name}">${items.map(([v,l])=>`<button data-s="${name}:${v}" aria-pressed="${cur===v}" ${dis(v)?'disabled':''}>${l}</button>`).join('')}</div>`;
+  const dr = DRAWERS[S.screen] || [];
+  document.getElementById('bar').innerHTML = `<h1>Ordra — Réglages <span>· prototype v2 · données réelles du 2026-10-02</span></h1>
+    ${seg('lang',[['fr','Français'],['ar','العربية']],S.lang)}
+    ${seg('role',[['super_admin','super_admin'],['manager','manager.ly']],S.role)}
+    ${seg('scope',[['ly','Libye'],['tn','Tunisie'],['all','Tous']],S.role==='manager'?'ly':S.scope,()=>S.role==='manager')}
+    <div style="flex-basis:100%;height:0"></div>
+    ${seg('screen',SCREENS,S.screen,v=>S.role==='manager'&&['markets','ads','logs'].includes(v))}
+    <span class="grp">État ${seg('flag',[['dirty','Modifié'],['wa','WA connecté'],['algo','Pourcentages'],['pending','À associer']],null)}</span>
+    ${dr.length?`<span class="grp">Tiroir <select id="drsel"><option value="">—</option>${dr.map(([v,l])=>`<option value="${v}" ${S.drawer===v?'selected':''}>${l}</option>`).join('')}</select></span>`:''}`;
+  document.querySelectorAll('[data-s^="flag:"]').forEach(b=>{ const f = b.dataset.s.split(':')[1]; const on = f==='dirty'?Object.keys(S.edits).length>0 : f==='wa'?S.wa : f==='algo'?val2('assignment_algorithm')==='percentage' : S.pending; b.setAttribute('aria-pressed', on); });
+  document.getElementById('note').innerHTML = (NOTES[S.screen]||'') + (S.role==='manager' ? `<br><b>Vue manager (manager.ly, en arabe dans la vraie vie)</b> : ni Marchés, ni Publicité, ni Journaux, ni Commissions. Les cartes en lecture seule montrent des valeurs (pas des champs grisés) et disent « Modifiable par un administrateur ».` : '') + (S.role!=='manager' && S.scope==='all' ? `<br><b>Portée « Tous »</b> : au lieu du chargement infini d'aujourd'hui, la page demande un marché. Le choix écrit la même portée que le sélecteur de la barre latérale (un seul état, deux endroits).` : '');
+}
+function val2(k){ const m = curMk() || 'ly'; return (k in S.edits) ? S.edits[k] : V[m][k]; }
+
+function syncURL(){
+  const p = new URLSearchParams();
+  if (S.lang!=='fr') p.set('lang',S.lang); if (S.role!=='super_admin') p.set('role',S.role); p.set('screen',S.screen);
+  if (S.scope!=='ly') p.set('scope',S.scope); if (S.drawer) p.set('drawer',S.drawer); if (S.wa) p.set('wa','on'); if (S.pending) p.set('pending','1');
+  if (val2('assignment_algorithm')==='percentage' && S.edits.assignment_algorithm) p.set('algo','percentage'); if (S.screen==='logs' && S.tab!=='received') p.set('tab',S.tab);
+  history.replaceState(null,'','?'+p.toString());
+}
+function render(){
+  if (S.role==='manager' && ['markets','ads','logs'].includes(S.screen)) S.screen = 'shops';
+  document.documentElement.lang = S.lang;
+  const scroll = document.getElementById('scroll'); const top = scroll ? scroll.scrollTop : 0;
+  studio();
+  const stage = document.getElementById('stage');
+  stage.setAttribute('dir', S.lang==='ar' ? 'rtl' : 'ltr');
+  stage.innerHTML = frame();
+  const ns = document.getElementById('scroll'); if (ns && keepScroll) ns.scrollTop = top; keepScroll = false;
+  const sel = document.getElementById('drsel'); if (sel) sel.onchange = e => { S.drawer = e.target.value; S.tested = false; render(); };
+  syncURL();
+}
+let keepScroll = false, toastTimer;
+function toast(msg){ S.toast = msg; keepScroll = true; render(); clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ S.toast=''; keepScroll = true; render(); }, 1800); }
+function goTopic(t){ S.screen = t; S.drawer = ''; S.hist = ''; S.shopFilter = 'all'; S.tested = false; render(); const s = document.getElementById('scroll'); if (s) s.scrollTop = 0; }
+
+/* ═════════════ events ═════════════ */
+document.addEventListener('click', e => {
+  const sb = e.target.closest('#bar [data-s]');
+  if (sb) {
+    const [k, v] = sb.dataset.s.split(':');
+    if (k==='flag') {
+      if (v==='dirty') S.edits = Object.keys(S.edits).length ? {} : {...(DIRTY_PRESET[S.screen] || {max_call_attempts:6})};
+      if (v==='wa') S.wa = !S.wa;
+      if (v==='pending') S.pending = !S.pending;
+      if (v==='algo') { if (S.edits.assignment_algorithm==='percentage') delete S.edits.assignment_algorithm; else S.edits.assignment_algorithm = 'percentage'; }
+    } else if (k==='screen') { S.edits = {}; S.screen = v; S.drawer=''; S.hist=''; }
+    else S[k] = v;
+    if (k==='lang' || k==='role' || k==='scope') S.hist = '';
+    render(); return;
+  }
+  const el = e.target.closest('[data-a]');
+  if (!el || !document.getElementById('stage').contains(el)) return;
+  if (el.classList.contains('dw') && e.target.closest('[data-stop]')) return;
+  const a = el.dataset.a, [cmd, ...rest] = a.split(':'), arg = rest.join(':');
+  if (cmd==='go') { if (Object.keys(S.edits).length && arg!==S.screen) { S.leave = arg; keepScroll = true; render(); } else goTopic(arg); return; }
+  if (cmd==='gomk') { const [mk, t] = arg.split(':'); S.scope = mk; goTopic(t); return; }
+  if (cmd==='leave') { if (arg==='go') { const t = S.leave; S.edits = {}; S.leave=''; goTopic(t); } else { S.leave=''; keepScroll = true; render(); } return; }
+  if (cmd==='mk') { S.scope = arg; S.edits = {}; S.hist=''; keepScroll = true; render(); return; }
+  if (cmd==='cyclescope') { S.scope = {ly:'tn', tn:'all', all:'ly'}[S.scope]; S.edits = {}; render(); return; }
+  if (cmd==='drawer') { S.drawer = arg; S.tested = false; keepScroll = true; render(); return; }
+  if (cmd==='close') { S.drawer = ''; keepScroll = true; render(); return; }
+  if (cmd==='dsave') { S.drawer = ''; toast(T('Enregistré','تم الحفظ')); return; }
+  if (cmd==='testok') { S.tested = true; keepScroll = true; render(); return; }
+  if (cmd==='hist') { S.hist = (arg && S.hist !== arg) ? arg : ''; keepScroll = true; render(); return; }
+  if (cmd==='save') { const m = curMk(); Object.entries(S.edits).forEach(([k,v])=>{ if (k!=='shares') V[m][k] = v; }); S.edits = {}; toast(T('Réglages enregistrés','تم حفظ الإعدادات')); return; }
+  if (cmd==='cancel') { S.edits = {}; keepScroll = true; render(); return; }
+  if (cmd==='pill') { S.shopFilter = arg; keepScroll = true; render(); return; }
+  if (cmd==='algo') { const m = curMk(); if (arg === V[m].assignment_algorithm) delete S.edits.assignment_algorithm; else S.edits.assignment_algorithm = arg; keepScroll = true; render(); return; }
+  if (cmd==='slotdel') { const v = [...val('attempt_retry_times')]; v.splice(Number(arg),1); S.edits.attempt_retry_times = v; keepScroll = true; render(); return; }
+  if (cmd==='slotadd') { S.edits.attempt_retry_times = [...val('attempt_retry_times'), '20:00']; keepScroll = true; render(); return; }
+  if (cmd==='tab') { S.tab = arg; render(); return; }
+  if (cmd==='errs') { S.errorsOnly = !S.errorsOnly; keepScroll = true; render(); return; }
+  if (cmd==='tg') {
+    e.stopPropagation();
+    const [kind, id] = arg.split(':'), m = curMk();
+    const list = kind==='shop' ? SHOPS[m] : kind==='carrier' ? CARRIERS[m] : SITES[m];
+    const it = list.find(x=>x.id===id); it.active = !it.active;
+    const name = it.name || T(it.fr, it.ar);
+    toast(it.active ? T(`${name} activé`,`تم تفعيل ${name}`) : T(`${name} désactivé`,`تم تعطيل ${name}`)); return;
+  }
+  if (cmd==='toast') { toast(T('Action de démonstration','إجراء تجريبي')); return; }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.k) {
+    const k = t.dataset.k, m = curMk(), v = t.value === '' ? '' : Number(t.value);
+    if (String(v) === String(V[m][k])) delete S.edits[k]; else S.edits[k] = v;
+    const row = t.closest('.sr'); if (row) row.toggleAttribute('data-dirty', k in S.edits);
+    const h = document.querySelector(`[data-help="${k}"]`); if (h && F[k].h) h.innerHTML = F[k].h(v === '' ? 0 : v);
+    updateSaveBar();
+  }
+  if (t.dataset.share !== undefined) { S.edits.shares = {...(S.edits.shares||{}), [t.dataset.share]: Number(t.value||0)}; S.edits.assignment_algorithm = S.edits.assignment_algorithm || 'percentage'; keepScroll = true; const pos = t.selectionStart; const name = t.dataset.share; render(); const again = document.querySelector(`[data-share="${CSS.escape(name)}"]`); if (again) again.focus(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.slot !== undefined) { const v = [...val('attempt_retry_times')]; v[Number(t.dataset.slot)] = t.value; S.edits.attempt_retry_times = v; keepScroll = true; render(); }
+});
+function updateSaveBar(){
+  const c = Object.keys(S.edits).length, bar = document.getElementById('savebar');
+  if (!bar) return; bar.hidden = !c; const sc = document.getElementById('savecount'); if (sc) sc.textContent = countTxt(c);
+  document.querySelectorAll('[data-s="flag:dirty"]').forEach(b=>b.setAttribute('aria-pressed', c>0));
+}
+render();
+</script>
+</body>
+</html>

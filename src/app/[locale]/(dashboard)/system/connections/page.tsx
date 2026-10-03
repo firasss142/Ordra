@@ -1,26 +1,20 @@
 import { redirect } from "next/navigation";
-import { ConnectionsClient } from "./ConnectionsClient";
 import { getServerUser } from "@/lib/auth/server-user";
-import { listMarketsFor } from "@/lib/markets/list";
+import { legacyConnectionsTab } from "@/lib/reglages/topics";
 
 /**
- * Système › Connexions. Storefronts, carriers, third-party services and
- * mappings in one tabbed workspace. super_admin manages everything;
- * market_manager sees their own market read-only (mutations gated in the API).
+ * Old Système › Connexions. Its tabs became Réglages topics: Storefronts and
+ * Correspondances → Boutiques, Transporteurs → Livraison, Services tiers →
+ * WhatsApp. Kept as a redirect for bookmarks and deep links.
  */
-export default async function SystemConnectionsPage({
+export default async function ConnectionsRedirect({
   params,
+  searchParams,
 }: {
   params: { locale: string };
+  searchParams: { tab?: string };
 }) {
   const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
-
-  if (user.role !== "super_admin" && user.role !== "market_manager") {
-    redirect(`/${params.locale}/dashboard`);
-  }
-
-  const readOnly = user.role !== "super_admin";
-  const markets = await listMarketsFor(user.role, user.market_id);
-  return <ConnectionsClient user={user} readOnly={readOnly} markets={markets} />;
+  redirect(`/${params.locale}/system/settings/${legacyConnectionsTab(searchParams?.tab, user.role)}`);
 }

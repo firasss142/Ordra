@@ -4,28 +4,24 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Boxes, PackageOpen, RotateCcw, Settings } from "lucide-react";
+import { Boxes, Home, PackageOpen, RotateCcw } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { jsonFetcher } from "@/lib/fetchers";
+import type { TodayResponse } from "@/app/api/warehouse/today/route";
 import { WarehouseBottomBar, type BottomTab } from "./WarehouseBottomBar";
-import { ScanFab } from "./ScanFab";
+import { ScanButton } from "./ScanButton";
 
 /**
  * The warehouse agent's shell.
  *
- * Four destinations along the bottom, in the order the agent works: the bench
- * (home: what to scan, grouped by sticker roll), returns, stock, settings. A
- * floating scan button opens the bench's scan sheet from anywhere. No header:
- * the market is not something an agent can change, and identity lives in
- * Réglages.
+ * The bottom bar follows the day: Aujourd'hui (home — the four jobs), Sortir,
+ * the Scan action in the centre, Rentrer, Stock. Recevoir and Compter are jobs
+ * reached from Aujourd'hui and Stock rather than tabs; Réglages moved behind
+ * the avatar on Aujourd'hui — it is not a job. Each job tab wears its hue.
  *
  * Managers keep the desk console — `(warehouse)/layout.tsx` picks by role.
- * See plans/warehouse-agent-ux-critique.md for why the KPI dashboard went.
+ * See plans/entrepot-day-loop-redesign.md.
  */
-
-interface QueueCounts {
-  queue?: { returnsInbox?: number };
-}
 
 export function WarehouseMobileShell({
   user,
@@ -42,29 +38,31 @@ export function WarehouseMobileShell({
   const runHref = `/${locale}/warehouse/scan`;
 
   /*
-   * Same key the dashboard uses, so SWR serves both from one request. The
-   * badge is the reason an agent glances at the bar at all — "is anything
-   * waiting for me" answered without navigating.
+   * The returns badge. It used to poll /api/warehouse/summary every minute —
+   * a leaderboard, a trend and low stock computed to draw one number. The day
+   * loop has the figure, scoped to the agent's building.
    */
-  const { data } = useSWR<QueueCounts>("/api/warehouse/summary", jsonFetcher, {
+  const { data } = useSWR<TodayResponse>("/api/warehouse/today", jsonFetcher, {
     revalidateOnFocus: true,
     refreshInterval: 60_000,
   });
+  const returns = data && !data.siteUnassigned ? data.counts.returnsAtCarrier : 0;
 
-  const tabs: BottomTab[] = useMemo(() => {
-    const returns = data?.queue?.returnsInbox ?? 0;
-    return [
+  const tabs: BottomTab[] = useMemo(
+    () => [
+      { href: `/${locale}/warehouse`, label: t("nav.today"), icon: Home, exact: true, prefetchKey: "/api/warehouse/today" },
       {
-        href: `/${locale}/warehouse`,
-        label: t("nav.bench"),
+        href: `/${locale}/warehouse/out`,
+        label: t("nav.out"),
         icon: PackageOpen,
-        exact: true,
+        hue: "job-out",
         prefetchKey: "/api/warehouse/to-label?limit=200",
       },
       {
         href: `/${locale}/warehouse/returns`,
-        label: t("nav.returns"),
+        label: t("nav.returnsJob"),
         icon: RotateCcw,
+        hue: "job-returns",
         // Zero is not a badge. An empty queue should read as calm, not as an
         // unread notification.
         count: returns || undefined,
@@ -72,27 +70,25 @@ export function WarehouseMobileShell({
       },
       {
         href: `/${locale}/warehouse/stock`,
-        label: t("nav.inventory"),
+        label: t("nav.stock"),
         icon: Boxes,
+        hue: "job-receive",
         prefetchKey: "/api/warehouse/stock",
       },
-      {
-        href: `/${locale}/warehouse/settings`,
-        label: t("nav.settings"),
-        icon: Settings,
-      },
-    ];
-  }, [locale, t, data]);
+    ],
+    [locale, t, returns],
+  );
 
   /*
-   * A run takes the whole screen.
+   * A run takes the whole screen — the scan run and the count run alike.
    *
-   * The agent is holding a parcel and reading a sticker number; four
-   * destinations and a floating button along the bottom are four ways to lose
-   * the batch by mistake. The run carries its own way out — a labelled exit at
-   * the top — so nothing is trapped.
+   * The agent is holding a parcel and reading a sticker number; destinations
+   * along the bottom are ways to lose the batch by mistake. The run carries its
+   * own way out — a labelled exit at the top — so nothing is trapped.
    */
-  const inRun = pathname === runHref || pathname.startsWith(`${runHref}/`);
+  const countHref = `/${locale}/warehouse/count`;
+  const inRun =
+    pathname === runHref || pathname.startsWith(`${runHref}/`) || pathname === countHref;
 
   return (
     <div
@@ -102,20 +98,16 @@ export function WarehouseMobileShell({
       <main
         id="main-content"
         data-testid="wh-mobile-main"
-        // Clears the fixed bar and the home indicator. Without it the last
-        // card on every screen sits behind the bar and cannot be tapped.
-        className={inRun ? "wh-safe-top" : "wh-safe-top pb-[calc(56px+env(safe-area-inset-bottom,0px)+84px)]"}
+        // Clears the fixed bar, the raised scan button and the home indicator.
+        className={inRun ? "wh-safe-top" : "wh-safe-top pb-[calc(56px+env(safe-area-inset-bottom,0px)+40px)]"}
       >
         {children}
       </main>
       {inRun ? null : (
-        <>
-          {/* One scanner for the whole shell. It opens a RUN — pick what stays
-              in your hand, then work the batch — rather than a lone sheet that
-              forgot the parcel on every navigation. */}
-          <ScanFab href={runHref} label={t("nav.quickScan")} />
-          <WarehouseBottomBar tabs={tabs} />
-        </>
+        <WarehouseBottomBar
+          tabs={tabs}
+          center={<ScanButton href={`/${locale}/warehouse/out?scan=1`} label={t("nav.scan")} />}
+        />
       )}
     </div>
   );

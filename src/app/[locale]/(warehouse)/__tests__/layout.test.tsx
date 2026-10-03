@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import WarehouseLayout from "../layout";
 import type { AuthUser } from "@/types";
 
@@ -11,6 +11,7 @@ vi.mock("@/context/auth", () => ({
 let mockPathname = "/fr/warehouse/preparation";
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
+  useSearchParams: () => new URLSearchParams(""),
 }));
 vi.mock("next/link", () => ({
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
@@ -33,8 +34,23 @@ vi.mock("next-intl", async () => {
 });
 
 // The shells are exercised elsewhere; here we only care which one appears.
-vi.mock("@/components/layout/Sidebar", () => ({
-  Sidebar: () => <nav data-testid="sidebar" />,
+// The real sidebar's bell calls useAlertsPanel().openPanel; the stand-in does
+// the same, so the test proves the shell provides a panel to open.
+vi.mock("@/components/layout/Sidebar", async () => {
+  const { useAlertsPanel } = await import("@/context/alerts-panel");
+  return {
+    Sidebar: () => {
+      const { openPanel } = useAlertsPanel();
+      return (
+        <nav data-testid="sidebar">
+          <button type="button" onClick={() => openPanel()}>alerts</button>
+        </nav>
+      );
+    },
+  };
+});
+vi.mock("@/components/alerts/AlertsPanel", () => ({
+  AlertsPanel: () => <div data-testid="alerts-panel" />,
 }));
 vi.mock("@/components/layout/Topbar", () => ({
   Topbar: () => <div data-testid="topbar" />,
@@ -50,6 +66,16 @@ function user(role: string): AuthUser {
 afterEach(() => cleanup());
 
 describe("Entrepôt shell — navigation", () => {
+  it("gives a manager a working alerts bell on warehouse pages", async () => {
+    // The warehouse shell had no AlertsPanelProvider, so the sidebar's bell
+    // fell back to an empty default and did nothing on every Entrepôt page.
+    mockUser = user("market_manager");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    fireEvent.click(screen.getByRole("button", { name: "alerts" }));
+    // The panel is loaded with next/dynamic, so it lands a tick later.
+    expect(await screen.findByTestId("alerts-panel")).toBeInTheDocument();
+  });
+
   it("gives a manager the sidebar and no tab band", () => {
     mockUser = user("market_manager");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
@@ -79,7 +105,7 @@ describe("Entrepôt shell — navigation", () => {
   it("gives the agent the scan button on every screen but the scanner", () => {
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
-    expect(screen.getByTestId("wh-scan-fab")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Scanner" })).toBeInTheDocument();
   });
 
   it("gives the agent no top bar — the mockups start with the page title", () => {
@@ -91,29 +117,37 @@ describe("Entrepôt shell — navigation", () => {
     expect(screen.queryByTestId("topbar")).toBeNull();
   });
 
-  it("navigates to the four sections in the order the agent works them", () => {
-    // Bench first: it is the home and the job. Returns next, because a parcel
-    // coming back is the second thing that lands on the bench. Stock and
-    // settings are looked at, not worked from.
+  it("follows the day: Aujourd'hui, Sortir, Scan in the centre, Rentrer, Stock", () => {
+    // Aujourd'hui is home — the four jobs and their backlog. Sortir and Rentrer
+    // are worked from; Stock holds Recevoir and Compter. Réglages moved behind
+    // the avatar on Aujourd'hui: it is not a job (2026-10-02).
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
     const bar = screen.getByTestId("wh-bottom-bar");
     const labels = Array.from(bar.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(labels).toEqual([
       "/fr/warehouse",
+      "/fr/warehouse/out",
+      "/fr/warehouse/out?scan=1",
       "/fr/warehouse/returns",
       "/fr/warehouse/stock",
-      "/fr/warehouse/settings",
     ]);
   });
 
-  it("starts a scan run from the floating button, on any screen", () => {
-    // One scanner for the shell, and it opens a RUN: pick what stays in your
-    // hand, then work the batch. The old station was a separate page that
-    // forgot which parcel the agent had taken.
+  it("opens the scan sheet from the centre of the bar, on any screen", () => {
+    // With a parcel in hand the sheet binds its sticker; with nothing in hand
+    // it looks the sticker up. Runs start from a roll on Sortir.
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
-    expect(screen.getByTestId("wh-scan-fab")).toHaveAttribute("href", "/fr/warehouse/scan");
+    expect(screen.getByRole("link", { name: "Scanner" })).toHaveAttribute("href", "/fr/warehouse/out?scan=1");
+  });
+
+  it("gives the count run the whole screen too", () => {
+    mockUser = user("warehouse_agent");
+    mockPathname = "/fr/warehouse/count";
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    mockPathname = "/fr/warehouse/preparation";
   });
 
   it("gives the run the whole screen: no tab bar, no floating button", () => {

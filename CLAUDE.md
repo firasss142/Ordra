@@ -167,9 +167,11 @@ and the unallocated remainder), because per-variant checks alone let two lines o
 each pass and the total go negative.
 inventory_log.reason is CHECK-constrained; order_history and inventory_log are append-only BY TRIGGER.
 `record_stock_count` and `adjust_product_stock` take `p_variant_id` (DEFAULT NULL, so every
-pre-existing caller is unchanged). A count of a SITE poses the site's value and moves the
-variant and the product by the DELTA — it never poses the variant's total, which would erase
-the other buildings' stock. Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
+pre-existing caller is unchanged). A count of a SITE poses the site's value; what it adds comes
+FIRST out of the uncounted pool (non ventilé), so the total only rises by the excess, a drop is a
+loss, and once every active building has counted, the level equals the sum of the buildings
+(20261002190000 — before it, a first count added the whole count and doubled the stock). It never
+poses the variant's total, which would erase the other buildings' stock. Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
 
 ## Terminal statuses: delivered, returned, rejected, cancelled, deleted
 ## Fulfillment statuses set by: system (carrier webhook/polling) or manager (manual update)
@@ -194,7 +196,7 @@ that table, not a compiled list. Delete = hard-delete if no order uses it, soft
 retire otherwise (history must stay readable). A rejected order's badge shows the
 short sub-reason in the rejected red with its GROUP's icon — never the bare word
 "Rejeté", and never a group colour (every other hue is a live status; since 2026-10-02).
-Edited at Système › Paramètres › Motifs de rejet. See docs/rejection-reasons.md.
+Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Agent queue sort order
 1. callback_scheduled where callback_time ≤ now
@@ -204,15 +206,17 @@ Edited at Système › Paramètres › Motifs de rejet. See docs/rejection-reaso
 
 ## Navigation (as coded in components/layout/Sidebar.tsx → NAV_SECTIONS)
 Accueil → Dashboard · Commandes → Commandes, Archivées · Entrepôt (id `logistique`) →
-Banc, Retours, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
+Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
 (canViewFinances) → P&L global, Produits & marges, Stock & inventaire, Dépenses pub,
 Investisseurs · Clients → Prospects, Relances · Équipe → Salle de contrôle, Performance,
-Accès · Système (super_admin only) → Marchés, Connexions, Paramètres, Journaux.
+Accès · Système → Réglages (super_admin + market_manager; one page by topic, see
+docs/reglages.md), Journaux (super_admin, /system/logs).
 
 Several live pages are NOT reachable from the sidebar and are reached by URL or deep
-link only: /warehouse/preparation, /warehouse/scan, /warehouse/dispatch,
+link only: /warehouse/preparation (→ /warehouse/out), /warehouse/scan, /warehouse/count,
+/warehouse/stock/[productId], /warehouse/dispatch,
 /warehouse/history, /warehouse/settings, /dashboard/alerts, /assign, /unassigned,
-/confirmation-flow, /profile, /admin/carrier-events, /admin/webhook-logs. Removing a nav
+/confirmation-flow, /profile, /settings/integrations, /settings/statuses. Removing a nav
 entry has not meant deleting its page — check before assuming a route is dead.
 
 ## Design system
@@ -226,6 +230,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - See docs/design-system.md for full tokens and rules
 
 ## References (load on demand — do NOT @-include these)
+- Réglages + Journaux — the Système area rebuilt 2026-10-02 (topics, who edits what, the
+  save bar, the 24 hidden settings, server pieces): docs/reglages.md + plans/reglages-redesign.md
+- Entrepôt « day loop » — Aujourd'hui (the four jobs: Sortir, Rentrer, Recevoir, Compter),
+  the job hues (green family), the count run, and the first-count pool rule:
+  plans/entrepot-day-loop-redesign.md
 - Full Ordra specification: docs/oms-spec.md (aspirational — where it disagrees with
   docs/database-schema.md, the schema doc is closer, and the live DB is closest)
 - Database schema reference (READ FROM THE LIVE DB, 73 tables): docs/database-schema.md
@@ -264,7 +273,7 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Order presence + the agent lock (who has an order open, the hard block, why the trigger is SECURITY INVOKER): docs/order-presence-and-locking.md + plans/order-presence-and-locking.md
 - Ramassage Darb du jour (« le chauffeur est passé », par site, remise à zéro à minuit sans cron): docs/darb-pickup-switch.md + plans/darb-pickup-day-switch.md
 - Réglages transporteurs, préférences de commande (défaut + verrou par option) et
-  activation des sites d'entrepôt — un seul écran, Système → Connexions → Transporteurs:
+  activation des sites d'entrepôt — Réglages › Livraison (transporteurs) et › Entrepôts (sites):
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
 - Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
   pastille est toujours rouge et porte l'icône du groupe: docs/rejection-reasons.md +
@@ -295,6 +304,8 @@ entry has not meant deleting its page — check before assuming a route is dead.
   sa présence bloquerait le manager), RLS non élargie, variantes arabes + accents pliées
   dans la recherche partagée (migration à appliquer AVANT le déploiement):
   docs/agent-market-search.md + plans/agent-market-search.md
+- Voix du client — feedback by category and moment, the F key, courier/import feeds, the
+  manager page: docs/customer-voice.md + plans/voix-du-client.md
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:

@@ -277,32 +277,51 @@
      ("Réception", "Remise") and every age pill carries its number; the hue
      confirms, it never informs alone.
      ─────────────────────────────────────────────────────────────── */
-  --wh-bg: #F6F7F5;
+  /* 2026-10-02 — the Entrepôt moved onto Ordra's own tokens (plans/
+     entrepot-day-loop-redesign.md). The names stay so the ~200 class usages
+     keep working; the VALUES are now the product's: ground, ink, hairlines and
+     the one brand green. Retiring the names themselves is a later clean-up. */
+  --wh-bg: #F6F6F7;             /* = --bg-page */
   --wh-surface: #FFFFFF;
-  --wh-surface-2: #EFF1ED;      /* hovered row, lifted tile */
-  --wh-sunken: #EFF1ED;         /* table head, group band */
-  --wh-border: #E5E7E2;
-  --wh-border-strong: #CFD3CB;
-  --wh-ink-1: #1B1D1A;
-  --wh-ink-2: #585C54;
-  --wh-ink-3: #8B8F85;
+  --wh-surface-2: #F7F7F7;      /* = --bg-hover */
+  --wh-sunken: #FAFAFB;         /* = --surface-sunken */
+  --wh-border: #E1E3E5;         /* = --border */
+  --wh-border-strong: #C9CCCF;  /* = --border-strong */
+  --wh-ink-1: #1A1A1A;          /* = --text-primary */
+  --wh-ink-2: #6D7175;          /* = --text-secondary */
+  --wh-ink-3: #8C9196;
 
-  /* Functional families: stroke, tint, edge. */
-  --wh-ok: #0E7A45;    --wh-ok-bg: #E7F4ED;   --wh-ok-edge: #BCE0CB;
-  --wh-ok-hover: #0B633A;
-  --wh-ok-tint: #F2FAF5;        /* selected row */
-  --wh-warn: #92600A;  --wh-warn-bg: #FAF0DA; --wh-warn-edge: #E8CFA0;
-  --wh-bad: #B23A2E;   --wh-bad-bg: #FBECE8;  --wh-bad-edge: #EBC3BC;
+  /* Functional families: stroke, tint, edge. `ok` IS the brand green. */
+  --wh-ok: #15803D;    --wh-ok-bg: #E9F6EE;   --wh-ok-edge: #BFE3CB;
+  --wh-ok-hover: #12692F;
+  --wh-ok-tint: #F1FAF4;        /* selected row — = --brand-tint */
+  --wh-warn: #92600A;  --wh-warn-bg: #FFF8E6; --wh-warn-edge: #EED9A8;
+  --wh-bad: #D72C0D;   --wh-bad-bg: #FFF4F4;  --wh-bad-edge: #F5C6BC;
   --wh-scan: #6553C4;  --wh-scan-bg: #F0EDFB; --wh-scan-edge: #D6CDF3;
-  --wh-move: #0C7180;  --wh-move-bg: #E4F1F3; --wh-move-edge: #BBD9DE;
+  --wh-move: #0F766E;  --wh-move-bg: #E3F3F1; --wh-move-edge: #B7DDD8;
 
-  /* Chart marks. Green ΔE 26,7 from violet — the widest pair available. */
-  --wh-series-1: #0E7A45;
+  /* Chart marks. */
+  --wh-series-1: #15803D;
   --wh-series-2: #6553C4;
-  --wh-grid: #E5E7E2;
+  --wh-grid: #E1E3E5;
 
   /* The one glow: primary action and the armed scan field. */
-  --wh-glow: 0 0 0 3px rgba(14,122,69,.16), 0 0 18px rgba(14,122,69,.22);
+  --wh-glow: 0 0 0 3px rgba(21,128,61,.16), 0 0 18px rgba(21,128,61,.20);
+
+  /* ── The four jobs of the warehouse day ───────────────────────────
+     Sortir · Rentrer · Recevoir · Compter, one hue each, drawn from the brand
+     green's family (green, teal, moss) plus one warm counterpoint (gold) so
+     the counting job still reads apart. No blue, no violet: the owner asked
+     for colours that sit with the main green (2026-10-02).
+     Each hue has a fill, a tint and an -ink partner; only the -ink carries
+     text, as the --fin-* rule (§4.21) requires.
+     Used under the warehouse only: step markers, job figures, progress, the
+     active tab plate, product tiles and sparklines of that job's screens.
+     Status colours (refused, late, never counted) stay status colours. */
+  --job-out: #15803D;      --job-out-bg: #E9F6EE;      --job-out-ink: #12692F;
+  --job-returns: #0F766E;  --job-returns-bg: #E3F3F1;  --job-returns-ink: #0B5C56;
+  --job-receive: #4D7C0F;  --job-receive-bg: #EEF5E1;  --job-receive-ink: #3F6212;
+  --job-count: #A16207;    --job-count-bg: #FBF3DC;    --job-count-ink: #854D0E;
 
   /* ── Dispatch flow palette ────────────────────────────────────────
      Scoped to the post-confirm carrier picker, delivery scheduling, and
@@ -432,14 +451,14 @@
 
    Scoped under .wh-mobile so the manager console cannot inherit any of it. */
 .wh-mobile {
-  --wm-accent: #147A47;         /* primary button, active tab, the one hero figure */
-  --wm-accent-deep: #0F6239;    /* pressed */
-  --wm-accent-soft: #E6F2EA;    /* active tab plate, selected chip fill */
+  --wm-accent: #15803D;         /* = --brand: primary button, the scan button */
+  --wm-accent-deep: #12692F;    /* = --brand-hover: pressed */
+  --wm-accent-soft: #E9F6EE;    /* = --brand-bg: selected chip fill */
   --wm-ground: #F6F6F7;         /* the Orders console ground */
   --wm-card: #FFFFFF;
   --wm-card-edge: #E1E3E5;      /* neutral hairline on every card */
   --wm-ink: #1A1A1A;
-  --wm-ink-2: #5C5F62;
+  --wm-ink-2: #6D7175;          /* = --text-secondary */
   --wm-ink-3: #8C9196;
   --wm-track: #ECEDEE;          /* progress groove, toggle track */
   --wm-viewfinder: #353636;     /* scanner surround */
@@ -452,6 +471,13 @@
   font-family: var(--font-sans), var(--font-cairo), var(--font-sans-arabic),
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* A job's hue, inherited by everything inside the element that names it.
+   Tailwind reads it as `bg-job`, `bg-job-bg`, `text-job-ink` (tailwind.config). */
+.job-out     { --job: var(--job-out);     --job-bg: var(--job-out-bg);     --job-ink: var(--job-out-ink); }
+.job-returns { --job: var(--job-returns); --job-bg: var(--job-returns-bg); --job-ink: var(--job-returns-ink); }
+.job-receive { --job: var(--job-receive); --job-bg: var(--job-receive-bg); --job-ink: var(--job-receive-ink); }
+.job-count   { --job: var(--job-count);   --job-bg: var(--job-count-bg);   --job-ink: var(--job-count-ink); }
 
 /* Figures are bold sans here, not mono: IBM Plex Mono reads as the desk
    console. Tabular figures stay on so columns of numbers still line up. */

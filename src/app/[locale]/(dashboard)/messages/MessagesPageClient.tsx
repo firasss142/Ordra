@@ -50,7 +50,7 @@ export function MessagesPageClient({ user, locale }: { user: AuthUser; locale: s
                 {isSuperAdmin && (
                   <>
                     {" "}
-                    <Link href={`/${locale}/system/connections?tab=services`} className="font-semibold underline underline-offset-2">
+                    <Link href={`/${locale}/system/settings/whatsapp`} className="font-semibold underline underline-offset-2">
                       {tCommon("goToConnections")}
                     </Link>
                   </>

@@ -4,6 +4,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canUseDeliveryWorklist } from "@/lib/role-permissions";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import { parseActionBody } from "@/lib/delivery/actions";
+import { isFeedbackCategory, offersFeedback } from "@/lib/feedback/taxonomy";
+import { isUuid } from "@/lib/feedback/api";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
     console.error("[api/delivery/actions] rpc failed", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  // Voix du client — « Pourquoi ? Garder ce que le client a dit » (agent prototype v2, screen
+  // ③). On « Veut annuler » / « Retour confirmé » the action's note is the customer's words;
+  // written after the action and never allowed to fail it.
+  const offer = (body as { feedback?: { category?: unknown; topic_id?: unknown } | null }).feedback;
+  if (offersFeedback(a.outcome) && a.note && offer && isFeedbackCategory(offer.category)) {
+    const { data: feedbackId, error: fbError } = await supabase.rpc("create_customer_feedback", {
+      p_category: offer.category,
+      p_body: a.note,
+      p_topic_id: isUuid(offer.topic_id) ? offer.topic_id : null,
+      p_order_id: params.id,
+      p_source: "delivery",
+    });
+    if (fbError) console.error("[api/delivery/actions] feedback not recorded", fbError);
+    return NextResponse.json(
+      { data: { ...(data as Record<string, unknown>), feedback_id: fbError ? null : feedbackId ?? null } },
+      { status: 201 },
+    );
   }
 
   return NextResponse.json({ data }, { status: 201 });

@@ -5,11 +5,12 @@ import { usePathname } from "next/navigation";
 import { QueuePage } from "@/components/queue/QueuePage";
 import type { AuthUser } from "@/types";
 
-type Tab = "queue" | "leads" | "delivery" | "commissions";
+type Tab = "queue" | "leads" | "delivery" | "commissions" | "feedback";
 
 function resolveActiveTab(pathname: string): Tab {
   if (pathname.includes("/delivery")) return "delivery";
   if (pathname.includes("/commissions")) return "commissions";
+  if (pathname.includes("/feedback")) return "feedback";
   if (pathname.includes("/leads")) return "leads";
   return "queue";
 }
@@ -41,8 +42,8 @@ function AgentTabsContainerInner({
   visitedRef.current.add(active);
   const visited = visitedRef.current;
 
-  // delivery and commissions render via their own pages
-  if (active === "delivery" || active === "commissions") {
+  // delivery, commissions and « Voix du client » render via their own pages
+  if (active === "delivery" || active === "commissions" || active === "feedback") {
     return <main id="main-content">{children}</main>;
   }
 

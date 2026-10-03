@@ -28,6 +28,9 @@ const row = (id: string, countedAgoMs: number | null): WarehouseStockRow =>
     last_counted_at: countedAgoMs === null ? null : new Date(Date.now() - countedAgoMs).toISOString(),
   }) as unknown as WarehouseStockRow;
 
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
 vi.mock("swr", () => ({
   default: () => ({
     data: { rows: [row("a", 2 * H), row("b", 30 * H), row("c", 3 * 24 * H + H)] },

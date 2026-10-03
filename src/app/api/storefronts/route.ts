@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("storefronts")
     .select(
-      "id, market_id, platform, name, config, webhook_secret, is_active, created_at, updated_at, last_webhook_received_at, last_webhook_status, last_webhook_error, webhook_failure_count"
+      "id, market_id, platform, name, config, webhook_secret, is_active, created_at, updated_at, last_webhook_received_at, last_webhook_status, last_webhook_error, webhook_failure_count, auth_mode"
     )
     .eq("market_id", marketId);
 

@@ -208,3 +208,28 @@ describe("delivery worklist permissions", async () => {
     expect(canAccess("warehouse_agent", "/delivery")).toBe(false);
   });
 });
+
+describe("Voix du client", () => {
+  it("agents, managers and super_admin capture feedback; warehouse and investors never", async () => {
+    const { canCaptureFeedback } = await import("@/lib/role-permissions");
+    expect(canCaptureFeedback("agent")).toBe(true);
+    expect(canCaptureFeedback("market_manager")).toBe(true);
+    expect(canCaptureFeedback("super_admin")).toBe(true);
+    expect(canCaptureFeedback("warehouse_agent")).toBe(false);
+    expect(canCaptureFeedback("investor")).toBe(false);
+  });
+  it("only managers and super_admin manage it", async () => {
+    const { canManageFeedback } = await import("@/lib/role-permissions");
+    expect(canManageFeedback("market_manager")).toBe(true);
+    expect(canManageFeedback("super_admin")).toBe(true);
+    expect(canManageFeedback("agent")).toBe(false);
+    expect(canManageFeedback("warehouse_agent")).toBe(false);
+  });
+  it("/feedback is an allowed route for exactly those three roles", () => {
+    expect(canAccess("agent", "/feedback")).toBe(true);
+    expect(canAccess("market_manager", "/feedback")).toBe(true);
+    expect(canAccess("super_admin", "/feedback")).toBe(true);
+    expect(canAccess("warehouse_agent", "/feedback")).toBe(false);
+    expect(canAccess("investor", "/feedback")).toBe(false);
+  });
+});

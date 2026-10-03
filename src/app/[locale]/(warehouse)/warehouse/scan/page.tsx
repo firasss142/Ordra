@@ -30,10 +30,15 @@ export const dynamic = "force-dynamic";
 
 export default async function ScanRunPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ roll?: string }>;
 }) {
   const { locale } = await params;
+  // « Commencer » on a roll in Sortir: open the run on that roll.
+  const { roll } = await searchParams;
+  const initialRoll = roll && /^#[0-9a-f]{6}$/i.test(roll) ? roll.toLowerCase() : null;
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
@@ -93,6 +98,7 @@ export default async function ScanRunPage({
       currency={market === "ly" ? "LYD" : "TND"}
       initialOrders={orders}
       siteName={siteName}
+      initialRoll={initialRoll}
     />
   );
 }

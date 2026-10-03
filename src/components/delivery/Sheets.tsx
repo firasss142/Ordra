@@ -10,6 +10,10 @@ import { suggestedReminder, type Reminder } from "@/lib/delivery/presentation";
 import { buildWaLink, renderTemplate, suggestTemplate, TEMPLATE_KEYS, type CustomerLang, type TemplateKey } from "@/lib/delivery/whatsapp-templates";
 import type { QueuedBody } from "@/hooks/useDeliveryActionQueue";
 import { WhatsAppLiveSheet } from "./WhatsAppLiveSheet";
+import { FeedbackOffer, useFeedbackOffer } from "@/components/feedback/FeedbackOffer";
+import { useFeedbackTopics } from "@/hooks/useFeedback";
+import { offersFeedback } from "@/lib/feedback/taxonomy";
+import { momentOf } from "@/lib/feedback/moment";
 import { WhatsAppIcon } from "./ui";
 
 /** Bottom sheet on mobile, centred dialog on desktop — one frame for both. */
@@ -61,11 +65,24 @@ type Picked = Exclude<AgentActionType, "whatsapp_customer">;
 const PICKED = "border-[#15803D] bg-[#F0FDF4] font-semibold text-[#15803D]";
 const UNPICKED = "border-[#E5E7EB] bg-white text-[#374151]";
 
-export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
+export interface ActionSheetFeedback {
+  /** Capture is available to this role (the provider's `enabled`). */
+  enabled: boolean;
+  /** The parcel's latest Darb remark and its class — the context of « Pourquoi ? ». */
+  remark: string | null;
+  remarkClass: string | null;
+  status: string;
+  marketId: string | null;
+}
+
+export function ActionSheet({ initialType, tz, now, onClose, onSubmit, feedback }: {
   initialType: Picked; tz: string; now: number;
   onClose: () => void; onSubmit: (body: QueuedBody) => void;
+  /** Voix du client: « Veut annuler » / « Retour confirmé » offer to keep why. */
+  feedback?: ActionSheetFeedback;
 }) {
   const t = useTranslations("delivery");
+  const tFeedback = useTranslations("feedback.offer");
   const in2h = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(inTwoHours(now)));
   const [type, setType] = useState<Picked>(initialType);
   const [outcome, setOutcome] = useState<string | null>(null);
@@ -79,7 +96,12 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
     ["note", <NotebookText key="n" size={22} aria-hidden />],
   ];
   const outcomes = type === "note" ? [] : OUTCOMES_BY_ACTION[type];
-  const ready = type === "note" ? note.trim().length > 0 : outcome !== null;
+  const topics = useFeedbackTopics(feedback?.marketId ?? null, Boolean(feedback?.enabled));
+  const offer = useFeedbackOffer({ topics, words: note, remark: feedback?.remark ?? null, remarkClass: feedback?.remarkClass ?? null });
+  const offering = Boolean(feedback?.enabled) && type !== "note" && offersFeedback(outcome);
+  // While the offer is on, the note IS the customer's words — it cannot be empty.
+  const keeping = offering && offer.state.on && offer.state.category !== null;
+  const ready = type === "note" ? note.trim().length > 0 : outcome !== null && (!keeping || note.trim().length > 0);
 
   const submit = () => {
     if (!ready) return;
@@ -90,6 +112,7 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
       note: note.trim() || null,
       next_action_at: next,
       template_key: null,
+      ...(keeping ? { feedback: { category: offer.state.category!, topic_id: offer.state.topicId } } : {}),
     });
   };
 
@@ -121,12 +144,22 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
         </>
       )}
 
-      <Label extra={type === "note" ? undefined : t("sheet.optional")}>{t("sheet.note")}</Label>
+      {offering && feedback && (
+        <div className="-mt-2 mb-[18px]">
+          <FeedbackOffer kind="delivery" offer={offer} topics={topics} remark={feedback.remark}
+            moment={momentOf(feedback.status, true)} status={feedback.status} />
+        </div>
+      )}
+
+      {keeping
+        ? <Label>{tFeedback("wordsLabel")}</Label>
+        : <Label extra={type === "note" ? undefined : t("sheet.optional")}>{t("sheet.note")}</Label>}
       <div className="relative mb-[18px]">
         <input type="text" value={note} maxLength={NOTE_MAX} onChange={(e) => setNote(e.target.value)} placeholder={t("sheet.notePlaceholder")}
           className="h-12 w-full rounded-[10px] border border-[#E5E7EB] bg-[#F9FAFB] px-3.5 text-[15px] outline-none focus:border-[#111111] focus:bg-white" />
         {note.length > 0 && <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs tabular-nums text-[#9CA3AF]">{note.length}/{NOTE_MAX}</span>}
       </div>
+      {keeping && !note.trim() && <p className="-mt-3 mb-[18px] text-[12.5px] text-[#6B7280]">{tFeedback("wordsRequired")}</p>}
 
       <Label>{t("sheet.reminder")}</Label>
       <div className="mb-[18px] grid grid-cols-3 gap-2">

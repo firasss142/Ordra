@@ -146,7 +146,7 @@ colonne de 120 px est pire que le « Rejeté » qu'on remplace.
 - **Commandes (manager)** — `OrderStatusBadge` accepte `rejection={{ icon, text }}`,
   résolu une fois par tableau par `useRejectionBadge` (pas une fois par ligne).
 - **Archive** — la colonne « Motif » montre le sous-motif au lieu du groupe.
-- **Paramètres › Motifs de rejet** — l'aperçu EST `OrderStatusBadge`, pas une copie.
+- **Réglages › Motifs de rejet** (depuis 2026-10-02, `components/reglages/topics/RejectionsTopic.tsx`) — l'aperçu reproduit la pastille rouge avec l'icône du groupe.
 
 `OrderStatusBadge` ignore un `rejection` sur un statut qui n'est pas `rejected` :
 garder la garde sur le statut plutôt que sur la prop évite qu'une charge périmée

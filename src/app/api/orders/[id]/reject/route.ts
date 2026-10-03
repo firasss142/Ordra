@@ -15,6 +15,8 @@ import {
   type ManagerActor,
 } from "@/lib/orders/manager-takeover";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { isFeedbackCategory } from "@/lib/feedback/taxonomy";
+import { isUuid } from "@/lib/feedback/api";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,8 @@ export async function POST(
     rejection_reason: string;
     rejection_subreason?: string | null;
     rejection_note?: string;
+    /** Voix du client: keep the « Autre » note as the customer's words. */
+    feedback?: { category?: unknown; topic_id?: unknown } | null;
   };
   try {
     body = await req.json();
@@ -108,6 +112,33 @@ export async function POST(
     );
   }
 
+  // « Aussi un retour client » (Voix du client, agent prototype v2 screen ④): only on a
+  // note-only group, where the note IS what the customer said. Written after the rejection
+  // and never allowed to undo it — a failed entry costs the insight, not the order.
+  const feedbackOffer =
+    needsNote && body.feedback && isFeedbackCategory(body.feedback.category) ? body.feedback : null;
+  async function recordFeedback(): Promise<string | null> {
+    if (!feedbackOffer) return null;
+    const { data, error } = await supabase.rpc("create_customer_feedback", {
+      p_category: feedbackOffer.category,
+      p_body: (body.rejection_note ?? "").trim(),
+      p_topic_id: isUuid(feedbackOffer.topic_id) ? feedbackOffer.topic_id : null,
+      p_order_id: id,
+      p_source: "rejection",
+    });
+    if (error) {
+      console.error("[api/orders/reject] feedback not recorded", error);
+      return null;
+    }
+    return (data as string | null) ?? null;
+  }
+  const done = async () => {
+    const feedbackId = await recordFeedback();
+    return NextResponse.json({
+      data: feedbackOffer ? { new_status: "rejected", feedback_id: feedbackId } : { new_status: "rejected" },
+    });
+  };
+
   const isManager = role !== "agent";
 
   if (isManager) {
@@ -170,7 +201,7 @@ export async function POST(
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
-    return NextResponse.json({ data: { new_status: "rejected" } });
+    return done();
   }
 
   // Agent path (unchanged)
@@ -212,5 +243,5 @@ export async function POST(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ data: { new_status: "rejected" } });
+  return done();
 }

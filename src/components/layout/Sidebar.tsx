@@ -17,7 +17,6 @@ import {
   FileClock,
   Gauge,
   Home,
-  Key,
   LayoutDashboard,
   LineChart,
   Megaphone,
@@ -27,18 +26,19 @@ import {
   PackageSearch,
   Percent,
   PhoneCall,
-  Plug,
   Send,
   Server,
   Settings,
+  ScrollText,
   ShoppingBag,
-  Store,
+  Sun,
   Target,
   Truck,
   UserPlus,
   Users,
   Warehouse,
   type LucideIcon,
+  MessageSquareQuote,
 } from "lucide-react";
 import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
@@ -154,20 +154,27 @@ const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     /*
-     * Three entries, one per question the warehouse actually asks.
+     * The warehouse day (2026-10-02, plans/entrepot-day-loop-redesign.md).
      *
-     * It was five, plus two pages unreachable from the navigation. "Aujourd'hui"
-     * repeated every figure the other screens showed and its priority actions
-     * were not even clickable; "Préparation" and "Mode scan" were two more
-     * renderings of the same queue and the same scanner; the Journal is the
-     * evidence behind the stock figures, so it sits inside Stock.
+     * Aujourd'hui is the four jobs — Sortir, Rentrer, Recevoir, Compter — each
+     * a link carrying its backlog. It is not the « Aujourd'hui » removed on
+     * 2026-09-08, which repeated other screens' figures and could not be
+     * clicked. Sortir and Rentrer are where the floor works; Recevoir and
+     * Compter live in Stock, which also holds the Journal.
      */
     id: "logistique",
     icon: Warehouse,
     items: [
-      { key: "bench", href: "warehouse", icon: PackageSearch, prefetchRoute: "warehouse" },
-      { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
-      { key: "warehouseStock", href: "warehouse/stock", icon: Boxes, prefetchRoute: "warehouse" },
+      { key: "warehouseToday", href: "warehouse", icon: Sun, prefetchRoute: "warehouse" },
+      { key: "warehouseOut", href: "warehouse/out", icon: PackageSearch, prefetchRoute: "warehouse", activeOn: ["warehouse/scan"] },
+      { key: "warehouseReturns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
+      {
+        key: "warehouseStock",
+        href: "warehouse/stock",
+        icon: Boxes,
+        prefetchRoute: "warehouse",
+        activeOn: ["warehouse/stock", "warehouse/count"],
+      },
     ],
   },
   {
@@ -203,6 +210,8 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Users,
     items: [
       { key: "activeProspects", href: "leads", icon: Target, prefetchRoute: "leads" },
+      // « Voix du client » — complaints, objections, suggestions (plans/voix-du-client.md).
+      { key: "customerVoice", href: "feedback", icon: MessageSquareQuote, prefetchRoute: "feedback" },
       // WhatsApp replies nobody has claimed yet (managers + super_admin).
       // Its Modèles page lives under it and keeps it highlighted.
       { key: "messages", href: "messages", icon: MessageCircle, badgeSource: "whatsapp", activeOn: ["messages/templates"] },
@@ -227,19 +236,15 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "systeme",
     icon: Server,
     admin: true,
-    // Four workspaces, matching the Système redesign. Storefronts, Transporteurs,
-    // Correspondances and Intégrations are no longer separate nav entries — they
-    // are tabs inside Connexions. Their old routes still redirect for bookmarks.
-    //
-    // A market_manager sees Connexions and Paramètres only, to read them
-    // (owner's decision, prototype whatsapp-manager-v1 role=manager): the
-    // pages already render read-only for that role. Marchés and Journaux stay
-    // super_admin only.
+    // Two entries (plans/reglages-redesign.md, 2026-10-02). Réglages is one
+    // page organised by topic — Marchés, Boutiques, Commandes, Motifs de rejet,
+    // Équipe, Entrepôts, Livraison, WhatsApp, Publicité — with its own menu; a
+    // market_manager edits the day-to-day rules of their market there. The old
+    // Marchés / Connexions / Paramètres routes redirect to their topic.
+    // Journaux stays super_admin only.
     items: [
-      { key: "marketsConfig", href: "system/markets", icon: Store, prefetchRoute: "markets", superAdminOnly: true },
-      { key: "connexions", href: "system/connections", icon: Plug, prefetchRoute: "settings" },
-      { key: "generalSettings", href: "system/settings", icon: Settings, prefetchRoute: "settings" },
-      { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin", superAdminOnly: true },
+      { key: "reglages", href: "system/settings", icon: Settings, prefetchRoute: "settings", activeOn: ["system/settings"] },
+      { key: "logs", href: "system/logs", icon: ScrollText, prefetchRoute: "admin", superAdminOnly: true },
     ],
   },
 ];
@@ -328,7 +333,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
   const activePath = currentPath ?? pathname ?? "";
   const activeSearch = searchString ? `?${searchString}` : "";
   const t = useTranslations("nav");
-  const tWa = useTranslations("whatsappAdmin.common");
   const [menuOpen, setMenuOpen] = useState(false);
   const [userHovered, setUserHovered] = useState(false);
   const [logoutHovered, setLogoutHovered] = useState(false);
@@ -570,7 +574,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
             sectionUnassignedBadge > 0 ? sectionUnassignedBadge : sectionWhatsAppBadge > 0 ? sectionWhatsAppBadge : undefined;
           const sectionBadgeTone: BadgeTone =
             sectionUnassignedBadge > 0 ? "warning" : sectionWhatsAppBadge > 0 ? "success" : "neutral";
-          const readOnlyNote = section.admin && user.role !== "super_admin";
 
           return (
             <div key={section.id}>
@@ -646,23 +649,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                       </li>
                     );
                   })}
-                  {readOnlyNote && (
-                    <li>
-                      <p
-                        style={{
-                          margin: "6px 4px 0",
-                          padding: "8px 10px",
-                          borderRadius: "8px",
-                          backgroundColor: "var(--sidebar-bg-elevated)",
-                          color: "var(--sidebar-text-secondary)",
-                          fontSize: "12px",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {tWa("readOnly")}
-                      </p>
-                    </li>
-                  )}
                 </ul>
               )}
             </div>

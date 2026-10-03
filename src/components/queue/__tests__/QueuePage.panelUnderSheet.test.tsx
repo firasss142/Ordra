@@ -216,3 +216,29 @@ describe("QueuePage — the order stays open under the call sheet", () => {
     await waitFor(() => expect(panel.orderId).toBeNull());
   });
 });
+
+// Voix du client — the capture window owns its keys; the queue's Enter must not end a call
+// underneath it.
+const capture = vi.hoisted(() => ({ open: false }));
+vi.mock("@/components/feedback/FeedbackCaptureProvider", () => ({
+  useFeedbackCapture: () => ({ enabled: true, captureOpen: capture.open, openCapture: () => {}, register: () => () => {} }),
+}));
+vi.mock("@/hooks/useFeedback", () => ({ useOpenComplaints: () => ({}) }));
+
+describe("QueuePage — stands down under the capture window", () => {
+  test("Enter on the focused row does nothing while the window is open", async () => {
+    capture.open = true;
+    render(<QueuePage />);
+    await screen.findByText("Cust A");
+    await act(async () => { fireEvent.keyDown(document.body, { key: "Enter" }); });
+    expect(screen.queryByTestId("sheet")).toBeNull();
+  });
+
+  test("and ends the call as usual once it is closed", async () => {
+    capture.open = false;
+    render(<QueuePage />);
+    await screen.findByText("Cust A");
+    await act(async () => { fireEvent.keyDown(document.body, { key: "Enter" }); });
+    expect(await screen.findByTestId("sheet")).toBeInTheDocument();
+  });
+});

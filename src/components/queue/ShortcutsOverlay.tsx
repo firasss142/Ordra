@@ -10,6 +10,7 @@ interface ShortcutsOverlayProps {
 
 export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
   const t = useTranslations("queue.shortcuts");
+  const tFeedback = useTranslations("feedback");
 
   useEffect(() => {
     if (!open) return;
@@ -30,6 +31,7 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
     { keys: "3", label: t("outcomeRejected") },
     { keys: "4", label: t("outcomeCallback") },
     { keys: "p", label: t("productSheet") },
+    { keys: "F", label: tFeedback("title") },
     { keys: "Esc", label: t("cancel") },
     { keys: "?", label: t("help") },
   ];

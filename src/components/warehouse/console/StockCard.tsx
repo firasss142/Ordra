@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Package } from "lucide-react";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
@@ -234,13 +235,23 @@ export function StockCard({
             )}
           </ul>
 
-          <button
-            type="button"
-            onClick={() => onCount(row)}
-            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded-[12px] border border-wm-accent bg-wm-card px-4 text-[15px] font-bold text-wm-accent active:bg-wm-accent-soft"
-          >
-            {t("count")}
-          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {/* The whole history and the per-building view live on the
+                product's page; the card shows the last five only. */}
+            <Link
+              href={`/${locale}/warehouse/stock/${row.product_id}`}
+              className="inline-flex min-h-[48px] items-center justify-center rounded-[12px] border border-wm-card-edge bg-wm-card px-3 text-[14px] font-semibold text-wm-ink no-underline"
+            >
+              {t("openProduct")}
+            </Link>
+            <button
+              type="button"
+              onClick={() => onCount(row)}
+              className="inline-flex min-h-[48px] items-center justify-center rounded-[12px] border border-wm-accent bg-wm-card px-3 text-[15px] font-bold text-wm-accent active:bg-wm-accent-soft"
+            >
+              {t("count")}
+            </button>
+          </div>
         </div>
       ) : null}
     </article>

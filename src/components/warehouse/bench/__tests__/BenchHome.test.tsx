@@ -29,6 +29,12 @@ vi.mock("swr", () => ({
   }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>{children}</a>
+  ),
+}));
+
 vi.mock("@/components/warehouse/QrScanner", () => ({
   QrScanner: ({ onScan }: { onScan: (v: string) => void }) => (
     <button type="button" data-testid="qr-scanner" onClick={() => onScan("7700001")} />
@@ -63,6 +69,27 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("BenchHome — what waits, by roll", () => {
+  it("is « Sortir », the first job of the day", () => {
+    renderHome();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("إخراج");
+  });
+
+  it("starts the run on a roll from that roll's header", () => {
+    // The agent picks the roll in their hand once, then works it parcel by
+    // parcel; asking them to choose it again inside the run was repetition.
+    renderHome();
+    const [red] = screen.getAllByTestId("wh-bench-group");
+    expect(within(red).getByRole("link", { name: "ابدأ" })).toHaveAttribute(
+      "href",
+      "/ar/warehouse/scan?roll=%23d80a0a",
+    );
+  });
+
+  it("wears the Sortir hue", () => {
+    const { container } = renderHome();
+    expect(container.querySelector(".job-out")).not.toBeNull();
+  });
+
   it("leads with the count and the oldest age, not a goal", () => {
     renderHome();
     const hero = screen.getByTestId("wh-bench-hero");

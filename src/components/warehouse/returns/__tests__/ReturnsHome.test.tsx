@@ -127,15 +127,16 @@ describe("ReturnsHome — scan, then decide", () => {
     expect(mutate).toHaveBeenCalled();
   });
 
-  it("redeliver goes through the received endpoint and touches no stock", async () => {
-    const f = respond({ outcome: "found", code: "7700888", order: older });
+  it("offers the agent two verdicts — intact or damaged — and leaves redelivery to the manager", async () => {
+    // Scan, one tap. Sending a parcel back out to the customer is a commercial
+    // decision, taken on the manager's desk (ReturnsConsole keeps it).
+    respond({ outcome: "found", code: "7700888", order: older });
     render(<ReturnsHome marketId="m-ly" />);
     scan("7700888");
     const sheet = await screen.findByRole("dialog");
-    fireEvent.click(within(sheet).getByRole("button", { name: /Rélivrer/ }));
-    f.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true }) });
-    fireEvent.click(within(sheet).getByRole("button", { name: "Valider la décision" }));
-    await waitFor(() => expect(f.mock.calls.some((c) => String(c[0]).includes("scan-received"))).toBe(true));
+    expect(within(sheet).getByRole("button", { name: /Remettre en stock/ })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: /Endommagé/ })).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: /Rélivrer/ })).toBeNull();
   });
 
   it("refuses a parcel the carrier has not reported, and says so with the rule", async () => {

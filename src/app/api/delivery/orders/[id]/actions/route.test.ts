@@ -94,3 +94,50 @@ describe("POST /api/delivery/orders/[id]/actions", () => {
     expect((await post(body)).status).toBe(500);
   });
 });
+
+// Voix du client: « Veut annuler » / « Retour confirmé » offer to keep why (agent prototype v2,
+// screen ③). The action is the record; the entry rides along and never blocks it.
+describe("POST /api/delivery/orders/[id]/actions — the « Pourquoi ? » rider", () => {
+  const TOPIC = "33333333-3333-4333-8333-333333333333";
+  beforeEach(() => {
+    mockRpc.mockImplementation(async (name: string) =>
+      name === "create_customer_feedback"
+        ? { data: "fb1", error: null }
+        : { data: { id: "act1", outcome: "reached_wants_cancel" }, error: null });
+  });
+
+  test("wants to cancel + feedback → the note becomes a delivery-sourced entry, after the action", async () => {
+    as("a1", "agent", LY);
+    const res = await post({
+      action_type: "call_customer", outcome: "reached_wants_cancel", note: "قال توا معنديش فلوس",
+      feedback: { category: "objection", topic_id: TOPIC },
+    });
+    expect(res.status).toBe(201);
+    expect((await res.json()).data).toMatchObject({ id: "act1", feedback_id: "fb1" });
+    expect(mockRpc.mock.calls.map((c) => c[0])).toEqual(["record_delivery_action", "create_customer_feedback"]);
+    expect(mockRpc).toHaveBeenLastCalledWith("create_customer_feedback", {
+      p_category: "objection", p_body: "قال توا معنديش فلوس", p_topic_id: TOPIC, p_order_id: ORDER, p_source: "delivery",
+    });
+  });
+
+  test("a return confirmed by the courier qualifies too", async () => {
+    as("a1", "agent", LY);
+    await post({ action_type: "call_courier", outcome: "return_confirmed", note: "مش نفس لي في نت", feedback: { category: "reclamation", topic_id: null } });
+    expect(mockRpc.mock.calls.map((c) => c[0])).toContain("create_customer_feedback");
+  });
+
+  test("any other outcome, no words, or a failed entry: the action stands alone", async () => {
+    as("a1", "agent", LY);
+    await post({ action_type: "call_customer", outcome: "reached_will_receive", note: "x", feedback: { category: "objection" } });
+    await post({ action_type: "call_customer", outcome: "reached_wants_cancel", feedback: { category: "objection" } });
+    expect(mockRpc.mock.calls.map((c) => c[0])).not.toContain("create_customer_feedback");
+
+    mockRpc.mockImplementation(async (name: string) =>
+      name === "create_customer_feedback"
+        ? { data: null, error: { code: "22023", message: "invalid_topic" } }
+        : { data: { id: "act1" }, error: null });
+    const res = await post({ action_type: "call_customer", outcome: "reached_wants_cancel", note: "غالي", feedback: { category: "objection", topic_id: TOPIC } });
+    expect(res.status).toBe(201);
+    expect((await res.json()).data).toMatchObject({ id: "act1", feedback_id: null });
+  });
+});

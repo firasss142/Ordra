@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AlertsPanelProvider } from "@/context/alerts-panel";
+import { FeedbackCaptureProvider } from "@/components/feedback/FeedbackCaptureProvider";
 import type { AuthUser } from "@/types";
 
 interface Props {
@@ -22,6 +23,7 @@ export function DashboardChrome({ user, children, currentPath }: Props) {
 
   return (
     <AlertsPanelProvider user={user}>
+    <FeedbackCaptureProvider role={user.role}>
     <div
       style={{
         display: "flex",
@@ -71,6 +73,7 @@ export function DashboardChrome({ user, children, currentPath }: Props) {
         {children}
       </main>
     </div>
+    </FeedbackCaptureProvider>
     </AlertsPanelProvider>
   );
 }

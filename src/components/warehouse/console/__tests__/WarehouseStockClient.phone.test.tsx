@@ -25,6 +25,9 @@ const row = (id: string, name: string, stock: number, free: number): WarehouseSt
     incoming: null,
 });
 
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
 vi.mock("swr", () => ({
   default: () => ({
     data: { rows: [row("a", "القرآن تدبر وعمل", 1000, 924), row("b", "دمية صغيرة", 12, -2)] },
@@ -75,5 +78,45 @@ describe("WarehouseStockClient — phone", () => {
   it("says once, above the list, that nothing was ever counted", () => {
     render(<WarehouseStockClient locale="fr" />);
     expect(screen.getByTestId("wh-stock-never-counted")).toBeInTheDocument();
+  });
+
+  it("turns that statement into the way out: the count run", () => {
+    // 0 stock_count rows in prod on 2026-10-02. Saying it is not enough; the
+    // screen offers the gesture that fixes it.
+    render(<WarehouseStockClient locale="fr" />);
+    const banner = screen.getByTestId("wh-stock-never-counted");
+    expect(banner).toHaveTextContent("Aucun produit n'a encore été compté.");
+    expect(screen.getByRole("link", { name: /Commencer le comptage/ })).toHaveAttribute("href", "/fr/warehouse/count");
+  });
+});
+
+describe("WarehouseStockClient — links", () => {
+  it("counts through the count run, the one way to count", () => {
+    // The old dialog compared a building's count with the MARKET total — a
+    // false gap in Libya, where two buildings share one total.
+    render(<WarehouseStockClient locale="fr" />);
+    const [first] = screen.getAllByRole("link", { name: "Compter" });
+    expect(first).toHaveAttribute("href", "/fr/warehouse/count?product=a");
+  });
+
+  it("opens the count run from a phone card too", () => {
+    render(<WarehouseStockClient locale="fr" />);
+    fireEvent.click(screen.getAllByTestId("wh-stock-card")[0].querySelector("button")!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Compter" })[0]);
+    expect(push).toHaveBeenCalledWith("/fr/warehouse/count?product=a");
+  });
+
+  it("opens a product's own page from its name", () => {
+    render(<WarehouseStockClient locale="fr" />);
+    const links = screen.getAllByRole("link", { name: "القرآن تدبر وعمل" });
+    expect(links[0]).toHaveAttribute("href", "/fr/warehouse/stock/a");
+  });
+
+  it("sends « Mouvements » to the Journal filtered on the product, not to a redirect", () => {
+    // It pointed at /warehouse/history?product_id=…, which redirected to Stock,
+    // dropped the product and landed on the levels tab.
+    render(<WarehouseStockClient locale="fr" />);
+    const [first] = screen.getAllByRole("link", { name: /Mouvements/ });
+    expect(first).toHaveAttribute("href", "/fr/warehouse/stock?tab=journal&product=a");
   });
 });

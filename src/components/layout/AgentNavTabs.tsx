@@ -10,6 +10,7 @@ import {
   Users,
   Truck,
   Coins,
+  MessageSquareQuote,
   type LucideIcon,
 } from "lucide-react";
 import { fetcher } from "@/lib/swr-config";
@@ -91,6 +92,7 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
   const pathname = usePathname();
   const tNav = useTranslations("nav");
   const tCrm = useTranslations("crm");
+  const tFeedback = useTranslations("feedback");
 
   // Parcels that need the agent now. Same key as the Livraison page, so the
   // badge and the page share one request; the global SWR fetcher resolves it.
@@ -126,6 +128,13 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
       label: tNav("myCommissions"),
       icon: Coins,
       prefetchKey: "/api/agent/commissions?days=60",
+    },
+    {
+      // « Voix du client » — « Mes retours » (prototype voix-du-client-agent-v2, screen « mine »).
+      href: `/${user.locale}/feedback`,
+      label: tFeedback("title"),
+      icon: MessageSquareQuote,
+      prefetchKey: "/api/feedback/mine",
     },
   ];
 

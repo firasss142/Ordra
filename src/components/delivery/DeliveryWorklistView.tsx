@@ -13,6 +13,7 @@ import type { PendingAction, QueuedBody } from "@/hooks/useDeliveryActionQueue";
 import { DeliveryRow } from "./DeliveryRow";
 import { DeliveryDetailPanel, DeliveryDetailScreen } from "./DeliveryDetail";
 import { ActionSheet, WhatsAppSheet } from "./Sheets";
+import { useRegisterFeedbackContext } from "@/components/feedback/FeedbackCaptureProvider";
 import { Money, OUTLINE_BTN, TONE } from "./ui";
 
 export interface DeliveryWorklistViewProps {
@@ -81,6 +82,8 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  // Voix du client: the selected parcel is the F key's context.
+  const feedbackCapture = useRegisterFeedbackContext(selectedId);
   const [showStalled, setShowStalled] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
@@ -324,6 +327,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
 
       {sheet?.kind === "action" && sheetRow && (
         <ActionSheet key={sheet.orderId} initialType={sheet.type} tz={tz} now={now}
+          feedback={{ enabled: feedbackCapture.enabled, remark: sheetRow.latest_remark, remarkClass: sheetRow.remark_class, status: sheetRow.status, marketId: marketId }}
           onClose={() => setSheet(null)}
           onSubmit={(body) => { onQueue(sheetRow, body); setSheet(null); }} />
       )}

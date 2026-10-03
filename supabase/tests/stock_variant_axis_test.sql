@@ -505,8 +505,15 @@ BEGIN
 
   -- Un comptage POSE une valeur, il ne se propage pas : le trigger de
   -- ventilation s'arrête sur 'stock_count'. C'est la RPC qui reporte l'écart.
-  PERFORM pg_temp.eq((SELECT current_stock FROM product_variants WHERE id = v_vp), 40 + 12,
-    'l''écart du comptage se reporte sur la variante, une seule fois');
+  --
+  -- CHANGÉ LE 2026-10-02 (20261002190000_record_stock_count_draws_from_pool).
+  -- Ce test attendait 40 + 12 = 52 : le bâtiment jamais compté était lu comme
+  -- tenant zéro, et ses 12 s'AJOUTAIENT aux 40 de la variante. C'était le bug
+  -- qui doublait le stock au premier comptage. La Tunisie n'a qu'un bâtiment :
+  -- le compter, c'est compter le marché — Petit vaut ce qu'on a compté.
+  -- Les cas à deux bâtiments sont dans stock_count_pool_test.sql.
+  PERFORM pg_temp.eq((SELECT current_stock FROM product_variants WHERE id = v_vp), 12,
+    'un marché à un bâtiment : la variante vaut le comptage du bâtiment');
 END
 $t9$;
 

@@ -3,9 +3,9 @@ import type { Role } from "@/types";
 // Route allow-list per role. Every role must appear here — a role missing from
 // the map is treated as "no access" rather than crashing (see canAccess).
 const PERMISSIONS: Record<Role, string[]> = {
-  super_admin: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/queue", "/leads", "/warehouse", "/delivery"],
-  market_manager: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/leads", "/warehouse", "/delivery"],
-  agent: ["/queue", "/leads", "/delivery"],
+  super_admin: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/queue", "/leads", "/warehouse", "/delivery", "/feedback"],
+  market_manager: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/leads", "/warehouse", "/delivery", "/feedback"],
+  agent: ["/queue", "/leads", "/delivery", "/feedback"],
   warehouse_agent: ["/warehouse"],
   // Investors are external. Exactly one route, and no staff surface at all.
   investor: ["/investor"],
@@ -72,4 +72,17 @@ export function canUseProspectConsole(role: Role): boolean {
 /** The read-only "Mes commissions" tab. */
 export function canViewOwnCommissions(role: Role): boolean {
   return role === "agent";
+}
+
+/**
+ * « Voix du client » — capture what a customer said (the F key) and read the market's
+ * feedback. Warehouse agents and investors never see it. See plans/voix-du-client.md.
+ */
+export function canCaptureFeedback(role: Role): boolean {
+  return role === "agent" || role === "market_manager" || role === "super_admin";
+}
+
+/** The manager page: validate suggestions, move complaints, read the numbers. */
+export function canManageFeedback(role: Role): boolean {
+  return role === "market_manager" || role === "super_admin";
 }
