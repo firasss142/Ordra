@@ -21,6 +21,7 @@ import {
   LineChart,
   Megaphone,
   HandCoins,
+  ReceiptText,
   PackageCheck,
   PackageOpen,
   PackageSearch,
@@ -201,6 +202,9 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { key: "pnl", href: "dashboard/pnl", icon: DollarSign, prefetchRoute: "dashboard" },
       { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
       { key: "stockInventory", href: "dashboard/stock", icon: Boxes, prefetchRoute: "dashboard" },
+      // Achats — ce qu'on doit aux fournisseurs et à qui on peut se fier.
+      // Juste après le stock : c'est l'autre bout du même mouvement.
+      { key: "purchases", href: "finance/purchases", icon: ReceiptText },
       { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
       { key: "investors", href: "finance/investors", icon: HandCoins },
     ],

@@ -7,7 +7,13 @@ import { X, Plus, Trash2 } from "lucide-react";
 import type { Role } from "@/types";
 import { canSeeReceptionCosts } from "@/lib/receptions/permissions";
 import { WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
-import { ProductSearchPanel, MIN_QUERY, type SearchableProduct } from "./ProductSearchPanel";
+import {
+  ProductSearchPanel,
+  MIN_QUERY,
+  entryKey,
+  type SearchableProduct,
+  type ProductVariant,
+} from "./ProductSearchPanel";
 
 /**
  * Créer une réception.
@@ -25,6 +31,9 @@ import { ProductSearchPanel, MIN_QUERY, type SearchableProduct } from "./Product
 interface Draft {
   key: string;
   product_id: string;
+  /** `null` pour un produit sans taille — c'est le stock « non ventilé ». */
+  variant_id: string | null;
+  variant_label: string | null;
   product_name: string;
   product_sku: string | null;
   product_image_url: string | null;
@@ -123,18 +132,27 @@ export function ReceptionCreateDialog({
     { keepPreviousData: true },
   );
 
-  const chosen = useMemo(() => new Set(lines.map((l) => l.product_id)), [lines]);
+  // La clé est (produit, variante) : deux tailles du même produit sont deux
+  // lignes légitimes — c'est exactement l'index unique de `reception_lines`.
+  const chosen = useMemo(
+    () => new Set(lines.map((l) => entryKey(l.product_id, l.variant_id))),
+    [lines],
+  );
 
-  function addLine(p: ProductRow) {
+  function addLine(p: ProductRow, v: ProductVariant | null) {
     setLines((prev) => [
       ...prev,
       {
-        key: `${p.id}-${Date.now()}`,
+        key: `${entryKey(p.id, v?.id ?? null)}-${Date.now()}`,
         product_id: p.id,
+        variant_id: v?.id ?? null,
+        variant_label: v?.label ?? null,
         product_name: p.name,
         product_sku: p.sku ?? null,
         product_image_url: p.image_url ?? null,
-        product_stock: p.current_stock,
+        // Sur une taille, c'est le stock de CETTE taille qui dit s'il en manque,
+        // jamais le total du produit.
+        product_stock: v ? (v.current_stock ?? 0) : p.current_stock,
         expected_qty: "",
         unit_cost: "",
       },
@@ -168,6 +186,7 @@ export function ReceptionCreateDialog({
               const cost = Number.parseFloat(l.unit_cost.replace(",", "."));
               return {
                 product_id: l.product_id,
+                variant_id: l.variant_id,
                 // Rien de saisi reste NULL — « non annoncé », pas zéro.
                 expected_qty: Number.isInteger(qty) && qty >= 0 ? qty : null,
                 unit_cost: withCosts && Number.isFinite(cost) && cost >= 0 ? cost : null,
@@ -280,6 +299,11 @@ export function ReceptionCreateDialog({
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-medium" dir="auto">
                     {l.product_name}
+                    {l.variant_label ? (
+                      <span className="ms-1.5 rounded-[4px] border border-wh-border bg-wh-sunken px-1.5 py-px text-[10.5px] font-semibold text-wh-ink-2">
+                        {l.variant_label}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="mt-0.5 block truncate font-mono text-[11px] text-wh-ink-3">
                     {l.product_sku ? `${l.product_sku} · ` : ""}

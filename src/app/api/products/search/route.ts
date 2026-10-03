@@ -32,7 +32,12 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("products")
     .select(
-      "id, market_id, name, sku, default_price, current_stock, is_active, image_url, product_variants(id, label, is_active)",
+      // `kind` sépare la TAILLE (qui porte le stock) du PALIER (un conditionnement
+      // de vente, pas un objet sur une étagère), et `current_stock` donne à chaque
+      // taille le chiffre qui dit s'il en manque. Les deux colonnes sont accordées
+      // à `authenticated` en production — vérifié avant de les demander, parce que
+      // les privilèges de `product_variants` sont colonne par colonne.
+      "id, market_id, name, sku, default_price, current_stock, is_active, image_url, product_variants(id, label, kind, current_stock, is_active)",
     )
     .eq("market_id", marketId)
     .eq("is_active", true)
