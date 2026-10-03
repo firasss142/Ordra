@@ -287,7 +287,7 @@ export async function middleware(request: NextRequest) {
   // Investors are external users, so they get a deny-by-default containment
   // rule rather than being added to the opt-in `knownRoutes` list below.
   //
-  // That list omits /dashboard, /in-delivery, /mappings, /finance,
+  // That list omits /dashboard, /mappings, /finance,
   // /admin, /confirmation-flow and /markets, and those pages guard with DENIAL
   // lists naming agent/warehouse_agent explicitly. A fifth role would fall
   // straight through into manager pages. Checking an allow-list here closes

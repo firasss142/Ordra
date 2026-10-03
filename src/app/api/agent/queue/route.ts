@@ -8,6 +8,7 @@ import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 import { QUEUE_ROW_SELECT } from "@/lib/agent-queue/row-fields";
 import { bucketFor } from "@/lib/carriers/buckets";
+import { isMultiAccountCarrier } from "@/lib/carriers/carrier-account-mark";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
@@ -190,7 +191,13 @@ async function handleGET(_req: NextRequest) {
   // Flatten the joined product image + carrier onto each row, so the queue card
   // can show a product thumbnail and the carrier's brand logo. Mirrors
   // /api/orders/list.
-  type CarrierJoin = { code: string | null; name: string | null };
+  type WarehouseJoin = { name_fr: string | null; name_ar: string | null };
+  type CarrierJoin = {
+    code: string | null;
+    name: string | null;
+    accent_color?: string | null;
+    warehouse?: WarehouseJoin | WarehouseJoin[] | null;
+  };
   type ProductJoin = { image_url: string | null; name?: string | null };
   type RawRow = Record<string, unknown> & {
     id: string;
@@ -213,6 +220,8 @@ async function handleGET(_req: NextRequest) {
     product_display_name: string;
     carrier_code: string | null;
     carrier_name: string | null;
+    carrier_accent_color: string | null;
+    carrier_account_label: { fr: string; ar: string | null } | null;
   };
   // Only the embeds need stripping now — raw_payload and the ~21 other unread
   // columns are simply never selected (QUEUE_ROW_SELECT).
@@ -228,6 +237,13 @@ async function handleGET(_req: NextRequest) {
         }),
         carrier_code: c?.code ?? null,
         carrier_name: c?.name ?? null,
+        carrier_accent_color: c?.accent_color ?? null,
+        // The city names the ACCOUNT only when one carrier runs several (Darb
+        // Tripoli / Benghazi share one logo); for any other carrier it is noise.
+        carrier_account_label: (() => {
+          const w = unwrapEmbed(c?.warehouse);
+          return isMultiAccountCarrier(c?.code) && w?.name_fr ? { fr: w.name_fr, ar: w.name_ar ?? null } : null;
+        })(),
       } as FlatRow;
     });
 

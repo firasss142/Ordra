@@ -80,10 +80,8 @@ it falls back to the default market — a cross-market roster is deliberately no
 because an agent belongs to one market and a merged list would imply otherwise.
 `get_team_live` and `AgentDrawer` survive only for Performance équipe below.
 
-> A different "control room" exists for the Darb carrier
-> (`/api/darb/control-room`, `components/in-delivery/DarbControlRoom.tsx`). Unrelated
-> surface, same word. `plans/suivi-livraison.md` decision 10 folds it into the future
-> manager delivery page — unstarted.
+> The Darb "control room" that lived on Tableau livraison was deleted with that page
+> (2026-10-03); Darb sync freshness now shows in the Transporteurs header.
 
 ### Performance équipe — `(dashboard)/team/performance`
 

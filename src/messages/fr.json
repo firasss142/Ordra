@@ -127,8 +127,6 @@
       "warehouseOut": "Sortir",
       "warehouseReturns": "Rentrer",
       "warehouseStock": "Stock",
-      "carrierTracking": "Suivi transporteur",
-      "inDeliveryBoard": "Tableau livraison",
       "pnl": "P&L global",
       "productsMargins": "Produits & marges",
       "stockInventory": "Stock & inventaire",
@@ -143,7 +141,8 @@
       "deliveryWorklist": "Suivi livraison",
       "messages": "Messages",
       "customerVoice": "Voix du client",
-      "reglages": "Réglages"
+      "reglages": "Réglages",
+      "carriers": "Transporteurs"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -165,155 +164,6 @@
     },
     "myCommissions": "Mes commissions",
     "delivery": "Livraison"
-  },
-  "carrierTracking": {
-    "title": "Suivi transporteur",
-    "subtitle": "Commandes en livraison, agrégées par transporteur.",
-    "loading": "Chargement du suivi…",
-    "loadError": "Impossible de charger le suivi transporteur.",
-    "noCarriers": "Aucun transporteur actif pour ce marché.",
-    "unnamedCarrier": "Transporteur sans nom",
-    "unknownCustomer": "Client inconnu",
-    "unassignedWarning": "{count, plural, one {# commande dispatchée sans transporteur assigné} other {# commandes dispatchées sans transporteur assigné}}",
-    "inFlight": "{count, plural, one {# commande en circulation} other {# commandes en circulation}}",
-    "stuck": "{count, plural, one {# bloquée} other {# bloquées}}",
-    "status": {
-      "dispatched": "Dispatché",
-      "deposit": "Dépôt",
-      "in_transit": "En transit",
-      "to_be_returned": "À retourner"
-    },
-    "story": "{inFlight} en circulation · médiane {median} j · {rate}% livrés 30 j",
-    "trends": {
-      "degrading": "Dégradation",
-      "degradationTitle": "Performance transporteur en baisse",
-      "degradationBody": "Taux de livraison en recul sur 30 j pour : {names}. Envisager d'ajuster la répartition."
-    },
-    "rates": {
-      "title": "Taux de livraison (livrés / livrés + retournés)",
-      "d7": "7 jours",
-      "d30": "30 jours",
-      "d90": "90 jours"
-    },
-    "cost": {
-      "title": "Coût transport (30 j)",
-      "periodSpend": "Coût total 30 j",
-      "perDelivered": "Coût par livrée",
-      "delivered": "Livrées 30 j"
-    },
-    "stuckOrders": {
-      "title": "Commandes bloquées",
-      "empty": "Aucune commande bloquée chez ce transporteur.",
-      "cols": {
-        "customer": "Client",
-        "city": "Ville",
-        "status": "Statut",
-        "lastUpdate": "Dernière MAJ",
-        "age": "Âge"
-      },
-      "ageHours": "{hours}h"
-    },
-    "transitions": {
-      "title": "Transitions récentes",
-      "empty": "Aucune transition récente."
-    }
-  },
-  "inDelivery": {
-    "title": "Tableau de bord livraison",
-    "subtitle": "Visibilité sur les commandes en circulation, performances des transporteurs et commandes bloquées.",
-    "loadError": "Impossible de charger le tableau de livraison.",
-    "unassignedWarning": "{count, plural, one {# commande expédiée sans transporteur assigné} other {# commandes expédiées sans transporteur assigné}}",
-    "carriers": {
-      "sectionTitle": "Performance transporteurs",
-      "sectionSubtitle": "Agrégats 30 jours par transporteur actif.",
-      "empty": "Aucun transporteur actif.",
-      "unnamed": "Transporteur sans nom",
-      "inFlight": "{count, plural, one {# en circulation} other {# en circulation}}",
-      "medianTransit": "Transit médian",
-      "deliveryRate30d": "Livraison 30j",
-      "returnRate30d": "Retour 30j",
-      "daysValue": "{d} j",
-      "status": {
-        "dispatched": "Dispatché",
-        "deposit": "Dépôt",
-        "in_transit": "Transit",
-        "to_be_returned": "Retour"
-      },
-      "manualStatusNote": "Statut mis à jour manuellement — Dexpress n'expose pas de suivi automatique."
-    },
-    "stuck": {
-      "sectionTitle": "Alertes bloquées",
-      "sectionSubtitle": "Commandes sans mise à jour depuis plus de 3 jours — à relancer auprès du transporteur.",
-      "empty": "Aucune commande bloquée.",
-      "anonymous": "Client sans nom",
-      "escalate": "Escalader",
-      "escalated": "Escaladée",
-      "ageValue": "{d} j",
-      "col": {
-        "customer": "Client",
-        "city": "Ville",
-        "carrier": "Transporteur",
-        "status": "Statut",
-        "age": "Âge",
-        "action": "Action"
-      }
-    },
-    "inFlight": {
-      "sectionTitle": "Commandes en circulation",
-      "sectionSubtitle": "100 plus récentes — cliquer pour voir le parcours.",
-      "empty": "Aucune commande en circulation.",
-      "expand": "Afficher le parcours",
-      "collapse": "Masquer le parcours",
-      "escalatedTitle": "Escaladée auprès du transporteur",
-      "timelineLoading": "Chargement du parcours…",
-      "timelineError": "Impossible de charger le parcours.",
-      "justNow": "à l'instant",
-      "hoursAgo": "il y a {h} h",
-      "daysAgo": "il y a {d} j",
-      "col": {
-        "customer": "Client",
-        "city": "Ville",
-        "carrier": "Transporteur",
-        "status": "Statut",
-        "updated": "Dernière MAJ"
-      }
-    },
-    "timeline": {
-      "label": "Parcours de la commande",
-      "pending": "À venir",
-      "under1h": "< 1 h",
-      "hours": "{h} h",
-      "days": "{d} j"
-    },
-    "escalate": {
-      "title": "Escalader auprès du transporteur",
-      "subtitle": "Commande {name} — ajouter une note pour suivi manuel.",
-      "noteLabel": "Note de suivi",
-      "notePlaceholder": "ex. Appelé le transporteur, promesse de livraison sous 48 h.",
-      "cancel": "Annuler",
-      "submit": "Escalader",
-      "submitting": "Envoi…",
-      "genericError": "Impossible d'enregistrer l'escalade."
-    },
-    "detail": {
-      "back": "Retour au tableau livraison",
-      "loading": "Chargement…",
-      "loadError": "Impossible de charger cette commande.",
-      "anonymous": "Client sans nom",
-      "status": "Statut",
-      "carrier": "Transporteur",
-      "noCarrier": "Aucun transporteur",
-      "escalated": "Escaladée",
-      "escalateCta": "Escalader",
-      "historyTitle": "Historique complet",
-      "historyEmpty": "Aucun historique.",
-      "initial": "(création)",
-      "actor": {
-        "system": "système",
-        "agent": "agent",
-        "manager": "manager"
-      }
-    }
   },
   "inventory": {
     "title": "Stock & inventaire",
@@ -7832,6 +7682,16 @@
         "label": "Colis terminés visibles",
         "unit": "heures",
         "help": "Un colis livré ou retourné reste {n} h dans « Terminés » : l’agent peut encore y noter l’appel qui l’a clos."
+      },
+      "carrier_delivery_target_pct": {
+        "label": "Objectif de livraison",
+        "unit": "%",
+        "help": "Transporteurs : un taux de livraison sous {n} % est « sous l'objectif »."
+      },
+      "carrier_late_days": {
+        "label": "Colis en retard",
+        "unit": "jours",
+        "help": "Transporteurs : un colis en route depuis {n} jours après le ramassage est en retard."
       }
     },
     "orders": {
@@ -8112,7 +7972,9 @@
         "createdTestFail": "{name} ajouté, mais le transporteur ne répond pas encore.",
         "required": "Nom, société et identifiants obligatoires.",
         "duplicate": "Un transporteur porte déjà ce nom dans ce marché."
-      }
+      },
+      "scorecardTitle": "Objectifs des transporteurs",
+      "scorecardDesc": "La page Transporteurs juge chaque transporteur sur ces seuils. « Colis immobile » ci-dessus décide aussi qui est bloqué."
     },
     "shops": {
       "title": "Boutiques",
@@ -9024,7 +8886,284 @@
       "team_call_delay_hours": "Délai « non appelée »",
       "team_idle_minutes": "Délai « sans appel »",
       "team_late_minutes": "Retard toléré",
-      "team_shift_overrides": "Horaires par agent"
+      "team_shift_overrides": "Horaires par agent",
+      "carrier_delivery_target_pct": "Objectif de livraison",
+      "carrier_late_days": "Colis en retard"
     }
+  },
+  "carrierScorecard": {
+    "title": "Transporteurs",
+    "sync": "Synchro il y a {age}",
+    "syncNever": "Pas encore synchronisé",
+    "ago": {
+      "min": "{n} min",
+      "hour": "{n} h",
+      "day": "{n} j"
+    },
+    "periods": {
+      "7": "7 j",
+      "30": "30 j",
+      "90": "90 j"
+    },
+    "periodLong": {
+      "7": "7 jours",
+      "30": "30 jours",
+      "90": "90 jours"
+    },
+    "periodAria": "Période",
+    "compare": "Comparer",
+    "secOverview": "Vue d'ensemble",
+    "secBrief": "En bref",
+    "now": "maintenant",
+    "kSent": "Colis envoyés",
+    "kSentSub": "dont {n} encore en route",
+    "kRate": "Taux de livraison",
+    "kLate": "En retard",
+    "kRet": "Retours à scanner",
+    "status": {
+      "ok": "Objectif de {target} atteint",
+      "near": "Proche de l'objectif de {target}",
+      "below": "Sous l'objectif de {target}",
+      "prov": "Provisoire : encore en route"
+    },
+    "statusShort": {
+      "ok": "Objectif atteint",
+      "near": "Proche de l'objectif",
+      "below": "Sous l'objectif",
+      "prov": "Provisoire"
+    },
+    "targetIs": "objectif {target}",
+    "stuck": "{n, plural, =0 {aucun bloqué} one {dont # bloqué} other {dont # bloqués}}",
+    "noLate": "rien en retard",
+    "older7": "{n, plural, =0 {aucun de plus de 7 j} other {dont # depuis 7 j +}}",
+    "older7Tip": "rendus depuis plus de 7 jours, toujours pas scannés",
+    "onRoad": "sur {n} en route",
+    "retBy": "rendus par {carrier}",
+    "pDel": "Livrés",
+    "pLate": "En retard",
+    "pRet": "Retours à scanner",
+    "trend": {
+      "up": "+{points} pt",
+      "down": "−{points} pt",
+      "flat": "stable",
+      "vs": "par rapport aux {period} d'avant"
+    },
+    "weeks8": "Taux de livraison · 8 dernières semaines",
+    "weekOf": "Semaine du {date}",
+    "wSent": "Colis envoyés",
+    "wDelivered": "Livrés",
+    "wFailed": "Échoués",
+    "wInFlight": "Encore en route",
+    "wProv": "Provisoire : des colis de cette semaine sont encore en route.",
+    "wFew": "Trop peu de colis terminés pour un taux.",
+    "targetLabel": "Objectif {target}",
+    "open": "Voir le détail",
+    "opened": "Compte ouvert le {date}",
+    "colisPeriod": "colis · {period}",
+    "back": "Transporteurs",
+    "compareWith": "Comparer avec {name}",
+    "heroMeta": "{sub} · {n} colis envoyés sur {period}",
+    "brand": {
+      "darb_assabil": "Darb Assabil",
+      "navex": "Navex",
+      "dexpress": "Dexpress",
+      "cosmos": "Cosmos"
+    },
+    "brandShort": {
+      "darb_assabil": "Darb"
+    },
+    "national": {
+      "ly": "Toute la Libye",
+      "tn": "Toute la Tunisie"
+    },
+    "del": {
+      "title": "Livraison",
+      "sub": "{d} livrés · {f} échoués · {m} en route",
+      "byWeek": "Par semaine d'envoi",
+      "colis": "{n} colis"
+    },
+    "why": {
+      "title": "Pourquoi ça échoue",
+      "failures": "échecs",
+      "groups": {
+        "client": "Client",
+        "carrier": "Transporteur",
+        "us": "Nous"
+      },
+      "groupTip": {
+        "client": "Ne répond pas, a annulé, n'en veut plus…",
+        "carrier": "Le transporteur, ou aucun motif donné",
+        "us": "Nos erreurs : mauvais article, doublon, annulé par nous"
+      },
+      "none": "{carrier} n'envoie pas le motif d'un échec.",
+      "noneSub": "Seul le statut arrive (livré ou retourné).",
+      "noFailures": "Aucun échec sur 90 jours.",
+      "reasons": {
+        "no_answer": "Injoignable",
+        "customer_cancelled": "A annulé la commande",
+        "not_needed": "N'en veut plus",
+        "not_serious": "Pas sérieux",
+        "out_of_coverage": "Téléphone hors réseau",
+        "no_cash": "N'avait pas l'argent",
+        "wrong_address": "Adresse fausse",
+        "payment_method": "Veut payer autrement",
+        "refused": "Refuse à la porte",
+        "wrong_item": "Mauvais article envoyé",
+        "duplicate": "Commande en double",
+        "store_cancelled": "Annulée par nous",
+        "other": "Autre motif",
+        "none": "Aucun motif donné",
+        "coordinated": "Reporté, puis échoué",
+        "office_pickup": "À retirer à l'agence",
+        "in_progress": "Resté « en cours »"
+      }
+    },
+    "late": {
+      "title": "En retard",
+      "stuckDef": "bloqué = aucun mouvement depuis {days} j",
+      "sincePick": "Depuis le ramassage",
+      "buckets": {
+        "notPicked": "Pas ramassé",
+        "b0_2": "0 à 2 j",
+        "b3_4": "3 à 4 j",
+        "b5_9": "5 à 9 j",
+        "b10p": "10 j et +"
+      },
+      "drag": "Après 3 jours en route, seul 1 colis sur 3 est livré.",
+      "deliveredIn": "Livré en",
+      "pickFast": {
+        "ly": "Ramassé en < 6 h",
+        "tn": "Déposé en < 24 h"
+      },
+      "firstAttempt": "Au 1er passage",
+      "days": "{n} j",
+      "seeN": "{n, plural, one {Voir le colis} other {Voir les # colis}}",
+      "copyFor": "Copier pour {carrier}"
+    },
+    "ret": {
+      "title": "Retours",
+      "toScan": "à scanner",
+      "failed": "Échoués",
+      "handedBack": "Rendus par {carrier}",
+      "scanned": "Scannés chez nous",
+      "age": "Depuis quand ils attendent d'être scannés",
+      "ageBuckets": {
+        "lt7": "moins de 7 j",
+        "d7_30": "7 à 30 j",
+        "d30p": "plus de 30 j"
+      },
+      "out": "Encore chez {carrier}",
+      "outLate": "dont {n} depuis 7 j +",
+      "median": "Rendus en (médiane)",
+      "openBench": "Ouvrir le banc Retours",
+      "seeList": "Voir la liste"
+    },
+    "city": {
+      "title": "Villes",
+      "colis": "{n} colis",
+      "seeAll": "Voir les {n} villes",
+      "none": "Pas encore assez de colis terminés."
+    },
+    "cmp": {
+      "title": "Comparer",
+      "global": "Vue globale",
+      "weeks": "Taux de livraison par semaine",
+      "city": "Ville par ville",
+      "citySub": "Villes servies par les deux, avec au moins 10 colis terminés chez chacun.",
+      "metrics": {
+        "rate": "Taux de livraison",
+        "pick": {
+          "ly": "Ramassés en moins de 6 h",
+          "tn": "Déposés en moins de 24 h"
+        },
+        "fast": "Livrés en moins de 3 j",
+        "first": "Livrés au 1er passage",
+        "ret7": "Retours rendus en 7 j"
+      },
+      "tie": "à égalité",
+      "na": "non transmis",
+      "vs": "vs",
+      "nWeeks": "{n} semaines",
+      "inProgress": "semaine en cours, provisoire",
+      "noShared": "Aucune ville servie par les deux avec assez de colis.",
+      "needTwo": "Il faut au moins deux transporteurs actifs pour comparer.",
+      "best": "meilleur"
+    },
+    "dormant": "{name} · inactif depuis {month} · {n, plural, one {# colis resté} other {# colis restés}} sans issue",
+    "dormantBtn": "Voir",
+    "empty": {
+      "title": "Aucun colis envoyé sur la période",
+      "tn": "La Tunisie n'a rien expédié sur cette période. La page se remplit dès qu'un colis part chez Navex ou Cosmos.",
+      "ly": "Aucun colis n'est parti chez Darb sur cette période.",
+      "other": "Aucun colis n'est parti sur cette période.",
+      "card": "Aucun colis sur la période",
+      "see90": "Voir 90 jours",
+      "noCarrier": "Aucun transporteur actif n'a encore porté de colis dans ce marché."
+    },
+    "drawer": {
+      "late": "{n} colis en retard · {carrier}",
+      "returns": "{n} retours à scanner · {carrier}",
+      "dormant": "{n} colis restés ouverts · {carrier}",
+      "cities": "Toutes les villes · {carrier}",
+      "cols": {
+        "ref": "N° de suivi",
+        "city": "Ville",
+        "since": "Depuis",
+        "last": "Dernier événement",
+        "back": "Rendu le",
+        "wait": "Attend depuis",
+        "colis": "Colis terminés",
+        "rate": "Livrés",
+        "days": "Livré en"
+      },
+      "stuckTag": "bloqué",
+      "close": "Fermer",
+      "empty": "Aucun colis.",
+      "loading": "Chargement…",
+      "error": "Impossible de charger la liste.",
+      "more": "… et {n} autres, du plus ancien au plus récent",
+      "status": {
+        "pending": "Réservé, pas encore ramassé",
+        "booked": "Réservé, pas encore ramassé",
+        "processing": "En cours chez le transporteur",
+        "on-branch": "À l'agence",
+        "delayed": "Reporté",
+        "resent": "Renvoyé en livraison",
+        "released": "Rendu",
+        "cancelled": "Annulé par le transporteur",
+        "returning": "En retour",
+        "returned": "Rendu",
+        "uploaded": "Envoyé, pas encore remis",
+        "scanned": "Sorti de l'entrepôt",
+        "at_carrier": "Chez le transporteur",
+        "dispatched": "Remis au transporteur",
+        "deposit": "Au dépôt",
+        "unverified": "À vérifier",
+        "in_transit": "En route",
+        "out_for_delivery": "En livraison",
+        "delivery_delayed": "Reporté"
+      },
+      "noRef": "sans n°"
+    },
+    "copyMessage": {
+      "ly": "السلام عليكم، هذه الطرود متأخرة، نرجو المتابعة:",
+      "tn": "Bonjour, ces colis sont en retard, merci de vérifier :"
+    },
+    "copied": "Copié : {n} numéros de suivi + message pour {carrier}",
+    "copyFailed": "La copie a échoué.",
+    "error": "Impossible de charger les transporteurs.",
+    "retry": "Réessayer",
+    "markets": {
+      "ly": "Libye",
+      "tn": "Tunisie"
+    },
+    "dormantLabel": "Transporteurs inactifs"
+  },
+  "orderTimeline": {
+    "label": "Parcours de la commande",
+    "pending": "À venir",
+    "under1h": "< 1 h",
+    "hours": "{h} h",
+    "days": "{d} j"
   }
 }

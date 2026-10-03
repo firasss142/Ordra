@@ -128,23 +128,17 @@ describe("Sidebar — sections", () => {
     ]);
   });
 
-  it("moves post-handover tracking out of ENTREPÔT into LIVRAISON", () => {
-    // A warehouse agent can take no action on a parcel that has already gone.
+  it("LIVRAISON is the worklist, then Transporteurs — the two old boards are gone", () => {
+    // Owner, 2026-10-03: Suivi transporteur and Tableau livraison are outdated;
+    // Transporteurs (carrier performance) replaces both.
     renderSidebar(
       <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Livraison/ }));
-    expect(screen.getByRole("link", { name: /Suivi transporteur/ })).toHaveAttribute(
-      "href",
-      "/fr/warehouse/carrier-tracking",
-    );
-    expect(screen.getByRole("link", { name: /Tableau livraison/ })).toHaveAttribute(
-      "href",
-      "/fr/in-delivery",
-    );
-    // The new post-upload worklist leads the section. Tableau livraison stays
-    // until the rebuild's deletion phase (CLAUDE.md, open discrepancy 3).
     expect(screen.getByRole("link", { name: /Suivi livraison/ })).toHaveAttribute("href", "/fr/delivery");
+    expect(screen.getByRole("link", { name: /^Transporteurs$/ })).toHaveAttribute("href", "/fr/carriers");
+    expect(screen.queryByRole("link", { name: /Suivi transporteur/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Tableau livraison/ })).not.toBeInTheDocument();
   });
 
   it("no longer offers Expédition, which is carrier upload rather than floor work", () => {
