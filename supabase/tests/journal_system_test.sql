@@ -106,19 +106,19 @@ DECLARE
   v_c TEXT := current_setting('r.c');
   r RECORD;
 BEGIN
-  SELECT * INTO r FROM audit_events WHERE entity_type = 'carriers' AND entity_id = v_c AND changes ? 'delivery_fee';
+  SELECT * INTO r FROM audit_events WHERE entity_type = 'carriers' AND action = 'carriers.updated' AND entity_id = v_c AND changes ? 'delivery_fee';
   PERFORM pg_temp.eq(r.actor_id::TEXT, current_setting('r.sa'), 'session : l''auteur est le super_admin connecté');
   PERFORM pg_temp.eq(r.actor_role, 'super_admin', 'session : son rôle est gardé');
   PERFORM pg_temp.eq(r.changes -> 'delivery_fee', '[10, 12]'::jsonb, 'avant → après de la colonne modifiée');
   PERFORM pg_temp.eq(r.action, 'carriers.updated', 'action nommée table.verbe');
   PERFORM pg_temp.ok(NOT (r.changes ? 'updated_at'), 'updated_at n''est pas journalisé');
 
-  SELECT * INTO r FROM audit_events WHERE entity_type = 'carriers' AND entity_id = v_c AND changes ? 'is_active';
+  SELECT * INTO r FROM audit_events WHERE entity_type = 'carriers' AND action = 'carriers.updated' AND entity_id = v_c AND changes ? 'is_active';
   PERFORM pg_temp.eq(r.actor_id::TEXT, current_setting('r.mm'), 'rôle service + en-tête : l''auteur déclaré');
   PERFORM pg_temp.eq(r.actor_kind, 'person', 'rôle service + en-tête : une personne');
   PERFORM pg_temp.eq(r.market_id::TEXT, '00000000-0000-0000-0000-000000000002', 'l''événement porte le marché de la ligne');
 
-  SELECT * INTO r FROM audit_events WHERE entity_type = 'carriers' AND entity_id = v_c AND changes ? 'api_credentials';
+  SELECT * INTO r FROM audit_events WHERE entity_type = 'carriers' AND action = 'carriers.updated' AND entity_id = v_c AND changes ? 'api_credentials';
   PERFORM pg_temp.eq(r.actor_kind, 'service', 'rôle service sans en-tête : « service », pas un nom inventé');
   PERFORM pg_temp.ok(r.actor_id IS NULL, 'rôle service sans en-tête : aucun auteur');
   PERFORM pg_temp.eq(r.changes -> 'api_credentials' ->> 1, '••••', 'le secret est masqué');
@@ -206,7 +206,26 @@ SELECT '/api/sqltest/' || current_setting('r.tag'), 'PATCH', 500, '42501', 'perm
        'sqltest:' || current_setting('r.tag')
   FROM generate_series(1, 3);
 
+-- sign-in failures: grouped by ACCOUNT (hash), not by the masked label —
+-- 3 on one account + 3 on another that masks the same is not « 6 on one ».
+INSERT INTO audit_events (actor_kind, action, entity_type, entity_id, entity_label)
+SELECT 'service', 'auth.login_failed', 'auth', 'sqltA' || current_setting('r.tag'), 'sq•••@sqltest.local' FROM generate_series(1, 3)
+UNION ALL
+SELECT 'service', 'auth.login_failed', 'auth', 'sqltB' || current_setting('r.tag'), 'sq•••@sqltest.local' FROM generate_series(1, 3)
+UNION ALL
+SELECT 'service', 'auth.login_failed', 'auth', 'sqltC' || current_setting('r.tag'), 'sx•••@sqltest.local' FROM generate_series(1, 5);
+
 SELECT public.journal_detect();
+
+DO $a5l$
+BEGIN
+  PERFORM pg_temp.ok(NOT EXISTS (SELECT 1 FROM journal_issues WHERE fingerprint LIKE 'login:sqlt_' || current_setting('r.tag')
+                                   AND fingerprint IN ('login:sqltA' || current_setting('r.tag'), 'login:sqltB' || current_setting('r.tag'))),
+                     'deux comptes au même libellé masqué ne s''additionnent pas');
+  PERFORM pg_temp.eq((SELECT affected_count FROM journal_issues WHERE fingerprint = 'login:sqltC' || current_setting('r.tag')),
+                     5, 'cinq échecs sur un même compte : un problème');
+END
+$a5l$;
 
 DO $a5$
 DECLARE r RECORD;

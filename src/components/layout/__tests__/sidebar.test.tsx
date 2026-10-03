@@ -549,3 +549,43 @@ describe("Sidebar — Clients › Messages (WhatsApp)", () => {
   });
 });
 
+
+describe("Sidebar — Système › Journaux (open problems)", () => {
+  function mockCounts(open: number) {
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/journal/counts") return { ok: true, json: async () => ({ open, critical: open }) } as Response;
+      return { ok: true, json: async () => ({ count: 0 }) } as Response;
+    }) as unknown as typeof fetch;
+  }
+  const renderFresh = (ui: React.ReactElement) =>
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MarketScopeProvider initialScope="all">{ui}</MarketScopeProvider>
+      </SWRConfig>,
+    );
+
+  it("counts open problems in red, on the collapsed SYSTÈME header and on Journaux", async () => {
+    mockCounts(5);
+    renderFresh(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
+    const header = screen.getByRole("button", { name: /Système/ });
+    const pill = await within(header).findByText("5");
+    expect(pill).toHaveStyle({ backgroundColor: "var(--badge-critical-bg)", color: "var(--badge-critical-fg)" });
+    fireEvent.click(header);
+    expect(within(screen.getByRole("link", { name: /Journaux/ })).getByText("5")).toBeInTheDocument();
+  });
+
+  it("no problem, no badge", async () => {
+    mockCounts(0);
+    renderFresh(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/admin/journal/counts"));
+    expect(within(screen.getByRole("button", { name: /Système/ })).queryByText("0")).not.toBeInTheDocument();
+  });
+
+  it("a market manager never asks", async () => {
+    mockCounts(5);
+    renderFresh(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(global.fetch).not.toHaveBeenCalledWith("/api/admin/journal/counts");
+  });
+});

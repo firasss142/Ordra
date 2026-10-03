@@ -327,12 +327,14 @@ BEGIN
 
   -- R12 · sign-in failures on one account, and large exports.
   INSERT INTO pg_temp.journal_findings
-  SELECT 'login:' || a.entity_label, 'login_failures', 'warning', 'app', NULL, NULL,
-         jsonb_build_object('account', a.entity_label, 'last', max(a.occurred_at)),
+  -- grouped by the account key (hash of the full address), never by the
+  -- masked label: `ag•••@oms.local` is agent1.tn and agent2.tn at once.
+  SELECT 'login:' || COALESCE(a.entity_id, a.entity_label), 'login_failures', 'warning', 'app', NULL, NULL,
+         jsonb_build_object('account', max(a.entity_label), 'last', max(a.occurred_at)),
          min(a.occurred_at), count(*)::INT, NULL, NULL
     FROM public.audit_events a
    WHERE a.action = 'auth.login_failed' AND a.occurred_at > now() - interval '1 hour'
-   GROUP BY a.entity_label
+   GROUP BY COALESCE(a.entity_id, a.entity_label)
   HAVING count(*) >= 5;
 
   INSERT INTO pg_temp.journal_findings
