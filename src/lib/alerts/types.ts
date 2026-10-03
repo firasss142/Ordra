@@ -23,7 +23,7 @@ export interface Alert {
    * `storefront` is not an order-shaped alert: it says orders are not arriving
    * at all, so it points at the intake settings rather than at a row.
    */
-  entity_kind: "order" | "product" | "agent" | "storefront";
+  entity_kind: "order" | "product" | "agent" | "storefront" | "market";
   href: string;
   primary: string;
   secondary: string | null;

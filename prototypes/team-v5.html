@@ -1,0 +1,1366 @@
+<!doctype html>
+<!--
+  Salle de contrôle — v5, version CONSOLIDÉE. Construite 2026-10-03 après la revue finale avec le propriétaire
+  (3 tours de questions sur la v4). Remplace v2 → v4 pour /team ; elles restent pour comparaison.
+
+  Décisions du propriétaire (revue finale, 2026-10-03) :
+   · UN vocabulaire partout pour le travail d'un agent : Assignées · Uploadées · Rejetées · Tentatives (« Appels » disparaît) ;
+   · UN taux : uploadées ÷ (uploadées + rejetées) ; le score 30 jours garde son nom à lui (« livrées pour 100 assignées ») ;
+   · bandeau du jour : agents actifs · reçues · uploadées · rejetées · livrées · non appelées 2 h après attribution ;
+   · « non appelées > 2 h » remplace « en attente » ; 2 h = valeur par défaut du réglage ; « confirmée non uploadée »
+     reste en petite étiquette ambre sur la ligne de l'agent ;
+   · ligne agent = barre « fait / reste » + les 4 chiffres + non appelées + WhatsApp ; Début / Actif passent au tiroir ;
+   · la frise du jour vit SEULEMENT dans le tiroir ;
+   · tiroir : une ligne « ses uploads des 30 derniers jours : livrées · retournées · en route » (retournées, pas échouées) ;
+   · score 30 jours : flèche contre les 30 jours d'avant ;
+   · alertes : la cloche de la barre latérale, 3 événements (aucune commande reçue, non appelées > 2 h, agent connecté sans appel) ;
+   · réglages : dans Système › Réglages, avec un lien depuis la page ;
+   · bureau d'abord, optimisé téléphone.
+
+  DONNÉES RÉELLES Libye (lecture seule, 2 et 3 oct. 2026) — moments « Rejeu » (dim. 27 sept. 17:20) et « Maintenant »
+  (ven. 2 oct. 23:56). Les horaires du réglage sont des valeurs d'exemple.
+  URL : ?lang=fr|ar &moment=replay|now &day=YYYY-MM-DD &agent=<nom> &dper=week &pay=<nom> &settings=1 &alerts=1 &device=phone
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salle de contrôle — prototype v5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFFFFF; --sunken:#FAFAFB; --hover:#F8F9FA;
+    --line:#E1E3E5; --line-subtle:#ECEEF0; --line-faint:#F2F3F5; --line-strong:#DADCE0;
+    --ink-1:#1A1A1A; --ink-2:#5C6166; --ink-3:#8A9096; --ink-4:#B4B9BF;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+    --teal:#0E7A6E; --teal-soft:#8CC3BB; --teal-bg:#E4F3F0;
+    --green:#2F7A4A; --green-bg:#E8F4EC;
+    --red:#B23A32; --red-bg:#FBECEA; --red-soft:#E3A39E;
+    --amber:#A9670C; --amber-ink:#8F5608; --amber-bg:#FBF1E2; --amber-dot:#E0A43A;
+    --prog:#C9CDD2; --todo:#E7E9EC;
+    --live:#16A34A; --tick:#AEB4BA; --session:#ECEEF1; --plan:#C5CAD0;
+    --sidebar:#0E1013; --sidebar-el:#14171C; --sidebar-ink:#E6E8EB; --sidebar-2:#B5BAC2; --sidebar-3:#7F858F;
+    --f:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --f-ar:"Noto Sans Arabic","Inter",system-ui,sans-serif;
+    --r:12px;
+    --e-panel:0 4px 16px rgba(16,24,40,.06); --e-float:0 8px 24px rgba(16,24,40,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+  #app[dir=rtl], #app[dir=rtl] button, #app[dir=rtl] input, #app[dir=rtl] select{font-family:var(--f-ar)}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0}
+  h1,h2,h3,p{margin:0}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .num{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+
+  /* ── prototype chrome (NOT part of the app) ── */
+  .pbar{position:sticky;top:0;z-index:300;background:#1F2328;color:#E6E8EB;padding:9px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:3px solid var(--brand);font-family:var(--f)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar .grow{flex:1}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+
+  /* ── app shell ── */
+  #app{position:relative}
+  .stage{display:flex;min-height:calc(100vh - 50px)}
+  .side{width:232px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);padding:14px 10px 20px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+  .side .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;padding:2px 4px 12px 8px}
+  [dir=rtl] .side .brand{padding:2px 8px 12px 4px}
+  .logo{width:22px;height:22px;border-radius:6px;background:var(--brand);display:grid;place-items:center;font-size:12px;color:#fff;font-weight:700}
+  .bell{position:relative;margin-inline-start:auto;width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;color:var(--sidebar-ink)}
+  .bell:hover{background:rgba(255,255,255,.06)}
+  .bell .ic{width:15px;height:15px}
+  .bell b{position:absolute;top:-6px;inset-inline-end:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#D72C0D;color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;border:2px solid var(--sidebar)}
+  .side .mk{display:flex;align-items:center;justify-content:space-between;margin:0 4px 10px;padding:7px 10px;border-radius:8px;background:var(--sidebar-el);border:1px solid rgba(255,255,255,.06);color:var(--sidebar-2);font-size:12.5px}
+  .side .mk b{color:#fff;font-weight:600}
+  .side .nsec{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;color:var(--sidebar-2);font-weight:500}
+  .side .nsec .ic{width:15px;height:15px;color:var(--sidebar-3)}
+  .side .nsec .chev{margin-inline-start:auto;width:13px;height:13px}
+  .side .it{display:flex;align-items:center;padding:6px 8px 6px 32px;border-radius:7px;color:var(--sidebar-2)}
+  [dir=rtl] .side .it{padding:6px 32px 6px 8px}
+  .side .it.on{background:var(--brand);color:#fff;font-weight:600}
+  .side .foot{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px 8px 0;border-top:1px solid rgba(255,255,255,.06)}
+  .side .foot span{width:28px;height:28px;border-radius:50%;background:#2A2F36;display:grid;place-items:center;font-size:12px;font-weight:600}
+  .side .foot small{display:block;color:var(--sidebar-3);font-size:11.5px}
+  .mtop{display:none}
+  main{flex:1;min-width:0;padding:26px 32px 64px}
+  .page{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+  /* ── header ── */
+  .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .ph h1{font-size:24px;font-weight:650;letter-spacing:-.02em}
+  .ph .sub{font-size:13.5px;color:var(--ink-2);margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+  .chip.live{background:var(--green-bg);color:var(--green)}
+  .chip.live i{width:7px;height:7px;border-radius:50%;background:var(--live);box-shadow:0 0 0 3px rgba(22,163,74,.18)}
+  .chip.past{background:#EEF0F2;color:var(--ink-2)}
+  .chip.rest{background:var(--sunken);color:var(--ink-2);border:1px solid var(--line-subtle)}
+  .daynav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .stepper{display:inline-flex;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:2px}
+  .stepper button{height:30px;min-width:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+  .stepper button:hover:not([disabled]){background:var(--hover);color:var(--ink-1)}
+  .stepper button[disabled]{opacity:.35;cursor:default}
+  .stepper .lbl{padding:0 10px;font-size:13px;font-weight:600;min-width:150px;text-align:center;white-space:nowrap}
+  .stepper .lbl small{font-weight:500;color:var(--ink-3);margin-inline-start:4px}
+  .btn{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn:hover{background:var(--hover);border-color:var(--line-strong)}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.pri:hover{background:var(--brand-hover)}
+  .btn.sm{height:28px;padding:0 10px;font-size:12.5px;border-radius:8px}
+  .btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+  .btn.ghost:hover{background:var(--card);border-color:var(--line)}
+  .btn.icon{width:32px;padding:0;justify-content:center}
+  .btn .ic{width:15px;height:15px}
+
+  .banner{display:flex;align-items:flex-start;gap:12px;background:var(--red-bg);border:1px solid #F3D3CF;border-radius:var(--r);padding:12px 14px;color:#7A2620}
+  .banner .ic{width:18px;height:18px;margin-top:1px;color:var(--red)}
+  .banner b{display:block;color:var(--red);font-size:14px;font-weight:650;margin-bottom:2px}
+  .banner p{font-size:13px;line-height:1.5;max-width:880px}
+  .banner .btn{margin-inline-start:auto;background:#fff;border-color:#F0C9C4;color:var(--red)}
+
+  .band{display:flex;align-items:center;gap:10px;margin:10px 2px -2px;flex-wrap:wrap}
+  .band h2{font-size:11.5px;font-weight:650;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-2)}
+  [dir=rtl] .band h2{letter-spacing:0;font-size:14px}
+  .band .rule{flex:1;height:1px;background:var(--line-subtle);min-width:20px}
+  .band span{font-size:12.5px;color:var(--ink-3)}
+  .band .tot{display:flex;align-items:baseline;gap:8px}
+  .band .tot b{font-size:16px;font-weight:650;color:var(--ink-1)}
+
+  /* ── strip ── */
+  .card{background:var(--card);border:1px solid var(--line-subtle);border-radius:var(--r)}
+  .strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+  .cell{padding:15px 18px 16px;border-inline-start:1px solid var(--line-subtle);min-width:0}
+  .cell:first-child{border-inline-start:0}
+  .cell .l{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+  .cell .l i{width:8px;height:8px;border-radius:2px;flex:none}
+  .cell .l .ic{width:14px;height:14px;color:var(--ink-3)}
+  .cell .v{font-size:28px;font-weight:650;letter-spacing:-.025em;margin-top:6px;line-height:1.1;display:flex;align-items:baseline;gap:6px}
+  .cell .v small{font-size:14px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+  .cell .s{font-size:12px;color:var(--ink-3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell .s.warn{color:var(--amber-ink)}
+  .cell .s.bad{color:var(--red)}
+  .cell.bad .v{color:var(--red)}
+  .stack{display:inline-flex;vertical-align:-5px;margin-inline-start:4px}
+  .stack .av{width:22px;height:22px;font-size:10px;border:2px solid #fff;margin-inline-start:-6px}
+  .stack .av:first-child{margin-inline-start:0}
+  .stack .av i{width:8px;height:8px;border-width:1.5px}
+
+  /* ── agents today ── */
+  .chead{display:flex;align-items:center;gap:12px;padding:15px 18px 13px;flex-wrap:wrap}
+  .chead h3{font-size:15.5px;font-weight:620}
+  .chead .hint{font-size:12.5px;color:var(--ink-3)}
+  .legend{margin-inline-start:auto;display:flex;align-items:center;gap:14px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .sw-u{background:var(--teal)} .sw-r{background:var(--red)} .sw-p{background:var(--prog)} .sw-t{background:var(--todo)}
+  .sw-o{background:repeating-linear-gradient(-45deg,var(--red-bg) 0 2px,var(--red-soft) 2px 4px)}
+  .sw-d{background:var(--green)} .sw-e{background:var(--teal-soft)} .sw-f{background:var(--red-soft)} .sw-x{background:#E4E6E9}
+
+  .tb{--cols:minmax(200px,236px) minmax(240px,1fr) 78px 82px 74px 82px 96px 48px}
+  .tb .hdr,.tb .row{display:grid;grid-template-columns:var(--cols);align-items:center}
+  .tb .hdr{border-top:1px solid var(--line-subtle);border-bottom:1px solid var(--line-subtle);background:var(--sunken)}
+  .tb .hdr > div{padding:8px 10px;font-size:12px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+  .tb .hdr > div small{display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:1px}
+  .n{text-align:end}
+  .tb .hdr > div:first-child,.tb .row > div:first-child{padding-inline-start:18px}
+  .tb .hdr > div:last-child,.tb .row > div:last-child{padding-inline-end:14px}
+  .tb .row{border-bottom:1px solid var(--line-faint);cursor:pointer;transition:background .12s}
+  .tb .row:last-child{border-bottom:0}
+  .tb .row:hover{background:var(--hover)}
+  .tb .row.sel{background:var(--brand-tint);box-shadow:inset 3px 0 0 var(--brand)}
+  [dir=rtl] .tb .row.sel{box-shadow:inset -3px 0 0 var(--brand)}
+  .tb .row > div{padding:12px 10px}
+  .who{display:flex;align-items:center;gap:11px;min-width:0}
+  .av{position:relative;width:34px;height:34px;border-radius:50%;background:#E7E9EC;color:#3A3F44;display:grid;place-items:center;font-weight:600;font-size:13px;flex:none;text-transform:uppercase}
+  .av i{position:absolute;inset-inline-end:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:var(--ink-4)}
+  .av i.working{background:var(--live)} .av i.idle,.av i.late{background:var(--amber-dot)}
+  .who .nm{min-width:0}
+  .who b{display:block;font-size:14px;font-weight:600;line-height:1.25}
+  .who .st{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .who .st.working{color:var(--ink-2)} .who .st.idle,.who .st.late,.who .st.early{color:var(--amber-ink);font-weight:500}
+  .tagw{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:600;color:var(--amber-ink);background:var(--amber-bg);border-radius:6px;padding:1px 7px;white-space:nowrap}
+  .dl{display:flex;height:12px;gap:2px}
+  .dl span{display:block;height:100%;border-radius:4px;min-width:3px}
+  .dl .u{background:var(--teal)} .dl .r{background:var(--red)} .dl .p{background:var(--prog)} .dl .t{background:var(--todo)}
+  .dl .o{background:repeating-linear-gradient(-45deg,var(--red-bg) 0 3px,var(--red-soft) 3px 5px)}
+  .dlcap{display:flex;gap:10px;margin-top:5px;font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden}
+  .dlcap b{font-weight:600;color:var(--ink-2)}
+  .dlcap .bad{color:var(--red);font-weight:600}
+  .val{font-size:15px;font-weight:600}
+  .val.dim{color:var(--ink-4);font-weight:500}
+  .val.bad{color:var(--red)}
+  .sub2{display:block;font-size:11.5px;color:var(--ink-3);margin-top:1px;white-space:nowrap}
+  .wa{width:32px;height:32px;border-radius:9px;display:inline-grid;place-items:center;color:var(--ink-2);border:1px solid var(--line-subtle);background:#fff}
+  .wa:hover{color:var(--ink-1);border-color:var(--line-strong)}
+  .wa .ic{width:15px;height:15px}
+  .dorm{border-top:1px solid var(--line-subtle);padding:11px 18px;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-2);flex-wrap:wrap}
+  .dorm .names{display:inline-flex;gap:6px;flex-wrap:wrap}
+  .dorm .names span{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 3px;border-radius:99px;background:var(--sunken);border:1px solid var(--line-subtle);font-weight:500;color:var(--ink-1);cursor:pointer}
+  [dir=rtl] .dorm .names span{padding:0 3px 0 9px}
+  .dorm .names .av{width:18px;height:18px;font-size:9px}
+  .mcells{display:none}
+
+  /* ── 30 days ── */
+  .ft{--cols:40px minmax(170px,210px) minmax(220px,1fr) 80px 92px 100px 132px 172px}
+  .ft .hdr,.ft .row,.ft .team{display:grid;grid-template-columns:var(--cols);align-items:center}
+  .ft .hdr{border-top:1px solid var(--line-subtle);border-bottom:1px solid var(--line-subtle);background:var(--sunken)}
+  .ft .hdr > div{padding:8px 10px;font-size:12px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+  .ft .hdr > div small{display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:1px}
+  .ft .row > div,.ft .team > div{padding:12px 10px}
+  .ft .hdr > div:first-child,.ft .row > div:first-child,.ft .team > div:first-child{padding-inline-start:18px}
+  .ft .hdr > div:last-child,.ft .row > div:last-child,.ft .team > div:last-child{padding-inline-end:18px}
+  .ft .row{border-bottom:1px solid var(--line-faint);cursor:pointer}
+  .ft .row:hover{background:var(--hover)}
+  .ft .row.sel{background:var(--brand-tint)}
+  .ft .row.dimr{opacity:.62}
+  .ft .team{border-bottom:1px solid var(--line-subtle)}
+  .rk{width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;font-weight:650;color:var(--ink-2);background:var(--sunken);border:1px solid var(--line-subtle)}
+  .rk.top{background:var(--ink-1);color:#fff;border-color:var(--ink-1)}
+  .fbar{display:flex;height:12px;gap:2px}
+  .fbar span{display:block;height:100%;border-radius:4px}
+  .fbar .d{background:var(--green)} .fbar .e{background:var(--teal-soft)} .fbar .f{background:var(--red-soft)} .fbar .x{background:#E4E6E9}
+  .fcap{display:flex;gap:10px;font-size:11px;color:var(--ink-3);margin-top:5px;white-space:nowrap}
+  .score{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+  .score .sv{display:flex;align-items:baseline;gap:2px}
+  .score b{font-size:23px;font-weight:700;letter-spacing:-.02em}
+  .score small{font-size:12px;color:var(--ink-3)}
+  .trend{display:inline-flex;align-items:center;gap:2px;height:20px;padding:0 7px;border-radius:99px;font-size:11.5px;font-weight:650;white-space:nowrap}
+  .trend.up{background:var(--green-bg);color:var(--green)} .trend.dn{background:var(--red-bg);color:var(--red)} .trend.eq{background:var(--sunken);color:var(--ink-3)}
+  .balc{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+  .balc .bal{text-align:end;white-space:nowrap}
+  .balc .bal b{display:block;font-size:14.5px;font-weight:650}
+  .balc .bal small{font-size:11px;color:var(--ink-3)}
+  .cfoot{padding:11px 18px 13px;font-size:11.5px;color:var(--ink-3);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+  /* ── drawers ── */
+  .scrim{position:fixed;inset:0;background:rgba(26,26,26,.32);opacity:0;pointer-events:none;transition:opacity .16s;z-index:320}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;bottom:0;inset-inline-end:0;width:560px;max-width:100%;background:var(--card);border-inline-start:1px solid var(--line-subtle);box-shadow:var(--e-panel);z-index:321;display:flex;flex-direction:column;transform:translateX(104%);transition:transform .2s ease}
+  [dir=rtl] .drawer{transform:translateX(-104%)}
+  .drawer.narrow{width:420px}
+  .drawer.show{transform:none!important}
+  .dh{flex:none;display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-subtle)}
+  .dh .av{width:42px;height:42px;font-size:15px}
+  .dh b{font-size:16.5px;font-weight:650;display:block}
+  .dh .st{font-size:12.5px;color:var(--ink-3)}
+  .dh .st.idle,.dh .st.late,.dh .st.early{color:var(--amber-ink);font-weight:500}
+  .dh .acts{margin-inline-start:auto;display:flex;gap:6px;align-items:center}
+  .dh .x{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+  .dh .x:hover{background:var(--hover);color:var(--ink-1)}
+  .db{flex:1;overflow-y:auto;padding:16px 18px 30px;display:flex;flex-direction:column;gap:12px}
+  .sec{border:1px solid var(--line-subtle);border-radius:var(--r);padding:14px 16px}
+  .sl{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:650;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);margin-bottom:11px}
+  [dir=rtl] .sl{letter-spacing:0;font-size:12px}
+  .sl .ic{width:12px;height:12px}
+  .sl .r{margin-inline-start:auto;text-transform:none;letter-spacing:0;font-weight:500;font-size:11.5px}
+  .none{font-size:13px;color:var(--ink-3)}
+  .dseg{display:flex;align-items:center;gap:10px}
+  .seg2{display:inline-flex;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:10px;padding:2px}
+  .seg2 button{height:28px;padding:0 13px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+  .seg2 button.on{background:#fff;color:var(--ink-1);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.08)}
+  .dseg .dr{margin-inline-start:auto;font-size:12px;color:var(--ink-3)}
+  .kt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .kt .k{border:1px solid var(--line-subtle);border-radius:11px;padding:11px 11px 10px}
+  .kt .k .l{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);font-weight:500;white-space:nowrap}
+  .kt .k .l i{width:8px;height:8px;border-radius:2px;flex:none}
+  .kt .k .v{font-size:26px;font-weight:650;letter-spacing:-.02em;margin-top:3px;line-height:1.15}
+  .kt .k .s{font-size:11px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dlv{display:flex;flex-direction:column;gap:8px}
+  .dlv .t{font-size:12.5px;color:var(--ink-2)}
+  .dlv .bar{display:flex;height:10px;gap:2px}
+  .dlv .bar span{display:block;height:100%;border-radius:4px}
+  .dlv .ks{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+  .dlv .ks span{display:inline-flex;align-items:center;gap:6px}
+  .dlv .ks i{width:8px;height:8px;border-radius:2px}
+  .dlv .ks b{color:var(--ink-1);font-weight:650;font-size:14px}
+  .dlane .lane{height:52px}
+  .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+  .facts div{background:var(--sunken);border-radius:9px;padding:8px 10px}
+  .facts small{display:block;font-size:11px;color:var(--ink-3)}
+  .facts b{display:block;font-size:14px;font-weight:650;margin-top:1px}
+  .facts .warn{color:var(--amber-ink);font-size:11.5px;font-weight:600}
+  .lane{position:relative;height:46px}
+  .lane .gl{position:absolute;top:8px;bottom:0;width:0;border-inline-start:1px dashed var(--line-faint)}
+  .lane .fut{position:absolute;top:8px;bottom:2px;inset-inline-end:0;background:repeating-linear-gradient(-45deg,transparent 0 5px,#F3F4F6 5px 6px)}
+  .lane .plan{position:absolute;top:15px;height:28px;border:1px dashed var(--plan);border-radius:6px;background:rgba(197,202,208,.08)}
+  .lane .ses{position:absolute;top:22px;height:14px;border-radius:7px;background:var(--session)}
+  .lane .tk{position:absolute;width:2px;border-radius:1px;top:25px;height:8px;background:var(--tick)}
+  .lane .tk.u{top:17px;height:24px;background:var(--teal)}
+  .lane .tk.r{top:17px;height:24px;background:var(--red);opacity:.8}
+  .lane .as{position:absolute;top:1px;display:flex;align-items:center;gap:2px;margin-inline-start:-4px;font-size:10px;font-weight:600;color:var(--ink-2);line-height:1}
+  .lane .as::before{content:"";width:0;height:0;border-inline-start:4px solid transparent;border-inline-end:4px solid transparent;border-top:6px solid var(--ink-3)}
+  .lane .idle{position:absolute;top:28px;height:0;border-top:2px dashed var(--amber-dot)}
+  .lane .idle em{position:absolute;top:-9px;inset-inline-start:100%;margin-inline-start:6px;white-space:nowrap;font-style:normal;font-size:10.5px;font-weight:650;color:var(--amber-ink);background:var(--amber-bg);border-radius:5px;padding:1px 6px;line-height:15px}
+  .lane .lateb{position:absolute;top:28px;height:0;border-top:2px dotted var(--amber-dot)}
+  .lane .nowl{position:absolute;top:0;bottom:-11px;width:0;border-inline-start:1px solid var(--ink-1);z-index:1}
+  .lane .seen{position:absolute;top:24px;width:9px;height:9px;margin-inline-start:-4px;border-radius:50%;border:2px solid var(--ink-3);background:#fff}
+  .axis{position:relative;height:16px;margin-top:2px}
+  .axis span{position:absolute;top:0;font-size:11px;color:var(--ink-3);margin-inline-start:-10px;width:20px;text-align:center}
+  .prow{display:grid;grid-template-columns:40px minmax(0,1fr) 46px 52px 46px 48px;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line-faint)}
+  .prow.ph{padding:0 0 6px;border-top:0;font-size:11px;color:var(--ink-3);font-weight:500}
+  .prow.ph span:nth-child(n+3){text-align:end}
+  .prow img,.prow .ph0{width:40px;height:40px;border-radius:9px;object-fit:cover;border:1px solid var(--line-subtle);background:var(--sunken);display:block}
+  .prow .pm{min-width:0}
+  #app[dir=ltr] .prow .pn{text-align:left} #app[dir=rtl] .prow .pn{text-align:right}
+  .prow .pn{display:block;font-family:var(--f-ar);font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;unicode-bidi:plaintext}
+  .pbar2{display:flex;gap:2px;height:6px;margin-top:6px}
+  .pbar2 span{display:block;height:100%;border-radius:3px}
+  .prow .ps{display:block;font-size:11px;color:var(--ink-3);margin-top:3px}
+  .prow .nv{text-align:end;font-size:14.5px;font-weight:600}
+  .prow .nv.z{color:var(--ink-4);font-weight:500}
+  .rgr{display:grid;grid-template-columns:26px minmax(0,150px) 1fr 34px 44px;gap:10px;align-items:center;padding:6px 0}
+  .rgr .gi{width:26px;height:26px;border-radius:7px;background:var(--red-bg);color:var(--red);display:grid;place-items:center}
+  .rgr .gi .ic{width:14px;height:14px}
+  .rgr .t{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rgr .tr{height:8px;border-radius:4px;background:var(--line-faint);overflow:hidden}
+  .rgr .tr span{display:block;height:100%;background:var(--red);border-radius:4px;opacity:.85}
+  .rgr .n{text-align:end;font-weight:650;font-size:14px}
+  .rgr .p{text-align:end;font-size:12px;color:var(--ink-3)}
+  .cm-top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  .cm-top small{display:block;font-size:12px;color:var(--ink-2);font-weight:500}
+  .cm-top b{display:block;font-size:32px;font-weight:700;letter-spacing:-.025em;line-height:1.1;margin-top:2px}
+  .eq{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:6px;margin-top:14px}
+  .eq .c{background:var(--sunken);border:1px solid var(--line-faint);border-radius:10px;padding:9px 11px;min-width:0}
+  .eq .c small{display:block;font-size:11.5px;color:var(--ink-2);font-weight:500}
+  .eq .c b{display:block;font-size:15.5px;font-weight:650;margin-top:1px;white-space:nowrap}
+  .eq .c span{font-size:11px;color:var(--ink-3)}
+  .eq .op{color:var(--ink-3);font-weight:600;font-size:15px}
+  .cbars{display:flex;align-items:flex-end;gap:5px;height:70px;margin-top:10px;border-bottom:1px solid var(--line);position:relative}
+  .cbars .d{flex:1;display:flex;align-items:flex-end;justify-content:center;height:100%;position:relative}
+  .cbars .d i{display:block;width:72%;max-width:18px;background:#4A5057;border-radius:4px 4px 0 0}
+  .cbars .d:hover i{background:var(--ink-1)}
+  .cbars .d.pay::after{content:"";position:absolute;bottom:-12px;width:7px;height:7px;border-radius:50%;border:2px solid var(--ink-1);background:#fff}
+  .clab{display:flex;gap:5px;margin-top:14px}
+  .clab span{flex:1;text-align:center;font-size:10px;color:var(--ink-3)}
+  .cline{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);padding:9px 0 0;margin-top:9px;border-top:1px solid var(--line-faint)}
+  .cline .ic{width:14px;height:14px;color:var(--ink-3)}
+  .cline b{color:var(--ink-1);font-weight:600}
+  .cline .asof{margin-inline-start:auto;font-size:11px;color:var(--ink-3)}
+  /* alerts panel */
+  .al{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:13px 0;border-top:1px solid var(--line-faint);cursor:pointer}
+  .al:first-child{border-top:0}
+  .al .ai{width:34px;height:34px;border-radius:10px;display:grid;place-items:center}
+  .al .ai.crit{background:var(--red-bg);color:var(--red)} .al .ai.warn{background:var(--amber-bg);color:var(--amber-ink)}
+  .al b{display:block;font-size:13.5px;font-weight:600}
+  .al span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px;line-height:1.45}
+  .al small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:3px}
+  .al:hover b{text-decoration:underline}
+  /* settings */
+  .set .db{gap:14px}
+  .crumb{font-size:12px;color:var(--ink-3)}
+  .fld{display:flex;flex-direction:column;gap:6px}
+  .fld > b{font-size:13.5px;font-weight:600}
+  .fld > small{font-size:12px;color:var(--ink-3);line-height:1.45}
+  .inrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+  .inrow input{height:34px;border:1px solid #D1D5DB;border-radius:8px;padding:0 10px;font-size:14px;background:#fff;width:84px}
+  .inrow input.tm,.ovr input.tm{width:76px;text-align:center}
+  .days{display:flex;gap:4px;flex-wrap:wrap}
+  .days button{width:36px;height:30px;border-radius:7px;border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink-3);background:#fff}
+  .days button.on{background:var(--ink-1);border-color:var(--ink-1);color:#fff}
+  .ovr{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line-faint);font-size:13px}
+  .ovr input{height:32px;border:1px solid #D1D5DB;border-radius:8px;padding:0 8px;font-size:13px}
+  .ovr .rm{width:28px;height:28px;border-radius:7px;color:var(--ink-3);display:grid;place-items:center}
+  .ovr .rm:hover{background:var(--hover);color:var(--red)}
+  .addo{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .addo select{height:32px;border:1px solid #D1D5DB;border-radius:8px;padding:0 8px;font-size:13px;background:#fff}
+  .sfoot{flex:none;display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid var(--line-subtle)}
+  .exnote{font-size:12px;color:var(--amber-ink);background:var(--amber-bg);border-radius:8px;padding:8px 10px}
+  /* modal + toast */
+  .mscrim{position:fixed;inset:0;background:rgba(26,26,26,.5);z-index:400;display:none;place-items:center;padding:16px}
+  .mscrim.show{display:grid}
+  .modal{width:440px;max-width:100%;background:var(--card);border-radius:14px;box-shadow:var(--e-float)}
+  .modal header{padding:16px 20px;border-bottom:1px solid var(--line-subtle);font-size:15px;font-weight:650}
+  .modal header small{display:block;font-size:12.5px;color:var(--ink-3);font-weight:400;margin-top:2px}
+  .modal .mb{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+  .modal label{font-size:12.5px;color:var(--ink-2);font-weight:500;display:flex;flex-direction:column;gap:5px}
+  .modal input,.modal select{height:36px;border:1px solid #D1D5DB;border-radius:8px;padding:0 10px;font-size:14px;background:#fff}
+  .modal footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px 16px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink-1);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:all .18s;z-index:700;pointer-events:none;max-width:min(640px,90vw);text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+
+  /* ═════════ PHONE (.m) — set by width ≤ 900 px or the studio switch ═════════ */
+  #app.framed{width:390px;height:844px;margin:24px auto 40px;border-radius:38px;border:10px solid #1A1D21;overflow:hidden;transform:translateZ(0);box-shadow:0 20px 50px rgba(16,24,40,.18)}
+  #app.framed .stage{height:100%;min-height:0;overflow-y:auto}
+  .m .side{display:none}
+  .m .mtop{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:50;background:var(--sidebar);color:#fff;padding:10px 14px}
+  .m .mtop .mk{margin-inline-start:6px;font-size:12px;color:var(--sidebar-2);background:var(--sidebar-el);border-radius:7px;padding:3px 8px}
+  .m .mtop .menu{color:#fff}
+  .m .stage{flex-direction:column}
+  .m main{padding:16px 14px 40px}
+  .m .ph{align-items:stretch;flex-direction:column;gap:12px}
+  .m .ph h1{font-size:21px}
+  .m .daynav{width:100%}
+  .m .stepper{flex:1}
+  .m .stepper .lbl{flex:1;min-width:0}
+  .m .banner{flex-wrap:wrap}
+  .m .banner .btn{margin-inline-start:0}
+  .m .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m .cell{padding:12px 14px 13px;border-inline-start:0;border-top:1px solid var(--line-subtle)}
+  .m .cell:nth-child(-n+2){border-top:0}
+  .m .cell:nth-child(even){border-inline-start:1px solid var(--line-subtle)}
+  .m .cell .v{font-size:24px}
+  .m .legend{margin-inline-start:0}
+  .m .tb .hdr,.m .ft .hdr{display:none}
+  .m .tb .row{display:grid;grid-template-columns:1fr auto;grid-template-areas:"who wa" "bar bar" "cells cells";gap:10px 8px;padding:14px 16px}
+  .m .tb .row > div{padding:0!important}
+  .m .tb .row > .c-who{grid-area:who} .m .tb .row > .c-bar{grid-area:bar} .m .tb .row > .c-wa{grid-area:wa}
+  .m .tb .row > .c-n{display:none}
+  .m .mcells{display:grid;grid-area:cells;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .m .mcells div{background:var(--sunken);border-radius:9px;padding:7px 8px;text-align:center}
+  .m .mcells small{display:block;font-size:10.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m .mcells b{display:block;font-size:15px;font-weight:650}
+  .m .mcells b.bad{color:var(--red)}
+  .m .ft .row,.m .ft .team{grid-template-columns:auto 1fr auto;grid-template-areas:"rk who score" "bar bar bar" "nums nums bal";gap:10px;padding:14px 16px}
+  .m .ft .row > div,.m .ft .team > div{padding:0!important}
+  .m .ft .c-rk{grid-area:rk} .m .ft .c-who{grid-area:who} .m .ft .c-bar{grid-area:bar} .m .ft .c-score{grid-area:score} .m .ft .c-bal{grid-area:bal}
+  .m .ft .c-a,.m .ft .c-u,.m .ft .c-d{display:none}
+  .m .ft .c-nums{display:flex!important;grid-area:nums;gap:12px;font-size:12px;color:var(--ink-3);align-items:center;flex-wrap:wrap}
+  .m .ft .c-nums b{color:var(--ink-1);font-weight:600}
+  .ft .c-nums{display:none}
+  .m .drawer,.m .drawer.narrow{width:100%}
+  .m .kt{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .m .facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .m .prow{grid-template-columns:36px minmax(0,1fr) 34px 40px 34px 38px;gap:8px}
+  .m .prow img,.m .prow .ph0{width:36px;height:36px}
+  .m .rgr{grid-template-columns:26px minmax(0,1fr) 70px 28px 38px}
+  .m .eq{grid-template-columns:1fr;gap:6px}
+  .m .eq .op{display:none}
+  .m .dh{flex-wrap:wrap}
+  .m .dh .acts .btn span{display:none}
+
+  /* review notes (NOT part of the app) */
+  .notes{max-width:1080px;margin:0 auto;padding:16px 30px 100px;font-family:var(--f)}
+  .notes h2{font-size:18px;margin:26px 0 10px;font-weight:650}
+  .notes .n2{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 15px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .notes .n2.q{border-inline-start-color:var(--amber-dot)}
+  .notes .n2.f{border-inline-start-color:var(--red)}
+  .notes .n2 b{font-weight:650}
+  .notes ul{margin:6px 0 0;padding-inline-start:20px}
+  .notes li{margin:2px 0}
+  .notes table{border-collapse:collapse;font-size:13px;margin-top:6px;width:100%}
+  .notes td,.notes th{border-bottom:1px solid var(--line-subtle);padding:5px 12px 5px 0;text-align:start;vertical-align:top}
+  .notes code{font-size:12.5px;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:4px;padding:0 4px}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <h1>Salle de contrôle · v5</h1>
+  <span class="src">Données réelles <b>Libye</b> · version consolidée après la revue finale</span>
+  <span class="grow"></span>
+  <span class="pctl">Moment <button data-moment="replay">Rejeu · dim. 27 sept. 17:20</button><button data-moment="now">Maintenant · ven. 2 oct. 23:56</button></span>
+  <span class="pctl">Écran <button data-device="desktop">Bureau</button><button data-device="phone">Téléphone</button></span>
+  <span class="pctl">Langue <button data-lang="fr">FR</button><button data-lang="ar">AR</button></span>
+  <a href="#notes">Notes ↓</a>
+</div>
+
+<div id="app" dir="ltr">
+  <div class="stage" id="stage">
+    <aside class="side" id="side"></aside>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="mtop" id="mtop"></div>
+      <main><div class="page" id="page"></div></main>
+    </div>
+  </div>
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true"></aside>
+  <aside class="drawer narrow" id="apanel" role="dialog" aria-modal="true" aria-hidden="true"></aside>
+  <aside class="drawer narrow set" id="sdrawer" role="dialog" aria-modal="true" aria-hidden="true"></aside>
+  <div class="mscrim" id="mscrim"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<section class="notes" id="notes">
+  <h2>Notes de revue — v5 (version consolidée)</h2>
+  <div class="n2"><b>Ce que tu as tranché pendant la revue finale, et où c'est.</b>
+    <table>
+      <tr><th>Décision</th><th>Dans la page</th></tr>
+      <tr><td>Un seul vocabulaire : Assignées · Uploadées · Rejetées · Tentatives</td><td>Ligne de l'agent, tiroir, bandeau. « Appels » a disparu.</td></tr>
+      <tr><td>Un seul taux : uploadées ÷ (uploadées + rejetées)</td><td>Sous Uploadées / Rejetées (bandeau, tiroir) et sur chaque produit. Le score 30 jours garde son nom : « livrées pour 100 assignées ».</td></tr>
+      <tr><td>Bandeau du jour</td><td>Agents actifs · Reçues · Uploadées · Rejetées · Livrées · Non appelées &gt; 2 h</td></tr>
+      <tr><td>« Non appelées 2 h après attribution » remplace « en attente »</td><td>Bandeau, colonne, hachures rouges dans la barre. 2 h = défaut du réglage. « Confirmée non uploadée » = étiquette ambre sous le nom.</td></tr>
+      <tr><td>Ligne agent = barre « fait / reste » + chiffres</td><td>La barre montre ce qui est fini (uploadées, rejetées) et ce qui reste en main (en cours, à appeler, dont &gt; 2 h).</td></tr>
+      <tr><td>Frise du jour : seulement dans le tiroir, avec Début / Actif</td><td>Tiroir › « La journée » (vue « Aujourd'hui » seulement)</td></tr>
+      <tr><td>Ligne « livrées » dans le tiroir, « retournées » et pas « échouées »</td><td>Tiroir › « Ses uploads des 30 derniers jours », et la légende de l'entonnoir 30 jours</td></tr>
+      <tr><td>Flèche contre les 30 jours d'avant</td><td>Score 30 jours : tasnim ▲3, salima ▲2, roqaya ▲1, hend ▼6</td></tr>
+      <tr><td>Cloche de la barre latérale</td><td>3 alertes : aucune commande reçue, non appelées &gt; 2 h, agent connecté sans appel</td></tr>
+      <tr><td>Réglages dans Système › Réglages + lien</td><td>Lien « Réglages » en haut, qui ouvre la section telle qu'elle apparaîtra dans Réglages</td></tr>
+      <tr><td>Bureau d'abord, optimisé téléphone</td><td>Bouton « Écran › Téléphone » dans la barre du prototype : cartes empilées, tiroir plein écran</td></tr>
+    </table></div>
+  <div class="n2"><b>Les graphiques gardés (5), et ce qu'ils répondent.</b>
+    <ul>
+      <li><b>Barre « fait / reste »</b>, une par agent : avance-t-elle dans sa file ?</li>
+      <li><b>Entonnoir 30 jours</b>, un par agent : où perd-elle, à l'upload ou à la livraison ?</li>
+      <li><b>Frise du jour</b>, dans le tiroir : quand a-t-elle travaillé, contre son planning ?</li>
+      <li><b>Barres par produit et par motif</b>, dans le tiroir : sur quoi gagne-t-elle, pourquoi rejette-t-elle ?</li>
+      <li><b>Gains sur 14 jours</b>, dans le tiroir : à quel rythme elle gagne, et quand elle a été payée.</li>
+    </ul></div>
+  <div class="n2"><b>Décidé sans te demander (petits points).</b>
+    <ul>
+      <li>Le score 30 jours affiche la flèche de tendance à la place de l'écart avec l'équipe ; l'équipe reste visible sur sa propre ligne.</li>
+      <li>Un jour passé : la barre ne montre que ce qui a été fini (on ne connaît pas la file de ce jour-là), et « &gt; 2 h » devient « commandes de ce jour appelées après 2 h ».</li>
+      <li>« Non appelée » = pas encore appelée par l'agent qui la tient depuis son attribution. Une commande réattribuée compte donc pour le nouvel agent (roqaya : 7 le vendredi).</li>
+    </ul></div>
+  <div class="n2 f"><b>À faire hors de cette page avant la mise en service.</b>
+    <ul>
+      <li>Aucune commande libyenne depuis le 29 sept. 17:30 : la source Converty n'écrit plus dans la feuille.</li>
+      <li>Saisir le numéro de téléphone des agents dans Accès (0 sur 6), sinon WhatsApp ne peut rien ouvrir.</li>
+      <li>roqaya n'envoie aucun signal de présence ; vérifier son navigateur / son appareil.</li>
+      <li>Les réglages (délai 2 h, 30 min, retard toléré, plannings) n'existent pas encore en base.</li>
+    </ul></div>
+  <div class="n2"><b>Limites du prototype.</b> La bande 30 jours et la commission sont lues le 3 oct. dans les deux moments. Les 30 jours précédents (pour la flèche) sont des commandes attribuées du 4 août au 2 sept., presque toutes réglées, alors que les plus récentes sont encore en route : la flèche sous-estime légèrement la période en cours. Dans le rejeu, la connexion est déduite des appels.</div>
+</section>
+
+<script>
+/* ═════════════ REAL DATA — Libya ═════════════ */
+const EV = {
+ "2026-09-26":{
+  roqaya:"781a,783a,785a,787a,787r,791a,834a,834a,835r,835a,836a,837a,838a,838a,838c,839a,840r,841a,842a,843r,845c,850a,866c,868c,869a,871r,872a,874r,875r,875r,875r,878a,879a,880a,883a,957a,957a,959a,959c,960a,961r,961a,962a,962a,963r,964r,965a,965a,966r,966a,967a,967a,969a,970a,970a,971a,972r,974a,974a,974c,975a,977a,1031a,1032a,1033r,1035c,1038a,1038c",
+  salima:"877c,881c,884r,892r,900a,901c,903b,903r,903r,926c,930a,931c,931r,931r,933b,933c,939r,941r,942r,944r,1011r,1011r,1040c,1051c,1051c,1052c,1059r,1059r,1060r,1063a,1069a,1071r,1075r,1182a,1184r,1195a,1196a,1197r,1250a,1250c",
+  tasnim:"873a,877c,881a,882a,883a,883c,885c,887a,888a,888c,890r,930a,932r,934a,936r,943a,973a,974c,980r,983c,986r,995a,1003r,1012c,1015r,1016a,1018a,1021r,1069r,1070c,1077c,1079c,1080c,1083r,1088c,1088b,1090a,1092a,1092a,1095a,1098c,1101a,1104a,1106a,1106a,1107a,1107a,1107a,1107c,1118a,1121a,1123a,1124a,1125a,1126r,1128a,1129a,1166a,1166a,1167a,1167a,1167c,1168r,1221a,1221a,1237a,1237a,1238a,1239a,1239a,1240r,1241a,1241a,1241a,1243a,1243a"},
+ "2026-09-27":{
+  roqaya:"832r,837c,838c,838a,841c,843c,845r,846r,847a,849r,852c,854c,1065a,1067a,1067a,1068r,1068a,1070a,1070a,1071a,1074a,1074a,1074c,1080a,1080a,1080a,1080a,1081r,1081r,1081a,1081r,1082a,1083a,1083a,1084a,1084a,1085a,1085a,1085r,1086a,1087a,1088a,1091r,1091r,1092a,1092a,1093a,1095a,1095a,1095a,1097a,1097c,1098r,1099a,1099a,1100r,1100r,1100a,1100r,1100a,1100a,1100a,1101a,1101a,1102a,1102a,1103r,1103a,1103r,1103a,1103a,1103a,1103a,1104a,1104a,1104a,1104r,1104a,1104r,1105r,1111r,1111a,1111a,1111r,1111a,1111a,1111r,1111r,1111r,1114c,1115a,1116a,1118r,1120c,1122c,1124a,1124r,1127r,1132c,1144c,1145a,1148r,1149a,1150a,1151r,1152a,1154a,1154a,1154c",
+  salima:"893c,923a,926b,928a,930c,933b,934r,934r,934r,934r,939a,939c,943a,944c,953a,954c,966r,1008a,1042b,1042b,1043c,1046a,1065a,1077a,1078r,1079c,1083r,1084r,1086r,1088r,1088r,1091c,1093c,1094c,1099a,1101a,1103c,1103r,1104b,1105b,1109c,1110c,1112r,1117a,1118c,1144a,1144r,1148a,1150a,1150r,1150r,1151r,1151r,1154a,1155a,1155r,1155a,1198a,1198a,1198a,1199a,1199r,1200r,1200a,1200c,1200r,1200a,1200a,1201a,1201a,1204a,1204a,1204r,1206a,1206a,1206a,1207c,1207a,1207a,1207a,1207a,1207a,1207a,1209r,1209r,1210a,1246b",
+  tasnim:"900a,902a,905a,907a,908a,927c,927a,931b,933r,934a,941r,942a,944b,946r,949a,950a,952a,958a,959a,961a,965c,969c,971a,971a,973c,980a,982r,992r,993a,994a,996a,997a,999b,1003r,1005a,1008a,1010a,1010a,1013r,1016a,1018c,1020r,1021a,1025c,1028c,1029a,1030a,1030a,1031a,1031c,1032a,1033a,1033c,1068a,1070r,1071b,1072b,1073a,1074r,1076a,1077a,1080a,1080a,1081a,1083r,1084c,1085a,1086a,1087r,1088a,1089a,1089a,1090a,1091a,1091a,1092a,1092a,1093a,1094a,1094a,1094a,1094c,1100a,1100r,1101a,1101a,1102a,1103a,1104c,1105a,1105r,1106a,1107a,1108a,1110r,1117c,1123r,1127c,1129a,1132r,1135a,1137a,1139a,1162a,1163a,1164a,1170b,1171r,1172a,1173r,1179r,1179a,1180a,1182r,1182a,1198a,1200a,1200a,1200a,1200c,1201a,1201a,1202a,1205a,1205a,1206a,1207a,1209r,1209a,1209a,1210a,1211a,1211a,1211a,1212r,1214a,1214b,1215a,1217r,1218r,1219a,1219a,1231a,1234c,1236r,1238a,1239a,1264r"},
+ "2026-09-28":{
+  roqaya:"788a,790c,796a,798c,800r,801a,803r,803r,804r,808a,809a,812c,814c,816a,817a,820r,821r,823r,824r,825a,826r,827a,829c,831a,832a,833a,833c,835r,850r,851a,852r,854c,854r,855a,856r,857r,858r,859r,860r,861a,862r,863r,865a,865a,865c,868a,868a",
+  salima:"878c,879c,880c,899c,900r,901r,901r,902c,903r,906b,908b,913c,916a,916r,917c,918c,918c,920r,924a,925c,988c,989r,995a,996r,997r,999a,999r,1001r,1002c,1002r,1004a,1005a,1008a,1008r,1010r,1010r,1010a,1012a,1012r,1013a,1013r,1014a,1015a,1016a,1016a,1017r,1028a,1028c,1054c,1055r,1056r,1193r",
+  tasnim:"988a,993b,996c,998a,1000a,1001a,1005r,1006a,1006a,1041a,1043c,1044a,1046r,1046a,1048c,1049a,1052r,1053a,1058a,1068b,1069r,1071c,1074r,1080a,1081a,1085a,1091c,1093a,1095a,1098r,1105a,1105a,1105c,1105a,1106a,1107a,1107a,1107c,1116r,1116a,1118a,1118a,1120a,1120a,1126a,1126a,1127a,1128a,1128a,1129a,1129a,1129c,1130c,1131a,1132a,1133a,1133a,1134a,1134a,1134c,1135a,1137a,1137c,1155a,1155a,1156b,1156a,1157a,1160a,1164c,1165c,1165r,1168r,1169r,1170r,1171r,1172a,1173a,1173a,1173a,1173c,1174a,1174a,1174a,1175a,1176c,1177a,1178a,1178a,1179a,1180c,1180a,1187a,1191a,1192a,1192a,1195a,1196a,1209a,1209a,1210a,1210a,1210a,1214r,1215a,1216a,1217a,1218a,1228a,1228a,1228a,1231a,1232a,1234r,1235a,1236a,1237a,1237a,1239a,1239a,1240a,1243a,1245a,1245a,1247a"},
+ "2026-09-29":{
+  roqaya:"808c,847a,849c,850a,851a,852a,853a,856c,858a,860a,862c,863a,864r,866r,867a,867a,868a,868c,869r,870r,871r,871r,871c,872a,873a,875c,908r,908r,909r,910r,911r,912r,912r,913r,913r,913r,915a,918c,920a,920r,920r,920r,921r,923a,923r,924a,925a,926r,928a,929a,929r,929r,929r,930r,931r,932a,932a,932c,933r,934a,935a,935r,936a,937r,938r,938a,938r,940a,940a,940a,947a,948a,949a,949a,949c",
+  salima:"900c,901r,901r,903a,903r,903r,909c,911r,912r,913c,915r,916c,939b,939r,941b,941c,942c,943a,944c,947r,949c,950c,951r,952c,953c,953c,959r,963c,964b,968a,997a,998r,1000a,1182a,1182a,1182a,1182a,1190a,1190a,1190a,1190a,1192r,1192r,1192r,1193r,1193a,1319a,1319r,1319a,1321a,1323a,1324a,1346c",
+  tasnim:"880a,881a,884c,887a,890r,891a,893a,893a,896b,896r,898a,902r,904a,908r,909a,913c,936b,940r,942a,946r,950c,951r,952a,955a,955a,956a,958a,960a,961a,1011a,1015c,1021r,1021a,1021a,1021a,1022a,1028a,1029a,1029a,1030a,1032a,1032a,1032a,1033a,1033a,1033a,1034a,1035a,1036a,1036a,1037a,1037a,1038a,1039a,1040a,1041a,1043a,1043a,1043a,1043c,1048a,1048c,1050a,1050a,1051r,1052a,1052a,1053a,1054a,1054a,1054a,1054c,1055a,1056a,1057a,1059r,1060r,1061a,1124r,1126a,1131b,1132a,1134a,1157a,1160b,1161a,1162a,1163a,1164r,1165a,1166a"},
+ "2026-09-30":{
+  roqaya:"779a,779a,780a,782a,782r,783a,783c,786r,789r,791a,793a,793c,795a,795a,795a,795a,795a,795c,798r,798r,798a,800r,805a,805r,806a,806r,853r,853r,854r,854a,854a,854r,856a,856r,856r,856a,857r,857a,858a,858a,858r,859a,859a,860r,861a,862a,863a,863a,863a,864a,864a,864a,864a,864a,864a,903a,903a,903a,903a,903a,903a,904a,904a,904a,904a,906a",
+  salima:"874a,875a,876a,879a",
+  tasnim:"846a,846a,846a,849a,849a,849a,850r,851a,851a,852a,852a,852a,855a,855a,856r,856a,858a,858a,872a,873r,874a,874a,876a,876a,876c,878a,878a,878a,878c,987a,1012a,1016a,1016a,1019a"},
+ "2026-10-01":{
+  roqaya:"817a,818r,818r,820a,821a,822a,822a,822c,824r,829r,830a,830a,831r,831r,831r,831a,831a,831a,832a,832a,832a,832r,832r,832r,832r,833a,833r,833a,836r,837a,838a,839a,839r,839a,840r,840r,840r,842a,852a,854a,854r,854a,854a,854r,855a,855a,855a,855a,855a,855a,855a,855a,855a",
+  salima:"1155c,1156c",
+  tasnim:"839b,840b,841b,843b,843a,845b,845a,863a,863a,866a,866b,868a,868a,964r,965a,965a,966a,966a,983a,983a,983a,985a,985a,985a,986a,986a,987r,988a,988a,989a,990a,994a,994a,995c,995a,995a,995a,996r,1092a,1093a,1094a,1095a,1096a,1096a,1096c,1112r,1112a,1113r,1114a,1114a,1115a,1117a,1124a,1125a"},
+ "2026-10-02":{}
+};
+
+/* Orders handed to each agent (orders.assigned_at) — "<minute>x<count>" */
+const AS = {
+ "2026-09-26":{roqaya:"830x12,888x5,989x3,1335x1",salima:"773x26",tasnim:"773x5,888x7,908x1,1064x2"},
+ "2026-09-27":{roqaya:"791x8,1057x13,1059x23",salima:"791x19,910x2,970x15,1215x4",tasnim:"790x12,911x2,916x2,969x13,970x3,1025x4,1046x1,1104x3,1125x1,1157x11,1214x3"},
+ "2026-09-28":{roqaya:"704x18,705x5,781x2,793x8,873x17",salima:"705x19,794x5,1023x2,1083x5",tasnim:"705x17,1022x1,1081x2,1141x4"},
+ "2026-09-29":{roqaya:"661x18,780x1",salima:"662x21,1026x5",tasnim:"663x19,998x1,1107x1"},
+ "2026-09-30":{roqaya:"640x23",tasnim:"822x5"},
+ "2026-10-01":{roqaya:"661x9,690x1",tasnim:"846x3,876x1,960x3,961x3"},
+ "2026-10-02":{roqaya:"772x7"}
+};
+/* Uploads by each agent — minute of day (order_history.status_to = uploaded) */
+const UP = {
+ "2026-09-26":{roqaya:"838,845,866,868,960,974,1035,1038",salima:"877,882,901,926,931,934,1040,1052,1052,1251",tasnim:"877,884,885,888,975,983,1013,1070,1077,1079,1081,1098,1107"},
+ "2026-09-27":{roqaya:"837,841,843,852,854,1097,1097,1114,1120,1122,1132,1145,1154",salima:"894,930,939,944,954,1043,1079,1091,1093,1094,1103,1109,1110,1118,1200,1207",tasnim:"966,969,973,1018,1026,1028,1031,1034,1084,1094,1104,1118,1127,1200,1234"},
+ "2026-09-28":{roqaya:"790,799,812,815,829,834,854,865",salima:"878,879,880,899,902,914,918,925,1002,1028,1054",tasnim:"997,1043,1048,1071,1092,1105,1107,1129,1130,1134,1137,1164,1165,1173,1176,1180"},
+ "2026-09-29":{roqaya:"808,849,857,862,868,871,876,918,932,949",salima:"900,909,913,916,944,949,950,952,953,953,963,1346",tasnim:"884,914,950,1015,1043,1048,1054"},
+ "2026-09-30":{roqaya:"784,793,797",tasnim:"876,878"},
+ "2026-10-01":{roqaya:"822",salima:"1156,1156",tasnim:"995,1096"},
+ "2026-10-02":{}
+};
+/* Parcels delivered by Darb, per local day (team); minutes known for 27 sept. only */
+const DLV = {"2026-09-26":5,"2026-09-27":12,"2026-09-28":15,"2026-09-29":19,"2026-09-30":17,"2026-10-01":13,"2026-10-02":1};
+const DLV_MIN = {"2026-09-27":[3,163,173,843,853,1021,1053,1213,1223,1253,1303,1325]};
+/* 30-day funnel — orders assigned 3 sept → 2 oct, read 3 oct
+   [assigned, uploaded, delivered, en route, failed after upload, still open] */
+const F30 = {
+ tasnim:[555,248,144,11,86,16], salima:[475,197,76,16,102,8], roqaya:[342,101,48,11,38,7],
+ hend:[137,39,15,0,24,1], mouna:[3,3,2,0,1,0], riheb:[0,0,0,0,0,0]
+};
+const F30_FROM = "2026-09-03", F30_TO = "2026-10-02", MIN_SCORED = 30;
+/* Per agent, per local day, per product — "P:assigned/uploaded/rejected/attempts" (attempts = attempt_* + callback rows) */
+const PD = {
+ "2026-09-21":{roqaya:"D:5/4/1/8 H:2/0/2/2 Q:5/0/5/3",salima:"D:4/4/0/6 H:3/0/4/4 Q:5/2/5/3",tasnim:"D:9/7/2/34 H:2/1/2/14 Q:9/1/9/17"},
+ "2026-09-22":{roqaya:"D:5/2/3/35 H:2/0/2/15 Q:8/3/6/28",salima:"D:3/0/1/2 H:7/1/7/0 Q:8/0/6/1",tasnim:"D:10/4/2/13 H:12/6/4/19 Q:8/2/2/11"},
+ "2026-09-23":{roqaya:"D:2/2/0/2 H:7/1/6/15 Q:4/2/3/12",salima:"D:4/3/2/5 H:5/2/3/2 Q:5/0/6/6",tasnim:"D:9/6/2/18 H:1/1/2/10 Q:4/2/6/2"},
+ "2026-09-24":{roqaya:"D:2/1/1/1 H:9/3/6/3 Q:3/2/1/4",salima:"D:4/2/0/2 H:4/3/0/0 Q:6/0/2/3",tasnim:"D:6/3/3/21 H:2/1/3/3 Q:4/1/2/14"},
+ "2026-09-25":{roqaya:"D:2/1/1/5 H:1/0/1/1 Q:6/0/5/4",salima:"D:2/0/0/0 Q:2/0/0/0",tasnim:"D:7/0/0/0 H:1/0/0/0 Q:3/0/0/0"},
+ "2026-09-26":{roqaya:"D:6/3/4/14 H:3/0/3/8 M:6/3/2/6 Q:6/2/6/17",salima:"D:4/4/1/5 H:8/1/7/1 M:2/1/1/2 Q:12/3/10/2",tasnim:"D:5/7/5/12 H:4/2/2/12 M:3/2/1/18 Q:3/1/5/6"},
+ "2026-09-27":{roqaya:"D:11/5/5/21 H:7/1/6/10 M:16/6/10/12 Q:10/1/9/22",salima:"D:12/5/5/15 H:4/0/3/7 M:15/7/6/15 Q:9/4/11/9",tasnim:"D:10/4/4/22 H:7/0/5/11 M:25/9/9/57 Q:13/2/9/15"},
+ "2026-09-28":{roqaya:"D:6/3/0/6 H:6/1/3/0 M:28/4/12/9 Q:10/0/5/4",salima:"D:7/6/3/6 H:7/0/7/2 M:12/4/8/8 Q:5/1/3/1",tasnim:"D:5/4/1/10 H:6/1/5/13 M:9/9/5/42 Q:4/0/3/30"},
+ "2026-09-29":{roqaya:"D:3/1/4/5 H:6/2/6/2 M:6/5/12/18 Q:4/2/6/8",salima:"D:4/3/2/3 H:5/0/7/3 M:14/7/5/15 Q:3/1/3/1",tasnim:"D:2/0/1/11 H:6/2/5/12 M:8/4/4/35 Q:5/1/3/13"},
+ "2026-09-30":{roqaya:"D:1/2/1/8 H:3/0/2/3 M:12/1/9/20 Q:7/0/5/15",salima:"D:0/0/0/2 H:0/0/0/1 Q:0/0/0/1",tasnim:"D:2/1/1/6 H:2/1/1/4 M:1/0/1/17 Q:0/0/0/2"},
+ "2026-10-01":{roqaya:"D:3/0/4/5 H:0/0/1/3 M:5/1/9/19 Q:2/0/5/6",salima:"D:0/1/0/0 Q:0/1/0/0",tasnim:"D:2/0/2/5 H:1/0/0/6 M:6/2/2/29 Q:1/0/1/7"},
+ "2026-10-02":{roqaya:"D:1/0/0/0 M:5/0/0/0 Q:1/0/0/0"}
+};
+/* Rejections per agent, per local day, by GROUP (orders.rejection_reason) */
+const RG = {
+ "2026-09-21":{roqaya:"commande_invalide:6 refus_client:1 autre:1",salima:"commande_invalide:4 refus_client:3 injoignable:2",tasnim:"autre:13"},
+ "2026-09-22":{roqaya:"commande_invalide:7 injoignable:3 autre:1",salima:"commande_invalide:10 refus_client:2 injoignable:2",tasnim:"autre:8"},
+ "2026-09-23":{roqaya:"commande_invalide:5 refus_client:2 injoignable:1 autre:1",salima:"commande_invalide:5 refus_client:4 injoignable:1 autre:1",tasnim:"autre:10"},
+ "2026-09-24":{roqaya:"commande_invalide:7 livraison_impossible:1",salima:"commande_invalide:2",tasnim:"autre:8"},
+ "2026-09-25":{roqaya:"commande_invalide:5 refus_client:2"},
+ "2026-09-26":{roqaya:"commande_invalide:9 refus_client:4 livraison_impossible:1 injoignable:1",salima:"commande_invalide:14 refus_client:5",tasnim:"autre:13"},
+ "2026-09-27":{roqaya:"commande_invalide:13 injoignable:9 refus_client:6 autre:2",salima:"commande_invalide:21 refus_client:4",tasnim:"autre:26 refus_client:1"},
+ "2026-09-28":{roqaya:"commande_invalide:16 injoignable:2 refus_client:2",salima:"commande_invalide:13 refus_client:8",tasnim:"autre:14"},
+ "2026-09-29":{roqaya:"commande_invalide:19 refus_client:6 autre:2 injoignable:1",salima:"commande_invalide:15 refus_client:2",tasnim:"autre:12 commande_invalide:1"},
+ "2026-09-30":{roqaya:"commande_invalide:12 refus_client:3 autre:1 injoignable:1",tasnim:"autre:3"},
+ "2026-10-01":{roqaya:"injoignable:9 commande_invalide:9 refus_client:1",tasnim:"autre:5"},
+ "2026-10-02":{}
+};
+/* Replay: the same two, cut at 17:20 on 27 sept. */
+const PD_CUT = {roqaya:"D:2/1/1/1 M:6/4/3/1",salima:"D:11/2/2/1 H:4/0/0/1 M:13/2/1/6 Q:8/1/2/0",tasnim:"D:7/1/0/5 H:4/0/3/4 M:16/5/3/23 Q:9/2/2/4"};
+const RG_CUT = {roqaya:"refus_client:3 autre:1",salima:"commande_invalide:4 refus_client:1",tasnim:"autre:8"};
+const PD_FIRST = "2026-09-21";
+/* Products (Libya) */
+const PROD = {
+ Q:{n:"القرآن تدبر وعمل",img:"https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/7bfabff2-7f13-49b4-98df-b33db5ad235a/image.jpeg?v=1779580982768"},
+ H:{n:"كتاب الحفظ الميسر",img:"https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/25fc3a87-9c48-40ac-b2d1-5dddb3feb0d7/image.png?v=1787764975140"},
+ D:{n:"كتاب الداء والدواء للإمام ابن القيم",img:"https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/e907b151-0b2e-4b72-9d05-91e25621af4d/image.jpeg?v=1782262157700"},
+ M:{n:"مصحف التهجد و قيام الليل",img:"https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/6d394d37-ded2-495a-a58b-abd0e22248e9/image.png?v=1787764336145"}
+};
+/* Rejections by sub-reason, 26 sept → 2 oct — [group, sub, n] */
+const REJ7 = {
+ roqaya:[["commande_invalide","non_commande",52],["refus_client","prix_eleve",18],["commande_invalide","simple_info",18],["injoignable","pas_de_reponse",16],["injoignable","numero_hors_service",5],["commande_invalide","non_serieux",5],["commande_invalide","doublon",5],["refus_client","changement_avis",4],["autre",null,3],["injoignable","mauvais_interlocuteur",2],["livraison_impossible","hors_couverture",1]],
+ salima:[["commande_invalide","non_commande",27],["commande_invalide","non_serieux",25],["refus_client","changement_avis",12],["commande_invalide","simple_info",10],["refus_client","prix_eleve",4],["refus_client","produit_non_voulu",3],["commande_invalide","doublon",1]],
+ tasnim:[["autre",null,73],["refus_client","prix_eleve",1],["commande_invalide","non_commande",1]]
+};
+const REASON = { /* rejection_reason_configs, Libya */
+ refus_client:{fr:"Refus client",ar:"رفض العميل"}, commande_invalide:{fr:"Commande non réelle",ar:"الطلب غير حقيقي"},
+ injoignable:{fr:"Injoignable",ar:"تعذر الاتصال"}, livraison_impossible:{fr:"Livraison impossible",ar:"تعذر التوصيل"}, autre:{fr:"Autre",ar:"أخرى"},
+ prix_eleve:{fr:"Prix trop élevé",ar:"السعر مرتفع"}, changement_avis:{fr:"A changé d'avis",ar:"غيّر رأيه"}, produit_non_voulu:{fr:"Veut un autre produit",ar:"يريد منتجاً آخر"},
+ non_commande:{fr:"N'a pas commandé",ar:"لم يطلب المنتج"}, simple_info:{fr:"Simple demande d'info",ar:"استفسار فقط"}, non_serieux:{fr:"Commande non sérieuse",ar:"طلب غير جاد"}, doublon:{fr:"Commande en double",ar:"طلب مكرر"},
+ pas_de_reponse:{fr:"Ne répond pas",ar:"لا يرد"}, numero_hors_service:{fr:"Éteint ou hors service",ar:"مغلق أو خارج الخدمة"}, mauvais_interlocuteur:{fr:"Le numéro est à quelqu'un d'autre",ar:"الرقم لشخص آخر"},
+ hors_couverture:{fr:"Hors zone de livraison",ar:"خارج نطاق التغطية"}
+};
+/* Commissions — agent_commission_ledger, all time, LYD */
+/* Commissions — agent_commission_ledger + agent_commission_rates, read 3 oct. (LYD).
+   earned = accruals (n = commissioned deliveries) · back = reversals (left "delivered", or the 26 sept. correction)
+   daily = net commissioned deliveries per local day · road/late = parcels uploaded < 21 days ago still with Darb */
+const COMM_ASOF = "2026-10-03";
+const COMM = {
+ tasnim:{bal:363, earned:1074, en:118, back:144, bn:16, paid:567, last:"2026-09-26", pays:[["2026-09-21",300,"cash"],["2026-09-26",267,"cash"]], rates:[["2026-09-12",9],["2026-09-30",10]], road:4, late:6,
+   daily:{"2026-09-13":2,"2026-09-14":3,"2026-09-15":2,"2026-09-16":5,"2026-09-17":1,"2026-09-18":4,"2026-09-19":7,"2026-09-20":6,"2026-09-21":7,"2026-09-22":8,"2026-09-23":8,"2026-09-24":9,"2026-09-26":2,"2026-09-27":5,"2026-09-28":12,"2026-09-29":7,"2026-09-30":5,"2026-10-01":7,"2026-10-02":1,"2026-10-03":1}},
+ salima:{bal:432, earned:477, en:53, back:45, bn:5, paid:0, last:null, pays:[], rates:[["2026-09-14",9]], road:4, late:12,
+   daily:{"2026-09-14":1,"2026-09-15":2,"2026-09-16":6,"2026-09-17":3,"2026-09-18":2,"2026-09-19":2,"2026-09-20":2,"2026-09-21":1,"2026-09-22":5,"2026-09-23":2,"2026-09-24":1,"2026-09-25":1,"2026-09-26":2,"2026-09-27":2,"2026-09-28":2,"2026-09-29":5,"2026-09-30":5,"2026-10-01":4}},
+ roqaya:{bal:407, earned:424, en:48, back:17, bn:2, paid:0, last:null, pays:[], rates:[["2026-09-09",8],["2026-09-17",9]], road:2, late:7,
+   daily:{"2026-09-11":1,"2026-09-12":2,"2026-09-13":1,"2026-09-14":2,"2026-09-15":1,"2026-09-20":5,"2026-09-21":3,"2026-09-22":3,"2026-09-23":4,"2026-09-24":2,"2026-09-27":5,"2026-09-28":1,"2026-09-29":7,"2026-09-30":7,"2026-10-01":1,"2026-10-03":1}},
+ hend:{bal:126, earned:135, en:15, back:9, bn:1, paid:0, last:null, pays:[], rates:[["2026-09-09",9]], road:0, late:0,
+   daily:{"2026-09-13":3,"2026-09-14":5,"2026-09-15":3,"2026-09-16":1,"2026-09-20":1,"2026-09-22":1}},
+ riheb:{bal:60, earned:60, en:6, back:0, bn:0, paid:0, last:null, pays:[], rates:[["2026-08-25",10]], road:0, late:0, daily:{}},
+ mouna:{bal:0, earned:0, en:0, back:0, bn:0, paid:0, last:null, pays:[], rates:[], road:0, late:0, daily:{}, off:true}
+};
+/* Queues — items "P|status|hours held|called by holder since assignment|callback MM-DD HH:MM" */
+const SNAP = {
+ replay:{
+  salima:{t:[36,13,2,143],items:"Q|a1|101.4|1,D|a1|78.4|1,D|a2|2.2|0,D|cb|28.4|1,Q|a1|28.4|1,D|p|4.1|0,H|a1|1.2|1,M|p|4.1|0,Q|p|1.2|0,Q|a1|28.4|1,M|p|1.2|0,M|p|1.2|0,Q|a1|76.5|1,D|cb|78.4|1,D|p|1.2|0,D|p|4.1|0,H|a2|2.2|0,Q|p|1.2|0,Q|a1|97.1|1,Q|a1|76.5|1,D|cb|4.1|1,H|a1|28.4|1,M|p|4.1|0,M|p|1.2|0,M|p|1.2|0,Q|a1|72|1,Q|p|1.2|0,M|cb|4.1|1,Q|p|4.1|0,Q|p|1.2|0,M|p|1.2|0,D|p|1.2|0,D|cb|51.4|1,D|p|4.1|0,M|p|1.2|0,H|p|1.2|0,H|p|4.1|0,M|p|1.2|0,D|a1|101.4|1"},
+  tasnim:{t:[36,25,13,59],items:"M|cb|4.2|1,M|p|2.1|0,M|a1|1.2|1,M|p|2.1|0,Q|p|2.1|0,Q|p|0.2|0,D|p|0.2|0,D|cb|125|1,H|cb|26.5|1,D|cb|199.1|1,D|a1|4.2|1,M|cb|4.2|1,D|cb|1.2|1,Q|a1|1.2|1,D|cb|101.4|1,H|cb|295.1|1,D|cb|74.3|1,M|a1|4.2|1,Q|a1|4.2|1,M|p|0.2|0,D|p|1.2|0,D|p|2.1|0,M|a1|4.2|1,H|p|1.2|0,D|p|0.2|0"},
+  roqaya:{t:[8,8,8,53],items:""},
+  hend:{items:"Q|cf|287.8|1"}, mouna:{items:""}, riheb:{items:""}
+ },
+ now:{
+  tasnim:{items:"H|cb|422|1|10-05 14:01,D|cb|326|1|10-03 17:51,D|cb|252|1|10-06 14:53,D|cb|228|1|10-08 22:10,D|cb|201|1|10-01 18:51,H|cb|153|1|10-04 18:08,M|cb|131|1|10-03 15:31,M|cb|131|1|10-04 15:43,D|cb|128|1|10-05 16:39,Q|cb|125|1|10-04 19:30,D|cb|108|1|10-06 16:33,Q|cb|108|1|10-11 14:05,H|cb|85|1|10-04 14:55,Q|cb|85|1|10-10 15:36,D|cb|85|1|10-04 19:20,M|cb|34|1|10-07 14:26"},
+  salima:{items:"D|cb|155|1|10-03 17:36,D|cb|131|1|09-29 17:33,D|cb|131|1|09-27 20:24,M|cb|108|1|10-03 17:06,M|cb|108|1|09-28 17:08,M|cb|85|1|09-29 17:39,Q|cb|85|1|10-01 17:40,M|cb|85|1|09-29 18:30"},
+  roqaya:{items:"Q|a3|11.1|0,M|a3|11.1|0,D|a3|11.1|0,M|a3|11.1|0,M|a3|11.1|0,M|a3|11.1|0,M|a3|11.1|0"},
+  hend:{items:"Q|cf|414|1"}, mouna:{items:""}, riheb:{items:""}
+ }
+};
+/* Orders created in the market (orders.created_at), minute of day */
+const CR = {
+ "2026-09-26":"0,60,105,105,105,120,150,150,210,225,225,240,285,300,375,375,375,420,420,435,435,435,480,480,480,525,540,540,540,555,585,585,615,615,645,660,675,690,705,720,750,780,780,795,795,825,825,840,840,900,900,915,930,960,975,975,1020,1020,1110,1110,1125,1140,1185,1185,1185,1230,1230,1245,1260,1275,1275,1290,1380,1380,1395,1395,1395,1410,1425,1425",
+ "2026-09-27":"0,0,0,15,15,15,15,45,45,75,75,75,105,120,120,120,150,165,180,180,195,195,225,225,225,255,300,315,345,345,360,375,375,390,405,405,420,420,420,420,435,435,435,450,450,465,465,480,480,495,510,510,525,555,555,555,570,570,585,585,600,600,615,630,630,660,690,690,690,690,690,705,705,705,720,720,720,765,765,765,780,780,795,810,840,855,870,900,900,900,915,915,930,945,960,975,990,990,990,1020,1020,1020,1035,1050,1065,1065,1095,1110,1125,1155,1155,1170,1185,1200,1200,1200,1200,1215,1230,1230,1230,1230,1230,1245,1245,1275,1290,1305,1320,1365,1365,1380,1395,1395,1395,1410,1425",
+ "2026-09-28":"15,15,15,15,15,45,60,75,75,75,75,90,90,105,105,120,120,135,150,165,195,195,195,240,240,240,255,285,285,300,315,315,375,405,435,435,450,465,525,525,540,555,570,585,585,600,615,630,630,645,660,660,660,660,675,690,690,690,720,720,720,735,735,735,750,750,750,750,765,765,780,840,855,870,870,870,885,900,900,915,915,930,960,1020,1050,1065,1110,1125,1140,1140,1140,1185,1185,1200,1200,1200,1215,1245,1260,1260,1275,1290,1290,1305,1305,1305,1320,1350,1350,1365,1365,1365,1395,1395,1395,1395,1410,1410,1410,1425,1425",
+ "2026-09-29":"0,0,15,30,45,45,60,60,75,75,90,90,105,105,105,105,135,165,165,180,180,195,210,210,225,255,270,285,300,330,360,405,420,420,420,435,450,465,465,465,465,480,480,480,525,540,585,690,780,915,1050",
+ "2026-09-30":"","2026-10-01":"","2026-10-02":""
+};
+/* First call after assignment, per local day of assignment — [assigned, called, within 2 h, median min] */
+const REACT = {
+ "2026-09-20":{roqaya:[10,10,10,62],salima:[19,19,8,122],tasnim:[16,16,13,50]},
+ "2026-09-21":{roqaya:[11,11,11,25],salima:[9,9,9,86],tasnim:[18,18,18,96]},
+ "2026-09-22":{roqaya:[14,14,8,57],salima:[16,16,0,142],tasnim:[23,23,13,104]},
+ "2026-09-23":{roqaya:[9,9,9,107],salima:[12,12,1,168],tasnim:[8,8,2,175]},
+ "2026-09-24":{roqaya:[12,12,0,165],salima:[12,12,0,240],tasnim:[11,11,2,199]},
+ "2026-09-25":{roqaya:[9,9,0,174],salima:[3,3,0,1550],tasnim:[8,8,0,1296]},
+ "2026-09-26":{roqaya:[17,17,16,44],salima:[24,24,0,239],tasnim:[14,14,2,194]},
+ "2026-09-27":{roqaya:[41,41,41,40],salima:[35,35,10,142],tasnim:[49,49,36,50]},
+ "2026-09-28":{roqaya:[47,47,20,123],salima:[27,27,3,213],tasnim:[24,24,7,298]},
+ "2026-09-29":{roqaya:[18,18,0,231],salima:[25,25,0,277],tasnim:[21,21,2,239]},
+ "2026-09-30":{roqaya:[23,23,0,214],tasnim:[5,5,5,49]},
+ "2026-10-01":{roqaya:[10,10,0,161],tasnim:[10,9,9,19]},
+ "2026-10-02":{roqaya:[7,0,0,null]}
+};
+/* Previous 30-day window (orders assigned 4 août → 2 sept.) — [assigned, delivered] */
+const F30_PREV = {tasnim:[285,66], salima:[269,38], roqaya:[152,19], hend:[88,15], riheb:[51,11]};
+const LAST_ORDER = {date:"2026-09-29", min:1050};
+const MOMENTS = {
+ replay:{today:"2026-09-27", now:1040, connectedWithin:90, seen:{}},
+ now:{today:"2026-10-02", now:1436, connectedWithin:0, seen:{tasnim:["2026-10-02",1207], salima:["2026-10-01",1155], hend:["2026-09-29",1033]}}
+};
+const AGENTS = ["tasnim","salima","roqaya","hend","mouna","riheb"];
+const OLD_LAST = {hend:"2026-09-16", mouna:"2026-09-11", riheb:"2026-09-12"};
+const FIRST_DAY = "2026-09-26";
+/* Settings — EXAMPLE values; they belong in Système › Réglages and do not exist in the DB yet */
+const DEFAULT_CFG = {callH:2, idleMin:30, lateMin:15, start:840, end:1260, days:[6,0,1,2,3,4], over:{roqaya:[780,960]}};
+
+/* ═════════════ i18n ═════════════ */
+const I = {
+ fr:{
+  dir:"ltr", locale:"fr-FR",
+  nav:{brand:"Ordra", market:"Marché", ly:"Libye", sections:[["accueil","Accueil",["Dashboard"]],["commandes","Commandes",null],["logistique","Entrepôt",null],["livraison","Livraison",null],["finances","Finances",null],["clients","Clients",null],["equipe","Équipe",["Salle de contrôle","Performance","Accès"]],["systeme","Système",null]], active:"Salle de contrôle", role:"Super admin", alerts:"Alertes"},
+  title:"Salle de contrôle", market:"Libye", settings:"Réglages",
+  live:"En direct", past:"Journée terminée", rest:"Jour de repos (planning)", back:"Revenir à aujourd'hui", today:"Aujourd'hui", yesterday:"Hier", prev:"Jour précédent", next:"Jour suivant",
+  min:"min", h:"h", d:"j",
+  band_today:"Aujourd'hui", band_past:"Ce jour-là", band_30:"Agents · 30 derniers jours", band_30_sub:(a,b)=>`commandes attribuées du ${a} au ${b}`, due:"À payer",
+  b_title:d=>`Aucune commande reçue depuis ${d}`,
+  b_body:w=>`La dernière est arrivée ${w}. La synchronisation « Converty Libya (Sheets) » tourne toutes les 15 min sans erreur, mais ne trouve aucune nouvelle ligne : c'est la source qui n'envoie plus rien.`,
+  b_cta:"Ouvrir Connexions",
+  s_act:"Agents actifs", s_ok:"tout le monde travaille", s_none:"personne n'appelle", s_rest:"repos selon le planning",
+  s_bad:(i,la,e)=>[i&&`${i} sans appel`, la&&`${la} en retard`, e&&`${e} arrêt tôt`].filter(Boolean).join(" · "),
+  s_came:(a,b)=>`de ${a} à ${b}`, s_absent:"aucun appel ce jour",
+  s_recv:"Reçues", s_recv_last:t=>`dernière à ${t}`, s_recv_none:d=>`aucune depuis ${d}`, s_recv_day:"commandes arrivées ce jour",
+  s_up:"Uploadées", s_rj:"Rejetées", s_rate:p=>`taux ${p}`,
+  s_dlv:"Livrées", s_dlv_sub:"colis remis par Darb",
+  s_unc:h=>`Non appelées > ${h} h`, s_unc_sub:(d,a)=>`${d} au plus · ${a}`, s_unc_ok:"tout est appelé à temps", s_unc_past:(n,t)=>`sur ${t} attribuées ce jour`,
+  ag_title:"Agents", ag_hint:"fait aujourd'hui · reste en main", ag_hint_past:"fini ce jour-là",
+  lg_u:"Uploadées", lg_r:"Rejetées", lg_p:"En cours", lg_t:"À appeler", lg_o:h=>`Non appelées > ${h} h`,
+  c_agent:"Agent", c_bar:"Fait · reste en main", c_as:"Assignées", c_up:"Uploadées", c_rj:"Rejetées", c_at:"Tentatives", c_unc:h=>`Non app. > ${h} h`, c_unc_past:"Appelées > 2 h",
+  cap_done:(u,r)=>`<b>${u}</b> upl. · <b>${r}</b> rej.`, cap_left:(p,t)=>`<b>${p}</b> en cours · <b>${t}</b> à appeler`, cap_none:"rien en main",
+  tag_cf:n=>`${n} confirmée${n>1?"s":""} non uploadée${n>1?"s":""}`, cap_unc:(n,h)=>`${n} > ${h} h`,
+  st_working:d=>`Au travail · appel il y a ${d}`, st_idle:d=>`Sans appel depuis ${d}`, st_left:t=>`Arrêt à ${t}`, st_left_early:(t,e)=>`Arrêt à ${t}, avant ${e}`,
+  st_late:t=>`Pas encore d'appel · prévu ${t}`, st_before:t=>`Commence à ${t}`, st_rest:"Repos", st_rest_seen:t=>`Repos · connexion à ${t}`, st_done:(a,b)=>`De ${a} à ${b}`, st_absent:"Aucun appel ce jour", st_off:w=>`Dernier appel ${w}`,
+  dorm:n=>`${n} comptes sans appel depuis plus de 7 jours`,
+  wa:"Écrire sur WhatsApp", wa_toast:a=>`Ouvrirait WhatsApp vers ${a} — aucun numéro enregistré (0 agent sur 6 dans Accès)`,
+  c_rank:"#", c_funnel:"Assignées → uploadées → livrées", c_assigned:"Assignées", c_uploaded:"Uploadées", c_uploaded_s:"des assignées", c_delivered:"Livrées", c_delivered_s:"des colis finis", c_score:"Livrées / 100", c_score_s:"vs 30 j d'avant", c_bal:"Solde",
+  f_d:"Livrée", f_e:"En route", f_f:"Retournée", f_x:"Non uploadée",
+  team:"Équipe", weak_upl:"upload faible", weak_dlv:"livraison faible", held:"volume trop faible", inactive:d=>`sans activité depuis le ${d}`, none30:"aucune commande sur 30 j",
+  pay:"Payer", last_paid:d=>`payé le ${d}`, never_paid:"jamais payé",
+  foot30:"Solde = commissions gagnées − reprises − paiements, depuis le début.", foot30b:n=>`livrées pour 100 assignées = livrées ÷ assignées · classement à partir de ${n} commandes`,
+  trend_t:p=>`30 jours d'avant : ${p}`,
+  dp_week:"7 jours", k_as:"Assignées", k_up:"Uploadées", k_rj:"Rejetées", k_at:"Tentatives", k_rate:p=>`taux ${p}`, k_at_s:"sans réponse", k_as_s:"dans sa file",
+  dlv_t:"Ses uploads des 30 derniers jours", dlv_d:"livrées", dlv_r:"retournées", dlv_e:"en route",
+  dr_day:"La journée", dr_plan:"Planning", dr_start:"Début", dr_active:"Actif", dr_last:"Dernier appel", late:d=>`+${d}`, ontime:"à l'heure", act_pct:p=>`${p} du prévu`,
+  sec_prod:"Par produit", ph_prod:"Produit", ph_as:"Assig.", ph_up:"Upload.", ph_rj:"Rejet.", ph_at:"Tent.", prod_none:"Aucune commande sur la période.", p_rate:p=>`taux ${p}`, p_nodec:"aucune décision",
+  sec_rej:"Motifs de rejet", rej_none:"Aucun rejet sur la période.", rej_autre:"Autre (sans motif)",
+  cm_title:"Commission", cm_rate:r=>`${r} د.ل par commande livrée`, cm_since:d=>`depuis le ${d}`, cm_bal:"Solde à payer", cm_off:"Commission désactivée pour cet agent.",
+  cm_earned:"Gagné", cm_back:"Repris", cm_paid:"Payé", cm_n_dlv:n=>`${n} livrées`, cm_n_back:n=>`${n} annulées`, cm_n_pay:n=>n?`${n} paiement${n>1?"s":""}`:"aucun paiement",
+  cm_14:"Gains par jour · 14 jours", cm_14_sum:v=>`${v} sur la période`, cm_payday:"jour de paiement",
+  cm_coming:(v,n,lt)=>`Jusqu'à <b>${v}</b> à venir : ${n} colis chez Darb${lt?`, dont ${lt} retardés`:""}`, cm_coming_none:"Rien en route chez Darb.",
+  cm_lastpay:(d,v)=>`Dernier paiement le <b>${d}</b> · ${v}`, cm_never:"Jamais payé", cm_asof:"au 3 oct.",
+  al_title:"Alertes", al_sub:"Salle de contrôle · Libye", al_none:"Aucune alerte en ce moment.",
+  al_intake:d=>`Aucune commande reçue depuis ${d}`, al_intake_s:"La source Converty n'envoie plus rien.",
+  al_unc:(a,n,h)=>`${a} · ${n} commande${n>1?"s":""} non appelée${n>1?"s":""} ${h} h après attribution`, al_unc_s:d=>`La plus ancienne attend depuis ${d}.`,
+  al_idle:(a,d)=>`${a} · connectée sans appel depuis ${d}`, al_idle_s:n=>`${n} commande${n>1?"s":""} à appeler dans sa file.`, al_now:"maintenant",
+  set_title:"Salle de contrôle", set_crumb:"Système › Réglages", set_ex:"Aperçu de la section qui rejoindra Système › Réglages. Valeurs d'exemple : rien de tout cela n'existe encore en base.",
+  set_call:"Commande « non appelée » après", set_call_s:"Délai depuis l'attribution à l'agent. Au-delà, elle compte dans « Non appelées » et dans la cloche.",
+  set_idle:"Agent « sans appel » après", set_idle_s:"Un agent connecté qui n'appelle plus depuis ce délai passe en ambre et déclenche la cloche.",
+  set_late:"Retard toléré", set_late_s:"Un premier appel plus tard que l'heure prévue + ce délai s'affiche en ambre.",
+  set_shift:"Planning de l'équipe", set_shift_s:"Heures et jours de travail par défaut pour tous les agents du marché.",
+  set_over:"Exceptions par agent", set_over_s:"Un agent qui a d'autres heures que l'équipe.", set_add:"Ajouter",
+  set_cancel:"Annuler", set_save:"Enregistrer", set_saved:"Réglages enregistrés (prototype : la page se recalcule, rien n'est écrit)",
+  hours:"h", minutes:"min", to:"→", dayn:["D","L","M","M","J","V","S"],
+  m_title:n=>`Enregistrer un paiement — ${n}`, m_sub:b=>`Solde actuel ${b}`, m_amount:"Montant", m_method:"Mode", m_cash:"Espèces", m_transfer:"Virement", m_note:"Note (facultatif)", m_cancel:"Annuler", m_save:"Enregistrer",
+  toast_pay:"Paiement enregistré (prototype : rien n'est écrit)", toast_nav:"Ouvrirait Système › Connexions › Sources", close:"Fermer"
+ },
+ ar:{
+  dir:"rtl", locale:"ar-LY-u-nu-latn",
+  nav:{brand:"Ordra", market:"السوق", ly:"ليبيا", sections:[["accueil","الرئيسية",["لوحة القيادة"]],["commandes","الطلبات",null],["logistique","المستودع",null],["livraison","التوصيل",null],["finances","المالية",null],["clients","العملاء",null],["equipe","الفريق",["غرفة التحكم","أداء الفريق","الوصول"]],["systeme","النظام",null]], active:"غرفة التحكم", role:"مسؤول عام", alerts:"التنبيهات"},
+  title:"غرفة التحكم", market:"ليبيا", settings:"الإعدادات",
+  live:"مباشر", past:"يوم منتهٍ", rest:"يوم راحة (حسب الجدول)", back:"العودة إلى اليوم", today:"اليوم", yesterday:"أمس", prev:"اليوم السابق", next:"اليوم التالي",
+  min:"د", h:"س", d:"ي",
+  band_today:"اليوم", band_past:"ذلك اليوم", band_30:"الوكلاء · آخر 30 يومًا", band_30_sub:(a,b)=>`الطلبات المسندة من ${a} إلى ${b}`, due:"للدفع",
+  b_title:d=>`لم يصل أي طلب منذ ${d}`,
+  b_body:w=>`آخر طلب وصل ${w}. مزامنة « Converty Libya (Sheets) » تعمل كل 15 دقيقة بلا أخطاء، لكنها لا تجد أي سطر جديد: المصدر نفسه توقف عن الإرسال.`,
+  b_cta:"فتح الاتصالات",
+  s_act:"الوكلاء النشطون", s_ok:"الجميع يعمل", s_none:"لا أحد يتصل", s_rest:"راحة حسب الجدول",
+  s_bad:(i,la,e)=>[i&&`${i} بلا مكالمة`, la&&`${la} متأخر`, e&&`${e} توقف مبكر`].filter(Boolean).join(" · "),
+  s_came:(a,b)=>`من ${a} إلى ${b}`, s_absent:"لا مكالمات في هذا اليوم",
+  s_recv:"الواردة", s_recv_last:t=>`آخرها ${t}`, s_recv_none:d=>`لا شيء منذ ${d}`, s_recv_day:"طلبات وصلت في هذا اليوم",
+  s_up:"المرفوعة", s_rj:"المرفوضة", s_rate:p=>`النسبة ${p}`,
+  s_dlv:"المُسلّمة", s_dlv_sub:"طرود سلّمتها درب",
+  s_unc:h=>`لم يُتصل بها > ${h} س`, s_unc_sub:(d,a)=>`أقصاها ${d} · ${a}`, s_unc_ok:"كل الطلبات اتُّصل بها في وقتها", s_unc_past:(n,t)=>`من ${t} مسندة في ذلك اليوم`,
+  ag_title:"الوكلاء", ag_hint:"المنجز اليوم · المتبقي", ag_hint_past:"المنجز في ذلك اليوم",
+  lg_u:"مرفوعة", lg_r:"مرفوضة", lg_p:"قيد المعالجة", lg_t:"للاتصال", lg_o:h=>`لم يُتصل بها > ${h} س`,
+  c_agent:"الوكيل", c_bar:"المنجز · المتبقي", c_as:"المسندة", c_up:"المرفوعة", c_rj:"المرفوضة", c_at:"المحاولات", c_unc:h=>`بلا اتصال > ${h} س`, c_unc_past:"اتصال بعد ساعتين",
+  cap_done:(u,r)=>`<b>${u}</b> مرفوعة · <b>${r}</b> مرفوضة`, cap_left:(p,t)=>`<b>${p}</b> قيد المعالجة · <b>${t}</b> للاتصال`, cap_none:"لا شيء متبقٍ",
+  tag_cf:n=>`${n} مؤكدة لم تُرفع`, cap_unc:(n,h)=>`${n} بعد ${h} س`,
+  st_working:d=>`في العمل · مكالمة منذ ${d}`, st_idle:d=>`بلا مكالمة منذ ${d}`, st_left:t=>`آخر نشاط ${t}`, st_left_early:(t,e)=>`آخر نشاط ${t}، قبل ${e}`,
+  st_late:t=>`لا مكالمات بعد · المقرر ${t}`, st_before:t=>`البداية ${t}`, st_rest:"راحة", st_rest_seen:t=>`راحة · اتصال ${t}`, st_done:(a,b)=>`من ${a} إلى ${b}`, st_absent:"لا مكالمات في هذا اليوم", st_off:w=>`آخر مكالمة ${w}`,
+  dorm:n=>`${n} حسابات بلا مكالمة منذ أكثر من 7 أيام`,
+  wa:"مراسلة عبر واتساب", wa_toast:a=>`سيفتح واتساب نحو ${a} — لا رقم مسجّل (0 من 6 وكلاء في الوصول)`,
+  c_rank:"#", c_funnel:"مسندة ← مرفوعة ← مُسلّمة", c_assigned:"المسندة", c_uploaded:"المرفوعة", c_uploaded_s:"من المسندة", c_delivered:"المُسلّمة", c_delivered_s:"من المنتهية", c_score:"مُسلّمة / 100", c_score_s:"مقابل الـ30 يومًا السابقة", c_bal:"الرصيد",
+  f_d:"مُسلّمة", f_e:"في الطريق", f_f:"مرتجعة", f_x:"لم تُرفع",
+  team:"الفريق", weak_upl:"رفع ضعيف", weak_dlv:"تسليم ضعيف", held:"حجم غير كافٍ", inactive:d=>`بلا نشاط منذ ${d}`, none30:"لا طلبات خلال 30 يومًا",
+  pay:"دفع", last_paid:d=>`دُفع ${d}`, never_paid:"لم يُدفع بعد",
+  foot30:"الرصيد = العمولات المكتسبة − المسترجعة − المدفوعات، منذ البداية.", foot30b:n=>`مُسلّمة لكل 100 مسندة = المُسلّمة ÷ المسندة · الترتيب ابتداءً من ${n} طلبًا`,
+  trend_t:p=>`الـ30 يومًا السابقة: ${p}`,
+  dp_week:"7 أيام", k_as:"المسندة", k_up:"المرفوعة", k_rj:"المرفوضة", k_at:"المحاولات", k_rate:p=>`النسبة ${p}`, k_at_s:"بلا رد", k_as_s:"في قائمته",
+  dlv_t:"مرفوعاته خلال آخر 30 يومًا", dlv_d:"مُسلّمة", dlv_r:"مرتجعة", dlv_e:"في الطريق",
+  dr_day:"سير اليوم", dr_plan:"الجدول", dr_start:"البداية", dr_active:"نشط", dr_last:"آخر مكالمة", late:d=>`+${d}`, ontime:"في الوقت", act_pct:p=>`${p} من المقرر`,
+  sec_prod:"حسب المنتج", ph_prod:"المنتج", ph_as:"مسندة", ph_up:"مرفوعة", ph_rj:"مرفوضة", ph_at:"محاولات", prod_none:"لا طلبات في هذه الفترة.", p_rate:p=>`النسبة ${p}`, p_nodec:"لا قرار",
+  sec_rej:"أسباب الرفض", rej_none:"لا رفض في هذه الفترة.", rej_autre:"أخرى (بلا سبب)",
+  cm_title:"العمولة", cm_rate:r=>`${r} د.ل لكل طلب مُسلَّم`, cm_since:d=>`منذ ${d}`, cm_bal:"الرصيد المستحق", cm_off:"العمولة معطّلة لهذا الوكيل.",
+  cm_earned:"المكتسب", cm_back:"المسترجع", cm_paid:"المدفوع", cm_n_dlv:n=>`${n} مُسلّمة`, cm_n_back:n=>`${n} ملغاة`, cm_n_pay:n=>n?`${n} دفعات`:"لا دفعات",
+  cm_14:"المكاسب اليومية · 14 يومًا", cm_14_sum:v=>`${v} خلال الفترة`, cm_payday:"يوم دفع",
+  cm_coming:(v,n,lt)=>`حتى <b>${v}</b> قادمة: ${n} طرود لدى درب${lt?`، منها ${lt} متأخرة`:""}`, cm_coming_none:"لا شيء في الطريق لدى درب.",
+  cm_lastpay:(d,v)=>`آخر دفعة <b>${d}</b> · ${v}`, cm_never:"لم يُدفع بعد", cm_asof:"حتى 3 أكتوبر",
+  al_title:"التنبيهات", al_sub:"غرفة التحكم · ليبيا", al_none:"لا تنبيهات حاليًا.",
+  al_intake:d=>`لم يصل أي طلب منذ ${d}`, al_intake_s:"مصدر Converty لم يعد يرسل شيئًا.",
+  al_unc:(a,n,h)=>`${a} · ${n} طلبات لم يُتصل بها بعد ${h} س من الإسناد`, al_unc_s:d=>`الأقدم ينتظر منذ ${d}.`,
+  al_idle:(a,d)=>`${a} · متصل بلا مكالمة منذ ${d}`, al_idle_s:n=>`${n} طلبات للاتصال في قائمته.`, al_now:"الآن",
+  set_title:"غرفة التحكم", set_crumb:"النظام › الإعدادات", set_ex:"معاينة للقسم الذي سينضم إلى النظام › الإعدادات. قيم للمثال: لا شيء من هذا موجود في قاعدة البيانات بعد.",
+  set_call:"طلب « لم يُتصل به » بعد", set_call_s:"المدة منذ الإسناد للوكيل. بعدها يُحتسب في « لم يُتصل بها » وفي الجرس.",
+  set_idle:"وكيل « بلا مكالمة » بعد", set_idle_s:"الوكيل المتصل الذي توقف عن الاتصال منذ هذه المدة يظهر بالكهرماني ويُطلق الجرس.",
+  set_late:"التأخير المسموح", set_late_s:"أول مكالمة بعد الوقت المقرر + هذه المدة تظهر بالكهرماني.",
+  set_shift:"جدول الفريق", set_shift_s:"ساعات وأيام العمل الافتراضية لجميع وكلاء السوق.",
+  set_over:"استثناءات لكل وكيل", set_over_s:"وكيل له ساعات مختلفة عن الفريق.", set_add:"إضافة",
+  set_cancel:"إلغاء", set_save:"حفظ", set_saved:"حُفظت الإعدادات (نموذج أولي: تُعاد الحسابات، لا يُكتب شيء)",
+  hours:"س", minutes:"د", to:"←", dayn:["أح","إث","ث","أر","خ","ج","س"],
+  m_title:n=>`تسجيل دفعة — ${n}`, m_sub:b=>`الرصيد الحالي ${b}`, m_amount:"المبلغ", m_method:"الطريقة", m_cash:"نقدًا", m_transfer:"تحويل", m_note:"ملاحظة (اختياري)", m_cancel:"إلغاء", m_save:"تسجيل",
+  toast_pay:"سُجّلت الدفعة (نموذج أولي: لم يُكتب شيء)", toast_nav:"سيفتح النظام › الاتصالات › المصادر", close:"إغلاق"
+ }
+};
+
+/* ═════════════ helpers ═════════════ */
+const S = {lang:"fr", moment:"replay", device:"desktop", day:null, agent:null, dper:"day", pay:null, settings:false, alerts:false, cfg:JSON.parse(JSON.stringify(DEFAULT_CFG)), draft:null};
+const L = () => I[S.lang];
+const M = () => MOMENTS[S.moment];
+const pad = n => String(n).padStart(2,"0");
+const hm = m => `${pad(Math.floor(m/60)%24)}:${pad(m%60)}`;
+/* Arabic writes 56% with no space: with a space, Chrome flips the sign to the far side inside an RTL line */
+const pct = v => v==null || !isFinite(v) ? "—" : `<bdi dir="ltr">${Math.round(v)}${S.lang==="ar" ? "%" : " %"}</bdi>`;
+const signed = n => `<bdi dir="ltr">${Math.round(n)>0?"+":Math.round(n)<0?"−":""}${Math.abs(Math.round(n))}</bdi>`;
+function dur(min){
+  const l = L(); min = Math.max(0, Math.round(min));
+  if (min < 60) return `${min} ${l.min}`;
+  if (min < 1440){ const h = Math.floor(min/60), m = min%60; return m ? `${h} ${l.h} ${pad(m)}` : `${h} ${l.h}`; }
+  const d = Math.floor(min/1440), h = Math.floor((min%1440)/60); return h ? `${d} ${l.d} ${h} ${l.h}` : `${d} ${l.d}`;
+}
+const money = n => `${Math.round(n).toLocaleString(S.lang==="fr"?"fr-FR":"en-US")} د.ل`;
+const dt = s => new Date(s+"T12:00:00Z");
+function addDays(s, k){ const d = dt(s); d.setUTCDate(d.getUTCDate()+k); return d.toISOString().slice(0,10); }
+function daysBetween(a, b){ return Math.round((dt(b)-dt(a))/86400000); }
+const dow = s => dt(s).getUTCDay();
+function fmtDay(s, opts){ return new Intl.DateTimeFormat(L().locale, Object.assign({timeZone:"UTC"}, opts)).format(dt(s)); }
+const dayShort = s => fmtDay(s, {weekday:"short", day:"numeric", month:"short"});
+const dayLong = s => fmtDay(s, {weekday:"long", day:"numeric", month:"long"});
+const dayNum = s => fmtDay(s, {day:"numeric", month:"short"});
+function when(date, min){
+  const k = daysBetween(date, M().today);
+  const t = min==null ? "" : (S.lang==="fr" ? ` à ${hm(min)}` : ` ${hm(min)}`);
+  if (k===0) return (S.lang==="fr" ? "aujourd'hui" : "اليوم") + t;
+  if (k===1) return (S.lang==="fr" ? "hier" : "أمس") + t;
+  return (S.lang==="fr" ? "le " : "") + dayShort(date) + t;
+}
+let T0 = 720, SPAN = 720;
+function setWindow(t0){ T0 = t0; SPAN = 1440 - t0; }
+const xp = m => Math.max(0, Math.min(100, (m - T0) / SPAN * 100));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ICON = {
+ users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+ phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+ clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+ truck:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+ inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+ left:'<polyline points="15 18 9 12 15 6"/>', right:'<polyline points="9 18 15 12 9 6"/>', down:'<polyline points="6 9 12 15 18 9"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>', menu:'<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
+ alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+ bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+ gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+ wa:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+ activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', ban:'<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+ wallet:'<path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
+ home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>',
+ box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>', chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+ gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>', server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>', trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+ g_refus_client:'<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>',
+ g_injoignable:'<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="22" x2="2" y1="2" y2="22"/>',
+ g_livraison_impossible:'<path d="M12.75 7.09a3 3 0 0 1 2.16 2.16"/><path d="M17.072 17.072c-1.634 2.17-3.527 3.912-4.471 4.727a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 1.432-4.568"/><path d="m2 2 20 20"/><path d="M8.475 2.818A8 8 0 0 1 20 10c0 1.183-.31 2.377-.81 3.533"/><path d="M9.13 9.13a3 3 0 0 0 3.74 3.74"/>',
+ g_commande_invalide:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m14.5 12.5-5 5"/><path d="m9.5 12.5 5 5"/>',
+ g_autre:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>'
+};
+const ic = (n, cls="") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
+const av = (id, state) => `<span class="av">${esc(id[0])}${state?`<i class="${state}"></i>`:""}</span>`;
+const toMin = s => { const mt = /^(\d{1,2}):?(\d{2})$/.exec(String(s).trim()); return mt ? Math.min(1439, (+mt[1])*60 + (+mt[2])) : null; };
+
+/* ═════════════ model ═════════════ */
+function parseEv(s){ return s ? s.split(",").map(t => ({m:parseInt(t,10), k:t.slice(-1)})) : []; }
+function parseMins(s){ return s ? s.split(",").filter(Boolean).map(Number) : []; }
+function parseAs(s){ return s ? s.split(",").map(t => { const [m,n] = t.split("x"); return {m:+m, n:+n}; }) : []; }
+function parseItems(s){ return s ? s.split(",").map(t => { const [p,st,h,c,cb] = t.split("|"); return {p, st, h:+h, called:c==="1", cb:cb||null}; }) : []; }
+function sessionsOf(evs){ const out = []; let cur = null; for (const e of evs){ if (cur && e.m - cur.b <= 20) cur.b = e.m; else { cur = {a:e.m, b:e.m}; out.push(cur); } } return out; }
+const activeMin = evs => new Set(evs.map(e => Math.floor(e.m/10))).size * 10;
+const shiftOf = a => S.cfg.over[a] || [S.cfg.start, S.cfg.end];
+const isWorkday = d => S.cfg.days.includes(dow(d));
+function lastCallBefore(a, day){
+  for (let d = addDays(day,-1); d >= FIRST_DAY; d = addDays(d,-1)){ const evs = parseEv((EV[d]||{})[a]); if (evs.length) return {d, m:evs[evs.length-1].m}; }
+  return OLD_LAST[a] ? {d:OLD_LAST[a], m:null} : null;
+}
+function queueOf(a, live){
+  const items = live ? parseItems(((SNAP[S.moment]||{})[a]||{}).items) : [];
+  const toCall = items.filter(i => i.st!=="cf" && !i.called);
+  const prog = items.filter(i => i.st!=="cf" && i.called);
+  const unc = toCall.filter(i => i.h > S.cfg.callH);
+  const cf = items.filter(i => i.st==="cf");
+  return {items, toCall, prog, unc, cf, uncOld: unc.reduce((m,i)=>Math.max(m,i.h),0)};
+}
+
+function build(dayArg){
+  const m = M(), cfg = S.cfg, l = L();
+  const day = dayArg || S.day, live = day === m.today, cut = live ? m.now : 1440;
+  const work = isWorkday(day);
+  const working = AGENTS.filter(a => { for (let k=0;k<7;k++){ if ((EV[addDays(m.today,-k)]||{})[a]) return true; } return false; });
+  const dormant = AGENTS.filter(a => !working.includes(a));
+  const rows = working.map(a => {
+    const evs = parseEv((EV[day]||{})[a]).filter(e => e.m <= cut);
+    const ups = parseMins((UP[day]||{})[a]).filter(x => x <= cut);
+    const asg = parseAs((AS[day]||{})[a]).filter(x => x.m <= cut).reduce((acc, x) => { const p = acc[acc.length-1]; if (p && x.m - p.last <= 10){ p.n += x.n; p.last = x.m; } else acc.push({m:x.m, n:x.n, last:x.m}); return acc; }, []);
+    const rej = evs.filter(e=>e.k==="r").length, att = evs.filter(e=>e.k==="a"||e.k==="b").length;
+    const ses = sessionsOf(evs), act = activeMin(evs);
+    const first = evs.length ? evs[0].m : null, last = evs.length ? evs[evs.length-1].m : null;
+    const [ps, pe] = shiftOf(a);
+    const planned = work ? Math.max(0, Math.min(cut, pe) - ps) : 0;
+    const lateBy = work && first!=null ? first - ps : null;
+    const q = queueOf(a, live);
+    let rx = (REACT[day]||{})[a] || null;
+    if (live && S.moment==="replay" && ((SNAP.replay||{})[a]||{}).t) rx = SNAP.replay[a].t;
+    let state = "off", line = "";
+    const seen = m.seen[a];
+    if (live){
+      const since = last==null ? null : cut - last;
+      const connected = last!=null && since < m.connectedWithin;
+      if (last!=null && since < cfg.idleMin){ state="working"; line=l.st_working(dur(since)); }
+      else if (connected){ state="idle"; line=l.st_idle(dur(since)); }
+      else if (last!=null){ if (work && last < pe - cfg.lateMin && cut > last){ state="early"; line=l.st_left_early(hm(last), hm(pe)); } else { state="left"; line=l.st_left(hm(last)); } }
+      else if (!work){ state="rest"; line = seen && seen[0]===day ? l.st_rest_seen(hm(seen[1])) : l.st_rest; }
+      else if (cut >= ps + cfg.lateMin){ state="late"; line=l.st_late(hm(ps)); }
+      else { state="before"; line=l.st_before(hm(ps)); }
+    } else {
+      if (last!=null){ state="done"; line=l.st_done(hm(first), hm(last)); }
+      else if (!work){ state="rest"; line=l.st_rest; }
+      else { state="absent"; line=l.st_absent; }
+    }
+    const assigned = asg.reduce((s,x)=>s+x.n,0);
+    const uncN = live ? q.unc.length : (rx ? rx[0]-rx[2] : 0);
+    return {a, evs, ups, asg, rej, att, assigned, up:ups.length, ses, act, first, last, ps, pe, planned, lateBy, q, rx, uncN, state, line};
+  });
+  const marks = rows.flatMap(r => [...r.evs.map(e=>e.m), ...r.asg.map(x=>x.m), ...(work ? [r.ps] : [])]);
+  Object.values(m.seen).forEach(x => { if (x[0]===day) marks.push(x[1]); });
+  const t0 = marks.length ? Math.max(480, Math.min(720, Math.floor(Math.min(...marks)/60)*60 - 60)) : 720;
+  const created = (CR[day] ? CR[day].split(",").filter(Boolean).map(Number) : []).filter(x => x <= cut);
+  const team = {
+    recv: created.length, lastIn: created.length ? created[created.length-1] : null,
+    up: rows.reduce((s,r)=>s+r.up,0), rej: rows.reduce((s,r)=>s+r.rej,0),
+    dlv: live && DLV_MIN[day] ? DLV_MIN[day].filter(x=>x<=cut).length : (DLV[day]||0),
+    unc: rows.reduce((s,r)=>s+r.uncN,0),
+    rxN: rows.reduce((s,r)=>s+(r.rx?r.rx[0]:0),0)
+  };
+  const oldest = rows.filter(r=>r.q.unc.length).sort((x,y)=>y.q.uncOld-x.q.uncOld)[0];
+  team.oldest = oldest ? {a:oldest.a, h:oldest.q.uncOld} : null;
+  const dormCf = live ? dormant.map(a => ({a, cf:parseItems(((SNAP[S.moment]||{})[a]||{}).items).filter(i=>i.st==="cf")})).filter(x=>x.cf.length) : [];
+  return {day, live, cut, work, rows, team, working, dormant, t0, dormCf};
+}
+
+function view30(){
+  const T = Object.values(F30).reduce((s,f)=>s.map((v,i)=>v+f[i]), [0,0,0,0,0,0]);
+  const TP = Object.values(F30_PREV).reduce((s,f)=>[s[0]+f[0], s[1]+f[1]], [0,0]);
+  const rate = f => ({score: f[0] ? f[2]/f[0]*100 : null, upl: f[0] ? f[1]/f[0]*100 : null, dlv: (f[2]+f[4]) ? f[2]/(f[2]+f[4])*100 : null});
+  const team = {f:T, ...rate(T), prev: TP[0] ? TP[1]/TP[0]*100 : null};
+  const rows = AGENTS.map(a => ({a, f:F30[a], ...rate(F30[a]), prev: F30_PREV[a] && F30_PREV[a][0] >= 30 ? F30_PREV[a][1]/F30_PREV[a][0]*100 : null}));
+  rows.forEach(r => { r.scored = r.f[0] >= 30; r.weakUpl = r.scored && r.upl <= team.upl - 5; r.weakDlv = r.scored && r.dlv <= team.dlv - 5; });
+  rows.sort((x,y)=> (y.scored - x.scored) || ((y.score||0) - (x.score||0)) || y.f[0]-x.f[0]);
+  let k = 0; rows.forEach(r => { r.rank = r.scored ? ++k : null; });
+  return {team, rows, max: Math.max(...rows.map(r=>r.f[0]))};
+}
+
+function alertsNow(){
+  const l = L(), m = M(), v = build(m.today), out = [];
+  const sinceOrder = daysBetween(LAST_ORDER.date, m.today)*1440 + m.now - LAST_ORDER.min;
+  if (sinceOrder > 360) out.push({kind:"crit", icon:"inbox", title:l.al_intake(dur(sinceOrder)), sub:l.al_intake_s, act:"nav"});
+  v.rows.filter(r=>r.q.unc.length).sort((x,y)=>y.q.unc.length-x.q.unc.length).forEach(r => out.push({kind:"crit", icon:"clock", title:l.al_unc(r.a, r.q.unc.length, S.cfg.callH), sub:l.al_unc_s(dur(r.q.uncOld*60)), act:"agent", a:r.a}));
+  v.rows.filter(r=>r.state==="idle").forEach(r => out.push({kind:"warn", icon:"phone", title:l.al_idle(r.a, dur(v.cut - r.last)), sub:l.al_idle_s(r.q.toCall.length), act:"agent", a:r.a}));
+  return out;
+}
+
+/* ═════════════ render: chrome ═════════════ */
+function renderSide(){
+  const l = L(), n = l.nav, count = alertsNow().length;
+  const icons = {accueil:"home",commandes:"bag",logistique:"box",livraison:"truck",finances:"chart",clients:"users",equipe:"gauge",systeme:"server"};
+  const bell = `<button class="bell" data-alerts aria-label="${n.alerts}">${ic("bell")}${count?`<b class="num">${count}</b>`:""}</button>`;
+  let h = `<div class="brand"><span class="logo">O</span>${n.brand}${bell}</div><div class="mk"><span>${n.market}</span><b>${n.ly}</b></div>`;
+  for (const [id, label, items] of n.sections){
+    h += `<div class="nsec">${ic(icons[id])}<span>${label}</span>${ic(items?"down":(S.lang==="ar"?"left":"right"),"chev")}</div>`;
+    if (items) for (const it of items) h += `<div class="it ${it===n.active?"on":""}">${it}</div>`;
+  }
+  document.getElementById("side").innerHTML = h + `<div class="foot"><span>F</span><div>Firas<small>${n.role}</small></div></div>`;
+  document.getElementById("mtop").innerHTML = `<span class="menu">${ic("menu")}</span><span class="logo">O</span><b>${n.brand}</b><span class="mk">${n.ly}</span><span style="margin-inline-start:auto"></span>${bell}`;
+}
+
+/* ═════════════ render: page ═════════════ */
+function renderPage(){
+  const l = L(), m = M(), v = build();
+  const k = daysBetween(v.day, m.today), dayName = k===0 ? l.today : k===1 ? l.yesterday : null;
+  let h = `<div class="ph">
+    <div><h1>${l.title}</h1>
+      <div class="sub">${l.market} · ${dayLong(v.day)}
+        ${v.live ? `<span class="chip live"><i></i>${l.live} · <bdi class="num">${hm(m.now)}</bdi></span>` : `<span class="chip past">${l.past}</span>`}
+        ${!v.work ? `<span class="chip rest">${l.rest}</span>` : ""}</div></div>
+    <div class="daynav">
+      ${v.live ? "" : `<button class="btn" data-go="today">${l.back}</button>`}
+      <div class="stepper">
+        <button data-go="-1" aria-label="${l.prev}" ${v.day<=FIRST_DAY?"disabled":""}>${ic("left","flip")}</button>
+        <span class="lbl">${dayName ? `${dayName}<small>${dayShort(v.day)}</small>` : dayShort(v.day)}</span>
+        <button data-go="1" aria-label="${l.next}" ${v.live?"disabled":""}>${ic("right","flip")}</button>
+      </div>
+      <button class="btn ghost" data-settings>${ic("gear")}<span>${l.settings}</span></button>
+    </div></div>`;
+  const sinceOrder = daysBetween(LAST_ORDER.date, m.today)*1440 + m.now - LAST_ORDER.min;
+  if (sinceOrder > 360) h += `<div class="banner">${ic("alert")}<div><b>${l.b_title(dur(sinceOrder))}</b><p>${l.b_body(when(LAST_ORDER.date, LAST_ORDER.min))}</p></div><button class="btn sm" data-toast="nav">${l.b_cta}</button></div>`;
+  h += `<div class="band"><h2>${v.live ? l.band_today : l.band_past}</h2><span class="num">${v.live ? `${dayShort(v.day)} · ${hm(m.now)}` : dayShort(v.day)}</span><span class="rule"></span></div>`;
+  h += renderStrip(v, sinceOrder) + renderAgents(v);
+  const t30 = view30(), due = AGENTS.reduce((s,a)=>s+Math.max(0,COMM[a].bal),0);
+  h += `<div class="band"><h2>${l.band_30}</h2><span>${l.band_30_sub(dayNum(F30_FROM), dayNum(F30_TO))}</span><span class="rule"></span><span class="tot"><span>${l.due}</span><b class="num">${money(due)}</b></span></div>`;
+  h += render30(t30);
+  document.getElementById("page").innerHTML = h;
+}
+
+function renderStrip(v, sinceOrder){
+  const l = L(), t = v.team, cfg = S.cfg, cells = [];
+  if (v.live){
+    const w = v.rows.filter(r=>r.state==="working"), bad = v.rows.filter(r=>["idle","late","early"].includes(r.state));
+    const n = st => bad.filter(r=>r.state===st).length;
+    const sub = !v.work && !w.length ? `<div class="s">${l.s_rest}</div>` : bad.length ? `<div class="s warn" title="${esc(bad.map(r=>`${r.a} : ${r.line}`).join(" | "))}">${l.s_bad(n("idle"), n("late"), n("early"))}</div>` : `<div class="s">${w.length===v.rows.length ? l.s_ok : l.s_none}</div>`;
+    cells.push(`<div class="cell"><div class="l">${ic("users")}${l.s_act}</div><div class="v num">${w.length}<small>/ ${v.rows.length}</small>${w.length ? `<span class="stack">${w.map(r=>av(r.a,"working")).join("")}</span>` : ""}</div>${sub}</div>`);
+  } else {
+    const act = v.rows.filter(r=>r.evs.length);
+    cells.push(`<div class="cell"><div class="l">${ic("users")}${l.s_act}</div><div class="v num">${act.length}<small>/ ${v.rows.length}</small></div><div class="s">${act.length ? l.s_came(hm(Math.min(...act.map(r=>r.first))), hm(Math.max(...act.map(r=>r.last)))) : l.s_absent}</div></div>`);
+  }
+  const intakeBad = v.live && sinceOrder > 360;
+  cells.push(`<div class="cell ${intakeBad?"bad":""}"><div class="l">${ic("inbox")}${l.s_recv}</div><div class="v num">${t.recv}</div>
+    <div class="s ${intakeBad?"bad":""}">${intakeBad ? l.s_recv_none(dur(sinceOrder)) : v.live ? (t.lastIn!=null ? l.s_recv_last(hm(t.lastIn)) : "—") : l.s_recv_day}</div></div>`);
+  const dec = t.up + t.rej;
+  cells.push(`<div class="cell"><div class="l"><i class="sw-u"></i>${l.s_up}</div><div class="v num">${t.up}</div><div class="s">${dec ? l.s_rate(pct(t.up/dec*100)) : "—"}</div></div>`);
+  cells.push(`<div class="cell"><div class="l"><i class="sw-r"></i>${l.s_rj}</div><div class="v num">${t.rej}</div><div class="s">${dec ? l.s_rate(pct(t.rej/dec*100)) : "—"}</div></div>`);
+  cells.push(`<div class="cell"><div class="l"><i class="sw-d"></i>${l.s_dlv}</div><div class="v num">${t.dlv}</div><div class="s">${l.s_dlv_sub}</div></div>`);
+  if (v.live) cells.push(`<div class="cell ${t.unc?"bad":""}"><div class="l">${ic("clock")}${l.s_unc(cfg.callH)}</div><div class="v num">${t.unc}</div><div class="s ${t.unc?"bad":""}">${t.oldest ? l.s_unc_sub(dur(t.oldest.h*60), t.oldest.a) : l.s_unc_ok}</div></div>`);
+  else cells.push(`<div class="cell"><div class="l">${ic("clock")}${l.c_unc_past}</div><div class="v num">${t.unc}</div><div class="s">${l.s_unc_past(t.unc, t.rxN)}</div></div>`);
+  return `<section class="card strip">${cells.join("")}</section>`;
+}
+
+function doneLeftBar(r, v, max){
+  const l = L(), q = r.q;
+  const segs = [["u", r.up], ["r", r.rej]];
+  if (v.live) segs.push(["p", q.prog.length], ["t", q.toCall.length - q.unc.length], ["o", q.unc.length]);
+  const total = segs.reduce((s,[,n])=>s+n,0);
+  const width = max ? Math.max(total ? 6 : 0, total/max*100) : 0;
+  const bar = total ? `<div class="dl" style="width:${width}%">${segs.filter(([,n])=>n).map(([k,n])=>`<span class="${k}" style="flex:${n}"></span>`).join("")}</div>` : `<div class="dl" style="width:6%"><span class="t" style="flex:1"></span></div>`;
+  const cap = v.live ? `<span>${l.cap_done(r.up, r.rej)}</span><span>${(q.prog.length+q.toCall.length) ? l.cap_left(q.prog.length, q.toCall.length) : l.cap_none}</span>${q.unc.length?`<span class="bad num">${l.cap_unc(q.unc.length, S.cfg.callH)}</span>`:""}`
+                     : `<span>${l.cap_done(r.up, r.rej)}</span>`;
+  return `${bar}<div class="dlcap num">${cap}</div>`;
+}
+
+function renderAgents(v){
+  const l = L(), cfg = S.cfg;
+  const order = {working:0, idle:1, late:2, early:3, left:4, before:5, done:0, rest:6, absent:6, off:6};
+  const rows = [...v.rows].sort((x,y)=> (order[x.state]-order[y.state]) || (y.up+y.rej-x.up-x.rej) || x.a.localeCompare(y.a));
+  const tot = r => r.up + r.rej + (v.live ? r.q.prog.length + r.q.toCall.length : 0);
+  const max = Math.max(1, ...rows.map(tot));
+  let h = `<section class="card tb">
+    <div class="chead"><h3>${l.ag_title}</h3><span class="hint">${v.live ? l.ag_hint : l.ag_hint_past}</span>
+      <div class="legend"><span><i class="sw-u"></i>${l.lg_u}</span><span><i class="sw-r"></i>${l.lg_r}</span>${v.live ? `<span><i class="sw-p"></i>${l.lg_p}</span><span><i class="sw-t"></i>${l.lg_t}</span><span><i class="sw-o"></i>${l.lg_o(cfg.callH)}</span>` : ""}</div></div>
+    <div class="hdr"><div>${l.c_agent}</div><div>${l.c_bar}</div><div class="n">${l.c_as}</div><div class="n">${l.c_up}</div><div class="n">${l.c_rj}</div><div class="n">${l.c_at}</div><div class="n">${v.live ? l.c_unc(cfg.callH) : l.c_unc_past}</div><div></div></div>`;
+  for (const r of rows){
+    const st = r.state==="done" ? "" : r.state;
+    const cf = r.q.cf.length;
+    const num = (n, cls="") => `<span class="val num ${n?cls:"dim"}">${n}</span>`;
+    const uncCell = num(r.uncN, "bad");
+    h += `<div class="row ${S.agent===r.a?"sel":""}" role="button" tabindex="0" data-agent="${r.a}">
+      <div class="c-who"><div class="who">${av(r.a, v.live ? (["working","idle","late"].includes(r.state) ? r.state : "off") : "")}<div class="nm"><b>${r.a}</b><span class="st ${st}">${r.line}</span>${cf ? `<span class="tagw">${l.tag_cf(cf)}</span>` : ""}</div></div></div>
+      <div class="c-bar">${doneLeftBar(r, v, max)}</div>
+      <div class="n c-n">${num(r.assigned)}</div><div class="n c-n">${num(r.up)}</div><div class="n c-n">${num(r.rej)}</div><div class="n c-n">${num(r.att)}</div><div class="n c-n">${uncCell}</div>
+      <div class="mcells num"><div><small>${l.ph_as}</small><b>${r.assigned}</b></div><div><small>${l.ph_up}</small><b>${r.up}</b></div><div><small>${l.ph_rj}</small><b>${r.rej}</b></div><div><small>${l.ph_at}</small><b>${r.att}</b></div><div><small>&gt; ${cfg.callH} ${l.h}</small><b class="${r.uncN?"bad":""}">${r.uncN}</b></div></div>
+      <div class="n c-wa"><button class="wa" data-wa="${r.a}" title="${l.wa}" aria-label="${l.wa}">${ic("wa")}</button></div>
+    </div>`;
+  }
+  if (v.dormant.length){
+    h += `<div class="dorm">${ic("ban")}<span>${l.dorm(v.dormant.length)}</span>
+      <span class="names">${v.dormant.map(a=>{ const d = v.dormCf.find(x=>x.a===a); return `<span data-agent="${a}" role="button" tabindex="0">${av(a,"")}${a}${d ? ` · <span style="color:var(--amber-ink);font-weight:600">${l.tag_cf(d.cf.length)}</span>` : ""}</span>`; }).join("")}</span></div>`;
+  }
+  return h + `</section>`;
+}
+
+function render30(t){
+  const l = L();
+  const bar = (f, max) => { const [as, up, dl, er, fl] = f, x = as - up; return `<div class="fbar" style="width:${max ? as/max*100 : 0}%">${dl?`<span class="d" style="flex:${dl}"></span>`:""}${er?`<span class="e" style="flex:${er}"></span>`:""}${fl?`<span class="f" style="flex:${fl}"></span>`:""}${x?`<span class="x" style="flex:${x}"></span>`:""}</div>`; };
+  const trend = (now, prev) => { if (now==null || prev==null) return ""; const d = Math.round(now) - Math.round(prev); return `<span class="trend ${d>0?"up":d<0?"dn":"eq"} num" title="${esc(l.trend_t(Math.round(prev)))}">${d>0?"▲":d<0?"▼":"="} ${Math.abs(d)}</span>`; };
+  const loc = n => n.toLocaleString(S.lang==="fr"?"fr-FR":"en-US");
+  let h = `<section class="card ft">
+    <div class="chead"><h3>${l.c_funnel}</h3><div class="legend"><span><i class="sw-d"></i>${l.f_d}</span><span><i class="sw-e"></i>${l.f_e}</span><span><i class="sw-f"></i>${l.f_f}</span><span><i class="sw-x"></i>${l.f_x}</span></div></div>
+    <div class="hdr"><div>${l.c_rank}</div><div>${l.c_agent}</div><div></div><div class="n">${l.c_assigned}</div><div class="n">${l.c_uploaded}<small>${l.c_uploaded_s}</small></div><div class="n">${l.c_delivered}<small>${l.c_delivered_s}</small></div><div class="n">${l.c_score}<small>${l.c_score_s}</small></div><div class="n">${l.c_bal}</div></div>`;
+  const tf = t.team.f;
+  h += `<div class="team"><div class="c-rk"></div><div class="c-who"><div class="who"><span class="av" style="background:var(--ink-1);color:#fff">Σ</span><div class="nm"><b>${l.team}</b></div></div></div>
+    <div class="c-bar">${bar(tf, tf[0])}</div>
+    <div class="n c-a"><span class="val num">${loc(tf[0])}</span></div><div class="n c-u"><span class="val num">${tf[1]}</span><span class="sub2 num">${pct(t.team.upl)}</span></div><div class="n c-d"><span class="val num">${tf[2]}</span><span class="sub2 num">${pct(t.team.dlv)}</span></div>
+    <div class="c-nums num">${l.c_assigned} <b>${loc(tf[0])}</b> · ${l.c_uploaded} <b>${tf[1]}</b> · ${l.c_delivered} <b>${tf[2]}</b></div>
+    <div class="n c-score"><div class="score"><div class="sv"><b class="num">${Math.round(t.team.score)}</b><small>/100</small></div>${trend(t.team.score, t.team.prev)}</div></div><div class="c-bal"></div></div>`;
+  for (const r of t.rows){
+    const f = r.f, c = COMM[r.a];
+    if (!f[0] && !c.bal) continue;
+    const ago = OLD_LAST[r.a] && daysBetween(OLD_LAST[r.a], M().today) > 7;
+    const tags = [r.weakUpl ? `<span class="tagw">${l.weak_upl}</span>` : "", r.weakDlv ? `<span class="tagw">${l.weak_dlv}</span>` : ""].join(" ");
+    h += `<div class="row ${r.scored?"":"dimr"} ${S.agent===r.a?"sel":""}" role="button" tabindex="0" data-agent="${r.a}">
+      <div class="c-rk">${r.rank ? `<span class="rk ${r.rank===1?"top":""} num">${r.rank}</span>` : ""}</div>
+      <div class="c-who"><div class="who">${av(r.a,"")}<div class="nm"><b>${r.a}</b><span class="st">${!f[0] ? l.none30 : !r.scored ? l.held : ago ? l.inactive(dayNum(OLD_LAST[r.a])) : ""}</span>${tags ? `<div>${tags}</div>` : ""}</div></div></div>
+      <div class="c-bar">${f[0] ? bar(f, t.max) + `<div class="fcap num"><span>${f[2]} ${l.f_d.toLowerCase()}</span><span>${f[3]} ${l.f_e.toLowerCase()}</span><span>${f[4]} ${l.f_f.toLowerCase()}</span></div>` : ""}</div>
+      <div class="n c-a"><span class="val num ${f[0]?"":"dim"}">${f[0]}</span></div>
+      <div class="n c-u"><span class="val num">${f[1]}</span>${f[0] ? `<span class="sub2 num">${pct(r.upl)}</span>` : ""}</div>
+      <div class="n c-d"><span class="val num">${f[2]}</span>${(f[2]+f[4]) ? `<span class="sub2 num">${pct(r.dlv)}</span>` : ""}</div>
+      <div class="c-nums num">${l.c_assigned} <b>${f[0]}</b> · ${l.c_uploaded} <b>${f[1]}</b> · ${l.c_delivered} <b>${f[2]}</b></div>
+      <div class="n c-score">${r.scored ? `<div class="score"><div class="sv"><b class="num">${Math.round(r.score)}</b><small>/100</small></div>${trend(r.score, r.prev)}</div>` : `<span class="val dim">—</span>`}</div>
+      <div class="n c-bal"><div class="balc"><div class="bal"><b class="num">${money(c.bal)}</b><small>${c.last ? l.last_paid(dayNum(c.last)) : l.never_paid}</small></div>${c.bal>0 ? `<button class="btn sm" data-pay="${r.a}">${l.pay}</button>` : ""}</div></div>
+    </div>`;
+  }
+  return h + `<div class="cfoot"><span>${l.foot30}</span><span class="num">${l.foot30b(30)}</span></div></section>`;
+}
+
+/* ═════════════ agent panel ═════════════ */
+function parsePD(str){ const o = {}; (str||"").split(" ").filter(Boolean).forEach(t => { const [k, v] = t.split(":"); o[k] = v.split("/").map(Number); }); return o; }
+function parseRG(str){ const o = {}; (str||"").split(" ").filter(Boolean).forEach(t => { const [k, v] = t.split(":"); o[k] = +v; }); return o; }
+function drawerDays(){ if (S.dper === "day") return [S.day]; const out = []; for (let k=6;k>=0;k--){ const d = addDays(S.day,-k); if (d >= PD_FIRST) out.push(d); } return out; }
+function agentPeriod(a){
+  const m = M(), days = drawerDays(), prod = {}, rej = {};
+  for (const d of days){
+    const cut = S.moment==="replay" && d===m.today;
+    Object.entries(parsePD(cut ? PD_CUT[a] : (PD[d]||{})[a])).forEach(([k, v]) => { const p = prod[k] = prod[k] || [0,0,0,0]; v.forEach((x,i)=>p[i]+=x); });
+    Object.entries(parseRG(cut ? RG_CUT[a] : (RG[d]||{})[a])).forEach(([k, v]) => { rej[k] = (rej[k]||0) + v; });
+  }
+  return {days, prod, rej, tot: Object.values(prod).reduce((s,v)=>s.map((x,i)=>x+v[i]), [0,0,0,0])};
+}
+const imgTag = p => `<img src="${PROD[p].img}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph0'}))">`;
+
+function laneHtml(r, v){
+  const m = M();
+  setWindow(v.t0);
+  let h = `<div class="lane">`;
+  for (let hr=Math.ceil(T0/120)*2; hr<24; hr+=2) h += `<span class="gl" style="inset-inline-start:${xp(hr*60)}%"></span>`;
+  if (v.work) h += `<span class="plan" style="inset-inline-start:${xp(r.ps)}%;width:${xp(r.pe)-xp(r.ps)}%"></span>`;
+  if (v.live) h += `<span class="fut" style="inset-inline-start:${xp(v.cut)}%"></span>`;
+  r.ses.forEach((s, i) => { const ongoing = v.live && i === r.ses.length-1 && r.state==="working"; const b = ongoing ? v.cut : s.b + 2; h += `<span class="ses" style="inset-inline-start:${xp(s.a-2)}%;width:${Math.max(.5, xp(b)-xp(s.a-2))}%"></span>`; });
+  if (v.work && ((r.lateBy!=null && r.lateBy > S.cfg.lateMin) || r.state==="late")){ const to = r.first!=null ? r.first : v.cut; h += `<span class="lateb" style="inset-inline-start:${xp(r.ps)}%;width:${xp(to)-xp(r.ps)}%"></span>`; }
+  r.evs.forEach(e => { if (e.k==="r") h += `<i class="tk r" style="inset-inline-start:${xp(e.m)}%"></i>`; else if (e.k!=="c") h += `<i class="tk" style="inset-inline-start:${xp(e.m)}%"></i>`; });
+  r.ups.forEach(x => { h += `<i class="tk u" style="inset-inline-start:${xp(x)}%"></i>`; });
+  r.asg.forEach(x => { h += `<span class="as num" style="inset-inline-start:${xp(x.m)}%">${x.n>1?x.n:""}</span>`; });
+  if (r.state==="idle") h += `<span class="idle" style="inset-inline-start:${xp(r.last)}%;width:${xp(v.cut)-xp(r.last)}%"><em class="num">${dur(v.cut-r.last)}</em></span>`;
+  const seen = m.seen[r.a];
+  if (v.live && !r.evs.length && seen && seen[0]===v.day) h += `<span class="seen" style="inset-inline-start:${xp(seen[1])}%"></span>`;
+  if (v.live) h += `<span class="nowl" style="inset-inline-start:${xp(v.cut)}%"></span>`;
+  return h + `</div>`;
+}
+
+function commSection(a){
+  const l = L(), c = COMM[a];
+  if (c.off) return `<div class="sec"><div class="sl">${ic("wallet")}${l.cm_title}</div><div class="none">${l.cm_off}</div></div>`;
+  const rateOn = d => c.rates.reduce((r, x) => d >= x[0] ? x[1] : r, 0);
+  const cur = c.rates.length ? c.rates[c.rates.length-1] : null;
+  const days = []; for (let k=13;k>=0;k--) days.push(addDays(COMM_ASOF,-k));
+  const vals = days.map(d => (c.daily[d]||0) * rateOn(d)), mx = Math.max(1, ...vals), sum14 = vals.reduce((s,x)=>s+x,0);
+  const pays = new Map(c.pays.map(p => [p[0], p[1]])), coming = (c.road + c.late) * (cur ? cur[1] : 0);
+  return `<div class="sec"><div class="sl">${ic("wallet")}${l.cm_title}<span class="r">${cur ? `${l.cm_rate(cur[1])} · ${l.cm_since(dayNum(cur[0]))}` : ""}</span></div>
+    <div class="cm-top"><div><small>${l.cm_bal}</small><b class="num">${money(c.bal)}</b></div>${c.bal>0 ? `<button class="btn pri" data-pay="${a}">${l.pay}</button>` : ""}</div>
+    <div class="eq">
+      <div class="c"><small>${l.cm_earned}</small><b class="num">${money(c.earned)}</b><span class="num">${l.cm_n_dlv(c.en)}</span></div><span class="op">−</span>
+      <div class="c"><small>${l.cm_back}</small><b class="num">${money(c.back)}</b><span class="num">${l.cm_n_back(c.bn)}</span></div><span class="op">−</span>
+      <div class="c"><small>${l.cm_paid}</small><b class="num">${money(c.paid)}</b><span class="num">${l.cm_n_pay(c.pays.length)}</span></div></div>
+    <div class="sl" style="margin:16px 0 0">${l.cm_14}<span class="r num">${l.cm_14_sum(money(sum14))}</span></div>
+    <div class="cbars">${days.map((d,i) => `<div class="d ${pays.has(d)?"pay":""}" title="${esc(dayShort(d))} · ${esc(money(vals[i]))}${pays.has(d)?` · ${l.cm_payday} −${esc(money(pays.get(d)))}`:""}"><i style="height:${vals[i]/mx*100}%"></i></div>`).join("")}</div>
+    <div class="clab num">${days.map((d,i) => `<span>${i%2===1 ? fmtDay(d,{day:"numeric"}) : ""}</span>`).join("")}</div>
+    <div class="cline">${ic("truck")}<span>${coming ? l.cm_coming(money(coming), c.road + c.late, c.late) : l.cm_coming_none}</span></div>
+    <div class="cline">${ic("clock")}<span>${c.pays.length ? l.cm_lastpay(dayShort(c.pays[c.pays.length-1][0]), money(c.pays[c.pays.length-1][1])) : l.cm_never}</span><span class="asof">${l.cm_asof}</span></div></div>`;
+}
+
+function renderDrawer(){
+  const el = document.getElementById("drawer");
+  if (!S.agent){ el.classList.remove("show"); el.setAttribute("aria-hidden","true"); return; }
+  const l = L(), m = M(), a = S.agent, v = build(), r = v.rows.find(x=>x.a===a);
+  const line = r ? r.line : (OLD_LAST[a] ? l.st_off(when(OLD_LAST[a], null)) : "");
+  let h = `<div class="dh">${av(a, r && v.live ? (["working","idle","late"].includes(r.state)?r.state:"off") : "")}<div><b>${a}</b><span class="st ${r?r.state:""}">${line}</span></div>
+    <div class="acts"><button class="btn sm" data-wa="${a}">${ic("wa")}<span>WhatsApp</span></button><button class="btn sm icon" data-wa="${a}" aria-label="phone">${ic("phone")}</button><button class="x" data-close aria-label="${l.close}">${ic("x")}</button></div></div><div class="db">`;
+  const P = agentPeriod(a), days = P.days;
+  h += `<div class="dseg"><div class="seg2" role="tablist"><button role="tab" aria-selected="${S.dper==="day"}" class="${S.dper==="day"?"on":""}" data-dper="day">${daysBetween(S.day, m.today)===0 ? l.today : dayShort(S.day)}</button><button role="tab" aria-selected="${S.dper==="week"}" class="${S.dper==="week"?"on":""}" data-dper="week">${l.dp_week}</button></div>
+    <span class="dr num">${days.length>1 ? `${dayNum(days[0])} → ${dayNum(days[days.length-1])}` : dayLong(days[0])}</span></div>`;
+  const [as, up, rj, at] = P.tot, dec = up + rj;
+  h += `<div class="kt">
+    <div class="k"><div class="l"><i style="background:#4A5057"></i>${l.k_as}</div><div class="v num">${as}</div><div class="s">${l.k_as_s}</div></div>
+    <div class="k"><div class="l"><i class="sw-u"></i>${l.k_up}</div><div class="v num">${up}</div><div class="s">${dec ? l.k_rate(pct(up/dec*100)) : "—"}</div></div>
+    <div class="k"><div class="l"><i class="sw-r"></i>${l.k_rj}</div><div class="v num">${rj}</div><div class="s">${dec ? l.k_rate(pct(rj/dec*100)) : "—"}</div></div>
+    <div class="k"><div class="l"><i style="background:var(--tick)"></i>${l.k_at}</div><div class="v num">${at}</div><div class="s">${l.k_at_s}</div></div></div>`;
+  /* delivered line — her uploads of the last 30 days */
+  const f = F30[a];
+  if (f && f[1]){
+    const done = f[2] + f[4] + f[3];
+    h += `<div class="sec dlv"><div class="t">${l.dlv_t}</div>
+      <div class="bar">${f[2]?`<span style="flex:${f[2]};background:var(--green)"></span>`:""}${f[4]?`<span style="flex:${f[4]};background:var(--red-soft)"></span>`:""}${f[3]?`<span style="flex:${f[3]};background:var(--teal-soft)"></span>`:""}</div>
+      <div class="ks num"><span><i style="background:var(--green)"></i><b>${f[2]}</b> ${l.dlv_d}</span><span><i style="background:var(--red-soft)"></i><b>${f[4]}</b> ${l.dlv_r}</span><span><i style="background:var(--teal-soft)"></i><b>${f[3]}</b> ${l.dlv_e}</span></div></div>`;
+  }
+  /* the day — timeline + shift facts */
+  if (S.dper==="day" && r){
+    setWindow(v.t0);
+    let axis = `<div class="axis">`; for (let hr=Math.ceil(T0/120)*2; hr<=24; hr+=2) axis += `<span class="num" style="inset-inline-start:${xp(hr*60)}%">${pad(hr)}</span>`; axis += `</div>`;
+    const late = v.work && r.lateBy!=null && r.lateBy > S.cfg.lateMin;
+    h += `<div class="sec"><div class="sl">${ic("clock")}${l.dr_day}<span class="r"><span class="num">${v.work ? `${l.dr_plan} ${hm(r.ps)}–${hm(r.pe)}` : l.st_rest}</span></span></div><div class="dlane">${laneHtml(r, v)}${axis}</div>
+      <div class="facts num">
+        <div><small>${l.dr_start}</small><b>${r.first!=null?hm(r.first):"—"}</b>${r.first!=null && v.work ? `<span class="${late?"warn":""}" style="font-size:11.5px;color:${late?"":"var(--ink-3)"}">${late ? l.late(dur(r.lateBy)) : l.ontime}</span>` : ""}</div>
+        <div><small>${l.dr_active}</small><b>${r.act?dur(r.act):"—"}</b>${r.planned ? `<span style="font-size:11.5px;color:var(--ink-3)">${l.act_pct(pct(r.act/r.planned*100))}</span>` : ""}</div>
+        <div><small>${l.dr_last}</small><b>${r.last!=null?hm(r.last):"—"}</b></div>
+        </div></div>`;
+  }
+  /* products */
+  const prods = Object.entries(P.prod).filter(([,x]) => x.some(Boolean)).sort((x,y)=> (y[1][0]+y[1][1]+y[1][2]) - (x[1][0]+x[1][1]+x[1][2]));
+  const mxDec = Math.max(1, ...prods.map(([,x]) => x[1]+x[2]));
+  h += `<div class="sec"><div class="sl">${ic("box")}${l.sec_prod}<span class="r num">${prods.length}</span></div>`;
+  if (!prods.length) h += `<div class="none">${l.prod_none}</div>`;
+  else {
+    h += `<div class="prow ph"><span></span><span>${l.ph_prod}</span><span>${l.ph_as}</span><span>${l.ph_up}</span><span>${l.ph_rj}</span><span>${l.ph_at}</span></div>`;
+    for (const [p, [pa, pu, pr, pt]] of prods){
+      const pd = pu + pr;
+      h += `<div class="prow">${PROD[p] ? imgTag(p) : `<span class="ph0"></span>`}<div class="pm"><span class="pn">${PROD[p] ? PROD[p].n : p}</span>
+        <div class="pbar2" style="width:${Math.max(4, pd/mxDec*100)}%">${pu?`<span style="flex:${pu};background:var(--teal)"></span>`:""}${pr?`<span style="flex:${pr};background:var(--red)"></span>`:""}${!pd?`<span style="flex:1;background:var(--line-faint)"></span>`:""}</div>
+        <span class="ps num">${pd ? l.p_rate(pct(pu/pd*100)) : l.p_nodec}</span></div>
+        <span class="nv num ${pa?"":"z"}">${pa}</span><span class="nv num ${pu?"":"z"}" style="${pu?"color:var(--teal)":""}">${pu}</span><span class="nv num ${pr?"":"z"}" style="${pr?"color:var(--red)":""}">${pr}</span><span class="nv num ${pt?"":"z"}">${pt}</span></div>`;
+    }
+  }
+  h += `</div>`;
+  /* rejection groups */
+  const groups = Object.entries(P.rej).filter(([,n])=>n).sort((x,y)=>y[1]-x[1]), rt = groups.reduce((s,[,n])=>s+n,0), mxr = Math.max(1, ...groups.map(([,n])=>n));
+  h += `<div class="sec"><div class="sl">${ic("ban")}${l.sec_rej}<span class="r num">${rt}</span></div>${groups.length ? "" : `<div class="none">${l.rej_none}</div>`}`;
+  for (const [g, n] of groups) h += `<div class="rgr"><span class="gi">${ic(ICON["g_"+g] ? "g_"+g : "g_autre")}</span><span class="t">${g==="autre" ? l.rej_autre : (REASON[g]||{})[S.lang] || g}</span><span class="tr"><span style="width:${n/mxr*100}%"></span></span><span class="n num">${n}</span><span class="p num">${pct(n/rt*100)}</span></div>`;
+  h += `</div>` + commSection(a);
+  el.innerHTML = h + `</div>`; el.classList.add("show"); el.setAttribute("aria-hidden","false");
+}
+
+/* ═════════════ alerts panel ═════════════ */
+function renderAlerts(){
+  const el = document.getElementById("apanel");
+  if (!S.alerts){ el.classList.remove("show"); el.setAttribute("aria-hidden","true"); return; }
+  const l = L(), list = alertsNow();
+  el.innerHTML = `<div class="dh"><div><b>${l.al_title}</b><span class="st">${l.al_sub}</span></div><div class="acts"><button class="x" data-close aria-label="${l.close}">${ic("x")}</button></div></div>
+    <div class="db">${list.length ? `<div>${list.map(x=>`<div class="al" ${x.act==="agent"?`data-agent="${x.a}"`:`data-toast="nav"`} role="button" tabindex="0"><span class="ai ${x.kind}">${ic(x.icon)}</span><div><b>${x.title}</b><span>${x.sub}</span><small>${l.al_now}</small></div></div>`).join("")}</div>` : `<div class="none">${l.al_none}</div>`}</div>`;
+  el.classList.add("show"); el.setAttribute("aria-hidden","false");
+}
+
+/* ═════════════ settings (section of Système › Réglages) ═════════════ */
+function renderSettings(){
+  const el = document.getElementById("sdrawer");
+  if (!S.settings){ el.classList.remove("show"); el.setAttribute("aria-hidden","true"); return; }
+  const l = L(), d = S.draft || (S.draft = JSON.parse(JSON.stringify(S.cfg))), order = [6,0,1,2,3,4,5];
+  el.innerHTML = `<div class="dh"><div><span class="crumb">${l.set_crumb}</span><b>${l.set_title}</b></div><div class="acts"><button class="x" data-close aria-label="${l.close}">${ic("x")}</button></div></div><div class="db">
+    <div class="exnote">${l.set_ex}</div>
+    <div class="sec fld"><b>${l.set_call}</b><div class="inrow"><input class="num" type="number" min="1" max="72" data-cfg="callH" value="${d.callH}"> ${l.hours}</div><small>${l.set_call_s}</small></div>
+    <div class="sec fld"><b>${l.set_idle}</b><div class="inrow"><input class="num" type="number" min="5" max="240" data-cfg="idleMin" value="${d.idleMin}"> ${l.minutes}</div><small>${l.set_idle_s}</small></div>
+    <div class="sec fld"><b>${l.set_late}</b><div class="inrow"><input class="num" type="number" min="0" max="120" data-cfg="lateMin" value="${d.lateMin}"> ${l.minutes}</div><small>${l.set_late_s}</small></div>
+    <div class="sec fld"><b>${l.set_shift}</b><small>${l.set_shift_s}</small>
+      <div class="inrow"><input class="num tm" type="text" inputmode="numeric" maxlength="5" data-cfg="start" value="${hm(d.start)}"> ${l.to} <input class="num tm" type="text" inputmode="numeric" maxlength="5" data-cfg="end" value="${hm(d.end)}"></div>
+      <div class="days">${order.map(k=>`<button class="${d.days.includes(k)?"on":""}" data-day="${k}">${l.dayn[k]}</button>`).join("")}</div></div>
+    <div class="sec fld"><b>${l.set_over}</b><small>${l.set_over_s}</small>
+      ${Object.entries(d.over).map(([a,[s,e]])=>`<div class="ovr"><div class="who">${av(a,"")}<div class="nm"><b>${a}</b></div></div><input class="num tm" type="text" maxlength="5" data-ovr="${a}" data-i="0" value="${hm(s)}"><span>${l.to}</span><input class="num tm" type="text" maxlength="5" data-ovr="${a}" data-i="1" value="${hm(e)}"><button class="rm" data-rmo="${a}" aria-label="remove">${ic("trash")}</button></div>`).join("")}
+      <div class="addo"><select id="addsel">${AGENTS.filter(a=>!d.over[a]).map(a=>`<option>${a}</option>`).join("")}</select><button class="btn sm" data-addo>${l.set_add}</button></div></div>
+  </div><div class="sfoot"><button class="btn" data-close>${l.set_cancel}</button><button class="btn pri" data-savecfg>${l.set_save}</button></div>`;
+  el.classList.add("show"); el.setAttribute("aria-hidden","false");
+}
+
+function renderModal(){
+  const box = document.getElementById("mscrim"), el = document.getElementById("modal");
+  if (!S.pay){ box.classList.remove("show"); return; }
+  const l = L(), c = COMM[S.pay];
+  el.innerHTML = `<header>${l.m_title(S.pay)}<small>${l.m_sub(money(c.bal))}</small></header>
+    <div class="mb"><label>${l.m_amount}<input class="num" value="${c.bal}" inputmode="decimal"></label><label>${l.m_method}<select><option>${l.m_cash}</option><option>${l.m_transfer}</option></select></label><label>${l.m_note}<input></label></div>
+    <footer><button class="btn" data-mclose>${l.m_cancel}</button><button class="btn pri" data-msave>${l.m_save}</button></footer>`;
+  box.classList.add("show");
+}
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("show"), 2600); }
+
+/* ═════════════ wiring ═════════════ */
+function syncUrl(){
+  const p = new URLSearchParams();
+  if (S.lang!=="fr") p.set("lang", S.lang);
+  if (S.moment!=="replay") p.set("moment", S.moment);
+  if (S.device!=="desktop") p.set("device", S.device);
+  if (S.day!==M().today) p.set("day", S.day);
+  if (S.agent) p.set("agent", S.agent);
+  if (S.agent && S.dper!=="day") p.set("dper", S.dper);
+  if (S.pay) p.set("pay", S.pay);
+  if (S.settings) p.set("settings", "1");
+  if (S.alerts) p.set("alerts", "1");
+  history.replaceState(null, "", location.pathname + (p.toString() ? "?"+p : "") + location.hash);
+}
+function render(){
+  const l = L(), app = document.getElementById("app");
+  document.documentElement.lang = S.lang;
+  app.setAttribute("dir", l.dir);
+  const framed = S.device==="phone";
+  app.classList.toggle("framed", framed);
+  app.classList.toggle("m", framed || window.matchMedia("(max-width: 900px)").matches);
+  document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang===S.lang));
+  document.querySelectorAll("[data-moment]").forEach(b => b.classList.toggle("on", b.dataset.moment===S.moment));
+  document.querySelectorAll("[data-device]").forEach(b => b.classList.toggle("on", b.dataset.device===S.device));
+  renderSide(); renderPage(); renderDrawer(); renderAlerts(); renderSettings(); renderModal();
+  document.getElementById("scrim").classList.toggle("show", !!(S.agent || S.settings || S.alerts));
+  syncUrl();
+}
+function closeAll(){ S.agent = null; S.settings = false; S.alerts = false; S.draft = null; }
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-lang],[data-moment],[data-device],[data-go],[data-dper],[data-wa],[data-pay],[data-agent],[data-close],[data-settings],[data-alerts],[data-day],[data-rmo],[data-addo],[data-savecfg],[data-mclose],[data-msave],[data-toast],#scrim,#mscrim");
+  if (!t) return;
+  if (t.id==="mscrim" && e.target!==t) return;
+  if (t.dataset.lang) S.lang = t.dataset.lang;
+  else if (t.dataset.moment){ S.moment = t.dataset.moment; S.day = M().today; closeAll(); }
+  else if (t.dataset.device) S.device = t.dataset.device;
+  else if (t.dataset.go){ S.day = t.dataset.go==="today" ? M().today : addDays(S.day, +t.dataset.go); if (S.day > M().today) S.day = M().today; if (S.day < FIRST_DAY) S.day = FIRST_DAY; }
+  else if (t.dataset.dper) S.dper = t.dataset.dper;
+  else if (t.dataset.wa){ e.stopPropagation(); toast(L().wa_toast(t.dataset.wa)); return; }
+  else if (t.dataset.pay){ e.stopPropagation(); S.pay = t.dataset.pay; }
+  else if (t.dataset.agent){ closeAll(); S.agent = t.dataset.agent; }
+  else if ("alerts" in t.dataset){ closeAll(); S.alerts = true; }
+  else if ("settings" in t.dataset){ closeAll(); S.settings = true; }
+  else if (t.dataset.day){ const k = +t.dataset.day, d = S.draft; d.days = d.days.includes(k) ? d.days.filter(x=>x!==k) : [...d.days, k]; }
+  else if (t.dataset.rmo) delete S.draft.over[t.dataset.rmo];
+  else if ("addo" in t.dataset){ const a = document.getElementById("addsel").value; if (a) S.draft.over[a] = [S.draft.start, S.draft.end]; }
+  else if ("savecfg" in t.dataset){ S.cfg = S.draft; S.draft = null; S.settings = false; toast(L().set_saved); }
+  else if ("close" in t.dataset || t.id==="scrim") closeAll();
+  else if ("mclose" in t.dataset || t.id==="mscrim") S.pay = null;
+  else if ("msave" in t.dataset){ S.pay = null; toast(L().toast_pay); }
+  else if (t.dataset.toast){ toast(L().toast_nav); return; }
+  render();
+});
+document.addEventListener("change", e => {
+  const t = e.target; if (!S.draft) return;
+  if (t.dataset.cfg){ const k = t.dataset.cfg; if (k==="start"||k==="end"){ const v = toMin(t.value); if (v!=null) S.draft[k] = v; } else S.draft[k] = Math.max(0, +t.value); }
+  if (t.dataset.ovr){ const v = toMin(t.value); if (v!=null) S.draft.over[t.dataset.ovr][+t.dataset.i] = v; }
+});
+document.addEventListener("keydown", e => {
+  if (e.key==="Escape"){ if (S.pay) S.pay = null; else if (S.agent || S.settings || S.alerts) closeAll(); else return; render(); }
+  if ((e.key==="Enter"||e.key===" ") && e.target.matches("[role=button][data-agent]")){ e.preventDefault(); closeAll(); S.agent = e.target.dataset.agent; render(); }
+});
+window.addEventListener("resize", () => { const app = document.getElementById("app"); app.classList.toggle("m", S.device==="phone" || window.matchMedia("(max-width: 900px)").matches); });
+(function init(){
+  const p = new URLSearchParams(location.search);
+  if (I[p.get("lang")]) S.lang = p.get("lang");
+  if (MOMENTS[p.get("moment")]) S.moment = p.get("moment");
+  if (p.get("device")==="phone") S.device = "phone";
+  S.day = M().today;
+  const d = p.get("day"); if (d && d >= FIRST_DAY && d <= M().today) S.day = d;
+  if (AGENTS.includes(p.get("agent"))) S.agent = p.get("agent");
+  if (p.get("dper")==="week") S.dper = "week";
+  if (COMM[p.get("pay")]) S.pay = p.get("pay");
+  if (p.get("settings")==="1") S.settings = true;
+  if (p.get("alerts")==="1") S.alerts = true;
+  render();
+})();
+</script>
+</body>
+</html>
