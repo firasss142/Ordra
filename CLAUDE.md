@@ -89,6 +89,10 @@ src/
   the WORST of all lines — one unrecognised line must reach the review queue. `lines` is
   optional: a single-line source omits it and the old path applies unchanged.
 - Supabase service role → server only (webhooks, admin user creation) — never in browser client
+- **Journaux records itself — keep it that way.** Every `app/api/**/route.ts` handler is exported
+  through `withRouteErrors()` (a test fails otherwise), and a route that writes an audited table
+  through the service role passes `createAdminClient({ actorId: user.id })` so the audit names
+  the person. See docs/journal.md
 - A `settings.value` is bare (`30`) OR wrapped (`{"value": 30}`). SQL reads a scalar through `public.setting_scalar(value)`, never `(value #>> '{}')::int`; that cast stopped nightly archiving for six weeks. See docs/reglages.md
 
 ## OMS status model — two phases
@@ -311,6 +315,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
   docs/agent-market-search.md + plans/agent-market-search.md
 - Voix du client — feedback by category and moment, the F key, courier/import feeds, the
   manager page: docs/customer-voice.md + plans/voix-du-client.md
+- Journaux — the journal system (audit_events + its trigger, integration_calls, app_errors,
+  job_runs, the 11 problem rules of journal_detect, the read functions, retention, how to
+  add an audited table or an explicit event): docs/journal.md + plans/journaux-redesign.md
+  (prototype `prototypes/journaux-v2.html`)
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:

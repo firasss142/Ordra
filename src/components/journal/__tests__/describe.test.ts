@@ -113,6 +113,53 @@ describe("feed lines", () => {
     expect(plain(describeFeed(it, t, f).title)).toBe("2 commissions créditées à roqaya · 18 LYD");
   });
 
+  test("repeated sign-in failures say how many", () => {
+    const line = describeFeed(
+      item({ family: "sec", kind: "auth.login_failed", severity: "warn", actor_id: null, actor_name: null, params: { label: "ag•••@oms.local" } }, 5),
+      t,
+      f,
+    );
+    expect(plain(line.title)).toBe("5 échecs de connexion sur ag•••@oms.local");
+  });
+
+  test("a series of changes to different items names the kind of item, not the first one", () => {
+    const line = describeFeed(
+      item({ family: "auto", kind: "carriers.updated", actor_id: null, actor_name: null, params: { entity: "carriers", label: "Navex", fields: ["is_active"] } }, 15),
+      t,
+      f,
+    );
+    expect(plain(line.title)).toBe("Ordra a modifié 15 éléments · Transporteurs");
+  });
+
+  test("a resolved problem keeps its figures", () => {
+    const line = describeFeed(
+      item({
+        family: "ext",
+        kind: "issue.resolved",
+        actor_id: null,
+        actor_name: null,
+        params: { rule: "carrier_inactive", p: { name: "Darb Benghazi" }, affected: 63 },
+        ref: "issue:x",
+      }),
+      t,
+      f,
+    );
+    expect(plain(line.title)).toBe("Résolu · Darb Benghazi est désactivé, 63 colis encore dehors");
+  });
+
+  test("a carrier known only by its code is named, not shown as a code", () => {
+    const line = describeFeed(
+      item({ family: "ext", kind: "carrier.upload_failed", severity: "fail", params: { carrier: "darb_assabil", message: "x" } }),
+      t,
+      f,
+    );
+    expect(plain(line.title)).toBe("Envoi chez Darb Assabil refusé");
+  });
+
+  test("an upload with no known carrier does not say « chez — »", () => {
+    expect(plain(describeFeed(item({ params: { to: "uploaded" } }), t, f).title)).toBe("tasnim a envoyé la commande 2165688 au transporteur");
+  });
+
   test("an unknown kind still says something", () => {
     expect(plain(describeFeed(item({ kind: "mystery.thing" }), t, f).title)).toBe("Activité · mystery.thing");
   });

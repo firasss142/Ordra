@@ -209,7 +209,7 @@ function ProblemCard({ issue, t, f, onClick }: { issue: Issue; t: Tr; f: Fmt; on
     <button
       type="button"
       onClick={onClick}
-      className={`mb-[8px] grid w-full grid-cols-[10px_minmax(0,1fr)_auto_18px] items-center gap-[16px] rounded-[12px] border border-line-subtle bg-white px-[18px] py-[16px] text-start hover:border-line hover:bg-[#F7F7F8] ${
+      className={`mb-[8px] grid w-full grid-cols-[10px_minmax(0,1fr)_18px] items-center gap-x-[16px] gap-y-[6px] rounded-[12px] sm:grid-cols-[10px_minmax(0,1fr)_auto_18px] border border-line-subtle bg-white px-[18px] py-[16px] text-start hover:border-line hover:bg-[#F7F7F8] ${
         sev === "mute" ? "opacity-70" : ""
       }`}
     >
@@ -223,11 +223,14 @@ function ProblemCard({ issue, t, f, onClick }: { issue: Issue; t: Tr; f: Fmt; on
           {issue.status === "muted" && issue.muted_until ? t("common.mutedUntil", { date: f.date(issue.muted_until) }) : d.line}
         </p>
       </span>
-      <span className="whitespace-nowrap text-end">
-        <b className={`block text-[17px] font-[650] tabular-nums ${sev === "fail" ? "text-[var(--jx-fail-ink)]" : "text-ink-primary"}`}>{d.impact[0]}</b>
-        <span className="text-[12.5px] text-ink-secondary">{d.impact[1]}</span>
+      {/* under the text on a phone, beside it from sm up */}
+      <span className="col-start-2 row-start-2 whitespace-nowrap text-start sm:col-start-auto sm:row-start-auto sm:text-end">
+        <b className={`inline text-[17px] sm:block font-[650] tabular-nums ${sev === "fail" ? "text-[var(--jx-fail-ink)]" : "text-ink-primary"}`}>{d.impact[0]}</b>
+        <span className="ms-[6px] text-[12.5px] text-ink-secondary sm:ms-0">{d.impact[1]}</span>
       </span>
-      <Chevron />
+      <span className="col-start-3 row-span-2 row-start-1 sm:col-start-auto sm:row-span-1 sm:row-start-auto">
+        <Chevron />
+      </span>
     </button>
   );
 }
@@ -406,7 +409,9 @@ function rowFamily(it: FeedItem): TileFamily {
 
 function FeedLine({ item, first, t, f, onOpen }: { item: FeedItem; first: boolean; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
   const line = describeFeed(item, t, f);
-  const clickable = !!item.ref || item.count > 1;
+  // An explicit event (sign-in, export) has no before → after to open.
+  const empty = item.ref?.startsWith("audit:") && !item.params?.fields;
+  const clickable = (!!item.ref && !empty) || item.count > 1;
   const sev = item.severity;
   const open = () => onOpen({ type: "item", item });
   return (

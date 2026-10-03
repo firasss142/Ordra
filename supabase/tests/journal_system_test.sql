@@ -349,5 +349,6 @@ $a7$;
 DELETE FROM carrier_event_log WHERE tracking_number = 'SQLTEST-TRK-' || current_setting('r.tag');
 DELETE FROM darb_sync_runs WHERE notes ->> 'sqltest' = current_setting('r.tag');
 DELETE FROM journal_issues WHERE fingerprint IN ('inactive:' || current_setting('r.c'), 'server:sqltest:' || current_setting('r.tag'));
+DELETE FROM journal_issues WHERE fingerprint LIKE 'login:sqlt_' || current_setting('r.tag');
 -- audit_events, the order and the carrier stay: the first is append-only by
 -- design, and the order is referenced by it.

@@ -62,6 +62,9 @@ export function JournalPanel(props: Props) {
   }
 }
 
+/** Rules whose own steps already say the problem closes by itself. */
+const SAYS_IT_CLOSES = new Set(["job_failing", "connection_silent", "carrier_stuck", "server_error"]);
+
 const sevOf = (i: Pick<Issue, "severity" | "status">): Sev => (i.status === "muted" ? "mute" : i.severity === "critical" ? "fail" : "warn");
 
 /* ── a problem: « Ce qui se passe · Combien · Que faire » ── */
@@ -182,7 +185,8 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
       {todo.length > 0 && (
         <>
           <H4>{t("common.todo")}</H4>
-          <Steps items={[...todo, t("common.selfHeal")].filter((v, i, a) => a.indexOf(v) === i).slice(0, 3)} />
+          <Steps items={todo} />
+          {!SAYS_IT_CLOSES.has(issue.rule) && <P small>{t("common.selfHeal")}</P>}
         </>
       )}
       {tech.length > 0 && <Tech>{tech}</Tech>}
@@ -666,7 +670,8 @@ function TracePanel({ orderId, onClose, t, f }: Props & { orderId?: string }) {
               onChange={(e) => setQ(e.target.value)}
               placeholder={t("trace.placeholder")}
               aria-label={t("trace.placeholder")}
-              className="h-full flex-1 bg-transparent text-[14px] outline-none"
+              className="h-full flex-1 bg-transparent text-[14px]"
+              style={{ outline: "none" }}
             />
           </label>
           <Btn primary onClick={() => q.trim().length >= 3 && setKey(`/api/admin/journal/trace?q=${encodeURIComponent(q.trim())}`)}>
@@ -700,7 +705,9 @@ function TracePanel({ orderId, onClose, t, f }: Props & { orderId?: string }) {
             {[
               { at: trace.order.created_at, seq: 0, kind: "order.received", actor: null, actor_type: "system", params: {} },
               ...trace.events.filter((e) => e.kind !== "order.received"),
-            ].map((ev, i, all) => {
+            ]
+              .sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || a.seq - b.seq)
+              .map((ev, i, all) => {
               const line = describeTraceEvent(ev, trace.order, t, f);
               const good = /delivered|confirmed|uploaded|scanned|received/.test(String(ev.params?.to ?? "")) || ev.kind === "order.received";
               return (

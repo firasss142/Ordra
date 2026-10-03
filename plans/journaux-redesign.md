@@ -1,6 +1,8 @@
 # Journaux — refonte complète (plan)
 
-**Statut :** prototype v1 à valider — `prototypes/journaux-v1.html`. Rien dans `src/` avant validation.
+**Statut :** **construit le 2026-10-03** d'après le prototype v2 (validé par le propriétaire),
+référence `docs/journal.md`. Migrations `20261003160000` à `…160500` à coller par le propriétaire
+(la dernière, la rétention, est séparée et facultative).
 **Date :** 2026-10-03. **Branche :** `feat/journaux-redesign` (worktree `.claude/worktrees/journaux`).
 **Demande du propriétaire :** « la page /logs est bancale (design, structure, mise en page) ; sa logique
 date, elle n'est pas mature ni à jour avec le système. Enquête en profondeur et construis un vrai
@@ -325,11 +327,11 @@ Violet reste un statut de commande (« Confirmée ») et n'est jamais une famill
 
 | Phase | Contenu | État |
 |---|---|---|
-| **0** | PR #58 : lecteurs de réglages et archivage nocturne. PR #59 : Accès (statut des utilisateurs) et politiques de lecture des journaux | PR ouvertes, migrations à coller |
-| **1 — fondations** | `audit_events` + déclencheur générique + fil de l'auteur ; `integration_calls` + `withCallLog` ; colonnes et dédoublonnage de `carrier_event_log` ; vocabulaire des passages + réapeur ; passages de poll/dispatch ; `app_errors` + `withRouteErrors` ; `journal_record` pour connexions, exports et campagnes WhatsApp ; rétention | à faire |
-| **2 — détection** | `journal_issues`, règles R1–R12, `journal_detect()` toutes les 5 min, fermeture automatique, pastille de la barre latérale | à faire |
-| **3 — écran** | Journaux selon **prototype v2** : Aperçu + Historique (un fil, cinq puces), 9 tuiles, panneaux, trace ; i18n fr (+ clés ar pour la parité) ; tests de composants et de routes | à faire |
-| **4 — nettoyage** | Supprimer `JournauxWorkspace` et les routes orphelines (`/api/admin/logs/summary`, `carrier-events/[id]`, `connections/overview`, `storefronts/[id]/health`) | à faire |
+| **0** | PR #58 : lecteurs de réglages et archivage nocturne. PR #59 : Accès (statut des utilisateurs) et politiques de lecture des journaux | fusionnées et collées (2026-10-03) |
+| **1 — fondations** | `audit_events` + déclencheur générique + fil de l'auteur ; `integration_calls` + `withCallLog` ; colonnes et dédoublonnage de `carrier_event_log` ; vocabulaire des passages + réapeur ; passages de poll/dispatch ; `app_errors` + `withRouteErrors` ; `journal_record` pour connexions, exports et campagnes WhatsApp ; rétention | **fait** |
+| **2 — détection** | `journal_issues`, règles R1–R12, `journal_detect()` toutes les 5 min, fermeture automatique, pastille de la barre latérale | **fait** (11 règles ; R7 et R8 absorbées, voir docs/journal.md §2) |
+| **3 — écran** | Journaux selon **prototype v2** : Aperçu + Historique (un fil, cinq puces), 9 tuiles, panneaux, trace ; i18n fr (+ clés ar pour la parité) ; tests de composants et de routes | **fait** |
+| **4 — nettoyage** | Supprimer `JournauxWorkspace` et les routes orphelines (`/api/admin/logs/summary`, `carrier-events/[id]`, `connections/overview`, `storefronts/[id]/health`) | **fait** — aussi `logs/counts`, `carrier-events`, `sync-runs`, `audit` (seul l'ancien écran les lisait) ; `webhook-logs` gardé pour « Relancer le traitement » |
 
 **Hors refonte, à décider par le propriétaire** (le journal les montre, il ne les corrige pas) :
 - correspondance Navex « Livrer Payé » et transitions de retour ;
@@ -358,3 +360,21 @@ Violet reste un statut de commande (« Confirmée ») et n'est jamais une famill
 3. **Darb Benghazi** : la désactivation était-elle voulue ? Si oui, continuer à suivre les 63
    colis en cours (recommandé) ; sinon, réactiver.
 4. **Alerte** : pastille dans la barre latérale seulement (recommandé) / plus un résumé quotidien.
+
+### Décisions prises (2026-10-03)
+
+Le propriétaire a validé le prototype v2 et demandé la construction ; les quatre questions ont
+pris l'option recommandée :
+
+1. **Rétention 30 j** — dans une migration séparée (`20261003160500_journal_retention.sql`), à
+   coller ou non : tout le reste fonctionne sans elle.
+2. **Navex** et 3. **Darb Benghazi** — hors de cette construction : le journal les montre
+   (problèmes `carrier_stuck` et `carrier_inactive`), il ne les corrige pas.
+4. **Alerte** — pastille rouge sur Système › Journaux seulement (problèmes ouverts).
+
+Changements par rapport au plan pendant la construction :
+- R11 : « ≥ 3 erreurs identiques en 24 h, ferme après 24 h sans erreur » (Ordra ne journalise
+  pas les succès, « 100 % des essais » n'est pas mesurable).
+- R12 : les échecs de connexion sont regroupés par **compte** (empreinte de l'adresse complète) —
+  le libellé masqué `ag•••@oms.local` confond agent1 et agent2.
+- Les problèmes ouverts et résolus apparaissent aussi dans l'Historique.

@@ -20,6 +20,9 @@
 --   3. webhook_delivery_log.payload becomes nullable: the NOT NULL made some
 --      writers' rows fail silently, and the purge needs to clear it.
 
+-- The fold below reads ~925 000 rows in production: give it room.
+SET statement_timeout = '15min';
+
 ALTER TABLE public.webhook_delivery_log ALTER COLUMN payload DROP NOT NULL;
 
 -- 1. fold history ─────────────────────────────────────────────────────────────

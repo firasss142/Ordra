@@ -8294,6 +8294,7 @@
         "confirmed": "{actor} أكّد {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
         "rejected": "{actor} رفض {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
         "uploaded": "{actor} أرسل {count, plural, one {الطلبية {ref}} other {# طلبيات}} إلى {carrier}",
+        "uploadedNoCarrier": "{actor} أرسل {count, plural, one {الطلبية {ref}} other {# طلبيات}} إلى شركة الشحن",
         "dispatch_scheduled": "{actor} جدول إرسال {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
         "cancelled": "{actor} ألغى {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
         "deleted": "{actor} حذف {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
@@ -8372,7 +8373,30 @@
         "role": "{actor} غيّر دور {label}",
         "market": "{actor} غيّر سوق {label}",
         "warehouse": "{actor} عيّن {label} في مستودع",
-        "count": "{actor} عدّل {count, plural, one {سطرًا} other {# أسطر}} · {entity}"
+        "count": "{actor} عدّل {count, plural, one {عنصرًا} other {# عناصر}} · {type}"
+      },
+      "types": {
+        "carriers": "شركات الشحن",
+        "carrier_order_preferences": "تفضيلات الإرسال",
+        "storefronts": "المتاجر",
+        "warehouses": "المستودعات",
+        "markets": "الأسواق",
+        "products": "المنتجات",
+        "product_variants": "الأنواع",
+        "rejection_reason_configs": "أسباب الرفض",
+        "status_configs": "الحالات",
+        "agent_distribution_shares": "حصص التوزيع",
+        "assignment_rules": "قواعد التوزيع",
+        "agent_commission_rates": "نسب العمولات",
+        "users": "الحسابات",
+        "whatsapp_configs": "WhatsApp",
+        "whatsapp_templates": "قوالب واتساب",
+        "meta_ad_accounts": "الحسابات الإعلانية",
+        "investors": "المستثمرون",
+        "reception_payments": "دفعات الموردين",
+        "ad_spend": "المصاريف الإعلانية",
+        "order_items": "أسطر الطلبيات",
+        "other": "بيانات"
       },
       "entities": {
         "carriers": "شركة الشحن {label}",
@@ -8399,7 +8423,7 @@
       },
       "auth": {
         "login": "تسجيل دخول {actor}",
-        "login_failed": "محاولة دخول فاشلة على {label}"
+        "login_failed": "{count, plural, one {محاولة دخول فاشلة} other {# محاولات دخول فاشلة}} على {label}"
       },
       "export": {
         "orders": "{actor} صدّر {rows} طلبية",

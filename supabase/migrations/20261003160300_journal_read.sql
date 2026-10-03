@@ -470,7 +470,9 @@ BEGIN
       SELECT i.resolved_at, 'iz:' || i.id,
              CASE WHEN i.system = 'jobs' THEN 'auto' WHEN i.system = 'app' THEN 'sec' ELSE 'ext' END,
              'issue.resolved', NULL, NULL, NULL, NULL, i.market_id, NULL, NULL,
-             jsonb_build_object('rule', i.rule_key, 'p', i.params), 'issue:' || i.id
+             jsonb_build_object('rule', i.rule_key, 'p', i.params, 'affected', i.affected_count,
+                                'amount', i.impact_amount, 'currency', i.impact_currency, 'open', FALSE),
+             'issue:' || i.id
         FROM public.journal_issues i
        WHERE i.status = 'resolved' AND i.resolved_at <= v_before
          AND (p_market IS NULL OR i.market_id = p_market)

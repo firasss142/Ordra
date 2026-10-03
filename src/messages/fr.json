@@ -8294,6 +8294,7 @@
         "confirmed": "{actor} a confirmé {count, plural, one {la commande {ref}} other {# commandes}}",
         "rejected": "{actor} a rejeté {count, plural, one {la commande {ref}} other {# commandes}}",
         "uploaded": "{actor} a envoyé {count, plural, one {la commande {ref}} other {# commandes}} chez {carrier}",
+        "uploadedNoCarrier": "{actor} a envoyé {count, plural, one {la commande {ref}} other {# commandes}} au transporteur",
         "dispatch_scheduled": "{actor} a programmé l’envoi de {count, plural, one {la commande {ref}} other {# commandes}}",
         "cancelled": "{actor} a annulé {count, plural, one {la commande {ref}} other {# commandes}}",
         "deleted": "{actor} a supprimé {count, plural, one {la commande {ref}} other {# commandes}}",
@@ -8372,7 +8373,30 @@
         "role": "{actor} a changé le rôle de {label}",
         "market": "{actor} a changé le marché de {label}",
         "warehouse": "{actor} a affecté {label} à un entrepôt",
-        "count": "{actor} a modifié {count, plural, one {une ligne} other {# lignes}} · {entity}"
+        "count": "{actor} a modifié {count, plural, one {un élément} other {# éléments}} · {type}"
+      },
+      "types": {
+        "carriers": "Transporteurs",
+        "carrier_order_preferences": "Préférences d’envoi",
+        "storefronts": "Boutiques",
+        "warehouses": "Entrepôts",
+        "markets": "Marchés",
+        "products": "Produits",
+        "product_variants": "Variantes",
+        "rejection_reason_configs": "Motifs de rejet",
+        "status_configs": "Statuts",
+        "agent_distribution_shares": "Parts de distribution",
+        "assignment_rules": "Règles de distribution",
+        "agent_commission_rates": "Taux de commission",
+        "users": "Comptes",
+        "whatsapp_configs": "WhatsApp",
+        "whatsapp_templates": "Modèles WhatsApp",
+        "meta_ad_accounts": "Comptes publicitaires",
+        "investors": "Investisseurs",
+        "reception_payments": "Paiements fournisseurs",
+        "ad_spend": "Dépenses pub",
+        "order_items": "Lignes de commande",
+        "other": "Données"
       },
       "entities": {
         "carriers": "le transporteur {label}",
@@ -8399,7 +8423,7 @@
       },
       "auth": {
         "login": "Connexion de {actor}",
-        "login_failed": "Échec de connexion sur {label}"
+        "login_failed": "{count, plural, one {Échec de connexion} other {# échecs de connexion}} sur {label}"
       },
       "export": {
         "orders": "{actor} a exporté {rows} commandes",

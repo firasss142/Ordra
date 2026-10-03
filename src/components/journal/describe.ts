@@ -19,6 +19,18 @@ export interface Line {
 type P = Record<string, unknown>;
 const s = (v: unknown) => (v == null ? "" : String(v));
 
+/** A carrier known only by its code (no account linked) is still named. */
+const CARRIER_CODES: Record<string, string> = {
+  darb_assabil: "Darb Assabil",
+  navex: "Navex",
+  dexpress: "Dexpress",
+  cosmos: "Cosmos",
+};
+export function carrierName(v: unknown): string {
+  const c = s(v);
+  return CARRIER_CODES[c] ?? c;
+}
+
 function pick(t: Tr, key: string, fallback: string, values: Record<string, string | number | Date>): string {
   return t(t.has(key) ? key : fallback, values);
 }
@@ -84,7 +96,10 @@ function auditLine(item: FeedItem, t: Tr, f: Fmt, actor: string): Line {
   const changes = (p.changes as Record<string, [unknown, unknown]> | undefined) ?? {};
   const sub = fields.length ? fields.slice(0, 4).map((k) => fieldLabel(k, t)).join(" · ") : undefined;
 
-  if (item.count > 1) return { title: t("kinds.audit.count", { actor, count: item.count, entity }), sub };
+  if (item.count > 1) {
+    const type = pick(t, `kinds.types.${table}`, "kinds.types.other", {});
+    return { title: t("kinds.audit.count", { actor, count: item.count, type }), sub };
+  }
   if (verb === "updated") {
     const active = changes.is_active;
     if (active && fields.length <= 2) {
@@ -113,9 +128,9 @@ export function describeFeed(item: FeedItem, t: Tr, f: Fmt): Line {
     case "order": {
       if (rest === "status") {
         const to = s(p.to);
-        const key = /^attempt_/.test(to) ? "attempt" : to;
+        const key = /^attempt_/.test(to) ? "attempt" : to === "uploaded" && !p.carrier ? "uploadedNoCarrier" : to;
         const title = t.has(`kinds.order.${key}`)
-          ? t(`kinds.order.${key}`, { actor, count, ref, carrier: s(p.carrier) || "—" })
+          ? t(`kinds.order.${key}`, { actor, count, ref, carrier: carrierName(p.carrier) || "—" })
           : t("kinds.order.other", { actor, count, ref, status: f.status(to) });
         return { title, sub: series ?? (count === 1 && p.amount != null ? f.money(p.amount, p.currency) : undefined) };
       }
@@ -133,7 +148,7 @@ export function describeFeed(item: FeedItem, t: Tr, f: Fmt): Line {
         const where = [s(p.carrier), count === 1 && p.amount != null ? f.money(p.amount, p.currency) : ""].filter(Boolean).join(" · ");
         return { title, sub: series ? [s(p.carrier), series].filter(Boolean).join(" · ") : where || undefined };
       }
-      const carrier = s(p.carrier) || "—";
+      const carrier = carrierName(p.carrier) || "—";
       return {
         title: pick(t, `kinds.carrier.${rest}`, "kinds.carrier.call_failed", { carrier }),
         sub: [item.actor_name, item.order_ref, s(p.message)].filter(Boolean).join(" · ") || undefined,
@@ -165,7 +180,7 @@ export function describeFeed(item: FeedItem, t: Tr, f: Fmt): Line {
     case "user":
       return { title: pick(t, `kinds.user.${rest}`, "kinds.user.other", { actor, target: s(p.target) || "—" }), sub: t("kinds.user.sub") };
     case "auth":
-      return { title: pick(t, `kinds.auth.${rest}`, "kinds.auth.login", { actor, label: s(p.label) || "—" }), sub: series };
+      return { title: pick(t, `kinds.auth.${rest}`, "kinds.auth.login", { actor, count, label: s(p.label) || "—" }), sub: series };
     case "export": {
       const ctx = (p.context as P | undefined) ?? {};
       return { title: pick(t, `kinds.export.${rest}`, "kinds.export.orders", { actor, rows: f.num(ctx.rows ?? 0) }) };
