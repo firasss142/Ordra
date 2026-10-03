@@ -189,6 +189,16 @@ const config: Config = {
           bg: "var(--job-bg, var(--brand-bg))",
           ink: "var(--job-ink, var(--brand-hover))",
         },
+        /* Accès: one hue per role. A wrapper sets it with `.tone-agent |
+           .tone-warehouse | .tone-manager | .tone-investor | .tone-admin |
+           .tone-all` (globals.css); everything inside reads `tone`, `tone-bg`,
+           `tone-ink`, `tone-edge`. */
+        tone: {
+          DEFAULT: "var(--tone, var(--brand))",
+          bg: "var(--tone-bg, var(--brand-bg))",
+          ink: "var(--tone-ink, var(--brand-hover))",
+          edge: "var(--tone-edge, var(--role-all-edge))",
+        },
         ads: {
           line: "var(--ads-line)",
           "line-2": "var(--ads-line-2)",

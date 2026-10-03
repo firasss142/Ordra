@@ -29,14 +29,17 @@ export interface UserWithStats {
   deactivation_reason: DeactivationReason | null;
   last_seen_at: string | null;
   created_at: string;
-  orders_actioned?: number;
-  leads_converted?: number;
 }
 
 export interface UserAuditEvent {
   id: string;
   actor_id: string;
-  actor_name?: string;
+  /**
+   * The actor, joined by /api/admin/audit-log (`actor:users!actor_id(…)`).
+   * There is no flat `actor_name` column: reading one made every event in the
+   * old journal say « Système ».
+   */
+  actor?: { full_name: string | null; avatar_url?: string | null } | null;
   target_id: string;
   event_type: string;
   meta: Record<string, unknown> | null;
