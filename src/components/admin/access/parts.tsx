@@ -81,8 +81,16 @@ export function AccessAvatar({
       className={`${TONE[user.role]} relative inline-grid flex-none place-items-center rounded-full bg-tone-bg font-semibold uppercase text-tone-ink ${box} ${muted ? "opacity-65 grayscale" : ""}`}
     >
       {user.avatar_url && !broken ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={user.avatar_url} alt="" className="h-full w-full rounded-full object-cover" onError={() => setBroken(true)} />
+        /*
+         * Out of the grid on purpose: as a grid item, `h-full` resolved against
+         * a track the photo itself sized, so a portrait grew out of the circle.
+         * Absolutely placed in a round clipping layer, any proportions fill the
+         * frame — and the presence beat, a sibling, stays uncut.
+         */
+        <span className="absolute inset-0 overflow-hidden rounded-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={user.avatar_url} alt="" className="h-full w-full object-cover" onError={() => setBroken(true)} />
+        </span>
       ) : size === "xs" ? (
         initials.slice(0, 1)
       ) : (
