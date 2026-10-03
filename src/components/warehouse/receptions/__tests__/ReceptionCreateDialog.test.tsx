@@ -35,6 +35,43 @@ beforeEach(() => {
   swrData.set("/api/products/search?market_id=m-ly&q=qur", {
     data: [{ id: "p1", name: "القرآن تدبر وعمل", sku: "qr-01", current_stock: 943 }],
   });
+  const dollCatalogue = {
+    data: [
+      {
+        id: "p-doll",
+        name: "دميه ملاكمه",
+        sku: "box-wafra-shop",
+        current_stock: 208,
+        product_variants: [
+          { id: "v-s", label: "صغير", kind: "attribute", current_stock: 42, is_active: true },
+          { id: "v-m", label: "متوسط", kind: "attribute", current_stock: 98, is_active: true },
+          { id: "v-l", label: "كبير", kind: "attribute", current_stock: 68, is_active: true },
+          { id: "v-pack6", label: "Pack de 6", kind: "pack", current_stock: 0, is_active: true },
+          { id: "v-old", label: "ancienne taille", kind: "attribute", current_stock: 0, is_active: false },
+        ],
+      },
+    ],
+  };
+  swrData.set("/api/products/search?market_id=m-ly", dollCatalogue);
+  swrData.set("/api/products/search?market_id=m-ly&q=mal", {
+    data: [
+      {
+        id: "p-doll",
+        name: "دميه ملاكمه",
+        sku: "box-wafra-shop",
+        current_stock: 208,
+        product_variants: [
+          { id: "v-s", label: "صغير", kind: "attribute", current_stock: 42, is_active: true },
+          { id: "v-m", label: "متوسط", kind: "attribute", current_stock: 98, is_active: true },
+          { id: "v-l", label: "كبير", kind: "attribute", current_stock: 68, is_active: true },
+          // Un palier n'est pas un objet sur une étagère : il ne se reçoit pas.
+          { id: "v-pack6", label: "Pack de 6", kind: "pack", current_stock: 0, is_active: true },
+          // Une variante retirée du catalogue n'est pas proposée.
+          { id: "v-old", label: "ancienne taille", kind: "attribute", current_stock: 0, is_active: false },
+        ],
+      },
+    ],
+  });
   global.fetch = vi
     .fn()
     .mockResolvedValue({ ok: true, json: async () => ({ id: "r-new" }) }) as never;
@@ -353,5 +390,97 @@ describe("ReceptionCreateDialog — le marché du produit", () => {
     // Rien ne doit être demandé sans market_id : ce serait la liste vide.
     expect(swrData.has("/api/products/search")).toBe(false);
     expect(await screen.findByText(/aucun produit actif/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * LA VARIANTE EST LE GRAIN OÙ VIT LE STOCK.
+ *
+ * `product_site_stock` est unique sur (product_id, variant_id, warehouse_id), et
+ * `reception_lines.variant_id` existe depuis le premier jour — mais le sélecteur
+ * envoyait toujours NULL. Recevoir 50 M et 50 L déclarait donc 100 unités de
+ * « produit nu », qui atterrissent dans le NON VENTILÉ ; et sur un produit
+ * ventilé à 100 %, `scan_order_out` refuse ensuite de les sortir
+ * (« quelle taille le client a-t-il reçue ? » n'a pas de réponse).
+ *
+ * Le module créait donc du stock que le reste d'Ordra ne savait pas vendre.
+ */
+describe("ReceptionCreateDialog — les variantes", () => {
+  async function search(term: string) {
+    wrap();
+    fireEvent.change(screen.getByPlaceholderText(/chercher un produit/i), {
+      target: { value: term },
+    });
+  }
+
+  it("n'offre PAS le produit nu quand il est ventilé", async () => {
+    await search("mal");
+    await screen.findByText("دميه ملاكمه");
+    // Le nom paraît comme en-tête de groupe, jamais comme bouton choisissable.
+    expect(screen.queryByRole("button", { name: /^دميه ملاكمه$/ })).not.toBeInTheDocument();
+  });
+
+  it("propose chaque taille, avec son propre stock", async () => {
+    await search("mal");
+    expect(await screen.findByRole("button", { name: /صغير/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /متوسط/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /كبير/ })).toBeInTheDocument();
+    // 42 et non 208 : c'est le stock de CETTE taille qui dit s'il en manque.
+    expect(screen.getByRole("button", { name: /صغير/ })).toHaveTextContent("42");
+  });
+
+  it("n'offre pas les paliers : un pack n'est pas un objet sur une étagère", async () => {
+    await search("mal");
+    await screen.findByText("دميه ملاكمه");
+    expect(screen.queryByRole("button", { name: /Pack de 6/ })).not.toBeInTheDocument();
+  });
+
+  it("n'offre pas une variante désactivée", async () => {
+    await search("mal");
+    await screen.findByText("دميه ملاكمه");
+    expect(screen.queryByRole("button", { name: /ancienne taille/ })).not.toBeInTheDocument();
+  });
+
+  it("la ligne ajoutée porte le nom de la variante", async () => {
+    await search("mal");
+    fireEvent.click(await screen.findByRole("button", { name: /متوسط/ }));
+    // Une seule ligne posée, et elle nomme la taille. Le catalogue reste ouvert
+    // (on saisit dix lignes d'affilée), donc l'étiquette paraît aussi là-bas —
+    // on compte les LIGNES, pas les occurrences du texte.
+    expect(screen.getAllByRole("button", { name: /retirer la ligne/i })).toHaveLength(1);
+    const posted = screen.getAllByRole("button", { name: /retirer la ligne/i })[0].closest("div");
+    expect(posted?.parentElement?.textContent).toContain("متوسط");
+  });
+
+  it("deux tailles du même produit font deux lignes", async () => {
+    await search("mal");
+    fireEvent.click(await screen.findByRole("button", { name: /صغير/ }));
+    fireEvent.click(screen.getByRole("button", { name: /كبير/ }));
+    // L'index unique est (reception_id, product_id, variant_id) : deux tailles
+    // sont deux lignes légitimes, pas un doublon. Les deux étiquettes paraissent
+    // donc à la fois dans la liste et sur les lignes posées.
+    expect(screen.getAllByRole("button", { name: /retirer la ligne/i })).toHaveLength(2);
+  });
+
+  it("envoie le variant_id au serveur", async () => {
+    await search("mal");
+    fireEvent.click(await screen.findByRole("button", { name: /متوسط/ }));
+    fireEvent.click(screen.getByRole("button", { name: /créer le brouillon/i }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    const body = JSON.parse(
+      (global.fetch as unknown as { mock: { calls: [string, { body: string }][] } }).mock.calls.at(-1)![1].body,
+    );
+    expect(body.lines[0]).toMatchObject({ product_id: "p-doll", variant_id: "v-m" });
+  });
+
+  it("un produit sans variante reste choisissable tel quel, avec variant_id null", async () => {
+    await search("qur");
+    fireEvent.click(await screen.findByRole("button", { name: /القرآن تدبر وعمل/ }));
+    fireEvent.click(screen.getByRole("button", { name: /créer le brouillon/i }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    const body = JSON.parse(
+      (global.fetch as unknown as { mock: { calls: [string, { body: string }][] } }).mock.calls.at(-1)![1].body,
+    );
+    expect(body.lines[0]).toMatchObject({ product_id: "p1", variant_id: null });
   });
 });

@@ -3877,6 +3877,7 @@
       "adoptCostsCount": "{count} produits changeraient de coût catalogue, en moyenne pondérée sur le stock existant.",
       "adoptCostsWarning": "Le P&L lit le coût en direct : adopter ces coûts recalcule aussi la marge des commandes déjà livrées et les chiffres investisseurs. C'est pour cela que la case est décochée par défaut — entrer du stock et redater la rentabilité sont deux décisions.",
       "alreadyAdded": "déjà sur cette réception",
+      "pickSize": "{count, plural, one {# taille} other {# tailles}}",
       "back": "Retour",
       "cancel": "Annuler",
       "catalogueCount": "{count} produits du marché",

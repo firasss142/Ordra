@@ -26,12 +26,83 @@ import { ProductAvatar } from "@/components/orders/ProductAvatar";
  * à zéro rend la réception urgente, neuf cents en stock la laissent attendre.
  */
 
+export interface ProductVariant {
+  id: string;
+  label: string;
+  /** `attribute` porte le stock ; `pack` est un conditionnement de vente. */
+  kind?: string | null;
+  current_stock?: number | null;
+  is_active?: boolean | null;
+}
+
 export interface SearchableProduct {
   id: string;
   name: string;
   sku?: string | null;
   image_url?: string | null;
   current_stock: number;
+  /** Tel que PostgREST le renvoie ; d'autres écrans lisent déjà ce nom. */
+  product_variants?: ProductVariant[] | null;
+}
+
+/**
+ * Une entrée choisissable : soit un produit nu, soit UNE taille d'un produit.
+ *
+ * LE STOCK VIT AU GRAIN (produit, variante, bâtiment). Choisir « دميه ملاكمه »
+ * sans dire laquelle déclarait 100 unités de produit nu, qui tombent dans le
+ * NON VENTILÉ — et sur un produit ventilé à 100 %, `scan_order_out` refuse
+ * ensuite de les sortir, parce que « quelle taille le client a-t-il reçue ? »
+ * n'a pas de réponse. Le sélecteur créait donc du stock invendable.
+ */
+export interface PickEntry {
+  /** `<produit>` ou `<produit>:<variante>` — la clé que `chosenIds` porte. */
+  key: string;
+  product: SearchableProduct;
+  variant: ProductVariant | null;
+  label: string;
+  stock: number;
+}
+
+/** Les tailles vivantes d'un produit. Un palier n'est pas un objet sur une étagère. */
+export function stockBearingVariants(p: SearchableProduct): ProductVariant[] {
+  return (p.product_variants ?? []).filter(
+    (v) => v.kind === "attribute" && v.is_active !== false,
+  );
+}
+
+export function entryKey(productId: string, variantId: string | null): string {
+  return variantId ? `${productId}:${variantId}` : productId;
+}
+
+/**
+ * Aplatit les résultats en entrées choisissables.
+ *
+ * Un produit ventilé n'apparaît PAS lui-même : seules ses tailles le font. On ne
+ * peut donc pas enregistrer le produit nu quand il est ventilé, ce qui est la
+ * règle du domaine, appliquée là où la main se pose.
+ */
+export function pickEntries(results: SearchableProduct[]): PickEntry[] {
+  return results.flatMap((product): PickEntry[] => {
+    const variants = stockBearingVariants(product);
+    if (variants.length === 0) {
+      return [
+        {
+          key: entryKey(product.id, null),
+          product,
+          variant: null,
+          label: product.name,
+          stock: product.current_stock,
+        },
+      ];
+    }
+    return variants.map((variant) => ({
+      key: entryKey(product.id, variant.id),
+      product,
+      variant,
+      label: variant.label,
+      stock: variant.current_stock ?? 0,
+    }));
+  });
 }
 
 /** La requête minimale. Une lettre renverrait le catalogue entier. */
@@ -79,7 +150,8 @@ export function ProductSearchPanel({
   results: SearchableProduct[];
   isLoading: boolean;
   chosenIds: Set<string>;
-  onPick: (product: SearchableProduct) => void;
+  /** `variant` est `null` pour un produit sans taille. */
+  onPick: (product: SearchableProduct, variant: ProductVariant | null) => void;
   inputRef?: React.RefObject<HTMLInputElement>;
   /** Les colonnes de la rangée, pour que le champ s'aligne sur les lignes posées. */
   gridClassName: string;
@@ -108,9 +180,13 @@ export function ProductSearchPanel({
   const tooShort = trimmed.length > 0 && trimmed.length < MIN_QUERY;
   const active = (trimmed.length >= MIN_QUERY || (focused && browsing)) && !dismissed;
 
-  // Les résultats déjà posés restent dans la liste, mais ne sont pas choisissables :
+  const entries = useMemo(() => pickEntries(results), [results]);
+  // Les entrées déjà posées restent dans la liste, mais ne sont pas choisissables :
   // le curseur clavier ne doit donc jamais s'arrêter dessus.
-  const pickable = useMemo(() => results.filter((p) => !chosenIds.has(p.id)), [results, chosenIds]);
+  const pickable = useMemo(
+    () => entries.filter((e) => !chosenIds.has(e.key)),
+    [entries, chosenIds],
+  );
 
   useEffect(() => setCursor(0), [trimmed, results.length]);
   // Taper après avoir fermé la liste la rouvre : on redemande quelque chose.
@@ -118,8 +194,8 @@ export function ProductSearchPanel({
     if (trimmed.length > 0) setDismissed(false);
   }, [trimmed]);
 
-  function pick(product: SearchableProduct) {
-    onPick(product);
+  function pick(entry: PickEntry) {
+    onPick(entry.product, entry.variant);
     // Le champ se vide pour le produit suivant : on saisit une réception de dix
     // lignes d'affilée, sans jamais lâcher le clavier.
     onQueryChange("");
@@ -214,67 +290,73 @@ export function ProductSearchPanel({
       {active && results.length > 0 ? (
         <div className="border-t border-wh-border">
           <ul>
-            {results.map((p) => {
-              const taken = chosenIds.has(p.id);
-              const index = pickable.indexOf(p);
-              const onCursor = !taken && index === Math.min(cursor, pickable.length - 1);
+            {results.map((product) => {
+              const variants = stockBearingVariants(product);
 
-              const body = (
-                <>
-                  <ProductAvatar
-                    imageUrl={p.image_url ?? null}
-                    productName={p.name}
-                    size={34}
-                  />
-                  <span className="min-w-0">
-                    <span
-                      className={`block truncate text-[13px] font-medium ${taken ? "text-wh-ink-3" : ""}`}
-                      dir="auto"
-                    >
-                      <Highlight text={p.name} query={trimmed} />
-                    </span>
-                    {p.sku ? (
-                      <span
-                        className={`mt-0.5 block truncate font-mono text-[11px] ${taken ? "text-wh-ink-3" : "text-wh-ink-3"}`}
-                      >
-                        <Highlight text={p.sku} query={trimmed} />
-                      </span>
-                    ) : null}
-                  </span>
-                  {taken ? (
-                    <span className="flex-none rounded-[6px] border border-wh-border bg-wh-sunken px-2 py-px text-[11px] font-semibold text-wh-ink-2">
-                      {t("alreadyAdded")}
-                    </span>
-                  ) : (
-                    <span
-                      className={`flex-none font-mono text-[12.5px] font-semibold tabular-nums ${
-                        p.current_stock <= 0 ? "text-wh-bad" : "text-wh-ink-2"
-                      }`}
-                    >
-                      {t("inStock", { count: p.current_stock })}
-                    </span>
-                  )}
-                </>
-              );
+              /* ── Un produit SANS taille : la rangée d'avant, inchangée. ── */
+              if (variants.length === 0) {
+                const key = entryKey(product.id, null);
+                const entry = entries.find((e) => e.key === key)!;
+                return (
+                  <li key={product.id} className="border-b border-wh-border last:border-b-0">
+                    <Row
+                      entry={entry}
+                      taken={chosenIds.has(key)}
+                      pickable={pickable}
+                      cursor={cursor}
+                      trimmed={trimmed}
+                      setCursor={setCursor}
+                      pick={pick}
+                      t={t}
+                    />
+                  </li>
+                );
+              }
 
+              /*
+               * ── Un produit VENTILÉ : un en-tête, puis ses tailles. ──
+               * L'en-tête n'est pas un bouton : le produit nu n'est pas un
+               * choix possible, et le rendre cliquable serait un piège.
+               */
               return (
-                <li key={p.id} className="border-b border-wh-border last:border-b-0">
-                  {taken ? (
-                    <div className="grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 py-2.5">
-                      {body}
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onMouseEnter={() => setCursor(index)}
-                      onClick={() => pick(p)}
-                      className={`grid w-full grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 py-2.5 text-start ${
-                        onCursor ? "bg-wh-ok-tint" : "hover:bg-wh-ok-tint"
-                      }`}
-                    >
-                      {body}
-                    </button>
-                  )}
+                <li key={product.id} className="border-b border-wh-border last:border-b-0">
+                  <div className="grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 pb-1 pt-2.5">
+                    <ProductAvatar imageUrl={product.image_url ?? null} productName={product.name} size={34} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold" dir="auto">
+                        <Highlight text={product.name} query={trimmed} />
+                      </span>
+                      {product.sku ? (
+                        <span className="mt-0.5 block truncate font-mono text-[11px] text-wh-ink-3">
+                          <Highlight text={product.sku} query={trimmed} />
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="flex-none text-[11px] font-semibold text-wh-ink-3">
+                      {t("pickSize", { count: variants.length })}
+                    </span>
+                  </div>
+                  <ul className="ps-[30px]">
+                    {variants.map((variant) => {
+                      const key = entryKey(product.id, variant.id);
+                      const entry = entries.find((e) => e.key === key)!;
+                      return (
+                        <li key={variant.id} className="border-t border-wh-border">
+                          <Row
+                            entry={entry}
+                            taken={chosenIds.has(key)}
+                            pickable={pickable}
+                            cursor={cursor}
+                            trimmed={trimmed}
+                            setCursor={setCursor}
+                            pick={pick}
+                            t={t}
+                            variantRow
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </li>
               );
             })}
@@ -319,5 +401,95 @@ function Kbd({ children }: { children: React.ReactNode }) {
     <kbd className="rounded-[4px] border border-wh-border-strong bg-wh-surface px-1.5 font-mono text-[10.5px] text-wh-ink-2">
       {children}
     </kbd>
+  );
+}
+
+/**
+ * Une rangée choisissable — produit nu ou taille.
+ *
+ * « EN STOCK 0 » EST EN ROUGE, parce que c'est le chiffre qui décide : à zéro
+ * la réception est urgente, à neuf cents elle peut attendre. Sur une taille,
+ * c'est le stock de CETTE taille qui compte, jamais le total du produit.
+ */
+function Row({
+  entry,
+  taken,
+  pickable,
+  cursor,
+  trimmed,
+  setCursor,
+  pick,
+  t,
+  variantRow,
+}: {
+  entry: PickEntry;
+  taken: boolean;
+  pickable: PickEntry[];
+  cursor: number;
+  trimmed: string;
+  setCursor: (n: number) => void;
+  pick: (e: PickEntry) => void;
+  t: ReturnType<typeof useTranslations>;
+  variantRow?: boolean;
+}) {
+  const index = pickable.findIndex((e) => e.key === entry.key);
+  const onCursor = !taken && index >= 0 && index === Math.min(cursor, pickable.length - 1);
+  const pad = variantRow ? "px-3.5 py-2" : "px-3.5 py-2.5";
+  const cols = variantRow
+    ? "grid-cols-[minmax(0,1fr)_auto]"
+    : "grid-cols-[34px_minmax(0,1fr)_auto]";
+
+  const body = (
+    <>
+      {variantRow ? null : (
+        <ProductAvatar
+          imageUrl={entry.product.image_url ?? null}
+          productName={entry.product.name}
+          size={34}
+        />
+      )}
+      <span className="min-w-0">
+        <span
+          className={`block truncate text-[13px] ${variantRow ? "font-medium" : "font-medium"} ${taken ? "text-wh-ink-3" : ""}`}
+          dir="auto"
+        >
+          <Highlight text={entry.label} query={trimmed} />
+        </span>
+        {!variantRow && entry.product.sku ? (
+          <span className="mt-0.5 block truncate font-mono text-[11px] text-wh-ink-3">
+            <Highlight text={entry.product.sku} query={trimmed} />
+          </span>
+        ) : null}
+      </span>
+      {taken ? (
+        <span className="flex-none rounded-[6px] border border-wh-border bg-wh-sunken px-2 py-px text-[11px] font-semibold text-wh-ink-2">
+          {t("alreadyAdded")}
+        </span>
+      ) : (
+        <span
+          className={`flex-none font-mono text-[12.5px] font-semibold tabular-nums ${
+            entry.stock <= 0 ? "text-wh-bad" : "text-wh-ink-2"
+          }`}
+        >
+          {t("inStock", { count: entry.stock })}
+        </span>
+      )}
+    </>
+  );
+
+  if (taken) {
+    return <div className={`grid ${cols} items-center gap-x-3 ${pad}`}>{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setCursor(index)}
+      onClick={() => pick(entry)}
+      className={`grid w-full ${cols} items-center gap-x-3 ${pad} text-start ${
+        onCursor ? "bg-wh-ok-tint" : "hover:bg-wh-ok-tint"
+      }`}
+    >
+      {body}
+    </button>
   );
 }
