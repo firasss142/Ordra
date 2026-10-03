@@ -45,7 +45,6 @@ describe("POST …/[id]/post — qui peut valider", () => {
     expect(mockRpc).toHaveBeenCalledWith("post_reception", {
       p_reception_id: "r-1",
       p_actor_id: "mm-1",
-      p_adopt_costs: false,
     });
   });
 
@@ -67,34 +66,29 @@ describe("POST …/[id]/post — qui peut valider", () => {
 
 /*
  * LE POINT LE PLUS IMPORTANT DE CE FICHIER. `products.unit_cogs` est lu en
- * direct par un P&L fenêtré sur événements et par les faits investisseurs.
- * L'adopter recalcule la marge de commandes DÉJÀ LIVRÉES. Un client qui oublie
- * le champ ne doit donc pas redater la rentabilité par accident.
+ * direct par un P&L fenêtré sur événements et par les faits investisseurs :
+ * l'écrire recalcule la marge de commandes DÉJÀ LIVRÉES.
+ *
+ * Ce n'est donc pas une décision de document, c'est une POLITIQUE COMPTABLE. La
+ * route ne transmet plus rien à ce sujet — la RPC lit le réglage
+ * `costing_update_on_settle` du marché. Un an de case à cocher dans une modale
+ * donnait un `unit_cogs` qui faisait une marche aléatoire entre les prix
+ * d'achat, selon l'attention de qui validait, à 23 h, sur un quai.
  */
-describe("POST …/[id]/post — adopter les coûts est explicite", () => {
-  test("un corps vide n'adopte rien", async () => {
+describe("POST …/[id]/post — la politique de coût n'est pas un choix d'appel", () => {
+  test("la route n'envoie aucun drapeau de coût", async () => {
     await POST(req(), { params });
-    expect(mockRpc.mock.calls[0][1].p_adopt_costs).toBe(false);
+    expect(mockRpc.mock.calls[0][1]).toEqual({
+      p_reception_id: "r-1",
+      p_actor_id: "mm-1",
+    });
   });
 
-  test("un corps sans le champ n'adopte rien", async () => {
-    await POST(req({}), { params });
-    expect(mockRpc.mock.calls[0][1].p_adopt_costs).toBe(false);
-  });
-
-  test("seul un true strict adopte", async () => {
+  test("un client qui réclame l'adoption est ignoré, pas obéi", async () => {
+    // Le champ a existé ; un appelant qui l'enverrait encore ne doit pas
+    // pouvoir redater la rentabilité par le corps de la requête.
     await POST(req({ adopt_costs: true }), { params });
-    expect(mockRpc.mock.calls[0][1].p_adopt_costs).toBe(true);
-  });
-
-  test("une valeur vaguement vraie n'adopte pas", async () => {
-    await POST(req({ adopt_costs: "yes" }), { params });
-    expect(mockRpc.mock.calls[0][1].p_adopt_costs).toBe(false);
-  });
-
-  test("adopt_costs false n'adopte pas", async () => {
-    await POST(req({ adopt_costs: false }), { params });
-    expect(mockRpc.mock.calls[0][1].p_adopt_costs).toBe(false);
+    expect(mockRpc.mock.calls[0][1]).not.toHaveProperty("p_adopt_costs");
   });
 });
 

@@ -12,10 +12,11 @@ import { WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console
  *
  * LA CASE EST DÉCOCHÉE PAR DÉFAUT, ET ELLE MONTRE SON ARITHMÉTIQUE.
  * `products.unit_cogs` est un scalaire COURANT que le P&L (fenêtré sur
- * événements) et `investor_order_facts` lisent en direct : l'adopter recalcule
+ * événements) et `investor_order_facts` lisent en direct : l'écrire recalcule
  * la marge des commandes DÉJÀ LIVRÉES. Montrer « 75,000 → 74,667 » produit par
  * produit avant d'appliquer est ce qui rend le choix honnête, et le serveur
- * exige `adopt_costs === true` strictement.
+ * est désormais gouverné par le réglage `costing_update_on_settle` du marché,
+ * lu par la RPC. Cette boîte ne décide plus : elle MONTRE ce qui va se passer.
  *
  * Un coût INCHANGÉ s'affiche en gris SANS rature : barrer « 40,000 → 40,000 »
  * suggérerait un changement qui n'a pas lieu.
@@ -32,7 +33,6 @@ export function ReceptionPostDialog({
   onPosted: () => void;
 }) {
   const t = useTranslations("warehouse.receptions");
-  const [adopt, setAdopt] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -87,8 +87,12 @@ export function ReceptionPostDialog({
       const res = await fetch(`/api/warehouse/receptions/${reception.id}/post`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // `true` strict, jamais une valeur vaguement vraie.
-        body: JSON.stringify({ adopt_costs: adopt === true }),
+        /*
+         * PLUS AUCUN DRAPEAU DE COÛT. Mettre à jour `unit_cogs` est une
+         * politique comptable, lue par la RPC dans le réglage du marché — pas
+         * une case cochée ici par celui qui valide, à 23 h, sur un quai.
+         */
+        body: "{}",
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => ({}))) as { error?: string };
@@ -155,20 +159,17 @@ export function ReceptionPostDialog({
           {moving.length > 0 ? (
             <>
               <div className="mt-4 overflow-hidden rounded-[8px] border border-wh-border">
-                <label className="flex cursor-pointer items-start gap-3 border-b border-wh-border bg-wh-sunken px-3.5 py-3">
-                  <input
-                    type="checkbox"
-                    checked={adopt}
-                    onChange={(e) => setAdopt(e.target.checked)}
-                    className="mt-0.5 h-[17px] w-[17px] flex-none accent-wh-ok"
-                  />
-                  <span>
-                    <span className="block text-[13.5px] font-semibold">{t("adoptCosts")}</span>
-                    <span className="mt-0.5 block text-[12px] text-wh-ink-2">
-                      {t("adoptCostsCount", { count: moving.length })}
-                    </span>
+                {/*
+                  * UNE CONSÉQUENCE, PAS UNE QUESTION. L'ancienne version posait
+                  * la question ici, case décochée : la base de coût de
+                  * l'entreprise devenait fonction de l'attention de quelqu'un.
+                  */}
+                <div className="border-b border-wh-border bg-wh-sunken px-3.5 py-3">
+                  <span className="block text-[13.5px] font-semibold">{t("costsWillMove")}</span>
+                  <span className="mt-0.5 block text-[12px] text-wh-ink-2">
+                    {t("costsWillMoveCount", { count: moving.length })}
                   </span>
-                </label>
+                </div>
 
                 {moving.map((l) => {
                   const before = l.cogs_current ?? 0;
@@ -210,7 +211,7 @@ export function ReceptionPostDialog({
 
               <div className="mt-3.5 flex gap-2.5 rounded-[8px] border border-wh-warn-edge bg-wh-warn-bg px-3.5 py-3">
                 <AlertTriangle size={17} className="mt-px flex-none text-wh-warn" strokeWidth={2.2} />
-                <p className="text-[12.5px] text-wh-warn">{t("adoptCostsWarning")}</p>
+                <p className="text-[12.5px] text-wh-warn">{t("costsPolicyWarning")}</p>
               </div>
             </>
           ) : null}

@@ -10,11 +10,16 @@ export const dynamic = "force-dynamic";
  *
  * Tout le travail est dans `post_reception` : c'est elle qui verrouille la
  * réception, vérifie le rôle et le marché, crée la ligne de site, écrit une
- * ligne de registre par ligne reçue et, seulement si on le lui demande,
- * recalcule `unit_cogs`. La route ne fait que traduire les codes d'erreur.
+ * ligne de registre par ligne reçue, répartit les frais d'approche et écrit le
+ * COÛT DE REVIENT de chaque ligne. La route ne fait que traduire les codes
+ * d'erreur.
  *
- * `adopt_costs` DOIT arriver explicitement à `true`. Un client qui oublie le
- * champ ne redate pas la rentabilité par accident.
+ * IL N'Y A PLUS DE `adopt_costs`. Mettre à jour `unit_cogs` est une POLITIQUE
+ * COMPTABLE, lue par la RPC dans le réglage `costing_update_on_settle` du
+ * marché — pas une case cochée sur ce document-ci par celui qui validait, à
+ * 23 h, sur un quai. Un an de cette case donnait un `unit_cogs` qui faisait une
+ * marche aléatoire entre les prix d'achat. Absent, le réglage vaut FAUX : on
+ * n'allume pas une réécriture du P&L par défaut.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,18 +31,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { adopt_costs?: boolean } = {};
-  try {
-    body = await req.json();
-  } catch {
-    // Un corps vide est légitime : ne rien adopter est le défaut.
-  }
-
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("post_reception", {
     p_reception_id: id,
     p_actor_id: actor.id,
-    p_adopt_costs: body.adopt_costs === true,
   });
 
   if (error) {

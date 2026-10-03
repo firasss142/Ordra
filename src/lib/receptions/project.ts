@@ -5,6 +5,7 @@ import {
   canDraftReception,
   canSeeReceptionCosts,
 } from "./permissions";
+import { allocateFees, feesTotal, type FeeBasis } from "./landed";
 import {
   lineVariance,
   paymentState,
@@ -38,6 +39,7 @@ export interface RawReceptionLine {
   received_qty: number | null;
   damaged_qty: number | null;
   unit_cost: number | null;
+  landed_unit_cost?: number | null;
   note: string | null;
   product: {
     name: string;
@@ -70,6 +72,13 @@ export interface RawReception {
   submitted_by_user: { full_name: string } | null;
   posted_by_user: { full_name: string } | null;
   reception_lines: RawReceptionLine[];
+  fee_basis?: string | null;
+  reception_costs?: {
+    id: string;
+    kind: string;
+    label: string | null;
+    amount: number;
+  }[] | null;
   reception_payments: {
     id: string;
     paid_at: string;
@@ -102,6 +111,13 @@ export interface ProjectedLine {
   note: string | null;
   /** Absents pour un agent d'entrepôt. */
   unit_cost?: number | null;
+  /**
+   * La part des frais d'approche portée par cette ligne, et le coût de revient
+   * qui en résulte. Calculés à la volée tant que la réception n'est pas validée
+   * (l'écran montre ce qui va être écrit) ; relus de la base ensuite.
+   */
+  fee_share?: number | null;
+  landed_unit_cost?: number | null;
   line_value?: number | null;
   cogs_current?: number | null;
   cogs_next?: number | null;
@@ -139,6 +155,25 @@ export interface ProjectedReception {
     /** Lignes portant un nombre reçu, zéro compris. */
     countedLines: number;
   };
+  /** Le critère de répartition des frais : par valeur, ou par unité. */
+  fee_basis: FeeBasis;
+  /** Vides pour qui n'a pas le droit de voir l'argent. */
+  costs: { id: string; kind: string; label: string | null; amount: number }[];
+  /** Total des frais d'approche. `null` sans droit sur l'argent. */
+  fees_total: number | null;
+  /**
+   * Pourquoi les frais n'ont pas pu être répartis — par valeur sans aucun prix,
+   * ou par unité sans rien de compté. On ne retombe PAS silencieusement sur
+   * l'autre critère : un repli muet est ce qui fabrique un coût faux sans rien
+   * signaler. L'écran demande de choisir, ou de saisir les prix.
+   */
+  fees_blocked: "no_value" | "no_units" | null;
+  /**
+   * Marchandises + frais : CE chiffre est le coût de revient de la réception, et
+   * c'est lui qui alimente `unit_cogs`. `totals.value` reste le prix fournisseur
+   * seul, qui est ce qu'on DOIT, pas ce que ça COÛTE.
+   */
+  landed_value: number | null;
   /** `null` pour qui n'a pas le droit de voir l'argent. */
   payments: { id: string; paid_at: string; amount: number; method: string | null; note: string | null }[];
   paid_total: number | null;
@@ -188,14 +223,10 @@ export function projectReception(
       unit_cost: line.unit_cost,
       line_value: line.unit_cost !== null ? line.unit_cost * received : null,
       cogs_current: cogsCurrent,
-      // Ce que `p_adopt_costs` écrirait. Montrer l'arithmétique AVANT de
-      // l'appliquer est ce qui rend la case à cocher honnête.
-      cogs_next: weightedAverageCost({
-        stockBefore: line.product?.current_stock ?? 0,
-        cogsBefore: cogsCurrent ?? 0,
-        qty: received,
-        unitCost: line.unit_cost,
-      }),
+      // Provisoire : recalculé plus bas sur le COÛT DE REVIENT, une fois les
+      // frais d'approche répartis. Le prix fournisseur seul donnerait un COGS
+      // systématiquement trop bas.
+      cogs_next: null,
     };
   });
 
@@ -213,6 +244,62 @@ export function projectReception(
   const paid = withCosts
     ? raw.reception_payments.reduce((sum, p) => sum + Number(p.amount), 0)
     : null;
+
+  /*
+   * LES FRAIS D'APPROCHE, RÉPARTIS POUR L'ÉCRAN.
+   *
+   * La base refait le même calcul au moment de valider (`allocate_reception_fees`,
+   * même méthode du plus grand reste) : l'écran montre donc exactement ce qui
+   * sera écrit. Si l'un des deux change, l'autre doit changer avec lui.
+   */
+  const rawCosts = raw.reception_costs ?? [];
+  const fees = withCosts ? feesTotal(rawCosts) : null;
+  const basis: FeeBasis = raw.fee_basis === "units" ? "units" : "value";
+  const allocation = withCosts
+    ? allocateFees(
+        raw.reception_lines.map((l) => ({
+          id: l.id,
+          receivedQty: l.received_qty,
+          unitCost: l.unit_cost,
+        })),
+        fees ?? 0,
+        basis,
+      )
+    : null;
+  const shareByLine = new Map(
+    (allocation?.allocations ?? []).map((a) => [a.lineId, a]),
+  );
+
+  if (withCosts) {
+    const storedByLine = new Map(raw.reception_lines.map((l) => [l.id, l.landed_unit_cost]));
+    for (const line of lines) {
+      const share = shareByLine.get(line.id);
+      line.fee_share = share?.share ?? 0;
+      /*
+       * Une réception VALIDÉE porte son coût de revient figé en base : c'est ce
+       * qui a réellement nourri `unit_cogs`, et le recalculer à l'affichage
+       * pourrait montrer autre chose que ce qui a été écrit. Avant la
+       * validation, on montre au contraire ce qui SERA écrit.
+       */
+      const stored = storedByLine.get(line.id);
+      line.landed_unit_cost =
+        stored !== null && stored !== undefined ? Number(stored) : (share?.landedUnitCost ?? null);
+
+      /*
+       * CE QUE LA VALIDATION ÉCRIRA DANS `unit_cogs` — à partir du coût de
+       * revient, jamais du seul prix fournisseur. Montrer l'arithmétique avant
+       * de l'appliquer est ce qui rend la politique de coût lisible ; la
+       * calculer sur `unit_cost` la rendrait lisible ET fausse.
+       */
+      const src = raw.reception_lines.find((r) => r.id === line.id);
+      line.cogs_next = weightedAverageCost({
+        stockBefore: src?.product?.current_stock ?? 0,
+        cogsBefore: line.cogs_current ?? 0,
+        qty: line.received_qty ?? 0,
+        unitCost: line.landed_unit_cost,
+      });
+    }
+  }
 
   return {
     id: raw.id,
@@ -244,6 +331,12 @@ export function projectReception(
       expected: totals.expected,
       countedLines: totals.countedLines,
     },
+    fee_basis: basis,
+    costs: withCosts ? rawCosts : [],
+    fees_total: fees,
+    fees_blocked: allocation?.blocked ?? null,
+    landed_value:
+      withCosts && totals.value !== null ? Number((totals.value + (fees ?? 0)).toFixed(3)) : null,
     payments: withCosts ? raw.reception_payments : [],
     paid_total: paid,
     outstanding:

@@ -72,6 +72,23 @@ export interface MarketSettings {
    */
   supplier_lead_time_days?: number;
   /**
+   * La validation d'une réception met-elle à jour le coût de revient catalogue ?
+   *
+   * `products.unit_cogs` est lu EN DIRECT par un P&L fenêtré sur événements et
+   * par `investor_order_facts` : l'écrire recalcule la marge de commandes DÉJÀ
+   * LIVRÉES. Ce n'est donc pas une décision de document — c'était une case à
+   * cocher dans la modale de validation, ce qui faisait de la base de coût de
+   * l'entreprise une fonction de l'attention de celui qui validait, à 23 h, sur
+   * un quai. C'est une politique comptable, posée une fois par marché.
+   *
+   * Allumée, chaque validation recalcule la moyenne pondérée sur le COÛT DE
+   * REVIENT (prix fournisseur + frais d'approche répartis), jamais sur le seul
+   * prix fournisseur, qui serait systématiquement trop bas.
+   *
+   * Défaut FAUX : on n'allume pas une réécriture du P&L sans qu'on le demande.
+   */
+  costing_update_on_settle?: boolean;
+  /**
    * Minutes an order may wait between intake and phone confirmation.
    *
    * Read by the order panel's SLA chip. It measures the confirmation phase
@@ -250,6 +267,7 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   attempt_retry_times: [],
   shift_config: DEFAULT_SHIFT_CONFIG,
   supplier_lead_time_days: DEFAULT_SUPPLIER_LEAD_TIME_DAYS,
+  costing_update_on_settle: false,
   sla_minutes: DEFAULT_SLA_MINUTES,
   // Redesign keys — conservative defaults so a market that never touches them
   // keeps today's behaviour (no auto-action, no auto-assign, no reassignment).
@@ -316,6 +334,7 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "attempt_retry_times",
   "shift_config",
   "supplier_lead_time_days",
+  "costing_update_on_settle",
   "sla_minutes",
   "after_max_attempts_action",
   "after_max_attempts_delay_hours",
@@ -465,6 +484,9 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
       s.supplier_lead_time_days > 365
     )
       return false;
+  }
+  if (s.costing_update_on_settle !== undefined) {
+    if (typeof s.costing_update_on_settle !== "boolean") return false;
   }
   if (s.sla_minutes !== undefined) {
     // Whole minutes only, and never zero: a zero target would report every

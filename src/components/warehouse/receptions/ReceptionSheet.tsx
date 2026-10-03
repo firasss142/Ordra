@@ -16,6 +16,7 @@ import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
 import { canSeeReceptionCosts, canDraftReception } from "@/lib/receptions/permissions";
 import { lineVariance, receptionTotals, paidPercent } from "@/lib/receptions/derive";
+import { ReceptionFeesBlock } from "./ReceptionFeesBlock";
 import { ReceptionLineEditor, type LinePatch } from "./ReceptionLineEditor";
 import { WH_CARD, WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
@@ -426,6 +427,21 @@ export function ReceptionSheet({
             })}
           </ul>
 
+          {/*
+            * LES FRAIS D'APPROCHE, entre les lignes et les totaux — parce que
+            * c'est exactement là qu'ils entrent dans le calcul. Réservés à qui
+            * voit l'argent, et figés dès que la réception est validée : le coût
+            * de revient est alors écrit dans le registre.
+            */}
+          {withCosts ? (
+            <ReceptionFeesBlock
+              reception={r}
+              currency={currency}
+              editable={r.status === "draft" || r.status === "submitted"}
+              onChanged={mutate}
+            />
+          ) : null}
+
           {/* ── totaux + action ── */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-wh-border bg-wh-sunken px-4 py-3.5 md:px-5">
             {/*
@@ -434,17 +450,35 @@ export function ReceptionSheet({
              * corps obligeaient à lire les quatre libellés pour trouver le bon.
              */}
             <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+              {/*
+                * LE CHIFFRE DE TÊTE EST LE COÛT DE REVIENT, pas le prix du
+                * fournisseur : c'est lui qui devient le COGS. Tant qu'aucun
+                * frais n'est saisi les deux sont égaux, et on n'affiche que
+                * « valeur reçue » pour ne pas inventer une distinction.
+                */}
               {withCosts ? (
-                <Total label={t("totalValue")} lead>
+                <Total
+                  label={(r.fees_total ?? 0) > 0 ? t("landedTotal") : t("totalValue")}
+                  lead
+                >
                   {liveTotals.value === null ? (
                     <span className="text-wh-ink-3">—</span>
                   ) : (
                     <>
-                      {nf.format(liveTotals.value)}
+                      {nf.format(liveTotals.value + (r.fees_total ?? 0))}
                       <span className="ms-1.5 font-sans text-[11.5px] font-semibold text-wh-ink-2">
                         {currency}
                       </span>
                     </>
+                  )}
+                </Total>
+              ) : null}
+              {withCosts && (r.fees_total ?? 0) > 0 ? (
+                <Total label={t("totalValue")}>
+                  {liveTotals.value === null ? (
+                    <span className="text-wh-ink-3">—</span>
+                  ) : (
+                    nf.format(liveTotals.value)
                   )}
                 </Total>
               ) : null}

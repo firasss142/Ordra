@@ -23,6 +23,8 @@ export interface LinePatch {
   received_qty: number | null;
   damaged_qty: number;
   unit_cost: number | null;
+  /** Prix fournisseur + part des frais d'approche. C'est LUI qui devient le COGS. */
+  landed_unit_cost?: number | null;
 }
 
 const NUM_FIELD =
@@ -226,6 +228,21 @@ export function ReceptionLineEditor({
                 className={`${NUM_FIELD} border-wh-border bg-wh-surface`}
               />
             )}
+            {/*
+             * LE COÛT DE REVIENT, sous le prix du fournisseur, et seulement
+             * quand les frais le déplacent. C'est ce chiffre-là qui devient le
+             * COGS ; afficher « 40,000 → 40,000 » quand rien ne bouge serait du
+             * bruit qui cacherait les vrais écarts.
+             */}
+            {line.landed_unit_cost !== null &&
+            line.landed_unit_cost !== undefined &&
+            line.unit_cost !== null &&
+            line.unit_cost !== undefined &&
+            Math.abs(line.landed_unit_cost - line.unit_cost) >= 0.0005 ? (
+              <span className="mt-1 block font-mono text-[11px] tabular-nums text-wh-move">
+                {t("colLanded")} {line.landed_unit_cost.toFixed(3)}
+              </span>
+            ) : null}
           </span>
           <span className="hidden text-end font-mono text-[13.5px] font-semibold tabular-nums md:block">
             {line.line_value === null || line.line_value === undefined ? (

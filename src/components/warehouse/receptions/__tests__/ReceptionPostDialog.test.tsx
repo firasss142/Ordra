@@ -53,6 +53,11 @@ function reception(lines: ProjectedLine[]): ProjectedReception {
     days_late: null,
     lines,
     totals: { units: 312, damaged: 2, value: 18720, lines: lines.length, expected: 310, countedLines: lines.length },
+    fee_basis: "value",
+    costs: [],
+    fees_total: null,
+    fees_blocked: null,
+    landed_value: null,
     payments: [],
     paid_total: 0,
     outstanding: 18720,
@@ -112,16 +117,28 @@ describe("ReceptionPostDialog — l'arithmétique des coûts", () => {
    * proposerait une décision sans conséquence, et la décocher par prudence
    * n'aurait rien évité.
    */
-  it("retire la case à cocher quand aucun coût ne bougerait", () => {
+  it("se tait quand aucun coût ne bouge", () => {
     wrap([still]);
-    expect(screen.queryByText(/adopter les nouveaux coûts/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/écrira dans les coûts/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /valider et entrer en stock/i })).toBeInTheDocument();
   });
 
-  it("annonce combien de coûts changeraient", () => {
+  /*
+   * PLUS DE CASE À COCHER. Mettre à jour `unit_cogs` est une politique
+   * comptable, posée une fois par marché — pas une décision prise ici par
+   * celui qui valide, à 23 h, sur un quai. Cette boîte MONTRE, elle ne demande
+   * plus.
+   */
+  it("n'offre aucune case à cocher : la politique n'est pas un choix d'écran", () => {
+    wrap([moving]);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/adopter les nouveaux coûts/i)).not.toBeInTheDocument();
+  });
+
+  it("annonce combien de coûts vont changer", () => {
     const other = line({ id: "l4", product_name: "كتاب الداء والدواء", cogs_current: 27, cogs_next: 27.929 });
     wrap([moving, other, still]);
-    expect(screen.getByText(/2 produits changeraient de coût/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 produits changent de coût/i)).toBeInTheDocument();
   });
 
   it("barre l'ancien coût, puisqu'il est réellement remplacé", () => {

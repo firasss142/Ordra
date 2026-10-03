@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  */
 
 const LINE_SELECT = `
-  id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, note,
+  id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, landed_unit_cost, note,
   product:products ( name, sku, image_url, current_stock, unit_cogs ),
   variant:product_variants ( label, sku )
 `;
@@ -31,11 +31,12 @@ const LINE_SELECT = `
 const RECEPTION_SELECT = `
   id, market_id, warehouse_id, reference, supplier_name, supplier_ref, status,
   expected_at, note, photo_url, submitted_at, submitted_by, posted_at, posted_by,
-  reverses_reception_id, created_at,
+  reverses_reception_id, created_at, fee_basis,
   warehouse:warehouses ( code, name_fr, name_ar ),
   submitted_by_user:users!receptions_submitted_by_fkey ( full_name ),
   posted_by_user:users!receptions_posted_by_fkey ( full_name ),
   reception_lines ( ${LINE_SELECT} ),
+  reception_costs ( id, kind, label, amount ),
   reception_payments ( id, paid_at, amount, method, note )
 `;
 

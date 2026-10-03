@@ -14,6 +14,7 @@ export const LABELLED_SETTING_KEYS: ReadonlySet<string> = new Set([
   "attempt_retry_times",
   "shift_config",
   "supplier_lead_time_days",
+  "costing_update_on_settle",
   "sla_minutes",
   "after_max_attempts_action",
   "after_max_attempts_delay_hours",
