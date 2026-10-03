@@ -15,6 +15,17 @@ const mockOrdersIn = vi.fn();
 const mockUsersUpdate = vi.fn();
 const mockWarehouseSingle = vi.fn();
 
+// As in production since 20260919230419_users_update_column_grant.sql: a
+// logged-in session may UPDATE users.last_seen_at and nothing else. Any other
+// column fails with 42501 — which is what is_active / deleted_at writes got
+// through the session client, so deactivate, reactivate and delete all 500'd.
+function sessionUsersUpdate(payload: Record<string, unknown>) {
+  const onlyPresence = Object.keys(payload).every((k) => k === "last_seen_at");
+  return onlyPresence
+    ? { error: null }
+    : { error: { code: "42501", message: "permission denied for table users" } };
+}
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
@@ -45,9 +56,9 @@ vi.mock("@/lib/supabase/server", () => ({
           }
           return c;
         });
-        c.update = vi.fn().mockImplementation(() => {
+        c.update = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
           const uc: Record<string, unknown> = {};
-          uc.eq = vi.fn().mockImplementation(() => Promise.resolve(mockUsersUpdate()));
+          uc.eq = vi.fn().mockImplementation(() => Promise.resolve(sessionUsersUpdate(payload)));
           return uc;
         });
         void origEq; // suppress unused warning
@@ -108,11 +119,12 @@ function makeDeleteRequest(id: string) {
 function auditChain(table?: string) {
   const c: Record<string, unknown> = {};
   c.insert = vi.fn().mockResolvedValue({ data: null, error: null });
-  // The admin client also carries field writes (set_warehouse); the audit log
-  // only ever inserts, so one stub covers both without ambiguity.
-  c.update = vi.fn().mockReturnValue({
-    eq: vi.fn().mockImplementation(() => Promise.resolve(mockUsersUpdate())),
-  });
+  // The admin client also carries the users writes (status, deletion,
+  // building); the audit log only ever inserts, so one stub covers both
+  // without ambiguity. The payload reaches mockUsersUpdate so tests can read it.
+  c.update = vi.fn().mockImplementation((payload: Record<string, unknown>) => ({
+    eq: vi.fn().mockImplementation(() => Promise.resolve(mockUsersUpdate(payload))),
+  }));
   void table;
   return c;
 }
@@ -177,35 +189,16 @@ describe("PATCH agents/[id] action=deactivate", () => {
     expect(res.status).toBe(200);
   });
 
-  test("sets is_active=false and deactivation_reason on users row", async () => {
-    const updateSpy = vi.fn().mockImplementation(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }));
-    // Override createClient's from for users update
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await (createClient as ReturnType<typeof vi.fn>)();
-    const origFrom = supabase.from;
-    supabase.from = (table: string) => {
-      if (table === "users") {
-        const c = origFrom(table);
-        c.update = updateSpy;
-        return c;
-      }
-      return origFrom(table);
-    };
-
+  test("sets is_active=false and deactivation_reason through the service client", async () => {
+    // The session client may only write users.last_seen_at; writing the status
+    // through it is the 42501 that made every deactivation a 500.
     const { req, params } = makeRequest(TARGET_ID, { action: "deactivate", reason: "terminated" });
-    try {
-      await PATCH(req, params);
-      expect(updateSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ is_active: false, deactivation_reason: "terminated" })
-      );
-    } finally {
-      // createClient is mockResolvedValue, so every caller shares ONE client
-      // object. Without restoring `from`, this patch leaks into every later
-      // test in the file and they silently exercise `updateSpy` instead.
-      supabase.from = origFrom;
-    }
+    const res = await PATCH(req, params);
+    expect(res.status).toBe(200);
+    expect(mockAdminFrom).toHaveBeenCalledWith("users");
+    expect(mockUsersUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ is_active: false, deactivation_reason: "terminated" })
+    );
   });
 
   test("calls return_order_to_pool RPC for each open order", async () => {
@@ -286,25 +279,12 @@ describe("PATCH agents/[id] action=deactivate", () => {
 // ─── reactivate ──────────────────────────────────────────────────────────────
 
 describe("PATCH agents/[id] action=reactivate", () => {
-  test("clears deactivation_reason (sets to null) and sets is_active=true", async () => {
-    const updateSpy = vi.fn().mockImplementation(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }));
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await (createClient as ReturnType<typeof vi.fn>)();
-    const origFrom = supabase.from;
-    supabase.from = (table: string) => {
-      if (table === "users") {
-        const c = origFrom(table);
-        c.update = updateSpy;
-        return c;
-      }
-      return origFrom(table);
-    };
+  test("clears deactivation_reason (sets to null) and sets is_active=true through the service client", async () => {
     const { req, params } = makeRequest(TARGET_ID, { action: "reactivate" });
     const res = await PATCH(req, params);
     expect(res.status).toBe(200);
-    expect(updateSpy).toHaveBeenCalledWith(
+    expect(mockAdminFrom).toHaveBeenCalledWith("users");
+    expect(mockUsersUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ is_active: true, deactivation_reason: null })
     );
   });
@@ -388,20 +368,6 @@ describe("DELETE agents/[id]", () => {
       data: [{ id: "o1" }, { id: "o2" }],
       error: null,
     });
-    const updateSpy = vi.fn().mockImplementation(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }));
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await (createClient as ReturnType<typeof vi.fn>)();
-    const origFrom = supabase.from;
-    supabase.from = (table: string) => {
-      if (table === "users") {
-        const c = origFrom(table);
-        c.update = updateSpy;
-        return c;
-      }
-      return origFrom(table);
-    };
 
     const { req, params } = makeDeleteRequest(TARGET_ID);
     const res = await DELETE(req, params);
@@ -416,7 +382,10 @@ describe("DELETE agents/[id]", () => {
       expect.objectContaining({ ban_duration: expect.any(String) })
     );
     expect(mockRpc).toHaveBeenCalledTimes(2);
-    expect(updateSpy).toHaveBeenCalledWith(
+    // Through the service client: the session may not write deleted_at, and a
+    // failure here left a banned account still marked active, with no audit row.
+    expect(mockAdminFrom).toHaveBeenCalledWith("users");
+    expect(mockUsersUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         is_active: false,
         deleted_at: expect.any(String),
@@ -443,25 +412,11 @@ describe("DELETE agents/[id]", () => {
 
   test("returns 500 and does NOT set deleted_at when auth ban fails", async () => {
     mockAdminUpdateUser.mockResolvedValue({ data: null, error: { message: "auth failed" } });
-    const updateSpy = vi.fn().mockImplementation(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }));
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await (createClient as ReturnType<typeof vi.fn>)();
-    const origFrom = supabase.from;
-    supabase.from = (table: string) => {
-      if (table === "users") {
-        const c = origFrom(table);
-        c.update = updateSpy;
-        return c;
-      }
-      return origFrom(table);
-    };
 
     const { req, params } = makeDeleteRequest(TARGET_ID);
     const res = await DELETE(req, params);
     expect(res.status).toBe(500);
-    expect(updateSpy).not.toHaveBeenCalled();
+    expect(mockUsersUpdate).not.toHaveBeenCalled();
   });
 
   test("returns ordersReturned: 0 when user has no open orders", async () => {
