@@ -270,6 +270,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   prototypes/acces-v2.html (structure and rationale in acces-v1.html)
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
+- Produits v6 — the cohort (orders received in the period, followed to today), the shared parcel
+  outcome, the money (Encaissé, Darb invoices, packaging per parcel that leaves), the pipe and the
+  screens: docs/products-cohort.md + plans/products-redesign-v6.md
+- Darb at its real price app-wide (order_delivery_cost) and the « cancelled » sync fix + gated
+  history backfill: docs/darb-assabil-sync.md §6
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Libya destinations (Darb city/zone catalogue, refresh script, the one picker, phone guard): docs/darb-destinations.md
