@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_Arabic, Cairo, IBM_Plex_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, IBM_Plex_Sans_Arabic, Cairo, IBM_Plex_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, unstable_setRequestLocale as setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -16,18 +16,28 @@ import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { routing } from "@/i18n/routing";
 import { getDirectionForLocale } from "@/lib/locale-routing";
 
-const inter = Inter({
-  subsets: ["latin"],
+/*
+ * The console's face since 2026-10-03, chosen by the owner in the products v6
+ * prototype's live switcher (prototypes/products-v6.html): Plus Jakarta Sans for
+ * Latin, IBM Plex Sans Arabic for Arabic. Plex Arabic ships 400 to 700, so Arabic
+ * bold is real bold — Noto Sans Arabic stopped at 600 and every 700 was faked.
+ * The variable names are unchanged, so every stack that read Inter / Noto now
+ * reads these. Plex Arabic also carries Latin: an RTL page sets it first
+ * (globals.css), so its digits match the Arabic around them.
+ */
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin", "latin-ext"],
   display: "swap",
   variable: "--font-sans",
+  weight: ["400", "500", "600", "700", "800"],
   adjustFontFallback: true,
 });
 
-const notoArabic = Noto_Sans_Arabic({
-  subsets: ["arabic"],
+const plexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic", "latin"],
   display: "swap",
   variable: "--font-sans-arabic",
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
 });
 
 /*
@@ -86,7 +96,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${notoArabic.variable} ${cairo.variable} ${plexMono.variable}`}
+      className={`${jakarta.variable} ${plexArabic.variable} ${cairo.variable} ${plexMono.variable}`}
     >
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
