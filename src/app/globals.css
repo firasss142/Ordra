@@ -277,6 +277,37 @@
      ("Réception", "Remise") and every age pill carries its number; the hue
      confirms, it never informs alone.
      ─────────────────────────────────────────────────────────────── */
+  /* ── Salle de contrôle (/team) ─────────────────────────────────────
+     prototypes/team-v5.html, copied value for value. The status hues are
+     the console's own meanings: teal = uploaded (with the carrier), red =
+     rejected / returned, green = delivered, amber = a person to look at.
+     Soft steps are fills only; text takes -ink or the ink ramp. */
+  --room-hover: #F8F9FA;
+  --room-line-faint: #F2F3F5;
+  --room-ink-2: #5C6166;
+  --room-ink-3: #8A9096;
+  --room-ink-4: #B4B9BF;
+  --room-teal: #0E7A6E;
+  --room-teal-soft: #8CC3BB;
+  --room-teal-bg: #E4F3F0;
+  --room-green: #2F7A4A;
+  --room-green-bg: #E8F4EC;
+  --room-red: #B23A32;
+  --room-red-bg: #FBECEA;
+  --room-red-soft: #E3A39E;
+  --room-red-edge: #F3D3CF;
+  --room-amber: #A9670C;
+  --room-amber-ink: #8F5608;
+  --room-amber-bg: #FBF1E2;
+  --room-amber-dot: #E0A43A;
+  --room-prog: #C9CDD2;
+  --room-todo: #E7E9EC;
+  --room-live: #16A34A;
+  --room-tick: #AEB4BA;
+  --room-session: #ECEEF1;
+  --room-plan: #C5CAD0;
+  --room-bar: #4A5057;
+
   /* 2026-10-02 — the Entrepôt moved onto Ordra's own tokens (plans/
      entrepot-day-loop-redesign.md). The names stay so the ~200 class usages
      keep working; the VALUES are now the product's: ground, ink, hairlines and

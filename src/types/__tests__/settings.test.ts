@@ -620,3 +620,35 @@ describe("CarrierConfig type", () => {
     expect(typeof config.active).toBe("boolean");
   });
 });
+
+describe("isValidMarketSettings — Salle de contrôle keys", () => {
+  const base = DEFAULT_MARKET_SETTINGS;
+  const AGENT = "11111111-1111-4111-8111-111111111111";
+
+  it("defaults to the values the owner agreed on: 2 h, 30 min, 15 min", () => {
+    expect(base.team_call_delay_hours).toBe(2);
+    expect(base.team_idle_minutes).toBe(30);
+    expect(base.team_late_minutes).toBe(15);
+    for (const k of ["team_call_delay_hours", "team_idle_minutes", "team_late_minutes", "team_shift_overrides"]) {
+      expect(MARKET_SETTINGS_KEYS).toContain(k);
+    }
+  });
+
+  it("accepts sensible thresholds and rejects the rest", () => {
+    expect(isValidMarketSettings({ ...base, team_call_delay_hours: 4 })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_call_delay_hours: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_call_delay_hours: 1.5 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_idle_minutes: 4 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_late_minutes: 0 })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_late_minutes: 121 })).toBe(false);
+  });
+
+  it("per-agent hours: an agent id → a start before an end", () => {
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: {} })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "13:00", end: "16:00" } } })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "16:00", end: "13:00" } } })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { roqaya: { start: "13:00", end: "16:00" } } })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "1pm", end: "16:00" } } })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: [] })).toBe(false);
+  });
+});

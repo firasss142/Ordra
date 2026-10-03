@@ -525,3 +525,51 @@ describe("the summary counts agree with the list", () => {
     expect(ranks).toEqual([...ranks].sort((x, y) => x - y));
   });
 });
+
+describe("the control room's alerts (get_team_alerts)", () => {
+  const LY = "00000000-0000-0000-0000-000000000002";
+  function teamRpc(payload: unknown, error: unknown = null) {
+    mockRpc.mockImplementation((async (name: string) =>
+      name === "get_team_alerts" ? { data: payload, error } : { data: { products: [] }, error: null }) as never);
+  }
+
+  test("orders not called, an idle agent and a shut door all reach the bell", async () => {
+    setup({ marketId: LY });
+    teamRpc({
+      computed_at: new Date().toISOString(),
+      markets: [
+        {
+          market_id: LY,
+          call_delay_hours: 2,
+          idle_minutes: 30,
+          last_order_at: ago(3 * DAY),
+          agents: [
+            { agent_id: "r", name: "roqaya", uncalled: 7, oldest_min: 666, to_call: 7, idle_since: null },
+            { agent_id: "t", name: "tasnim", uncalled: 0, oldest_min: null, to_call: 3, idle_since: ago(45 * MIN) },
+          ],
+        },
+      ],
+    });
+    const { json, types } = await getAlerts();
+    expect(types).toEqual(expect.arrayContaining(["intake_silent", "agent_uncalled", "agent_idle"]));
+    expect(mockRpc).toHaveBeenCalledWith("get_team_alerts", { p_market_id: LY });
+    const unc = json.alerts.find((a: { type: string }) => a.type === "agent_uncalled");
+    expect(unc).toMatchObject({ entity_kind: "agent", href: "/team?agent=r", primary: "roqaya", meta: { count: 7, hours: 2 }, severity: "critical" });
+    expect(json.by_type.agent_idle).toBe(1);
+  });
+
+  test("super_admin without a market asks for every market", async () => {
+    setup({ role: "super_admin", marketId: null });
+    teamRpc({ computed_at: new Date().toISOString(), markets: [] });
+    await getAlerts();
+    expect(mockRpc).toHaveBeenCalledWith("get_team_alerts", { p_market_id: null });
+  });
+
+  test("a failing team read leaves the rest of the bell standing", async () => {
+    setup({ orders: { overdue_callback: [order({ id: "a", callback_scheduled_at: ago(30 * MIN) })] } });
+    teamRpc(null, { message: "boom" });
+    const { res, types } = await getAlerts();
+    expect(res.status).toBe(200);
+    expect(types).toEqual(["overdue_callback"]);
+  });
+});

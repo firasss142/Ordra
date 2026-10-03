@@ -74,6 +74,11 @@ export function formatMeta(alert: Alert, t: AlertsTranslator): string {
 
   const value = formatDuration(alert.age_minutes, t);
 
+  // How many she has not called, and how long the oldest has waited.
+  if (alert.type === "agent_uncalled") {
+    return t(key, { value, count: Number(alert.meta?.count ?? 0) });
+  }
+
   if (alert.type === "attempts_stalled") {
     return t(key, { value, count: Number(alert.meta?.attempts ?? 0) });
   }
