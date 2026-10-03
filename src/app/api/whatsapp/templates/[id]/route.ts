@@ -43,7 +43,7 @@ async function handlePATCH(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data, error } = await admin
     .from("whatsapp_templates")
     .select("id, market_id, name, language, status, event_key, variables, body_text")
@@ -111,7 +111,7 @@ async function handleDELETE(req: NextRequest, { params }: { params: { id: string
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actorResult.actor.id });
   const { data, error } = await admin.from("whatsapp_templates").select("id, market_id, name, language").eq("id", params.id).maybeSingle();
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });

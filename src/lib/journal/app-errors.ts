@@ -20,7 +20,7 @@ export interface AppErrorInput {
 const MAX = 200;
 
 /** Phones, e-mails and token-looking strings never reach the journal. */
-export function redact(text: string | null | undefined): string | null {
+export function redact(text: string | null | undefined, max: number = MAX): string | null {
   if (text == null) return null;
   const out = String(text)
     .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "•••")
@@ -28,7 +28,7 @@ export function redact(text: string | null | undefined): string | null {
     .replace(/\+?\d[\d\s-]{6,}\d/g, "•••")
     .replace(/\s+/g, " ")
     .trim();
-  return out.length > MAX ? out.slice(0, MAX - 1) + "…" : out;
+  return out.length > max ? out.slice(0, max - 1) + "…" : out;
 }
 
 /** One problem per route, method, status and code — never per message. */

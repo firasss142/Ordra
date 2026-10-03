@@ -72,7 +72,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { marketId: st
     actor.role === "super_admin" || (actor.role === "market_manager" && actor.market_id === params.marketId);
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data, error } = await admin.from("whatsapp_configs").select(CONFIG_COLUMNS).eq("market_id", params.marketId).maybeSingle();
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });

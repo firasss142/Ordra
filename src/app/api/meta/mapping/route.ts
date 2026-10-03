@@ -72,7 +72,7 @@ async function handlePOST(req: NextRequest) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { draft } = parsed;
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const account = await loadAccount(admin, draft.ad_account_id);
   if (!account || account.market_id !== draft.market_id) {
     return NextResponse.json({ error: "Unknown ad account for this market" }, { status: 404 });

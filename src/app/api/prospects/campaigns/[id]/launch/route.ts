@@ -3,6 +3,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canUseProspectConsole } from "@/lib/role-permissions";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { recordJournalEvent } from "@/lib/journal/record-event";
 
 /**
  * POST /api/prospects/campaigns/[id]/launch — an API-sent campaign whose
@@ -23,7 +24,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
   const user = await createClient();
   const { data: campaign, error } = await user
     .from("prospect_campaigns")
-    .select("id, market_id, wa_sender, wa_template_id, wa_launch_status, whatsapp_templates:wa_template_id ( status )")
+    .select("id, market_id, name, wa_sender, wa_template_id, wa_launch_status, whatsapp_templates:wa_template_id ( status )")
     .eq("id", params.id)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -50,7 +51,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "run_failed" }, { status: 500 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data: queued, error: queueError } = await admin.rpc("whatsapp_enqueue_campaign", { p_campaign_id: params.id });
   if (queueError) {
     console.error("[campaigns/launch] enqueue failed", queueError);
@@ -59,6 +60,17 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
 
   const r = (run ?? {}) as { inserted?: number; skipped?: number };
   const q = (queued ?? {}) as { inserted?: number; queued?: number; skipped_by_reason?: Record<string, number> };
+
+  // Journaux: one line per send, in the launcher's name (service role + actor
+  // header). Never fails or holds the launch.
+  await recordJournalEvent(admin, {
+    action: "whatsapp.campaign_sent",
+    entityType: "campaign",
+    entityId: params.id,
+    entityLabel: (campaign as { name?: string | null }).name ?? null,
+    marketId: campaign.market_id,
+    context: { recipients: q.queued ?? 0 },
+  });
   return NextResponse.json({
     id: params.id,
     inserted: r.inserted ?? 0,

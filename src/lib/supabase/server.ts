@@ -32,11 +32,23 @@ export async function createClient() {
   );
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export interface AdminClientOptions {
+  /**
+   * The signed-in user this service-role client writes FOR. Sent as the
+   * `x-ordra-actor` header, which `journal_actor()` reads so that audit_events
+   * names the person instead of « service ». Only a uuid is forwarded.
+   */
+  actorId?: string | null;
+}
+
 /**
  * Service-role admin client — for webhooks and server-side admin operations ONLY.
  * NEVER expose this to the browser. NEVER import from client components.
  */
-export function createAdminClient() {
+export function createAdminClient(options: AdminClientOptions = {}) {
+  const actorId = options.actorId && UUID_RE.test(options.actorId) ? options.actorId : null;
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -45,6 +57,7 @@ export function createAdminClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
+      ...(actorId ? { global: { headers: { "x-ordra-actor": actorId } } } : {}),
     },
   );
 }

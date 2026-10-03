@@ -125,7 +125,7 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   const { data: user } = await admin
     .from("users")

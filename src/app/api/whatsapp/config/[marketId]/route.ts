@@ -29,7 +29,7 @@ async function handlePATCH(req: NextRequest, { params }: { params: { marketId: s
   }
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actorResult.actor.id });
 
   const { data: existing, error: loadError } = await admin
     .from("whatsapp_configs")
@@ -144,7 +144,7 @@ async function handleDELETE(req: NextRequest, { params }: { params: { marketId: 
   // A hard delete, deliberately: the row is configuration plus three
   // credentials, and a soft-deleted token at rest is strictly worse than none.
   // Templates, conversations and messages survive — that is history.
-  const { error } = await createAdminClient().from("whatsapp_configs").delete().eq("market_id", params.marketId);
+  const { error } = await createAdminClient({ actorId: actorResult.actor.id }).from("whatsapp_configs").delete().eq("market_id", params.marketId);
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   return NextResponse.json({ data: { deleted: true } });
 }

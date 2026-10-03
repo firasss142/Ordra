@@ -30,7 +30,7 @@ async function handlePUT(req: NextRequest) {
     avatarUrl = upload.url;
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: user.id });
   const { error } = await admin
     .from("users")
     .update({ avatar_url: avatarUrl })

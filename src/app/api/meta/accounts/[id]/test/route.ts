@@ -37,7 +37,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ actorId: actorResult.actor.id });
   const { data: account, error } = await adminClient
     .from("meta_ad_accounts")
     .select("id, market_id, ad_account_id, graph_version, access_token, markets(code, name)")

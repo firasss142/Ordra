@@ -192,7 +192,7 @@ async function handlePOST(req: NextRequest) {
   // in agents' queues for a message that cannot leave is the wrong order.
   if (apiSend && apiCfg) {
     try {
-      const admin = createAdminClient();
+      const admin = createAdminClient({ actorId: actor.id });
       const client = createWhatsAppClient(apiCfg);
       const handle = waImageUrl ? await uploadHeaderImage(client, waImageUrl) : null;
       const built = buildCampaignTemplate({ body: waMessage, language: waLanguage!, headerHandle: handle });

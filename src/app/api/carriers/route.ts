@@ -153,7 +153,7 @@ async function handlePOST(req: NextRequest) {
 
   // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role,
   // so a user-bound client cannot SELECT them back after insert.
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data, error } = await admin
     .from("carriers")
     .insert({

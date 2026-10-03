@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { buildProductionDeps, runPollCycle } from "@/lib/carriers/polling/poller";
 import { handlePollCronRequest } from "./handler";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { startJobRun } from "@/lib/journal/job-run";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ async function handlePOST(req: NextRequest) {
       const deps = buildProductionDeps(admin);
       return runPollCycle(deps);
     },
+    startRun: () => startJobRun(createAdminClient(), "poll-carriers"),
   });
   return NextResponse.json(result.body, { status: result.status });
 }

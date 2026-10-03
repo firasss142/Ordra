@@ -87,7 +87,7 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  return handleCreate(body, actor, createAdminClient());
+  return handleCreate(body, actor, createAdminClient({ actorId: actor.id }));
 }
 
 async function handleCreate(

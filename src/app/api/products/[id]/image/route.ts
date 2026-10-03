@@ -55,7 +55,7 @@ async function handlePUT(
     return NextResponse.json({ error: upload.error }, { status: upload.status });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data: updated, error: updateError } = await admin
     .from("products")
     .update({ image_url: upload.url })

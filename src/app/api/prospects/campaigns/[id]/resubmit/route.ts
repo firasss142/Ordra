@@ -62,7 +62,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
     pacing.wa_rate = rate;
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const cfg = await loadConfigForMarket(admin, campaign.market_id as string);
   if (!cfg || cfg.status !== "active" || cfg.decryptFailed) return NextResponse.json({ error: "config_inactive" }, { status: 409 });
 

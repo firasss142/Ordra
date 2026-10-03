@@ -96,6 +96,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { PATCH, DELETE } from "./route";
 import { NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 function makeRequest(id: string, body: Record<string, unknown>) {
   return {
@@ -246,6 +247,13 @@ describe("PATCH agents/[id] action=deactivate", () => {
     expect(body.ordersReturned).toBe(3);
   });
 
+  test("the status write is made in the deactivating user's name (journal author)", async () => {
+    const { req, params } = makeRequest(TARGET_ID, { action: "deactivate", reason: "off-boarded" });
+    const res = await PATCH(req, params);
+    expect(res.status).toBe(200);
+    expect(createAdminClient).toHaveBeenCalledWith({ actorId: ACTOR_ID });
+  });
+
   test("revokes the target's auth session so they cannot keep acting", async () => {
     const { req, params } = makeRequest(TARGET_ID, { action: "deactivate", reason: "off-boarded" });
     await PATCH(req, params);
@@ -393,6 +401,13 @@ describe("DELETE agents/[id]", () => {
     );
     expect(body.success).toBe(true);
     expect(body.ordersReturned).toBe(2);
+  });
+
+  test("the deletion is written in the deleting super_admin's name (journal author)", async () => {
+    const { req, params } = makeDeleteRequest(TARGET_ID);
+    const res = await DELETE(req, params);
+    expect(res.status).toBe(200);
+    expect(createAdminClient).toHaveBeenCalledWith({ actorId: ACTOR_ID });
   });
 
   test("writes audit log with event_type user_deleted and orders_returned meta", async () => {

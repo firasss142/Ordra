@@ -81,7 +81,7 @@ async function handlePOST(req: NextRequest) {
 
   const email = `${username.trim().toLowerCase().replace(/\s+/g, ".")}@oms.local`;
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     email,

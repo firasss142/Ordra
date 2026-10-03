@@ -170,7 +170,7 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actorResult.actor.id });
   const { data, error } = await admin
     .from("whatsapp_configs")
     .upsert(

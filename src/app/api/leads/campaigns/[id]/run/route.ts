@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { recordJournalEvent } from "@/lib/journal/record-event";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ async function handlePOST(
   const supabase = await createClient();
   const { data: campaign } = await supabase
     .from(CAMPAIGNS_TABLE)
-    .select("id, market_id")
+    .select("id, market_id, name")
     .eq("id", id)
     .single();
 
@@ -49,6 +50,23 @@ async function handlePOST(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Journaux: one line per run, in the runner's name (service role + actor
+  // header — journal_record reserves this action to the server). Never fails
+  // or holds the run.
+  try {
+    const c = campaign as { market_id: string; name?: string | null };
+    await recordJournalEvent(createAdminClient({ actorId: actor.id }), {
+      action: "whatsapp.campaign_sent",
+      entityType: "campaign",
+      entityId: id,
+      entityLabel: c.name ?? null,
+      marketId: c.market_id,
+      context: { recipients: (data as { inserted?: number } | null)?.inserted ?? 0 },
+    });
+  } catch {
+    // the journal never turns a run into an error
   }
   return NextResponse.json({ data });
 }

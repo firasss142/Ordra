@@ -24,6 +24,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { PUT } from "./route";
 import { NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 function singleChain(data: unknown, error: unknown = null) {
   const c: Record<string, unknown> = {};
@@ -146,6 +147,22 @@ describe("PUT /api/products/[id]/image — upload", () => {
     const updates = products.updateSpy.mock.calls[0][0] as Record<string, unknown>;
     expect(typeof updates.image_url).toBe("string");
     expect(updates.image_url as string).toContain("https://cdn/x.jpeg");
+  });
+
+  test("the products write is made in the signed-in user's name (journal author)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    const products = updateChain({ ...existingProduct, image_url: "https://cdn/x.jpeg" });
+    mockFrom
+      .mockReturnValueOnce(singleChain({ role: "super_admin", market_id: null }))
+      .mockReturnValueOnce(singleChain(existingProduct));
+    mockAdminFrom.mockReturnValue(products.chain);
+    mockUpload.mockResolvedValue({ data: { path: "ignored" }, error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: "https://cdn/x.jpeg" } });
+
+    const res = await PUT(putReq({ data_url: TINY_JPEG }), params);
+
+    expect(res.status).toBe(200);
+    expect(createAdminClient).toHaveBeenCalledWith({ actorId: "sa-1" });
   });
 
   test("returns 500 when storage upload fails", async () => {

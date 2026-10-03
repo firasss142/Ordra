@@ -110,7 +110,7 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ actorId: actorResult.actor.id });
   const { data, error } = await adminClient
     .from("meta_ad_accounts")
     .upsert(

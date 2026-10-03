@@ -69,7 +69,7 @@ async function handlePATCH(
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   const { data: existing } = await admin
     .from("investors")

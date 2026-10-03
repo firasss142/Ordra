@@ -27,7 +27,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
   if (actor.role === "market_manager" && campaign.market_id !== actor.market_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (!campaign.wa_template_id) return NextResponse.json({ error: "no_template" }, { status: 409 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const cfg = await loadConfigForMarket(admin, campaign.market_id as string);
   if (!cfg || cfg.status !== "active" || cfg.decryptFailed) return NextResponse.json({ error: "config_inactive" }, { status: 409 });
 

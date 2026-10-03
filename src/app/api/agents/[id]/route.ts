@@ -71,7 +71,7 @@ async function handlePATCH(
     warehouse_id?: string | null;
   };
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   // Status and deletion are written with the service client, like avatar and
   // building below: since 20260919230419_users_update_column_grant.sql a
@@ -269,7 +269,7 @@ async function handleDELETE(
     return NextResponse.json({ error: "Already deleted" }, { status: 409 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   const { data: openOrders } = await supabase
     .from("orders")

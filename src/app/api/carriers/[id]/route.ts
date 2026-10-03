@@ -245,7 +245,7 @@ async function handlePATCH(
   if (body.is_active !== undefined) patch.is_active = body.is_active;
 
   // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role.
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   // Only when credentials are being touched: fetch the existing (encrypted)
   // blob via the admin client so a partial update can be merged over it.

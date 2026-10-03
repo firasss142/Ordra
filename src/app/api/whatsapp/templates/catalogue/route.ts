@@ -31,7 +31,7 @@ async function handlePOST(req: NextRequest) {
   const access = resolveMarketForManage(actorResult.actor, body.market_id);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actorResult.actor.id });
   const cfg = await loadConfigForMarket(admin, access.marketId);
   if (!cfg || cfg.status !== "active" || cfg.decryptFailed) {
     return NextResponse.json({ error: "config_inactive", message: "Connectez d'abord WhatsApp dans Système › Connexions." }, { status: 409 });

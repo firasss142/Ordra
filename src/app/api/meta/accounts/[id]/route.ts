@@ -27,7 +27,7 @@ async function handlePATCH(req: NextRequest, { params }: { params: { id: string 
   }
 
   const body = await req.json().catch(() => ({}));
-  const adminClient = createAdminClient();
+  const adminClient = createAdminClient({ actorId: actorResult.actor.id });
 
   const { data: existing, error: loadError } = await adminClient
     .from("meta_ad_accounts")
@@ -98,7 +98,7 @@ async function handleDELETE(req: NextRequest, { params }: { params: { id: string
   // there is nothing here worth keeping once it is disconnected, and leaving a
   // soft-deleted token at rest is strictly worse than removing it. Everything
   // it wrote into `ad_spend` survives — that is history, not configuration.
-  const { error } = await createAdminClient()
+  const { error } = await createAdminClient({ actorId: actorResult.actor.id })
     .from("meta_ad_accounts")
     .delete()
     .eq("id", params.id);

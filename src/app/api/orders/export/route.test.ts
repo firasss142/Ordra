@@ -2,11 +2,13 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
 }));
 
@@ -36,6 +38,7 @@ function queryChain(resolveWith: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockRpc.mockResolvedValue({ data: "e-1", error: null });
 });
 
 describe("GET /api/orders/export", () => {
@@ -246,5 +249,58 @@ describe("GET /api/orders/export", () => {
     const req = createRequest("/api/orders/export?market_id=m-1");
     const res = await GET(req);
     expect(res.status).toBe(200);
+  });
+});
+
+describe("GET /api/orders/export — the export is journaled (export.orders)", () => {
+  const twoOrders = [
+    { id: "o-1", created_at: "2026-04-10T10:00:00Z", customer_name: "A", customer_phone: "1", customer_city: "T", product_name: "P", variant_label: null, total_price: 10, status: "pending", assigned_to: null },
+    { id: "o-2", created_at: "2026-04-10T11:00:00Z", customer_name: "B", customer_phone: "2", customer_city: "T", product_name: "P", variant_label: null, total_price: 20, status: "pending", assigned_to: null },
+  ];
+
+  function asManager(orders: unknown, error: unknown = null) {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders") return queryChain({ data: orders, error });
+      return queryChain({ data: null, error: null });
+    });
+  }
+
+  test("records the number of rows, the format and the market, as the signed-in user", async () => {
+    asManager(twoOrders);
+    const res = await GET(createRequest("/api/orders/export"));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("journal_record", expect.objectContaining({
+      p_action: "export.orders",
+      p_entity_type: "orders",
+      p_market_id: "m-1",
+      p_context: { rows: 2, format: "csv" },
+    }));
+  });
+
+  test("a super_admin export across all markets is recorded with no market", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "super_admin", market_id: null }, error: null });
+      return queryChain({ data: twoOrders, error: null });
+    });
+    await GET(createRequest("/api/orders/export"));
+    expect(mockRpc).toHaveBeenCalledWith("journal_record", expect.objectContaining({ p_market_id: null }));
+  });
+
+  test("a journal that fails changes nothing: the CSV is still served", async () => {
+    asManager(twoOrders);
+    mockRpc.mockRejectedValue(new Error("journal down"));
+    const res = await GET(createRequest("/api/orders/export"));
+    expect(res.status).toBe(200);
+    expect((await res.text()).split("\n")).toHaveLength(3);
+  });
+
+  test("a failed export records nothing", async () => {
+    asManager(null, { message: "boom" });
+    const res = await GET(createRequest("/api/orders/export"));
+    expect(res.status).toBe(500);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

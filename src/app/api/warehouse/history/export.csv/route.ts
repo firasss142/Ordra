@@ -6,6 +6,7 @@ import { warehouseHistoryQuerySchema } from "@/lib/warehouse/list-filters";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { recordJournalEvent } from "@/lib/journal/record-event";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +85,15 @@ async function handleGET(req: NextRequest) {
   const header = "timestamp_iso,actor_name,actor_role,kind,order_number,product_name,qty_change,balance_after,is_damaged,is_reprint,note,anomalies\n";
   const body = allRows.map(rowToCsv).join("\n");
   const csv = header + body;
+
+  // Journaux: who exported how many rows, as the signed-in user (export.* is
+  // allowed through the session). Never fails or holds the download.
+  await recordJournalEvent(supabase, {
+    action: "export.history",
+    entityType: "warehouse_history",
+    marketId: scopeMarket ?? null,
+    context: { rows: allRows.length, format: "csv" },
+  });
 
   const date = new Date().toISOString().slice(0, 10);
   return new NextResponse(csv, {
