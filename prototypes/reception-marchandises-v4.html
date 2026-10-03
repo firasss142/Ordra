@@ -1,0 +1,1599 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordra — Réception de marchandises v4 · le quai et le bureau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES JETONS, POUR DE VRAI CETTE FOIS.
+
+   La v3 reproche à la v2 d'inventer sa palette — puis invente la sienne. Elle
+   déclare --bg #F6F7F5, --ink-1 #1B1D1A, --ok #0E7A45, --bad #B23A2E : un gris
+   CHAUD et un vert SOURD. src/app/globals.css dit #F6F6F7, #1A1A1A, #15803D,
+   #D72C0D — un gris neutre et le vert de marque. Aucune couleur de la v3
+   n'existe dans le produit. Toutes celles d'ici sont copiées du fichier.
+
+   Et depuis le 2 octobre (PR #56, en production) l'entrepôt a une famille par
+   métier de la journée. RECEVOIR a la sienne : --job-receive #4D7C0F, un vert
+   mousse. On l'emploie pour les marqueurs d'étape, les vignettes et la plaque
+   d'onglet active. Les couleurs de STATUT restent des couleurs de statut.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#F6F6F7; --card:#FFFFFF; --surface-2:#F7F7F7; --sunken:#FAFAFB;
+  --line:#E1E3E5; --line-strong:#C9CCCF;
+  --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#8C9196;
+
+  --ok:#15803D;   --ok-bg:#E9F6EE;   --ok-edge:#BFE3CB;  --ok-tint:#F1FAF4; --ok-hover:#12692F;
+  --warn:#92600A; --warn-bg:#FFF8E6; --warn-edge:#EED9A8;
+  --bad:#D72C0D;  --bad-bg:#FFF4F4;  --bad-edge:#F5C6BC;
+  --move:#0F766E; --move-bg:#E3F3F1; --move-edge:#B7DDD8;
+
+  --job-receive:#4D7C0F; --job-receive-bg:#EEF5E1; --job-receive-ink:#3F6212;
+  --job-count:#A16207;   --job-count-bg:#FBF3DC;   --job-count-ink:#854D0E;
+
+  --r-xs:6px; --r-sm:8px; --r:10px; --r-md:12px; --r-lg:14px; --r-pill:9999px;
+  /* Une seule ombre, réservée à ce qui FLOTTE : modales et téléphones.
+     « Zéro ombre au repos » est une règle du système de design. */
+  --sh-float:0 12px 40px rgba(26,26,26,.16);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink-1);font-size:14px;line-height:1.5;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:26px 22px 70px}
+h1,h2,h3,h4,p,ul,table{margin:0}
+ul{list-style:none;padding:0}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;text-align:inherit}
+input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ok);outline-offset:2px;border-radius:4px}
+[dir=auto]{unicode-bidi:plaintext}
+/* SUR LE BUREAU, LE BLOC RESTE LTR. `dir=auto` fait basculer tout le bloc en RTL dès
+   que le premier caractère fort est arabe — le nom se colle alors à droite pendant que
+   son SKU reste à gauche, dans la même cellule. `unicode-bidi:isolate` rend le texte
+   arabe correctement À L'INTÉRIEUR d'un bloc qui, lui, reste aligné au début. Les
+   téléphones gardent `dir=auto` : là, tout doit basculer. */
+.bidi{direction:ltr;unicode-bidi:isolate;text-align:start}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+.wrap{max-width:1300px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+/* ── chrome de la maquette ────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg)}
+.note{background:#FFFDF6;border:1px solid var(--warn-edge);border-radius:var(--r-md);padding:15px 18px}
+.note h3{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--warn)}
+.note p{font-size:13px;color:#6E4F10;margin-top:8px}
+.note p:first-of-type{margin-top:10px}
+.note b{font-weight:600}
+.note .mono{background:#F7EFD9;padding:1px 5px;border-radius:4px;font-size:12px}
+.sechead{display:flex;align-items:baseline;gap:12px;margin-top:20px;flex-wrap:wrap}
+.sechead h2{font-size:18px;font-weight:700;letter-spacing:-.015em}
+.sechead span{font-size:12.5px;color:var(--ink-2)}
+.cap{font-size:11.5px;font-weight:600;color:var(--ink-2);text-align:center;margin-bottom:10px}
+.lead{border-left:3px solid var(--job-receive);padding:2px 0 2px 15px;max-width:980px}
+.lead p{font-size:14.5px;color:var(--ink-2);margin-top:9px}
+.lead p:first-child{margin-top:0}
+.lead b{color:var(--ink-1);font-weight:600}
+.hdr{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.hdr h1{font-size:25px;font-weight:700;letter-spacing:-.02em}
+.hdr .sub{font-size:13px;color:var(--ink-2)}
+
+/* ── onglets, segments, puces, boutons ───────────────────────────────────── */
+.tabs{display:inline-flex;gap:3px;background:var(--surface-2);border-radius:var(--r);padding:3px}
+.tabs button{padding:7px 16px;border-radius:7px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--job-receive-ink);
+  box-shadow:inset 0 0 0 1px var(--line)}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.segs{display:flex;gap:7px;flex-wrap:wrap}
+.seg{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--r-pill);
+  border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-2)}
+.seg[aria-pressed=true]{background:var(--ink-1);border-color:var(--ink-1);color:#FFF}
+.seg .c{font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:var(--r-pill);
+  background:var(--surface-2);color:var(--ink-2);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.seg[aria-pressed=true] .c{background:rgba(255,255,255,.2);color:#FFF}
+.seg .c.warn{background:var(--warn-bg);color:var(--warn)}
+
+.st{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--r-xs);
+  font-size:11.5px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.st i{width:6px;height:6px;border-radius:2px;flex:none}
+.st-open{background:var(--job-receive-bg);color:var(--job-receive-ink);border-color:#D7E5BE}
+.st-open i{background:var(--job-receive)}
+.st-sold{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-edge)} .st-sold i{background:var(--warn)}
+.st-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-edge)}          .st-ok i{background:var(--ok)}
+.st-rev{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-edge)}      .st-rev i{background:var(--bad)}
+.pay{display:inline-flex;align-items:center;padding:3px 8px;border-radius:var(--r-xs);
+  font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.pay-no{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-edge)}
+.pay-part{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-edge)}
+.pay-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-edge)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+  border-radius:var(--r);font-size:13.5px;font-weight:600;min-height:42px;white-space:nowrap}
+.btn-pri{background:var(--ok);color:#FFF;border:1px solid var(--ok)}
+.btn-sec{background:var(--card);border:1px solid var(--line-strong);color:var(--ink-1)}
+.btn-danger{background:var(--card);border:1px solid var(--bad-edge);color:var(--bad)}
+.btn-quiet{color:var(--ink-2);font-weight:600;font-size:13px;padding:8px 10px;min-height:0}
+.btn svg{width:16px;height:16px;flex:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ═══ 1 · LE PARCOURS ══════════════════════════════════════════════════════ */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:980px){.cmp{grid-template-columns:1fr}}
+.cmp>div{padding:18px 20px 20px}
+.cmp h3{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.cmp .verdict{font-size:13px;margin-top:14px;color:var(--ink-2)}
+.flow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.fstep{flex:1 1 118px;border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;
+  background:var(--sunken);display:flex;flex-direction:column;gap:3px;min-width:118px}
+.fstep .n{width:19px;height:19px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);
+  font-size:11px;font-weight:700;display:grid;place-items:center;font-family:var(--mono)}
+.fstep .lb{font-size:13.5px;font-weight:600}
+.fstep .who{font-size:11px;color:var(--ink-3)}
+.fstep.key{background:var(--job-receive-bg);border-color:#D7E5BE}
+.fstep.key .n{background:var(--job-receive);color:#FFF}
+.fstep.key .lb,.fstep.key .who{color:var(--job-receive-ink)}
+.fstep.dead{opacity:.5}
+.fstep.dead .lb{text-decoration:line-through}
+.lanes{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+.lane{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lane>.t{padding:8px 13px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--sunken);color:var(--ink-2);border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:10px}
+.lane>.b{padding:12px 13px;font-size:13px;color:var(--ink-2)}
+.lane.q>.t{background:var(--job-receive-bg);color:var(--job-receive-ink);border-bottom-color:#D7E5BE}
+.lane b{color:var(--ink-1);font-weight:600}
+
+/* ═══ 2 · LE QUAI — téléphones ═════════════════════════════════════════════ */
+.phones{display:flex;gap:18px;flex-wrap:wrap}
+.phwrap{width:300px}
+.ph{width:300px;height:620px;border-radius:30px;border:1px solid var(--line-strong);
+  background:var(--card);box-shadow:var(--sh-float);overflow:hidden;display:flex;flex-direction:column}
+.ph .notch{height:26px;background:var(--card);display:grid;place-items:center;flex:none}
+.ph .notch i{width:74px;height:4px;border-radius:3px;background:var(--line-strong);display:block}
+.ph .scr{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+.rtl{direction:rtl}
+.pbar{padding:11px 14px;background:var(--card);border-bottom:1px solid var(--line);flex:none;
+  display:flex;align-items:center;gap:10px}
+.pbar .plate{width:28px;height:28px;border-radius:var(--r-sm);background:var(--job-receive-bg);
+  color:var(--job-receive-ink);display:grid;place-items:center;flex:none}
+.pbar .plate svg{width:16px;height:16px}
+.pbar .ttl{font-size:14px;font-weight:700;line-height:1.25}
+.pbar .mt{font-size:11px;color:var(--ink-3)}
+.pbody{flex:1;overflow:auto;padding:12px}
+.pfoot{flex:none;padding:12px;background:var(--card);border-top:1px solid var(--line)}
+.pbig{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:52px;
+  border-radius:var(--r);background:var(--ok);color:#FFF;font-size:15px;font-weight:700}
+.pbig.ghost{background:var(--card);border:1px solid var(--line-strong);color:var(--ink-1)}
+.pbig svg{width:19px;height:19px}
+.ptot{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
+.ptot .k{font-size:11.5px;color:var(--ink-2);font-weight:600}
+.ptot .v{font-size:19px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.parr{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;
+  margin-bottom:8px;display:flex;align-items:center;gap:11px}
+.parr .th{width:36px;height:36px;border-radius:var(--r-sm);background:var(--job-receive-bg);
+  display:grid;place-items:center;font-size:17px;flex:none}
+.parr .nm{font-size:13px;font-weight:600;line-height:1.3}
+.parr .sb{font-size:11px;color:var(--ink-3);margin-top:2px}
+.parr .q{margin-inline-start:auto;text-align:end;flex:none}
+.parr .q .n{font-size:17px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.parr .q .u{font-size:10.5px;color:var(--ink-3)}
+.parr.corr{border-color:var(--warn-edge);background:#FFFDF6}
+.pcorr{font-size:10.5px;font-weight:700;color:var(--warn)}
+.psearch{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--ok);
+  box-shadow:0 0 0 3px rgba(21,128,61,.16);border-radius:var(--r);padding:10px 12px;margin-bottom:10px}
+.psearch svg{width:16px;height:16px;color:var(--ink-3);flex:none}
+.psearch span{font-size:13.5px;color:var(--ink-3)}
+.pcat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.pcat .h{padding:8px 12px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);background:var(--sunken);border-bottom:1px solid var(--line)}
+.pci{padding:11px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.pci:last-child{border-bottom:0}
+.pci .th{width:30px;height:30px;border-radius:var(--r-xs);background:var(--surface-2);
+  display:grid;place-items:center;font-size:15px;flex:none}
+.pci .nm{font-size:12.5px;font-weight:600;line-height:1.3}
+.pci .sb{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+.pci .st-mini{margin-inline-start:auto;font-size:10.5px;color:var(--ink-2);font-weight:600;flex:none;
+  font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pci.sel{background:var(--job-receive-bg)}
+.pvar{padding:9px 12px 9px 50px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;
+  background:var(--sunken)}
+.rtl .pvar{padding:9px 50px 9px 12px}
+.pvar .vb{font-size:12px;font-weight:600}
+.pvar .vs{margin-inline-start:auto;font-size:10.5px;color:var(--ink-3);font-family:var(--mono)}
+.pnum{text-align:center;padding:14px 0 10px}
+.pnum .pn{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.pnum .ps{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.pnum .val{font-size:52px;font-weight:700;font-family:var(--mono);letter-spacing:-.02em;line-height:1.1;
+  margin-top:8px}
+.pnum .vu{font-size:11.5px;color:var(--ink-3);font-weight:600}
+/* LE PAVÉ NUMÉRIQUE NE SE MIROITE PAS. En RTL, le texte s'inverse mais un clavier
+   de chiffres reste 1-2-3 — c'est la règle de tous les claviers téléphoniques, y
+   compris sur un appareil en arabe. Sans ce direction:ltr, la grille rend 3-2-1
+   et le ⌫ passe à gauche du 0. */
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;direction:ltr}
+.pad button{min-height:50px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);
+  font-size:20px;font-weight:600;font-family:var(--mono);display:grid;place-items:center}
+.pad button.alt{background:var(--sunken);font-size:16px}
+.pdmg{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:42px;
+  margin-top:10px;font-size:12.5px;font-weight:600;color:var(--warn);border:1px dashed var(--warn-edge);
+  border-radius:var(--r);background:#FFFDF6}
+.pdmg svg{width:15px;height:15px}
+.pdone{text-align:center;padding:26px 6px 0}
+.pdone .ring{width:62px;height:62px;border-radius:50%;background:var(--ok-bg);border:1px solid var(--ok-edge);
+  display:grid;place-items:center;margin:0 auto 14px}
+.pdone .ring svg{width:30px;height:30px;color:var(--ok)}
+.pdone .big{font-size:27px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pdone .lb{font-size:13px;font-weight:600;color:var(--ink-2);margin-top:3px}
+.pdone .pn{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.precap{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;text-align:start}
+.precap .r{padding:10px 13px;display:flex;justify-content:space-between;gap:10px;
+  border-bottom:1px solid var(--line);font-size:12.5px}
+.precap .r:last-child{border-bottom:0}
+.precap .k{color:var(--ink-2)}
+.precap .v{font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pundo{margin-top:12px;font-size:11.5px;color:var(--ink-3);display:flex;align-items:center;
+  justify-content:center;gap:6px}
+.pundo b{color:var(--bad);font-weight:600}
+.preveal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  margin-top:14px;text-align:start}
+.preveal .rh{padding:9px 13px;background:var(--sunken);border-bottom:1px solid var(--line);
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.preveal .rr{padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+  border-bottom:1px solid var(--line)}
+.preveal .rr:last-child{border-bottom:0}
+.preveal .k{font-size:12.5px;color:var(--ink-2)}
+.preveal .v{font-size:15px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.preveal .rr.gap{background:var(--bad-bg)}
+.preveal .rr.gap .k,.preveal .rr.gap .v{color:var(--bad)}
+.pblind{margin-top:10px;padding:9px 11px;border:1px dashed var(--line-strong);border-radius:var(--r);
+  font-size:11.5px;color:var(--ink-3);display:flex;gap:8px;align-items:flex-start}
+.pblind svg{width:14px;height:14px;flex:none;margin-top:2px}
+
+/* ═══ 3 · LA LISTE ════════════════════════════════════════════════════════ */
+.rhead,.rrow{display:grid;
+  grid-template-columns:minmax(210px,1.35fr) minmax(148px,1fr) minmax(130px,.85fr) minmax(150px,.95fr) minmax(180px,1fr) 26px;
+  align-items:center;gap:0 16px}
+.rhead{padding:14px 20px 11px}
+.rhead span{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.rhead .tr{text-align:right}
+.rlist{border-top:1px solid var(--line)}
+.rrow{padding:15px 20px;border-bottom:1px solid var(--line);width:100%;position:relative;cursor:pointer}
+.rrow:last-child{border-bottom:0}
+.rrow.claim::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;
+  background:var(--job-receive)}
+.ref{font-size:14.5px;font-weight:600;font-family:var(--mono);letter-spacing:-.01em}
+.ref.grp{font-family:"Inter",sans-serif;font-weight:600}
+.meta{font-size:11.5px;color:var(--ink-3);margin-top:3px;display:flex;flex-wrap:wrap;gap:5px}
+.meta .sep{color:var(--line-strong)}
+.qty{text-align:right}
+.qty .n{font-size:16px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.qty .u{font-size:11px;color:var(--ink-3);margin-top:2px}
+.money{text-align:right;font-size:15px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.money .cur{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-inline-start:4px}
+.money.none{font-size:12.5px;font-weight:600;color:var(--ink-3);font-family:"Inter",sans-serif}
+.who{font-size:12px;color:var(--ink-2)}
+.who b{font-weight:600;color:var(--ink-1)}
+.chev{color:var(--ink-3);display:grid;place-items:center}
+.chev svg{width:16px;height:16px}
+.stcell{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+
+/* ═══ 4 · SOLDER ══════════════════════════════════════════════════════════ */
+.sh-top{display:flex;align-items:flex-start;gap:16px;padding:17px 20px 15px;border-bottom:1px solid var(--line)}
+.back{width:32px;height:32px;border-radius:var(--r-sm);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--ink-2);flex:none}
+.sh-id{flex:1;min-width:0}
+.sh-id h3{font-size:17px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sh-sub{font-size:12px;color:var(--ink-3);margin-top:5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sh-sub .sep{color:var(--line-strong)}
+.sh-sub b{color:var(--ink-2);font-weight:600}
+.instock{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  color:var(--job-receive-ink);background:var(--job-receive-bg);border:1px solid #D7E5BE;
+  padding:2px 8px;border-radius:var(--r-xs)}
+.instock svg{width:12px;height:12px}
+
+.blk{border-bottom:1px solid var(--line)}
+.blk-h{display:flex;align-items:center;gap:11px;padding:13px 20px;width:100%}
+.blk-h .idx{width:20px;height:20px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);
+  font-size:11px;font-weight:700;font-family:var(--mono);display:grid;place-items:center;flex:none}
+.blk-h .lb{font-size:13.5px;font-weight:700}
+.blk-h .sm{font-size:12px;color:var(--ink-3);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.blk-h .sm b{color:var(--ink-2);font-weight:600}
+.blk-h .car{margin-inline-start:auto;color:var(--ink-3);display:grid;place-items:center;flex:none}
+.blk-h .car svg{width:15px;height:15px}
+.blk.done .blk-h .idx{background:var(--ok-bg);color:var(--ok)}
+.blk-b{padding:2px 20px 18px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px}
+.fld label{display:block;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:5px}
+.inp{width:100%;min-height:42px;border:1px solid var(--line-strong);border-radius:var(--r);
+  padding:9px 12px;font-size:13.5px;background:var(--card)}
+.inp.ph{color:var(--ink-3)}
+.combo{position:relative}
+.combo .chosen{display:flex;align-items:center;gap:9px;min-height:42px;border:1px solid var(--line-strong);
+  border-radius:var(--r);padding:8px 12px;background:var(--card)}
+.combo .chosen .av{width:24px;height:24px;border-radius:var(--r-xs);background:var(--move-bg);
+  color:var(--move);font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+.combo .chosen .nm{font-size:13.5px;font-weight:600}
+.combo .chosen .ch{margin-inline-start:auto;color:var(--ink-3);font-size:11.5px}
+.bl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:var(--r);
+  padding:9px 11px;background:var(--sunken)}
+.bl .sq{width:40px;height:40px;border-radius:var(--r-xs);background:var(--surface-2);display:grid;
+  place-items:center;font-size:17px;flex:none;border:1px solid var(--line)}
+.bl .t{font-size:12.5px;font-weight:600}
+.bl .s{font-size:11px;color:var(--ink-3)}
+
+/* lignes de chiffrage */
+.lhead,.lrow{display:grid;
+  grid-template-columns:minmax(220px,1.5fr) 74px 66px 104px 96px 112px 120px;
+  align-items:center;gap:0 12px}
+.lhead{padding:11px 20px 9px;border-top:1px solid var(--line);background:var(--sunken)}
+.lhead span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.lhead .tr,.lrow .tr{text-align:right}
+.lrow{padding:12px 20px;border-top:1px solid var(--line)}
+.lprod{display:flex;align-items:center;gap:11px;min-width:0}
+.lprod .th{width:34px;height:34px;border-radius:var(--r-xs);background:var(--job-receive-bg);
+  display:grid;place-items:center;font-size:16px;flex:none}
+.lprod .pn{font-size:13px;font-weight:600;line-height:1.3}
+.lprod .pc{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-top:2px}
+.vchip{display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;background:var(--surface-2);
+  border:1px solid var(--line);font-size:10.5px;font-weight:600;color:var(--ink-2);margin-inline-start:6px}
+.lnum{font-size:14px;font-weight:600;font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.lnum.dim{color:var(--ink-3);font-weight:500}
+.lnum.add{color:var(--move);font-size:12.5px}
+.lnum.land{font-weight:700;color:var(--ink-1)}
+.lin{width:100%;min-height:38px;border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  padding:7px 9px;text-align:right;font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;
+  background:var(--card);font-weight:600}
+.dmg0{font-size:13px;color:var(--ink-3);font-family:var(--mono)}
+.dmgN{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:var(--r-xs);
+  background:var(--warn-bg);border:1px solid var(--warn-edge);color:var(--warn);font-size:12px;
+  font-weight:700;font-family:var(--mono)}
+.moneyedge{box-shadow:inset 1px 0 0 var(--line)}
+
+/* frais d'approche */
+.fees{margin:0 20px 16px;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.fees .fh{padding:10px 14px;background:var(--sunken);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fees .fh .lb{font-size:12.5px;font-weight:700}
+.fees .fh .hint{font-size:11.5px;color:var(--ink-3)}
+.fees .fh .basis{margin-inline-start:auto;display:inline-flex;gap:3px;background:var(--surface-2);
+  border-radius:7px;padding:2px}
+.fees .fh .basis button{padding:4px 10px;border-radius:5px;font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.fees .fh .basis button[aria-pressed=true]{background:var(--card);color:var(--ink-1);
+  box-shadow:inset 0 0 0 1px var(--line)}
+.frow{display:grid;grid-template-columns:1fr 150px;align-items:center;gap:12px;padding:9px 14px;
+  border-bottom:1px solid var(--line)}
+.frow .fl{font-size:13px}
+.frow .fv{text-align:right;font-family:var(--mono);font-size:13.5px;font-weight:600;
+  font-variant-numeric:tabular-nums}
+.frow.sum{background:var(--sunken);border-bottom:0}
+.frow.sum .fl{font-weight:700;font-size:12.5px}
+.frow.sum .fv{font-weight:700}
+.fadd{padding:9px 14px;border-top:1px solid var(--line)}
+
+/* rapprochement */
+.rec{margin:0 20px 18px;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.rec .rh{padding:10px 14px;background:var(--sunken);border-bottom:1px solid var(--line);
+  font-size:12.5px;font-weight:700}
+.rec .pair{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+@media(max-width:760px){.rec .pair{grid-template-columns:1fr}}
+.rec .pair>div{background:var(--card);padding:14px}
+.rec .k{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.rec .v{font-size:22px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums;margin-top:6px}
+.rec .v .cur{font-size:11px;font-weight:600;color:var(--ink-3);margin-inline-start:5px}
+.rec .src{font-size:11px;color:var(--ink-3);margin-top:4px}
+.rec .inpbig{width:100%;min-height:46px;border:1px solid var(--line-strong);border-radius:var(--r);
+  padding:9px 12px;text-align:right;font-family:var(--mono);font-size:20px;font-weight:700;
+  font-variant-numeric:tabular-nums;margin-top:4px;background:var(--card)}
+.verd{display:flex;align-items:center;gap:11px;padding:13px 14px;border-top:1px solid var(--line);
+  flex-wrap:wrap}
+.verd.ok{background:var(--ok-tint)}
+.verd.bad{background:var(--bad-bg)}
+.verd .ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none}
+.verd.ok .ic{background:var(--ok-bg);border:1px solid var(--ok-edge);color:var(--ok)}
+.verd.bad .ic{background:#FFE9E4;border:1px solid var(--bad-edge);color:var(--bad)}
+.verd .ic svg{width:15px;height:15px}
+.verd .tx{font-size:13.5px;font-weight:700}
+.verd.ok .tx{color:var(--ok)}
+.verd.bad .tx{color:var(--bad)}
+.verd .sm{font-size:12.5px;color:var(--ink-2)}
+.verd .sp{margin-inline-start:auto}
+.whys{display:flex;gap:7px;flex-wrap:wrap;padding:0 14px 13px;background:var(--bad-bg)}
+.why{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:var(--r-pill);
+  border:1px solid var(--line-strong);background:var(--card);font-size:12px;font-weight:600;color:var(--ink-2)}
+.why[aria-pressed=true]{border-color:var(--bad);background:#FFE9E4;color:var(--bad)}
+.why .auto{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--move);background:var(--move-bg);padding:1px 5px;border-radius:3px}
+
+.sh-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:16px 20px;
+  border-top:1px solid var(--line);background:var(--sunken);flex-wrap:wrap}
+.totals{display:flex;gap:26px;flex-wrap:wrap}
+.tot .k{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.tot .v{font-size:17px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums;margin-top:3px}
+.tot .v .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-inline-start:4px}
+.tot.big .v{font-size:25px;letter-spacing:-.015em}
+.tot .v.warn{color:var(--warn)}
+.acts{display:flex;gap:9px;flex-wrap:wrap}
+
+/* bloc dû */
+.due{border-top:1px solid var(--line)}
+.due-h{display:flex;align-items:center;gap:11px;padding:13px 20px;width:100%}
+.due-h .lb{font-size:13px;font-weight:700}
+.due-h .rest{margin-inline-start:auto;font-size:12.5px;color:var(--ink-2);font-family:var(--mono)}
+
+/* cost impact */
+.cog{display:grid;grid-template-columns:1fr auto auto auto;gap:0 14px;align-items:center;
+  padding:9px 14px;border-bottom:1px solid var(--line);font-size:12.5px}
+.cog:last-child{border-bottom:0}
+.cog .pn{font-weight:600}
+.cog .a{font-family:var(--mono);color:var(--ink-3)}
+.cog .ar{color:var(--ink-3)}
+.cog .b{font-family:var(--mono);font-weight:700}
+
+/* ═══ 7 · FINANCES › ACHATS ════════════════════════════════════════════════ */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line)}
+.kpi{background:var(--card);padding:16px 18px}
+.kpi .k{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.kpi .v{font-size:23px;font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums;margin-top:6px;
+  letter-spacing:-.015em}
+.kpi .v .cur{font-size:11px;font-weight:600;color:var(--ink-3);margin-inline-start:5px}
+.kpi .s{font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.kpi .s.bad{color:var(--bad);font-weight:600}
+.shead,.srow{display:grid;grid-template-columns:minmax(230px,2fr) 170px 150px 110px;
+  align-items:center;gap:0 14px}
+.shead{padding:12px 20px 9px;border-top:1px solid var(--line);background:var(--sunken)}
+.shead span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.shead .tr,.srow .tr{text-align:right}
+.srow{padding:14px 20px;border-top:1px solid var(--line)}
+.srow .sn{font-size:14px;font-weight:600}
+.srow .ss{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.srow .m{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.srow .m.zero{color:var(--ink-3);font-weight:500}
+.srow .m.late{color:var(--bad);font-weight:700}
+.bar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;background:var(--ok);border-radius:3px}
+.bar i.mid{background:var(--warn)}
+.srow .pct{font-family:var(--mono);font-size:13px;font-weight:600;text-align:right}
+
+/* ═══ 8 · RÉGLAGES ════════════════════════════════════════════════════════ */
+.radios{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.radio{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--card)}
+.radio[aria-checked=true]{border-color:var(--ok);background:var(--ok-tint)}
+.radio .dot{width:17px;height:17px;border-radius:50%;border:1.5px solid var(--line-strong);flex:none;
+  margin-top:1px;display:grid;place-items:center;background:var(--card)}
+.radio[aria-checked=true] .dot{border-color:var(--ok)}
+.radio[aria-checked=true] .dot::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--ok)}
+.radio .t{font-size:13.5px;font-weight:600}
+.radio .d{font-size:12px;color:var(--ink-2);margin-top:3px}
+.toggle{display:flex;align-items:center;gap:13px;padding:13px 14px;border:1px solid var(--line);
+  border-radius:var(--r);margin-top:9px}
+.toggle .sw{width:40px;height:23px;border-radius:var(--r-pill);background:var(--ok);flex:none;
+  position:relative}
+.toggle .sw::after{content:"";position:absolute;top:2.5px;right:2.5px;width:18px;height:18px;
+  border-radius:50%;background:#FFF}
+.toggle .t{font-size:13.5px;font-weight:600}
+.toggle .d{font-size:12px;color:var(--ink-2);margin-top:2px}
+
+/* ═══ 9 · NIVEAUX ═════════════════════════════════════════════════════════ */
+.nhead,.nrow{display:grid;grid-template-columns:minmax(220px,2fr) 110px 150px 170px;align-items:center;gap:0 14px}
+.nhead{padding:12px 20px 9px;background:var(--sunken);border-top:1px solid var(--line)}
+.nhead span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.nhead .tr,.nrow .tr{text-align:right}
+.nrow{padding:13px 20px;border-top:1px solid var(--line)}
+.unpriced{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:var(--r-xs);
+  background:var(--job-receive-bg);border:1px solid #D7E5BE;color:var(--job-receive-ink);
+  font-size:11px;font-weight:700}
+.unpriced i{width:5px;height:5px;border-radius:50%;background:var(--job-receive);flex:none}
+
+/* ═══ 10 · BILAN ══════════════════════════════════════════════════════════ */
+/* ═══ 5 · L'ÉCART — une phrase, trois chiffres, deux choix ════════════════
+   La version précédente empilait deux grands nombres en vis-à-vis, un verdict,
+   QUATRE pastilles de motif, un encadré d'explication, deux boutons radio et
+   deux boutons de pied : six zones pour une question qui en vaut une seule —
+   est-ce que je réclame, ou est-ce que je paie. Chaque choix porte donc
+   maintenant sa propre conséquence chiffrée, et EST l'action. */
+.say{font-size:15px;color:var(--ink-1);line-height:1.45}
+.say b{font-weight:700}
+.sums{margin-top:15px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.sr{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 14px;
+  border-bottom:1px solid var(--line);font-size:13.5px}
+.sr:last-child{border-bottom:0}
+.sr>span:first-child{color:var(--ink-2)}
+.sr>span:last-child{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;
+  font-family:var(--mono)}
+.sr.gap{background:var(--bad-bg)}
+.sr.gap>span{color:var(--bad);font-weight:700}
+.sr.gap>span:last-child{font-size:18px}
+.cause{display:flex;gap:11px;align-items:flex-start;margin-top:14px;padding:12px 14px;
+  background:var(--ok-tint);border:1px solid var(--ok-edge);border-radius:var(--r);
+  font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.cause .ic{width:20px;height:20px;border-radius:50%;background:var(--ok-bg);
+  border:1px solid var(--ok-edge);color:var(--ok);display:grid;place-items:center;flex:none;margin-top:1px}
+.cause .ic svg{width:11px;height:11px}
+.cause b{color:var(--ink-1);font-weight:600}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:16px;align-items:stretch}
+@media(max-width:620px){.choices{grid-template-columns:1fr}}
+.ch{position:relative;padding:15px 14px 14px;border:1px solid var(--line-strong);
+  border-radius:var(--r-md);background:var(--card);display:flex;flex-direction:column;
+  align-items:flex-start}
+.ch.reco{border-color:var(--ok);background:var(--ok-tint)}
+.ch .t{font-size:14px;font-weight:700}
+.ch .d{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.4}
+.ch .d b{color:var(--ink-1);font-weight:700}
+.tagr{position:absolute;top:-9px;inset-inline-end:12px;font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;background:var(--ok);color:#FFF;padding:2px 7px;
+  border-radius:var(--r-xs)}
+
+/* ═══ 7 · ACHATS — l'échéancier passe avant les fournisseurs ══════════════ */
+.kpis3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;
+  background:var(--line)}
+.dhead,.drow{display:grid;grid-template-columns:minmax(210px,1.3fr) 205px minmax(165px,1fr) 110px;
+  align-items:center;gap:0 16px}
+.dhead{padding:12px 20px 9px;background:var(--sunken)}
+.dhead span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3)}
+.dhead .tr,.drow .tr{text-align:right}
+.drow{padding:15px 20px;border-top:1px solid var(--line);position:relative}
+.drow:first-of-type{border-top:0}
+.drow.late::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;
+  background:var(--bad)}
+.drow .m{font-family:var(--mono);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;
+  text-align:right}
+.drow .m.late{color:var(--bad)}
+.drow .m .ss{text-align:right}
+.due-when{font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.due-when b{font-weight:700;color:var(--ink-1)}
+.due-when.late{color:var(--bad)}
+.due-when.late b{color:var(--bad)}
+
+.dec{width:100%;border-collapse:collapse}
+.dec th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);padding:12px 16px;background:var(--sunken);border-bottom:1px solid var(--line)}
+.dec td{padding:13px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);
+  vertical-align:top}
+.dec tr:last-child td{border-bottom:0}
+.dec td b{color:var(--ink-1);font-weight:600}
+.dec td .mono{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-size:12px}
+.kill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--bad);
+  background:var(--bad-bg);border:1px solid var(--bad-edge);border-radius:var(--r-xs);padding:3px 9px;
+  margin:0 6px 6px 0}
+.kill .mono{background:#FFE9E4;padding:1px 4px;border-radius:3px;font-size:11px}
+
+/* ═══ scrim pour les modales ══════════════════════════════════════════════ */
+.scrim{background:rgba(26,26,26,.34);border-radius:var(--r-lg);padding:30px 20px;display:grid;
+  place-items:center}
+.modal{width:100%;max-width:640px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-float);
+  overflow:hidden}
+.mo-h{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:17px 20px 14px;
+  border-bottom:1px solid var(--line)}
+.mo-h h3{font-size:16px;font-weight:700}
+.mo-h .s{font-size:12.5px;color:var(--ink-3);margin-top:3px}
+.mo-b{padding:18px 20px}
+.mo-f{display:flex;justify-content:flex-end;gap:9px;padding:15px 20px;border-top:1px solid var(--line);
+  background:var(--sunken);flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hdr">
+  <h1>Réception de marchandises — v4</h1>
+  <span class="sub">« le quai et le bureau » · Ordra · 3 octobre 2026</span>
+</div>
+
+<div class="lead">
+  <p><b>Une réception n'est pas créée. Elle est soldée.</b></p>
+  <p>Le quai enregistre des <b>arrivages</b> : deux champs, aucune paperasse, et le stock
+  entre immédiatement — parce que c'est à ce moment-là qu'il est vrai. Le bureau <b>solde</b>
+  le groupe une fois la semaine : fournisseur, prix, frais d'approche, rapprochement contre
+  la facture. L'argent entre là, et la référence <span class="mono">REC-…</span> naît là.</p>
+  <p>Ce qui remplace la deuxième signature n'est pas une signature : c'est un
+  <b>rapprochement</b> contre une pièce externe. Un désaccord produit une exception, pas une
+  note en texte libre.</p>
+</div>
+
+<div class="note">
+  <h3>Pourquoi une v4, alors que la v3 est en production</h3>
+  <p><b>Parce que personne n'en a jamais terminé une.</b> Au 3 octobre : <b>1</b> réception
+  en base — <span class="mono">REC-LY-2026-0001</span>, fournisseur <span class="mono">firas</span>,
+  BL <span class="mono">qd</span>, le 1<sup>er</sup> octobre à 22 h 57 — <b>0 ligne</b> dessus,
+  <b>0 validée</b>, <b>0</b> ligne de registre <span class="mono">reason='reception'</span>,
+  <b>0</b> paiement. Le stock est réellement entré par 10 lignes en 5 mois : 7
+  <span class="mono">initial_stock</span> et 3 <span class="mono">manual_adjustment</span>.
+  Et <span class="mono">product_site_stock</span> compte toujours <b>0 ligne</b> pour 3 bâtiments :
+  la question que le module existe pour répondre — <i>où est la marchandise</i> — n'a jamais
+  reçu de réponse une seule fois.</p>
+  <p>L'abandon a une cause bénigne (la recherche produit renvoyait une liste vide à un
+  super_admin jusqu'au correctif du 3 octobre). Le <b>rapport</b> n'en a pas : 663 lignes de
+  SQL, 3 tables, 4 RPC, 9 routes et ~3 900 lignes de TypeScript pour remplacer dix lignes de
+  registre.</p>
+</div>
+
+<!-- ═════════════════════════ 1 · LE PARCOURS ═════════════════════════════ -->
+<div class="sechead"><h2>1 · Le parcours</h2><span>ce qui bouge, et à quel moment</span></div>
+
+<div class="cmp">
+  <div class="card">
+    <h3>v3 — en production</h3>
+    <div class="flow">
+      <div class="fstep"><span class="n">1</span><span class="lb">Annoncer</span><span class="who">facultatif · jamais fait</span></div>
+      <div class="fstep"><span class="n">2</span><span class="lb">Compter</span><span class="who">agent, sur le quai</span></div>
+      <div class="fstep"><span class="n">3</span><span class="lb">Déclarer</span><span class="who">rien n'a bougé</span></div>
+      <div class="fstep key"><span class="n">4</span><span class="lb">Valider</span><span class="who">le stock existe ici</span></div>
+    </div>
+    <div class="verdict">Entre l'étape 2 et l'étape 4, la marchandise est <b>sur l'étagère</b> et
+    Ordra dit qu'elle <b>n'existe pas</b>. Quelqu'un la vendra. Et les étapes 3 et 4 sont
+    presque toujours la même personne : il y a <b>2</b> agents d'entrepôt actifs, et
+    <span class="mono">permissions.ts</span> accorde déjà le brouillon <i>et</i> la validation au
+    manager.</div>
+  </div>
+  <div class="card">
+    <h3>v4 — deux lieux, deux natures</h3>
+    <div class="flow">
+      <div class="fstep key"><span class="n">1</span><span class="lb">Arrivage</span><span class="who">quai · le stock existe ici</span></div>
+      <div class="fstep"><span class="n">2</span><span class="lb">Solder</span><span class="who">bureau · l'argent existe ici</span></div>
+      <div class="fstep dead"><span class="n">3</span><span class="lb">Déclarer</span><span class="who">supprimé</span></div>
+      <div class="fstep dead"><span class="n">4</span><span class="lb">Valider</span><span class="who">supprimé</span></div>
+    </div>
+    <div class="verdict"><b>Réel-mais-non-chiffré</b> est un mensonge bien plus sûr que
+    <b>réel-mais-invisible</b>. Le quai ne connaît ni fournisseur, ni prix, ni attente — il est
+    <b>aveugle par construction</b>. Le bureau a la facture en main au moment où il saisit les
+    prix, ce qui est le seul moment où il peut les saisir juste.</div>
+  </div>
+</div>
+
+<div class="lanes">
+  <div class="lane q">
+    <div class="t"><span>Le quai · téléphone · agent d'entrepôt</span><span>2 champs</span></div>
+    <div class="b">Produit, quantité. Le bâtiment vient de <span class="mono">users.warehouse_id</span>,
+    donc ce n'est même pas un champ. <b>Aucun</b> fournisseur, <b>aucune</b> référence, <b>aucune</b>
+    date, <b>aucun</b> statut. Chaque entrée est un arrivage en ajout-seul qui écrit
+    <span class="mono">inventory_log · reason='arrival'</span>, crée la ligne
+    <span class="mono">product_site_stock</span> et fait baisser le « non ventilé » — tout de suite.</div>
+  </div>
+  <div class="lane">
+    <div class="t"><span>Le bureau · desk · propriétaire ou manager</span><span>une fois la semaine</span></div>
+    <div class="b">Le système a déjà groupé les arrivages par <b>bâtiment et par jour</b>. Le bureau
+    attribue un fournisseur, attache la photo du BL, saisit les prix et les <b>frais d'approche
+    réellement payés</b>, puis <b>solde</b>. Solder frappe la référence, écrit le coût de revient,
+    applique la politique de coût du marché et crée le dû. Avant soldage, le stock est réel et
+    <b>non chiffré</b>, et il le dit.</div>
+  </div>
+</div>
+
+<!-- ═════════════════════════ 2 · LE QUAI ═════════════════════════════════ -->
+<div class="sechead"><h2>2 · Le quai</h2><span>390 × 844 · arabe · RTL complet · cinq écrans, deux champs</span></div>
+
+<div class="phones">
+
+  <!-- A — les arrivages du jour -->
+  <div class="phwrap">
+    <div class="cap">A · Les arrivages du jour</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbar">
+        <span class="plate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M12 13v8"/><path d="M8 11l4 2 4-2"/></svg></span>
+        <div><div class="ttl" dir="auto">الاستلام</div><div class="mt" dir="auto">طرابلس · الثلاثاء ٢٩ سبتمبر</div></div>
+      </div>
+      <div class="pbody">
+        <div class="ptot"><span class="k" dir="auto">دخل المخزون اليوم</span><span class="v mono">312</span></div>
+
+        <div class="parr">
+          <span class="th">📗</span>
+          <div><div class="nm" dir="auto">القرآن تدبر وعمل</div><div class="sb mono">qr-01 · 09:12</div></div>
+          <div class="q"><div class="n mono">150</div><div class="u" dir="auto">وحدة</div></div>
+        </div>
+        <div class="parr corr">
+          <span class="th">📘</span>
+          <div><div class="nm" dir="auto">مصحف التهجد و قيام الليل</div>
+            <div class="sb mono">th-01 · 09:31 · <span class="pcorr" dir="auto">صُححت</span></div></div>
+          <div class="q"><div class="n mono">94</div><div class="u" dir="auto">+ ٢ تالفة</div></div>
+        </div>
+        <div class="parr">
+          <span class="th">📕</span>
+          <div><div class="nm" dir="auto">كتاب الحفظ الميسر</div><div class="sb mono">hm-01 · 09:44</div></div>
+          <div class="q"><div class="n mono">60</div><div class="u" dir="auto">وحدة</div></div>
+        </div>
+        <div class="parr">
+          <span class="th">🧸</span>
+          <div><div class="nm" dir="auto">دميه ملاكمه <span class="vchip" dir="auto">صغير</span></div>
+            <div class="sb mono">box-wafra-shop · 10:02</div></div>
+          <div class="q"><div class="n mono">8</div><div class="u" dir="auto">وحدة</div></div>
+        </div>
+
+        <div class="pblind">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 11v5"/></svg>
+          <span dir="auto">لا سعر، لا مورّد، لا كمية متوقّعة. العدّ فقط.</span>
+        </div>
+      </div>
+      <div class="pfoot">
+        <button class="pbig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg><span dir="auto">إضافة وصول</span></button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- B — choisir le produit -->
+  <div class="phwrap">
+    <div class="cap">B · Choisir le produit — variantes incluses</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbar">
+        <span class="plate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+        <div><div class="ttl" dir="auto">ما الذي وصل؟</div><div class="mt" dir="auto">طرابلس</div></div>
+      </div>
+      <div class="pbody">
+        <div class="psearch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <span dir="auto">ابحث بالاسم أو الرمز…</span>
+        </div>
+        <div class="pcat">
+          <div class="h" dir="auto">الكتالوج · ١٠ منتجات</div>
+          <div class="pci"><span class="th">📗</span>
+            <div><div class="nm" dir="auto">القرآن تدبر وعمل</div><div class="sb mono">qr-01</div></div>
+            <span class="st-mini">943</span></div>
+          <div class="pci"><span class="th">📘</span>
+            <div><div class="nm" dir="auto">مصحف التهجد و قيام الليل</div><div class="sb mono">th-01</div></div>
+            <span class="st-mini">216</span></div>
+          <div class="pci sel"><span class="th">🧸</span>
+            <div><div class="nm" dir="auto">دميه ملاكمه</div><div class="sb" dir="auto">٣ مقاسات</div></div>
+            <span class="st-mini">208</span></div>
+          <div class="pvar"><span class="vb" dir="auto">صغير</span><span class="vs mono">42</span></div>
+          <div class="pvar"><span class="vb" dir="auto">متوسط</span><span class="vs mono">98</span></div>
+          <div class="pvar"><span class="vb" dir="auto">كبير</span><span class="vs mono">68</span></div>
+          <div class="pci"><span class="th">🧴</span>
+            <div><div class="nm">Biovera</div><div class="sb mono">bv-01</div></div>
+            <span class="st-mini">1003</span></div>
+        </div>
+        <div class="pblind">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg>
+          <span dir="auto">المقاس يحمل المخزون. اختيار المنتج وحده يضع الوحدات في «غير موزّع».</span>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- C — la quantité -->
+  <div class="phwrap">
+    <div class="cap">C · La quantité — rien d'autre à l'écran</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbar">
+        <span class="plate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+        <div><div class="ttl" dir="auto">كم وحدة؟</div><div class="mt" dir="auto">طرابلس</div></div>
+      </div>
+      <div class="pbody">
+        <div class="pnum">
+          <div class="pn" dir="auto">القرآن تدبر وعمل</div>
+          <div class="ps mono">qr-01</div>
+          <div class="val mono">150</div>
+          <div class="vu" dir="auto">وحدة</div>
+        </div>
+        <div class="pad">
+          <button class="mono">1</button><button class="mono">2</button><button class="mono">3</button>
+          <button class="mono">4</button><button class="mono">5</button><button class="mono">6</button>
+          <button class="mono">7</button><button class="mono">8</button><button class="mono">9</button>
+          <button class="alt">C</button><button class="mono">0</button><button class="alt">⌫</button>
+        </div>
+        <button class="pdmg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          <span dir="auto">الإبلاغ عن وحدات تالفة</span>
+        </button>
+      </div>
+      <div class="pfoot">
+        <button class="pbig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg><span dir="auto">إدخال إلى المخزون</span></button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- D — c'est entré -->
+  <div class="phwrap">
+    <div class="cap">D · Le reçu — ce qui a bougé, chiffré</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbody">
+        <div class="pdone">
+          <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <div class="big mono">+150</div>
+          <div class="lb" dir="auto">دخلت المخزون</div>
+          <div class="pn" dir="auto">القرآن تدبر وعمل · طرابلس</div>
+
+          <div class="precap">
+            <div class="r"><span class="k" dir="auto">طرابلس</span><span class="v mono">150</span></div>
+            <div class="r"><span class="k" dir="auto">إجمالي السوق</span><span class="v mono">943</span></div>
+            <div class="r"><span class="k" dir="auto">غير موزّع</span><span class="v mono">−150</span></div>
+          </div>
+
+          <div class="pundo"><span dir="auto">يمكن التصحيح قبل التسوية</span><span>·</span><b dir="auto">تصحيح</b></div>
+        </div>
+      </div>
+      <div class="pfoot">
+        <button class="pbig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg><span dir="auto">منتج آخر</span></button>
+        <button class="pbig ghost" style="margin-top:8px"><span dir="auto">انتهيت</span></button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- E — corriger -->
+  <div class="phwrap">
+    <div class="cap">E · Corriger — le registre reste en ajout-seul</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbar">
+        <span class="plate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
+        <div><div class="ttl" dir="auto">تصحيح العدّ</div><div class="mt" dir="auto">مصحف التهجد · th-01</div></div>
+      </div>
+      <div class="pbody">
+        <div class="preveal">
+          <div class="rh" dir="auto">ما سُجّل</div>
+          <div class="rr"><span class="k" dir="auto">العدّ الأول · 09:31</span><span class="v mono">100</span></div>
+          <div class="rr"><span class="k" dir="auto">العدّ المصحّح</span><span class="v mono">94</span></div>
+          <div class="rr gap"><span class="k" dir="auto">يُكتب في السجل</span><span class="v mono">−6</span></div>
+        </div>
+        <div class="pblind" style="margin-top:14px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+          <span dir="auto">لا يُحذف شيء. يُضاف سطر <span class="mono">arrival_correction</span> بـ −٦،
+          ويُقفل التصحيح بعد التسوية.</span>
+        </div>
+        <div class="pnum" style="padding-top:8px">
+          <div class="val mono" style="font-size:42px">94</div>
+          <div class="vu" dir="auto">وحدة</div>
+        </div>
+      </div>
+      <div class="pfoot">
+        <button class="pbig"><span dir="auto">تأكيد التصحيح</span></button>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="note">
+  <h3>Les quatre décisions du quai</h3>
+  <p><b>Le stock bouge au premier geste.</b> C'est l'inversion. L'agent n'a pas à comprendre
+  une machine à états : il compte, ça rentre, l'écran le lui prouve avec les trois chiffres qui
+  ont changé (le bâtiment, le total marché, le non-ventilé). C'est aussi la seule version
+  honnête : à ce moment-là le carton <i>est</i> au sol.</p>
+  <p><b>Aveugle par construction, pas par discipline.</b> La v3 affiche l'attendu et offre un
+  geste pour l'adopter (<span class="mono">ReceptionCountFlow.tsx:366</span>). Ici la surface du
+  quai n'a rien à montrer : ni prix, ni fournisseur, ni quantité attendue. Il n'y a aucune
+  ancre à retirer, donc aucune à remettre plus tard par commodité.</p>
+  <p><b>La variante est au niveau où vit le stock.</b> Choisir « دميه ملاكمه » ouvre ses trois
+  mesures ; on ne peut pas enregistrer le produit nu quand il est ventilé. C'est ce que la
+  v3 laisse passer — <span class="mono">variant_id: NULL</span> — et que
+  <span class="mono">scan_order_out</span> refuse ensuite de sortir.</p>
+  <p><b>La correction n'efface rien.</b> Re-compter écrit un second mouvement
+  (<span class="mono">arrival_correction</span>, −6) et la ligne porte « صُححت ». Le registre
+  reste en ajout-seul, et le soldage ferme la porte.</p>
+</div>
+
+<!-- ═════════════════════════ 3 · LA LISTE ════════════════════════════════ -->
+<div class="sechead"><h2>3 · Entrepôt › Stock › Réceptions</h2><span>deux espèces de ligne, parce qu'il y a deux natures d'objet</span></div>
+
+<div class="tabs" role="tablist">
+  <button role="tab" aria-selected="false">Niveaux</button>
+  <button role="tab" aria-selected="true">Réceptions</button>
+  <button role="tab" aria-selected="false">Journal</button>
+</div>
+
+<div class="toolbar" style="margin-top:14px">
+  <div class="segs">
+    <button class="seg" aria-pressed="true">À solder <span class="c warn">2</span></button>
+    <button class="seg" aria-pressed="false">Soldées <span class="c">14</span></button>
+    <button class="seg" aria-pressed="false">Toutes</button>
+  </div>
+  <div style="display:flex;gap:9px">
+    <button class="btn btn-sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg> Exporter</button>
+  </div>
+</div>
+
+<div class="card" style="overflow:hidden">
+  <div class="rhead">
+    <span>Référence · groupe</span><span>État</span><span class="tr">Quantités</span>
+    <span class="tr">Coût de revient</span><span>Qui</span><span></span>
+  </div>
+  <div class="rlist">
+
+    <div class="rrow claim">
+      <div>
+        <div class="ref grp">Tripoli · mardi 29 sept</div>
+        <div class="meta"><span>4 arrivages</span><span class="sep">·</span><span>pas encore de référence</span></div>
+      </div>
+      <div class="stcell"><span class="st st-open"><i></i>À solder</span></div>
+      <div class="qty"><div class="n mono">312</div><div class="u">4 lignes · 2 abîmées</div></div>
+      <div class="money none">non chiffré</div>
+      <div class="who">comptés par <b>Adel Ben Salah</b><div class="meta" style="margin-top:2px"><span>stock déjà entré</span></div></div>
+      <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow claim">
+      <div>
+        <div class="ref grp">Benghazi · lundi 28 sept</div>
+        <div class="meta"><span>2 arrivages</span><span class="sep">·</span><span>pas encore de référence</span></div>
+      </div>
+      <div class="stcell"><span class="st st-open"><i></i>À solder</span></div>
+      <div class="qty"><div class="n mono">80</div><div class="u">2 lignes</div></div>
+      <div class="money none">non chiffré</div>
+      <div class="who">comptés par <b>Nizar Haddad</b><div class="meta" style="margin-top:2px"><span>stock déjà entré</span></div></div>
+      <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div>
+        <div class="ref mono">REC-LY-2026-0014</div>
+        <div class="meta"><span dir="auto">مكتبة الرسالة</span><span class="sep">·</span><span>Tripoli</span><span class="sep">·</span><span>22 sept</span></div>
+      </div>
+      <div class="stcell"><span class="st st-ok"><i></i>Soldée</span><span class="pay pay-part">acompte 40 %</span></div>
+      <div class="qty"><div class="n mono">312</div><div class="u">8 lignes</div></div>
+      <div class="money">20 220,000<span class="cur">LYD</span></div>
+      <div class="who">soldée par <b>Salma Trabelsi</b></div>
+      <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div>
+        <div class="ref mono">REC-LY-2026-0013</div>
+        <div class="meta"><span dir="auto">الوفرة للتوزيع</span><span class="sep">·</span><span>Benghazi</span><span class="sep">·</span><span>14 sept</span></div>
+      </div>
+      <div class="stcell"><span class="st st-ok"><i></i>Soldée</span><span class="pay pay-ok">payée</span></div>
+      <div class="qty"><div class="n mono">120</div><div class="u">3 lignes</div></div>
+      <div class="money">12 480,000<span class="cur">LYD</span></div>
+      <div class="who">soldée par <b>Salma Trabelsi</b></div>
+      <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+    <div class="rrow">
+      <div>
+        <div class="ref mono">REC-LY-2026-0011</div>
+        <div class="meta"><span>Biovera Import</span><span class="sep">·</span><span>Tripoli</span><span class="sep">·</span><span>5 sept</span></div>
+      </div>
+      <div class="stcell"><span class="st st-rev"><i></i>Contre-passée</span></div>
+      <div class="qty"><div class="n mono">0</div><div class="u">annulée</div></div>
+      <div class="money none">—</div>
+      <div class="who">contre-passée par <b>Firas K.</b></div>
+      <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="note">
+  <h3>Ce que la liste dit maintenant</h3>
+  <p><b>Un groupe à solder n'a pas de référence</b> — il a un lieu et un jour. Le numéro est
+  l'identité du <i>document</i>, et le document naît au bureau. Le liseré vert mousse de 3 px
+  est le seul usage de la couleur « recevoir » sur la ligne, et il ne marque que ce qui attend
+  quelqu'un.</p>
+  <p><b>« non chiffré » en gris, pas <span class="mono">0,000</span>.</b> Même règle que
+  « non annoncé » : <span class="mono">null</span> plutôt que zéro. La colonne argent d'un
+  groupe non soldé n'est pas vide de valeur, elle est <b>vide de savoir</b>.</p>
+  <p><b>« stock déjà entré » sous le nom du compteur.</b> C'est la phrase qui empêche la
+  méprise la plus coûteuse possible sur cet écran : croire qu'il reste un geste avant que la
+  marchandise soit vendable.</p>
+  <p><b>Ce segment-là porte le compteur ambre</b>, et lui seul. « Soldées 14 » est une
+  information ; « À solder 2 » est une réclamation.</p>
+</div>
+
+<!-- ═════════════════════════ 4 · SOLDER ══════════════════════════════════ -->
+<div class="sechead"><h2>4 · Solder une réception</h2><span>trois blocs, dans l'ordre de l'engagement — vue manager</span></div>
+
+<div class="card" style="overflow:hidden">
+  <div class="sh-top">
+    <button class="back"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="sh-id">
+      <h3>Tripoli · mardi 29 septembre <span class="st st-open"><i></i>À solder</span></h3>
+      <div class="sh-sub">
+        <span class="instock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg>312 unités déjà en stock</span>
+        <span class="sep">·</span>
+        <span>4 arrivages comptés par <b>Adel Ben Salah</b></span><span class="sep">·</span>
+        <span>de <span class="mono">09:12</span> à <span class="mono">10:02</span></span><span class="sep">·</span>
+        <span><b>2</b> abîmées</span>
+      </div>
+    </div>
+    <button class="btn btn-sec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/><path d="M3 12h18"/></svg> Scinder</button>
+  </div>
+
+  <!-- bloc 1 -->
+  <div class="blk done">
+    <button class="blk-h">
+      <span class="idx">1</span>
+      <span class="lb">D'où ça vient</span>
+      <span class="sm"><b dir="auto">مكتبة الرسالة</b><span class="sep">·</span>facture <span class="mono">4471</span><span class="sep">·</span>du 28 sept<span class="sep">·</span>BL photographié</span>
+      <span class="car"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 15l-6-6-6 6"/></svg></span>
+    </button>
+    <div class="blk-b">
+      <div class="fgrid">
+        <div class="fld"><label>Fournisseur</label>
+          <div class="combo"><div class="chosen"><span class="av" dir="auto">الر</span><span class="nm" dir="auto">مكتبة الرسالة</span><span class="ch">changer</span></div></div>
+        </div>
+        <div class="fld"><label>N° de facture / BL</label><input class="inp mono" value="4471" readonly></div>
+        <div class="fld"><label>Date de la facture</label><input class="inp mono" value="28/09/2026" readonly></div>
+        <div class="fld"><label>Le papier</label>
+          <div class="bl"><span class="sq">🧾</span><div><div class="t">BL-4471.jpg</div><div class="s">photographié sur le quai</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bloc 2 -->
+  <div class="blk">
+    <button class="blk-h">
+      <span class="idx">2</span>
+      <span class="lb">Ce que ça a coûté</span>
+      <span class="sm">marchandises <b class="mono">18 720,000</b><span class="sep">+</span>frais <b class="mono">1 500,000</b></span>
+      <span class="car"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 15l-6-6-6 6"/></svg></span>
+    </button>
+  </div>
+
+  <div class="lhead">
+    <span>Produit</span><span class="tr">Compté</span><span class="tr">Abîmé</span>
+    <span class="tr moneyedge">Prix fourn.</span><span class="tr">Frais rép.</span>
+    <span class="tr">Coût de revient</span><span class="tr">Total</span>
+  </div>
+
+  <div class="lrow">
+    <div class="lprod"><span class="th">📗</span><div><div class="pn bidi">القرآن تدبر وعمل</div><div class="pc">qr-01</div></div></div>
+    <div class="lnum">150</div>
+    <div class="tr"><span class="dmg0">0</span></div>
+    <div class="moneyedge"><input class="lin" value="40,000"></div>
+    <div class="lnum add">+3,205</div>
+    <div class="lnum land">43,205</div>
+    <div class="lnum">6 480,769</div>
+  </div>
+
+  <div class="lrow">
+    <div class="lprod"><span class="th">📘</span><div><div class="pn bidi">مصحف التهجد و قيام الليل</div><div class="pc">th-01</div></div></div>
+    <div class="lnum">94</div>
+    <div class="tr"><span class="dmgN">2</span></div>
+    <div class="moneyedge"><input class="lin" value="85,000"></div>
+    <div class="lnum add">+6,811</div>
+    <div class="lnum land">91,811</div>
+    <div class="lnum">8 630,224</div>
+  </div>
+
+  <div class="lrow">
+    <div class="lprod"><span class="th">📕</span><div><div class="pn bidi">كتاب الحفظ الميسر</div><div class="pc">hm-01</div></div></div>
+    <div class="lnum">60</div>
+    <div class="tr"><span class="dmg0">0</span></div>
+    <div class="moneyedge"><input class="lin" value="73,500"></div>
+    <div class="lnum add">+5,889</div>
+    <div class="lnum land">79,389</div>
+    <div class="lnum">4 763,365</div>
+  </div>
+
+  <div class="lrow">
+    <div class="lprod"><span class="th">🧸</span><div><div class="pn bidi">دميه ملاكمه <span class="vchip" dir="auto">صغير</span></div><div class="pc">box-wafra-shop</div></div></div>
+    <div class="lnum">8</div>
+    <div class="tr"><span class="dmg0">0</span></div>
+    <div class="moneyedge"><input class="lin" value="40,000"></div>
+    <div class="lnum add">+3,205</div>
+    <div class="lnum land">43,205</div>
+    <div class="lnum">345,641</div>
+  </div>
+
+  <!-- frais d'approche -->
+  <div class="fees" style="margin-top:16px">
+    <div class="fh">
+      <span class="lb">Frais d'approche</span>
+      <span class="hint">ce qui a été payé pour que la marchandise arrive ici</span>
+      <span class="basis">
+        <button aria-pressed="true">par valeur</button>
+        <button aria-pressed="false">par unité</button>
+      </span>
+    </div>
+    <div class="frow"><span class="fl">Transport Misrata → Tripoli</span><span class="fv">900,000</span></div>
+    <div class="frow"><span class="fl">Droits de douane</span><span class="fv">420,000</span></div>
+    <div class="frow"><span class="fl">Manutention · déchargement</span><span class="fv">180,000</span></div>
+    <div class="frow sum"><span class="fl">Total réparti sur 312 unités · 4,808 LYD/unité en moyenne</span><span class="fv">1 500,000</span></div>
+    <div class="fadd"><button class="btn btn-quiet"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Ajouter un frais</button></div>
+  </div>
+
+  <!-- bloc 3 — le rapprochement -->
+  <div class="blk" style="border-top:1px solid var(--line)">
+    <button class="blk-h">
+      <span class="idx">3</span>
+      <span class="lb">Le rapprochement</span>
+      <span class="sm">la barrière : ça doit tomber juste contre le papier</span>
+      <span class="car"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 15l-6-6-6 6"/></svg></span>
+    </button>
+  </div>
+
+  <div class="rec" style="margin-top:14px">
+    <div class="pair">
+      <div>
+        <div class="k">Marchandises · calculé par Ordra</div>
+        <div class="v mono">18 720,000<span class="cur">LYD</span></div>
+        <div class="src">4 lignes comptées sur le quai × les prix saisis ci-dessus</div>
+      </div>
+      <div>
+        <div class="k">Total de la facture · tapé du papier</div>
+        <input class="inpbig mono" value="18 720,000">
+        <div class="src">facture <span class="mono">4471</span> — frais d'approche exclus</div>
+      </div>
+    </div>
+    <div class="verd ok">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M20 6L9 17l-5-5"/></svg></span>
+      <span class="tx">Concordant</span>
+      <span class="sm">le compte du quai et le papier du fournisseur disent la même chose</span>
+    </div>
+  </div>
+
+  <div class="sh-foot">
+    <div class="totals">
+      <div class="tot big"><div class="k">Coût de revient total</div><div class="v">20 220,000<span class="u">LYD</span></div></div>
+      <div class="tot"><div class="k">Unités en stock</div><div class="v">312</div></div>
+      <div class="tot"><div class="k">Abîmées</div><div class="v warn">2</div></div>
+      <div class="tot"><div class="k">Part des frais</div><div class="v">8,0<span class="u">%</span></div></div>
+    </div>
+    <div class="acts">
+      <button class="btn btn-sec">Enregistrer sans solder</button>
+      <button class="btn btn-pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 6L9 17l-5-5"/></svg> Solder et chiffrer</button>
+    </div>
+  </div>
+
+  <div class="due">
+    <button class="due-h">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--ink-3)"><path d="M6 9l6 6 6-6"/></svg>
+      <span class="lb">À payer</span>
+      <span class="pay pay-no">rien versé</span>
+      <span class="rest">18 720,000 LYD · échéance 15 oct</span>
+    </button>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Les quatre décisions du bureau</h3>
+  <p><b>« Compté » est en lecture seule ici.</b> Le quai possède la quantité ; le bureau possède
+  l'argent. C'est l'inversion exacte de la v3, où le desk tapait les quantités que l'agent avait
+  déjà comptées — ce qui en faisait le deuxième comptage de personne.</p>
+  <p><b>« Coût de revient » est la colonne grasse, pas « Prix fourn. »</b> Le prix du fournisseur
+  n'est pas ce que la marchandise coûte : <span class="mono">grep</span> ne trouve aucune
+  occurrence de transport, douane ou dédouanement dans la migration v3, donc tout COGS adopté
+  aujourd'hui est <b>systématiquement trop bas</b> — ce qui gonfle la marge de chaque produit,
+  le seuil de rentabilité et les relevés investisseurs. Ici 40,000 devient 43,205, et c'est
+  <b>43,205</b> qui devient le COGS.</p>
+  <p><b>Les frais se répartissent au prorata de la valeur</b>, avec « par unité » en second choix
+  (une palette de livres et un carton de jouets ne partagent pas le transport de la même façon).
+  La somme des répartitions est exactement le total des frais — pas d'arrondi perdu.</p>
+  <p><b>Le bandeau « 312 unités déjà en stock » est en vert mousse en haut de la feuille.</b>
+  Sur cet écran, c'est le fait le plus facile à oublier et le plus cher à oublier.</p>
+</div>
+
+<!-- ═════════════════════════ 5 · L'ÉCART ═════════════════════════════════ -->
+<div class="sechead"><h2>5 · Quand ça ne tombe pas juste</h2><span>une phrase, trois chiffres, deux choix</span></div>
+
+<div class="scrim">
+  <div class="modal" style="max-width:560px">
+    <div class="mo-h">
+      <div><h3>La facture ne tombe pas sur le compte</h3>
+        <div class="s">Tripoli · mardi 29 septembre · <span dir="auto">مكتبة الرسالة</span></div></div>
+      <button class="btn btn-quiet" style="padding:2px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="mo-b">
+      <p class="say">Le fournisseur demande <b>170,000 de plus</b> que ce qui est entré en stock.</p>
+
+      <div class="sums">
+        <div class="sr"><span>Compté sur le quai</span><span class="mono">18 720,000</span></div>
+        <div class="sr"><span>Facture <span class="mono">4471</span></span><span class="mono">18 890,000</span></div>
+        <div class="sr gap"><span>Écart</span><span class="mono">+170,000</span></div>
+      </div>
+
+      <div class="cause">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <div><b>2 unités de <span dir="auto">مصحف التهجد</span> sont arrivées cassées</b>, et la
+        facture les compte. Elles ne sont jamais entrées en stock.</div>
+      </div>
+
+      <div class="choices">
+        <button class="ch reco">
+          <span class="tagr">recommandé</span>
+          <div class="t">Réclamer les 170,000</div>
+          <div class="d">On doit <b class="mono">18 720,000</b> — ce qui est entré. Le litige reste
+          visible dans Achats jusqu'à sa résolution.</div>
+        </button>
+        <button class="ch">
+          <div class="t">Payer quand même</div>
+          <div class="d">On doit <b class="mono">18 890,000</b>. La casse passe en perte.</div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Pourquoi c'est ça, le contrôle</h3>
+  <p><b>Une deuxième signature ne crée pas de preuve.</b> Elle crée un deuxième nom sous le même
+  chiffre non vérifié. Un <b>rapprochement</b> compare deux sources indépendantes : ce que l'agent
+  a compté à l'aveugle, et ce que le fournisseur réclame par écrit.</p>
+  <p><b>Et Ordra trouve l'écart tout seul quand il peut.</b> Il connaît
+  <span class="mono">damaged_qty</span> et il connaît le prix :
+  <span class="mono">2 × 85,000 = 170,000</span>, exactement le trou. C'est ce qui permet de
+  remplacer un formulaire de motifs par <b>deux boutons qui portent chacun leur conséquence
+  chiffrée</b> — et c'est enfin un <i>usage</i> pour l'avarie, que la v3 compte sans que rien
+  ne la lise.</p>
+  <p><b>Quand il ne trouve pas</b>, la même boîte affiche « Ordra ne trouve pas la cause » et
+  demande une ligne d'explication avant de laisser solder. Le soldage reste bloqué dans les deux
+  cas : c'est la barrière, pas un avertissement.</p>
+</div>
+
+<!-- ═════════════════════════ 6 · À L'AVEUGLE ═════════════════════════════ -->
+<div class="sechead"><h2>6 · L'écart, quand il existe vraiment</h2><span>le bon de commande naît du manque — et l'attendu reste caché jusqu'au compte</span></div>
+
+<div class="cmp">
+  <div class="card">
+    <h3>Le bon de commande naît du réassort</h3>
+    <div style="padding:14px 0 0">
+      <div class="parr" style="background:var(--sunken)">
+        <span class="th">📘</span>
+        <div><div class="nm bidi">مصحف التهجد و قيام الليل</div>
+          <div class="sb">couverture 9 jours · rupture le 8 oct</div></div>
+        <div class="q"><div class="n mono">122</div><div class="u">en stock</div></div>
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn btn-pri" style="min-height:38px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Commander 150</button>
+        <button class="btn btn-sec" style="min-height:38px">Ignorer</button>
+      </div>
+    </div>
+    <div class="verdict"><b>C'est de là que vient l'attendu.</b> Personne n'écrira jamais un bon
+    de commande dans un formulaire vide — et c'est pour ça que
+    <span class="mono">expected_qty</span> de la v3 sera éternellement
+    <span class="mono">NULL</span>. En naissant du manque, il est pré-rempli : produit, quantité,
+    fournisseur habituel, date voulue. Et l'écart se mesure alors contre <b>notre propre plan</b>,
+    ce qui est plus utile que contre le papier du fournisseur.</div>
+  </div>
+
+  <div class="card" style="padding:18px 20px 20px">
+    <h3>Taux de service, délai — enfin calculables</h3>
+    <div class="verdict" style="margin-top:12px">Un attendu réel rend trois chiffres possibles,
+    et ce sont les seules raisons honnêtes de capter un écart :</div>
+    <div class="lanes" style="margin-top:12px">
+      <div class="lane"><div class="t"><span>Taux de service</span><span class="mono">94 %</span></div>
+        <div class="b">commandé 150, reçu 141 sur les 6 derniers BC</div></div>
+      <div class="lane"><div class="t"><span>Délai moyen</span><span class="mono">11 j</span></div>
+        <div class="b">de la commande au quai — ce qui rend <span class="mono">reorder_by_date</span> honnête</div></div>
+      <div class="lane"><div class="t"><span>Fiabilité du prix</span><span class="mono">2 / 6</span></div>
+        <div class="b">deux factures sur six ne tombaient pas sur le prix annoncé</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="phones" style="margin-top:16px">
+  <div class="phwrap">
+    <div class="cap">F · Le quai ne voit toujours rien</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbar">
+        <span class="plate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></span>
+        <div><div class="ttl" dir="auto">كم وحدة؟</div><div class="mt" dir="auto">مصحف التهجد · th-01</div></div>
+      </div>
+      <div class="pbody">
+        <div class="pnum">
+          <div class="val mono">94</div><div class="vu" dir="auto">وحدة</div>
+        </div>
+        <div class="pad">
+          <button class="mono">1</button><button class="mono">2</button><button class="mono">3</button>
+          <button class="mono">4</button><button class="mono">5</button><button class="mono">6</button>
+          <button class="mono">7</button><button class="mono">8</button><button class="mono">9</button>
+          <button class="alt">C</button><button class="mono">0</button><button class="alt">⌫</button>
+        </div>
+        <div class="pblind">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><path d="M4 4l16 16"/></svg>
+          <span dir="auto">هناك أمر شراء بـ ١٥٠ وحدة. لن تراه قبل أن تُثبّت عدّك.</span>
+        </div>
+      </div>
+      <div class="pfoot"><button class="pbig"><span dir="auto">إدخال إلى المخزون</span></button></div>
+    </div></div>
+  </div>
+
+  <div class="phwrap">
+    <div class="cap">G · Révélé après l'engagement</div>
+    <div class="ph"><div class="notch"><i></i></div><div class="scr rtl">
+      <div class="pbody">
+        <div class="pdone" style="padding-top:20px">
+          <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <div class="big mono">+94</div>
+          <div class="lb" dir="auto">دخلت المخزون</div>
+        </div>
+        <div class="preveal">
+          <div class="rh" dir="auto">مقابل أمر الشراء</div>
+          <div class="rr"><span class="k" dir="auto">المطلوب</span><span class="v mono">150</span></div>
+          <div class="rr"><span class="k" dir="auto">المعدود</span><span class="v mono">94</span></div>
+          <div class="rr gap"><span class="k" dir="auto">الفرق</span><span class="v mono">−56</span></div>
+        </div>
+        <button class="pbig ghost" style="margin-top:12px"><span dir="auto">إبلاغ المورّد بالنقص</span></button>
+      </div>
+      <div class="pfoot"><button class="pbig"><span dir="auto">منتج آخر</span></button></div>
+    </div></div>
+  </div>
+
+  <div class="phwrap" style="flex:1;min-width:300px">
+    <div class="cap" style="text-align:left">Pourquoi dans cet ordre</div>
+    <div class="note" style="height:auto">
+      <h3>L'ancre, et comment on l'enlève</h3>
+      <p>Montrer « attendu 150 » avant le comptage ne fait pas gagner du temps : ça fait
+      <b>écrire 150</b>. La v3 va plus loin et offre un geste pour l'adopter d'un doigt
+      (<span class="mono">ReceptionCountFlow.tsx:366</span>) — on a construit l'ancrage exprès et
+      on l'a appelé confort. C'est la fonction la plus susceptible de produire une réception qui
+      dit 150 quand 144 sont arrivés.</p>
+      <p><b>Réception à l'aveugle</b> est la règle de tout entrepôt sérieux : l'attendu est caché
+      jusqu'à ce que le compte soit engagé, puis l'écart s'affiche — et il est <i>utile</i>, parce
+      qu'il est désormais une information sur le fournisseur et non sur la mémoire de l'agent.</p>
+      <p>Coût : quelques heures. C'est la correction au meilleur rapport de toute cette maquette,
+      et elle ne dépend d'aucune autre.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════ 7 · FINANCES › ACHATS ═══════════════════════ -->
+<div class="sechead"><h2>7 · Finances › Achats</h2><span>deux questions seulement : qu'est-ce que je dois, et à qui puis-je me fier</span></div>
+
+<div class="card" style="overflow:hidden">
+  <div class="kpis3">
+    <div class="kpi"><div class="k">Dû aux fournisseurs</div><div class="v">17 432,000<span class="cur">LYD</span></div><div class="s">2 réceptions non réglées</div></div>
+    <div class="kpi"><div class="k">En retard</div><div class="v" style="color:var(--bad)">6 200,000<span class="cur">LYD</span></div><div class="s bad">Biovera Import · 9 jours</div></div>
+    <div class="kpi"><div class="k">Achats 30 jours</div><div class="v">20 220,000<span class="cur">LYD</span></div><div class="s">coût de revient · dont 1 500,000 de frais d'approche</div></div>
+  </div>
+</div>
+
+<div class="sechead" style="margin-top:16px"><h2 style="font-size:14px">À payer</h2><span>par urgence — c'est la seule liste sur laquelle on agit</span></div>
+
+<div class="card" style="overflow:hidden">
+  <div class="dhead">
+    <span>Fournisseur · réception</span><span class="tr">Reste à payer</span><span>Échéance</span><span></span>
+  </div>
+
+  <div class="drow late">
+    <div><div class="sn">Biovera Import</div><div class="ss mono">REC-LY-2026-0009 · 24 août</div></div>
+    <div class="m late">6 200,000</div>
+    <div class="due-when late">échue le 24 sept<br><b>9 jours de retard</b></div>
+    <div class="tr"><button class="btn btn-sec" style="min-height:36px;padding:7px 14px">Payer</button></div>
+  </div>
+
+  <div class="drow">
+    <div><div class="sn"><span dir="auto">مكتبة الرسالة</span></div><div class="ss mono">REC-LY-2026-0014 · 22 sept</div></div>
+    <div class="m">11 232,000<div class="ss" style="font-weight:400">acompte 7 488,000</div></div>
+    <div class="due-when">échéance 15 oct<br><b>dans 12 jours</b></div>
+    <div class="tr"><button class="btn btn-sec" style="min-height:36px;padding:7px 14px">Payer</button></div>
+  </div>
+</div>
+
+<div class="sechead" style="margin-top:16px"><h2 style="font-size:14px">Les fournisseurs</h2><span>trois chiffres : ce qu'on leur doit, s'ils livrent complet, et en combien de temps</span></div>
+
+<div class="card" style="overflow:hidden">
+  <div class="shead">
+    <span>Fournisseur</span><span class="tr">Dû</span><span class="tr">Livre complet</span><span class="tr">Délai moyen</span>
+  </div>
+
+  <div class="srow">
+    <div><div class="sn"><span dir="auto">مكتبة الرسالة</span></div>
+      <div class="ss">livres · Misrata · 6 réceptions · 47 310,000 sur 90 j</div></div>
+    <div class="m">11 232,000<div class="ss" style="font-weight:400"><span class="pay pay-no" style="margin-top:3px">litige 170,000</span></div></div>
+    <div><div class="pct">94 %</div><div class="bar"><i style="width:94%"></i></div></div>
+    <div class="m">11 j</div>
+  </div>
+
+  <div class="srow">
+    <div><div class="sn"><span dir="auto">الوفرة للتوزيع</span></div>
+      <div class="ss">jouets · Benghazi · 4 réceptions · 12 480,000 sur 90 j</div></div>
+    <div class="m zero">—</div>
+    <div><div class="pct">100 %</div><div class="bar"><i style="width:100%"></i></div></div>
+    <div class="m">4 j</div>
+  </div>
+
+  <div class="srow">
+    <div><div class="sn">Biovera Import</div>
+      <div class="ss">cosmétique · import · 3 réceptions · 31 090,000 sur 90 j</div></div>
+    <div class="m late">6 200,000</div>
+    <div><div class="pct">88 %</div><div class="bar"><i class="mid" style="width:88%"></i></div></div>
+    <div class="m">23 j</div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Ce qu'on garde, et ce qu'on a retiré</h3>
+  <p><b>Trois indicateurs, pas cinq.</b> Ce qu'on doit, ce qui est en retard, ce qu'on a acheté.
+  « En litige » est parti en pastille sur la ligne du fournisseur concerné — un litige se traite
+  chez quelqu'un, pas dans un compteur ; et les frais d'approche sont devenus la sous-ligne des
+  achats, parce que leur part n'a de sens que rapportée au total.</p>
+  <p><b>La liste « À payer » passe avant les fournisseurs</b>, parce que c'est la seule des deux
+  sur laquelle on agit. Les échéances sont écrites en humain — « 9 jours de retard », « dans
+  12 jours » — et pas seulement en dates : personne ne soustrait des dates de tête.</p>
+  <p><b>Le dû est la facture marchandises, pas le coût de revient.</b> On doit 18 720,000 au
+  libraire ; les 1 500,000 de transport et de douane sont dus à d'autres. Confondre les deux
+  ferait payer deux fois dans la tête du lecteur.</p>
+  <p><b>Et « dépense 90 j » n'est plus une colonne</b> : c'est de la curiosité, pas une décision.
+  Elle reste en sous-titre, là où on la lit sans la chercher. Restent trois chiffres par
+  fournisseur — ce qu'on lui doit, s'il livre complet, et en combien de temps — qui sont les
+  seules choses sur lesquelles on change de comportement.</p>
+</div>
+
+<!-- ═════════════════════════ 8 · RÉGLAGES ════════════════════════════════ -->
+<div class="sechead"><h2>8 · Système › Paramètres › Coûts</h2><span>une seule décision, et elle a un défaut évident</span></div>
+
+<div class="cmp">
+  <div class="card" style="padding:18px 20px 20px">
+    <h3>Coût de revient · Libye</h3>
+    <div class="toggle" style="margin-top:14px;align-items:flex-start;padding:15px 16px">
+      <span class="sw" style="margin-top:2px"></span>
+      <div><div class="t">Mettre à jour le coût de revient au soldage</div>
+        <div class="d">Chaque soldage recalcule la moyenne pondérée —
+        <b>frais d'approche inclus</b>. Décoché, les prix restent enregistrés sur la réception,
+        mais <span class="mono">unit_cogs</span> ne bouge pas et reste posé à la main.</div></div>
+    </div>
+    <div class="verdict" style="margin-top:14px"><b>Il n'y a pas de troisième option, et c'est
+    volontaire.</b> « Dernier prix payé » est une moyenne pondérée en pire — plus nerveuse, moins
+    juste — que personne ne choisirait en connaissance de cause. Et <b>exclure les frais
+    d'approche n'est pas un réglage : c'est une façon d'avoir tort.</b> Le transport et la douane
+    sont ce que la marchandise coûte ; une case pour les ignorer ne sert qu'à produire une marge
+    trop belle.</div>
+  </div>
+
+  <div class="card" style="padding:18px 20px 20px">
+    <h3>Effet du prochain soldage</h3>
+    <div style="margin-top:12px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+      <div class="cog" style="background:var(--sunken)">
+        <span class="pn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)">Produit</span>
+        <span class="a" style="font-size:10px;letter-spacing:.06em;text-transform:uppercase">actuel</span>
+        <span class="ar"></span>
+        <span class="b" style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--ink-3)">après</span>
+      </div>
+      <div class="cog"><span class="pn bidi">القرآن تدبر وعمل</span><span class="a">40,000</span><span class="ar">→</span><span class="b">40,510</span></div>
+      <div class="cog"><span class="pn bidi">مصحف التهجد</span><span class="a">85,000</span><span class="ar">→</span><span class="b">87,964</span></div>
+      <div class="cog"><span class="pn bidi">كتاب الحفظ الميسر</span><span class="a">73,500</span><span class="ar">→</span><span class="b">75,183</span></div>
+      <div class="cog"><span class="pn bidi">دميه ملاكمه · صغير</span><span class="a">40,000</span><span class="ar">→</span><span class="b">40,513</span></div>
+    </div>
+    <div class="verdict"><b>Ce tableau n'est pas une question, c'est une conséquence.</b> La v3 pose
+    la question à qui valide, dans la modale, case décochée : la base de coût de l'entreprise
+    devient fonction de l'attention de quelqu'un à 23 h sur un quai.</div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>Ce que ça ne règle pas, et qu'il faut dire</h3>
+  <p>Le P&amp;L lit <span class="mono">products.unit_cogs</span> <b>en direct</b> ;
+  <span class="mono">investor_order_facts</span> aussi. Donc même appliquée par réglage, une
+  moyenne pondérée <b>redate le profit passé</b> : une commande livrée en août sera recalculée au
+  coût d'octobre.</p>
+  <p>La vraie correction est un historique
+  <span class="mono">product_cost_history(product_id, variant_id, cost, effective_from)</span>,
+  écrit par le soldage et lu par période. Ce n'est pas dans cette maquette, mais
+  <b>aucun réglage de coût n'est honnête sans lui</b> — à décider avant d'activer l'interrupteur
+  ci-dessus.</p>
+</div>
+
+<!-- ═════════════════════════ 9 · NIVEAUX ═════════════════════════════════ -->
+<div class="sechead"><h2>9 · Niveaux — le stock non chiffré se voit</h2><span>parce que sa marge est inconnue</span></div>
+
+<div class="card" style="overflow:hidden">
+  <div class="nhead">
+    <span>Produit</span><span class="tr">En stock</span><span class="tr">Coût de revient</span><span>État</span>
+  </div>
+  <div class="nrow">
+    <div class="lprod"><span class="th">📘</span><div><div class="pn bidi">مصحف التهجد و قيام الليل</div><div class="pc">th-01</div></div></div>
+    <div class="lnum">216</div>
+    <div class="lnum dim">85,000</div>
+    <div><span class="unpriced"><i></i>94 non chiffrées</span></div>
+  </div>
+  <div class="nrow">
+    <div class="lprod"><span class="th">📗</span><div><div class="pn bidi">القرآن تدبر وعمل</div><div class="pc">qr-01</div></div></div>
+    <div class="lnum">943</div>
+    <div class="lnum dim">40,000</div>
+    <div><span class="unpriced"><i></i>150 non chiffrées</span></div>
+  </div>
+  <div class="nrow">
+    <div class="lprod"><span class="th">🧴</span><div><div class="pn">Biovera</div><div class="pc">bv-01</div></div></div>
+    <div class="lnum">1003</div>
+    <div class="lnum dim">12,400</div>
+    <div><span class="who" style="color:var(--ink-3)">—</span></div>
+  </div>
+</div>
+
+<div class="note">
+  <h3>La contrepartie honnête de « le stock entre tout de suite »</h3>
+  <p>Si la marchandise est vendable avant d'être chiffrée, alors la marge de ces unités est
+  <b>inconnue</b> pendant quelques jours, et l'écran qui parle de stock doit le dire. Le marqueur
+  vert mousse porte son nombre — « 94 non chiffrées » — jamais la couleur seule. Il disparaît au
+  soldage.</p>
+  <p>C'est le prix de l'inversion, et il est petit : quelques jours de marge imprécise sur les
+  unités d'une semaine, contre une fenêtre où la marchandise est sur l'étagère et invisible au
+  système.</p>
+</div>
+
+<!-- ═════════════════════════ 10 · BILAN ══════════════════════════════════ -->
+<div class="sechead"><h2>10 · Le bilan v3 → v4</h2><span>ce qui change, ce qui disparaît, et ce que ça coûte</span></div>
+
+<div class="card" style="overflow:hidden">
+  <table class="dec">
+    <tr><th style="width:26%">Changement</th><th style="width:38%">Pourquoi</th><th>Effet</th></tr>
+    <tr><td><b>L'arrivage fait entrer le stock</b></td>
+      <td>L'état <span class="mono">submitted</span> est une fenêtre où la marchandise est sur
+      l'étagère et où Ordra dit qu'elle n'existe pas. Quelqu'un la vendra.</td>
+      <td>Réel-mais-non-chiffré au lieu de réel-mais-invisible. Le quai passe de 6 champs à 2.</td></tr>
+    <tr><td><b>La référence naît au soldage</b></td>
+      <td>Le numéro est l'identité du document, et le document naît au bureau. Un groupe à solder
+      a un lieu et un jour.</td>
+      <td><span class="mono">receptions.reference</span> devient nullable ; l'agent n'a plus jamais
+      à lire une référence.</td></tr>
+    <tr><td><b>Le rapprochement remplace la validation</b></td>
+      <td>Une deuxième signature ne crée pas de preuve, elle crée un deuxième nom sous le même
+      chiffre. Deux sources indépendantes, oui.</td>
+      <td>Le soldage <b>refuse</b> un écart injustifié, et propose la cause quand il la connaît.</td></tr>
+    <tr><td><b>Aveugle par construction</b></td>
+      <td>La v3 affiche l'attendu et offre un geste pour l'adopter. On a construit l'ancrage
+      exprès.</td>
+      <td>Rien à ancrer sur le quai ; l'écart apparaît <i>après</i> l'engagement, et devient une
+      information sur le fournisseur.</td></tr>
+    <tr><td><b>Frais d'approche</b></td>
+      <td>Zéro occurrence de transport, douane ou dédouanement dans la migration v3 : tout COGS
+      adopté est trop bas, donc toute marge est trop belle.</td>
+      <td>40,000 → <b>43,205</b>. C'est le second chiffre qui devient le COGS.</td></tr>
+    <tr><td><b>La politique de coût part dans les réglages</b></td>
+      <td>Une case décochée dans une modale fait de la base de coût une fonction de l'attention de
+      quelqu'un.</td>
+      <td><span class="mono">p_adopt_costs</span> disparaît ; la feuille montre la conséquence, pas
+      une question.</td></tr>
+    <tr><td><b>Fournisseurs + Finances › Achats</b></td>
+      <td>« Combien je dois à ce fournisseur » est aujourd'hui inrépondable : les paiements sont
+      captés à un grain qui n'agrège pas, et Finances ne les lit pas.</td>
+      <td>Dû, retard, dépense 90 j, taux de service, délai. La donnée existante devient lisible.</td></tr>
+    <tr><td><b>Le bon de commande naît du manque</b></td>
+      <td>Personne ne remplira un formulaire de commande vide — d'où
+      <span class="mono">expected_qty</span> éternellement NULL.</td>
+      <td>L'attendu existe enfin, et l'écart se mesure contre notre plan.</td></tr>
+    <tr><td><b>L'abîmé devient une réclamation</b></td>
+      <td><span class="mono">damaged_qty</span> est un nombre que rien ne lit et sur lequel
+      personne n'agit.</td>
+      <td>Un litige chiffré, visible dans Finances jusqu'à sa résolution.</td></tr>
+    <tr><td><b>La variante au moment du comptage</b></td>
+      <td><span class="mono">variant_id: NULL</span> met 50 M + 50 L dans le non-ventilé, que
+      <span class="mono">scan_order_out</span> refuse ensuite de sortir.</td>
+      <td>Le module cesse de créer du stock que le reste d'Ordra ne sait pas vendre.</td></tr>
+    <tr><td><b>Les vraies couleurs, pour de bon</b></td>
+      <td>La v3 reproche à la v2 d'inventer sa palette puis invente la sienne : #F6F7F5, #1B1D1A,
+      #0E7A45, #B23A2E — <b>aucune n'existe dans le produit</b>.</td>
+      <td>#F6F6F7, #1A1A1A, #15803D, #D72C0D, et la famille
+      <span class="mono">--job-receive</span> que l'entrepôt utilise depuis le 2 octobre.</td></tr>
+  </table>
+</div>
+
+<div class="card" style="padding:18px 20px 20px">
+  <h3 style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--bad)">Ce qui est supprimé</h3>
+  <div style="margin-top:12px">
+    <span class="kill">état <span class="mono">draft</span></span>
+    <span class="kill">état <span class="mono">submitted</span></span>
+    <span class="kill">état <span class="mono">posted</span></span>
+    <span class="kill">segment « À valider »</span>
+    <span class="kill">« Déclarer la réception »</span>
+    <span class="kill">« Valider et entrer en stock »</span>
+    <span class="kill">« Renvoyer à l'agent »</span>
+    <span class="kill"><span class="mono">post_reception</span></span>
+    <span class="kill">route <span class="mono">/submit</span></span>
+    <span class="kill">route <span class="mono">/unsubmit</span></span>
+    <span class="kill"><span class="mono">p_adopt_costs</span></span>
+    <span class="kill">la puce d'ancrage <span class="mono">chipExpected</span></span>
+    <span class="kill">la colonne « Attendu » sur la feuille</span>
+    <span class="kill">le filet de progression « 4 / 5 comptées »</span>
+  </div>
+  <div class="verdict" style="font-size:13px;color:var(--ink-2);margin-top:14px">
+    <b>Aucune donnée à migrer.</b> <span class="mono">post_reception</span> a été appelée zéro
+    fois, il y a zéro ligne de réception et zéro paiement. La seule réception existante est un
+    brouillon vide du 1<sup>er</sup> octobre. C'est la fenêtre la moins chère qu'on aura jamais
+    pour changer cette structure — dans six mois, ce serait une migration.
+  </div>
+</div>
+
+<div class="note">
+  <h3>Ordre de construction, par rapport valeur / effort</h3>
+  <p><b>1 · Fournisseurs + Finances › Achats.</b> Ne touche à aucun stock, ne casse rien, et rend
+  répondable tout ce qu'on capte déjà. <b>2 · Comptage à l'aveugle</b> — quelques heures, supprime
+  le pire défaut, ne dépend de rien. <b>3 · Variantes dans le sélecteur</b> — c'est un bug de
+  justesse, pas une fonction. <b>4 · Frais d'approche + politique de coût</b> — protège le P&L et
+  les relevés investisseurs. <b>5 · Le quai et le bureau</b> — le gros morceau, et le seul qui
+  demande une bascule d'états. <b>6 · Bons de commande nés du réassort.</b>
+  <b>7 · Réclamations fournisseur.</b></p>
+  <p>Hors périmètre, volontairement : emplacements de rangement, plaques de palette, lots et
+  péremption, numéros de série, matrices de tolérance de sur-réception, ASN/EDI, couches FIFO.
+  C'est pour dix mille références ; il y en a <b>onze</b>.</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -108,9 +108,45 @@ describe("ReceptionCountFlow — une ligne à la fois", () => {
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
   });
 
-  it("montre l'attendu de la ligne", () => {
+});
+
+/**
+ * RÉCEPTION À L'AVEUGLE.
+ *
+ * Montrer « attendu 100 » avant le comptage ne fait pas gagner du temps : ça
+ * fait ÉCRIRE 100. L'attendu reste donc caché jusqu'à ce que l'agent ait engagé
+ * son compte, puis il apparaît AVEC l'écart — qui devient alors une information
+ * sur le FOURNISSEUR, et non sur la mémoire de l'agent. C'est la règle de tout
+ * entrepôt sérieux ; la version précédente faisait l'inverse, en affichant
+ * l'attendu et en offrant un geste pour l'adopter d'un doigt.
+ */
+describe("ReceptionCountFlow — à l'aveugle", () => {
+  it("cache l'attendu tant que rien n'est compté", () => {
     wrap();
+    expect(screen.queryByText("100")).not.toBeInTheDocument();
+    expect(screen.queryByText(/attendu/i)).not.toBeInTheDocument();
+  });
+
+  it("n'offre plus d'adopter l'attendu d'un geste", () => {
+    wrap();
+    expect(screen.queryByRole("button", { name: /l'attendu/i })).not.toBeInTheDocument();
+  });
+
+  it("révèle l'attendu et l'écart une fois le compte engagé", () => {
+    wrap({}, { l1: { received_qty: 94, damaged_qty: 0, unit_cost: null } });
     expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText(/attendu/i)).toBeInTheDocument();
+    expect(screen.getByText("−6")).toBeInTheDocument();
+  });
+
+  it("dit « conforme » quand le compte tombe juste", () => {
+    wrap({}, { l1: { received_qty: 100, damaged_qty: 0, unit_cost: null } });
+    expect(screen.getByText(/conforme/i)).toBeInTheDocument();
+  });
+
+  it("révèle « non annoncé » plutôt que 0 quand la ligne n'était pas au bon", () => {
+    wrap({ lines: [line({ expected_qty: null })] }, { l1: { received_qty: 8, damaged_qty: 0, unit_cost: null } });
+    expect(screen.getByText(/non annonc/i)).toBeInTheDocument();
   });
 });
 
@@ -120,12 +156,6 @@ describe("ReceptionCountFlow — une ligne à la fois", () => {
  * inutile, et c'est ce que la v2 de la maquette a ajouté.
  */
 describe("ReceptionCountFlow — les raccourcis de quantité", () => {
-  it("le raccourci « l'attendu » remplit le champ avec l'attendu", () => {
-    wrap();
-    fireEvent.click(screen.getByRole("button", { name: /l'attendu 100/i }));
-    expect(onPatch).toHaveBeenCalledWith("l1", expect.objectContaining({ received_qty: 100 }));
-  });
-
   /*
    * « Zéro » écrit un ZÉRO, pas un champ vide. « Le carton était vide » est une
    * réponse ; « je n'ai pas encore regardé » est son contraire, et les confondre
@@ -137,10 +167,8 @@ describe("ReceptionCountFlow — les raccourcis de quantité", () => {
     expect(onPatch).toHaveBeenCalledWith("l1", expect.objectContaining({ received_qty: 0 }));
   });
 
-  it("n'offre pas le raccourci « l'attendu » quand rien n'était annoncé", () => {
+  it("« zéro » reste offert même sans attendu : le carton peut être vide", () => {
     wrap({ lines: [line({ expected_qty: null })] });
-    expect(screen.queryByRole("button", { name: /l'attendu/i })).not.toBeInTheDocument();
-    // Mais « zéro » reste utile : le carton peut être vide.
     expect(screen.getByRole("button", { name: /^zéro$/i })).toBeInTheDocument();
   });
 
@@ -242,7 +270,9 @@ describe("ReceptionCountFlow — en arabe", () => {
  * voit déjà sur l'onglet Niveaux.
  */
 describe("ReceptionCountFlow — le stock actuel", () => {
-  it("montre le stock actuel du produit à côté de l'attendu", () => {
+  it("reste visible avant le comptage — ce n'est pas une ancre", () => {
+    // Il dit si ce carton comble un manque ou empile du dormant ; il ne souffle
+    // pas le nombre à écrire, contrairement à l'attendu.
     wrap({ lines: [line({ product_stock: 218 })] });
     expect(screen.getByText(/en stock/i)).toBeInTheDocument();
     expect(screen.getByText("218")).toBeInTheDocument();

@@ -290,10 +290,21 @@ export function ReceptionCountFlow({
           </p>
 
           {/*
-           * L'attendu, en lecture seule. « non annoncé » plutôt que 0 : la ligne
-           * peut très bien ne pas être sur le bon de livraison.
+           * RÉCEPTION À L'AVEUGLE.
+           *
+           * L'attendu ne paraît QU'APRÈS que l'agent a engagé son compte.
+           * L'afficher avant ne fait pas gagner du temps : ça fait écrire le
+           * chiffre du fournisseur. Une fois le compte posé, l'attendu revient
+           * avec son écart — et l'écart est alors une information sur le
+           * FOURNISSEUR, pas sur la mémoire de l'agent.
+           *
+           * Le stock actuel, lui, reste visible tout du long : il dit si ce
+           * carton comble un manque ou empile du dormant, et il ne souffle
+           * aucun nombre à écrire.
            */}
+          {received !== null || (line.product_stock !== null && line.product_stock !== undefined) ? (
           <div className="mt-3.5 flex justify-around gap-2.5 rounded-[8px] bg-wh-sunken p-3">
+            {received !== null ? (
             <div>
               <div className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-wh-ink-3">
                 {t("colExpected")}
@@ -307,7 +318,11 @@ export function ReceptionCountFlow({
                   line.expected_qty
                 )}
               </div>
+              <div className="mt-1">
+                <Delta line={line} received={received} />
+              </div>
             </div>
+            ) : null}
             {line.product_stock !== null && line.product_stock !== undefined ? (
               <div>
                 <div className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-wh-ink-3">
@@ -319,6 +334,7 @@ export function ReceptionCountFlow({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           {/* ── le grand champ ── */}
           <div className="mt-3.5">
@@ -360,19 +376,13 @@ export function ReceptionCountFlow({
             </div>
 
             <div className="mt-2.5 flex flex-wrap justify-center gap-2">
-              {line.expected_qty !== null ? (
-                <button
-                  type="button"
-                  onClick={() => write({ received_qty: line.expected_qty })}
-                  className={`rounded-full border px-3 py-1.5 font-mono text-[12.5px] font-semibold ${
-                    received === line.expected_qty
-                      ? "border-wh-ok bg-wh-ok text-white"
-                      : "border-wh-border bg-wh-surface text-wh-ink-2"
-                  }`}
-                >
-                  {t("chipExpected", { qty: line.expected_qty })}
-                </button>
-              ) : null}
+              {/*
+               * PAS DE RACCOURCI « ADOPTER L'ATTENDU ». C'était l'ancre
+               * elle-même : un doigt pour écrire le chiffre du fournisseur sans
+               * avoir compté. « Zéro » reste, parce qu'un carton vide est une
+               * observation, pas une reprise du bon de livraison.
+               */
+              }
               <button
                 type="button"
                 onClick={() => write({ received_qty: 0 })}
