@@ -9,10 +9,11 @@ import {
 } from "@/lib/attempt-logic";
 import { getMarketSetting } from "@/lib/settings/getMarketSetting";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -164,3 +165,5 @@ export async function POST(
     data: { auto_rejected: false, new_status: nextStatus },
   });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/attempt", "POST", handlePOST);

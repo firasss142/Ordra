@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { decrypt } from "@/lib/crypto";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/whatsapp/config/[marketId]/verify-token — « Afficher » on the
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
 
-export async function GET(req: NextRequest, { params }: { params: { marketId: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { marketId: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -45,3 +46,5 @@ export async function GET(req: NextRequest, { params }: { params: { marketId: st
   }
   return NextResponse.json({ data: { verify_token: token } }, { headers: NO_STORE });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/config/[marketId]/verify-token", "GET", handleGET);

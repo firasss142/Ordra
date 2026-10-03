@@ -6,10 +6,11 @@ import {
   validateScanReturnBody,
   type ScanReturnInput,
 } from "@/lib/warehouse/returns-validation";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -46,3 +47,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(data ?? { success: true });
 }
+
+export const POST = withRouteErrors("/api/warehouse/scan-return", "POST", handlePOST);

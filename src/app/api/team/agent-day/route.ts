@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveTeamMarket } from "@/lib/team/api-market";
 import type { AgentDayDetail } from "@/lib/team/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * One RPC round-trip (`get_agent_day_detail`); market isolation is enforced
  * inside the function, not here.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
 
@@ -46,3 +47,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: (data ?? {}) as AgentDayDetail });
 }
+
+export const GET = withRouteErrors("/api/team/agent-day", "GET", handleGET);

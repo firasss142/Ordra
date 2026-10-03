@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canUseProspectWorklist } from "@/lib/role-permissions";
 import { LEAD_LOST_REASONS, type LeadLostReason, type LeadStatus } from "@/types/lead";
 import { attemptCount } from "@/lib/prospects/worklist";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export const dynamic = "force-dynamic";
  *
  * Design: prototypes/prospects-v3.html (screen 3).
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -116,3 +117,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   return NextResponse.json({ data: { id: params.id, status: to } });
 }
+
+export const POST = withRouteErrors("/api/prospects/[id]/outcome", "POST", handlePOST);

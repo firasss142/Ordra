@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { encrypt, maskCredential } from "@/lib/crypto";
 import { fetchAccountMeta, MetaApiError } from "@/lib/meta-ads/client";
 import { normaliseAccountId, isValidAccountId } from "@/lib/meta-ads/account-id";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * The Meta ad accounts the sync polls, and the credential it polls them with.
@@ -43,7 +44,7 @@ function toPublic(row: AccountRow) {
   return { ...rest, token_masked: maskCredential(access_token) };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: ((data ?? []) as AccountRow[]).map(toPublic) });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -140,3 +141,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data: toPublic(data as AccountRow) }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/meta/accounts", "GET", handleGET);
+export const POST = withRouteErrors("/api/meta/accounts", "POST", handlePOST);

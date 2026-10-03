@@ -11,6 +11,7 @@ import {
 } from "@/lib/orders/auto-assignment-orchestrator";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import type { AssignmentConfig } from "@/lib/orders/auto-assignment-types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ interface SkippedEntry {
   reason: "manual" | "no_agents" | "no_rule" | "not_found" | "already_assigned" | "error";
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -215,3 +216,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data: { assigned, skipped } });
 }
+
+export const POST = withRouteErrors("/api/orders/auto-assign-bulk", "POST", handlePOST);

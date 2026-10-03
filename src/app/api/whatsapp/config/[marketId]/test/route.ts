@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { classifyGraphError, WhatsAppApiError } from "@/lib/whatsapp/errors";
 import { CONFIG_COLUMNS, fromRow, toPublicConfig, type ConfigRow } from "@/lib/whatsapp/config";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Staged connection test, on the pattern of /api/meta/accounts/[id]/test.
@@ -63,7 +64,7 @@ function graphCause(err: unknown): { cause: Cause; text: string } {
   return { cause: { code: "graph_error", params: { message } }, text: message };
 }
 
-export async function POST(req: NextRequest, { params }: { params: { marketId: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { marketId: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -215,3 +216,5 @@ export async function POST(req: NextRequest, { params }: { params: { marketId: s
   patch.last_error = null;
   return finish();
 }
+
+export const POST = withRouteErrors("/api/whatsapp/config/[marketId]/test", "POST", handlePOST);

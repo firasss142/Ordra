@@ -9,6 +9,7 @@ import {
   type DistributionLead,
   type DistributionRule,
 } from "@/lib/prospects/distribution";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ interface Body {
   lead_ids?: string[];
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -266,3 +267,5 @@ async function priorAgents(
   }
   return byPhone;
 }
+
+export const POST = withRouteErrors("/api/prospects/distribute", "POST", handlePOST);

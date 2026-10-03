@@ -13,6 +13,7 @@ import {
   type AlertType,
 } from "@/lib/alerts/catalogue";
 import type { Alert, AlertsSummary } from "@/lib/alerts/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -150,7 +151,7 @@ function isReopen(note: string | null): boolean {
   return !!note && /^Reouvert/i.test(note.normalize("NFC").replace(/[éÉ]/g, "e"));
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -646,3 +647,5 @@ export async function GET(req: NextRequest) {
   const body: AlertsSummary = { total: alerts.length, by_severity, by_type, alerts };
   return NextResponse.json(body);
 }
+
+export const GET = withRouteErrors("/api/alerts/summary", "GET", handleGET);

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { checkTimezone } from "@/lib/meta-ads/timezone";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * What the sync-health strip reads.
@@ -32,7 +33,7 @@ interface AccountRow {
   markets: { code: string; name: string } | null;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -119,3 +120,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/ad-spend/sync-status", "GET", handleGET);

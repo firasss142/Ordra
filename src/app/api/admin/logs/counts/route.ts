@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { carrierCodesOfMarket, storefrontIdsOfMarket } from "@/lib/logs/market-scope";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const SYNC_TABLES = ["sheet_sync_runs", "ad_sync_runs", "darb_sync_runs", "darb_
  * the last 24 hours. Counted with HEAD requests, never loaded: carrier events
  * run to ~20 000 a day. super_admin only.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -58,3 +59,5 @@ export async function GET(req: NextRequest) {
     sync: { failed: syncFailed.reduce((a, b) => a + b, 0) },
   });
 }
+
+export const GET = withRouteErrors("/api/admin/logs/counts", "GET", handleGET);

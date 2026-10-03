@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canCreateLead } from "@/lib/lead-permissions";
 import { parseLeadCsv, type ParsedCsvRow } from "@/lib/leads/csv";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
     const actorResult = await getActor(req);
@@ -133,3 +134,5 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const POST = withRouteErrors("/api/leads/import", "POST", handlePOST);

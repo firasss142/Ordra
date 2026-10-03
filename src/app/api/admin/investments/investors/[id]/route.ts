@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageInvestments } from "@/lib/investor-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ const PAYOUT_METHODS = ["bank_transfer", "cash", "wallet"] as const;
  * another's row. Commercial terms (share %, capital, cadence, maturity) live on
  * the DEAL (investor_deal_terms), not on the profile.
  */
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -94,3 +95,5 @@ export async function PATCH(
 
   return NextResponse.json({ data });
 }
+
+export const PATCH = withRouteErrors("/api/admin/investments/investors/[id]", "PATCH", handlePATCH);

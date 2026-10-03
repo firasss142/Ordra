@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canManageCommissions } from "@/lib/role-permissions";
 import { ISO_DAY } from "@/lib/commissions/api";
 import type { CommissionLedgerEntry } from "@/lib/commissions/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ function csvCell(v: unknown): string {
  * One agent's statement. The RPC returns [] for anyone who is not a manager
  * of the agent's market (or super_admin) — no data leaks through the shape.
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
+async function handleGET(req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canManageCommissions(actorResult.actor.role)) {
@@ -58,3 +59,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
   }
   return NextResponse.json({ data: rows });
 }
+
+export const GET = withRouteErrors("/api/team/commissions/[agentId]/ledger", "GET", handleGET);

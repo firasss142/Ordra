@@ -6,6 +6,7 @@ import { uploadAvatarDataUrl } from "@/lib/avatars";
 import { returnToPool } from "@/lib/orders";
 import { isValidDeactivationReason } from "@/lib/agent-deactivation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ async function writeAuditLog(
   });
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -244,7 +245,7 @@ export async function PATCH(
 // Soft-delete: removes the auth user (blocks login) and stamps users.deleted_at
 // so historical FKs (order_history, audit log, …) stay intact.
 // super_admin only.
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -317,3 +318,6 @@ export async function DELETE(
 
   return NextResponse.json({ success: true, ordersReturned: returned });
 }
+
+export const PATCH = withRouteErrors("/api/agents/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/agents/[id]", "DELETE", handleDELETE);

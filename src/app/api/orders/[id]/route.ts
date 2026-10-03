@@ -11,10 +11,11 @@ import { computeOrderTotal } from "@/lib/calculations/order-total";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { marketIdToCode } from "@/lib/markets";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -145,7 +146,7 @@ async function loadOrderDetail(
 
 const SIMPLE_PATCHABLE_FIELDS = ["customer_name", "customer_phone", "customer_phone_2", "customer_address", "customer_city", "quantity"] as const;
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -585,3 +586,6 @@ export async function PATCH(
     { status: 200 },
   );
 }
+
+export const GET = withRouteErrors("/api/orders/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/orders/[id]", "PATCH", handlePATCH);

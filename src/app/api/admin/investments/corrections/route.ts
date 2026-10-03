@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminReader, adminWriter, NO_STORE, rpcError, UUID_RE } from "@/lib/investors/admin-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   let q = g.admin.from("investor_ledger_entries").select("id, investor_id, deal_id, statement_id, market_id, currency, amount, note, created_by, created_at, investors(legal_name), investor_deals(label, products(name)), users:created_by(email)").eq("entry_type", "correction").order("created_at", { ascending: false }).limit(200);
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
 }
 
 /** Body: { investor_id, amount (signed, non-zero), note (required), deal_id?, statement_id? } */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   let b: Record<string, unknown>;
@@ -35,3 +36,6 @@ export async function POST(req: NextRequest) {
   if (error) return rpcError(error, "[POST corrections]");
   return NextResponse.json({ data: { id: data } }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/corrections", "GET", handleGET);
+export const POST = withRouteErrors("/api/admin/investments/corrections", "POST", handlePOST);

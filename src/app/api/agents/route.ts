@@ -3,13 +3,14 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { canManageAgents } from "@/lib/settings-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { uploadAvatarDataUrl } from "@/lib/avatars";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 const USER_COLS =
   "id, email, full_name, avatar_url, phone, role, market_id, warehouse_id, is_active, last_seen_at, created_at";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
   );
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -131,3 +132,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/agents", "GET", handleGET);
+export const POST = withRouteErrors("/api/agents", "POST", handlePOST);

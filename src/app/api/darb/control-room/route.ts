@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { DARB_STATUSES, type DarbSlug } from "@/lib/carriers/darb-assabil-statuses";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/darb/control-room
@@ -73,7 +74,7 @@ export interface DarbLostOrder {
   days_stranded: number;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -268,3 +269,5 @@ export async function GET(req: NextRequest) {
     stuck_days_threshold: STUCK_DAYS,
   });
 }
+
+export const GET = withRouteErrors("/api/darb/control-room", "GET", handleGET);

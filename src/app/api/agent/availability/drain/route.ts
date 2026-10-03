@@ -10,6 +10,7 @@ import {
 } from "@/lib/orders/auto-assignment-orchestrator";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import type { AssignmentConfig } from "@/lib/orders/auto-assignment-types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export const dynamic = "force-dynamic";
 /** A drain is a burst; keep one request bounded and let the next one continue. */
 const MAX_DRAIN = 500;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -218,3 +219,5 @@ function tallyByAgent(
   for (const a of assignments) out[a.agent_id] = (out[a.agent_id] ?? 0) + 1;
   return out;
 }
+
+export const POST = withRouteErrors("/api/agent/availability/drain", "POST", handlePOST);

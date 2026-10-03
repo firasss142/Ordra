@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(_req: NextRequest) {
+async function handlePOST(_req: NextRequest) {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -21,3 +22,5 @@ export async function POST(_req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withRouteErrors("/api/notifications/read-all", "POST", handlePOST);

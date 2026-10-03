@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { performDispatch } from "@/lib/carriers/perform-dispatch";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ type ReadyRow = {
   scheduled_at: string;
 };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const expected = process.env.CRON_SECRET ?? "";
   if (!expected) {
     return NextResponse.json(
@@ -144,3 +145,5 @@ export async function POST(req: NextRequest) {
     results,
   });
 }
+
+export const POST = withRouteErrors("/api/cron/dispatch-scheduled", "POST", handlePOST);

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { investorActor } from "@/lib/investors/investor-route";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Body: { ids?: string[] } — omit to mark all read. */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   let ids: string[] | null = null;
@@ -18,3 +19,5 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   return NextResponse.json({ data: { marked: data ?? 0 } });
 }
+
+export const POST = withRouteErrors("/api/investor/notifications/read", "POST", handlePOST);

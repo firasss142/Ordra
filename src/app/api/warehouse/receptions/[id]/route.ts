@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { canViewReceptions, canDraftReception } from "@/lib/receptions/permissions";
 import { projectReception, type RawReception } from "@/lib/receptions/project";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ async function load(supabase: Awaited<ReturnType<typeof createClient>>, id: stri
   return supabase.from("receptions").select(RECEPTION_SELECT).eq("id", id).maybeSingle();
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleGET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
  * ligne fantôme derrière lui. Le trigger d'immutabilité refuse tout cela dès
  * que la réception est validée — la garde n'est pas ici, elle est en base.
  */
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -162,7 +163,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 /** Supprimer un brouillon. Une réception validée se contre-passe, ne se supprime pas. */
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -184,3 +185,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
   return NextResponse.json({ ok: true });
 }
+
+export const GET = withRouteErrors("/api/warehouse/receptions/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/warehouse/receptions/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/warehouse/receptions/[id]", "DELETE", handleDELETE);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  *
  * super_admin or market_manager (own market). Response: { data: { [key]: n } }
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -60,3 +61,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: Object.fromEntries(counts) });
 }
+
+export const GET = withRouteErrors("/api/settings/rejection-reasons/usage", "GET", handleGET);

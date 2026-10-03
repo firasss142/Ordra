@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { encrypt } from "@/lib/crypto";
 import { fetchAccountMeta, MetaApiError } from "@/lib/meta-ads/client";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Update or disconnect one Meta ad account.
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 const PUBLIC_COLUMNS =
   "id, market_id, ad_account_id, business_id, account_name, account_currency, account_timezone, graph_version, token_expires_at, is_active, last_synced_at, last_sync_error";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -86,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ data });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleDELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -108,3 +109,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   return NextResponse.json({ data: { deleted: true } });
 }
+
+export const PATCH = withRouteErrors("/api/meta/accounts/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/meta/accounts/[id]", "DELETE", handleDELETE);

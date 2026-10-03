@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { enforcePeriodLock } from "@/lib/ad-spend/enforce-lock";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ async function resolveActorAndEntry(req: NextRequest, id: string): Promise<Resol
 }
 
 // PATCH: update entry fields
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
@@ -139,7 +140,7 @@ export async function PATCH(
 }
 
 // DELETE: soft delete
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
@@ -164,3 +165,6 @@ export async function DELETE(
 
   return NextResponse.json({ data });
 }
+
+export const PATCH = withRouteErrors("/api/ad-spend/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/ad-spend/[id]", "DELETE", handleDELETE);

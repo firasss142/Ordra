@@ -10,10 +10,11 @@ import {
   type ManagerActor,
 } from "@/lib/orders/manager-takeover";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -136,3 +137,5 @@ export async function POST(
 
   return NextResponse.json({ success: true, new_status: "confirmed" });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/confirm", "POST", handlePOST);

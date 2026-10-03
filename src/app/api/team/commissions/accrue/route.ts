@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { rpcErrorResponse } from "@/lib/commissions/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
  * Runs the accrual sweep by hand (super_admin). The same function pg_cron
  * runs every 15 min — exposed so a stalled schedule never dead-ends.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -28,3 +29,5 @@ export async function POST(req: NextRequest) {
   if (error) return rpcErrorResponse("api/team/commissions/accrue", error);
   return NextResponse.json({ data });
 }
+
+export const POST = withRouteErrors("/api/team/commissions/accrue", "POST", handlePOST);

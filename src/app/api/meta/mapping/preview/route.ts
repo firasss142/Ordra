@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { adsetBelongs, loadAccount, parseDraft, previewDraft } from "@/lib/meta-ads/mapping";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * What a mapping change WOULD move — money per product, the target's own split
@@ -13,7 +14,7 @@ import { adsetBelongs, loadAccount, parseDraft, previewDraft } from "@/lib/meta-
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canViewFinanceSection(actorResult.actor.role)) {
@@ -49,3 +50,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withRouteErrors("/api/meta/mapping/preview", "POST", handlePOST);

@@ -7,6 +7,7 @@ import { momentOf } from "@/lib/feedback/moment";
 import { applySearch, parseSearch } from "@/lib/orders/search-query";
 import { MARKET_SEARCH_MIN, rankMarketRows } from "@/lib/agent-search/market";
 import type { FeedbackLookupCustomer, FeedbackLookupOrder, FeedbackLookupResult } from "@/types/feedback";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ interface OrderRow {
  * never the request (a super_admin's from the scope), and what leaves is a fixed, narrow list
  * — 6 customers, 6 orders. Matching is lib/orders/search-query's, the Orders page's parser.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -138,3 +139,5 @@ export async function GET(req: NextRequest) {
   const body: FeedbackLookupResult = { customers: customerRows, orders };
   return NextResponse.json({ data: body }, { headers: NO_STORE });
 }
+
+export const GET = withRouteErrors("/api/feedback/lookup", "GET", handleGET);

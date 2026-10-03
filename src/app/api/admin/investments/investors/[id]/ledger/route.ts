@@ -3,11 +3,12 @@ import { adminReader, NO_STORE, todayFor } from "@/lib/investors/admin-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { foldLedgerByCurrency, type LedgerEntryLike } from "@/lib/investors/ledger-fold";
 import { loadInvestorPortfolio } from "@/lib/investors/portfolio-summary";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** What the investor sees (portfolio) + the full ledger with fold. Admin-side mirror of the portal. */
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   const { data: u } = await g.admin.from("users").select("id, market_id, role").eq("id", params.id).maybeSingle();
@@ -21,3 +22,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   ]);
   return NextResponse.json({ data: { portfolio, ledger, balances: Object.fromEntries(foldLedgerByCurrency(ledger)), withdrawals } }, { headers: NO_STORE });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/investors/[id]/ledger", "GET", handleGET);

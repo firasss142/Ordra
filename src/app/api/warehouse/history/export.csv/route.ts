@@ -5,6 +5,7 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { warehouseHistoryQuerySchema } from "@/lib/warehouse/list-filters";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ function rowToCsv(row: WarehouseHistoryRow): string {
     .join(",");
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -94,3 +95,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/warehouse/history/export.csv", "GET", handleGET);

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveTeamMarket } from "@/lib/team/api-market";
 import type { TeamLive } from "@/lib/team/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
  * GET /api/team/live?market_id=…
  * The Salle de contrôle payload — one RPC round-trip (`get_team_live`).
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
 
@@ -30,3 +31,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: (data ?? {}) as TeamLive });
 }
+
+export const GET = withRouteErrors("/api/team/live", "GET", handleGET);

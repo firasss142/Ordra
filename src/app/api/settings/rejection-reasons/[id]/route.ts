@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,7 @@ async function countUsage(
   return count ?? 0;
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -114,7 +115,7 @@ const MUTABLE = new Set([
   "is_active",
 ]);
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -187,7 +188,7 @@ export async function PATCH(
   return NextResponse.json({ data });
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -236,3 +237,7 @@ export async function DELETE(
   }
   return NextResponse.json({ mode: "deleted", usage: 0, data: { id } });
 }
+
+export const GET = withRouteErrors("/api/settings/rejection-reasons/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/settings/rejection-reasons/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/settings/rejection-reasons/[id]", "DELETE", handleDELETE);

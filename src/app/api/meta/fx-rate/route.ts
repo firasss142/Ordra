@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * The rate that converts an ad account's billing currency into the market's.
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 const KEY = "ad_spend_fx_rates";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -112,3 +113,6 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({ data: { rates: newValue } });
 }
+
+export const GET = withRouteErrors("/api/meta/fx-rate", "GET", handleGET);
+export const PUT = withRouteErrors("/api/meta/fx-rate", "PUT", handlePUT);

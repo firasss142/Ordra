@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canReadStorefrontHealth } from "@/lib/settings-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ interface DeliveryRow {
   order_id: string | null;
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -83,3 +84,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withRouteErrors("/api/storefronts/[id]/health", "GET", handleGET);

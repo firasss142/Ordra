@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { canPostReception } from "@/lib/receptions/permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
  * serait un mensonge, et c'est justement ce libellé qu'un manager lit pour
  * savoir qui a compté.
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -75,3 +76,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json({ ok: true, status: "draft" });
 }
+
+export const POST = withRouteErrors("/api/warehouse/receptions/[id]/unsubmit", "POST", handlePOST);

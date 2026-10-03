@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { uploadAvatarDataUrl } from "@/lib/avatars";
 import type { Role } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ async function writeAuditLog(
   });
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -217,3 +218,5 @@ async function handleCreate(
   return NextResponse.json({ data }, { status: 201 });
 }
 
+export const GET = withRouteErrors("/api/users", "GET", handleGET);
+export const POST = withRouteErrors("/api/users", "POST", handlePOST);

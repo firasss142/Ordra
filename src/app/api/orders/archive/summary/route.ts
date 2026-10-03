@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
  * The window is measured on `terminal_at` — when the order finished — not
  * `created_at`, which is what made the weekly cohorts wrong.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -75,3 +76,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data });
 }
+
+export const GET = withRouteErrors("/api/orders/archive/summary", "GET", handleGET);

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canAdjustStock, canViewProducts } from "@/lib/product-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -130,7 +131,7 @@ export async function POST(
   );
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -182,3 +183,6 @@ export async function GET(
     },
   });
 }
+
+export const GET = withRouteErrors("/api/products/[id]/stock", "GET", handleGET);
+export const POST = withRouteErrors("/api/products/[id]/stock", "POST", handlePOST);

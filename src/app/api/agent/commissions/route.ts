@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOwnCommissions } from "@/lib/role-permissions";
 import type { AgentStatement } from "@/lib/commissions/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * No agent parameter exists, by design: get_my_commission_statement() reads auth.uid().
  * `days` bounds the lists that grow forever (paid orders, not counted); totals are all-time.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canViewOwnCommissions(actorResult.actor.role)) {
@@ -28,3 +29,5 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ data: (data ?? {}) as AgentStatement });
 }
+
+export const GET = withRouteErrors("/api/agent/commissions", "GET", handleGET);

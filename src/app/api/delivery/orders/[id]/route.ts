@@ -10,6 +10,7 @@ import {
   type ConversationRow,
   type HistoryRow,
 } from "@/lib/delivery/timeline";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const LIMIT = 200;
  * readable by every signed-in user, so the order is fetched FIRST under the
  * caller's RLS; only a visible order unlocks the carrier tables.
  */
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -98,3 +99,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   return NextResponse.json({ data: { timeline } });
 }
+
+export const GET = withRouteErrors("/api/delivery/orders/[id]", "GET", handleGET);

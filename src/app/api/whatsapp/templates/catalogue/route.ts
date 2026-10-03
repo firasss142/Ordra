@@ -7,6 +7,7 @@ import { loadConfigForMarket } from "@/lib/whatsapp/config";
 import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { createMissingCatalogueTemplates } from "@/lib/whatsapp/templates";
 import { resolveMarketForManage } from "@/lib/whatsapp/authz";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * « Créer les modèles Ordra » — submit the catalogue in both languages and
@@ -23,7 +24,7 @@ async function readSampleImage() {
   return { bytes: new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), mime: "image/jpeg", name: "product-sample.jpg" };
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const body = (await req.json().catch(() => ({}))) as { market_id?: string };
@@ -43,3 +44,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "graph_failed", message: err instanceof Error ? err.message : "Meta injoignable" }, { status: 502 });
   }
 }
+
+export const POST = withRouteErrors("/api/whatsapp/templates/catalogue", "POST", handlePOST);

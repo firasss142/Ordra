@@ -6,6 +6,7 @@ import {
   bulkDeleteDuplicateSiblings,
   type BulkDeletePair,
 } from "@/lib/orders/duplicate-bulk-delete";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export const dynamic = "force-dynamic";
 /** Matches the review screen, which pages at 100 groups. */
 const MAX_PAIRS = 100;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -90,3 +91,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const POST = withRouteErrors("/api/orders/bulk-delete-duplicates", "POST", handlePOST);

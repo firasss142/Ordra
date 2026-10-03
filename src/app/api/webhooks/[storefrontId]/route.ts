@@ -3,10 +3,11 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
 import { handleWebhook } from "@/lib/orders/webhook-handler";
 import { CORS_HEADERS, withCorsHeaders } from "@/lib/cors";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: Promise<{ storefrontId: string }> }
 ) {
@@ -33,7 +34,7 @@ export async function POST(
   return withCorsHeaders(NextResponse.json(body, { status: result.status }));
 }
 
-export async function OPTIONS() {
+async function handleOPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
@@ -47,3 +48,6 @@ export const GET = methodNotAllowed;
 export const PUT = methodNotAllowed;
 export const PATCH = methodNotAllowed;
 export const DELETE = methodNotAllowed;
+
+export const POST = withRouteErrors("/api/webhooks/[storefrontId]", "POST", handlePOST);
+export const OPTIONS = withRouteErrors("/api/webhooks/[storefrontId]", "OPTIONS", handleOPTIONS);

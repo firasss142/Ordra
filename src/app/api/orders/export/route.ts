@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { resolveProductDisplayName } from "@/lib/orders/display-name";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ function escapeCsv(value: string | null | undefined): string {
   return str;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -167,3 +168,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/orders/export", "GET", handleGET);

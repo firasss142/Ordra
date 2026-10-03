@@ -3,10 +3,11 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getSyncState } from "@/lib/google-sheets/sync-state";
 import { getSheetsSources } from "@/lib/google-sheets/sources-config";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
+async function handleGET(req: NextRequest): Promise<NextResponse> {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response as NextResponse;
   const { actor } = actorResult;
@@ -89,3 +90,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     failures,
   });
 }
+
+export const GET = withRouteErrors("/api/google-sheets/sync-status", "GET", handleGET);

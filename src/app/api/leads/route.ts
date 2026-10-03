@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewLeads, canCreateLead } from "@/lib/lead-permissions";
 import { CREATABLE_LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -184,3 +185,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data: lead }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/leads", "GET", handleGET);
+export const POST = withRouteErrors("/api/leads", "POST", handlePOST);

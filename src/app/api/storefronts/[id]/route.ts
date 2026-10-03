@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canManageStorefronts } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -37,7 +38,7 @@ export async function GET(
   return NextResponse.json({ data: { ...data, webhook_secret: maskCredential("") } });
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -107,7 +108,7 @@ export async function DELETE(
   return new NextResponse(null, { status: 204 });
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -166,3 +167,7 @@ export async function PATCH(
     data: { ...data, webhook_secret: maskCredential("") },
   });
 }
+
+export const GET = withRouteErrors("/api/storefronts/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/storefronts/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/storefronts/[id]", "DELETE", handleDELETE);

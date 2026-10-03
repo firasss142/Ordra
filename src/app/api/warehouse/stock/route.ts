@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { marketIdToCode } from "@/lib/markets";
 import { incomingByProduct } from "@/lib/receptions/incoming";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +112,7 @@ function reservesOurShelf(o: EngagedOrderRow): boolean {
   return !(flag === true || flag === "true");
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -329,3 +330,5 @@ export async function GET(req: NextRequest) {
     { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" } },
   );
 }
+
+export const GET = withRouteErrors("/api/warehouse/stock", "GET", handleGET);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
 import { fetchDarbShipment } from "@/lib/carriers/darb-assabil-tracking";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/darb-assabil/sync-batch
@@ -43,7 +44,7 @@ type PerOrderResult =
   | { ok: true; slug: string | null }
   | { ok: false; reason: string };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const {
@@ -241,3 +242,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ results }, { status: 200 });
 }
+
+export const POST = withRouteErrors("/api/darb-assabil/sync-batch", "POST", handlePOST);

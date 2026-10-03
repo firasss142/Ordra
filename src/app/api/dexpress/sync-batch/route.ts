@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
 import { DexpressClient } from "@/lib/carriers/dexpress/client";
 import { fetchDexpressStatus } from "@/lib/carriers/dexpress/tracking";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/dexpress/sync-batch
@@ -34,7 +35,7 @@ type PerOrderResult =
   | { ok: true; slug: string | null }
   | { ok: false; reason: string };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const {
@@ -237,3 +238,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ results }, { status: 200 });
 }
+
+export const POST = withRouteErrors("/api/dexpress/sync-batch", "POST", handlePOST);

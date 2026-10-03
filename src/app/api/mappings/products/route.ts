@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewMappings, canManageMappings } from "@/lib/mapping-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
  * the edge; they are not the security boundary.
  */
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: data ?? [] });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -209,3 +210,6 @@ export async function POST(req: NextRequest) {
     { status: 201 },
   );
 }
+
+export const GET = withRouteErrors("/api/mappings/products", "GET", handleGET);
+export const POST = withRouteErrors("/api/mappings/products", "POST", handlePOST);

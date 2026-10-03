@@ -8,6 +8,7 @@ import {
   type SkipReason,
 } from "@/lib/carriers/bulk-dispatch-preflight";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ type CarrierRow = {
  * otherwise it dispatches the eligible orders and returns per-order results.
  * Managers/super_admin only.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -227,3 +228,5 @@ export async function POST(req: NextRequest) {
     needs_confirmation: needsConfirmation,
   });
 }
+
+export const POST = withRouteErrors("/api/orders/bulk-dispatch", "POST", handlePOST);

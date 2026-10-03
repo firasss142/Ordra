@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ function unwrap(v: unknown): unknown {
   return v;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -104,3 +105,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: merged });
 }
+
+export const GET = withRouteErrors("/api/admin/audit", "GET", handleGET);

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminReader, ISO_DATE, NO_STORE } from "@/lib/investors/admin-route";
 import { previewSettlements } from "@/lib/investors/settlement-preview";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Body: { deal_ids?: string[], investor_id?: string, period_end: 'YYYY-MM-DD' } → drafts + warnings, nothing written. */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   let b: { deal_ids?: unknown; investor_id?: unknown; period_end?: unknown };
@@ -33,3 +34,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const POST = withRouteErrors("/api/admin/investments/settlements/preview", "POST", handlePOST);

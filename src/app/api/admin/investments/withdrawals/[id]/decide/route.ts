@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminWriter, rpcError } from "@/lib/investors/admin-route";
 import { canDecideWithdrawal } from "@/lib/investor-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Body: { action: 'approve'|'reject'|'paid', reference?: string, admin_note?: string }. Ledger entry only on 'paid'. */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   if (!canDecideWithdrawal(g.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -24,3 +25,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (error) return rpcError(error, "[POST withdrawals/[id]/decide]");
   return NextResponse.json({ data: { id: params.id, action } });
 }
+
+export const POST = withRouteErrors("/api/admin/investments/withdrawals/[id]/decide", "POST", handlePOST);

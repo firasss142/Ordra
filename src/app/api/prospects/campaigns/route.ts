@@ -15,6 +15,7 @@ import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { buildCampaignTemplate, campaignTemplateName, validateCampaignBody } from "@/lib/whatsapp/campaign-template";
 import { submitCampaignTemplate } from "@/lib/whatsapp/templates";
 import { uploadHeaderImage } from "@/lib/whatsapp/campaign-submit";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ interface Body {
   wa_image_url?: string | null;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -253,3 +254,5 @@ function numberOrNull(v: unknown): number | null {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
 }
+
+export const POST = withRouteErrors("/api/prospects/campaigns", "POST", handlePOST);

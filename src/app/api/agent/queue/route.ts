@@ -8,6 +8,7 @@ import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 import { QUEUE_ROW_SELECT } from "@/lib/agent-queue/row-fields";
 import { bucketFor } from "@/lib/carriers/buckets";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +133,7 @@ const CLOSED_WINDOW_DAYS = 7;
  * per-chip counts label the Fermées tab before its rows arrive); the rows
  * themselves come with `?include=closed`, fetched when that tab is opened.
  */
-export async function GET(_req: NextRequest) {
+async function handleGET(_req: NextRequest) {
   const includeClosed = _req.nextUrl.searchParams.get("include") === "closed";
   const supabase = await createClient();
 
@@ -398,3 +399,5 @@ export async function GET(_req: NextRequest) {
     buckets,
   });
 }
+
+export const GET = withRouteErrors("/api/agent/queue", "GET", handleGET);

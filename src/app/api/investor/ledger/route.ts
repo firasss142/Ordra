@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { foldLedgerByCurrency, type LedgerEntryLike } from "@/lib/investors/ledger-fold";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Every ledger movement (capital, settlement, withdrawal, correction, principal return) with the fold per currency. */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   try {
@@ -24,3 +25,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const GET = withRouteErrors("/api/investor/ledger", "GET", handleGET);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { handleDarbSyncCronRequest } from "./handler";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/cron/darb-sync
@@ -22,7 +23,7 @@ import { handleDarbSyncCronRequest } from "./handler";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const since = req.nextUrl.searchParams.get("since");
   const result = await handleDarbSyncCronRequest({
     headers: req.headers,
@@ -32,3 +33,5 @@ export async function POST(req: NextRequest) {
   });
   return NextResponse.json(result.body, { status: result.status });
 }
+
+export const POST = withRouteErrors("/api/cron/darb-sync", "POST", handlePOST);

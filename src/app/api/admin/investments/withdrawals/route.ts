@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminReader, NO_STORE } from "@/lib/investors/admin-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Queue. ?status=requested|approved|paid|rejected  (manager: own market) */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   const status = req.nextUrl.searchParams.get("status");
@@ -22,3 +23,5 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ data: rows, balances }, { headers: NO_STORE });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/withdrawals", "GET", handleGET);

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { uploadAvatarDataUrl } from "@/lib/avatars";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -42,3 +43,5 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({ avatar_url: avatarUrl });
 }
+
+export const PUT = withRouteErrors("/api/me/avatar", "PUT", handlePUT);

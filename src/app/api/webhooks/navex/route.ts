@@ -7,10 +7,11 @@ import {
   type NavexOrderLookup,
 } from "@/lib/navex-webhook-handler";
 import type { OrderStatus } from "@/types/order-status";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const expectedToken = process.env.NAVEX_WEBHOOK_SECRET ?? "";
   const token = request.nextUrl.searchParams.get("token");
   const rawBody = await request.text();
@@ -69,3 +70,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 }
+
+export const POST = withRouteErrors("/api/webhooks/navex", "POST", handlePOST);

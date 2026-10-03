@@ -3,10 +3,11 @@ import { getActor } from "@/lib/auth/actor";
 import { canManageCarriers } from "@/lib/settings-permissions";
 import { listAdapterDescriptors } from "@/lib/carriers/adapter-registry";
 import { getAllActiveMarkets } from "@/lib/markets/list";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -28,3 +29,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: listAdapterDescriptors(marketCode) });
 }
+
+export const GET = withRouteErrors("/api/carriers/adapters", "GET", handleGET);

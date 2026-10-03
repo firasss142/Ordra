@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canWriteSettings } from "@/lib/settings-permissions";
 import type { Role } from "@/types";
 import { validateShares } from "@/lib/orders/agent-shares";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,7 @@ interface AgentRow {
   avatar_url: string | null;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -109,7 +110,7 @@ interface PutBody {
   shares?: unknown;
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -199,3 +200,6 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({ data: { updated: rows.length } });
 }
+
+export const GET = withRouteErrors("/api/settings/agent-shares", "GET", handleGET);
+export const PUT = withRouteErrors("/api/settings/agent-shares", "PUT", handlePUT);

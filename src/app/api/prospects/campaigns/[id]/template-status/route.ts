@@ -5,6 +5,7 @@ import { canUseProspectConsole } from "@/lib/role-permissions";
 import { loadConfigForMarket } from "@/lib/whatsapp/config";
 import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { syncTemplatesFromMeta } from "@/lib/whatsapp/templates";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/prospects/campaigns/[id]/template-status — « Vérifier le statut »:
@@ -14,7 +15,7 @@ import { syncTemplatesFromMeta } from "@/lib/whatsapp/templates";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -44,3 +45,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   return NextResponse.json({ id: params.id, template_status: status, template_name: (tpl as { name?: string } | null)?.name ?? null, rejected_reason: (tpl as { rejected_reason?: string | null } | null)?.rejected_reason ?? null, wa_launch_status: launch });
 }
+
+export const POST = withRouteErrors("/api/prospects/campaigns/[id]/template-status", "POST", handlePOST);

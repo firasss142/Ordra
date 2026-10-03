@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canUseProspectConsole } from "@/lib/role-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/prospects/campaigns/[id]/launch — an API-sent campaign whose
@@ -13,7 +14,7 @@ import { canUseProspectConsole } from "@/lib/role-permissions";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -66,3 +67,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     skipped_by_reason: q.skipped_by_reason ?? {},
   });
 }
+
+export const POST = withRouteErrors("/api/prospects/campaigns/[id]/launch", "POST", handlePOST);

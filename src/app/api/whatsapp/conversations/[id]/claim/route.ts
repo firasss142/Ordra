@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/whatsapp/conversations/[id]/claim { order_id } | { lead_id } —
@@ -11,7 +12,7 @@ import { getActor } from "@/lib/auth/actor";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -40,3 +41,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   return NextResponse.json({ data: { backfilled: data ?? 0, order_id: orderId, lead_id: leadId } });
 }
+
+export const POST = withRouteErrors("/api/whatsapp/conversations/[id]/claim", "POST", handlePOST);

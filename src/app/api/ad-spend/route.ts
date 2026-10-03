@@ -6,10 +6,11 @@ import { enforcePeriodLock } from "@/lib/ad-spend/enforce-lock";
 import { overlayRealizedMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AdSpendEntryLite, RealizedMetric } from "@/lib/ad-spend/realized-metrics";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -195,7 +196,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -252,3 +253,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/ad-spend", "GET", handleGET);
+export const POST = withRouteErrors("/api/ad-spend", "POST", handlePOST);

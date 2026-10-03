@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { decrypt } from "@/lib/crypto";
 import { fetchAccountMeta, fetchCampaignInsights, MetaApiError } from "@/lib/meta-ads/client";
 import { checkTimezone } from "@/lib/meta-ads/timezone";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Staged connection test, on the pattern of /api/storefronts/[id]/test.
@@ -29,7 +30,7 @@ interface Stage {
   detail: string;
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -162,3 +163,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     },
   });
 }
+
+export const POST = withRouteErrors("/api/meta/accounts/[id]/test", "POST", handlePOST);

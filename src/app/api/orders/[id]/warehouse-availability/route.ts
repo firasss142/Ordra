@@ -10,6 +10,7 @@ import {
   effectiveOrderLines,
 } from "@/lib/carriers/carrier-warehouse";
 import type { OrderItem } from "@/types/order-items";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export const dynamic = "force-dynamic";
  * When unavailable we return the reason rather than hiding the option, so the
  * agent learns what to fix (unmapped product vs. carrier out of stock).
  */
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -163,3 +164,5 @@ export async function GET(
     lines,
   });
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/warehouse-availability", "GET", handleGET);

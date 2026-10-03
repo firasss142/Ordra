@@ -5,12 +5,13 @@ import { loadConfigForMarket } from "@/lib/whatsapp/config";
 import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { syncTemplatesFromMeta } from "@/lib/whatsapp/templates";
 import { resolveMarketForManage } from "@/lib/whatsapp/authz";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /** « Synchroniser depuis Meta » — mirror Meta's template list into the registry. */
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const body = (await req.json().catch(() => ({}))) as { market_id?: string };
@@ -30,3 +31,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "graph_failed", message: err instanceof Error ? err.message : "Meta injoignable" }, { status: 502 });
   }
 }
+
+export const POST = withRouteErrors("/api/whatsapp/templates/sync", "POST", handlePOST);

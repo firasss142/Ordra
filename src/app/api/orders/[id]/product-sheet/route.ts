@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { checkProductSheet, type SheetCheckVariant } from "@/lib/products/sheet-checks";
 import { computeSignals } from "@/lib/products/signals";
 import { formatDisplayCurrencyCode } from "@/lib/markets";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ function notFound() {
   return NextResponse.json({ error: "Order not found" }, { status: 404 });
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -354,3 +355,5 @@ export async function GET(
     currency,
   });
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/product-sheet", "GET", handleGET);

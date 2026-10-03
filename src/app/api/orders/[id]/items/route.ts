@@ -6,12 +6,13 @@ import { computeOrderTotal, roundLineTotal } from "@/lib/calculations/order-tota
 import type { Role } from "@/types";
 import type { OrderItem } from "@/types/order-items";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 type OrderItemInsert = Omit<OrderItem, "id" | "created_at" | "updated_at">;
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -236,3 +237,5 @@ export async function POST(
   const newItem = insertedRows[insertedRows.length - 1];
   return NextResponse.json({ data: newItem }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/items", "POST", handlePOST);

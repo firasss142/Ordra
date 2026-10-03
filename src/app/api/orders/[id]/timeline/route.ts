@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import type { OrderStatus } from "@/types/order-status";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ function isRelevantStage(s: string): s is OrderStatus {
   );
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -164,3 +165,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   return NextResponse.json(body);
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/timeline", "GET", handleGET);

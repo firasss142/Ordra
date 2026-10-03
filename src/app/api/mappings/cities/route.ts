@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewMappings, canManageMappings } from "@/lib/mapping-permissions";
 import { marketIdToCode } from "@/lib/markets";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export const dynamic = "force-dynamic";
  *        existing destination and recompute that order's mapping_status.
  */
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: data ?? [] });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -241,3 +242,6 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/mappings/cities", "GET", handleGET);
+export const POST = withRouteErrors("/api/mappings/cities", "POST", handlePOST);

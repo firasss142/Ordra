@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -110,5 +111,5 @@ async function run(req: NextRequest) {
   });
 }
 
-export const GET = run;
-export const POST = run;
+export const GET = withRouteErrors("/api/cron/notifications-check", "GET", run);
+export const POST = withRouteErrors("/api/cron/notifications-check", "POST", run);

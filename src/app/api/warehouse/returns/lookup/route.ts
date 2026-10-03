@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ interface Verdict {
   code?: string;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -94,3 +95,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(result);
 }
+
+export const GET = withRouteErrors("/api/warehouse/returns/lookup", "GET", handleGET);

@@ -5,6 +5,7 @@ import { encrypt, decrypt } from "@/lib/crypto";
 import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { classifyGraphError } from "@/lib/whatsapp/errors";
 import { CONFIG_COLUMNS, toPublicConfig, type ConfigRow } from "@/lib/whatsapp/config";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Update or disconnect one market's WhatsApp credential.
@@ -20,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 const GRAPH_VERSION_RE = /^v\d{2}\.\d$/;
 
-export async function PATCH(req: NextRequest, { params }: { params: { marketId: string } }) {
+async function handlePATCH(req: NextRequest, { params }: { params: { marketId: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -133,7 +134,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { marketId: 
   return NextResponse.json({ data: toPublicConfig(data as ConfigRow) });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { marketId: string } }) {
+async function handleDELETE(req: NextRequest, { params }: { params: { marketId: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -147,3 +148,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { marketId:
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   return NextResponse.json({ data: { deleted: true } });
 }
+
+export const PATCH = withRouteErrors("/api/whatsapp/config/[marketId]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/whatsapp/config/[marketId]", "DELETE", handleDELETE);

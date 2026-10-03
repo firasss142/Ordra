@@ -16,12 +16,13 @@ import {
 } from "@/lib/calculations/profitability";
 import { calculateConfirmationRate } from "@/lib/metrics";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 const CONFIRMED_STATUSES = ["confirmed", "uploaded"] as const;
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -257,3 +258,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withRouteErrors("/api/products/[id]/profitability", "GET", handleGET);

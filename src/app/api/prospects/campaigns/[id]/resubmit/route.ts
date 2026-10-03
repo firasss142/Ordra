@@ -7,6 +7,7 @@ import { createWhatsAppClient } from "@/lib/whatsapp/client";
 import { buildCampaignTemplate, campaignTemplateName, parseSendWindow, validateCampaignBody } from "@/lib/whatsapp/campaign-template";
 import { submitCampaignTemplate } from "@/lib/whatsapp/templates";
 import { uploadHeaderImage } from "@/lib/whatsapp/campaign-submit";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/prospects/campaigns/[id]/resubmit
@@ -23,7 +24,7 @@ const RATE_MAX = 1000;
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -93,3 +94,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "template_submit_failed", message: err instanceof Error ? err.message : "Meta injoignable" }, { status: 502 });
   }
 }
+
+export const POST = withRouteErrors("/api/prospects/campaigns/[id]/resubmit", "POST", handlePOST);

@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 // so every Darb bucket read zero. The list is shared with the client component,
 // which used to keep its own copy — that is how the two drifted.
 import { CARRIER_BOARD_STATUSES, type CarrierBoardStatus } from "@/types/order-status";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 const PHASE_2_STATUSES = CARRIER_BOARD_STATUSES;
 type Phase2Status = CarrierBoardStatus;
@@ -87,7 +88,7 @@ function median(values: number[]): number | null {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -393,3 +394,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(body);
 }
+
+export const GET = withRouteErrors("/api/warehouse/carrier-tracking", "GET", handleGET);

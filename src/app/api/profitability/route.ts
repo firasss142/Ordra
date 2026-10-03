@@ -14,10 +14,11 @@ import {
   type PeriodDelta,
 } from "@/lib/calculations/deltas";
 import { computePreviousPeriod } from "@/lib/date";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -153,3 +154,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/profitability", "GET", handleGET);

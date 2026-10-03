@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runInvestorRollup, type RollupMode } from "@/lib/investors/rollup-run";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -60,10 +61,13 @@ async function run(req: NextRequest) {
   return NextResponse.json({ data: result }, { status });
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   return run(req);
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   return run(req);
 }
+
+export const GET = withRouteErrors("/api/cron/investor-rollup", "GET", handleGET);
+export const POST = withRouteErrors("/api/cron/investor-rollup", "POST", handlePOST);
