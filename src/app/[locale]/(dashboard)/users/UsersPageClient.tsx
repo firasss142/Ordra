@@ -1,371 +1,289 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import useSWR from "swr";
-import { fetcher } from "@/lib/swr-config";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { History, Info, KeyRound, Plus, Search, Trash2, User, UserCheck, UserX } from "lucide-react";
 import { useUsersWorkspace } from "@/hooks/useUsersWorkspace";
-import { UserRoleSection } from "@/components/admin/UserRoleSection";
-import { CreateUserPanel } from "@/components/admin/CreateUserPanel";
-import { DeactivateUserFlow } from "@/components/admin/DeactivateUserFlow";
-import { DeleteUserFlow } from "@/components/admin/DeleteUserFlow";
-import { UserAuditLog } from "@/components/admin/UserAuditLog";
-import type { AuthUser, DeactivationReason, Role, UserWithStats } from "@/types";
+import { useToast } from "@/components/ui/Toast";
+import { marketIdToCode } from "@/lib/markets";
+import { accessStatus, buildAccessView, type AccessFilters, type RoleTab } from "@/lib/users/access-view";
+import { RoleTiles } from "@/components/admin/access/RoleTiles";
+import { AccessToolbar } from "@/components/admin/access/AccessToolbar";
+import { UnassignedBanner } from "@/components/admin/access/UnassignedBanner";
+import { DisabledFold, UsersTable, type RowContext } from "@/components/admin/access/UsersTable";
+import { UserDrawer, type DrawerAction } from "@/components/admin/access/UserDrawer";
+import { CreateUserPanel } from "@/components/admin/access/CreateUserPanel";
+import { DeactivateUserDialog, DeleteUserDialog, ResetPasswordDialog } from "@/components/admin/access/dialogs";
+import { buttonClass } from "@/components/admin/access/parts";
+import type { RowMenuItem } from "@/components/admin/access/RowMenu";
+import type { AuthUser, UserWithStats } from "@/types";
 
-interface Market {
-  id: string;
-  name: string;
-  code: string;
+type Dialog = { kind: "deactivate" | "delete" | "reset"; user: UserWithStats };
+
+/** Presence is a time-relative fact: re-read the clock every minute. */
+function useNow(intervalMs = 60_000): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
 }
 
-interface Props {
-  user: AuthUser;
-}
-
-const ROLE_ORDER: Role[] = [
-  "super_admin",
-  "market_manager",
-  "agent",
-  "warehouse_agent",
-  "investor",
-];
-
-function groupUsersByRole(users: UserWithStats[]): Partial<Record<Role, UserWithStats[]>> {
-  const map: Partial<Record<Role, UserWithStats[]>> = {};
-  for (const u of users) {
-    if (!map[u.role]) map[u.role] = [];
-    map[u.role]!.push(u);
-  }
-  return map;
-}
-
-export function UsersPageClient({ user }: Props) {
+/**
+ * Équipe › Accès (/users) — prototypes/acces-v2.html. Who can sign in, with
+ * which role and on which market: role tiles, one table, a file per person,
+ * creation in three steps. Same routes and role rules as before; a manager's
+ * list is already scoped by GET /api/users.
+ */
+export function UsersPageClient({ user }: { user: AuthUser }) {
   const t = useTranslations("users");
-  const { users, isLoading, createUser, deactivateUser, reactivateUser, deleteUser, setWarehouse } =
-    useUsersWorkspace();
-  const { data: marketsData } = useSWR<{ data: Market[] }>(
-    user.role === "super_admin" ? "/api/markets" : null,
-    fetcher
-  );
+  const locale = useLocale();
+  const { show } = useToast();
+  const ws = useUsersWorkspace();
+  const now = useNow();
+  const admin = user.role === "super_admin";
 
-  const markets = useMemo((): Market[] => {
-    if (marketsData?.data) return marketsData.data;
-    if (user.market_id) {
-      return [{ id: user.market_id, name: user.market_id, code: "" }];
+  const [filters, setFilters] = useState<AccessFilters>({ tab: "all", market: "all", query: "", dormantOnly: false });
+  const [foldOpen, setFoldOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [journalFirst, setJournalFirst] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const createButton = useRef<HTMLButtonElement>(null);
+
+  const view = useMemo(() => buildAccessView(ws.users, user.role, filters, now), [ws.users, user.role, filters, now]);
+  const openUser = openId ? ws.users.find((u) => u.id === openId) ?? null : null;
+  const takenEmails = useMemo(() => new Set(ws.users.map((u) => u.email)), [ws.users]);
+  const ownMarket = marketIdToCode(user.market_id);
+
+  const focusBack = (el: HTMLElement | null) => {
+    if (el?.isConnected) el.focus();
+  };
+  const closeFile = () => {
+    setOpenId(null);
+    setJournalFirst(false);
+    focusBack(opener.current);
+  };
+  const closeDialog = () => {
+    setDialog(null);
+    if (!openId) focusBack(opener.current);
+  };
+  const closeCreate = () => {
+    setCreating(false);
+    focusBack(createButton.current);
+  };
+
+  // One Escape, the topmost layer only. The row menu stops its own Escape.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (dialog) closeDialog();
+      else if (creating) closeCreate();
+      else if (openId) closeFile();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  const fail = (err: unknown) => show({ tone: "critical", message: err instanceof Error ? err.message : t("error") });
+
+  const open = (u: UserWithStats, el: HTMLElement | null, journal = false) => {
+    opener.current = el;
+    setJournalFirst(journal);
+    setOpenId(u.id);
+  };
+
+  const act = async (u: UserWithStats, action: DrawerAction) => {
+    if (action === "reactivate") {
+      try {
+        await ws.reactivateUser(u.id);
+        show({ message: t("toast.reactivated", { name: u.full_name }) });
+      } catch (err) {
+        fail(err);
+      }
+      return;
     }
-    return [];
-  }, [marketsData, user.market_id]);
+    if (!openId) opener.current = document.activeElement as HTMLElement | null;
+    setDialog({ kind: action, user: u });
+  };
 
-  const [createPanelOpen, setCreatePanelOpen] = useState(false);
-  const [deactivatingUser, setDeactivatingUser] = useState<UserWithStats | null>(null);
-  const [deletingUser, setDeletingUser] = useState<UserWithStats | null>(null);
-  const [auditLogUserId, setAuditLogUserId] = useState<string | null>(null);
-  const [resetPasswordUser, setResetPasswordUser] = useState<UserWithStats | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const menuFor = (u: UserWithStats): RowMenuItem[] => {
+    const rowButton = () => document.querySelector<HTMLElement>(`[aria-label="${CSS.escape(t("actionsFor", { name: u.full_name }))}"]`);
+    const items: RowMenuItem[] = [
+      { key: "open", label: t("menu.open"), icon: User, onSelect: () => open(u, rowButton()) },
+      { key: "reset", label: t("menu.reset"), icon: KeyRound, onSelect: () => { opener.current = rowButton(); setDialog({ kind: "reset", user: u }); } },
+      accessStatus(u) === "active"
+        ? { key: "deactivate", label: t("menu.deactivate"), icon: UserX, critical: true, onSelect: () => { opener.current = rowButton(); setDialog({ kind: "deactivate", user: u }); } }
+        : { key: "reactivate", label: t("menu.reactivate"), icon: UserCheck, onSelect: () => void act(u, "reactivate") },
+    ];
+    if (admin) items.push({ key: "journal", label: t("menu.journal"), icon: History, onSelect: () => open(u, rowButton(), true) });
+    if (admin && u.id !== user.id) {
+      items.push({ key: "delete", label: t("menu.delete"), icon: Trash2, critical: true, separated: true, onSelect: () => { opener.current = rowButton(); setDialog({ kind: "delete", user: u }); } });
+    }
+    return items;
+  };
 
-  const grouped = useMemo(() => groupUsersByRole(users), [users]);
+  const setWarehouse = async (u: UserWithStats, warehouseId: string | null) => {
+    // Throws on failure: the control that asked shows the error beside itself.
+    await ws.setWarehouse(u.id, warehouseId);
+    show({ message: t("warehouse.saved") });
+  };
 
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  const ctx: RowContext = {
+    now,
+    showMarket: admin,
+    selectedId: openId,
+    isSelf: (u) => u.id === user.id,
+    onOpen: (u, el) => open(u, el),
+    menuFor,
+    onSetWarehouse: setWarehouse,
+  };
+
+  const patch = (next: Partial<AccessFilters>) => setFilters((f) => ({ ...f, ...next }));
+  const filtered = filters.query.trim() !== "" || filters.dormantOnly || filters.tab !== "all" || filters.market !== "all";
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px" }}>
-      {/* Page header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-            ACCÈS
-          </h1>
-          <p style={{ fontSize: 14, color: "#6D7175", margin: "4px 0 0" }}>
-            Gestion des utilisateurs et des accès
-          </p>
-        </div>
-
-        {(user.role === "super_admin" || user.role === "market_manager") && (
-          <button
-            onClick={() => setCreatePanelOpen(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "10px 18px",
-              background: "#1A1A1A",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            {t("createTitle")}
+    <div dir={locale === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-surface-page">
+      <div className="mx-auto flex max-w-[1160px] flex-col gap-[18px] px-[16px] pb-[64px] pt-[28px] md:px-[32px]">
+        <header className="flex flex-wrap items-end justify-between gap-[16px]">
+          <div>
+            <h1 className="m-0 text-[24px] font-bold tracking-[-.02em] text-[#15171A]">{t("title")}</h1>
+            <p className="m-0 mt-[4px] text-[14px] text-[#4F555B]">
+              {admin ? t("subtitleAdmin") : t("subtitleManager", { market: ownMarket ? t(`market.${ownMarket}`) : "" })}
+            </p>
+          </div>
+          <button ref={createButton} type="button" onClick={() => setCreating(true)} className={buttonClass("primary")}>
+            <Plus size={16} aria-hidden="true" />
+            {t("create")}
           </button>
+        </header>
+
+        <UnassignedBanner users={view.unassignedWarehouse} onAssign={(u, el) => open(u, el)} />
+
+        {ws.isLoading ? (
+          <div role="status" aria-label={t("loading")} className="flex flex-col gap-[18px]">
+            <div className="grid grid-cols-2 gap-[12px] md:grid-cols-[repeat(auto-fit,minmax(168px,1fr))]">
+              {Array.from({ length: admin ? 6 : 3 }, (_, i) => (
+                <span key={i} className="block h-[118px] animate-pulse rounded-[14px] bg-[#EEF0F2]" />
+              ))}
+            </div>
+            <div className="flex flex-col gap-[14px] rounded-[14px] border border-[#ECEEF0] bg-white p-[20px]">
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="flex items-center gap-[12px]">
+                  <span className="block h-[36px] w-[36px] animate-pulse rounded-full bg-[#EEF0F2]" />
+                  <span className="block h-[12px] animate-pulse rounded-[6px] bg-[#EEF0F2]" style={{ width: 90 + ((i * 37) % 70) }} />
+                  <span className="ms-[18%] block h-[24px] animate-pulse rounded-full bg-[#EEF0F2]" style={{ width: 120 + ((i * 23) % 50) }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            <RoleTiles tiles={view.tiles} selected={filters.tab} onSelect={(tab: RoleTab) => patch({ tab })} />
+
+            <div className="overflow-hidden rounded-[14px] border border-[#ECEEF0] bg-white">
+              <AccessToolbar
+                query={filters.query}
+                onQuery={(query) => patch({ query })}
+                market={admin ? filters.market : null}
+                marketCounts={view.marketCounts}
+                onMarket={(market) => patch({ market })}
+                dormantCount={view.dormantCount}
+                dormantOnly={filters.dormantOnly}
+                onDormant={() => patch({ dormantOnly: !filters.dormantOnly })}
+                resultCount={view.rows.length}
+              />
+              {view.rows.length > 0 ? (
+                <UsersTable rows={view.rows} ctx={ctx} />
+              ) : (
+                <div className="px-[16px] py-[48px] text-center text-[14px] text-[#4F555B]">
+                  <span aria-hidden="true" className="mx-auto mb-[12px] grid h-[44px] w-[44px] place-items-center rounded-[12px] bg-brand-bg text-brand">
+                    <Search size={18} />
+                  </span>
+                  <p className="m-0">{filters.query.trim() ? t("emptyQuery", { query: filters.query.trim() }) : t("empty")}</p>
+                  {filtered && (
+                    <button type="button" onClick={() => setFilters({ tab: "all", market: "all", query: "", dormantOnly: false })} className={`${buttonClass("neutral", "sm")} mt-[14px]`}>
+                      {t("clear")}
+                    </button>
+                  )}
+                </div>
+              )}
+              <DisabledFold rows={view.disabled} ctx={ctx} open={foldOpen} onToggle={() => setFoldOpen((o) => !o)} />
+            </div>
+
+            <p className="m-0 flex items-center gap-[7px] px-[4px] text-[12.5px] text-[#656B72]">
+              <Info size={14} aria-hidden="true" />
+              {t("footnote")}
+            </p>
+          </>
         )}
       </div>
 
-      {/* Loading skeleton */}
-      {isLoading && (
-        <div style={{ textAlign: "center", color: "#9CA3AF", fontSize: 14, padding: 48 }}>
-          Chargement…
-        </div>
+      {openUser && (
+        <UserDrawer
+          user={openUser}
+          actorRole={user.role}
+          isSelf={openUser.id === user.id}
+          now={now}
+          journalFirst={journalFirst}
+          onClose={closeFile}
+          onAction={(action) => void act(openUser, action)}
+          onSetWarehouse={(wid) => setWarehouse(openUser, wid)}
+        />
       )}
 
-      {/* Role sections */}
-      {!isLoading &&
-        ROLE_ORDER.map((role) => {
-          const roleUsers = grouped[role];
-          if (!roleUsers || roleUsers.length === 0) return null;
-          return (
-            <UserRoleSection
-              key={role}
-              role={role}
-              users={roleUsers}
-              markets={markets}
-              actorRole={user.role}
-              actorId={user.id}
-              onDeactivate={(u) => setDeactivatingUser(u)}
-              onReactivate={async (id) => {
-                try {
-                  await reactivateUser(id);
-                  showToast(t("reactivate") + " ✓");
-                } catch (e: unknown) {
-                  showToast(e instanceof Error ? e.message : "Erreur");
-                }
-              }}
-              onResetPassword={(u) => setResetPasswordUser(u)}
-              onViewAuditLog={(id) => setAuditLogUserId(id)}
-              onDelete={(u) => setDeletingUser(u)}
-              onSetWarehouse={async (u, warehouseId) => {
-                // Throws on failure: WarehouseAssignment shows the error itself
-                // rather than a toast that scrolls away from the control.
-                await setWarehouse(u.id, warehouseId);
-                showToast(t("warehouse") + " ✓");
-              }}
-            />
-          );
-        })}
-
-      {/* Create panel */}
-      <CreateUserPanel
-        open={createPanelOpen}
-        actorRole={user.role}
-        actorMarketId={user.market_id}
-        markets={markets}
-        onClose={() => setCreatePanelOpen(false)}
-        onCreate={async (payload) => {
-          await createUser(payload);
-          showToast(t("create") + " ✓");
-        }}
-      />
-
-      {/* Deactivate flow */}
-      {deactivatingUser && (
-        <DeactivateUserFlow
-          userId={deactivatingUser.id}
-          userName={deactivatingUser.full_name}
-          open={!!deactivatingUser}
-          onClose={() => setDeactivatingUser(null)}
-          onDeactivate={async (id, reason: DeactivationReason) => {
-            return deactivateUser(id, reason);
-          }}
-          onSuccess={(ordersReturned) => {
-            setDeactivatingUser(null);
-            showToast(t("deactivatedWithCount", { count: ordersReturned }));
+      {creating && (
+        <CreateUserPanel
+          actorRole={user.role}
+          actorMarketId={user.market_id}
+          takenEmails={takenEmails}
+          onClose={closeCreate}
+          onCreate={async (payload) => {
+            await ws.createUser(payload);
+            const identifier = payload.username.trim().toLowerCase().replace(/\s+/g, ".");
+            setCreating(false);
+            setFilters({ tab: "all", market: "all", query: "", dormantOnly: false });
+            show({ message: t("toast.created", { name: payload.username.trim(), identifier }) });
           }}
         />
       )}
 
-      {/* Delete flow (super_admin only — gating enforced in UserCard) */}
-      {deletingUser && (
-        <DeleteUserFlow
-          userId={deletingUser.id}
-          userName={deletingUser.full_name}
-          open={!!deletingUser}
-          onClose={() => setDeletingUser(null)}
-          onDelete={async (id) => deleteUser(id)}
-          onSuccess={(ordersReturned) => {
-            setDeletingUser(null);
-            showToast(t("deletedWithCount", { count: ordersReturned }));
+      {dialog?.kind === "deactivate" && (
+        <DeactivateUserDialog
+          user={dialog.user}
+          onClose={closeDialog}
+          onConfirm={async (reason) => {
+            const { ordersReturned } = await ws.deactivateUser(dialog.user.id, reason);
+            closeDialog();
+            show({ message: t("toast.deactivated", { name: dialog.user.full_name, count: ordersReturned }) });
           }}
         />
       )}
-
-      {/* Audit log */}
-      {auditLogUserId && (
-        <UserAuditLog
-          userId={auditLogUserId}
-          open={!!auditLogUserId}
-          onClose={() => setAuditLogUserId(null)}
+      {dialog?.kind === "delete" && (
+        <DeleteUserDialog
+          user={dialog.user}
+          onClose={closeDialog}
+          onConfirm={async () => {
+            const { ordersReturned } = await ws.deleteUser(dialog.user.id);
+            setDialog(null);
+            if (openId === dialog.user.id) setOpenId(null);
+            show({ message: t("toast.deleted", { name: dialog.user.full_name, count: ordersReturned }) });
+          }}
         />
       )}
-
-      {/* Toast */}
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            insetInlineEnd: 24,
-            background: "#1A1A1A",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: 8,
-            fontSize: 14,
-            zIndex: 999,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-          }}
-        >
-          {toast}
-        </div>
-      )}
-
-      {/* Reset password stub (handled inline) */}
-      {resetPasswordUser && (
+      {dialog?.kind === "reset" && (
         <ResetPasswordDialog
-          user={resetPasswordUser}
-          onClose={() => setResetPasswordUser(null)}
-          onSuccess={() => {
-            setResetPasswordUser(null);
-            showToast(t("passwordReset"));
+          user={dialog.user}
+          onClose={closeDialog}
+          onConfirm={async (password) => {
+            await ws.resetPassword(dialog.user.id, password);
+            closeDialog();
+            show({ message: t("toast.reset") });
           }}
         />
       )}
     </div>
-  );
-}
-
-// Inline reset password dialog — simple, no separate file needed
-function ResetPasswordDialog({
-  user,
-  onClose,
-  onSuccess,
-}: {
-  user: UserWithStats;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const t = useTranslations("users");
-  const { resetPassword } = useUsersWorkspace();
-  const [pw, setPw] = useState("");
-  const [pw2, setPw2] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const invalid = false;
-  const mismatch = pw2.length > 0 && pw !== pw2;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (pw !== pw2) { setError(t("passwordMismatch")); return; }
-    if (pw.length < 1) { setError(t("passwordTooShort")); return; }
-    setLoading(true);
-    setError(null);
-    try {
-      await resetPassword(user.id, pw);
-      onSuccess();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200 }}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          background: "white",
-          borderRadius: 12,
-          width: 400,
-          maxWidth: "90vw",
-          zIndex: 201,
-          padding: 24,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-        }}
-      >
-        <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>
-          {t("resetPassword")}
-        </h2>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "0 0 20px" }}>
-          {user.full_name}
-        </p>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
-              {t("newPassword")}
-            </label>
-            <input
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              required
-              style={{
-                display: "block", width: "100%", height: 36, padding: "0 12px",
-                fontSize: 14, border: `1px solid ${invalid ? "#FECACA" : "#E1E3E5"}`,
-                borderRadius: 6, outline: "none", boxSizing: "border-box",
-              }}
-            />
-            {invalid && <p style={{ fontSize: 12, color: "#B91C1C", margin: "4px 0 0" }}>{t("passwordTooShort")}</p>}
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
-              {t("confirmPassword")}
-            </label>
-            <input
-              type="password"
-              value={pw2}
-              onChange={(e) => setPw2(e.target.value)}
-              required
-              style={{
-                display: "block", width: "100%", height: 36, padding: "0 12px",
-                fontSize: 14, border: `1px solid ${mismatch ? "#FECACA" : "#E1E3E5"}`,
-                borderRadius: 6, outline: "none", boxSizing: "border-box",
-              }}
-            />
-            {mismatch && <p style={{ fontSize: 12, color: "#B91C1C", margin: "4px 0 0" }}>{t("passwordMismatch")}</p>}
-          </div>
-          {error && (
-            <p style={{ fontSize: 13, color: "#B91C1C", padding: "8px 12px", background: "#FEF2F2", borderRadius: 6, margin: 0 }}>
-              {error}
-            </p>
-          )}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ flex: 1, padding: "10px 0", background: "white", border: "1px solid #E1E3E5", borderRadius: 6, fontSize: 14, cursor: "pointer" }}
-            >
-              {t("cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ flex: 1, padding: "10px 0", background: loading ? "#E1E3E5" : "#1A1A1A", color: loading ? "#9CA3AF" : "white", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: loading ? "not-allowed" : "pointer" }}
-            >
-              {loading ? "Enregistrement…" : t("save")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </>
   );
 }

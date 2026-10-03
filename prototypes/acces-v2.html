@@ -1,0 +1,1266 @@
+<!doctype html>
+<!--
+  Accès (/users) — v2, refonte VISUELLE. Construit 2026-10-03 après la revue de la v1 :
+  « le design est un peu brut — agis en expert UI et refais-le avec une palette élégante, moderne,
+  colorée, qui aille avec le vert principal ».
+
+  Ne change pas depuis la v1 (prototypes/acces-v1.html) : la structure (filtre par rôle, une table,
+  fiche latérale, création, trois dialogues), les données, les actions, les règles de rôle, et le
+  diagnostic de la page actuelle. Change : tout le langage visuel.
+
+  Idée centrale : UNE TEINTE PAR RÔLE, accordée au vert de marque. Agents = ciel, Entrepôt = orange,
+  Managers = indigo, Investisseurs = sarcelle, Super admins = ardoise ; le vert de marque garde le
+  chrome (bouton principal, sélection « Tous », navigation). La teinte suit la personne partout :
+  tuile, avatar, pastille de rôle, carte de création, bandeau de la fiche.
+
+  DONNÉES RÉELLES, lues en lecture seule le sam. 3 oct. 2026 à 15:30 (Tripoli) — mêmes que la v1.
+  URL : ?v=after|before &as=admin|manager &data=real|edge &lang=fr|ar &tab=<rôle> &mk=all|ly|tn &q=<texte>
+        &screen=user|create|deactivate|delete|reset|menu|loading &u=<identifiant>
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accès — prototype v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFFFFF; --fill:#F3F4F6; --fill-2:#F7F8F9; --hover:#FAFBFC;
+    --line:#E3E5E8; --line-subtle:#ECEEF0; --line-faint:#F2F3F5; --line-input:#D5D8DC;
+    --ink-1:#15171A; --ink-2:#4F555B; --ink-3:#656B72; --ink-4:#9AA0A6;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4; --brand-edge:#A9DDBC;
+    --live:#16A34A; --idle:#D97706; --ok-ink:#15803D;
+    --crit:#C0362C; --crit-bg:#FDECEA; --crit-edge:#F5C9C4; --danger:#D72C0D;
+    /* role palette — ink ≥ 4.5:1 on its tint, hue ≥ 3:1 (icons, dots) */
+    --r-agent:#0284C7; --r-agent-ink:#0369A1; --r-agent-bg:#EAF6FD; --r-agent-edge:#B9E1F7;
+    --r-wh:#EA580C;    --r-wh-ink:#C2410C;    --r-wh-bg:#FFF3EB;    --r-wh-edge:#FDCDB0;
+    --r-mgr:#6366F1;   --r-mgr-ink:#4338CA;   --r-mgr-bg:#EEF0FF;   --r-mgr-edge:#C9CDFB;
+    --r-inv:#0D9488;   --r-inv-ink:#0F766E;   --r-inv-bg:#E8F8F5;   --r-inv-edge:#A9E5DB;
+    --r-sa:#475569;    --r-sa-ink:#334155;    --r-sa-bg:#EEF1F5;    --r-sa-edge:#CBD3DE;
+    --sidebar:#0E1013; --sidebar-el:#14171C; --sidebar-ink:#E6E8EB; --sidebar-2:#B5BAC2; --sidebar-3:#7F858F;
+    --f:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --f-ar:"Noto Sans Arabic","Inter",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --e-pill:0 1px 2px rgba(16,24,40,.08),0 0 0 1px rgba(16,24,40,.04);
+    --e-panel:0 8px 32px rgba(16,24,40,.10); --e-float:0 12px 32px rgba(16,24,40,.14);
+  }
+  /* one hue per role — every coloured component reads --h / --hi / --hb / --he */
+  .h-all  {--h:var(--brand);   --hi:var(--brand-hover); --hb:var(--brand-bg); --he:var(--brand-edge)}
+  .h-agent{--h:var(--r-agent); --hi:var(--r-agent-ink); --hb:var(--r-agent-bg); --he:var(--r-agent-edge)}
+  .h-wh   {--h:var(--r-wh);    --hi:var(--r-wh-ink);    --hb:var(--r-wh-bg);    --he:var(--r-wh-edge)}
+  .h-mgr  {--h:var(--r-mgr);   --hi:var(--r-mgr-ink);   --hb:var(--r-mgr-bg);   --he:var(--r-mgr-edge)}
+  .h-inv  {--h:var(--r-inv);   --hi:var(--r-inv-ink);   --hb:var(--r-inv-bg);   --he:var(--r-inv-edge)}
+  .h-sa   {--h:var(--r-sa);    --hi:var(--r-sa-ink);    --hb:var(--r-sa-bg);    --he:var(--r-sa-edge)}
+  .h-crit {--h:#DC2626; --hi:#B42318; --hb:#FEF0EE; --he:#F9C5BF}
+  .h-amber{--h:#D97706; --hi:#B45309; --hb:#FFF6E5; --he:#F8D9A6}
+
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+  [dir=rtl], [dir=rtl] button, [dir=rtl] input, [dir=rtl] select{font-family:var(--f-ar)}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0}
+  h1,h2,h3,p{margin:0}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .num{font-variant-numeric:tabular-nums}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+
+  /* ── prototype chrome (NOT part of the app) ─────────────────────── */
+  .pbar{position:sticky;top:0;z-index:300;background:#1F2328;color:#E6E8EB;padding:9px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--brand);font-family:var(--f)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar .grow{flex:1}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+  .pbar .warnfr{font-size:11px;color:#E0A43A}
+
+  /* ── app shell ─────────────────────────────────────────────────── */
+  .stage{display:flex;min-height:calc(100vh - 50px)}
+  .side{width:232px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);padding:14px 10px 20px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+  .side .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;padding:2px 8px 12px}
+  .side .brand i{width:22px;height:22px;border-radius:6px;background:var(--brand);display:grid;place-items:center;font-style:normal;font-size:12px;color:#fff}
+  .side .mk{display:flex;align-items:center;justify-content:space-between;margin:0 4px 10px;padding:7px 10px;border-radius:8px;background:var(--sidebar-el);border:1px solid rgba(255,255,255,.06);color:var(--sidebar-2);font-size:12.5px}
+  .side .mk b{color:#fff;font-weight:600}
+  .side .nsec{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;color:var(--sidebar-2);font-weight:500}
+  .side .nsec .ic{width:15px;height:15px;color:var(--sidebar-3)}
+  .side .nsec .chev{margin-inline-start:auto;width:13px;height:13px}
+  .side .it{display:flex;align-items:center;padding:6px 8px;padding-inline-start:32px;border-radius:7px;color:var(--sidebar-2)}
+  .side .it.on{background:var(--brand);color:#fff;font-weight:600}
+  .side .foot{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px 8px 0;border-top:1px solid rgba(255,255,255,.06)}
+  .side .foot span{width:28px;height:28px;border-radius:50%;background:#2A2F36;display:grid;place-items:center;font-size:12px;font-weight:600;text-transform:uppercase}
+  .side .foot small{display:block;color:var(--sidebar-3);font-size:11.5px}
+  main{flex:1;min-width:0;padding:28px 32px 64px}
+  .page{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+  /* ── buttons ───────────────────────────────────────────────────── */
+  .btn{height:38px;padding:0 15px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;color:var(--ink-1);transition:background-color 120ms ease,border-color 120ms ease}
+  .btn:hover{background:var(--fill-2);border-color:var(--line-input)}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.pri:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+  .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+  .btn.danger:hover{background:#B8250B;border-color:#B8250B}
+  .btn.soft-crit{color:var(--crit);border-color:var(--crit-edge);background:#fff}
+  .btn.soft-crit:hover{background:var(--crit-bg)}
+  .btn.ghost-crit{border-color:transparent;color:var(--crit);padding:0 8px}
+  .btn.ghost-crit:hover{background:var(--crit-bg)}
+  .btn[disabled]{background:var(--fill);border-color:var(--fill);color:#80868C;cursor:not-allowed}
+  .btn.sm{height:32px;padding:0 11px;font-size:12.5px;border-radius:9px}
+
+  /* ── header ────────────────────────────────────────────────────── */
+  .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .ph h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .ph .sub{font-size:14px;color:var(--ink-2);margin-top:4px}
+
+  /* ── role tiles (filter) ───────────────────────────────────────── */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
+  .tile{display:flex;flex-direction:column;gap:12px;text-align:start;background:#fff;border:1px solid var(--line-subtle);border-radius:14px;padding:14px 16px 13px;transition:border-color 120ms ease,background-color 120ms ease,box-shadow 120ms ease;min-width:0}
+  .tile:hover{border-color:var(--he)}
+  .tile[aria-pressed=true]{border-color:var(--h);box-shadow:inset 0 0 0 1px var(--h);background:var(--hb)}
+  .tile .tt{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--ink-2);min-width:0}
+  .tile .tt span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile[aria-pressed=true] .tt{color:var(--hi)}
+  .ih{width:32px;height:32px;border-radius:9px;background:var(--hb);color:var(--h);display:grid;place-items:center;flex:none}
+  .ih .ic{width:17px;height:17px}
+  .tile[aria-pressed=true] .ih{background:#fff}
+  .tile .tc{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .tile .tc b{font-size:28px;font-weight:700;letter-spacing:-.025em;line-height:1}
+  .tile .ts{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .tile .ts .dot{width:7px;height:7px}
+  .stack{display:inline-flex;align-items:center}
+  .stack .av{margin-inline-start:-7px;box-shadow:0 0 0 2px #fff,inset 0 0 0 1px var(--he)}
+  .stack .av:first-child{margin-inline-start:0}
+  .tile[aria-pressed=true] .stack .av{box-shadow:0 0 0 2px var(--hb),inset 0 0 0 1px var(--he)}
+  .stack .more{margin-inline-start:-5px;height:24px;min-width:28px;padding:0 6px;border-radius:99px;background:var(--fill);color:var(--ink-2);font-size:10.5px;font-weight:600;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}
+  .tile[aria-pressed=true] .stack .more{box-shadow:0 0 0 2px var(--hb);background:#fff}
+
+  /* ── avatars ───────────────────────────────────────────────────── */
+  .av{position:relative;width:36px;height:36px;border-radius:50%;background:var(--hb,#EEF0F2);color:var(--hi,#3A3F44);box-shadow:inset 0 0 0 1px var(--he,transparent);display:grid;place-items:center;font-weight:650;font-size:13px;flex:none;text-transform:uppercase;letter-spacing:.01em}
+  .av.xs{width:24px;height:24px;font-size:10px}
+  .av.xl{width:60px;height:60px;font-size:21px;box-shadow:0 0 0 3px #fff,inset 0 0 0 1px var(--he)}
+  .av .pr{position:absolute;bottom:-1px;inset-inline-end:-1px;width:11px;height:11px;border-radius:50%;background:var(--live);box-shadow:0 0 0 2px #fff}
+  .av .pr.idle{background:var(--idle)}
+  .av.xl .pr{width:15px;height:15px;bottom:1px;inset-inline-end:1px;box-shadow:0 0 0 3px #fff}
+  .off .av{filter:grayscale(1);opacity:.65}
+
+  /* ── attention banner ──────────────────────────────────────────── */
+  .banner{display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--crit-edge);border-inline-start:4px solid var(--crit);border-radius:14px;padding:14px 16px}
+  .banner .ih{background:var(--crit-bg);color:var(--crit)}
+  .banner b{display:block;color:var(--crit);font-size:14.5px;font-weight:650}
+  .banner p{font-size:13px;line-height:1.5;color:var(--ink-2);margin-top:2px}
+  .who-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .bchip{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 5px;padding-inline:5px 6px;border-radius:99px;background:var(--fill-2);border:1px solid var(--line);font-size:13px;font-weight:600}
+  .bchip:hover{border-color:var(--crit-edge);background:#fff}
+  .bchip .go{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 9px;border-radius:99px;background:var(--crit);color:#fff;font-size:12px;font-weight:600}
+  .bchip .go .ic{width:13px;height:13px}
+
+  /* ── list card ─────────────────────────────────────────────────── */
+  .card{background:var(--card);border:1px solid var(--line-subtle);border-radius:14px;overflow:hidden}
+  .tools{display:flex;align-items:center;gap:10px;padding:14px 16px;padding-inline-start:20px;flex-wrap:wrap;border-bottom:1px solid var(--line-subtle)}
+  .search{position:relative;flex:1 1 240px;max-width:360px}
+  .search input,.inp{width:100%;height:38px;border:1px solid transparent;border-radius:10px;background:var(--fill);padding:0 12px;transition:background-color 120ms ease,border-color 120ms ease,box-shadow 120ms ease}
+  .search input{padding-inline-start:36px}
+  .search input::placeholder,.inp::placeholder{color:var(--ink-3)}
+  .search input:hover,.inp:hover{background:#EDEEF1}
+  .search input:focus,.inp:focus{background:#fff;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg);outline:none}
+  .search .ic{position:absolute;inset-inline-start:12px;top:11px;color:var(--ink-3)}
+  .track{display:inline-flex;background:var(--fill);border-radius:10px;padding:3px;gap:2px}
+  .track button{height:32px;padding:0 12px;border-radius:8px;font-size:13px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;transition:background-color 120ms ease}
+  .track button:hover{color:var(--ink-1)}
+  .track button[aria-pressed=true]{background:#fff;color:var(--ink-1);font-weight:600;box-shadow:var(--e-pill)}
+  .track .n{font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .chip{height:38px;padding:0 13px;border-radius:10px;font-size:13px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:7px;background:var(--fill);border:1px solid transparent}
+  .chip:hover{color:var(--ink-1);background:#EDEEF1}
+  .chip[aria-pressed=true]{background:var(--brand-bg);color:var(--brand-hover);font-weight:600;border-color:var(--brand-edge)}
+  .chip .n{font-weight:600}
+  .rc{margin-inline-start:auto;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+
+  table.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+  .tbl th{font-size:11.5px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;text-align:start;padding:11px 16px;border-bottom:1px solid var(--line-subtle);white-space:nowrap;background:#fff}
+  [dir=rtl] .tbl th{letter-spacing:0;font-size:12.5px}
+  .tbl th:first-child,.tbl td:first-child{padding-inline-start:20px}
+  .tbl td{padding:11px 16px;border-bottom:1px solid var(--line-faint);vertical-align:middle}
+  .tbl tbody tr:last-child td{border-bottom:0}
+  .tbl tr.r{cursor:pointer}
+  .tbl tr.r td{transition:background-color 120ms ease}
+  .tbl tr.r:hover td{background:var(--hover)}
+  .tbl tr.r.sel td{background:var(--brand-tint)}
+  .tbl tr.r.sel td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+  [dir=rtl] .tbl tr.r.sel td:first-child{box-shadow:inset -3px 0 0 var(--brand)}
+  .tbl tr.r.flash td{animation:flash 2.4s ease-out}
+  @keyframes flash{0%,40%{background:var(--brand-bg)}100%{background:transparent}}
+  .tbl .c-act{text-align:end;padding-inline-end:14px}
+  .who{display:flex;align-items:center;gap:12px;text-align:start;min-width:0;max-width:100%;border-radius:10px}
+  .nm{min-width:0}
+  .nm b{font-weight:600;font-size:14px}
+  .nm small{display:block;font-size:12.5px;color:var(--ink-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mtag{font-size:11px;font-weight:600;color:var(--ink-2);background:var(--fill);border-radius:99px;padding:1px 7px;margin-inline-start:6px;vertical-align:1px}
+  .off .nm b{color:var(--ink-2)}
+  .rolewrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chip-role{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px 0 10px;padding-inline:10px 11px;border-radius:99px;background:var(--hb);color:var(--hi);font-size:12.5px;font-weight:600;white-space:nowrap}
+  .chip-role::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--h);flex:none}
+  .chip-role.on-white{background:#fff;box-shadow:inset 0 0 0 1px var(--he)}
+  .off .chip-role{background:var(--fill);color:var(--ink-2)}
+  .off .chip-role::before{background:var(--ink-4)}
+  .whp{position:relative;display:inline-flex;align-items:center}
+  .whp .ic{position:absolute;inset-inline-start:9px;width:13px;height:13px;color:var(--r-wh);pointer-events:none}
+  .whp .ic.chev{inset-inline-start:auto;inset-inline-end:8px;color:var(--r-wh-ink)}
+  .whsel{appearance:none;-webkit-appearance:none;height:26px;border-radius:99px;border:1px solid var(--r-wh-edge);background:#fff;color:var(--r-wh-ink);font-size:12.5px;font-weight:600;padding:0;padding-inline:27px 26px;cursor:pointer;max-width:170px}
+  .whsel:hover{border-color:var(--r-wh);background:var(--r-wh-bg)}
+  .whsel[disabled]{background:var(--fill);border-color:var(--fill);color:var(--ink-3);cursor:default}
+  .whp.none .whsel{border-color:#F3B4AE;background:#FFF1F0;color:var(--crit)}
+  .whp.none .ic{color:var(--crit)}
+  .mkc{font-size:13.5px;color:var(--ink-2)}
+  .muted{color:var(--ink-3)}
+  .seen{display:inline-flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13.5px;white-space:nowrap}
+  .seen.on{color:var(--ok-ink);font-weight:600}
+  .seen.idle{color:#B45309;font-weight:600}
+  .seen.none{color:var(--ink-3)}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+  .dot.on{background:var(--live);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
+  .dot.idle{background:var(--idle);box-shadow:0 0 0 3px rgba(217,119,6,.16)}
+  .dot.off{background:#B4B9BF}
+  .dot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink-4)}
+  .spill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .spill .ic{width:13px;height:13px}
+  .spill.ok{background:#fff;color:var(--ok-ink);box-shadow:inset 0 0 0 1px var(--brand-edge)}
+  .spill.neu{background:var(--fill);color:var(--ink-2)}
+  .spill.warn{background:#FFF6E5;color:#B45309}
+  .kebab{width:34px;height:34px;border-radius:10px;display:inline-grid;place-items:center;color:var(--ink-3)}
+  .kebab:hover,.kebab[aria-expanded=true]{background:var(--fill);color:var(--ink-1)}
+  .fold{border-top:1px solid var(--line-subtle);background:var(--fill-2)}
+  .fold>button{display:flex;align-items:center;gap:8px;width:100%;padding:12px 20px;font-size:13px;font-weight:600;color:var(--ink-2);text-align:start}
+  .fold>button:hover{color:var(--ink-1)}
+  .fold>button .ic{width:14px;height:14px}
+  .fold .tbl td{background:var(--fill-2)}
+  .empty{padding:48px 16px;text-align:center;color:var(--ink-2);font-size:14px}
+  .empty .ih{margin:0 auto 12px;width:44px;height:44px;border-radius:12px}
+  .empty .btn{margin-top:14px}
+  .foot-note{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-3);padding:0 4px}
+  .foot-note .ic{width:14px;height:14px}
+  .sk{display:block;background:#EEF0F2;border-radius:6px;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.sk,.tbl tr.r.flash td{animation:none}.drawer{transition:none}}
+
+  /* ── menu ──────────────────────────────────────────────────────── */
+  .menu{position:fixed;z-index:70;min-width:244px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--e-float);padding:5px;display:none}
+  .menu.on{display:block}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border-radius:8px;font-size:13.5px;font-weight:500;text-align:start;color:var(--ink-1)}
+  .menu button .ic{color:var(--ink-3)}
+  .menu button:hover,.menu button:focus-visible{background:var(--fill);outline:none}
+  .menu button:focus-visible{box-shadow:inset 0 0 0 2px var(--brand)}
+  .menu button.crit,.menu button.crit .ic{color:var(--crit)}
+  .menu button.crit:hover{background:var(--crit-bg)}
+  .menu hr{border:0;border-top:1px solid var(--line-subtle);margin:5px 4px}
+
+  /* ── drawers ───────────────────────────────────────────────────── */
+  .scrim{position:fixed;inset:var(--pb,0px) 0 0 0;background:rgba(17,24,39,.42);z-index:49;display:none}
+  .scrim.on{display:block}
+  .drawer{position:fixed;top:var(--pb,0px);bottom:0;inset-inline-end:0;width:480px;max-width:100vw;background:#fff;box-shadow:var(--e-panel);z-index:50;display:flex;flex-direction:column;transform:translateX(104%);transition:transform .2s ease;visibility:hidden}
+  [dir=rtl] .drawer{transform:translateX(-104%)}
+  .drawer.on{transform:none;visibility:visible}
+  .xbtn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);flex:none}
+  .xbtn:hover{background:var(--fill);color:var(--ink-1)}
+  .dband{position:relative;background:var(--hb);padding:22px 22px 18px;border-bottom:1px solid var(--he)}
+  .dband .xbtn{position:absolute;top:14px;inset-inline-end:14px;background:#fff;box-shadow:inset 0 0 0 1px var(--he)}
+  .dband .dn{margin-top:12px;font-size:19px;font-weight:700;letter-spacing:-.01em}
+  .dmeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .mpill{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .mpill .ic{width:13px;height:13px;color:var(--ink-3)}
+  .dh{padding:18px 20px;border-bottom:1px solid var(--line-subtle);display:flex;gap:12px;align-items:flex-start}
+  .dh .t{flex:1;min-width:0}
+  .dh .t b{display:block;font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .dh .t small{display:block;color:var(--ink-3);font-size:13px;margin-top:2px}
+  .db{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:22px}
+  .df{border-top:1px solid var(--line-subtle);padding:14px 22px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff}
+  .df .grow{flex:1}
+  .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .fact{background:var(--fill-2);border:1px solid var(--line-faint);border-radius:12px;padding:10px 12px;min-width:0}
+  .fact>span{display:block;font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .fact>b{display:block;font-size:13.5px;font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fact>b .seen{font-size:13px;white-space:normal}
+  .fact small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sl{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px}
+  [dir=rtl] .sl{letter-spacing:0;font-size:13px}
+  .sl .ic{width:14px;height:14px;color:var(--ink-4)}
+  .sl .grow{flex:1}
+  .sl .lnk{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--crit);padding:2px 6px;border-radius:6px}
+  .sl .lnk:hover{background:var(--crit-bg)}
+  .sites{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+  .site{position:relative;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;font-size:13.5px;font-weight:600;transition:border-color 120ms ease,background-color 120ms ease}
+  .site:hover{border-color:var(--he)}
+  .site input{position:absolute;opacity:0;pointer-events:none}
+  .site .ih{width:30px;height:30px;border-radius:8px}
+  .site .ih .ic{width:15px;height:15px}
+  .site:has(input:checked){border-color:var(--h);box-shadow:inset 0 0 0 1px var(--h);background:var(--hb);color:var(--hi)}
+  .site:has(input:checked) .ih{background:#fff}
+  .site:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}
+  .site:has(input:disabled){opacity:.55;cursor:default}
+  .hint{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.45}
+  .perms{display:grid;grid-template-columns:1fr 1fr;gap:9px 16px;font-size:13px;list-style:none;margin:0;padding:0}
+  .perms li{display:flex;gap:9px;align-items:center}
+  .perms .pi{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none}
+  .perms .pi .ic{width:13px;height:13px;stroke-width:2.4}
+  .perms .yes{font-weight:500}
+  .perms .yes .pi{background:var(--brand-bg);color:var(--brand)}
+  .perms .no{color:var(--ink-3)}
+  .perms .no .pi{background:var(--fill);color:var(--ink-4)}
+  .perm-note{font-size:12px;color:var(--ink-3);margin-top:12px}
+  .tline{list-style:none;margin:0;padding:0}
+  .tline li{position:relative;padding-inline-start:26px;padding-bottom:16px;font-size:13px}
+  .tline li::before{content:"";position:absolute;inset-inline-start:5px;top:16px;bottom:0;width:2px;background:var(--line-subtle);border-radius:2px}
+  .tline li:last-child{padding-bottom:0}
+  .tline li:last-child::before{display:none}
+  .tline .td{position:absolute;inset-inline-start:0;top:3px;width:12px;height:12px;border-radius:50%;background:var(--h);box-shadow:0 0 0 3px var(--hb)}
+  .tline b{font-weight:600}
+  .tline small{display:block;color:var(--ink-3);font-size:12px;margin-top:2px}
+  .jempty{font-size:13px;color:var(--ink-3)}
+
+  /* ── create panel ──────────────────────────────────────────────── */
+  .cs-t{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:650;margin-bottom:12px}
+  .cs-t i{width:22px;height:22px;border-radius:50%;background:var(--brand-bg);color:var(--brand-hover);font-style:normal;font-size:11.5px;font-weight:700;display:grid;place-items:center}
+  .field+.field{margin-top:14px}
+  .field>.l,fieldset>legend{display:block;font-size:13px;font-weight:600;color:var(--ink-1);margin-bottom:7px;padding:0}
+  fieldset{border:0;margin:0;padding:0;min-width:0}
+  .pw{position:relative}
+  .pw .inp{padding-inline-end:92px}
+  .pw .tg{position:absolute;inset-inline-end:5px;top:5px;height:28px;padding:0 10px;font-size:12px;font-weight:600;color:var(--ink-2);border-radius:7px;display:inline-flex;align-items:center;gap:5px;background:#fff;box-shadow:var(--e-pill)}
+  .pw .tg:hover{color:var(--ink-1)}
+  .pw .tg .ic{width:14px;height:14px}
+  .inp.bad{border-color:var(--danger);background:#fff}
+  .err{color:#B8250B;font-size:12.5px;margin-top:7px;display:flex;gap:6px;align-items:center}
+  .err .ic{width:14px;height:14px}
+  .ident{margin-top:9px;display:flex;align-items:center;gap:10px;background:var(--brand-tint);border:1px solid var(--brand-edge);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--ink-2)}
+  .ident .ih{width:28px;height:28px;border-radius:8px;background:#fff;color:var(--brand)}
+  .ident .ih .ic{width:15px;height:15px}
+  .ident code{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--brand-hover);background:#fff;border:1px solid var(--brand-edge);border-radius:6px;padding:1px 6px}
+  .ident small{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
+  .ident.taken{background:var(--crit-bg);border-color:var(--crit-edge);color:var(--crit)}
+  .ident.taken .ih{color:var(--crit)}
+  .ident.taken code{color:var(--crit);border-color:var(--crit-edge)}
+  .rcards{display:grid;gap:8px}
+  .rcard{position:relative;display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;transition:border-color 120ms ease,background-color 120ms ease}
+  .rcard:hover{border-color:var(--he)}
+  .rcard input{position:absolute;opacity:0;pointer-events:none}
+  .rcard .t{display:block;font-weight:650;font-size:13.5px}
+  .rcard .d{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+  .rcard .rdot{margin-inline-start:auto;width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line-input);flex:none;display:grid;place-items:center;background:#fff}
+  .rcard:has(input:checked){border-color:var(--h);box-shadow:inset 0 0 0 1px var(--h);background:var(--hb)}
+  .rcard:has(input:checked) .t{color:var(--hi)}
+  .rcard:has(input:checked) .ih{background:#fff}
+  .rcard:has(input:checked) .rdot{background:var(--h);box-shadow:none}
+  .rcard:has(input:checked) .rdot::after{content:"";width:7px;height:7px;border-radius:50%;background:#fff}
+  .rcard:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}
+  .segr{display:flex;background:var(--fill);border-radius:10px;padding:3px;gap:2px}
+  .segr label{flex:1;position:relative;height:34px;border-radius:8px;display:grid;place-items:center;font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer}
+  .segr label:hover{color:var(--ink-1)}
+  .segr input{position:absolute;opacity:0;pointer-events:none}
+  .segr label:has(input:checked){background:#fff;color:var(--ink-1);font-weight:650;box-shadow:var(--e-pill)}
+  .segr label:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:1px}
+  .fixed{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--fill-2);border:1px solid var(--line-faint);border-radius:10px;padding:9px 12px}
+  .fixed .ic{width:14px;height:14px;color:var(--ink-3)}
+  .note-warn{display:flex;gap:8px;align-items:flex-start;background:#FFF6E5;color:#8F4A06;border:1px solid #F8D9A6;border-radius:10px;padding:9px 12px;font-size:12.5px;margin-top:10px}
+  .note-warn .ic{width:14px;height:14px;margin-top:1px;color:#D97706}
+
+  /* ── dialogs ───────────────────────────────────────────────────── */
+  .dlgw{position:fixed;inset:var(--pb,0px) 0 0 0;z-index:60;display:none;place-items:center;background:rgba(17,24,39,.42);padding:16px}
+  .dlgw.on{display:grid}
+  .dlg{position:relative;background:#fff;border-radius:16px;width:440px;max-width:100%;box-shadow:var(--e-float);max-height:calc(100vh - 80px);display:flex;flex-direction:column}
+  .dlg .top{padding:24px 24px 0}
+  .dlg .top .xbtn{position:absolute;top:14px;inset-inline-end:14px}
+  .dic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:var(--hb);color:var(--h);margin-bottom:14px}
+  .dic .ic{width:22px;height:22px}
+  .dlg h2{font-size:17px;font-weight:700;letter-spacing:-.01em;padding-inline-end:28px}
+  .dlg .lead{font-size:13.5px;color:var(--ink-2);margin-top:6px;line-height:1.55}
+  .dlg .bd{padding:18px 24px 2px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+  .dlg .ft{padding:20px 24px 22px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .rlist{display:grid;gap:8px}
+  .rlist .rcard{padding:11px 14px}
+
+  .toast{position:fixed;bottom:24px;inset-inline-end:24px;display:flex;align-items:center;gap:10px;background:#111827;color:#fff;padding:10px 16px 10px 10px;padding-inline:10px 16px;border-radius:12px;font-size:13.5px;z-index:200;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;max-width:440px;box-shadow:var(--e-float)}
+  .toast.show{opacity:1;transform:none}
+  .toast .tic{width:26px;height:26px;border-radius:8px;background:var(--live);display:grid;place-items:center;flex:none}
+  .toast .tic .ic{width:15px;height:15px;stroke-width:2.4}
+
+  /* ── « Avant » pins ─────────────────────────────────────────────── */
+  .pin{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:99px;background:#D72C0D;color:#fff;font:700 10.5px/1 var(--f);margin-inline-start:6px;vertical-align:middle;letter-spacing:0;text-transform:none;box-shadow:0 0 0 2px #fff}
+
+  /* ── narrow screens ────────────────────────────────────────────── */
+  @media (max-width:980px){ .side{display:none} main{padding:20px 16px 48px} }
+  @media (max-width:760px){
+    .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .tbl colgroup{display:none}
+    .tbl thead{display:none}
+    .tbl tr.r{display:grid;grid-template-columns:1fr auto;padding:12px 4px;border-bottom:1px solid var(--line-faint)}
+    .tbl tr.r td{border:0;padding:3px 14px;width:auto}
+    .tbl tr.r td.c-act{grid-row:1;grid-column:2}
+    .tbl tr.r td:not(:first-child):not(.c-act){grid-column:1;padding-inline-start:62px}
+    .tbl .c-mk{display:none}
+    .rc{margin-inline-start:0;width:100%}
+    .search{max-width:none}
+    .perms,.facts{grid-template-columns:1fr}
+  }
+
+  /* ── review notes (NOT part of the app) ─────────────────────────── */
+  .notes{max-width:1080px;margin:0 auto;padding:16px 30px 100px;font-family:var(--f)}
+  .notes h2{font-size:18px;margin:26px 0 10px;font-weight:650}
+  .notes .n{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 15px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .notes .n.q{border-inline-start-color:#E0A43A}
+  .notes .n.g{border-inline-start-color:var(--brand)}
+  .notes .n b{font-weight:650}
+  .notes ul,.notes ol{margin:6px 0 0;padding-inline-start:22px}
+  .notes li{margin:3px 0}
+  .notes code{font-size:12.5px;background:var(--fill-2);border:1px solid var(--line-subtle);border-radius:4px;padding:0 4px}
+  .notes table{border-collapse:collapse;width:100%;margin-top:8px;font-size:13px}
+  .notes th,.notes td{border-top:1px solid var(--line-subtle);padding:7px 8px;text-align:start;vertical-align:middle}
+  .notes th{font-size:12px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-top:0}
+  .notes .sw{display:inline-block;width:16px;height:16px;border-radius:5px;vertical-align:-3px;margin-inline-end:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <h1>Accès · v2</h1>
+  <span class="src">Données réelles, lues le <b>sam. 3 oct. à 15:30</b> (Tripoli)</span>
+  <span class="grow"></span>
+  <span class="pctl">Page <button data-v="before">Avant</button><button data-v="after">Après</button></span>
+  <span class="pctl">Vue <button data-as="admin">Super admin</button><button data-as="manager">Manager Libye</button></span>
+  <span class="pctl">Données <button data-data="real">Réelles</button><button data-data="edge">États limites</button></span>
+  <span class="pctl">Langue <button data-lang="fr">FR</button><button data-lang="ar">AR</button></span>
+  <span class="warnfr" id="warnfr" hidden>Un super admin est toujours servi en français dans l'app.</span>
+  <a href="#notes">Notes de revue ↓</a>
+</div>
+
+<div class="stage" id="stage" dir="ltr">
+  <aside class="side" id="side" aria-label="Navigation"></aside>
+  <main><div class="page" id="page"></div></main>
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"></aside>
+  <aside class="drawer" id="cpanel" role="dialog" aria-modal="true" aria-labelledby="cpanel-title"></aside>
+  <div class="dlgw" id="dlgw"><div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title"></div></div>
+  <div class="menu" id="menu" role="menu"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<section class="notes" id="notes">
+  <h2>Notes de revue — v2</h2>
+
+  <div class="n"><b>Ce qui change depuis la v1, et ce qui ne change pas.</b> La v1 avait la bonne structure mais un rendu trop sec : une table grise, des menus déroulants natifs au milieu des lignes, des avatars tous identiques, trois styles de filtres différents dans une seule barre, une colonne de noms trop large. La v2 garde exactement la structure, les données, les actions et les règles de rôle de la v1. Elle ne refait que le langage visuel. Le diagnostic de la page actuelle, le fil de fer, la hiérarchie des composants et les trouvailles dans les données restent dans <code>prototypes/acces-v1.html#notes</code> et restent valables.</div>
+
+  <h2>1 · La palette</h2>
+  <div class="n g"><b>Une teinte par rôle, accordée au vert.</b> Le vert de marque reste le chrome : bouton principal, navigation, sélection « Tous », focus. Autour de lui, cinq teintes qui font le tour du cercle sans le heurter : deux froides voisines du vert (ciel, sarcelle), une froide profonde (indigo), une chaude (orange) et une neutre (ardoise). Chaque teinte a quatre pas : <b>teinte</b> (points, icônes), <b>encre</b> (texte), <b>fond</b> (aplats) et <b>bord</b> (contours).
+    <table>
+      <tr><th>Rôle</th><th>Teinte</th><th>Encre</th><th>Fond</th><th>Encre / fond</th><th>Teinte / fond</th><th>Pourquoi</th></tr>
+      <tr><td>Tous (chrome)</td><td><span class="sw" style="background:#15803D"></span>#15803D</td><td>#12692F</td><td><span class="sw" style="background:#E9F6EE"></span>#E9F6EE</td><td>6,1:1</td><td>4,5:1</td><td>Le vert de marque, inchangé.</td></tr>
+      <tr><td>Agents</td><td><span class="sw" style="background:#0284C7"></span>#0284C7</td><td>#0369A1</td><td><span class="sw" style="background:#EAF6FD"></span>#EAF6FD</td><td>5,4:1</td><td>3,7:1</td><td>La moitié des comptes : la teinte la plus calme, voisine du vert.</td></tr>
+      <tr><td>Entrepôt</td><td><span class="sw" style="background:#EA580C"></span>#EA580C</td><td>#C2410C</td><td><span class="sw" style="background:#FFF3EB"></span>#FFF3EB</td><td>4,8:1</td><td>3,3:1</td><td>La seule teinte chaude : les cartons, le terrain. Elle colore aussi le sélecteur d'entrepôt.</td></tr>
+      <tr><td>Managers</td><td><span class="sw" style="background:#6366F1"></span>#6366F1</td><td>#4338CA</td><td><span class="sw" style="background:#EEF0FF"></span>#EEF0FF</td><td>7,0:1</td><td>3,9:1</td><td>Profonde, posée : l'encadrement.</td></tr>
+      <tr><td>Investisseurs</td><td><span class="sw" style="background:#0D9488"></span>#0D9488</td><td>#0F766E</td><td><span class="sw" style="background:#E8F8F5"></span>#E8F8F5</td><td>5,0:1</td><td>3,4:1</td><td>Proche du vert de l'argent, distincte des agents.</td></tr>
+      <tr><td>Super admins</td><td><span class="sw" style="background:#475569"></span>#475569</td><td>#334155</td><td><span class="sw" style="background:#EEF1F5"></span>#EEF1F5</td><td>9,1:1</td><td>6,7:1</td><td>Neutre : le système, pas une équipe.</td></tr>
+    </table>
+    <p style="margin-top:8px">Toute encre dépasse 4,5:1 sur son fond (texte, WCAG 1.4.3) ; toute teinte dépasse 3:1 (icônes et points, WCAG 1.4.11). Les seules autres couleurs de la page sont des statuts : vert « en ligne », ambre « inactif », rouge « sans entrepôt / supprimer », gris « désactivé ».</p></div>
+
+  <div class="n q"><b>Écart au design system, à acter.</b> §1 règle 3 réserve la couleur aux statuts ; ici, elle marque une <b>catégorie</b> (le rôle). C'est le même type d'exception que §4.22 (une teinte par situation sur /delivery) ou que l'anneau de compte transporteur : permis parce que nommé et borné. Si tu valides, j'ajoute <b>§4.23 « Accès — une teinte par rôle »</b> avec trois conditions : la couleur n'est jamais le seul signal (le libellé du rôle est toujours écrit) ; ces teintes ne portent jamais un statut de commande ; elles ne servent ailleurs que pour représenter une personne (l'avatar de la Salle de contrôle pourrait les reprendre, par exemple).</div>
+
+  <h2>2 · Ce qui change à l'écran</h2>
+  <div class="n"><ul>
+    <li><b>Tuiles de rôle au lieu des onglets soulignés.</b> Chaque tuile porte son icône teintée (§4.19), le nombre de comptes, les premiers visages et « N en ligne ». Elle sert de filtre ; la tuile choisie prend sa teinte en fond. La page dit d'un coup d'œil qui est là, et dans quelle équipe.</li>
+    <li><b>Avatars à la teinte du rôle</b>, avec une pastille verte (en ligne) ou ambre (inactif) sur le bord. Les comptes désactivés passent en gris.</li>
+    <li><b>Une pastille de rôle colorée</b> dans la ligne, avec son point.</li>
+    <li><b>Le sélecteur d'entrepôt devient une pilule orange</b> dans la ligne, à côté du rôle : toutes les lignes ont la même hauteur. Elle passe en rouge (« Aucun entrepôt ») quand il manque. Le contrôle reste un <code>&lt;select&gt;</code> natif, seulement habillé : clavier et lecteur d'écran inchangés.</li>
+    <li><b>Une seule grammaire de filtres</b> : champs « remplis » gris clair (recherche), piste douce avec pilule blanche pour le marché (ta préférence de la coquille agent), même hauteur pour « Sans activité ».</li>
+    <li><b>Colonnes proportionnées</b> (<code>table-layout: fixed</code>) : la colonne du nom ne mange plus la moitié de la largeur.</li>
+    <li><b>Fiche</b> : bandeau à la teinte du rôle avec grand avatar, pastilles rôle / marché / statut ; trois « faits » en cartes (dernière activité, identifiant, création) ; choix de l'entrepôt en cartes (Tripoli / Benghazi) ; droits avec pastilles cochées vertes ; journal en frise, un point de couleur par type d'événement.</li>
+    <li><b>Création</b> en trois étapes numérotées (Identité, Rôle, Rattachement). Chaque carte de rôle a son icône teintée et prend sa teinte une fois choisie. L'identifiant s'affiche dans une carte verte, en rouge s'il est déjà pris.</li>
+    <li><b>Dialogues</b> : grande icône teintée (rouge pour désactiver et supprimer, indigo pour le mot de passe), deux boutons pleine largeur. <b>Toast</b> sombre avec une coche verte.</li>
+    <li><b>Formes</b> : rayons de 10 à 16 px, ombres seulement sur ce qui flotte (menu, fiche, dialogue), titre de page en 24 px gras.</li>
+  </ul></div>
+
+  <h2>3 · À valider par toi</h2>
+  <div class="n q"><ol>
+    <li><b>La palette et l'attribution des teintes</b> (agents ciel, entrepôt orange, managers indigo, investisseurs sarcelle, super admins ardoise) : d'accord ?</li>
+    <li><b>Ajouter §4.23 au design system</b> pour autoriser une teinte par rôle, avec les trois conditions ci-dessus ?</li>
+    <li>Toujours ouvertes depuis la v1 : imposer 8 caractères au mot de passe (je recommande oui) ; désactivation en une étape ; agents en premier dans l'ordre des rôles ; préparer la liste des comptes de test à désactiver.</li>
+  </ol></div>
+
+  <div class="n"><b>Limites du prototype.</b> Comme en v1 : rien n'est écrit, les actions modifient la liste en mémoire. Les avatars sont des initiales. « États limites » invente deux comptes marqués « fictif » (nour, invitation en attente ; yassine, désactivé pour congé), retire l'entrepôt de tarek et met salima « inactive depuis 12 min ». « Avant » est la page actuelle, inchangée depuis la v1.</div>
+</section>
+
+<script>
+/* ═════════════ REAL DATA — read-only, 2026-10-03 15:30 Africa/Tripoli ═════════════ */
+const NOW = Date.parse("2026-10-03T13:30:00Z");
+const TZ_OFF = 2 * 3600e3; /* Libya, UTC+2, no DST */
+
+/* id · n name · e email · r role · mk market · wh building · s last_seen_at (UTC) · c created · off disabled */
+const REAL = [
+  {id:"tasnim", n:"tasnim", e:"tasnim@oms.local", r:"agent", mk:"ly", s:"2026-10-03T13:25:03Z", c:"2026-06-23"},
+  {id:"roqaya", n:"roqaya", e:"roqaya@oms.local", r:"agent", mk:"ly", s:"2026-10-03T11:45:45Z", c:"2026-05-24"},
+  {id:"salima", n:"salima", e:"salima@oms.local", r:"agent", mk:"ly", s:"2026-10-01T17:15:40Z", c:"2026-08-07"},
+  {id:"hend", n:"hend", e:"hend@oms.local", r:"agent", mk:"ly", s:"2026-09-29T15:13:07Z", c:"2026-05-28"},
+  {id:"mouna", n:"mouna", e:"mouna@oms.local", r:"agent", mk:"ly", s:null, c:"2026-05-13"},
+  {id:"riheb", n:"riheb", e:"riheb@oms.local", r:"agent", mk:"ly", s:null, c:"2026-08-10"},
+  {id:"agent1tn", n:"Agent TN 1", e:"agent1.tn@oms.local", r:"agent", mk:"tn", s:"2026-09-14T12:46:42Z", c:"2026-04-13"},
+  {id:"agent2tn", n:"Agent TN 2", e:"agent2.tn@oms.local", r:"agent", mk:"tn", s:null, c:"2026-04-13"},
+  {id:"asma", n:"asma", e:"asma@oms.local", r:"agent", mk:"tn", s:null, c:"2026-04-20"},
+  {id:"testagent88", n:"Test Agent 88", e:"testagent88@test.com", r:"agent", mk:"tn", s:null, c:"2026-04-16"},
+  {id:"agent1tntest", n:"Agent 1 TN", e:"agent1.tn@oms.test", r:"agent", mk:"tn", s:null, c:"2026-04-12", off:true},
+  {id:"adel", n:"adel", e:"adel@oms.local", r:"warehouse_agent", mk:"ly", wh:"benghazi", s:"2026-10-03T00:48:44Z", c:"2026-09-03"},
+  {id:"tarek", n:"tarek", e:"tarek@oms.local", r:"warehouse_agent", mk:"ly", wh:"tripoli", s:null, c:"2026-06-07"},
+  {id:"hamidaly", n:"hamidaly", e:"hamidaly@oms.local", r:"market_manager", mk:"ly", s:"2026-10-03T11:56:54Z", c:"2026-05-29"},
+  {id:"imen", n:"imen", e:"imen@oms.local", r:"market_manager", mk:"ly", s:null, c:"2026-06-27"},
+  {id:"managerly", n:"Manager LY", e:"manager.ly@oms.local", r:"market_manager", mk:"ly", s:"2026-09-18T11:00:39Z", c:"2026-04-13"},
+  {id:"managerlibya", n:"MANAGER_LIBYA", e:"manager_libya@oms.local", r:"market_manager", mk:"ly", s:null, c:"2026-07-07"},
+  {id:"firas", n:"firas hadj ameur", e:"firas.hadj.ameur@oms.local", r:"market_manager", mk:"tn", s:"2026-04-29T15:58:19Z", c:"2026-04-29"},
+  {id:"managertn", n:"Manager TN", e:"manager.tn@oms.local", r:"market_manager", mk:"tn", s:"2026-09-15T18:08:23Z", c:"2026-04-13"},
+  {id:"ilyes", n:"ilyes", e:"ilyes@oms.local", r:"investor", mk:"ly", s:null, c:"2026-07-30"},
+  {id:"superadmin", n:"Super Admin", e:"admin@oms.tn", r:"super_admin", mk:null, s:"2026-10-03T13:28:32Z", c:"2026-04-11"},
+  {id:"admin", n:"Admin", e:"admin@oms.local", r:"super_admin", mk:null, s:"2026-10-02T13:02:47Z", c:"2026-04-13"},
+];
+const CREATED_AT = {superadmin:"2026-04-11T10:00", agent1tntest:"2026-04-12T09:00", admin:"2026-04-13T08:00", agent1tn:"2026-04-13T08:01", agent2tn:"2026-04-13T08:02", managerly:"2026-04-13T08:03", managertn:"2026-04-13T08:04"};
+const AUDIT_REAL = {
+  tarek:[{e:"warehouse_assigned", by:"Super Admin", at:"2026-09-09 19:03", wh:"tripoli"},{e:"user_created", by:"Super Admin", at:"2026-06-07 15:34"}],
+  adel:[{e:"user_created", by:"Super Admin", at:"2026-09-03 20:20"}],
+  riheb:[{e:"user_created", by:"Super Admin", at:"2026-08-10 20:17"}],
+  salima:[{e:"user_created", by:"Super Admin", at:"2026-08-07 21:27"}],
+  ilyes:[{e:"user_created", by:"Super Admin", at:"2026-07-30 17:15"}],
+  managerlibya:[{e:"user_created", by:"Super Admin", at:"2026-07-08 00:27"}],
+  imen:[{e:"user_created", by:"Super Admin", at:"2026-06-27 13:38"}],
+  tasnim:[{e:"user_created", by:"Super Admin", at:"2026-06-23 11:18"}],
+  hamidaly:[{e:"password_reset", by:"Super Admin", at:"2026-05-29 15:58"},{e:"user_created", by:"Super Admin", at:"2026-05-29 15:57"}],
+  hend:[{e:"user_created", by:"Super Admin", at:"2026-05-28 23:41"}],
+  roqaya:[{e:"user_created", by:"Super Admin", at:"2026-05-24 23:41"}],
+  mouna:[{e:"user_created", by:"Super Admin", at:"2026-05-13 19:32"}],
+  firas:[{e:"user_created", by:"Super Admin", at:"2026-04-29 17:58"}],
+};
+const SITES = {
+  ly:[{id:"tripoli", fr:"Tripoli", ar:"طرابلس"},{id:"benghazi", fr:"Benghazi", ar:"بنغازي"}],
+  tn:[{id:"tunis", fr:"Tunis", ar:"تونس"}],
+};
+const MARKET_UUID = {ly:"00000000-0000-0000-0000-000000000002", tn:"00000000-0000-0000-0000-000000000001"};
+const PERM_KEYS = ["canConfirmOrders","canViewAllOrders","canManageAgents","canViewFinances","canAccessSettings","canScanWarehouse","canManageProducts","canInviteUsers"];
+const PERMS = {
+  super_admin:[1,1,1,1,1,1,1,1],
+  market_manager:[0,1,1,0,1,1,0,1],
+  agent:[1,0,0,0,0,0,0,0],
+  warehouse_agent:[0,0,0,0,0,1,0,0],
+  investor:[0,0,0,0,0,0,0,0],
+};
+const ROLE_ORDER = ["agent","warehouse_agent","market_manager","investor","super_admin"];
+const BEFORE_ORDER = ["super_admin","market_manager","agent","warehouse_agent","investor"];
+const HUE = {all:"h-all", agent:"h-agent", warehouse_agent:"h-wh", market_manager:"h-mgr", investor:"h-inv", super_admin:"h-sa"};
+const RICON = {all:"users", agent:"headset", warehouse_agent:"box", market_manager:"briefcase", investor:"trend", super_admin:"shield"};
+const EVH = {user_created:"h-all", user_reactivated:"h-all", warehouse_assigned:"h-wh", password_reset:"h-mgr", user_deactivated:"h-crit", user_deleted:"h-crit", user_invited:"h-amber", avatar_updated:"h-agent"};
+
+/* ═════════════ i18n ═════════════ */
+const I = {
+ fr:{
+  dir:"ltr", locale:"fr-FR",
+  nav:{brand:"Ordra", market:"Marché", all:"Tous", sections:[["accueil","Accueil",null],["commandes","Commandes",null],["logistique","Entrepôt",null],["livraison","Livraison",null],["finances","Finances",null],["clients","Clients",null],["equipe","Équipe",["Salle de contrôle","Performance","Accès"]],["systeme","Système",null]], active:"Accès", role:{admin:"Super admin", manager:"Market manager"}},
+  title:"Accès",
+  sub_admin:"Qui peut se connecter à Ordra, avec quel rôle et sur quel marché.",
+  sub_mgr:m=>`Les comptes de l'équipe ${m} : agents de confirmation et agents entrepôt.`,
+  create:"Créer un utilisateur",
+  search:"Rechercher un nom ou un identifiant",
+  tabs_label:"Filtrer par rôle",
+  tab:{all:"Tous", agent:"Agents", warehouse_agent:"Entrepôt", market_manager:"Managers", investor:"Investisseurs", super_admin:"Super admins"},
+  online_n:n=>`${n} en ligne`, online_none:"personne en ligne",
+  mk_label:"Filtrer par marché", mk_all:"Tous", mk:{ly:"Libye", tn:"Tunisie"}, mk_none:"Tous les marchés",
+  dormant:"Sans activité",
+  rc:n=>`${n} compte${n>1?"s":""}`, rc_dorm:n=>`${n} compte${n>1?"s":""} sans activité enregistrée`,
+  col:{user:"Membre", role:"Rôle", market:"Marché", seen:"Dernière activité", actions:"Actions"},
+  role:{agent:"Agent de confirmation", warehouse_agent:"Agent entrepôt", market_manager:"Market manager", investor:"Investisseur", super_admin:"Super admin"},
+  role_desc:{
+    agent:"Appelle les clients et confirme les commandes de sa file.",
+    warehouse_agent:"Prépare et scanne les colis d'un entrepôt, reçoit les retours.",
+    market_manager:"Suit les commandes, l'équipe et l'entrepôt d'un marché.",
+    investor:"N'accède qu'à son portail investisseur.",
+  },
+  you:"vous", fictif:"fictif",
+  open_aria:n=>`Ouvrir la fiche de ${n}`, actions_for:n=>`Actions pour ${n}`,
+  wh_label:"Entrepôt", wh_pick:"Choisir", wh_none:"Aucun entrepôt", wh_remove:"Retirer",
+  wh_hint:"Détermine les colis que cet agent prépare et peut scanner.",
+  pres:{on:"En ligne", idle:m=>`Inactif · ${m} min`, min:m=>`il y a ${m} min`, h:n=>`il y a ${n} h`, yest:t=>`hier, ${t}`, none:"Aucune activité"},
+  st_active:"Actif", st_disabled:"Désactivé", st_invited:"Invitation en attente",
+  reasons:{"on-leave":"Congé / absence", "off-boarded":"Départ de l'entreprise", "terminated":"Licenciement"},
+  fold:n=>`${n} compte${n>1?"s":""} désactivé${n>1?"s":""}`,
+  banner_t:n=>n===1?"1 agent entrepôt n'a pas d'entrepôt":`${n} agents entrepôt n'ont pas d'entrepôt`,
+  banner_b:"Sans entrepôt, un agent ne voit aucun colis et ne peut rien scanner. Affectez-le avant sa prochaine prise de poste.",
+  banner_cta:"Affecter",
+  empty_q:q=>`Aucun compte ne correspond à « ${q} ».`, empty:"Aucun compte dans cette vue.", clear:"Effacer les filtres",
+  foot:"La dernière activité vient du signal de présence, envoyé toutes les 60 s tant que l'onglet est ouvert.",
+  loading:"Chargement des comptes",
+  menu:{open:"Ouvrir la fiche", reset:"Réinitialiser le mot de passe", deactivate:"Désactiver", reactivate:"Réactiver", journal:"Journal d'activité", delete:"Supprimer l'utilisateur"},
+  d:{perms:"Ce que ce rôle permet", journal:"Journal d'activité", ident:"Identifiant", created:"Créé le", seen:"Dernière activité", wh:"Entrepôt", jempty:"Aucun événement.", by:"par", close:"Fermer", perm_note:"Les droits découlent du rôle ; ils ne se règlent pas compte par compte."},
+  perm:{canConfirmOrders:"Confirmer des commandes", canViewAllOrders:"Voir toutes les commandes", canManageAgents:"Gérer les agents", canViewFinances:"Voir les finances", canAccessSettings:"Accéder aux paramètres", canScanWarehouse:"Accès entrepôt", canManageProducts:"Gérer les produits", canInviteUsers:"Inviter des utilisateurs"},
+  ev:{user_created:"Compte créé", user_invited:"Invitation envoyée", user_deactivated:"Compte désactivé", user_reactivated:"Compte réactivé", user_deleted:"Compte supprimé", password_reset:"Mot de passe réinitialisé", avatar_updated:"Photo mise à jour", warehouse_assigned:"Entrepôt affecté"},
+  ret:n=>`${n} commande${n>1?"s":""} retournée${n>1?"s":""}`,
+  c:{title:"Créer un utilisateur", sub:"Le compte est actif dès sa création.", s1:"Identité", s2:"Rôle", s3:"Rattachement", user:"Nom d'utilisateur", user_ph:"ex : ahmed ben ali", ident:"Identifiant de connexion", ident_hint:"C'est ce que la personne tapera pour se connecter.", taken:"Cet identifiant est déjà utilisé.", pw:"Mot de passe", show:"Afficher", hide:"Masquer", market:"Marché", market_fixed:m=>`Marché : ${m}`, wh:"Entrepôt", wh_warn:"Sans entrepôt, l'agent ne verra aucun colis et ne pourra rien scanner.", cancel:"Annuler", submit:"Créer le compte"},
+  da:{title:n=>`Désactiver ${n} ?`, body:n=>`${n} ne pourra plus se connecter. Ses commandes en cours retourneront à la file non assignée.`, reason:"Motif", confirm:"Désactiver", cancel:"Annuler"},
+  de:{title:n=>`Supprimer définitivement ${n} ?`, body:"Cette action est irréversible. L'utilisateur ne pourra plus se connecter et ses commandes en cours seront retournées à la file non assignée. L'historique et le journal d'audit sont conservés.", confirm:"Supprimer", cancel:"Annuler"},
+  rp:{title:"Réinitialiser le mot de passe", pw1:"Nouveau mot de passe", pw2:"Confirmer le mot de passe", mismatch:"Les mots de passe ne correspondent pas.", save:"Enregistrer", cancel:"Annuler"},
+  toast:{created:(n,id)=>`${n} créé · identifiant ${id}`, deactivated:n=>`${n} désactivé. Ses commandes en cours sont retournées à la file.`, reactivated:n=>`${n} réactivé.`, deleted:n=>`${n} supprimé.`, reset:"Mot de passe réinitialisé.", wh:"Entrepôt enregistré.", proto:" (prototype : rien n'est écrit)"},
+  before:{title:"ACCÈS", sub:"Gestion des utilisateurs et des accès", perms:"Permissions"},
+ },
+ ar:{
+  dir:"rtl", locale:"ar-LY-u-nu-latn",
+  nav:{brand:"Ordra", market:"السوق", all:"الكل", sections:[["accueil","الرئيسية",null],["commandes","الطلبات",null],["logistique","المستودع",null],["livraison","التوصيل",null],["finances","المالية",null],["clients","العملاء",null],["equipe","الفريق",["غرفة التحكم","أداء الفريق","الوصول"]],["systeme","النظام",null]], active:"الوصول", role:{admin:"مشرف عام", manager:"مدير السوق"}},
+  title:"الوصول",
+  sub_admin:"من يمكنه الدخول إلى Ordra، وبأي دور، وفي أي سوق.",
+  sub_mgr:m=>`حسابات فريق ${m}: وكلاء التأكيد ووكلاء المستودع.`,
+  create:"إنشاء مستخدم",
+  search:"ابحث بالاسم أو المعرّف",
+  tabs_label:"تصفية حسب الدور",
+  tab:{all:"الكل", agent:"الوكلاء", warehouse_agent:"المستودع", market_manager:"المديرون", investor:"المستثمرون", super_admin:"المشرفون العامّون"},
+  online_n:n=>`متصل الآن: ${n}`, online_none:"لا أحد متصل",
+  mk_label:"تصفية حسب السوق", mk_all:"الكل", mk:{ly:"ليبيا", tn:"تونس"}, mk_none:"كل الأسواق",
+  dormant:"بلا نشاط",
+  rc:n=>arCount(n), rc_dorm:n=>`${arCount(n)} بلا نشاط مسجّل`,
+  col:{user:"العضو", role:"الدور", market:"السوق", seen:"آخر نشاط", actions:"الإجراءات"},
+  role:{agent:"وكيل تأكيد", warehouse_agent:"وكيل مستودع", market_manager:"مدير السوق", investor:"مستثمر", super_admin:"مشرف عام"},
+  role_desc:{
+    agent:"يتصل بالزبائن ويؤكّد الطلبات في قائمته.",
+    warehouse_agent:"يجهّز الطرود ويمسحها في مستودع واحد، ويستلم المرتجعات.",
+    market_manager:"يتابع الطلبات والفريق والمستودع في سوق واحد.",
+    investor:"يصل فقط إلى بوابة المستثمر الخاصة به.",
+  },
+  you:"أنت", fictif:"وهمي",
+  open_aria:n=>`فتح بطاقة ${n}`, actions_for:n=>`إجراءات ${n}`,
+  wh_label:"المستودع", wh_pick:"اختر", wh_none:"لا يوجد مستودع", wh_remove:"إزالة",
+  wh_hint:"يحدّد الطرود التي يجهّزها هذا الموظف ويمكنه مسحها.",
+  pres:{on:"متصل", idle:m=>`غير نشط · ${m} د`, min:m=>`منذ ${m} دقيقة`, h:n=>`منذ ${n} ساعة`, yest:t=>`أمس، ${t}`, none:"لا نشاط مسجّل"},
+  st_active:"نشط", st_disabled:"معطّل", st_invited:"في انتظار القبول",
+  reasons:{"on-leave":"إجازة / غياب مؤقت", "off-boarded":"مغادرة الشركة", "terminated":"إنهاء الخدمة"},
+  fold:n=>`حسابات معطّلة (${n})`,
+  banner_t:n=>n===1?"وكيل مستودع واحد بلا مستودع":`${n} وكلاء مستودع بلا مستودع`,
+  banner_b:"وكيل المستودع بلا مستودع لا يرى أي طرد ولا يمكنه مسح أي شيء. عيّنه قبل مناوبته القادمة.",
+  banner_cta:"تعيين",
+  empty_q:q=>`لا يوجد حساب يطابق « ${q} ».`, empty:"لا توجد حسابات في هذا العرض.", clear:"مسح عوامل التصفية",
+  foot:"آخر نشاط مصدره إشارة الحضور، تُرسل كل 60 ثانية ما دامت الصفحة مفتوحة.",
+  loading:"جارٍ تحميل الحسابات",
+  menu:{open:"فتح البطاقة", reset:"إعادة تعيين كلمة المرور", deactivate:"تعطيل", reactivate:"إعادة التفعيل", journal:"سجل النشاط", delete:"حذف المستخدم"},
+  d:{perms:"ما يتيحه هذا الدور", journal:"سجل النشاط", ident:"المعرّف", created:"أُنشئ في", seen:"آخر نشاط", wh:"المستودع", jempty:"لا توجد أحداث.", by:"بواسطة", close:"إغلاق", perm_note:"الصلاحيات مرتبطة بالدور، ولا تُضبط لكل حساب على حدة."},
+  perm:{canConfirmOrders:"تأكيد الطلبات", canViewAllOrders:"عرض جميع الطلبات", canManageAgents:"إدارة الوكلاء", canViewFinances:"عرض المالية", canAccessSettings:"الوصول إلى الإعدادات", canScanWarehouse:"الوصول إلى المستودع", canManageProducts:"إدارة المنتجات", canInviteUsers:"دعوة المستخدمين"},
+  ev:{user_created:"تم إنشاء الحساب", user_invited:"تم إرسال الدعوة", user_deactivated:"تم تعطيل الحساب", user_reactivated:"تم إعادة تفعيل الحساب", user_deleted:"تم حذف الحساب", password_reset:"تمت إعادة تعيين كلمة المرور", avatar_updated:"تم تحديث الصورة", warehouse_assigned:"تم تعيين المستودع"},
+  ret:n=>n === 1 ? "أُعيد طلب واحد" : n === 2 ? "أُعيد طلبان" : n <= 10 ? `أُعيد ${n} طلبات` : `أُعيد ${n} طلبًا`,
+  c:{title:"إنشاء مستخدم", sub:"يكون الحساب نشطًا فور إنشائه.", s1:"الهوية", s2:"الدور", s3:"الارتباط", user:"اسم المستخدم", user_ph:"مثال: ahmed ben ali", ident:"معرّف الدخول", ident_hint:"هذا ما سيكتبه الشخص لتسجيل الدخول.", taken:"هذا المعرّف مستخدم بالفعل.", pw:"كلمة المرور", show:"إظهار", hide:"إخفاء", market:"السوق", market_fixed:m=>`السوق: ${m}`, wh:"المستودع", wh_warn:"بلا مستودع، لن يرى الوكيل أي طرد ولن يتمكن من المسح.", cancel:"إلغاء", submit:"إنشاء الحساب"},
+  da:{title:n=>`تعطيل ${n}؟`, body:n=>`لن يتمكن ${n} من تسجيل الدخول، وستعود الطلبات الجارية لهذا الحساب إلى قائمة الانتظار غير المعيّنة.`, reason:"السبب", confirm:"تعطيل", cancel:"إلغاء"},
+  de:{title:n=>`حذف ${n} نهائياً؟`, body:"هذا الإجراء لا يمكن التراجع عنه. لن يتمكّن المستخدم من تسجيل الدخول وسيتم إعادة طلباته الجارية إلى قائمة الانتظار غير المعيّنة. يُحتفظ بسجل النشاط والتاريخ.", confirm:"حذف", cancel:"إلغاء"},
+  rp:{title:"إعادة تعيين كلمة المرور", pw1:"كلمة المرور الجديدة", pw2:"تأكيد كلمة المرور", mismatch:"كلمتا المرور غير متطابقتين.", save:"حفظ", cancel:"إلغاء"},
+  toast:{created:(n,id)=>`تم إنشاء ${n} · المعرّف ${id}`, deactivated:n=>`تم تعطيل ${n}. عادت الطلبات الجارية إلى القائمة.`, reactivated:n=>`تمت إعادة تفعيل ${n}.`, deleted:n=>`تم حذف ${n}.`, reset:"تمت إعادة تعيين كلمة المرور.", wh:"تم حفظ المستودع.", proto:" (نموذج أولي: لم يُكتب شيء)"},
+  before:{title:"ACCÈS", sub:"Gestion des utilisateurs et des accès", perms:"Permissions"},
+ }
+};
+const L = () => I[S.lang];
+function arCount(n){ return n === 1 ? "حساب واحد" : n === 2 ? "حسابان" : n <= 10 ? `${n} حسابات` : `${n} حسابًا`; }
+
+/* ═════════════ helpers ═════════════ */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ICON = {
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  userx:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5M22 8l-5 5"/>',
+  usercheck:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>',
+  history:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  trash:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  headset:'<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>',
+  box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  briefcase:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  trend:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  minus:'<path d="M6 12h12"/>',
+  mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>',
+  ban:'<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+  idcard:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/>',
+  pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>',
+  info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  left:'<polyline points="15 18 9 12 15 6"/>', right:'<polyline points="9 18 15 12 9 6"/>', down:'<polyline points="6 9 12 15 18 9"/>',
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>',
+  truck:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>', chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>', server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>',
+};
+const ic = (n, cls="") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
+function initials(name){ const w = name.trim().split(/\s+/); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 1)).toUpperCase(); }
+function avatar(u, size=""){
+  const k = seenOf(u).k, pr = size !== "xs" && status(u) === "active" && (k === "on" || k === "idle") ? `<i class="pr ${k === "idle" ? "idle" : ""}"></i>` : "";
+  const ini = size === "xs" ? initials(u.n).slice(0, 1) : initials(u.n);
+  return `<span class="av ${size} ${HUE[u.r]}" aria-hidden="true">${esc(ini)}${pr}</span>`;
+}
+const ident = u => u.e.endsWith("@oms.local") ? u.e.slice(0, -10) : u.e;
+const identOf = s => s.trim().toLowerCase().replace(/\s+/g, ".");
+/* the row repeats the login only when the name does not already spell it */
+const identShown = u => identOf(u.n) !== ident(u);
+const dayIndex = ms => Math.floor((ms + TZ_OFF) / 86400e3);
+function hm(ms){ const d = new Date(ms + TZ_OFF); return `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`; }
+const fmt = (ms, o) => new Intl.DateTimeFormat(L().locale, {timeZone:"Africa/Tripoli", ...o}).format(ms);
+const fmtDay = d => new Intl.DateTimeFormat(L().locale, {timeZone:"UTC", day:"numeric", month:"long", year:"numeric"}).format(Date.parse(d + "T00:00:00Z"));
+function fmtStamp(s){ const [d, t] = s.split(" "); return `${new Intl.DateTimeFormat(L().locale, {timeZone:"UTC", day:"numeric", month:"short", year:"numeric"}).format(Date.parse(d + "T00:00:00Z"))} · <bdi>${t}</bdi>`; }
+
+function seenOf(u){
+  if (!u.s) return {k:"none"};
+  const t = Date.parse(u.s), min = Math.floor((NOW - t) / 60000);
+  if (min < 5) return {k:"on", t};
+  if (min < 30) return {k:"idle", m:min, t};
+  if (min < 60) return {k:"min", m:min, t};
+  const dd = dayIndex(NOW) - dayIndex(t);
+  if (dd === 0) return {k:"h", n:Math.floor(min / 60), t};
+  if (dd === 1) return {k:"yest", t};
+  if (dd < 7) return {k:"wd", t};
+  return {k:"date", t};
+}
+function seenText(sn){
+  const p = L().pres;
+  switch (sn.k){
+    case "on": return p.on;
+    case "idle": return p.idle(sn.m);
+    case "min": return p.min(sn.m);
+    case "h": return p.h(sn.n);
+    case "yest": return p.yest(hm(sn.t));
+    case "wd": return fmt(sn.t, {weekday:"short", day:"numeric", month:"short"});
+    case "date": return fmt(sn.t, {day:"numeric", month:"short", ...(new Date(sn.t).getUTCFullYear() !== 2026 ? {year:"numeric"} : {})});
+    default: return p.none;
+  }
+}
+const seenCls = sn => sn.k === "on" ? "on" : sn.k === "idle" ? "idle" : sn.k === "none" ? "none" : "off";
+const seenHtml = sn => { const c = seenCls(sn); return `<span class="seen ${c}"><i class="dot ${c}" aria-hidden="true"></i>${seenText(sn)}</span>`; };
+const siteName = (mk, id) => (SITES[mk] || []).find(s => s.id === id)?.[S.lang] ?? id;
+
+/* ═════════════ state ═════════════ */
+const S = {lang:"fr", as:"admin", data:"real", v:"after", tab:"all", mk:"all", q:"", dorm:false, fold:false,
+  user:null, menu:null, dlg:null, loading:false, flash:null, focus:null, users:[], audit:{},
+  form:{user:"", pw:"", show:false, role:"", mk:"", wh:""}};
+
+function loadData(){
+  S.users = REAL.map(u => ({...u}));
+  S.audit = JSON.parse(JSON.stringify(AUDIT_REAL));
+  if (S.data === "edge"){
+    S.users.find(u => u.id === "tarek").wh = null;
+    S.users.find(u => u.id === "salima").s = new Date(NOW - 12 * 60000).toISOString();
+    S.users.push({id:"nour", n:"nour", e:"nour@oms.local", r:"agent", mk:"ly", s:null, c:"2026-10-02", off:true, inv:true, fake:true});
+    S.users.push({id:"yassine", n:"yassine", e:"yassine@oms.local", r:"warehouse_agent", mk:"ly", wh:"tripoli", s:"2026-09-20T10:00:00Z", c:"2026-07-12", off:true, reason:"on-leave", fake:true});
+    S.audit.nour = [{e:"user_invited", by:"Super Admin", at:"2026-10-02 18:40"}];
+    S.audit.yassine = [{e:"user_deactivated", by:"hamidaly", at:"2026-09-21 09:12", reason:"on-leave", ret:3},{e:"user_created", by:"Super Admin", at:"2026-07-12 11:05"}];
+    S.audit.tarek.unshift({e:"warehouse_assigned", by:"Super Admin", at:"2026-10-03 09:40", wh:null});
+  }
+}
+const isAdmin = () => S.as === "admin";
+const sees = u => isAdmin() || ((u.r === "agent" || u.r === "warehouse_agent") && u.mk === "ly");
+const isSelf = u => isAdmin() && u.id === "superadmin";
+const status = u => !u.off ? "active" : u.inv ? "invited" : "disabled";
+const inMk = u => !isAdmin() || S.mk === "all" || u.mk === S.mk;
+const inTab = u => S.tab === "all" || u.r === S.tab;
+const inQ = u => { const q = S.q.trim().toLowerCase(); return !q || u.n.toLowerCase().includes(q) || ident(u).toLowerCase().includes(q); };
+const presRank = u => { const k = seenOf(u).k; return k === "on" ? 0 : k === "idle" ? 1 : 2; };
+function cmp(a, b){
+  return ROLE_ORDER.indexOf(a.r) - ROLE_ORDER.indexOf(b.r)
+    || (status(a) === "invited") - (status(b) === "invited")
+    || presRank(a) - presRank(b)
+    || (b.s ? Date.parse(b.s) : 0) - (a.s ? Date.parse(a.s) : 0)
+    || a.n.localeCompare(b.n);
+}
+const tabsFor = () => isAdmin() ? ["all", ...ROLE_ORDER] : ["all", "agent", "warehouse_agent"];
+const findU = id => S.users.find(u => u.id === id);
+
+/* ═════════════ render: sidebar ═════════════ */
+function renderSide(){
+  const n = L().nav;
+  const icons = {accueil:"home", commandes:"bag", logistique:"box", livraison:"truck", finances:"chart", clients:"users", equipe:"gauge", systeme:"server"};
+  let h = `<div class="brand"><i>O</i>${n.brand}</div><div class="mk"><span>${n.market}</span><b>${isAdmin() ? n.all : L().mk.ly}</b></div>`;
+  for (const [id, label, items] of n.sections){
+    if (!isAdmin() && (id === "finances" || id === "systeme")) continue;
+    h += `<div class="nsec">${ic(icons[id])}<span>${label}</span>${ic(items ? "down" : (S.lang === "ar" ? "left" : "right"), "chev")}</div>`;
+    if (items) for (const it of items) h += `<div class="it ${it === n.active ? "on" : ""}" ${it === n.active ? 'aria-current="page"' : ""}>${it}</div>`;
+  }
+  const me = isAdmin() ? "Super Admin" : "hamidaly";
+  h += `<div class="foot"><span>${initials(me)}</span><div>${me}<small>${n.role[S.as]}</small></div></div>`;
+  document.getElementById("side").innerHTML = h;
+}
+
+/* ═════════════ render: AFTER ═════════════ */
+function whPill(u){
+  const l = L(), none = !u.wh, active = status(u) === "active", id = `wh-row-${u.id}`;
+  return `<label class="sr" for="${id}">${l.wh_label} — ${esc(u.n)}</label>
+    <span class="whp ${none && active ? "none" : ""}">${ic("box")}<select id="${id}" class="whsel" data-wh="${u.id}" ${active ? "" : "disabled"} ${none && active ? 'aria-invalid="true"' : ""}>
+      <option value="">${none ? l.wh_none : l.wh_pick}</option>
+      ${(SITES[u.mk] || []).map(s => `<option value="${s.id}" ${u.wh === s.id ? "selected" : ""}>${s[S.lang]}</option>`).join("")}
+    </select>${ic("down", "chev")}</span>`;
+}
+function rowHtml(u){
+  const l = L(), st = status(u), self = isSelf(u);
+  let act;
+  if (st === "disabled") act = `<span class="spill neu">${ic("ban")}${l.st_disabled}${u.reason ? ` · ${l.reasons[u.reason]}` : ""}</span>`;
+  else if (st === "invited") act = `<span class="spill warn">${ic("mail")}${l.st_invited}</span>`;
+  else act = seenHtml(seenOf(u));
+  return `<tr class="r${S.user === u.id ? " sel" : ""}${S.flash === u.id ? " flash" : ""}${st === "disabled" ? " off" : ""}" data-row="${u.id}">
+    <td><button class="who" data-open="${u.id}" aria-label="${esc(l.open_aria(u.n))}">${avatar(u)}<span class="nm"><b><bdi>${esc(u.n)}</bdi></b>${self ? `<span class="mtag">${l.you}</span>` : ""}${u.fake ? `<span class="mtag">${l.fictif}</span>` : ""}${identShown(u) ? `<small><bdi>${esc(ident(u))}</bdi></small>` : ""}</span></button></td>
+    <td><div class="rolewrap"><span class="chip-role ${HUE[u.r]}">${l.role[u.r]}</span>${u.r === "warehouse_agent" ? whPill(u) : ""}</div></td>
+    ${isAdmin() ? `<td class="c-mk mkc">${u.mk ? l.mk[u.mk] : `<span class="muted">${l.mk_none}</span>`}</td>` : ""}
+    <td>${act}</td>
+    <td class="c-act"><button class="kebab" data-menu="${u.id}" aria-haspopup="menu" aria-expanded="${S.menu === u.id}" aria-label="${esc(l.actions_for(u.n))}">${ic("more")}</button></td>
+  </tr>`;
+}
+function theadHtml(hidden){
+  const c = L().col;
+  const cols = isAdmin() ? `<col style="width:31%"><col style="width:31%"><col class="c-mk" style="width:13%"><col style="width:25%"><col style="width:60px">`
+                         : `<col style="width:34%"><col style="width:36%"><col style="width:30%"><col style="width:60px">`;
+  return `<colgroup>${cols}</colgroup><thead class="${hidden ? "sr" : ""}"><tr><th scope="col">${c.user}</th><th scope="col">${c.role}</th>${isAdmin() ? `<th scope="col" class="c-mk">${c.market}</th>` : ""}<th scope="col">${c.seen}</th><th scope="col" class="c-act"><span class="sr">${c.actions}</span></th></tr></thead>`;
+}
+function tilesHtml(pool){
+  const l = L(), live = pool.filter(u => status(u) !== "disabled");
+  return `<div class="tiles" role="group" aria-label="${l.tabs_label}">` + tabsFor().map(r => {
+    const us = (r === "all" ? live : live.filter(u => u.r === r)).slice().sort(cmp);
+    const on = us.filter(u => status(u) === "active" && seenOf(u).k === "on").length;
+    const stack = us.slice(0, 3).map(u => avatar(u, "xs")).join("") + (us.length > 3 ? `<span class="more num" dir="ltr">+${us.length - 3}</span>` : "");
+    return `<button class="tile ${HUE[r]}" data-tab="${r}" aria-pressed="${S.tab === r}">
+      <span class="tt"><span class="ih">${ic(RICON[r])}</span><span>${l.tab[r]}</span></span>
+      <span class="tc"><b class="num">${us.length}</b><span class="stack" aria-hidden="true">${stack}</span></span>
+      <span class="ts"><i class="dot ${on ? "on" : "off"}" aria-hidden="true"></i>${on ? l.online_n(on) : l.online_none}</span>
+    </button>`;
+  }).join("") + `</div>`;
+}
+function renderAfter(){
+  const l = L(), vis = S.users.filter(sees);
+  let h = `<div class="ph"><div><h1>${l.title}</h1><p class="sub">${isAdmin() ? l.sub_admin : l.sub_mgr(l.mk.ly)}</p></div>
+    <button class="btn pri" data-create>${ic("plus")}${l.create}</button></div>`;
+
+  const lost = vis.filter(u => u.r === "warehouse_agent" && status(u) === "active" && !u.wh);
+  if (lost.length) h += `<div class="banner" role="alert"><span class="ih">${ic("alert")}</span><div><b>${l.banner_t(lost.length)}</b><p>${l.banner_b}</p>
+    <div class="who-list">${lost.map(u => `<button class="bchip" data-open="${u.id}">${avatar(u, "xs")}<bdi>${esc(u.n)}</bdi><span class="go">${l.banner_cta}${ic("arrow", "flip")}</span></button>`).join("")}</div></div></div>`;
+
+  const pool = vis.filter(inMk);
+  h += tilesHtml(pool);
+
+  const inScope = pool.filter(inTab);
+  const dormN = inScope.filter(u => status(u) === "active" && !u.s).length;
+  const rows = inScope.filter(u => status(u) !== "disabled" && inQ(u) && (!S.dorm || (status(u) === "active" && !u.s))).sort(cmp);
+  const off = S.dorm ? [] : inScope.filter(u => status(u) === "disabled" && inQ(u)).sort(cmp);
+
+  h += `<div class="card"><div class="tools"><div class="search">${ic("search")}<input id="q" type="search" dir="auto" value="${esc(S.q)}" placeholder="${l.search}" aria-label="${l.search}" autocomplete="off"></div>`;
+  if (isAdmin()){
+    const mkCount = m => vis.filter(u => status(u) !== "disabled" && inTab(u) && (m === "all" || u.mk === m)).length;
+    h += `<div class="track" role="group" aria-label="${l.mk_label}">${["all","tn","ly"].map(m =>
+      `<button data-mk="${m}" aria-pressed="${S.mk === m}">${m === "all" ? l.mk_all : l.mk[m]}<span class="n num">${mkCount(m)}</span></button>`).join("")}</div>`;
+  }
+  if (dormN || S.dorm) h += `<button class="chip" data-dorm aria-pressed="${S.dorm}"><i class="dot none" aria-hidden="true"></i>${l.dormant}<span class="n num">${dormN}</span></button>`;
+  h += `<span class="rc" aria-live="polite">${S.dorm ? l.rc_dorm(rows.length) : l.rc(rows.length)}</span></div>`;
+
+  if (S.loading){
+    h += `<table class="tbl">${theadHtml()}<tbody role="status" aria-label="${l.loading}">${Array.from({length:8}, (_, i) =>
+      `<tr><td><div style="display:flex;gap:12px;align-items:center"><span class="sk" style="width:36px;height:36px;border-radius:50%"></span><span class="sk" style="width:${90 + (i * 37) % 70}px;height:12px"></span></div></td>
+       <td><span class="sk" style="width:${120 + (i * 23) % 50}px;height:24px;border-radius:99px"></span></td>${isAdmin() ? `<td class="c-mk"><span class="sk" style="width:50px;height:12px"></span></td>` : ""}<td><span class="sk" style="width:90px;height:12px"></span></td><td></td></tr>`).join("")}</tbody></table>`;
+  } else if (!rows.length){
+    h += `<div class="empty"><span class="ih h-all">${ic("search")}</span>${S.q.trim() ? l.empty_q(esc(S.q.trim())) : l.empty}<br><button class="btn sm" data-clear>${l.clear}</button></div>`;
+  } else {
+    h += `<table class="tbl">${theadHtml()}<tbody>${rows.map(rowHtml).join("")}</tbody></table>`;
+  }
+  if (!S.loading && off.length){
+    h += `<div class="fold"><button data-fold aria-expanded="${S.fold}">${ic(S.fold ? "down" : (S.lang === "ar" ? "left" : "right"))}${l.fold(off.length)}</button>
+      ${S.fold ? `<table class="tbl"><caption class="sr">${l.fold(off.length)}</caption>${theadHtml(true)}<tbody>${off.map(rowHtml).join("")}</tbody></table>` : ""}</div>`;
+  }
+  h += `</div><p class="foot-note">${ic("info")}${l.foot}</p>`;
+  return h;
+}
+
+/* ═════════════ render: BEFORE (faithful to UsersPageClient / UserRoleSection / UserCard) ═════════════ */
+function renderBefore(){
+  const l = L(), vis = S.users.filter(sees), pinned = new Set();
+  const pin = n => { if (pinned.has(n)) return ""; pinned.add(n); return `<span class="pin">${n}</span>`; };
+  const BADGE = {super_admin:["Super Admin","#EEF2FF","#4338CA"], market_manager:["Manager","#F0FDF4","#166534"], agent:["Agent","#FFF7ED","#9A3412"], warehouse_agent:["Entrepôt","#F0F9FF","#075985"], investor:["Investisseur","#FEF3C7","#92400E"]};
+  const SECT = {fr:{super_admin:"Super admins", market_manager:"Market managers", agent:"Agents de confirmation", warehouse_agent:"Agents entrepôt", investor:"Investisseurs", active:"Actifs", invited:"Invités", disabled:"Désactivés"},
+                ar:{super_admin:"المشرفون العاملون", market_manager:"مديرو السوق", agent:"وكلاء التأكيد", warehouse_agent:"وكلاء المستودع", investor:"المستثمرون", active:"نشطون", invited:"مدعوون", disabled:"معطّلون"}}[S.lang];
+  const rel = s => { if (!s) return ""; const m = Math.floor((NOW - Date.parse(s)) / 60000); if (m < 1) return "à l'instant"; if (m < 60) return `il y a ${m} min`; const hh = Math.floor(m / 60); if (hh < 24) return `il y a ${hh} h`; return `il y a ${Math.floor(hh / 24)} j`; };
+  const pres = s => { const k = seenOf({s}).k; return k === "on" ? "#008060" : k === "idle" ? "#D97706" : "#9CA3AF"; };
+  const created = u => CREATED_AT[u.id] || u.c + "T12:00";
+  const card = u => {
+    const self = isSelf(u), dot = !self && (isAdmin() || u.r === "agent" || u.r === "warehouse_agent");
+    const pending = !!u.inv, disabled = !!u.off, b = BADGE[u.r];
+    const mkName = isAdmin() ? {ly:"Libya", tn:"Tunisia"}[u.mk] : MARKET_UUID[u.mk];
+    const badge = (txt, bg, col, w=500) => `<span style="font-size:11px;font-weight:${w};padding:2px 7px;border-radius:4px;background:${bg};color:${col}">${txt}</span>`;
+    let x = `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #E1E3E5;background:#fff;position:relative">
+      <div style="position:relative;flex-shrink:0"><span class="av" style="width:36px;height:36px;background:#F2F2F2;color:#1A1A1A">${esc(initials(u.n))}</span>
+        ${dot ? `<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:${pres(u.s)};border:2px solid #fff"></span>${pin(6)}` : ""}</div>
+      <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:14px;font-weight:500;color:#1A1A1A">${esc(u.n)}</span>${badge(b[0], b[1], b[2])}${pin(4)}
+        ${u.mk ? badge(mkName, "#F4F4F4", "#374151", 400) + pin(5) : ""}
+        ${pending ? badge(l === I.ar ? "في انتظار القبول" : "En attente d'acceptation", "#FFFBEB", "#B45309") : ""}
+        ${disabled && !pending ? badge(SECT.disabled, "#F4F4F4", "#6B7280", 400) + pin(9) : ""}</div>`;
+    if (u.r === "warehouse_agent"){
+      x += `<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:12px;color:#6D7175">${l.wh_label}</label>
+        <select style="font-size:13px;padding:4px 8px;border-radius:4px;border:1px solid #E1E3E5;background:#fff" ${disabled ? "disabled" : ""}><option>${l.wh_pick}</option>${(SITES[u.mk] || []).map(s => `<option ${u.wh === s.id ? "selected" : ""}>${s.fr}</option>`).join("")}</select>
+        ${!u.wh ? `<span style="font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;background:#FEF2F2;color:#B91C1C">${l.wh_none}</span>${pin(10)}` : ""}</div>`;
+    }
+    x += `<div style="font-size:13px;color:#6D7175;margin-top:2px">${esc(u.e)}${u.s ? `<span style="margin-inline-start:8px;color:#9CA3AF">· ${rel(u.s)}</span>${pin(8)}` : ""}</div></div>
+      <div style="width:32px;height:32px;border-radius:50%;border:1px solid #E1E3E5;display:grid;place-items:center;color:#6D7175;flex-shrink:0">${ic("more")}</div>
+      <span style="position:absolute;bottom:4px;inset-inline-end:56px;font-size:11px;color:#9CA3AF">${l.before.perms}${pin(7)}</span></div>`;
+    return x;
+  };
+  let h = `<div style="max-width:900px;margin:0 auto;padding:8px 0;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div><h1 style="font-size:22px;font-weight:600;color:#1A1A1A;margin:0">${l.before.title}${pin(1)}</h1><p style="font-size:14px;color:#6D7175;margin:4px 0 0">${l.before.sub}</p></div>
+      <span style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:#1A1A1A;color:#fff;border-radius:8px;font-size:14px;font-weight:500">${l.c.title}${pin(2)}</span></div>`;
+  for (const r of BEFORE_ORDER){
+    const us = vis.filter(u => u.r === r).sort((a, b) => created(b).localeCompare(created(a)));
+    if (!us.length) continue;
+    h += `<section style="margin-bottom:24px"><div style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.08em;padding:16px 16px 8px;border-bottom:1px solid #E1E3E5;background:#fff;display:flex;justify-content:space-between">
+      <span>${SECT[r]}${pin(3)}</span><span style="font-size:11px;font-weight:400;color:#9CA3AF;text-transform:none">${us.length}</span></div>`;
+    for (const g of ["active","invited","disabled"]){
+      const gu = us.filter(u => status(u) === g);
+      if (!gu.length) continue;
+      h += `<div style="font-size:11px;font-weight:500;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px 4px;background:#FAFAFA">${SECT[g]}</div>${gu.map(card).join("")}`;
+    }
+    h += `</section>`;
+  }
+  return h + `</div>`;
+}
+
+
+/* ═════════════ render: menu ═════════════ */
+function renderMenu(){
+  const m = document.getElementById("menu"), u = S.menu && findU(S.menu);
+  if (!u || S.v !== "after"){ m.classList.remove("on"); m.innerHTML = ""; return; }
+  const l = L().menu, active = status(u) === "active";
+  const it = (k, i, txt, cls="") => `<button role="menuitem" tabindex="-1" class="${cls}" data-act="${k}" data-u="${u.id}">${ic(i)}${txt}</button>`;
+  m.innerHTML = it("open","user",l.open) + it("reset","key",l.reset)
+    + (active ? it("deactivate","userx",l.deactivate,"crit") : it("reactivate","usercheck",l.reactivate))
+    + (isAdmin() ? it("journal","history",l.journal) : "")
+    + (isAdmin() && !isSelf(u) ? `<hr>` + it("delete","trash",l.delete,"crit") : "");
+  m.setAttribute("aria-label", L().actions_for(u.n));
+  m.classList.add("on");
+  const b = document.querySelector(`[data-menu="${u.id}"]`);
+  if (b){
+    const r = b.getBoundingClientRect(), w = m.offsetWidth, hgt = m.offsetHeight;
+    let left = L().dir === "rtl" ? r.left : r.right - w;
+    left = Math.max(8, Math.min(left, innerWidth - w - 8));
+    let top = r.bottom + 6; if (top + hgt > innerHeight - 8) top = r.top - hgt - 6;
+    m.style.left = left + "px"; m.style.top = top + "px";
+  }
+}
+
+/* ═════════════ render: user drawer ═════════════ */
+function renderDrawer(){
+  const el = document.getElementById("drawer"), u = S.user && findU(S.user);
+  el.classList.toggle("on", !!u && S.v === "after");
+  el.setAttribute("aria-hidden", String(!u));
+  if (!u){ el.innerHTML = ""; return; }
+  const l = L(), d = l.d, st = status(u), self = isSelf(u);
+  const stHtml = st === "active" ? `<span class="spill ok"><i class="dot on" style="box-shadow:none;width:7px;height:7px" aria-hidden="true"></i>${l.st_active}</span>`
+    : st === "invited" ? `<span class="spill warn">${ic("mail")}${l.st_invited}</span>`
+    : `<span class="spill neu" style="background:#fff;box-shadow:inset 0 0 0 1px var(--line)">${ic("ban")}${l.st_disabled}${u.reason ? ` · ${l.reasons[u.reason]}` : ""}</span>`;
+  const sn = seenOf(u);
+  let h = `<div class="dband ${HUE[u.r]}">
+      <button class="xbtn" data-close aria-label="${d.close}">${ic("x")}</button>
+      ${avatar(u, "xl")}
+      <div class="dn" id="drawer-title"><bdi>${esc(u.n)}</bdi>${self ? `<span class="mtag" style="background:#fff">${l.you}</span>` : ""}${u.fake ? `<span class="mtag" style="background:#fff">${l.fictif}</span>` : ""}</div>
+      <div class="dmeta"><span class="chip-role on-white">${l.role[u.r]}</span>${isAdmin() ? `<span class="mpill">${ic("pin")}${u.mk ? l.mk[u.mk] : l.mk_none}</span>` : ""}${stHtml}</div>
+    </div><div class="db">`;
+  h += `<div class="facts">
+      <div class="fact"><span>${d.seen}</span><b>${seenHtml(sn)}</b>${u.s ? `<small>${fmt(Date.parse(u.s), {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</small>` : ""}</div>
+      <div class="fact"><span>${d.ident}</span><b><bdi>${esc(ident(u))}</bdi></b>${ident(u) !== u.e ? `<small><bdi>${esc(u.e)}</bdi></small>` : ""}</div>
+      <div class="fact"><span>${d.created}</span><b>${fmtDay(u.c)}</b></div>
+    </div>`;
+  if (u.r === "warehouse_agent"){
+    const dis = st !== "active";
+    h += `<section aria-labelledby="s-wh"><h3 class="sl" id="s-wh">${ic("box")}${d.wh}<span class="grow"></span>${u.wh && !dis ? `<button class="lnk" data-whclear="${u.id}">${l.wh_remove}</button>` : ""}</h3>
+      <div class="sites h-wh" role="radiogroup" aria-labelledby="s-wh">${(SITES[u.mk] || []).map(s =>
+        `<label class="site"><input type="radio" name="dwh" value="${s.id}" data-dwh="${u.id}" ${u.wh === s.id ? "checked" : ""} ${dis ? "disabled" : ""}><span class="ih">${ic("box")}</span>${s[S.lang]}</label>`).join("")}</div>
+      ${!u.wh && !dis ? `<div class="note-warn">${ic("alert")}<span>${l.c.wh_warn}</span></div>` : `<p class="hint">${l.wh_hint}</p>`}</section>`;
+  }
+  const p = PERMS[u.r];
+  h += `<section aria-labelledby="s-perm"><h3 class="sl" id="s-perm">${ic("shield")}${d.perms}</h3><ul class="perms">${PERM_KEYS.map((k, i) =>
+      `<li class="${p[i] ? "yes" : "no"}"><span class="pi">${ic(p[i] ? "check" : "minus")}</span><span><span class="sr">${p[i] ? "✓" : "✗"} </span>${l.perm[k]}</span></li>`).join("")}</ul><p class="perm-note">${d.perm_note}</p></section>`;
+  if (isAdmin()){
+    const ev = S.audit[u.id] || [];
+    h += `<section id="s-journal" aria-labelledby="s-jt"><h3 class="sl" id="s-jt">${ic("history")}${d.journal}</h3>${ev.length ? `<ol class="tline">${ev.map(e =>
+      `<li class="${EVH[e.e] || "h-sa"}"><span class="td" aria-hidden="true"></span><b>${l.ev[e.e]}</b>${e.e === "warehouse_assigned" ? ` · ${e.wh ? siteName(u.mk, e.wh) : l.wh_none}` : ""}${e.reason ? ` · ${l.reasons[e.reason]}` : ""}${e.ret ? ` · ${l.ret(e.ret)}` : ""}
+        <small>${d.by} <bdi>${esc(e.by)}</bdi> · ${fmtStamp(e.at)}</small></li>`).join("")}</ol>` : `<p class="jempty">${d.jempty}</p>`}</section>`;
+  }
+  h += `</div><div class="df">`;
+  if (st === "active") h += `<button class="btn" data-act="reset" data-u="${u.id}">${ic("key")}${l.menu.reset}</button><button class="btn soft-crit" data-act="deactivate" data-u="${u.id}">${ic("userx")}${l.menu.deactivate}</button>`;
+  else h += `<button class="btn pri" data-act="reactivate" data-u="${u.id}">${ic("usercheck")}${l.menu.reactivate}</button><button class="btn" data-act="reset" data-u="${u.id}">${ic("key")}${l.menu.reset}</button>`;
+  if (isAdmin() && !self) h += `<span class="grow"></span><button class="btn ghost-crit" data-act="delete" data-u="${u.id}" aria-label="${l.menu.delete}" title="${l.menu.delete}">${ic("trash")}</button>`;
+  el.innerHTML = h + `</div>`;
+}
+
+/* ═════════════ render: create panel ═════════════ */
+function renderCreate(){
+  const el = document.getElementById("cpanel"), on = S.dlg?.k === "create" && S.v === "after";
+  el.classList.toggle("on", on);
+  el.setAttribute("aria-hidden", String(!on));
+  if (!on){ el.innerHTML = ""; return; }
+  const l = L(), c = l.c, f = S.form;
+  const roles = isAdmin() ? ["agent","warehouse_agent","market_manager","investor"] : ["agent","warehouse_agent"];
+  const mk = isAdmin() ? f.mk : "ly";
+  let h = `<div class="dh"><div class="t"><b id="cpanel-title">${c.title}</b><small>${c.sub}</small></div><button class="xbtn" data-close aria-label="${l.d.close}">${ic("x")}</button></div><div class="db">`;
+  h += `<section><div class="cs-t"><i>1</i>${c.s1}</div>
+    <div class="field"><label class="l" for="f-user">${c.user}</label><input class="inp" id="f-user" dir="auto" value="${esc(f.user)}" placeholder="${esc(c.user_ph)}" autocomplete="off" aria-describedby="ident"><div id="ident">${identBox()}</div></div>
+    <div class="field"><label class="l" for="f-pw">${c.pw}</label><div class="pw"><input class="inp" id="f-pw" type="${f.show ? "text" : "password"}" value="${esc(f.pw)}" autocomplete="new-password">
+      <button type="button" class="tg" data-pwshow="form" aria-pressed="${f.show}">${ic(f.show ? "eyeoff" : "eye")}${f.show ? c.hide : c.show}</button></div></div></section>`;
+  h += `<section><fieldset><legend class="cs-t"><i>2</i>${l.col.role}</legend><div class="rcards">${roles.map(r =>
+      `<label class="rcard ${HUE[r]}"><input type="radio" name="role" value="${r}" ${f.role === r ? "checked" : ""}><span class="ih">${ic(RICON[r])}</span><span><span class="t">${l.role[r]}</span><span class="d">${l.role_desc[r]}</span></span><span class="rdot" aria-hidden="true"></span></label>`).join("")}</div></fieldset></section>`;
+  h += `<section><div class="cs-t"><i>3</i>${c.s3}</div>`;
+  if (isAdmin()) h += `<fieldset><legend>${c.market}</legend><div class="segr">${["tn","ly"].map(m =>
+      `<label><input type="radio" name="mk" value="${m}" ${f.mk === m ? "checked" : ""}>${l.mk[m]}</label>`).join("")}</div></fieldset>`;
+  else h += `<p class="fixed">${ic("pin")}${c.market_fixed(l.mk.ly)}</p>`;
+  if (f.role === "warehouse_agent" && mk){
+    h += `<fieldset style="margin-top:14px"><legend>${c.wh}</legend><div class="sites h-wh">${(SITES[mk] || []).map(s =>
+      `<label class="site"><input type="radio" name="wh" value="${s.id}" ${f.wh === s.id ? "checked" : ""}><span class="ih">${ic("box")}</span>${s[S.lang]}</label>`).join("")}</div>
+      ${f.wh ? `<p class="hint">${l.wh_hint}</p>` : `<div class="note-warn">${ic("alert")}<span>${c.wh_warn}</span></div>`}</fieldset>`;
+  }
+  h += `</section></div><div class="df"><span class="grow"></span><button class="btn" data-close>${c.cancel}</button><button class="btn pri" data-submit="create" ${createValid() ? "" : "disabled"}>${ic("plus")}${c.submit}</button></div>`;
+  el.innerHTML = h;
+}
+function identBox(){
+  const c = L().c, id = identOf(S.form.user);
+  if (!id) return "";
+  const taken = S.users.some(u => u.e === id + "@oms.local");
+  return `<div class="ident ${taken ? "taken" : ""}" role="status"><span class="ih">${ic(taken ? "alert" : "idcard")}</span><div>${c.ident} <code><bdi>${esc(id)}</bdi></code><small>${taken ? c.taken : c.ident_hint}</small></div></div>`;
+}
+function createValid(){
+  const f = S.form, id = identOf(f.user);
+  return !!(id && f.pw && f.role && (!isAdmin() || f.mk) && !S.users.some(u => u.e === id + "@oms.local"));
+}
+
+/* ═════════════ render: dialogs ═════════════ */
+function renderDlg(){
+  const w = document.getElementById("dlgw"), el = document.getElementById("dlg");
+  const k = S.dlg?.k, u = S.dlg?.u && findU(S.dlg.u);
+  const on = !!u && ["deactivate","delete","reset"].includes(k) && S.v === "after";
+  w.classList.toggle("on", on);
+  if (!on){ el.innerHTML = ""; return; }
+  const l = L(), x = `<button class="xbtn" data-close aria-label="${l.d.close}">${ic("x")}</button>`, nm = `<bdi>${esc(u.n)}</bdi>`;
+  let h = "";
+  if (k === "deactivate"){
+    const a = l.da;
+    h = `<div class="top">${x}<div class="dic h-crit">${ic("userx")}</div><h2 id="dlg-title">${a.title(nm)}</h2><p class="lead">${a.body(nm)}</p></div>
+      <div class="bd"><fieldset><legend>${a.reason}</legend><div class="rlist">${["on-leave","off-boarded","terminated"].map(r =>
+        `<label class="rcard h-sa"><input type="radio" name="reason" value="${r}" ${S.dlg.reason === r ? "checked" : ""}><span class="t" style="font-weight:600">${l.reasons[r]}</span><span class="rdot" aria-hidden="true"></span></label>`).join("")}</div></fieldset></div>
+      <div class="ft"><button class="btn" data-close>${a.cancel}</button><button class="btn danger" data-submit="deactivate" ${S.dlg.reason ? "" : "disabled"}>${a.confirm}</button></div>`;
+  } else if (k === "delete"){
+    const a = l.de;
+    h = `<div class="top">${x}<div class="dic h-crit">${ic("trash")}</div><h2 id="dlg-title">${a.title(nm)}</h2><p class="lead">${a.body}</p></div>
+      <div class="ft"><button class="btn" data-close>${a.cancel}</button><button class="btn danger" data-submit="delete">${ic("trash")}${a.confirm}</button></div>`;
+  } else if (k === "reset"){
+    const a = l.rp, c = l.c, mism = S.dlg.pw2 && S.dlg.pw1 !== S.dlg.pw2, t = S.dlg.show ? "text" : "password";
+    h = `<div class="top">${x}<div class="dic h-mgr">${ic("key")}</div><h2 id="dlg-title">${a.title}</h2><p class="lead">${nm} · <bdi>${esc(ident(u))}</bdi></p></div>
+      <div class="bd"><div class="field"><label class="l" for="rp1">${a.pw1}</label><div class="pw"><input class="inp" id="rp1" type="${t}" value="${esc(S.dlg.pw1 || "")}" autocomplete="new-password">
+        <button type="button" class="tg" data-pwshow="reset" aria-pressed="${!!S.dlg.show}">${ic(S.dlg.show ? "eyeoff" : "eye")}${S.dlg.show ? c.hide : c.show}</button></div></div>
+      <div class="field" style="margin-top:0"><label class="l" for="rp2">${a.pw2}</label><input class="inp ${mism ? "bad" : ""}" id="rp2" type="${t}" value="${esc(S.dlg.pw2 || "")}" autocomplete="new-password" aria-describedby="rp-err" ${mism ? 'aria-invalid="true"' : ""}>
+        <div id="rp-err">${mism ? `<p class="err">${ic("alert")}${a.mismatch}</p>` : ""}</div></div></div>
+      <div class="ft"><button class="btn" data-close>${a.cancel}</button><button class="btn pri" data-submit="reset" ${S.dlg.pw1 && S.dlg.pw1 === S.dlg.pw2 ? "" : "disabled"}>${a.save}</button></div>`;
+  }
+  el.innerHTML = h;
+}
+
+/* ═════════════ render all ═════════════ */
+function render(){
+  const l = L();
+  document.documentElement.lang = S.lang;
+  document.documentElement.style.setProperty("--pb", document.querySelector(".pbar").offsetHeight + "px"); /* prototype bar only */
+  document.getElementById("stage").setAttribute("dir", l.dir);
+  document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === S.lang));
+  document.querySelectorAll("[data-as]").forEach(b => b.classList.toggle("on", b.dataset.as === S.as));
+  document.querySelectorAll("[data-data]").forEach(b => b.classList.toggle("on", b.dataset.data === S.data));
+  document.querySelectorAll("[data-v]").forEach(b => b.classList.toggle("on", b.dataset.v === S.v));
+  document.getElementById("warnfr").hidden = !(S.lang === "ar" && isAdmin());
+  renderSide();
+  document.getElementById("page").innerHTML = S.v === "before" ? renderBefore() : renderAfter();
+  renderDrawer(); renderCreate(); renderDlg(); renderMenu();
+  document.getElementById("scrim").classList.toggle("on", S.v === "after" && (!!S.user || S.dlg?.k === "create"));
+  syncUrl();
+  if (S.focus){
+    const el = document.querySelector(S.focus); S.focus = null;
+    if (el){ el.focus({preventScroll:false}); if (el.setSelectionRange && (el.type === "search" || el.type === "text" || el.type === "password")) { const n = el.value.length; try { el.setSelectionRange(n, n); } catch {} } }
+  }
+}
+function syncUrl(){
+  const p = new URLSearchParams();
+  if (S.v !== "after") p.set("v", S.v);
+  if (S.as !== "admin") p.set("as", S.as);
+  if (S.data !== "real") p.set("data", S.data);
+  if (S.lang !== "fr") p.set("lang", S.lang);
+  if (S.tab !== "all") p.set("tab", S.tab);
+  if (S.mk !== "all") p.set("mk", S.mk);
+  if (S.q) p.set("q", S.q);
+  if (S.dlg?.k){ p.set("screen", S.dlg.k); if (S.dlg.u) p.set("u", S.dlg.u); }
+  else if (S.user){ p.set("screen", "user"); p.set("u", S.user); }
+  history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : "") + location.hash);
+}
+function toast(msg){ const t = document.getElementById("toast"); t.innerHTML = `<span class="tic">${ic("check")}</span><span>${esc(msg + L().toast.proto)}</span>`; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 3200); }
+
+/* ═════════════ actions ═════════════ */
+let lastTrigger = null;
+function openDlg(k, uid){
+  S.menu = null;
+  if (k === "deactivate") S.dlg = {k, u:uid, reason:null};
+  else if (k === "reset") S.dlg = {k, u:uid, pw1:"", pw2:"", show:false};
+  else S.dlg = {k, u:uid};
+  S.focus = k === "deactivate" ? "#dlg input[name=reason]" : k === "reset" ? "#rp1" : "#dlg [data-close]";
+}
+function act(k, uid){
+  const u = findU(uid), l = L();
+  if (k === "open"){ S.menu = null; S.user = uid; S.focus = "#drawer [data-close]"; lastTrigger = `[data-open="${uid}"]`; }
+  else if (k === "journal"){ S.menu = null; S.user = uid; lastTrigger = `[data-open="${uid}"]`; render(); document.getElementById("s-journal")?.scrollIntoView({block:"start"}); document.querySelector("#drawer [data-close]")?.focus(); return; }
+  else if (k === "reactivate"){ S.menu = null; u.off = false; u.inv = false; u.reason = null; toast(l.toast.reactivated(u.n)); S.focus = S.user ? "#drawer [data-close]" : `[data-menu="${uid}"]`; }
+  else openDlg(k, uid);
+  render();
+}
+function setWh(u, wh, focusSel){
+  u.wh = wh || null;
+  S.audit[u.id] = [{e:"warehouse_assigned", by:isAdmin() ? "Super Admin" : "hamidaly", at:"2026-10-03 15:30", wh:u.wh}, ...(S.audit[u.id] || [])];
+  toast(L().toast.wh); S.focus = focusSel; render();
+}
+function submit(k){
+  const l = L();
+  if (k === "create"){
+    if (!createValid()) return;
+    const f = S.form, id = identOf(f.user);
+    const nu = {id:"new-" + id, n:f.user.trim(), e:id + "@oms.local", r:f.role, mk:isAdmin() ? f.mk : "ly", wh:f.role === "warehouse_agent" ? (f.wh || null) : null, s:null, c:"2026-10-03"};
+    S.users.push(nu);
+    if (isAdmin()) S.audit[nu.id] = [{e:"user_created", by:"Super Admin", at:"2026-10-03 15:30"}];
+    S.dlg = null; S.form = {user:"", pw:"", show:false, role:"", mk:"", wh:""};
+    S.tab = "all"; S.q = ""; S.dorm = false; if (isAdmin() && S.mk !== "all" && S.mk !== nu.mk) S.mk = "all";
+    S.flash = nu.id; setTimeout(() => { S.flash = null; }, 2500);
+    toast(l.toast.created(nu.n, id)); S.focus = `[data-open="${nu.id}"]`;
+  } else {
+    const u = findU(S.dlg.u);
+    if (k === "deactivate"){ if (!S.dlg.reason) return; u.off = true; u.reason = S.dlg.reason; toast(l.toast.deactivated(u.n)); }
+    if (k === "delete"){ S.users = S.users.filter(x => x.id !== u.id); if (S.user === u.id) S.user = null; toast(l.toast.deleted(u.n)); }
+    if (k === "reset"){ if (!S.dlg.pw1 || S.dlg.pw1 !== S.dlg.pw2) return; toast(l.toast.reset); }
+    S.dlg = null;
+    S.focus = S.user ? "#drawer [data-close]" : (lastTrigger || "#q");
+  }
+  render();
+}
+function closeTop(){
+  if (S.menu){ const id = S.menu; S.menu = null; S.focus = `[data-menu="${id}"]`; }
+  else if (S.dlg){ const k = S.dlg.k; S.dlg = null; S.focus = k === "create" ? "[data-create]" : S.user ? "#drawer [data-close]" : lastTrigger; }
+  else if (S.user){ S.focus = lastTrigger || `[data-open="${S.user}"]`; S.user = null; }
+  else return false;
+  render(); return true;
+}
+
+/* ═════════════ wiring ═════════════ */
+document.addEventListener("click", e => {
+  const t = e.target;
+  const pb = t.closest("[data-lang],[data-as],[data-data],[data-v]");
+  if (pb){
+    if (pb.dataset.lang) S.lang = pb.dataset.lang;
+    if (pb.dataset.as){ S.as = pb.dataset.as; S.tab = "all"; S.mk = "all"; S.user = null; S.dlg = null; S.menu = null; loadData(); }
+    if (pb.dataset.data){ S.data = pb.dataset.data; S.user = null; S.dlg = null; S.menu = null; loadData(); }
+    if (pb.dataset.v){ S.v = pb.dataset.v; S.user = null; S.dlg = null; S.menu = null; }
+    render(); return;
+  }
+  if (S.menu && !t.closest("#menu") && !t.closest("[data-menu]")){ S.menu = null; render(); if (!t.closest("button,select,input,label,tr.r")) return; }
+  const b = t.closest("button,[data-row]");
+  if (!b) return;
+  if (b.matches("[data-act]")) return act(b.dataset.act, b.dataset.u);
+  if (b.matches("[data-menu]")){ const id = b.dataset.menu; S.menu = S.menu === id ? null : id; lastTrigger = `[data-menu="${id}"]`; render(); if (S.menu) document.querySelector("#menu [role=menuitem]")?.focus(); return; }
+  if (b.matches("[data-open]")){ e.stopPropagation(); return act("open", b.dataset.open); }
+  if (b.matches("[data-tab]")){ S.tab = b.dataset.tab; S.focus = `[data-tab="${S.tab}"]`; return render(); }
+  if (b.matches("[data-mk]")){ S.mk = b.dataset.mk; S.focus = `[data-mk="${S.mk}"]`; return render(); }
+  if (b.matches("[data-dorm]")){ S.dorm = !S.dorm; S.focus = "[data-dorm]"; return render(); }
+  if (b.matches("[data-fold]")){ S.fold = !S.fold; S.focus = "[data-fold]"; return render(); }
+  if (b.matches("[data-clear]")){ S.q = ""; S.dorm = false; S.tab = "all"; S.mk = "all"; S.focus = "#q"; return render(); }
+  if (b.matches("[data-whclear]")) return setWh(findU(b.dataset.whclear), null, "#drawer [data-close]");
+  if (b.matches("[data-create]")){ S.user = null; S.dlg = {k:"create"}; S.focus = "#f-user"; return render(); }
+  if (b.matches("[data-close]")) return closeTop();
+  if (b.matches("[data-submit]")) return submit(b.dataset.submit);
+  if (b.matches("[data-pwshow]")){
+    if (b.dataset.pwshow === "form"){ S.form.show = !S.form.show; S.focus = "#cpanel [data-pwshow]"; }
+    else { S.dlg.show = !S.dlg.show; S.focus = "#dlg [data-pwshow]"; }
+    return render();
+  }
+  if (b.matches("[data-row]") && !t.closest("select,label,button")) return act("open", b.dataset.row);
+});
+document.getElementById("scrim").addEventListener("click", () => { S.dlg?.k === "create" ? (S.dlg = null, render()) : closeTop(); });
+document.getElementById("dlgw").addEventListener("click", e => { if (e.target.id === "dlgw") closeTop(); });
+
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "q"){ S.q = t.value; S.focus = "#q"; render(); }
+  else if (t.id === "f-user"){ S.form.user = t.value; document.getElementById("ident").innerHTML = identBox(); document.querySelector("[data-submit=create]").disabled = !createValid(); }
+  else if (t.id === "f-pw"){ S.form.pw = t.value; document.querySelector("[data-submit=create]").disabled = !createValid(); }
+  else if (t.id === "rp1" || t.id === "rp2"){
+    S.dlg[t.id === "rp1" ? "pw1" : "pw2"] = t.value;
+    const mism = S.dlg.pw2 && S.dlg.pw1 !== S.dlg.pw2, rp2 = document.getElementById("rp2");
+    rp2.classList.toggle("bad", !!mism); rp2.toggleAttribute("aria-invalid", !!mism);
+    document.getElementById("rp-err").innerHTML = mism ? `<p class="err">${ic("alert")}${L().rp.mismatch}</p>` : "";
+    document.querySelector("[data-submit=reset]").disabled = !(S.dlg.pw1 && S.dlg.pw1 === S.dlg.pw2);
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.matches("[data-wh]")) setWh(findU(t.dataset.wh), t.value, "#" + t.id);
+  else if (t.matches("[data-dwh]")) setWh(findU(t.dataset.dwh), t.value, `input[data-dwh][value="${t.value}"]`);
+  else if (t.name === "role"){ S.form.role = t.value; if (t.value !== "warehouse_agent") S.form.wh = ""; S.focus = `input[name=role][value="${t.value}"]`; render(); }
+  else if (t.name === "mk"){ S.form.mk = t.value; S.form.wh = ""; S.focus = `input[name=mk][value="${t.value}"]`; render(); }
+  else if (t.name === "wh"){ S.form.wh = t.value; S.focus = `input[name=wh][value="${t.value}"]`; render(); }
+  else if (t.name === "reason"){ S.dlg.reason = t.value; document.querySelector("[data-submit=deactivate]").disabled = false; }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape"){ if (closeTop()) e.preventDefault(); return; }
+  if (S.menu && e.target.closest("#menu")){
+    const items = [...document.querySelectorAll("#menu [role=menuitem]")], i = items.indexOf(e.target);
+    if (e.key === "ArrowDown"){ e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp"){ e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === "Home"){ e.preventDefault(); items[0].focus(); }
+    else if (e.key === "End"){ e.preventDefault(); items.at(-1).focus(); }
+    else if (e.key === "Tab"){ e.preventDefault(); closeTop(); }
+    return;
+  }
+  if (e.key === "Tab"){
+    const layer = S.dlg && S.dlg.k !== "create" ? document.getElementById("dlg") : S.dlg?.k === "create" ? document.getElementById("cpanel") : S.user ? document.getElementById("drawer") : null;
+    if (!layer) return;
+    const f = [...layer.querySelectorAll("button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex='-1'])")].filter(x => x.offsetParent !== null || x.closest("label"));
+    if (!f.length) return;
+    if (!layer.contains(document.activeElement)){ e.preventDefault(); f[0].focus(); return; }
+    if (e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f.at(-1).focus(); }
+    else if (!e.shiftKey && document.activeElement === f.at(-1)){ e.preventDefault(); f[0].focus(); }
+  }
+});
+const measureBar = () => document.documentElement.style.setProperty("--pb", document.querySelector(".pbar").offsetHeight + "px");
+addEventListener("resize", () => { measureBar(); if (S.menu) renderMenu(); });
+document.fonts?.ready.then(measureBar);
+addEventListener("scroll", () => { if (S.menu){ S.menu = null; renderMenu(); } }, true);
+
+(function init(){
+  const p = new URLSearchParams(location.search);
+  if (I[p.get("lang")]) S.lang = p.get("lang");
+  if (["admin","manager"].includes(p.get("as"))) S.as = p.get("as");
+  if (["real","edge"].includes(p.get("data"))) S.data = p.get("data");
+  if (["before","after"].includes(p.get("v"))) S.v = p.get("v");
+  loadData();
+  if (tabsFor().includes(p.get("tab"))) S.tab = p.get("tab");
+  if (["ly","tn"].includes(p.get("mk")) && isAdmin()) S.mk = p.get("mk");
+  if (p.get("q")) S.q = p.get("q");
+  const sc = p.get("screen"), q = p.get("u"), u = S.users.find(x => sees(x) && (x.id === q || x.n === q));
+  const def = id => u ? u.id : id;
+  if (sc === "user") S.user = def("tarek");
+  else if (sc === "create"){ S.dlg = {k:"create"}; S.form = {user:"ahmed ben ali", pw:"", show:false, role:"warehouse_agent", mk:"ly", wh:""}; }
+  else if (["deactivate","delete","reset"].includes(sc)){ openDlg(sc, def("roqaya")); S.focus = null; }
+  else if (sc === "menu"){ S.menu = def("roqaya"); }
+  else if (sc === "loading") S.loading = true;
+  render();
+  if (S.menu) renderMenu();
+})();
+</script>
+</body>
+</html>
