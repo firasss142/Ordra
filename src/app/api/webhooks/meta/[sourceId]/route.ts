@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * STUB — Meta (Facebook / Instagram) webhook endpoint for inbound leads.
@@ -18,7 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   _req: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> }
 ) {
@@ -34,9 +35,12 @@ export async function POST(
 
 // GET is used by Meta for webhook subscription verification (hub.challenge).
 // Return 501 for now — when implemented, this will echo hub.challenge.
-export async function GET() {
+async function handleGET() {
   return NextResponse.json(
     { error: "Meta webhook adapter not yet implemented" },
     { status: 501 }
   );
 }
+
+export const GET = withRouteErrors("/api/webhooks/meta/[sourceId]", "GET", handleGET);
+export const POST = withRouteErrors("/api/webhooks/meta/[sourceId]", "POST", handlePOST);

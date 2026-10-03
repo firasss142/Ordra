@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
 import { loadDealTerms } from "@/lib/investors/load-accrual";
 import { loadDealFeed } from "@/lib/investors/feed";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Per-order event feed: date · event · amounts · your share. Cursor-paginated. */
-export async function GET(req: NextRequest, { params }: { params: { dealId: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { dealId: string } }) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   const cursor = req.nextUrl.searchParams.get("cursor");
@@ -28,3 +29,5 @@ export async function GET(req: NextRequest, { params }: { params: { dealId: stri
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const GET = withRouteErrors("/api/investor/deals/[dealId]/feed", "GET", handleGET);

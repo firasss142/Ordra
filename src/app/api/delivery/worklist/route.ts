@@ -5,6 +5,7 @@ import { canUseDeliveryWorklist } from "@/lib/role-permissions";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import type { WorklistItem, WorklistRow } from "@/lib/delivery/types";
 import { DEFAULT_LIMIT, MAX_LIMIT } from "@/lib/delivery/worklist";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ const imageOf = (p: Embedded): string | null => (Array.isArray(p) ? p[0]?.image_
  *   market_manager → own market, optionally one agent
  *   super_admin    → must name the market
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -181,3 +182,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ rows, total, generated_at: new Date().toISOString() });
 }
+
+export const GET = withRouteErrors("/api/delivery/worklist", "GET", handleGET);

@@ -6,10 +6,11 @@ import {
   STATUS_SCOPES,
   type StatusScope,
 } from "@/types/status-config";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -69,7 +70,7 @@ interface CreateBody {
   allowed_transitions?: string[];
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -172,3 +173,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/settings/statuses", "GET", handleGET);
+export const POST = withRouteErrors("/api/settings/statuses", "POST", handlePOST);

@@ -4,6 +4,7 @@ import { loadAllConfigs, type WhatsAppConfig } from "@/lib/whatsapp/config";
 import { parseWebhookPayload } from "@/lib/whatsapp/webhook/parse";
 import { verifyTokenMatches, verifyWebhookSignature } from "@/lib/whatsapp/webhook/verify";
 import { handleWebhookEvents } from "@/lib/whatsapp/webhook/handle";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Meta → Ordra. One callback URL serves both Business Portfolios: the payload
@@ -42,7 +43,7 @@ async function log(admin: ReturnType<typeof createAdminClient>, input: LogInput)
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const url = new URL(req.url);
   const mode = url.searchParams.get("hub.mode");
   const token = url.searchParams.get("hub.verify_token");
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(challenge, { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const admin = createAdminClient();
   const raw = await req.text();
 
@@ -139,3 +140,6 @@ export async function POST(req: NextRequest) {
     { status: 200 },
   );
 }
+
+export const GET = withRouteErrors("/api/webhooks/whatsapp", "GET", handleGET);
+export const POST = withRouteErrors("/api/webhooks/whatsapp", "POST", handlePOST);

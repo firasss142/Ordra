@@ -21,6 +21,7 @@ vi.mock("@/lib/crypto", () => ({
 
 import { PATCH, GET, DELETE } from "./route";
 import { NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 function req(body: Record<string, unknown> = { is_active: false }) {
   return new NextRequest(
@@ -188,6 +189,19 @@ describe("PATCH /api/carriers/[id] — market isolation", () => {
     });
     const res = await PATCH(req(), { params: Promise.resolve({ id: "carrier-1" }) });
     expect(res.status).toBe(200);
+  });
+
+  test("the service-role update is written in the signed-in user's name (journal author)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return singleChain({ role: "super_admin", market_id: null });
+      return singleChain(CARRIER_TN);
+    });
+    const res = await PATCH(req(), { params: Promise.resolve({ id: "carrier-1" }) });
+    expect(res.status).toBe(200);
+    expect(createAdminClient).toHaveBeenCalledWith({ actorId: "sa-1" });
   });
 });
 

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import type { DeliveryBoardResponse } from "@/lib/delivery/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
  *   market_manager → own market; a market_id parameter is ignored
  *   super_admin    → must name the market
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -39,3 +40,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(data as DeliveryBoardResponse);
 }
+
+export const GET = withRouteErrors("/api/delivery/board", "GET", handleGET);

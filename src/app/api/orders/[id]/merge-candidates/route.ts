@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getMergeWindowHours } from "@/lib/orders/merge-window";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * market opts out — the panel then hides the affordance entirely rather than
  * showing an empty list that looks like a bug.
  */
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -53,3 +54,5 @@ export async function GET(
 
   return NextResponse.json({ data });
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/merge-candidates", "GET", handleGET);

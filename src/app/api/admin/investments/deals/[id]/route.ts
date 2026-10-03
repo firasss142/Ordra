@@ -3,11 +3,12 @@ import { adminReader, adminWriter, NO_STORE, todayFor } from "@/lib/investors/ad
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeDealAccrualLive, loadDealTerms, type DealRow } from "@/lib/investors/load-accrual";
 import { loadDealFeed } from "@/lib/investors/feed";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Deal detail: live accrual (same function as the portal & settlement), terms history, statements, ledger, recent feed. */
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   const { data: dealRaw } = await g.admin
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 /** PATCH label / note only — everything else is a terms amendment or a close. */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   let b: { label?: unknown; note?: unknown };
@@ -66,3 +67,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ data });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/deals/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/admin/investments/deals/[id]", "PATCH", handlePATCH);

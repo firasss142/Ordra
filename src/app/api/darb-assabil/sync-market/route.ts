@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
 import { fetchDarbShipment } from "@/lib/carriers/darb-assabil-tracking";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/darb-assabil/sync-market
@@ -37,7 +38,7 @@ interface OrderRow {
   carriers: { code: string } | null;
 }
 
-export async function POST(_req: NextRequest) {
+async function handlePOST(_req: NextRequest) {
   const supabase = await createClient();
 
   // getActor reads the HMAC-signed oms_profile cookie — zero network calls, and
@@ -204,3 +205,5 @@ export async function POST(_req: NextRequest) {
     { status: 200 },
   );
 }
+
+export const POST = withRouteErrors("/api/darb-assabil/sync-market", "POST", handlePOST);

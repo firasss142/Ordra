@@ -4,6 +4,24 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from "next-intl";
 
+/**
+ * Journaux: tell the server a sign-in succeeded or failed. Fire-and-forget —
+ * never awaited, every error swallowed, so the login screen behaves exactly as
+ * before. `keepalive` lets the success call outlive the navigation below.
+ */
+function reportLoginEvent(email: string, ok: boolean) {
+  try {
+    void fetch("/api/auth/login-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, ok }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // never let the journal touch the sign-in
+  }
+}
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -23,10 +41,13 @@ export default function LoginPage() {
     setLoading(true);
 
     const supabase = createClient();
+    const email = resolveEmail(username);
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: resolveEmail(username),
+      email,
       password,
     });
+
+    reportLoginEvent(email, !authError);
 
     if (authError) {
       setError(t("invalidCredentials"));

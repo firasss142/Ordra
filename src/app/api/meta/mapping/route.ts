@@ -5,6 +5,7 @@ import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { adsetBelongs, loadAccount, loadMappingTree, parseDraft, previewDraft } from "@/lib/meta-ads/mapping";
 import { rebuildMetaAdSpend } from "@/lib/meta-ads/rebuild";
 import { accountTimezone } from "@/lib/meta-ads/sync";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Campaign / ad set → product(s), effective-dated. The drawer's two verbs.
@@ -27,7 +28,7 @@ export const maxDuration = 60;
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canViewFinanceSection(actorResult.actor.role)) {
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { draft } = parsed;
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const account = await loadAccount(admin, draft.ad_account_id);
   if (!account || account.market_id !== draft.market_id) {
     return NextResponse.json({ error: "Unknown ad account for this market" }, { status: 404 });
@@ -128,3 +129,6 @@ export async function POST(req: NextRequest) {
     { status: 201 },
   );
 }
+
+export const GET = withRouteErrors("/api/meta/mapping", "GET", handleGET);
+export const POST = withRouteErrors("/api/meta/mapping", "POST", handlePOST);

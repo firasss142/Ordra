@@ -7,10 +7,11 @@ import {
   DEFAULT_DEMAND_WINDOW,
   type DemandWindowDays,
 } from "@/lib/inventory/stock-position-types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -47,3 +48,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const GET = withRouteErrors("/api/inventory/position", "GET", handleGET);

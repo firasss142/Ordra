@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { resolveDarbAny } from "@/lib/carriers/darb-assabil-areas";
 import { recommendCarrierForOrder } from "@/lib/carriers/recommend-carrier-for-order";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
  *
  * Non-Libya markets get an empty payload, so the pickers render exactly as before.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -103,3 +104,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/carriers/rates", "GET", handleGET);

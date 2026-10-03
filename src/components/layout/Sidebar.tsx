@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
+import { fetcher } from "@/lib/swr-config";
 import { useOrphanUnreadCount } from "@/hooks/useOrphanConversations";
 import {
   MessageCircle,
@@ -82,8 +83,11 @@ interface NavItemDef {
   /** Prefetch hint — usually matches the base route segment */
   prefetchRoute?: string;
   showBadge?: boolean;
-  /** A second live count: unread orphan WhatsApp conversations (green). */
-  badgeSource?: "whatsapp";
+  /**
+   * A second live count: unread orphan WhatsApp conversations (green), or the
+   * Journaux problems still open (red, super_admin only).
+   */
+  badgeSource?: "whatsapp" | "journal";
   /** Visible only to super_admin, even when its section is shown to others. */
   superAdminOnly?: boolean;
   /**
@@ -248,7 +252,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     // Journaux stays super_admin only.
     items: [
       { key: "reglages", href: "system/settings", icon: Settings, prefetchRoute: "settings", activeOn: ["system/settings"] },
-      { key: "logs", href: "system/logs", icon: ScrollText, prefetchRoute: "admin", superAdminOnly: true },
+      { key: "logs", href: "system/logs", icon: ScrollText, prefetchRoute: "admin", superAdminOnly: true, badgeSource: "journal" },
     ],
   },
 ];
@@ -429,6 +433,13 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
     user.role === "super_admin" ? scopeMarketId : user.market_id,
     user.role === "super_admin" || user.role === "market_manager",
   );
+  // Open Journaux problems — the only alert the journal raises (plan §7, decision 4).
+  const { data: journalCounts } = useSWR<{ open: number; critical: number }>(
+    user.role === "super_admin" ? "/api/admin/journal/counts" : null,
+    fetcher,
+    { refreshInterval: 60000, revalidateOnFocus: false },
+  );
+  const journalOpen = journalCounts?.open ?? 0;
 
   if (user.role === "agent" || user.role === "warehouse_agent") {
     return null;
@@ -574,10 +585,23 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
               ? liveCount
               : 0;
           const sectionWhatsAppBadge = section.items.some((i) => i.badgeSource === "whatsapp") ? whatsappUnread : 0;
+          const sectionJournalBadge = section.items.some((i) => i.badgeSource === "journal") ? journalOpen : 0;
           const sectionBadge =
-            sectionUnassignedBadge > 0 ? sectionUnassignedBadge : sectionWhatsAppBadge > 0 ? sectionWhatsAppBadge : undefined;
+            sectionUnassignedBadge > 0
+              ? sectionUnassignedBadge
+              : sectionWhatsAppBadge > 0
+                ? sectionWhatsAppBadge
+                : sectionJournalBadge > 0
+                  ? sectionJournalBadge
+                  : undefined;
           const sectionBadgeTone: BadgeTone =
-            sectionUnassignedBadge > 0 ? "warning" : sectionWhatsAppBadge > 0 ? "success" : "neutral";
+            sectionUnassignedBadge > 0
+              ? "warning"
+              : sectionWhatsAppBadge > 0
+                ? "success"
+                : sectionJournalBadge > 0
+                  ? "critical"
+                  : "neutral";
 
           return (
             <div key={section.id}>
@@ -629,12 +653,16 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                       ? liveCount
                       : item.badgeSource === "whatsapp" && whatsappUnread > 0
                         ? whatsappUnread
-                        : undefined;
+                        : item.badgeSource === "journal" && journalOpen > 0
+                          ? journalOpen
+                          : undefined;
                     const itemBadgeTone: BadgeTone = item.showBadge
                       ? "warning"
                       : item.badgeSource === "whatsapp"
                         ? "success"
-                        : "neutral";
+                        : item.badgeSource === "journal"
+                          ? "critical"
+                          : "neutral";
                     return (
                       <li key={item.key}>
                         <SubNavItem

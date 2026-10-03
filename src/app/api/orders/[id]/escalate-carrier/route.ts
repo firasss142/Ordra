@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import type { OrderStatus } from "@/types/order-status";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 const PHASE_2_STATUSES: OrderStatus[] = ["dispatched", "deposit", "in_transit", "to_be_returned"];
 const MAX_NOTE_LENGTH = 500;
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
@@ -83,3 +84,5 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/escalate-carrier", "POST", handlePOST);

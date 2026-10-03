@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageCarriers } from "@/lib/settings-permissions";
 import { checkSiteDeactivation } from "@/lib/warehouse/site-deactivation";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export interface AdminWarehouseSite {
   stockUnits: number;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest) {
  * avec le détail, tant que l'appelant n'a pas confirmé. Réactiver ne demande
  * jamais rien : c'est le sens sûr.
  */
-export async function PATCH(req: NextRequest) {
+async function handlePATCH(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -224,3 +225,6 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ data: { id, is_active: isActive } });
 }
+
+export const GET = withRouteErrors("/api/admin/warehouse-sites", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/admin/warehouse-sites", "PATCH", handlePATCH);

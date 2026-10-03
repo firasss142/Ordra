@@ -4,10 +4,11 @@ import { validateTransition } from "@/lib/order-engine";
 import type { OrderStatus } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -147,3 +148,5 @@ export async function POST(
     },
   });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/schedule-dispatch", "POST", handlePOST);

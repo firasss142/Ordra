@@ -5,11 +5,12 @@ import { canCaptureFeedback } from "@/lib/role-permissions";
 import { resolveFeedbackMarket } from "@/lib/feedback/api";
 import { FEEDBACK_CATEGORIES } from "@/lib/feedback/taxonomy";
 import type { FeedbackTopic } from "@/types/feedback";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/feedback/topics — the market's active topics, by category then their order. */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   if (!canCaptureFeedback(result.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -34,3 +35,5 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => rank(a.category) - rank(b.category) || a.sort_order - b.sort_order);
   return NextResponse.json({ data: rows });
 }
+
+export const GET = withRouteErrors("/api/feedback/topics", "GET", handleGET);

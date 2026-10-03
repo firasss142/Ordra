@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ function isJourneyEntry(h: {
  * single-order endpoint (../route.ts) intentionally omits this join to keep its
  * payload lean; this route exists so the popover can fetch only when hovered.
  */
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -124,3 +125,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/history", "GET", handleGET);

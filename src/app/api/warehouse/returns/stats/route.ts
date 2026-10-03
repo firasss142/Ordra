@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export interface ReturnsStats {
   currency: string;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -89,3 +90,5 @@ export async function GET(req: NextRequest) {
     headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" },
   });
 }
+
+export const GET = withRouteErrors("/api/warehouse/returns/stats", "GET", handleGET);

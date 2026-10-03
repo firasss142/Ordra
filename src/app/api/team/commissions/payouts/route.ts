@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canManageCommissions } from "@/lib/role-permissions";
 import { rpcErrorResponse } from "@/lib/commissions/api";
 import { PAYOUT_METHODS, type PayoutMethod } from "@/lib/commissions/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
  * the balance and refuses to go negative unless allow_negative — the client
  * shows the warning and re-sends with the flag once the manager confirms.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canManageCommissions(actorResult.actor.role)) {
@@ -57,3 +58,5 @@ export async function POST(req: NextRequest) {
   if (error) return rpcErrorResponse("api/team/commissions/payouts", error);
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/team/commissions/payouts", "POST", handlePOST);

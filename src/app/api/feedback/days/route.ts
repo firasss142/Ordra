@@ -6,6 +6,7 @@ import { resolveFeedbackMarket } from "@/lib/feedback/api";
 import { daysBetween, isIsoDay } from "@/lib/feedback/date-range";
 import { loadFamilies } from "@/lib/feedback/server-data";
 import { marketTimezone } from "@/lib/markets";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ const MAX_SPAN = 70;
  * GET /api/feedback/days?from&to&family — the days that have validated feedback, for the dots
  * under the date picker's calendar (prototype v6). The two months on screen, nothing more.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   if (!canManageFeedback(result.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -46,3 +47,5 @@ export async function GET(req: NextRequest) {
     .map((r) => r.day))].sort();
   return NextResponse.json({ data: days });
 }
+
+export const GET = withRouteErrors("/api/feedback/days", "GET", handleGET);

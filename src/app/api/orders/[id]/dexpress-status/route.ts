@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { buildConfig } from "@/lib/carriers/dispatch";
 import { DexpressClient } from "@/lib/carriers/dexpress/client";
 import { fetchDexpressStatus } from "@/lib/carriers/dexpress/tracking";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/orders/[id]/dexpress-status
@@ -28,7 +29,7 @@ interface OrderJoinRow {
   carriers: { code: string } | null;
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -154,3 +155,5 @@ export async function GET(
     headers: { "Cache-Control": "private, max-age=30" },
   });
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/dexpress-status", "GET", handleGET);

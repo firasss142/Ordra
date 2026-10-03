@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canManageProducts } from "@/lib/product-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; variantId: string }> }
 ) {
@@ -184,7 +185,7 @@ export async function PATCH(
  * left to say which size they are — an untraceable loss rather than a visible
  * one. Zero it through the ledger first.
  */
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; variantId: string }> },
 ) {
@@ -300,3 +301,6 @@ export async function DELETE(
 
   return NextResponse.json({ deleted: true, retired: false });
 }
+
+export const PATCH = withRouteErrors("/api/products/[id]/variants/[variantId]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/products/[id]/variants/[variantId]", "DELETE", handleDELETE);

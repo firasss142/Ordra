@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { resolveProductDisplayName } from "@/lib/orders/display-name";
+import { withRouteErrors } from "@/lib/journal/route-errors";
+import { recordJournalEvent } from "@/lib/journal/record-event";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +47,7 @@ function escapeCsv(value: string | null | undefined): string {
   return str;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -159,6 +161,16 @@ export async function GET(req: NextRequest) {
 
   const csv = csvLines.join("\n");
 
+  // Journaux: who exported how many rows. Through the session (allowed for
+  // export.*), so the journal names the signed-in user. Never fails or holds
+  // the download (recordJournalEvent swallows and times out).
+  await recordJournalEvent(supabase, {
+    action: "export.orders",
+    entityType: "orders",
+    marketId: marketId || null,
+    context: { rows: rows.length, format: "csv" },
+  });
+
   return new Response(csv, {
     status: 200,
     headers: {
@@ -167,3 +179,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/orders/export", "GET", handleGET);

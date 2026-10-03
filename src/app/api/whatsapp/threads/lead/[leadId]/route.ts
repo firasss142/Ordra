@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { loadThread } from "@/lib/whatsapp/thread";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /** GET /api/whatsapp/threads/lead/[leadId] — the thread behind a prospect. */
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: { leadId: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { leadId: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -24,3 +25,5 @@ export async function GET(req: NextRequest, { params }: { params: { leadId: stri
   const data = await loadThread(createAdminClient(), { marketId: lead.market_id as string, phones: [lead.customer_phone as string | null] });
   return NextResponse.json({ data });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/threads/lead/[leadId]", "GET", handleGET);

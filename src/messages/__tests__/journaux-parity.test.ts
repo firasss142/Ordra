@@ -34,9 +34,16 @@ describe("journaux i18n parity", () => {
   });
 
   test("no French left inside the Arabic catalog", () => {
-    const suspicious = Object.entries(AR).filter(([, v]) =>
-      /[A-Za-zÀ-ÿ]{4,}/.test(v.replace(/\{[^{}]*\}/g, "").replace(LATIN_OK, "")),
-    );
+    // Strip ICU SYNTAX only — placeholders, `{n, plural,` headers and branch
+    // selectors (`one {`, `other {`, `=0 {`, `tn {`) — so the text inside each
+    // branch is still checked, and `plural` / `select` don't read as French.
+    const textOf = (s: string) =>
+      s
+        .replace(/\{\w+\}/g, "")
+        .replace(/\{\w+, (plural|select|selectordinal),/g, "")
+        .replace(/(^|[\s}])[=\w]+\s*\{/g, "$1")
+        .replace(/[{}#]/g, "");
+    const suspicious = Object.entries(AR).filter(([, v]) => /[A-Za-zÀ-ÿ]{4,}/.test(textOf(v).replace(LATIN_OK, "")));
     expect(suspicious).toEqual([]);
   });
 

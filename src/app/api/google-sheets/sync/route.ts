@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { runSyncForMarket } from "@/lib/google-sheets/run-sync";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+async function handlePOST(req: NextRequest): Promise<NextResponse> {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response as NextResponse;
   const { actor } = actorResult;
@@ -43,3 +44,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export const POST = withRouteErrors("/api/google-sheets/sync", "POST", handlePOST);

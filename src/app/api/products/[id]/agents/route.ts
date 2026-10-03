@@ -19,13 +19,14 @@ import {
   type ProductAgentsClient,
 } from "@/lib/products/agent-performance";
 import type { ProductAgentsResponse } from "@/types/product-agents";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Strict, not indulgent. A malformed date reaching PostgREST is a 500. */
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleGET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
@@ -100,3 +101,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" },
   });
 }
+
+export const GET = withRouteErrors("/api/products/[id]/agents", "GET", handleGET);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * scan_return_in would credit stock we are about to ship again. `received` is
  * its own status for exactly this reason.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -44,3 +45,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(data ?? { success: true });
 }
+
+export const POST = withRouteErrors("/api/warehouse/scan-received", "POST", handlePOST);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { isReadyForOrders } from "@/lib/orders/agent-readiness";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ interface ToggleBody {
   reason?: unknown;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -151,3 +152,6 @@ function structuredCode(details: string | null | undefined): string | null {
     return null;
   }
 }
+
+export const GET = withRouteErrors("/api/agent/availability", "GET", handleGET);
+export const POST = withRouteErrors("/api/agent/availability", "POST", handlePOST);

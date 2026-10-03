@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -84,3 +85,5 @@ export async function POST(
     data: { new_status: "callback_scheduled", callback_scheduled_at: body.callback_time },
   });
 }
+
+export const POST = withRouteErrors("/api/leads/[id]/callback", "POST", handlePOST);

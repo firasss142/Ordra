@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { syncAllAccounts } from "@/lib/meta-ads/sync";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * "Sync now" — the same code path as the hourly cron, triggered by a person.
@@ -17,7 +18,7 @@ import { syncAllAccounts } from "@/lib/meta-ads/sync";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -69,3 +70,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withRouteErrors("/api/ad-spend/sync", "POST", handlePOST);

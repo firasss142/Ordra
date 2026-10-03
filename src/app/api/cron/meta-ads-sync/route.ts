@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { syncAllAccounts } from "@/lib/meta-ads/sync";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Hourly pull of campaign-level spend from Meta.
@@ -66,5 +67,5 @@ async function run(req: NextRequest): Promise<NextResponse> {
   }
 }
 
-export const GET = run;
-export const POST = run;
+export const GET = withRouteErrors("/api/cron/meta-ads-sync", "GET", run);
+export const POST = withRouteErrors("/api/cron/meta-ads-sync", "POST", run);

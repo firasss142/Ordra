@@ -7,6 +7,7 @@ import {
 } from "@/lib/calculations/product-profitability";
 import { getActor } from "@/lib/auth/actor";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -177,7 +178,7 @@ async function computeForPeriod(
   };
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ productId: string }> }
 ) {
@@ -260,3 +261,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withRouteErrors("/api/profitability/product/[productId]", "GET", handleGET);

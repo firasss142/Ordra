@@ -9,6 +9,7 @@ import {
   getAdapterDescriptor,
 } from "@/lib/carriers/adapter-registry";
 import { getAllActiveMarkets } from "@/lib/markets/list";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ function encodeCredentials(
   return encrypt(JSON.stringify({ [secretKey]: String(apiKey) }));
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: masked });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -152,7 +153,7 @@ export async function POST(req: NextRequest) {
 
   // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role,
   // so a user-bound client cannot SELECT them back after insert.
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data, error } = await admin
     .from("carriers")
     .insert({
@@ -185,3 +186,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/carriers", "GET", handleGET);
+export const POST = withRouteErrors("/api/carriers", "POST", handlePOST);

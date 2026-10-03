@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageCommissions } from "@/lib/role-permissions";
 import { rpcErrorResponse } from "@/lib/commissions/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
  * POST /api/team/commissions/adjustments  { agent_id, amount, note }
  * The only repair path for the append-only ledger. Signed amount, note required.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canManageCommissions(actorResult.actor.role)) {
@@ -39,3 +40,5 @@ export async function POST(req: NextRequest) {
   if (error) return rpcErrorResponse("api/team/commissions/adjustments", error);
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/team/commissions/adjustments", "POST", handlePOST);

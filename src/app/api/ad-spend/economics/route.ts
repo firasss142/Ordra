@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeBreakEven, marginPerLead } from "@/lib/ad-spend/break-even";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Per-product acquisition economics for a cohort.
@@ -136,7 +137,7 @@ function toEntry(s: SpendRow): SpendEntry {
   };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -500,3 +501,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/ad-spend/economics", "GET", handleGET);

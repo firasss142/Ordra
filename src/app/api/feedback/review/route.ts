@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageFeedback } from "@/lib/role-permissions";
 import { isUuid, rpcErrorResponse } from "@/lib/feedback/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const MAX_IDS = 500;
  * opens it; ignoring soft-deletes it. Both RPCs only touch rows still awaiting review in the
  * caller's market, and answer how many they moved.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   if (!canManageFeedback(result.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -38,3 +39,5 @@ export async function POST(req: NextRequest) {
   if (error) return rpcErrorResponse(error, body.action);
   return NextResponse.json({ data: { count: Number(data ?? 0) } });
 }
+
+export const POST = withRouteErrors("/api/feedback/review", "POST", handlePOST);

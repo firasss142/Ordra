@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { resolveTeamMarket } from "@/lib/team/api-market";
 import { ISO_DAY } from "@/lib/commissions/api";
 import type { TeamDay } from "@/lib/team/room/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * live queue (today only) and the control-room settings in force. One RPC
  * (`get_team_day`); market isolation is enforced again inside it.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
 
@@ -37,3 +38,5 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ data: (data ?? {}) as TeamDay });
 }
+
+export const GET = withRouteErrors("/api/team/day", "GET", handleGET);

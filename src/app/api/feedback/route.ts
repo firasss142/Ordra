@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canCaptureFeedback } from "@/lib/role-permissions";
 import { FEEDBACK_BODY_MAX, isFeedbackCategory } from "@/lib/feedback/taxonomy";
 import { isUuid, rpcErrorResponse } from "@/lib/feedback/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const optionalUuid = (v: unknown): string | null | false =>
  * the MOMENT from the order's status at this instant. A `moment` in the body is ignored —
  * the client never decides it.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -66,3 +67,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data: row ?? { id } }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/feedback", "POST", handlePOST);

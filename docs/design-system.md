@@ -1281,3 +1281,28 @@ its tint), avatars (initials or photo on the role tint, with a green or amber pr
 beat), the role chip in each row, the warehouse pill (always `tone-warehouse`), the
 creation cards, and the band at the top of a person's file. Brand green keeps the
 chrome: the primary button, the « Tous » tile, focus, the selected row.
+
+## 4.24 Journaux — severity only (2026-10-03)
+
+Système › Journaux (`prototypes/journaux-v2.html`, approved by the owner for its
+simplicity after v1 felt too dense). The page is calm on purpose: **success carries no
+colour**. Only a failure (red) and a « to check » (amber) do, and both are always paired
+with a word (« Échec », « À vérifier ») and a shape (the dot, the flag, the hollow bar).
+
+| Token | Fill | Ink (text) | Tint | Line |
+|---|---|---|---|---|
+| `--jx-ok` | `#008060` (dots, 48 h bars) | `#006E52` | `#EEF7F3` | — |
+| `--jx-warn` | `#B98900` | `#7A5A00` | `#FFF6DF` | `#EBCB7A` |
+| `--jx-fail` | `#D72C0D` | `#B42309` | `#FFF1EE` | `#F3C2B6` (hover `#FFE9E4`) |
+| `--jx-mute` | `#C5CBD3` | `--ink-secondary` | `#F1F2F3` | — |
+
+**Family tints** — the 34 px icon holder of a system tile or a feed row (§4.19), never
+text, never a severity: intake `#EEEDFC`/`#3F37C9`, carrier `#E3F3F1`/`#0B5C56`, ads
+`#FDEFE6`/`#B4500F`, messaging `#E3F4FC`/`#0369A1`, jobs `#F0F1F3`/`#4B5563`, Ordra
+itself `#EEF0F4`/`#2F3A4B`.
+
+**Rules.** Sizes are px (root font is 14 px — `pixel-units.test.ts` scans
+`components/journal`). A failed feed row is tinted `--jx-fail-bg`; a warning row
+`--jx-warn-bg`; everything else is white. The 48 h bars draw « expected, absent » as a
+**hollow** bar (amber inset line), not merely another colour. Brand green stays chrome:
+the active tab underline, « Problèmes seulement » on, primary buttons.

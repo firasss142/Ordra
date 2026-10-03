@@ -8370,99 +8370,596 @@
   },
   "journaux": {
     "title": "السجلات",
-    "subtitle": "كل ما يدخل إلى أوردرا ويخرج منه: الطلبات المستلمة من المتاجر، والتبادلات مع شركات الشحن، والمهام التلقائية، وتعديلات الإعدادات.",
+    "find": {
+      "placeholder": "البحث عن طلبية",
+      "hint": "رقم الطلبية أو رقم التتبع"
+    },
     "tabs": {
-      "received": "الطلبات المستلمة",
-      "carrier": "شركات الشحن",
-      "sync": "المزامنات",
-      "audit": "التعديلات"
+      "overview": "نظرة عامة",
+      "history": "السجل"
     },
-    "errorsOne": "خطأ واحد",
-    "errorsMany": "{n} أخطاء",
-    "searchReceived": "طلب، متجر، خطأ…",
-    "searchCarrier": "رقم التتبع، الحالة…",
-    "searchAudit": "إعداد، شخص…",
-    "allMarkets": "كل الأسواق",
-    "market": {
-      "tn": "تونس",
-      "ly": "ليبيا"
+    "verdict": {
+      "ok": "كل شيء يعمل",
+      "okSub": "لا شيء يحتاج إلى معالجة. الأنظمة المتابعة ({total}) تعمل بشكل طبيعي.",
+      "issues": "{n, plural, one {مشكلة واحدة تحتاج إلى معالجة} other {# مشاكل تحتاج إلى معالجة}}",
+      "issuesSub": "{ok} من {total} أنظمة تعمل بشكل طبيعي.",
+      "error": "السجل لا يستجيب. أعد المحاولة بعد قليل."
     },
-    "marketFilter": "السوق",
-    "resultFilter": "النتيجة",
-    "allResults": "كل النتائج",
-    "errorsOnly": "الأخطاء فقط",
-    "refresh": "تحديث",
-    "result": {
-      "processed": "تمت المعالجة",
-      "ignored": "تم التجاهل",
-      "error": "خطأ"
+    "sections": {
+      "toFix": "تحتاج إلى معالجة",
+      "systems": "الأنظمة",
+      "muted": "مكتومة"
     },
-    "resultCarrier": {
-      "processed": "تمت المعالجة",
-      "ignored": "تم التجاهل",
-      "error": "خطأ"
+    "common": {
+      "close": "إغلاق",
+      "what": "ما الذي يحدث",
+      "whatHappened": "ما الذي حدث",
+      "howMuch": "الحجم",
+      "todo": "ما العمل",
+      "tech": "تفاصيل تقنية",
+      "lastActivity": "آخر نشاط",
+      "seeProblem": "عرض المشكلة",
+      "openOrder": "فتح الطلبية",
+      "seeOrder": "عرض الطلبية كاملة",
+      "openSettings": "فتح في الإعدادات",
+      "mute": "تجاهل 7 أيام",
+      "mutedUntil": "مكتومة حتى {date}",
+      "muteDone": "تم كتم المشكلة لمدة 7 أيام",
+      "muteFailed": "تعذر كتم المشكلة",
+      "since": "منذ {date}",
+      "toFix": "تحتاج إلى معالجة",
+      "toCheck": "للتحقق",
+      "failed": "فشل",
+      "unknown": "غير معروف",
+      "never": "أبدًا",
+      "loading": "جارٍ التحميل…",
+      "retry": "إعادة المحاولة",
+      "notFound": "غير موجود.",
+      "selfHeal": "تختفي المشكلة تلقائيًا بمجرد زوال سببها.",
+      "times": "{n, plural, one {مرة واحدة} other {# مرات}}"
     },
-    "sync": {
-      "succeeded": "نجحت",
-      "completed": "نجحت",
-      "failed": "فشلت",
-      "partial": "جزئية",
-      "running": "جارية"
+    "who": {
+      "system": "Ordra",
+      "service": "الخادم",
+      "unknown": "شخص ما"
     },
-    "trigger": {
-      "cron": "تلقائية",
-      "manual": "يدوية",
-      "schedule": "تلقائية"
+    "rules": {
+      "job_failing": {
+        "title": "«{job}» تفشل منذ {n, plural, one {مرة واحدة} other {# مرات متتالية}}",
+        "line": "العمل لم يعد يُنجز. آخر خطأ: {message}",
+        "impact": "إخفاقات متتالية",
+        "what": "تعمل هذه المهمة تلقائيًا في الخلفية. منذ {since} تتوقف عند خطأ في كل مرة، فما كان يجب أن تقوم به لم يعد يتم.",
+        "todo1": "اقرأ الخطأ في «تفاصيل تقنية».",
+        "todo2": "عالج السبب (غالبًا إعداد أو صلاحية).",
+        "todo3": "عند أول تشغيل ناجح تُغلق المشكلة تلقائيًا."
+      },
+      "connection_silent": {
+        "title": "{name} لم يعد يتزامن",
+        "line": "آخر مزامنة ناجحة: {last}.",
+        "impact": "بدون أخبار",
+        "what": "يتزامن هذا الحساب عادة كل 10 دقائق. لم يصل شيء منذ {last}، وحالات الطرود لم تعد تتغير.",
+        "todo1": "تحقق من بيانات دخول شركة الشحن في الإعدادات.",
+        "todo2": "تُغلق المشكلة تلقائيًا عند المزامنة الناجحة التالية."
+      },
+      "carrier_inactive": {
+        "title": "{name} معطّل و{n, plural, one {طرد واحد لا يزال بالخارج} other {# طرود لا تزال بالخارج}}",
+        "line": "عُطّل {when}، وتوقفت متابعة هذه الطرود.",
+        "lineUnknown": "عُطّل في تاريخ غير معروف، وتوقفت متابعة هذه الطرود.",
+        "impact": "طرود بدون متابعة",
+        "what": "تعطيل حساب شركة شحن يوقف أيضًا مزامنة الطرود التي خرجت معه.",
+        "noNews": "بدون أي خبر منذ 7 أيام",
+        "value": "القيمة",
+        "todo1": "إن كان ذلك مقصودًا: واصل متابعة الطرود التي خرجت.",
+        "todo2": "وإلا: أعد تفعيل الحساب من الإعدادات › التوصيل."
+      },
+      "carrier_stuck": {
+        "title": "{name}: {n, plural, one {طرد واحد عالق} other {# طرود عالقة}}",
+        "line": "ترسل شركة الشحن حالات يرفضها Ordra أو لا يعرفها.",
+        "impact": "لم تُسوَّ أبدًا",
+        "impactCount": "طرود عالقة",
+        "what": "هذه الطرود سُلّمت أو أُرجعت لدى شركة الشحن، لكن Ordra يرفض ما ترسله. تبقى «في الطريق»: لا تُحتسب الإيرادات ولا يُعاد مخزون المرتجعات.",
+        "causes": "الأسباب",
+        "unknown": "«{raw}»: حالة لا يعرفها Ordra",
+        "refused": "«{to}» مرفوضة بعد «{from}»",
+        "parcels": "{n, plural, one {طرد واحد} other {# طرود}}",
+        "todo1": "اجعل النظام يتعرف على الحالات المجهولة ويقبل الانتقالات المرفوضة.",
+        "todo2": "في التشغيل التالي تُسوّى الطرود وتُغلق المشكلة."
+      },
+      "import_rows": {
+        "title": "{name}: {n, plural, one {سطر واحد مرفوض} other {# أسطر مرفوضة}} عند الاستيراد",
+        "line": "«{message}» منذ {since}، ولم تُعالج قط.",
+        "impact": "طلبيات لم تُستورد",
+        "what": "لم تتحول هذه الأسطر من الجدول إلى طلبيات. رفضها Ordra مرة واحدة ولم يُعد محاولتها.",
+        "todo1": "صحّح الأسطر في الجدول المصدر.",
+        "todo2": "أعد تشغيل الاستيراد من الإعدادات › المتاجر."
+      },
+      "upload_failing": {
+        "title": "إرسال الطلبيات إلى {system} مرفوض بشكل متكرر",
+        "line": "{n, plural, one {رفض واحد} other {# حالات رفض}} خلال ساعة · {message}",
+        "impact": "رفض خلال ساعة",
+        "what": "شركة الشحن ترفض الطلبيات المرسلة. تبقى «مؤكدة»: لا شيء ضاع، لكن لا شيء يخرج.",
+        "todo1": "اقرأ سبب الرفض في «تفاصيل تقنية».",
+        "todo2": "صحّح ثم أعد الإرسال: تظهر المحاولة التالية في السجل."
+      },
+      "whatsapp_down": {
+        "title": "واتساب {status, select, paused {متوقف مؤقتًا} other {غير متصل}}",
+        "line": "لن تُرسل أي رسالة حتى يُستعاد الرقم.",
+        "impact": "رقم",
+        "what": "قامت Meta بـ{status, select, paused {إيقاف الرقم مؤقتًا} other {رفض رمز الوصول}}. السبب المذكور: {reason}",
+        "todo1": "افتح الإعدادات › واتساب وأعد اختبار الاتصال."
+      },
+      "ads_no_orders": {
+        "title": "{market}: الإعلانات تعمل ولا طلبيات منذ {hours} ساعة",
+        "line": "يُصرف المال ولا يصل شيء. ربما الاستيراد معطّل.",
+        "impact": "صُرفت منذ أمس",
+        "what": "Meta تصرف على هذا السوق، لكن لم تصل أي طلبية منذ {hours} ساعة.",
+        "todo1": "تحقق من بطاقة المتجر وعمليات الاستيراد.",
+        "todo2": "إذا كان المتجر متوقفًا، أوقف الإعلانات أيضًا."
+      },
+      "server_error": {
+        "title": "خطأ خادم متكرر · {area}: {verb}",
+        "line": "{n, plural, one {خطأ واحد} other {# أخطاء}} خلال 24 ساعة، آخرها {last}.",
+        "impact": "أخطاء خلال 24 ساعة",
+        "what": "هذا الإجراء يفشل في Ordra نفسه وليس عند المستخدم: يرد الخادم بخطأ في كل محاولة.",
+        "todo1": "أرسل التفاصيل التقنية إلى الفريق التقني.",
+        "todo2": "تُغلق المشكلة تلقائيًا بعد 24 ساعة بدون أخطاء."
+      },
+      "login_failures": {
+        "title": "{n, plural, one {محاولة دخول فاشلة واحدة} other {# محاولات دخول فاشلة}} على {account}",
+        "line": "خلال أقل من ساعة.",
+        "impact": "محاولات",
+        "what": "شخص ما يحاول الدخول إلى هذا الحساب بكلمة مرور خاطئة.",
+        "todo1": "اسأل صاحب الحساب إن كان هو.",
+        "todo2": "وإلا، أعد تعيين كلمة المرور من الوصول."
+      },
+      "large_export": {
+        "title": "تصدير {rows} سطرًا بواسطة {actor}",
+        "line": "تصدير بهذا الحجم يُخرج بيانات العملاء من Ordra.",
+        "impact": "أسطر",
+        "what": "يُنبَّه إلى عمليات التصدير التي تتجاوز 1000 سطر لمدة 24 ساعة.",
+        "todo1": "تحقق من أن التصدير كان مقصودًا."
+      }
     },
-    "col": {
-      "receivedAt": "تاريخ الاستلام",
-      "shop": "المتجر",
-      "order": "الطلب",
-      "result": "النتيجة",
-      "detail": "التفاصيل",
-      "carrierAt": "تاريخ الاستلام",
-      "carrier": "شركة الشحن",
-      "tracking": "رقم التتبع",
-      "carrierStatus": "حالة شركة الشحن",
-      "startedAt": "البداية",
-      "task": "المهمة",
-      "trigger": "التشغيل",
-      "duration": "المدة",
-      "date": "التاريخ",
-      "by": "بواسطة",
-      "market": "السوق",
+    "tiles": {
+      "names": {
+        "shops": "متاجر أخرى",
+        "jobs": "المهام التلقائية",
+        "app": "Ordra",
+        "meta": "Meta",
+        "whatsapp": "WhatsApp"
+      },
+      "where": {
+        "carrier": "{market} · شركة شحن",
+        "shop": "{market} · متجر",
+        "shops": "{n, plural, one {متجر واحد مرتبط} other {# متاجر مرتبطة}}",
+        "meta": "{market} · إعلانات",
+        "metaAll": "إعلانات",
+        "whatsapp": "مراسلة العملاء",
+        "jobs": "{n} مهام مجدولة",
+        "app": "أخطاء التطبيق وأمانه"
+      },
+      "state": {
+        "in_service": "يعمل",
+        "fail": "معطّل",
+        "warn": "للتحقق",
+        "disabled": "معطّل",
+        "receiving": "يستقبل الطلبيات",
+        "ads_stopped": "متوقف مؤقتًا",
+        "calm": "هادئ",
+        "silent": "صامت",
+        "not_connected": "غير متصل",
+        "jobsFail": "{n, plural, one {مهمة واحدة فاشلة} other {# مهام فاشلة}}",
+        "jobsOk": "كلها ناجحة",
+        "appFail": "خطأ متكرر",
+        "appWarn": "للتحقق",
+        "appOk": "لا أخطاء متكررة"
+      },
+      "last": {
+        "ago": "آخر تشغيل {when}",
+        "never": "لا يوجد تشغيل مسجل",
+        "parcels": "{n, plural, one {طرد واحد لا يزال بالخارج} other {# طرود لا تزال بالخارج}}",
+        "orders24": "{n, plural, one {طلبية واحدة خلال 24 ساعة} other {# طلبيات خلال 24 ساعة}}",
+        "adsStopped": "الإعلانات متوقفة منذ {date}، لا شيء للاستيراد",
+        "adsStoppedNever": "لا إعلانات، لا شيء للاستيراد",
+        "lastOrder": "آخر طلبية {when}",
+        "noOrder": "لم تصل أي طلبية",
+        "noNumber": "لا يوجد رقم مرتبط",
+        "jobs": "{ok} من {total} تنجح",
+        "app": "{n, plural, =0 {لا أخطاء خادم خلال 24 ساعة} one {خطأ خادم واحد خلال 24 ساعة} other {# أخطاء خادم خلال 24 ساعة}}"
+      }
+    },
+    "bars": {
+      "title": "آخر 48 ساعة",
+      "from": "قبل 48 ساعة",
+      "to": "الآن",
+      "legend": "شريط لكل ساعة. أخضر: عمل · رمادي: لا جديد · أحمر: فشل · فارغ: كان متوقعًا ولم يحدث.",
+      "o": "عمل",
+      "i": "لا جديد",
+      "f": "فشل",
+      "m": "متوقع وغائب"
+    },
+    "feed": {
+      "chips": {
+        "all": "الكل",
+        "ext": "الأنظمة الخارجية",
+        "team": "الفريق",
+        "auto": "تلقائي",
+        "sec": "الأمان والأخطاء"
+      },
+      "onlyIssues": "المشاكل فقط",
+      "empty": "لا شيء لعرضه لهذا الفلتر.",
+      "more": "عرض الأقدم",
+      "end": "بداية السجل.",
+      "today": "اليوم",
+      "yesterday": "أمس · {date}",
+      "routine": "{n, plural, one {تشغيل روتيني واحد بدون تغيير} other {# تشغيلات روتينية بدون تغيير}} (مزامنات، استيرادات فارغة)",
+      "series": "من {from} إلى {to}",
+      "error": "السجل لا يستجيب."
+    },
+    "kinds": {
+      "order": {
+        "attempt": "{actor}: {count, plural, one {محاولة بدون رد} other {# محاولات بدون رد}}",
+        "callback_scheduled": "{actor} جدول {count, plural, one {معاودة اتصال} other {# معاودات اتصال}}",
+        "confirmed": "{actor} أكّد {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "rejected": "{actor} رفض {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "uploaded": "{actor} أرسل {count, plural, one {الطلبية {ref}} other {# طلبيات}} إلى {carrier}",
+        "uploadedNoCarrier": "{actor} أرسل {count, plural, one {الطلبية {ref}} other {# طلبيات}} إلى شركة الشحن",
+        "dispatch_scheduled": "{actor} جدول إرسال {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "cancelled": "{actor} ألغى {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "deleted": "{actor} حذف {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "pending": "{actor} أعاد {count, plural, one {الطلبية {ref}} other {# طلبيات}} إلى الانتظار",
+        "other": "{actor}: {count, plural, one {الطلبية {ref}} other {# طلبيات}} ← {status}",
+        "edited": "{actor} عدّل {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "reassigned": "{actor} أعاد إسناد {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "reopened": "{actor} أعاد فتح {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "taken_over": "{actor} استلم {count, plural, one {الطلبية {ref}} other {# طلبيات}}",
+        "scanned": "{actor} مسح {count, plural, one {الطرد {ref}} other {# طرود}}",
+        "auto_uploaded": "إرسال مجدول: {count, plural, one {أُرسلت الطلبية {ref}} other {أُرسلت # طلبيات}} إلى {carrier}",
+        "auto_rejected": "{count, plural, one {رُفضت الطلبية {ref}} other {رُفضت # طلبيات}} تلقائيًا: نفدت المحاولات",
+        "auto": "{count, plural, one {الطلبية {ref}} other {# طلبيات}} ← {status}"
+      },
+      "carrier": {
+        "delivered": "{count, plural, one {سُلّمت الطلبية {ref}} other {سُلّمت # طلبيات}}",
+        "cancelled": "{count, plural, one {أُلغيت الطلبية {ref}} other {أُلغيت # طلبيات}} من شركة الشحن",
+        "returned": "{count, plural, one {أُرجعت الطلبية {ref}} other {أُرجعت # طلبيات}}",
+        "other": "{count, plural, one {الطلبية {ref}} other {# طلبيات}}: {status}",
+        "upload_failed": "رُفض الإرسال إلى {carrier}",
+        "void_failed": "رُفض الإلغاء لدى {carrier}",
+        "call_failed": "فشل الاتصال بـ {carrier}"
+      },
+      "delivery": {
+        "call_customer": "{actor} اتصل {count, plural, one {بالعميل} other {بـ # عملاء}}",
+        "call_courier": "{actor} اتصل {count, plural, one {بالمندوب} other {بـ # مندوبين}}",
+        "call_branch": "{actor} تابع مع فرع شركة الشحن{count, plural, one {} other { (# مرات)}}",
+        "whatsapp_customer": "{actor} راسل {count, plural, one {العميل} other {# عملاء}} على واتساب",
+        "note": "{actor} سجّل {count, plural, one {متابعة} other {# متابعات}}",
+        "other": "{actor}: {count, plural, one {إجراء متابعة} other {# إجراءات متابعة}}",
+        "sub": "متابعة التوصيل"
+      },
+      "stock": {
+        "manual_adjustment": "{actor} صحّح مخزون {product}",
+        "damaged_writeoff": "{actor} أخرج مخزونًا تالفًا من {product}",
+        "stock_count": "{actor} جرد {product}",
+        "returned": "{actor} أدخل {count, plural, one {مرتجعًا} other {# مرتجعات}}",
+        "received_back": "{actor} أدخل {count, plural, one {طردًا عائدًا} other {# طرود عائدة}}",
+        "scan_reversal": "{actor} ألغى {count, plural, one {مسحًا} other {# عمليات مسح}}",
+        "initial_stock": "المخزون الأولي لـ {product}",
+        "reception": "{actor} استلم {product}",
+        "other": "{actor}: مخزون {product}",
+        "sub": "{change} · المتبقي {balance}"
+      },
+      "lead": {
+        "status": "{actor} عالج {count, plural, one {عميلًا محتملًا} other {# عملاء محتملين}}",
+        "sub": "العملاء المحتملون · {status}"
+      },
+      "feedback": {
+        "created": "{actor} سجّل {count, plural, one {ملاحظة عميل} other {# ملاحظات عملاء}}",
+        "other": "{actor} عالج {count, plural, one {ملاحظة عميل} other {# ملاحظات عملاء}}",
+        "deleted": "{actor} حذف {count, plural, one {ملاحظة عميل} other {# ملاحظات عملاء}}",
+        "sub": "صوت العميل"
+      },
+      "settings": {
+        "changed": "{actor} عدّل {n, plural, one {إعدادًا واحدًا} other {# إعدادات}}{market, select, tn { لتونس} ly { لليبيا} other {}}"
+      },
+      "user": {
+        "user_created": "{actor} أنشأ حساب {target}",
+        "user_deleted": "{actor} حذف حساب {target}",
+        "user_deactivated": "{actor} عطّل حساب {target}",
+        "user_reactivated": "{actor} أعاد تفعيل حساب {target}",
+        "password_reset": "{actor} أعاد تعيين كلمة مرور {target}",
+        "user_invited": "{actor} دعا {target}",
+        "warehouse_assigned": "{actor} عيّن {target} في مستودع",
+        "other": "{actor} عدّل حساب {target}",
+        "sub": "الوصول"
+      },
+      "audit": {
+        "created": "{actor} أضاف {entity}",
+        "updated": "{actor} عدّل {entity}",
+        "deleted": "{actor} حذف {entity}",
+        "deactivated": "{actor} عطّل {entity}",
+        "activated": "{actor} أعاد تفعيل {entity}",
+        "price": "{actor} غيّر سعر {label}: {before} ← {after}",
+        "role": "{actor} غيّر دور {label}",
+        "market": "{actor} غيّر سوق {label}",
+        "warehouse": "{actor} عيّن {label} في مستودع",
+        "count": "{actor} عدّل {count, plural, one {عنصرًا} other {# عناصر}} · {type}"
+      },
+      "types": {
+        "carriers": "شركات الشحن",
+        "carrier_order_preferences": "تفضيلات الإرسال",
+        "storefronts": "المتاجر",
+        "warehouses": "المستودعات",
+        "markets": "الأسواق",
+        "products": "المنتجات",
+        "product_variants": "الأنواع",
+        "rejection_reason_configs": "أسباب الرفض",
+        "status_configs": "الحالات",
+        "agent_distribution_shares": "حصص التوزيع",
+        "assignment_rules": "قواعد التوزيع",
+        "agent_commission_rates": "نسب العمولات",
+        "users": "الحسابات",
+        "whatsapp_configs": "WhatsApp",
+        "whatsapp_templates": "قوالب واتساب",
+        "meta_ad_accounts": "الحسابات الإعلانية",
+        "investors": "المستثمرون",
+        "reception_payments": "دفعات الموردين",
+        "ad_spend": "المصاريف الإعلانية",
+        "order_items": "أسطر الطلبيات",
+        "other": "بيانات"
+      },
+      "entities": {
+        "carriers": "شركة الشحن {label}",
+        "carrier_order_preferences": "تفضيل إرسال",
+        "storefronts": "المتجر {label}",
+        "warehouses": "المستودع {label}",
+        "markets": "السوق {label}",
+        "products": "المنتج {label}",
+        "product_variants": "النوع {label}",
+        "rejection_reason_configs": "سبب الرفض {label}",
+        "status_configs": "الحالة {label}",
+        "agent_distribution_shares": "حصص التوزيع",
+        "assignment_rules": "قاعدة التوزيع",
+        "agent_commission_rates": "نسبة عمولة",
+        "users": "حساب {label}",
+        "whatsapp_configs": "رقم واتساب",
+        "whatsapp_templates": "قالب واتساب {label}",
+        "meta_ad_accounts": "الحساب الإعلاني {label}",
+        "investors": "المستثمر {label}",
+        "reception_payments": "دفعة للمورّد",
+        "ad_spend": "مصروف إعلاني",
+        "order_items": "سطر طلبية",
+        "other": "بيانًا"
+      },
+      "auth": {
+        "login": "تسجيل دخول {actor}",
+        "login_failed": "{count, plural, one {محاولة دخول فاشلة} other {# محاولات دخول فاشلة}} على {label}"
+      },
+      "export": {
+        "orders": "{actor} صدّر {rows} طلبية",
+        "history": "{actor} صدّر سجل المستودع",
+        "customers": "{actor} صدّر قائمة العملاء"
+      },
+      "whatsapp": {
+        "campaign_sent": "{actor} أرسل حملة واتساب إلى {n} عميل"
+      },
+      "agent": {
+        "available": "{actor}: متاح",
+        "unavailable": "{actor}: غير متاح",
+        "madeAvailable": "{actor} جعل {agent} متاحًا",
+        "madeUnavailable": "{actor} جعل {agent} غير متاح",
+        "released": "{n, plural, one {أُعيدت طلبية واحدة إلى الطابور} other {أُعيدت # طلبيات إلى الطابور}}"
+      },
+      "commission": {
+        "accrual": "{count, plural, one {أُضيفت عمولة {amount} إلى {agent}} other {أُضيفت # عمولات إلى {agent} · {amount}}}",
+        "reversal": "{count, plural, one {أُلغيت عمولة {agent}} other {أُلغيت # عمولات لـ {agent}}}",
+        "payout": "دفع {amount} إلى {agent}",
+        "sub": "طلبية مسلّمة"
+      },
+      "investor": {
+        "statement": "{count, plural, one {حُسب كشف مستثمر} other {حُسبت # كشوف مستثمرين}}",
+        "sub": "المستثمرون · من {from} إلى {to}"
+      },
+      "intake": {
+        "imported": "{shop}: {n, plural, one {استُوردت طلبية واحدة} other {استُوردت # طلبيات}}",
+        "errored": "{n, plural, one {سطر واحد مرفوض} other {# أسطر مرفوضة}}",
+        "failed": "{shop}: فشل الاستيراد",
+        "webhooks": "{n, plural, one {وصلت طلبية واحدة} other {وصلت # طلبيات}} من {shop}",
+        "webhook_failed": "طلبية مرفوضة عند الوصول · {shop}"
+      },
+      "sync": {
+        "failed": "{system}: فشلت المزامنة"
+      },
+      "darb": {
+        "rates": "تحديث أسعار درب",
+        "ratesSub": "{n} وجهة"
+      },
+      "job": {
+        "failed": "فشل المهمة «{job}»"
+      },
+      "app": {
+        "error": "خطأ خادم · {area}: {verb}",
+        "sub": "{n, plural, one {مرة واحدة} other {# مرات}} · الرمز {status}"
+      },
+      "issue": {
+        "opened": "مشكلة جديدة · {title}",
+        "resolved": "حُلّت · {title}"
+      },
+      "unknown": "نشاط · {kind}"
+    },
+    "areas": {
+      "agents": "الوصول",
+      "users": "الوصول",
+      "orders": "الطلبيات",
+      "warehouse": "المستودع",
+      "carriers": "التوصيل",
+      "delivery": "التوصيل",
+      "settings": "الإعدادات",
+      "whatsapp": "WhatsApp",
+      "products": "المنتجات",
+      "leads": "العملاء المحتملون",
+      "prospects": "العملاء المحتملون",
+      "investors": "المستثمرون",
+      "ad-spend": "الإعلانات",
+      "meta": "الإعلانات",
+      "team": "الفريق",
+      "cron": "المهام التلقائية",
+      "webhooks": "وصول الطلبيات",
+      "feedback": "صوت العميل",
+      "admin": "الإدارة",
+      "other": "Ordra"
+    },
+    "verbs": {
+      "GET": "عرض",
+      "POST": "إنشاء أو إرسال",
+      "PUT": "تعديل",
+      "PATCH": "تعديل",
+      "DELETE": "حذف",
+      "other": "تنفيذ"
+    },
+    "fields": {
+      "customer_name": "اسم العميل",
+      "customer_phone": "الهاتف",
+      "customer_phone_2": "الهاتف الثاني",
+      "customer_address": "العنوان",
+      "customer_city": "المدينة",
+      "city": "المدينة",
+      "city_id": "المدينة",
+      "customer_note": "ملاحظة",
+      "quantity": "الكمية",
+      "total_price": "المبلغ",
+      "unit_price": "سعر الوحدة",
+      "product_id": "المنتج",
+      "product_variant_id": "النوع",
+      "variant_label": "النوع",
+      "default_price": "سعر البيع",
+      "floor_price": "السعر الأدنى",
+      "unit_cogs": "تكلفة الشراء",
+      "packing_cost": "تكلفة التغليف",
+      "confirmation_processing_cost": "تكلفة التأكيد",
+      "is_active": "نشط",
+      "name": "الاسم",
+      "full_name": "الاسم",
+      "role": "الدور",
+      "market_id": "السوق",
+      "warehouse_id": "المستودع",
+      "deleted_at": "حُذف في",
+      "delivery_fee": "رسوم التوصيل",
+      "return_fee": "رسوم الإرجاع",
+      "api_credentials": "بيانات الدخول",
+      "api_key_encrypted": "مفتاح الوصول",
+      "share_pct": "الحصة",
+      "amount": "المبلغ",
+      "label_fr": "التسمية",
+      "label": "التسمية",
+      "config": "الإعدادات",
+      "status": "الحالة",
+      "algorithm": "الطريقة",
+      "enabled": "مفعّل",
+      "access_token": "رمز الوصول",
+      "payout_details": "بيانات الدفع",
+      "sender_name": "المرسل",
+      "display_price": "السعر المعروض",
+      "deactivation_reason": "سبب التعطيل",
+      "other": "حقل آخر"
+    },
+    "detail": {
+      "field": "الحقل",
       "setting": "الإعداد",
       "before": "قبل",
-      "after": "بعد"
-    },
-    "seeData": "عرض البيانات",
-    "empty": "لا شيء للعرض بهذه المرشحات.",
-    "page": "الصفحة {page} · {total} نتيجة",
-    "prev": "السابق",
-    "next": "التالي",
-    "yes": "نعم",
-    "no": "لا",
-    "system": "النظام",
-    "drawer": {
-      "title": "البيانات المستلمة · {ref}",
-      "outcome": "ما فعله أوردرا بها",
-      "order": "الطلب المنشأ",
-      "noOrder": "لم يُنشأ أي طلب",
-      "error": "الخطأ",
-      "payload": "البيانات المستلمة",
-      "copy": "نسخ",
+      "after": "بعد",
+      "empty": "—",
+      "secret": "مخفي",
+      "linked": "سبق هذا التعديل مشكلة مفتوحة في المجال نفسه.",
+      "uploadWhat": "أرسل Ordra الطلبية إلى شركة الشحن فرفضتها. تبقى الطلبية «مؤكدة»: لا شيء ضاع، يكفي التصحيح وإعادة الإرسال.",
+      "uploadTodo": "صحّح ما تشير إليه شركة الشحن ثم أعد الإرسال من الطلبية.",
+      "reason": "السبب الذي ذكرته شركة الشحن",
+      "code": "الرمز",
+      "duration": "المدة",
+      "attempt": "المحاولة",
+      "route": "العنوان المطلوب",
+      "status": "الاستجابة",
+      "message": "الرسالة",
+      "errorWhat": "ردّ Ordra بخطأ خادم على هذا الإجراء. إذا تكرر، تُفتح مشكلة في النظرة العامة.",
+      "webhookWhat": "أرسل متجر طلبية لم يتمكن Ordra من تسجيلها.",
+      "changes": "ما الذي تغيّر",
+      "nothing": "لا توجد تفاصيل مسجلة لهذا السطر.",
+      "members": "الأسطر",
       "replay": "إعادة المعالجة",
-      "replayed": "تمت إعادة المعالجة",
-      "replayFailed": "فشلت إعادة المعالجة: {reason}"
+      "replayDone": "أُعيدت معالجة الطلبية",
+      "replayFailed": "فشلت إعادة المعالجة"
     },
-    "userEvents": {
-      "user_created": "تم إنشاء مستخدم",
-      "user_deactivated": "تم تعطيل مستخدم",
-      "user_reactivated": "تمت إعادة تفعيل مستخدم",
-      "user_deleted": "تم حذف مستخدم",
-      "password_reset": "تمت إعادة تعيين كلمة المرور",
-      "deactivate": "تم تعطيل مستخدم",
-      "note": "ملاحظة"
+    "jobs": {
+      "intro": "ما يقوم به Ordra تلقائيًا في الخلفية. النتيجة هي ما أنجزته المهمة فعلًا، وليس مجرد «تشغيلها».",
+      "names": {
+        "darb-sync-10min": "مزامنة درب",
+        "google-sheets-sync": "استيراد Google Sheets",
+        "carrier-polling-10min": "تتبع طرود شركات الشحن",
+        "meta-ads-sync": "مزامنة Meta",
+        "dispatch-scheduled-5min": "الإرسالات المجدولة",
+        "darb-rates-harvest-nightly": "أسعار درب",
+        "whatsapp-outbox-1min": "طابور واتساب",
+        "auto-archive-finished-orders": "أرشفة الطلبيات المنتهية",
+        "agent-commissions-accrue-15min": "عمولات الوكلاء",
+        "investor-rollup-15min": "المستثمرون · المتابعة",
+        "investor-rollup-nightly": "المستثمرون · إعادة الحساب",
+        "delivery-zone-stats-nightly": "إحصاءات المناطق",
+        "agent-availability-reset-hourly": "توفر الوكلاء",
+        "notifications-check": "التذكيرات والإشعارات",
+        "journal-detect-5min": "رصد المشاكل",
+        "journal-purge-nightly": "تنظيف السجلات",
+        "darb-sync": "مزامنة درب",
+        "sheets-sync": "استيراد Google Sheets",
+        "meta-sync": "مزامنة Meta",
+        "investor-rollup": "المستثمرون · المتابعة",
+        "whatsapp-outbox": "طابور واتساب",
+        "darb-rates": "أسعار درب",
+        "poll-carriers": "تتبع طرود شركات الشحن",
+        "dispatch-scheduled": "الإرسالات المجدولة"
+      },
+      "every": {
+        "minute": "كل دقيقة",
+        "minutes": "كل {n} دقيقة",
+        "hour": "كل ساعة",
+        "day": "كل يوم، {time}",
+        "other": "مجدولة"
+      },
+      "result": {
+        "ok": "نجح",
+        "changed": "{n, plural, =0 {لا جديد} one {تغيير واحد} other {# تغييرات}}",
+        "fail": "فشل",
+        "warn": "آخر تشغيل فشل",
+        "never": "لم تُشغَّل قط"
+      }
+    },
+    "app": {
+      "title": "Ordra: الأخطاء والأمان",
+      "repeated": "أخطاء متكررة",
+      "none": "لا شيء. تبقى الأخطاء المنفردة في السجل، فلتر «الأمان والأخطاء».",
+      "security": "الأمان · آخر 24 ساعة",
+      "logins": "تسجيلات الدخول",
+      "failures": "محاولات دخول فاشلة",
+      "exports": "عمليات تصدير البيانات",
+      "roles": "تغييرات الدور أو السوق",
+      "errors": "أخطاء الخادم",
+      "see": "عرض"
+    },
+    "trace": {
+      "title": "البحث عن طلبية",
+      "placeholder": "رقم الطلبية أو رقم التتبع",
+      "search": "بحث",
+      "none": "لا توجد طلبية بهذا الرقم.",
+      "several": "عدة طلبيات مطابقة:",
+      "order": "الطلبية {ref}",
+      "sources": "يجمع الاستيراد وسجل الحالات وشركة الشحن والمستودع والمخزون والمكالمات والرسائل والعمولات.",
+      "received": "وصلت من {shop}",
+      "carrierSaid": "{carrier}: {text}",
+      "carrierRefused": "حالة شحن مرفوضة: {raw}",
+      "repeats": "تكرر {n} مرات",
+      "label": "طُبع الملصق",
+      "labelReprint": "أُعيدت طباعة الملصق",
+      "whatsappOut": "أُرسلت رسالة واتساب",
+      "whatsappIn": "رسالة واتساب من العميل",
+      "uploadOk": "أُرسلت إلى شركة الشحن"
     },
     "keys": {
       "delivery_fee": "رسوم التوصيل (إعداد قديم)",
@@ -8528,7 +9025,6 @@
       "team_idle_minutes": "مهلة « بلا مكالمة »",
       "team_late_minutes": "التأخير المسموح",
       "team_shift_overrides": "ساعات كل وكيل"
-    },
-    "close": "إغلاق"
+    }
   }
 }

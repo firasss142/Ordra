@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminReader, adminWriter, ISO_DATE, NO_STORE, rpcError } from "@/lib/investors/admin-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   const rows = await fetchAllRows(g.admin.from("investor_deal_terms").select("id, effective_from, share_pct, capital_amount, payout_cadence, maturity_date, note, created_by, created_at").eq("deal_id", params.id).order("effective_from", { ascending: true }));
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 /** Amend terms with an effective date. Body: { effective_from, share_pct, capital_amount, payout_cadence, maturity_date, note? }. */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   let b: Record<string, unknown>;
@@ -36,3 +37,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (error) return rpcError(error, "[POST deals/[id]/terms]");
   return NextResponse.json({ data: { id: data } }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/deals/[id]/terms", "GET", handleGET);
+export const POST = withRouteErrors("/api/admin/investments/deals/[id]/terms", "POST", handlePOST);

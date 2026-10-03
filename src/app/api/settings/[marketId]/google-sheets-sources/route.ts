@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canWriteSettings, canReadSettings } from "@/lib/settings-permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ function isSheetSource(v: unknown): v is SheetSource {
   );
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> }
 ) {
@@ -53,7 +54,7 @@ export async function GET(
   return NextResponse.json({ data: sources });
 }
 
-export async function PUT(
+async function handlePUT(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> }
 ) {
@@ -94,3 +95,6 @@ export async function PUT(
 
   return NextResponse.json({ success: true });
 }
+
+export const GET = withRouteErrors("/api/settings/[marketId]/google-sheets-sources", "GET", handleGET);
+export const PUT = withRouteErrors("/api/settings/[marketId]/google-sheets-sources", "PUT", handlePUT);

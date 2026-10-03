@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const bodySchema = z.object({
 
 type SkipReason = "not_finished" | "already_archived" | "not_archived";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -115,3 +116,5 @@ export async function POST(req: NextRequest) {
     data: { archived: eligible.length, skipped },
   });
 }
+
+export const POST = withRouteErrors("/api/orders/archive", "POST", handlePOST);

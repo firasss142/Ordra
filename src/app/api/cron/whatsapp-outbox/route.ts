@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { isCronAuthorized } from "@/lib/cron/auth";
 import { drainOutbox } from "@/lib/whatsapp/outbox";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Drains `whatsapp_outbox` — the automatic lifecycle notices and the campaign
@@ -23,5 +24,5 @@ async function run(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ ok: result.status !== "failed", ...result }, { status: result.status === "failed" ? 500 : 200 });
 }
 
-export const GET = run;
-export const POST = run;
+export const GET = withRouteErrors("/api/cron/whatsapp-outbox", "GET", run);
+export const POST = withRouteErrors("/api/cron/whatsapp-outbox", "POST", run);

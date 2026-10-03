@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const QUEUE_STATUSES = [
   "confirmed",
 ];
 
-export async function GET(_req: NextRequest) {
+async function handleGET(_req: NextRequest) {
   const supabase = await createClient();
 
     const actorResult = await getActor(_req);
@@ -71,3 +72,5 @@ export async function GET(_req: NextRequest) {
     confirmation_rate,
   });
 }
+
+export const GET = withRouteErrors("/api/agent/stats", "GET", handleGET);

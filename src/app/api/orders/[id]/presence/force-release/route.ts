@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * force_release_order_presence, which raises 42501 for anyone but a
  * super_admin — a market_manager must not be able to break a lock by any path.
  */
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -48,3 +49,5 @@ export async function POST(
 
   return NextResponse.json({ data });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/presence/force-release", "POST", handlePOST);

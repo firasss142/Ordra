@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveMarketForRead } from "@/lib/whatsapp/authz";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * The template registry for one market — what the Modèles page lists and
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 const TEMPLATE_COLUMNS =
   "id, market_id, meta_template_id, name, language, category, status, rejected_reason, components, body_text, header_format, footer_text, variables, event_key, catalogue_key, source, campaign_id, synced_at, created_at, updated_at";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const access = resolveMarketForRead(actorResult.actor, new URL(req.url).searchParams.get("market_id"));
@@ -48,3 +49,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: rows.map((r) => ({ ...r, campaign_name: r.campaign_id ? (names.get(r.campaign_id) ?? null) : null })) });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/templates", "GET", handleGET);

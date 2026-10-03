@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/orders/[id]/darb-shipment
@@ -79,7 +80,7 @@ export interface DarbCommentEntry {
   posted_at: string | null;
 }
 
-export async function GET(
+async function handleGET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -147,3 +148,5 @@ export async function GET(
     comments: comments ?? [],
   });
 }
+
+export const GET = withRouteErrors("/api/orders/[id]/darb-shipment", "GET", handleGET);

@@ -9,6 +9,7 @@ import { COURIER_AGENT } from "@/lib/feedback/overview";
 import { COMPLAINT_LATE_MS, isFeedbackCategory } from "@/lib/feedback/taxonomy";
 import { marketDayEndUtc, marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 import type { FeedbackRowsResponse, FeedbackSheetRow } from "@/types/feedback";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ const person = (u: { id: string; full_name: string | null } | null) =>
  *
  * `limit` grows by 20 with « Voir n de plus »; `total` is the full count either way.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -127,3 +128,5 @@ export async function GET(req: NextRequest) {
   const body: FeedbackRowsResponse = { rows, total: count ?? rows.length };
   return NextResponse.json({ data: body });
 }
+
+export const GET = withRouteErrors("/api/feedback/rows", "GET", handleGET);

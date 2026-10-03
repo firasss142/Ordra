@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getCarrierAdapter, buildConfig } from "@/lib/carriers";
 import type { Role } from "@/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 interface OrderRow {
   id: string;
@@ -26,7 +27,7 @@ function canDeleteCarrierBarcode(
   return false;
 }
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -189,3 +190,5 @@ export async function POST(
 
   return NextResponse.json(body, { status: 200 });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/carrier-delete", "POST", handlePOST);

@@ -38,6 +38,7 @@ import type {
   ProductListRow,
   ProductPeriodMetrics,
 } from "@/types/product-list";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ function toListRow(raw: RawViewRow, metrics: ProductPeriodMetrics | null): Produ
   };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -251,3 +252,5 @@ export async function GET(req: NextRequest) {
     headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" },
   });
 }
+
+export const GET = withRouteErrors("/api/products/list", "GET", handleGET);

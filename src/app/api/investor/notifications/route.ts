@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   const unreadOnly = req.nextUrl.searchParams.get("unread") === "1";
@@ -14,3 +15,5 @@ export async function GET(req: NextRequest) {
   const unread = rows.filter((r) => (r as { read_at: string | null }).read_at === null).length;
   return NextResponse.json({ data: rows, unread }, { headers: INVESTOR_CACHE });
 }
+
+export const GET = withRouteErrors("/api/investor/notifications", "GET", handleGET);

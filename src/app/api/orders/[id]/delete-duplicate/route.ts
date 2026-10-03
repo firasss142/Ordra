@@ -5,6 +5,7 @@ import {
   verifyAndDeleteDuplicateSibling,
   DuplicateSiblingError,
 } from "@/lib/orders/duplicate-delete";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
  * All authorization + the genuine-sibling re-verification lives in
  * verifyAndDeleteDuplicateSibling — this handler only parses + maps errors.
  */
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -61,3 +62,5 @@ export async function POST(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/delete-duplicate", "POST", handlePOST);

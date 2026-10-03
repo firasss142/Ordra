@@ -366,6 +366,21 @@
   --role-admin: #475569;     --role-admin-bg: #EEF1F5;     --role-admin-ink: #334155;     --role-admin-edge: #CBD3DE;
   --role-all-edge: #A9DDBC;
 
+  /* ── Journaux (design-system §4.24) ───────────────────────────────
+     prototypes/journaux-v2.html, approved 2026-10-03. Success carries no
+     colour on the page: only a failure (red) and a « to check » (amber) do.
+     The family tints are icon holders only — never text, never a severity. */
+  --jx-ok: #008060;   --jx-ok-ink: #006E52;   --jx-ok-bg: #EEF7F3;
+  --jx-warn: #B98900; --jx-warn-ink: #7A5A00; --jx-warn-bg: #FFF6DF; --jx-warn-line: #EBCB7A;
+  --jx-fail: #D72C0D; --jx-fail-ink: #B42309; --jx-fail-bg: #FFF1EE; --jx-fail-line: #F3C2B6; --jx-fail-hover: #FFE9E4;
+  --jx-mute: #C5CBD3; --jx-mute-bg: #F1F2F3;  --jx-info: #2C6ECB;
+  --jx-intake-bg: #EEEDFC;  --jx-intake-ink: #3F37C9;
+  --jx-carrier-bg: #E3F3F1; --jx-carrier-ink: #0B5C56;
+  --jx-ads-bg: #FDEFE6;     --jx-ads-ink: #B4500F;
+  --jx-msg-bg: #E3F4FC;     --jx-msg-ink: #0369A1;
+  --jx-auto-bg: #F0F1F3;    --jx-auto-ink: #4B5563;
+  --jx-app-bg: #EEF0F4;     --jx-app-ink: #2F3A4B;
+
   /* ── Dispatch flow palette ────────────────────────────────────────
      Scoped to the post-confirm carrier picker, delivery scheduling, and
      the Darb Assabil dispatch modal — the one flow in the product that

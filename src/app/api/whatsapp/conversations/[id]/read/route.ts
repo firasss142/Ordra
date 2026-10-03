@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/whatsapp/conversations/[id]/read — the agent opened the thread.
@@ -10,7 +11,7 @@ import { getActor } from "@/lib/auth/actor";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
 
@@ -24,3 +25,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   return NextResponse.json({ data: { cleared: data ?? 0 } });
 }
+
+export const POST = withRouteErrors("/api/whatsapp/conversations/[id]/read", "POST", handlePOST);

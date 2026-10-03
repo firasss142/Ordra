@@ -11,6 +11,7 @@ import {
   readDisabledAt,
   PICKUP_KEY_PREFIX,
 } from "@/lib/carriers/pickup-window";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -148,7 +149,7 @@ async function loadState(
   return { sites, marketId, carriers };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -163,7 +164,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ sites: state.sites, carriers: state.carriers });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -261,3 +262,6 @@ export async function POST(req: NextRequest) {
   if ("response" in state) return state.response;
   return NextResponse.json({ sites: state.sites, carriers: state.carriers });
 }
+
+export const GET = withRouteErrors("/api/warehouse/pickup", "GET", handleGET);
+export const POST = withRouteErrors("/api/warehouse/pickup", "POST", handlePOST);

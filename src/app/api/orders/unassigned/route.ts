@@ -4,10 +4,11 @@ import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { resolveProductDisplayName } from "@/lib/orders/display-name";
 import type { OrderNameSource } from "@/lib/orders/display-name";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
     const actorResult = await getActor(req);
@@ -72,3 +73,5 @@ export async function GET(req: NextRequest) {
     limit,
   });
 }
+
+export const GET = withRouteErrors("/api/orders/unassigned", "GET", handleGET);

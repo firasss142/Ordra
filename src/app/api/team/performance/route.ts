@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveTeamMarket } from "@/lib/team/api-market";
 import type { TeamPerformance } from "@/lib/team/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
  * Period review — one RPC round-trip (`get_team_performance`), bounded in the
  * market's local days.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
 
@@ -46,3 +47,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: (data ?? {}) as TeamPerformance });
 }
+
+export const GET = withRouteErrors("/api/team/performance", "GET", handleGET);

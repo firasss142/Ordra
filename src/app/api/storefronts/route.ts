@@ -6,10 +6,11 @@ import {
   canManageStorefronts,
 } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: masked });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -101,3 +102,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/storefronts", "GET", handleGET);
+export const POST = withRouteErrors("/api/storefronts", "POST", handlePOST);

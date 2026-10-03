@@ -3,12 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getNextLeadAttemptStatus } from "@/lib/leads/attempt-logic";
 import { getMarketSetting } from "@/lib/settings/getMarketSetting";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 const ATTEMPT_STATUSES = ["attempt_1", "attempt_2", "attempt_3"] as const;
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -137,3 +138,5 @@ export async function POST(
     data: { auto_lost: false, new_status: nextStatus },
   });
 }
+
+export const POST = withRouteErrors("/api/leads/[id]/attempt", "POST", handlePOST);

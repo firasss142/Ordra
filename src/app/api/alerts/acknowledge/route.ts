@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { parseAlertKey } from "@/app/api/alerts/alert-key";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -68,3 +69,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ acknowledged: rows.length });
 }
+
+export const POST = withRouteErrors("/api/alerts/acknowledge", "POST", handlePOST);

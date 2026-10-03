@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveMarketForManage } from "@/lib/whatsapp/authz";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/whatsapp/conversations?market_id=&scope=orphans|all — the inbox
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 const CONVERSATION_LIST_COLUMNS =
   "id, market_id, phone_e164, customer_id, current_order_id, current_lead_id, profile_name, last_inbound_at, last_outbound_at, last_message_at, last_message_preview, unread_count, opted_out_at, undeliverable_at, claimed_by, claimed_at, created_at";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const url = new URL(req.url);
@@ -53,3 +54,5 @@ export async function GET(req: NextRequest) {
     counts: { orphans: orphansRes.count ?? 0, all: allRes.count ?? 0 },
   });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/conversations", "GET", handleGET);

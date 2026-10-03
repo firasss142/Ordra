@@ -63,6 +63,11 @@ vi.mock("../dispatch", () => ({
   dispatchToCarrier: (...args: unknown[]) => dispatchToCarrierMock(...args),
 }));
 
+const recordIntegrationCallMock = vi.fn();
+vi.mock("@/lib/journal/record-call", () => ({
+  recordIntegrationCall: (...args: unknown[]) => recordIntegrationCallMock(...args),
+}));
+
 import { performDispatch } from "../perform-dispatch";
 
 beforeEach(() => {
@@ -70,6 +75,7 @@ beforeEach(() => {
   orderResult = { data: mockOrderRow, error: null };
   carrierResult = { data: mockCarrierRow, error: null };
   orderItemsResult = { data: [], error: null };
+  recordIntegrationCallMock.mockResolvedValue(undefined);
   rpcMock.mockResolvedValue({ data: { ok: true }, error: null });
   dispatchToCarrierMock.mockResolvedValue({
     success: true,
@@ -278,5 +284,110 @@ describe("performDispatch market isolation", () => {
       expect(result.retryable).toBe(false);
     }
     expect(rpcMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("performDispatch — every carrier upload is journaled (integration_calls)", () => {
+  const CALL = {
+    system: "navex",
+    connectionId: "c-1",
+    operation: "upload",
+    orderId: "o-1",
+    marketId: "m-tn",
+    actorId: "actor-1",
+  };
+
+  test("a successful upload is recorded as ok, with its duration", async () => {
+    const result = await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(result.ok).toBe(true);
+    expect(recordIntegrationCallMock).toHaveBeenCalledTimes(1);
+    expect(recordIntegrationCallMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ ...CALL, status: "ok", durationMs: expect.any(Number) }),
+    );
+  });
+
+  test("a carrier refusal is recorded as refused, with its code and message", async () => {
+    dispatchToCarrierMock.mockResolvedValueOnce({
+      success: false,
+      errorMessage: "bad city",
+      errorCode: "NAVEX_VALIDATION",
+      retryable: false,
+    });
+
+    const result = await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(result.ok).toBe(false);
+    expect(recordIntegrationCallMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ ...CALL, status: "refused", errorCode: "NAVEX_VALIDATION", message: "bad city" }),
+    );
+  });
+
+  test("a refusal that says the request timed out is recorded as timeout", async () => {
+    dispatchToCarrierMock.mockResolvedValueOnce({
+      success: false,
+      errorMessage: "The operation was aborted due to timeout",
+      errorCode: "NAVEX_TRANSIENT",
+      retryable: true,
+    });
+
+    await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(recordIntegrationCallMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ ...CALL, status: "timeout", errorCode: "NAVEX_TRANSIENT" }),
+    );
+  });
+
+  test("an adapter that throws is recorded as error, with the thrown message", async () => {
+    dispatchToCarrierMock.mockRejectedValueOnce(new Error("socket hang up"));
+
+    const result = await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(500);
+    expect(recordIntegrationCallMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ ...CALL, status: "error", message: "socket hang up" }),
+    );
+  });
+
+  test("a recorder that rejects changes nothing: the upload still succeeds", async () => {
+    recordIntegrationCallMock.mockRejectedValue(new Error("journal down"));
+
+    const result = await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(result).toEqual({ ok: true, trackingNumber: "TRK-1", dispatchData: { ok: true } });
+    expect(rpcMock).toHaveBeenCalledWith("dispatch_order", expect.objectContaining({ p_tracking_number: "TRK-1" }));
+  });
+
+  test("a recorder that rejects changes nothing: the refusal is answered as before", async () => {
+    recordIntegrationCallMock.mockRejectedValue(new Error("journal down"));
+    dispatchToCarrierMock.mockResolvedValueOnce({
+      success: false,
+      errorMessage: "bad city",
+      errorCode: "NAVEX_VALIDATION",
+      retryable: false,
+    });
+
+    const result = await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      ok: false,
+      status: 422,
+      error: "bad city",
+      errorCode: "NAVEX_VALIDATION",
+      retryable: false,
+    });
+  });
+
+  test("a dispatch refused before the carrier is called journals no call", async () => {
+    carrierResult = { data: { ...mockCarrierRow, is_active: false }, error: null };
+
+    await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(recordIntegrationCallMock).not.toHaveBeenCalled();
   });
 });

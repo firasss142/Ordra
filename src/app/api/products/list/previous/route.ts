@@ -30,6 +30,7 @@ import { canViewProductProfitability } from "@/lib/finance-permissions";
 import { computePreviousPeriod } from "@/lib/date";
 import { loadProductPeriodMetrics, type MetricsClient } from "@/lib/products/metrics";
 import { parseProductListQuery } from "@/lib/products/list-filters";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export interface ProductPreviousTotals {
   period: { from_date: string; to_date: string };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -124,3 +125,5 @@ export async function GET(req: NextRequest) {
     headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=1800" },
   });
 }
+
+export const GET = withRouteErrors("/api/products/list/previous", "GET", handleGET);

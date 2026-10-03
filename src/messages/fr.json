@@ -8370,99 +8370,596 @@
   },
   "journaux": {
     "title": "Journaux",
-    "subtitle": "Tout ce qui entre dans Ordra et en sort : les commandes reçues des boutiques, les échanges avec les transporteurs, les tâches automatiques et les modifications de réglages.",
+    "find": {
+      "placeholder": "Retrouver une commande",
+      "hint": "N° de commande ou de suivi"
+    },
     "tabs": {
-      "received": "Commandes reçues",
-      "carrier": "Transporteurs",
-      "sync": "Synchronisations",
-      "audit": "Modifications"
+      "overview": "Aperçu",
+      "history": "Historique"
     },
-    "errorsOne": "1 erreur",
-    "errorsMany": "{n} erreurs",
-    "searchReceived": "Commande, boutique, erreur…",
-    "searchCarrier": "N° de suivi, statut…",
-    "searchAudit": "Réglage, personne…",
-    "allMarkets": "Tous les marchés",
-    "market": {
-      "tn": "Tunisie",
-      "ly": "Libye"
+    "verdict": {
+      "ok": "Tout fonctionne",
+      "okSub": "Rien à régler. Les {total} systèmes suivis répondent normalement.",
+      "issues": "{n, plural, one {# chose à régler} other {# choses à régler}}",
+      "issuesSub": "{ok} systèmes sur {total} fonctionnent normalement.",
+      "error": "Le journal ne répond pas. Réessayez dans un instant."
     },
-    "marketFilter": "Marché",
-    "resultFilter": "Résultat",
-    "allResults": "Tous les résultats",
-    "errorsOnly": "Erreurs seulement",
-    "refresh": "Actualiser",
-    "result": {
-      "processed": "Traitée",
-      "ignored": "Ignorée",
-      "error": "Erreur"
+    "sections": {
+      "toFix": "À régler",
+      "systems": "Systèmes",
+      "muted": "En sourdine"
     },
-    "resultCarrier": {
-      "processed": "Traité",
-      "ignored": "Ignoré",
-      "error": "Erreur"
-    },
-    "sync": {
-      "succeeded": "Réussie",
-      "completed": "Réussie",
+    "common": {
+      "close": "Fermer",
+      "what": "Ce qui se passe",
+      "whatHappened": "Ce qui s’est passé",
+      "howMuch": "Combien",
+      "todo": "Que faire",
+      "tech": "Détails techniques",
+      "lastActivity": "Dernière activité",
+      "seeProblem": "Voir le problème",
+      "openOrder": "Ouvrir la commande",
+      "seeOrder": "Voir toute la commande",
+      "openSettings": "Ouvrir dans Réglages",
+      "mute": "Ignorer 7 jours",
+      "mutedUntil": "En sourdine jusqu’au {date}",
+      "muteDone": "Problème mis en sourdine pour 7 jours",
+      "muteFailed": "La mise en sourdine a échoué",
+      "since": "depuis le {date}",
+      "toFix": "À régler",
+      "toCheck": "À vérifier",
       "failed": "Échec",
-      "partial": "Partielle",
-      "running": "En cours"
+      "unknown": "inconnu",
+      "never": "jamais",
+      "loading": "Chargement…",
+      "retry": "Réessayer",
+      "notFound": "Introuvable.",
+      "selfHeal": "Le problème disparaît seul dès que sa cause disparaît.",
+      "times": "{n, plural, one {# fois} other {# fois}}"
     },
-    "trigger": {
-      "cron": "Automatique",
-      "manual": "Manuelle",
-      "schedule": "Automatique"
+    "who": {
+      "system": "Ordra",
+      "service": "Le serveur",
+      "unknown": "Quelqu’un"
     },
-    "col": {
-      "receivedAt": "Reçue le",
-      "shop": "Boutique",
-      "order": "Commande",
-      "result": "Résultat",
-      "detail": "Détail",
-      "carrierAt": "Reçu le",
-      "carrier": "Transporteur",
-      "tracking": "N° de suivi",
-      "carrierStatus": "Statut transporteur",
-      "startedAt": "Début",
-      "task": "Tâche",
-      "trigger": "Déclenchée",
-      "duration": "Durée",
-      "date": "Date",
-      "by": "Par",
-      "market": "Marché",
+    "rules": {
+      "job_failing": {
+        "title": "« {job} » échoue depuis {n, plural, one {# passage} other {# passages}}",
+        "line": "Le travail n’est plus fait. Dernière erreur : {message}",
+        "impact": "échecs d’affilée",
+        "what": "Cette tâche tourne seule en arrière-plan. Depuis le {since}, elle s’arrête sur une erreur à chaque passage : ce qu’elle devait faire ne se fait plus.",
+        "todo1": "Lire l’erreur sous « Détails techniques ».",
+        "todo2": "Corriger sa cause (souvent un réglage ou un accès).",
+        "todo3": "Au premier passage réussi, le problème se ferme seul."
+      },
+      "connection_silent": {
+        "title": "{name} ne se synchronise plus",
+        "line": "Dernière synchronisation réussie : {last}.",
+        "impact": "sans nouvelles",
+        "what": "Ce compte se synchronise d’habitude toutes les 10 minutes. Rien n’est arrivé depuis {last} : les statuts des colis ne bougent plus.",
+        "todo1": "Vérifier les identifiants du transporteur dans Réglages.",
+        "todo2": "Le problème se ferme seul à la prochaine synchronisation réussie."
+      },
+      "carrier_inactive": {
+        "title": "{name} est désactivé, {n, plural, one {# colis encore dehors} other {# colis encore dehors}}",
+        "line": "Désactivé {when} — le suivi de ces colis est arrêté.",
+        "lineUnknown": "Désactivé à une date inconnue — le suivi de ces colis est arrêté.",
+        "impact": "colis sans suivi",
+        "what": "Désactiver un compte transporteur arrête aussi la synchronisation des colis déjà partis avec lui.",
+        "noNews": "sans aucune nouvelle depuis 7 jours",
+        "value": "de valeur",
+        "todo1": "Si c’était voulu : continuer de suivre les colis déjà partis.",
+        "todo2": "Sinon : réactiver le compte dans Réglages › Livraison."
+      },
+      "carrier_stuck": {
+        "title": "{name} : {n, plural, one {# colis bloqué} other {# colis bloqués}}",
+        "line": "Le transporteur envoie des statuts qu’Ordra refuse ou ne connaît pas.",
+        "impact": "jamais soldés",
+        "impactCount": "colis bloqués",
+        "what": "Ces colis ont été livrés ou retournés chez le transporteur, mais Ordra refuse ce qu’il lui dit. Ils restent « en route » : le revenu n’est pas compté et le stock des retours n’est pas réintégré.",
+        "causes": "Les causes",
+        "unknown": "« {raw} » — statut inconnu d’Ordra",
+        "refused": "« {to} » refusé depuis « {from} »",
+        "parcels": "{n, plural, one {# colis} other {# colis}}",
+        "todo1": "Faire reconnaître les statuts inconnus et accepter les transitions refusées.",
+        "todo2": "Au passage suivant, les colis se soldent et le problème se ferme."
+      },
+      "import_rows": {
+        "title": "{name} : {n, plural, one {# ligne refusée} other {# lignes refusées}} à l’import",
+        "line": "« {message} » depuis le {since}, jamais retraitées.",
+        "impact": "commandes jamais importées",
+        "what": "Ces lignes de la feuille n’ont pas pu devenir des commandes. Ordra les a refusées une fois et ne les a jamais retentées.",
+        "todo1": "Corriger les lignes dans la feuille source.",
+        "todo2": "Relancer l’import depuis Réglages › Boutiques."
+      },
+      "upload_failing": {
+        "title": "Envois chez {system} refusés en série",
+        "line": "{n, plural, one {# refus} other {# refus}} en une heure · {message}",
+        "impact": "refus en 1 h",
+        "what": "Le transporteur refuse les commandes qu’on lui envoie. Elles restent « Confirmées » : rien n’est perdu, mais rien ne part.",
+        "todo1": "Lire le motif du refus sous « Détails techniques ».",
+        "todo2": "Corriger puis renvoyer : l’essai suivant apparaît dans l’Historique."
+      },
+      "whatsapp_down": {
+        "title": "WhatsApp est {status, select, paused {en pause} other {déconnecté}}",
+        "line": "Aucun message ne part tant que le numéro n’est pas rétabli.",
+        "impact": "numéro",
+        "what": "Meta a {status, select, paused {mis le numéro en pause} other {refusé le jeton d’accès}}. Raison donnée : {reason}",
+        "todo1": "Ouvrir Réglages › WhatsApp et refaire le test de connexion."
+      },
+      "ads_no_orders": {
+        "title": "{market} : la publicité tourne, aucune commande depuis {hours} h",
+        "line": "De l’argent est dépensé, mais rien n’arrive. L’import est peut-être en panne.",
+        "impact": "dépensés depuis hier",
+        "what": "Meta dépense pour ce marché, mais aucune commande n’est arrivée depuis {hours} heures.",
+        "todo1": "Vérifier la tuile de la boutique et ses imports.",
+        "todo2": "Si la boutique est en pause, couper aussi la publicité."
+      },
+      "server_error": {
+        "title": "Erreur serveur répétée · {area} : {verb}",
+        "line": "{n, plural, one {# erreur} other {# erreurs}} en 24 h, la dernière {last}.",
+        "impact": "erreurs en 24 h",
+        "what": "Cette action d’Ordra échoue chez nous, pas chez l’utilisateur : le serveur répond par une erreur à chaque essai.",
+        "todo1": "Transmettre les détails techniques à l’équipe technique.",
+        "todo2": "Le problème se ferme seul après 24 heures sans erreur."
+      },
+      "login_failures": {
+        "title": "{n, plural, one {# échec de connexion} other {# échecs de connexion}} sur {account}",
+        "line": "En moins d’une heure.",
+        "impact": "essais",
+        "what": "Quelqu’un essaie d’entrer sur ce compte avec un mauvais mot de passe.",
+        "todo1": "Demander à la personne si c’était elle.",
+        "todo2": "Sinon, réinitialiser son mot de passe dans Accès."
+      },
+      "large_export": {
+        "title": "Export de {rows} lignes par {actor}",
+        "line": "Un export de cette taille sort des données de clients d’Ordra.",
+        "impact": "lignes",
+        "what": "Les exports de plus de 1 000 lignes sont signalés pendant 24 heures.",
+        "todo1": "Vérifier que l’export était prévu."
+      }
+    },
+    "tiles": {
+      "names": {
+        "shops": "Autres boutiques",
+        "jobs": "Tâches automatiques",
+        "app": "Ordra",
+        "meta": "Meta",
+        "whatsapp": "WhatsApp"
+      },
+      "where": {
+        "carrier": "{market} · transporteur",
+        "shop": "{market} · boutique",
+        "shops": "{n, plural, one {# boutique reliée} other {# boutiques reliées}}",
+        "meta": "{market} · publicité",
+        "metaAll": "Publicité",
+        "whatsapp": "Messagerie client",
+        "jobs": "{n} tâches planifiées",
+        "app": "Erreurs et sécurité de l’application"
+      },
+      "state": {
+        "in_service": "En service",
+        "fail": "En panne",
+        "warn": "À vérifier",
+        "disabled": "Désactivé",
+        "receiving": "Reçoit des commandes",
+        "ads_stopped": "En pause",
+        "calm": "Calme",
+        "silent": "Muet",
+        "not_connected": "Non connecté",
+        "jobsFail": "{n, plural, one {# en échec} other {# en échec}}",
+        "jobsOk": "Toutes réussies",
+        "appFail": "Erreur répétée",
+        "appWarn": "À vérifier",
+        "appOk": "Aucune erreur répétée"
+      },
+      "last": {
+        "ago": "Dernier passage {when}",
+        "never": "Aucun passage enregistré",
+        "parcels": "{n, plural, one {# colis encore dehors} other {# colis encore dehors}}",
+        "orders24": "{n, plural, one {# commande en 24 h} other {# commandes en 24 h}}",
+        "adsStopped": "Publicité arrêtée depuis le {date} — rien à importer",
+        "adsStoppedNever": "Aucune publicité — rien à importer",
+        "lastOrder": "Dernière commande {when}",
+        "noOrder": "Aucune commande reçue",
+        "noNumber": "Aucun numéro relié",
+        "jobs": "{ok} sur {total} réussissent",
+        "app": "{n, plural, =0 {Aucune erreur serveur en 24 h} one {# erreur serveur en 24 h} other {# erreurs serveur en 24 h}}"
+      }
+    },
+    "bars": {
+      "title": "Les 48 dernières heures",
+      "from": "il y a 48 h",
+      "to": "maintenant",
+      "legend": "Une barre par heure. Vert : a fonctionné · gris : rien de nouveau · rouge : en échec · creux : attendu mais absent.",
+      "o": "A fonctionné",
+      "i": "Rien de nouveau",
+      "f": "En échec",
+      "m": "Attendu, absent"
+    },
+    "feed": {
+      "chips": {
+        "all": "Tout",
+        "ext": "Systèmes externes",
+        "team": "Équipe",
+        "auto": "Automatique",
+        "sec": "Sécurité et erreurs"
+      },
+      "onlyIssues": "Problèmes seulement",
+      "empty": "Rien à afficher pour ce filtre.",
+      "more": "Afficher plus ancien",
+      "end": "Début du journal.",
+      "today": "Aujourd’hui",
+      "yesterday": "Hier · {date}",
+      "routine": "{n, plural, one {# passage de routine sans changement} other {# passages de routine sans changement}} (synchronisations, imports vides)",
+      "series": "de {from} à {to}",
+      "error": "L’historique ne répond pas."
+    },
+    "kinds": {
+      "order": {
+        "attempt": "{actor} : {count, plural, one {tentative sans réponse} other {# tentatives sans réponse}}",
+        "callback_scheduled": "{actor} a programmé {count, plural, one {un rappel} other {# rappels}}",
+        "confirmed": "{actor} a confirmé {count, plural, one {la commande {ref}} other {# commandes}}",
+        "rejected": "{actor} a rejeté {count, plural, one {la commande {ref}} other {# commandes}}",
+        "uploaded": "{actor} a envoyé {count, plural, one {la commande {ref}} other {# commandes}} chez {carrier}",
+        "uploadedNoCarrier": "{actor} a envoyé {count, plural, one {la commande {ref}} other {# commandes}} au transporteur",
+        "dispatch_scheduled": "{actor} a programmé l’envoi de {count, plural, one {la commande {ref}} other {# commandes}}",
+        "cancelled": "{actor} a annulé {count, plural, one {la commande {ref}} other {# commandes}}",
+        "deleted": "{actor} a supprimé {count, plural, one {la commande {ref}} other {# commandes}}",
+        "pending": "{actor} a remis {count, plural, one {la commande {ref}} other {# commandes}} en attente",
+        "other": "{actor} : {count, plural, one {commande {ref}} other {# commandes}} → {status}",
+        "edited": "{actor} a modifié {count, plural, one {la commande {ref}} other {# commandes}}",
+        "reassigned": "{actor} a réattribué {count, plural, one {la commande {ref}} other {# commandes}}",
+        "reopened": "{actor} a rouvert {count, plural, one {la commande {ref}} other {# commandes}}",
+        "taken_over": "{actor} a repris {count, plural, one {la commande {ref}} other {# commandes}}",
+        "scanned": "{actor} a scanné {count, plural, one {le colis {ref}} other {# colis}}",
+        "auto_uploaded": "Envoi programmé : {count, plural, one {commande {ref} envoyée} other {# commandes envoyées}} chez {carrier}",
+        "auto_rejected": "{count, plural, one {Commande {ref} rejetée} other {# commandes rejetées}} automatiquement — tentatives épuisées",
+        "auto": "{count, plural, one {Commande {ref}} other {# commandes}} → {status}"
+      },
+      "carrier": {
+        "delivered": "{count, plural, one {Commande {ref} livrée} other {# commandes livrées}}",
+        "cancelled": "{count, plural, one {Commande {ref} annulée} other {# commandes annulées}} par le transporteur",
+        "returned": "{count, plural, one {Commande {ref} retournée} other {# commandes retournées}}",
+        "other": "{count, plural, one {Commande {ref}} other {# commandes}} : {status}",
+        "upload_failed": "Envoi chez {carrier} refusé",
+        "void_failed": "Annulation chez {carrier} refusée",
+        "call_failed": "Appel à {carrier} en échec"
+      },
+      "delivery": {
+        "call_customer": "{actor} a appelé {count, plural, one {le client} other {# clients}}",
+        "call_courier": "{actor} a appelé {count, plural, one {le livreur} other {# livreurs}}",
+        "call_branch": "{actor} a relancé l’agence du transporteur{count, plural, one {} other { (# fois)}}",
+        "whatsapp_customer": "{actor} a écrit {count, plural, one {au client} other {à # clients}} sur WhatsApp",
+        "note": "{actor} a noté {count, plural, one {un suivi} other {# suivis}}",
+        "other": "{actor} : {count, plural, one {une action de suivi} other {# actions de suivi}}",
+        "sub": "Suivi de livraison"
+      },
+      "stock": {
+        "manual_adjustment": "{actor} a corrigé le stock de {product}",
+        "damaged_writeoff": "{actor} a sorti du stock abîmé de {product}",
+        "stock_count": "{actor} a compté {product}",
+        "returned": "{actor} a rentré {count, plural, one {un retour} other {# retours}}",
+        "received_back": "{actor} a rentré {count, plural, one {un colis revenu} other {# colis revenus}}",
+        "scan_reversal": "{actor} a annulé {count, plural, one {un scan} other {# scans}}",
+        "initial_stock": "Stock initial de {product}",
+        "reception": "{actor} a réceptionné {product}",
+        "other": "{actor} : stock de {product}",
+        "sub": "{change} · reste {balance}"
+      },
+      "lead": {
+        "status": "{actor} a traité {count, plural, one {un prospect} other {# prospects}}",
+        "sub": "Prospects · {status}"
+      },
+      "feedback": {
+        "created": "{actor} a noté {count, plural, one {un retour client} other {# retours clients}}",
+        "other": "{actor} a traité {count, plural, one {un retour client} other {# retours clients}}",
+        "deleted": "{actor} a supprimé {count, plural, one {un retour client} other {# retours clients}}",
+        "sub": "Voix du client"
+      },
+      "settings": {
+        "changed": "{actor} a modifié {n, plural, one {un réglage} other {# réglages}}{market, select, tn { de la Tunisie} ly { de la Libye} other {}}"
+      },
+      "user": {
+        "user_created": "{actor} a créé le compte de {target}",
+        "user_deleted": "{actor} a supprimé le compte de {target}",
+        "user_deactivated": "{actor} a désactivé le compte de {target}",
+        "user_reactivated": "{actor} a réactivé le compte de {target}",
+        "password_reset": "{actor} a réinitialisé le mot de passe de {target}",
+        "user_invited": "{actor} a invité {target}",
+        "warehouse_assigned": "{actor} a affecté {target} à un entrepôt",
+        "other": "{actor} a modifié le compte de {target}",
+        "sub": "Accès"
+      },
+      "audit": {
+        "created": "{actor} a ajouté {entity}",
+        "updated": "{actor} a modifié {entity}",
+        "deleted": "{actor} a supprimé {entity}",
+        "deactivated": "{actor} a désactivé {entity}",
+        "activated": "{actor} a réactivé {entity}",
+        "price": "{actor} a changé le prix de {label} : {before} → {after}",
+        "role": "{actor} a changé le rôle de {label}",
+        "market": "{actor} a changé le marché de {label}",
+        "warehouse": "{actor} a affecté {label} à un entrepôt",
+        "count": "{actor} a modifié {count, plural, one {un élément} other {# éléments}} · {type}"
+      },
+      "types": {
+        "carriers": "Transporteurs",
+        "carrier_order_preferences": "Préférences d’envoi",
+        "storefronts": "Boutiques",
+        "warehouses": "Entrepôts",
+        "markets": "Marchés",
+        "products": "Produits",
+        "product_variants": "Variantes",
+        "rejection_reason_configs": "Motifs de rejet",
+        "status_configs": "Statuts",
+        "agent_distribution_shares": "Parts de distribution",
+        "assignment_rules": "Règles de distribution",
+        "agent_commission_rates": "Taux de commission",
+        "users": "Comptes",
+        "whatsapp_configs": "WhatsApp",
+        "whatsapp_templates": "Modèles WhatsApp",
+        "meta_ad_accounts": "Comptes publicitaires",
+        "investors": "Investisseurs",
+        "reception_payments": "Paiements fournisseurs",
+        "ad_spend": "Dépenses pub",
+        "order_items": "Lignes de commande",
+        "other": "Données"
+      },
+      "entities": {
+        "carriers": "le transporteur {label}",
+        "carrier_order_preferences": "une préférence d’envoi",
+        "storefronts": "la boutique {label}",
+        "warehouses": "l’entrepôt {label}",
+        "markets": "le marché {label}",
+        "products": "le produit {label}",
+        "product_variants": "la variante {label}",
+        "rejection_reason_configs": "le motif de rejet {label}",
+        "status_configs": "le statut {label}",
+        "agent_distribution_shares": "les parts de distribution",
+        "assignment_rules": "la règle de distribution",
+        "agent_commission_rates": "un taux de commission",
+        "users": "le compte de {label}",
+        "whatsapp_configs": "le numéro WhatsApp",
+        "whatsapp_templates": "le modèle WhatsApp {label}",
+        "meta_ad_accounts": "le compte publicitaire {label}",
+        "investors": "l’investisseur {label}",
+        "reception_payments": "un paiement fournisseur",
+        "ad_spend": "une dépense pub",
+        "order_items": "une ligne de commande",
+        "other": "une donnée"
+      },
+      "auth": {
+        "login": "Connexion de {actor}",
+        "login_failed": "{count, plural, one {Échec de connexion} other {# échecs de connexion}} sur {label}"
+      },
+      "export": {
+        "orders": "{actor} a exporté {rows} commandes",
+        "history": "{actor} a exporté l’historique de l’entrepôt",
+        "customers": "{actor} a exporté la liste des clients"
+      },
+      "whatsapp": {
+        "campaign_sent": "{actor} a envoyé une campagne WhatsApp à {n} clients"
+      },
+      "agent": {
+        "available": "{actor} : disponible",
+        "unavailable": "{actor} : indisponible",
+        "madeAvailable": "{actor} a rendu {agent} disponible",
+        "madeUnavailable": "{actor} a rendu {agent} indisponible",
+        "released": "{n, plural, one {# commande rendue à la file} other {# commandes rendues à la file}}"
+      },
+      "commission": {
+        "accrual": "{count, plural, one {Commission de {amount} créditée à {agent}} other {# commissions créditées à {agent} · {amount}}}",
+        "reversal": "{count, plural, one {Commission annulée pour {agent}} other {# commissions annulées pour {agent}}}",
+        "payout": "Paiement de {amount} à {agent}",
+        "sub": "Commande livrée"
+      },
+      "investor": {
+        "statement": "{count, plural, one {Relevé investisseur calculé} other {# relevés investisseurs calculés}}",
+        "sub": "Investisseurs · du {from} au {to}"
+      },
+      "intake": {
+        "imported": "{shop} : {n, plural, one {# commande importée} other {# commandes importées}}",
+        "errored": "{n, plural, one {# ligne refusée} other {# lignes refusées}}",
+        "failed": "{shop} : l’import a échoué",
+        "webhooks": "{n, plural, one {# commande reçue} other {# commandes reçues}} de {shop}",
+        "webhook_failed": "Commande refusée à l’arrivée · {shop}"
+      },
+      "sync": {
+        "failed": "{system} : la synchronisation a échoué"
+      },
+      "darb": {
+        "rates": "Tarifs Darb mis à jour",
+        "ratesSub": "{n} destinations"
+      },
+      "job": {
+        "failed": "Tâche « {job} » en échec"
+      },
+      "app": {
+        "error": "Erreur serveur · {area} : {verb}",
+        "sub": "{n, plural, one {# fois} other {# fois}} · code {status}"
+      },
+      "issue": {
+        "opened": "Problème ouvert · {title}",
+        "resolved": "Résolu · {title}"
+      },
+      "unknown": "Activité · {kind}"
+    },
+    "areas": {
+      "agents": "Accès",
+      "users": "Accès",
+      "orders": "Commandes",
+      "warehouse": "Entrepôt",
+      "carriers": "Livraison",
+      "delivery": "Livraison",
+      "settings": "Réglages",
+      "whatsapp": "WhatsApp",
+      "products": "Produits",
+      "leads": "Prospects",
+      "prospects": "Prospects",
+      "investors": "Investisseurs",
+      "ad-spend": "Publicité",
+      "meta": "Publicité",
+      "team": "Équipe",
+      "cron": "Tâches automatiques",
+      "webhooks": "Arrivée des commandes",
+      "feedback": "Voix du client",
+      "admin": "Administration",
+      "other": "Ordra"
+    },
+    "verbs": {
+      "GET": "afficher",
+      "POST": "créer ou envoyer",
+      "PUT": "modifier",
+      "PATCH": "modifier",
+      "DELETE": "supprimer",
+      "other": "agir"
+    },
+    "fields": {
+      "customer_name": "Nom du client",
+      "customer_phone": "Téléphone",
+      "customer_phone_2": "Second téléphone",
+      "customer_address": "Adresse",
+      "customer_city": "Ville",
+      "city": "Ville",
+      "city_id": "Ville",
+      "customer_note": "Note",
+      "quantity": "Quantité",
+      "total_price": "Montant",
+      "unit_price": "Prix unitaire",
+      "product_id": "Produit",
+      "product_variant_id": "Variante",
+      "variant_label": "Variante",
+      "default_price": "Prix de vente",
+      "floor_price": "Prix plancher",
+      "unit_cogs": "Coût d’achat",
+      "packing_cost": "Coût d’emballage",
+      "confirmation_processing_cost": "Coût de confirmation",
+      "is_active": "Actif",
+      "name": "Nom",
+      "full_name": "Nom",
+      "role": "Rôle",
+      "market_id": "Marché",
+      "warehouse_id": "Entrepôt",
+      "deleted_at": "Supprimé le",
+      "delivery_fee": "Frais de livraison",
+      "return_fee": "Frais de retour",
+      "api_credentials": "Identifiants",
+      "api_key_encrypted": "Clé d’accès",
+      "share_pct": "Part",
+      "amount": "Montant",
+      "label_fr": "Libellé",
+      "label": "Libellé",
+      "config": "Configuration",
+      "status": "Statut",
+      "algorithm": "Méthode",
+      "enabled": "Activé",
+      "access_token": "Jeton d’accès",
+      "payout_details": "Coordonnées de paiement",
+      "sender_name": "Expéditeur",
+      "display_price": "Prix affiché",
+      "deactivation_reason": "Motif de désactivation",
+      "other": "Autre champ"
+    },
+    "detail": {
+      "field": "Champ",
       "setting": "Réglage",
       "before": "Avant",
-      "after": "Après"
-    },
-    "seeData": "Voir les données",
-    "empty": "Rien à afficher pour ces filtres.",
-    "page": "Page {page} · {total} résultats",
-    "prev": "Précédent",
-    "next": "Suivant",
-    "yes": "Oui",
-    "no": "Non",
-    "system": "Système",
-    "drawer": {
-      "title": "Données reçues · {ref}",
-      "outcome": "Ce qu’Ordra en a fait",
-      "order": "Commande créée",
-      "noOrder": "Aucune commande créée",
-      "error": "Erreur",
-      "payload": "Données reçues",
-      "copy": "Copier",
+      "after": "Après",
+      "empty": "—",
+      "secret": "masqué",
+      "linked": "Cette modification précède un problème ouvert de la même zone.",
+      "uploadWhat": "Ordra a envoyé la commande chez le transporteur, qui l’a refusée. La commande reste « Confirmée » — rien n’est perdu, il suffit de corriger et de renvoyer.",
+      "uploadTodo": "Corriger ce que le transporteur signale, puis renvoyer depuis la commande.",
+      "reason": "Motif donné par le transporteur",
+      "code": "Code",
+      "duration": "Durée",
+      "attempt": "Tentative",
+      "route": "Adresse appelée",
+      "status": "Réponse",
+      "message": "Message",
+      "errorWhat": "Ordra a répondu par une erreur serveur à cette action. Si elle se répète, un problème s’ouvre dans l’Aperçu.",
+      "webhookWhat": "Une boutique a envoyé une commande qu’Ordra n’a pas pu enregistrer.",
+      "changes": "Ce qui a changé",
+      "nothing": "Aucun détail enregistré pour cette ligne.",
+      "members": "Les lignes",
       "replay": "Relancer le traitement",
-      "replayed": "Traitement relancé",
-      "replayFailed": "La relance a échoué : {reason}"
+      "replayDone": "Commande traitée à nouveau",
+      "replayFailed": "Le nouveau traitement a échoué"
     },
-    "userEvents": {
-      "user_created": "Utilisateur créé",
-      "user_deactivated": "Utilisateur désactivé",
-      "user_reactivated": "Utilisateur réactivé",
-      "user_deleted": "Utilisateur supprimé",
-      "password_reset": "Mot de passe réinitialisé",
-      "deactivate": "Utilisateur désactivé",
-      "note": "Note"
+    "jobs": {
+      "intro": "Ce qu’Ordra fait seul, en arrière-plan. Le résultat est ce que la tâche a réellement fait, pas seulement « lancée ».",
+      "names": {
+        "darb-sync-10min": "Synchronisation Darb",
+        "google-sheets-sync": "Import Google Sheets",
+        "carrier-polling-10min": "Suivi des colis des transporteurs",
+        "meta-ads-sync": "Synchronisation Meta",
+        "dispatch-scheduled-5min": "Envois programmés",
+        "darb-rates-harvest-nightly": "Tarifs Darb",
+        "whatsapp-outbox-1min": "File WhatsApp",
+        "auto-archive-finished-orders": "Archivage des commandes terminées",
+        "agent-commissions-accrue-15min": "Commissions des agents",
+        "investor-rollup-15min": "Investisseurs · suivi",
+        "investor-rollup-nightly": "Investisseurs · recalcul",
+        "delivery-zone-stats-nightly": "Statistiques des zones",
+        "agent-availability-reset-hourly": "Disponibilité des agents",
+        "notifications-check": "Rappels et notifications",
+        "journal-detect-5min": "Détection des problèmes",
+        "journal-purge-nightly": "Nettoyage des journaux",
+        "darb-sync": "Synchronisation Darb",
+        "sheets-sync": "Import Google Sheets",
+        "meta-sync": "Synchronisation Meta",
+        "investor-rollup": "Investisseurs · suivi",
+        "whatsapp-outbox": "File WhatsApp",
+        "darb-rates": "Tarifs Darb",
+        "poll-carriers": "Suivi des colis des transporteurs",
+        "dispatch-scheduled": "Envois programmés"
+      },
+      "every": {
+        "minute": "chaque minute",
+        "minutes": "toutes les {n} min",
+        "hour": "chaque heure",
+        "day": "chaque jour, {time}",
+        "other": "planifiée"
+      },
+      "result": {
+        "ok": "Réussi",
+        "changed": "{n, plural, =0 {Rien de nouveau} one {# changement} other {# changements}}",
+        "fail": "En échec",
+        "warn": "Dernier passage en échec",
+        "never": "Jamais lancée"
+      }
+    },
+    "app": {
+      "title": "Ordra — erreurs et sécurité",
+      "repeated": "Erreurs répétées",
+      "none": "Aucune. Les erreurs isolées restent dans l’Historique, filtre « Sécurité et erreurs ».",
+      "security": "Sécurité · 24 dernières heures",
+      "logins": "Connexions",
+      "failures": "Échecs de connexion",
+      "exports": "Exports de données",
+      "roles": "Changements de rôle ou de marché",
+      "errors": "Erreurs serveur",
+      "see": "Voir"
+    },
+    "trace": {
+      "title": "Retrouver une commande",
+      "placeholder": "N° de commande ou de suivi",
+      "search": "Chercher",
+      "none": "Aucune commande ne porte ce numéro.",
+      "several": "Plusieurs commandes correspondent :",
+      "order": "Commande {ref}",
+      "sources": "Réunit l’import, l’historique des statuts, le transporteur, l’entrepôt, le stock, les appels, les messages et les commissions.",
+      "received": "Reçue de {shop}",
+      "carrierSaid": "{carrier} : {text}",
+      "carrierRefused": "Statut transporteur refusé : {raw}",
+      "repeats": "répété {n} fois",
+      "label": "Étiquette imprimée",
+      "labelReprint": "Étiquette réimprimée",
+      "whatsappOut": "Message WhatsApp envoyé",
+      "whatsappIn": "Message WhatsApp du client",
+      "uploadOk": "Envoyée chez le transporteur"
     },
     "keys": {
       "delivery_fee": "Frais de livraison (ancien réglage)",
@@ -8528,7 +9025,6 @@
       "team_idle_minutes": "Délai « sans appel »",
       "team_late_minutes": "Retard toléré",
       "team_shift_overrides": "Horaires par agent"
-    },
-    "close": "Fermer"
+    }
   }
 }

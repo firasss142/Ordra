@@ -11,7 +11,6 @@ vi.mock("@/lib/auth/actor", async () => {
 });
 
 import { GET } from "./route";
-import { GET as GET_CARRIER } from "../carrier-events/route";
 
 const LY = "00000000-0000-0000-0000-000000000002";
 const TN = "00000000-0000-0000-0000-000000000001";
@@ -40,12 +39,6 @@ describe("Journaux — market filter", () => {
     const body = await res.json();
     expect(body.data.map((r: { id: string }) => r.id)).toEqual(["w2"]);
     expect(body.pagination.total).toBe(1);
-  });
-
-  test("carrier events: only the carrier codes of the market", async () => {
-    const res = await GET_CARRIER(new NextRequest(new URL(`http://localhost/api/admin/carrier-events?market_id=${LY}`)));
-    const body = await res.json();
-    expect(body.data.map((r: { id: string }) => r.id)).toEqual(["e1"]);
   });
 
   test("a market with no shop returns nothing, not everything", async () => {

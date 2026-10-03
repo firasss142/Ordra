@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { loadThread } from "@/lib/whatsapp/thread";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/whatsapp/threads/order/[orderId] — the Messages tab of the order
@@ -12,7 +13,7 @@ import { loadThread } from "@/lib/whatsapp/thread";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: { orderId: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { orderId: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -37,3 +38,5 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
   });
   return NextResponse.json({ data });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/threads/order/[orderId]", "GET", handleGET);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * `surcharge` is display-only context — the fee is applied by Darb carrier-side.
  * Mirrors /api/darb/destinations.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -29,3 +30,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ services: services ?? [] });
 }
+
+export const GET = withRouteErrors("/api/darb/services", "GET", handleGET);

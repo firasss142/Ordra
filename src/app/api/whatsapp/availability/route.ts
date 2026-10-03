@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { loadConfigForMarket } from "@/lib/whatsapp/config";
 import { resolveMarketForRead } from "@/lib/whatsapp/authz";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * GET /api/whatsapp/availability?market_id= — is the business number live
@@ -12,7 +13,7 @@ import { resolveMarketForRead } from "@/lib/whatsapp/authz";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const access = resolveMarketForRead(actorResult.actor, new URL(req.url).searchParams.get("market_id"));
@@ -32,3 +33,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/availability", "GET", handleGET);

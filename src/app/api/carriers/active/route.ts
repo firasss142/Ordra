@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { decrypt } from "@/lib/crypto";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ function readCredentialKey(
   return null;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -86,3 +87,5 @@ export async function GET(req: NextRequest) {
     carrier: { ...carrier, cost_type: costType },
   });
 }
+
+export const GET = withRouteErrors("/api/carriers/active", "GET", handleGET);

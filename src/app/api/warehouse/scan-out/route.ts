@@ -11,6 +11,7 @@ import {
   type StickerBindState,
 } from "@/lib/carriers/darb-assabil-reference";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -170,7 +171,7 @@ function classifyRpcError(message: string): { code: ScanErrorCode; status: numbe
   return { code: "ORDER_NOT_FOUND", status: 422 };
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -423,3 +424,5 @@ export async function POST(req: NextRequest) {
     carrier_reference: carrierReference,
   });
 }
+
+export const POST = withRouteErrors("/api/warehouse/scan-out", "POST", handlePOST);

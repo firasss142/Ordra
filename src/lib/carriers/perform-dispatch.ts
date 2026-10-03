@@ -10,6 +10,7 @@ import {
 } from "./carrier-warehouse";
 import { recordDeliverySaving } from "./record-delivery-saving";
 import { isSitePickupDisabled } from "./pickup-window";
+import { recordIntegrationCall, type IntegrationCallInput } from "@/lib/journal/record-call";
 import type { CarrierOrderData } from "./types";
 import type { OrderItem } from "@/types/order-items";
 
@@ -271,20 +272,49 @@ export async function performDispatch({
     }
   }
 
+  // Every upload is journaled (integration_calls), success or not: a refusal
+  // used to be seen once by the agent and then lost. The journal never changes
+  // the answer — journalUpload swallows whatever the recorder does.
+  const startedAt = Date.now();
+  const journalUpload = async (call: Pick<IntegrationCallInput, "status" | "errorCode" | "message">) => {
+    try {
+      await recordIntegrationCall(admin, {
+        ...call,
+        system: carrier.code,
+        connectionId: carrier.id,
+        operation: "upload",
+        durationMs: Date.now() - startedAt,
+        orderId,
+        marketId: order.market_id,
+        actorId,
+      });
+    } catch {
+      // never fail an upload because the journal could not write
+    }
+  };
+
   let result;
   try {
     result = await dispatchToCarrier(orderData, carrier, dispatchExtra);
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("[performDispatch] dispatchToCarrier threw", {
       orderId,
       carrierId,
       carrierCode: carrier.code,
-      error: err instanceof Error ? err.message : String(err),
+      error: message,
     });
+    await journalUpload({ status: "error", errorCode: null, message });
     return { ok: false, status: 500, error: "Internal server error" };
   }
 
   if (!result.success) {
+    const timedOut = /timeout|timed out|abort/i.test(`${result.errorCode ?? ""} ${result.errorMessage ?? ""}`);
+    await journalUpload({
+      status: timedOut ? "timeout" : "refused",
+      errorCode: result.errorCode ?? null,
+      message: result.errorMessage ?? null,
+    });
     return {
       ok: false,
       status: 422,
@@ -293,6 +323,8 @@ export async function performDispatch({
       retryable: result.retryable,
     };
   }
+
+  await journalUpload({ status: "ok", errorCode: null, message: null });
 
   // Persist the caller's extra (e.g. dispatch-time picker values) plus any
   // carrier-returned extra (e.g. Darb Assabil's internal _id) on carrier_extra.

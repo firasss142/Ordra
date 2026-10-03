@@ -10,6 +10,7 @@ import {
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import { attachProductImages } from "@/lib/warehouse/product-images";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export interface ReturnsQueuePage {
   nextCursor: string | null;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -64,3 +65,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/warehouse/returns", "GET", handleGET);

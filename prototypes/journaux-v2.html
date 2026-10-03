@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ordra — Journaux (v2)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v2 — JOURNAUX, version allégée (2026-10-03).
+  Retour du propriétaire sur v1 : « trop dense, je me suis senti submergé ». Même données réelles,
+  même plan (plans/journaux-redesign.md) — seule la présentation change.
+
+  Ce que v2 retire par rapport à v1 :
+    · 3 onglets → 2 : « Aperçu » (est-ce que tout marche ?) et « Historique » (que s'est-il passé ?).
+      Échanges externes et activité interne sont UN seul fil, filtrable.
+    · Barres horaires sur 48 h, carrés des 24 passages, légendes, compteurs du verdict → retirés
+      de l'écran ; ils vivent dans le panneau d'un système, pour qui veut creuser.
+    · « Silences expliqués » → devient le sous-titre de la tuile du système concerné.
+    · Les 14 automatismes → une seule tuile ; la liste est dans son panneau.
+    · Les deux problèmes Navex → un seul (même transporteur, même correctif, deux causes).
+    · Puces de marché, flèches de direction, badges « Réussi » → retirés : le succès est la norme
+      et ne s'affiche pas ; seul ce qui échoue porte de la couleur.
+    · Passages de routine (« rien de nouveau », synchronisations sans changement) → masqués,
+      résumés en une ligne grise par jour.
+    · Panneaux : « Ce qui se passe · Combien · Que faire », le technique replié sous
+      « Détails techniques ».
+
+  Données : production, 3 oct. vers 16 h 40, heures de Tripoli. Clients masqués (dépôt public).
+  URL : ?screen=apercu|historique &state=today|fixed &drawer=p:archive|p:navex|p:benghazi|p:sheets|sys:<id>|jobs|a:sa-reopen|trace
+-->
+<style>
+:root{
+  --page:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F8; --sunken:#FAFAFB;
+  --text:#1A1A1A; --text2:#5F6368; --text3:#8C9196;
+  --line:#ECEEF0; --border:#E1E3E5; --input:#D2D5D9;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE;
+  --sb:#0E1013; --sb-el:#161A20; --sb-text:#E6E8EB; --sb-text2:#B5BAC2; --sb-muted:#7F858F;
+
+  /* severity — the only colour on the page */
+  --ok:#008060;   --ok-ink:#006E52;   --ok-bg:#EEF7F3;
+  --warn:#B98900; --warn-ink:#7A5A00; --warn-bg:#FFF6DF; --warn-line:#EBCB7A;
+  --fail:#D72C0D; --fail-ink:#B42309; --fail-bg:#FFF1EE; --fail-line:#F3C2B6;
+  --mute-bg:#F1F2F3;
+  --info:#2C6ECB;
+
+  /* families — soft icon tiles only */
+  --fam-intake-bg:#EEEDFC;  --fam-intake-ink:#3F37C9;
+  --fam-carrier-bg:#E3F3F1; --fam-carrier-ink:#0B5C56;
+  --fam-ads-bg:#FDEFE6;     --fam-ads-ink:#B4500F;
+  --fam-msg-bg:#E3F4FC;     --fam-msg-ink:#0369A1;
+  --fam-auto-bg:#F0F1F3;    --fam-auto-ink:#4B5563;
+
+  --studio:#E9EBEE;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic","Geeza Pro",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --studio:#2A2D31; } }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--studio);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;direction:ltr;unicode-bidi:isolate}
+.ar{font-family:"Noto Sans Arabic","Geeza Pro",var(--font)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* ── studio ── */
+.studio{padding:16px 20px 40px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;max-width:1440px;margin:0 auto 10px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto;color:#111}
+.bar h1 span{color:#6B7280;font-weight:500}
+.bar .grp{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B7280}
+.seg{display:inline-flex;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:5px 10px;border-radius:7px;font-size:12.5px;font-weight:500;color:#6B7280;border:0;background:none}
+.seg button[aria-pressed=true]{background:#111;color:#fff}
+.bar select{padding:6px 8px;border-radius:8px;border:1px solid #E5E7EB;background:#fff;font-size:12.5px}
+.note{max-width:1440px;margin:0 auto 12px;font-size:12.5px;color:#4B5563;line-height:1.6;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 14px}
+.note b{color:#111827}
+.stagewrap{max-width:1440px;margin:0 auto;overflow-x:auto}
+
+/* ── frame + sidebar (unchanged from v1) ── */
+.frame{width:1440px;height:1010px;border:1px solid #C9CDD3;border-radius:12px;overflow:hidden;background:var(--page);display:flex;position:relative}
+.sb{width:232px;flex:0 0 auto;background:var(--sb);color:var(--sb-text);padding:14px 12px;display:flex;flex-direction:column;gap:1px;font-size:13.5px}
+.sb .logo{font-weight:700;padding:4px 10px 12px;color:#fff;font-size:17px}
+.sb .mk{margin:0 2px 12px;padding:8px 10px;border-radius:8px;background:var(--sb-el);color:var(--sb-text2);font-size:12.5px;display:flex;align-items:center;gap:8px}
+.sb .mk b{color:#fff;font-weight:600}
+.sb .mk svg{margin-inline-start:auto;width:14px;height:14px}
+.sb .sh{display:flex;align-items:center;gap:9px;padding:8px 10px;color:var(--sb-text2);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.sb .sh svg{width:15px;height:15px;color:var(--sb-muted)}
+.sb .sh .chev{margin-inline-start:auto;width:14px;height:14px}
+.sb .sh .adm{margin-inline-start:auto;font-size:10px;padding:1px 6px;border-radius:4px;background:#232830;color:var(--sb-text2)}
+.sb .sh .adm + .chev{margin-inline-start:6px}
+.sb .si{display:flex;align-items:center;gap:9px;padding:7px 10px 7px 30px;border-radius:7px;color:var(--sb-text);font-size:13.5px}
+.sb .si svg{width:15px;height:15px;color:var(--sb-muted)}
+.sb .si[aria-current=page]{background:var(--brand);color:#fff;font-weight:600}
+.sb .si[aria-current=page] svg{color:#fff}
+.sb .si .dot{margin-inline-start:auto;min-width:18px;height:18px;border-radius:999px;background:#E5484D;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px}
+.sb .si[aria-current=page] .dot{background:#fff;color:var(--fail-ink)}
+.sb .me{margin-top:auto;padding:10px;border-radius:8px;background:var(--sb-el);display:flex;gap:10px;align-items:center;font-size:12.5px}
+.sb .me .av{width:28px;height:28px;border-radius:50%;background:#2A3038;display:grid;place-items:center;font-weight:700;font-size:11.5px;color:#fff}
+.sb .me small{display:block;color:var(--sb-muted);font-size:11.5px}
+
+.main{flex:1 1 auto;min-width:0;position:relative;display:flex;flex-direction:column}
+.body{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.wrap{max-width:940px;margin:0 auto;padding:30px 32px 64px}
+
+/* ── head ── */
+.ph{display:flex;align-items:center;gap:16px}
+.ph h1{margin:0;font-size:24px;font-weight:650;letter-spacing:-.015em}
+.find{margin-inline-start:auto;display:flex;align-items:center;gap:9px;width:340px;height:40px;padding:0 12px;border:1px solid var(--input);border-radius:10px;background:#fff;color:var(--text3);cursor:text}
+.find:hover{border-color:#B9BEC4}
+.find svg{color:var(--text2)}
+.find span{flex:1;font-size:14px}
+.find kbd{font-family:var(--font);font-size:11.5px;color:var(--text2);border:1px solid var(--border);border-radius:5px;padding:0 6px;background:var(--sunken)}
+.tabs{display:flex;gap:26px;border-bottom:1px solid var(--border);margin:18px 0 26px}
+.tabs button{border:0;background:none;padding:10px 0 12px;font-size:15px;font-weight:500;color:var(--text2);position:relative;display:inline-flex;gap:8px;align-items:center}
+.tabs button[aria-selected=true]{color:var(--text);font-weight:600}
+.tabs button[aria-selected=true]::after{content:"";position:absolute;inset-inline:0;bottom:-1px;height:2px;border-radius:2px;background:var(--brand)}
+.tabs .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:999px;font-size:12px;font-weight:700;display:inline-grid;place-items:center;background:var(--fail-bg);color:var(--fail-ink)}
+
+/* ── verdict ── */
+.verdict{display:flex;align-items:center;gap:16px;margin-bottom:28px}
+.verdict .vi{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--fail-bg);color:var(--fail)}
+.verdict[data-s=ok] .vi{background:var(--ok-bg);color:var(--ok)}
+.verdict .vi svg{width:24px;height:24px;stroke-width:2}
+.verdict h2{margin:0;font-size:21px;font-weight:650;letter-spacing:-.01em}
+.verdict p{margin:2px 0 0;color:var(--text2);font-size:14.5px}
+
+/* ── sections ── */
+h3.st{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:8px}
+h3.st .sp{flex:1}
+h3.st button{border:0;background:none;padding:0;color:var(--info);font-size:13px;font-weight:500}
+.sec{margin-bottom:32px}
+
+/* problems — one card each */
+.pb{display:grid;grid-template-columns:10px minmax(0,1fr) auto 18px;gap:16px;align-items:center;padding:16px 18px;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;text-align:start;width:100%}
+.pb:hover{border-color:var(--border);background:var(--hover)}
+.pb .d{width:10px;height:10px;border-radius:50%;background:var(--fail)}
+.pb[data-s=warn] .d{background:var(--warn)}
+.pb[data-s=ok] .d{background:var(--ok)}
+.pb h4{margin:0;font-size:15px;font-weight:600;line-height:1.35}
+.pb p{margin:3px 0 0;font-size:13.5px;color:var(--text2)}
+.pb .imp{text-align:end;white-space:nowrap}
+.pb .imp b{display:block;font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}
+.pb .imp span{font-size:12.5px;color:var(--text2)}
+.pb[data-s=fail] .imp b{color:var(--fail-ink)}
+.chev{color:var(--text3)}
+.pb:hover .chev,.sy:hover .chev,.row[data-a]:hover .chev{color:var(--text)}
+
+/* systems — calm tiles */
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sy{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:12px;cursor:pointer;text-align:start;width:100%}
+.sy:hover{border-color:var(--border);background:var(--hover)}
+.sy[data-s=fail]{border-color:var(--fail-line)}
+.sy[data-s=warn]{border-color:var(--warn-line)}
+.tile{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto}
+.tile svg{width:17px;height:17px;stroke-width:2}
+.tile[data-f=intake]{background:var(--fam-intake-bg);color:var(--fam-intake-ink)}
+.tile[data-f=carrier]{background:var(--fam-carrier-bg);color:var(--fam-carrier-ink)}
+.tile[data-f=ads]{background:var(--fam-ads-bg);color:var(--fam-ads-ink)}
+.tile[data-f=msg]{background:var(--fam-msg-bg);color:var(--fam-msg-ink)}
+.tile[data-f=auto]{background:var(--fam-auto-bg);color:var(--fam-auto-ink)}
+.tile[data-f=app]{background:#EEF0F4;color:#2F3A4B}
+.sy .nm{flex:1;min-width:0}
+.sy b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sy small{display:block;font-size:12.5px;color:var(--text2);margin-top:1px}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;margin-top:6px;color:var(--text2)}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block}
+.state[data-s=ok]{color:var(--ok-ink)} .state[data-s=ok] i{background:var(--ok)}
+.state[data-s=fail]{color:var(--fail-ink);font-weight:600} .state[data-s=fail] i{background:var(--fail)}
+.state[data-s=warn]{color:var(--warn-ink);font-weight:600} .state[data-s=warn] i{background:var(--warn)}
+.state[data-s=mute] i{background:#C5CBD3}
+.state[data-s=off] i{background:#fff;box-shadow:inset 0 0 0 1.5px #B6BBC1}
+.quiet{margin-top:10px;font-size:13px;color:var(--text2)}
+.quiet button{border:0;background:none;padding:0;color:var(--info);font-size:13px;font-weight:500}
+
+/* ── history ── */
+.tb{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.chip{height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--input);background:#fff;font-size:13.5px;font-weight:500;color:var(--text2)}
+.chip[aria-pressed=true]{background:var(--text);border-color:var(--text);color:#fff}
+.tg{margin-inline-start:auto;display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text2);border:0;background:none;padding:0}
+.tg i{width:32px;height:19px;border-radius:999px;background:#C9CDD2;position:relative;display:inline-block}
+.tg i::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .15s}
+.tg[aria-checked=true] i{background:var(--brand)}
+.tg[aria-checked=true] i::after{transform:translateX(13px)}
+.feed{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.day{padding:14px 20px 6px;font-size:13px;font-weight:600;color:var(--text2)}
+.day + .row{border-top:0}
+.row{display:grid;grid-template-columns:48px 32px minmax(0,1fr) 18px;gap:14px;align-items:center;padding:11px 20px;border-top:1px solid var(--line)}
+.row[data-a]{cursor:pointer}
+.row[data-a]:hover{background:var(--hover)}
+.row .tm{font-size:13px;color:var(--text3);font-variant-numeric:tabular-nums}
+.row .wh{font-size:14.5px;line-height:1.4}
+.row .wh small{display:block;font-size:13px;color:var(--text2);margin-top:1px}
+.row[data-s=fail]{background:var(--fail-bg)}
+.row[data-s=fail]:hover{background:#FFE9E4}
+.row[data-s=warn]{background:var(--warn-bg)}
+.flag{display:inline-block;margin-inline-start:6px;font-size:12px;font-weight:600;padding:0 8px;border-radius:999px;vertical-align:1px}
+.flag[data-s=fail]{background:#fff;color:var(--fail-ink);box-shadow:inset 0 0 0 1px var(--fail-line)}
+.flag[data-s=warn]{background:#fff;color:var(--warn-ink);box-shadow:inset 0 0 0 1px var(--warn-line)}
+.flag[data-s=ex]{background:#fff;color:var(--info);box-shadow:none;border:1px dashed #9DBAE6;font-weight:500;padding:0 7px}
+.chg{width:100%;border-collapse:collapse;font-size:13.5px}
+.chg th{font-size:12px;font-weight:600;color:var(--text2);text-align:start;padding:0 0 6px}
+.chg td{padding:9px 0;border-top:1px solid var(--line);vertical-align:top}
+.chg td.b{color:var(--text2);text-decoration:line-through;text-decoration-color:#C5CBD3}
+.chg td.a{font-weight:600}
+.chg td + td{padding-inline-start:14px}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;background:var(--mute-bg);color:var(--text2)}
+.av svg{width:16px;height:16px;stroke-width:2}
+.av.t{border-radius:9px}
+.av[data-k=sa]{background:#1F2328;color:#fff}
+.av[data-k=unknown]{background:#fff;border:1.5px dashed #B6BBC1;color:var(--text3)}
+.routine{padding:9px 20px 12px 114px;font-size:13px;color:var(--text3);border-top:1px solid var(--line)}
+.routine button{border:0;background:none;padding:0;color:var(--info);font-size:13px}
+
+/* ── drawers ── */
+.dw{position:absolute;inset:0;background:rgba(17,24,39,.28);z-index:50;display:flex;justify-content:flex-end}
+.dp{width:540px;height:100%;background:#fff;display:flex;flex-direction:column;box-shadow:-8px 0 32px rgba(15,23,42,.10)}
+.dp.wide{width:640px}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:22px 26px 16px}
+.dh h3{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em;line-height:1.3}
+.dh .sub{margin-top:6px;font-size:13.5px;color:var(--text2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.dh .x{margin-inline-start:auto;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--border);background:#fff;flex:0 0 auto}
+.db{flex:1;min-height:0;overflow-y:auto;padding:0 26px 24px;scrollbar-width:thin}
+.db h4{margin:22px 0 8px;font-size:13px;font-weight:600;color:var(--text2)}
+.db p{margin:0 0 8px;font-size:14.5px;line-height:1.6}
+.db p.s{font-size:13px;color:var(--text2)}
+.df{display:flex;gap:8px;padding:14px 26px;border-top:1px solid var(--line);align-items:center}
+.df .sp{flex:1}
+.figs{display:flex;gap:28px;margin:4px 0 4px}
+.fig b{display:block;font-size:26px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.015em;line-height:1.2}
+.fig span{font-size:13px;color:var(--text2)}
+.fig[data-s=fail] b{color:var(--fail-ink)}
+.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{position:relative;padding:0 0 12px 34px;font-size:14.5px;line-height:1.5;counter-increment:s}
+.steps li::before{content:counter(s);position:absolute;inset-inline-start:0;top:0;width:22px;height:22px;border-radius:50%;background:var(--mute-bg);color:var(--text2);font-size:12px;font-weight:700;display:grid;place-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:2px 10px;border-radius:999px}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill[data-s=fail]{background:var(--fail-bg);color:var(--fail-ink)}
+.pill[data-s=warn]{background:var(--warn-bg);color:var(--warn-ink)}
+.pill[data-s=ok]{background:var(--ok-bg);color:var(--ok-ink)}
+.pill[data-s=mute]{background:var(--mute-bg);color:var(--text2)}
+.callout{padding:12px 14px;border-radius:10px;font-size:14px;line-height:1.55;background:var(--warn-bg);color:#5C4400}
+details.tech{margin-top:22px;border:1px solid var(--line);border-radius:10px}
+details.tech summary{padding:11px 14px;font-size:13.5px;font-weight:500;color:var(--text2);cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center}
+details.tech summary::-webkit-details-marker{display:none}
+details.tech summary svg{transition:transform .15s}
+details.tech[open] summary svg{transform:rotate(90deg)}
+details.tech .in{padding:0 14px 14px}
+.code{background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;color:#374151;white-space:pre-wrap;word-break:break-word;direction:ltr;text-align:left}
+.mini{width:100%;border-collapse:collapse;font-size:13.5px}
+.mini td{padding:8px 0;border-bottom:1px solid var(--line)}
+.mini tr:last-child td{border-bottom:0}
+.mini .end{text-align:end;font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:8px;border:1px solid var(--input);background:#fff;font-weight:500;font-size:14px;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn[data-primary]{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+.btn[data-primary]:hover{background:var(--brand-hover)}
+.btn[data-quiet]{border-color:transparent;color:var(--text2)}
+.btn svg{width:15px;height:15px}
+.ub{display:flex;gap:2px;align-items:flex-end;height:24px;margin-top:4px}
+.ub i{flex:1;height:22px;border-radius:2px;background:var(--ok)}
+.ub i[data-s=fail]{background:var(--fail)}
+.ub i[data-s=idle]{background:#C5CBD3}
+.ub i[data-s=miss]{background:#fff;box-shadow:inset 0 0 0 1px var(--warn-line)}
+.axis{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);margin-top:3px}
+.jobs .jr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);align-items:center}
+.jobs .jr:last-child{border-bottom:0}
+.jobs .jr b{font-weight:600;font-size:14px;display:block}
+.jobs .jr small{font-size:12.5px;color:var(--text2)}
+
+/* trace */
+.tl{list-style:none;margin:6px 0 0;padding:0}
+.tl li{display:grid;grid-template-columns:112px 18px minmax(0,1fr);gap:12px;padding:0 0 18px;position:relative}
+.tl li::before{content:"";position:absolute;inset-inline-start:132px;top:16px;bottom:0;width:2px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .tt{font-size:13px;color:var(--text2);text-align:end;font-variant-numeric:tabular-nums;padding-top:1px}
+.tl .dot{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #B6BBC1;margin-top:3px;position:relative;z-index:1;margin-inline-start:2px}
+.tl .dot[data-s=ok]{border-color:var(--ok);background:var(--ok)}
+.tl .what{font-size:14.5px;line-height:1.45}
+.tl .what b{font-weight:600}
+.tl .what small{display:block;font-size:13px;color:var(--text2);margin-top:1px}
+
+.toast{position:absolute;bottom:22px;inset-inline-start:50%;transform:translateX(-50%);background:#1A1A1A;color:#fff;padding:10px 16px;border-radius:10px;font-size:13.5px;z-index:80}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="bar" id="bar"></div>
+  <div class="note" id="note"></div>
+  <div class="stagewrap"><div id="stage"></div></div>
+</div>
+
+<script>
+/* ═════════ icons (lucide) ═════════ */
+const ICON = {
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  box:'<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/>',
+  gear:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  scroll:'<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>', chevd:'<path d="m6 9 6 6 6-6"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  xc:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  checkc:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  megaphone:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  msg:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+  ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+};
+const ic = (n, c='') => `<svg viewBox="0 0 24 24" class="${c}" aria-hidden="true">${ICON[n]||''}</svg>`;
+const nb = s => String(s).replace(/« /g,'« ').replace(/ ([»:;?!])/g,' $1');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ═════════ state ═════════ */
+const q = new URLSearchParams(location.search);
+const S = {
+  screen: q.get('screen') === 'historique' ? 'historique' : 'apercu',
+  state: q.get('state') === 'fixed' ? 'fixed' : 'today',
+  drawer: q.get('drawer') || '',
+  filter: 'all', onlyIssues: false, toast: '',
+  ex: q.get('ex') !== '0',
+};
+const FIXED = () => S.state === 'fixed';
+const FAMI = { intake:'inbox', carrier:'truck', ads:'megaphone', msg:'msg', auto:'clock', app:'shield' };
+const tile = f => `<span class="tile" data-f="${f}">${ic(FAMI[f])}</span>`;
+const pill = (s, t) => `<span class="pill" data-s="${s}"><i></i>${nb(t)}</span>`;
+
+/* ═════════ real data — production, 3 oct. ~16:40 Tripoli ═════════ */
+// What needs doing. One cause = one problem. Sorted by what it costs.
+const PROBLEMS = [
+  { id:'archive', s:'fail', title:'L’archivage nocturne échoue depuis 43 nuits',
+    line:'Les commandes terminées restent dans les listes. Le correctif est prêt.', imp:['921','commandes à ranger'] },
+  { id:'navex', s:'fail', title:'Navex : 139 colis d’avril bloqués',
+    line:'Livrés ou retournés chez Navex, toujours « en route » dans Ordra.', imp:['8 211 TND','jamais soldés'] },
+  { id:'server', s:'fail', title:'Accès : désactiver un utilisateur échoue depuis le 24 sept.',
+    line:'Erreur serveur à chaque essai, restée invisible 9 jours. Le correctif est prêt.', imp:['100 %','des essais échouent'] },
+  { id:'benghazi', s:'warn', title:'Darb Benghazi ne se synchronise plus',
+    line:'Compte désactivé le 1 oct. à 18:26 — on ne sait pas par qui.', imp:['63','colis sans suivi'] },
+  { id:'sheets', s:'warn', title:'Converty : 66 lignes refusées à l’import',
+    line:'« Nom du client manquant » depuis le 31 août, jamais retraitées.', imp:['66','commandes perdues'] },
+];
+
+// Systems — one tile each. `why` replaces v1's « silences expliqués ».
+const SYSTEMS = [
+  { id:'darbT', f:'carrier', name:'Darb Tripoli', where:'Libye · transporteur', st:['ok','En service'], last:'il y a 7 min', bars:'o'.repeat(48) },
+  { id:'darbB', f:'carrier', name:'Darb Benghazi', where:'Libye · transporteur', st:['warn','Muet depuis 2 jours'], last:'dernier passage 1 oct. 18:23', bars:'oo'+'m'.repeat(46), pb:'benghazi',
+    fixed:{ st:['ok','En service'], last:'il y a 4 min', bars:'o'.repeat(48) } },
+  { id:'navex', f:'carrier', name:'Navex', where:'Tunisie · transporteur', st:['fail','En panne'], last:'139 colis refusés à chaque passage', bars:'f'.repeat(48), pb:'navex',
+    fixed:{ st:['ok','En service'], last:'139 colis soldés', bars:'o'.repeat(48) } },
+  { id:'converty', f:'intake', name:'Converty', where:'Libye · boutique', st:['mute','En pause'], last:'Publicité arrêtée depuis le 30 sept. — rien à importer', bars:'i'.repeat(48) },
+  { id:'shops', f:'intake', name:'Autres boutiques', where:'11 boutiques reliées par webhook', st:['mute','Calmes'], last:'Rien reçu depuis 30 jours (dont 7 de test)' },
+  { id:'meta', f:'ads', name:'Meta', where:'Libye · publicité', st:['ok','En service'], last:'il y a 33 min', bars:'o'.repeat(48) },
+  { id:'wa', f:'msg', name:'WhatsApp', where:'Messagerie client', st:['off','Non connecté'], last:'Aucun numéro relié' },
+  { id:'jobs', f:'auto', name:'Tâches automatiques', where:'14 tâches planifiées', st:['fail','1 en échec'], last:'13 sur 14 réussissent', pb:'archive',
+    fixed:{ st:['ok','Toutes réussies'], last:'14 sur 14' } },
+  { id:'app', f:'app', name:'Ordra', where:'Erreurs et sécurité de l’application', st:['fail','1 erreur répétée'], last:'Accès › désactiver un utilisateur', pb:'server',
+    fixed:{ st:['ok','Aucune erreur répétée'], last:'3 échecs de connexion en 24 h' } },
+];
+
+const JOBS = [
+  ['Synchronisation Darb','toutes les 10 min','ok','1 180 colis relus'],
+  ['Import Google Sheets','toutes les 15 min','mute','Rien de nouveau'],
+  ['Suivi des colis Navex','toutes les 10 min','fail','0 statut appliqué sur 139','ok','139 colis soldés'],
+  ['Synchronisation Meta','chaque heure','ok','339 lignes'],
+  ['Envois programmés','toutes les 5 min','mute','Résultat non conservé aujourd’hui','mute','Rien à envoyer'],
+  ['Tarifs Darb','chaque nuit, 04:17','ok','304 destinations'],
+  ['File WhatsApp','chaque minute','mute','Rien à envoyer'],
+  ['Archivage des commandes terminées','chaque nuit, 05:00','fail','Échec — réglage illisible','ok','921 archivées'],
+  ['Commissions des agents','toutes les 15 min','ok','Réussi'],
+  ['Investisseurs · suivi','toutes les 15 min','ok','620 commandes relues'],
+  ['Investisseurs · recalcul','chaque nuit, 04:41','ok','Réussi'],
+  ['Statistiques des zones','chaque nuit, 04:17','ok','Réussi'],
+  ['Disponibilité des agents','chaque heure','ok','Réussi'],
+  ['Rappels et notifications','chaque minute','ok','Réussi'],
+];
+
+// One stream: exchanges with outside systems (ext), people (team), Ordra's own jobs (auto).
+// Only what changed something, or failed. Routine passes are counted, not listed.
+const FEED = [
+  { day:'Aujourd’hui', routine:'312 passages de routine sans changement (synchronisations, imports vides)' },
+  { t:'16:30', c:'ext', f:'carrier', s:'fail', txt:'Navex : 139 colis interrogés, aucun statut appliqué', sub:'Répété toutes les 10 min depuis minuit', dr:'p:navex', hideFixed:true },
+  { t:'16:23', c:'ext', f:'carrier', txt:'Commande 2059056 livrée', sub:'Darb Tripoli · 199 LYD' },
+  { t:'16:23', c:'ext', f:'carrier', txt:'Commande 1542368 annulée par Darb', sub:'Gharyan · 249 LYD' },
+  { t:'16:20', c:'team', who:'TA', txt:'tasnim a écrit au client sur WhatsApp', sub:'Suivi de livraison' },
+  { t:'16:15', c:'ext', f:'carrier', txt:'Commande 1356196 annulée par Darb', sub:'Al Jufra · 249 LYD' },
+  { t:'15:12', c:'sec', s:'fail', ex:true, txt:'Erreur serveur : désactiver un utilisateur', sub:'Accès · 2ᵉ essai en 1 min · même erreur depuis le 24 sept.', dr:'p:server', hideFixed:true },
+  { t:'16:08', c:'auto', txt:'Commission de 9,000 LYD créditée à roqaya', sub:'Commande livrée' },
+  { t:'16:03', c:'ext', f:'carrier', txt:'Commande 2259125 livrée', sub:'Darb Tripoli · 199 LYD' },
+  { t:'15:40', c:'ext', f:'carrier', txt:'Commande 11867602 annulée par Darb', sub:'Sebha · 249 LYD' },
+  { t:'14:43', c:'team', who:'TA', txt:'tasnim : 3ᵉ tentative, pas de réponse' },
+  { t:'14:05', c:'team', who:'SL', ex:true, txt:'salima a noté un retour client', sub:'Voix du client · « emballage abîmé »' },
+  { t:'13:40', c:'team', who:'RO', txt:'roqaya a relancé l’agence Darb pour un colis', sub:'4 actions en 9 min' },
+  { t:'12:41', c:'ext', f:'carrier', s:'fail', ex:true, txt:'Envoi chez Darb refusé : destination manquante', sub:'Confirmée par tasnim · la commande reste « Confirmée »', dr:'e:upload' },
+  { t:'12:23', c:'auto', txt:'Commission de 10,000 LYD créditée à tasnim', sub:'Commande livrée' },
+  { t:'11:05', c:'team', who:'RO', ex:true, txt:'roqaya a appelé un prospect — intéressé, rappel demain', sub:'Prospects' },
+  { t:'08:58', c:'sec', s:'warn', ex:true, txt:'3 échecs de connexion sur un compte agent', sub:'puis connexion réussie à 09:01, même appareil' },
+  { t:'05:00', c:'auto', s:'fail', txt:'L’archivage nocturne a échoué', sub:'43ᵉ nuit d’affilée', dr:'p:archive', fixed:{ txt:'921 commandes terminées archivées', sub:'Archivage nocturne' } },
+  { t:'04:17', c:'ext', f:'carrier', txt:'Tarifs Darb mis à jour', sub:'304 destinations' },
+  { day:'Hier · 2 oct.', routine:'288 passages de routine sans changement' },
+  { t:'22:27', c:'team', who:'SA', k:'sa', txt:'Super Admin a rouvert puis rejeté une commande', sub:'« code-barres annulé chez le transporteur »' },
+  { t:'17:27', c:'team', who:'SA', k:'sa', txt:'Super Admin a rouvert et confirmé une commande rejetée', sub:'Darb a créé le colis 13 s plus tard', dr:'a:sa-reopen' },
+  { t:'19:10', c:'team', who:'SA', k:'sa', ex:true, txt:'Super Admin a changé le prix d’un produit : 199 → 179 LYD', sub:'Produits · Libye', dr:'c:price' },
+  { t:'15:30', c:'team', who:'HA', ex:true, txt:'hamidaly a envoyé une campagne WhatsApp à 240 clients', sub:'236 remis · 4 en échec' },
+  { t:'12:52', c:'team', who:'HA', txt:'hamidaly a réattribué 7 commandes', sub:'à roqaya (4) et salima (3) — le « à qui » est nouveau' },
+  { t:'10:14', c:'sec', ex:true, txt:'Super Admin a exporté la liste des clients', sub:'2 340 lignes · Libye' },
+  { t:'09:20', c:'team', who:'SA', k:'sa', ex:true, txt:'Super Admin a affecté adel à l’entrepôt Tripoli', sub:'Accès · entrepôt : aucun → Tripoli' },
+  { t:'04:41', c:'auto', ex:true, txt:'Relevés investisseurs de septembre calculés', sub:'Investisseurs · 3 contrats' },
+  { day:'1 oct.', routine:'301 passages de routine sans changement' },
+  { t:'19:16', c:'team', who:'SL', txt:'salima a confirmé 2 commandes après rappel' },
+  { t:'18:26', c:'team', who:'?', k:'unknown', s:'warn', txt:'Darb Benghazi a été désactivé', sub:'Auteur non enregistré aujourd’hui — le futur journal le dira', dr:'p:benghazi' },
+  { t:'16:59', c:'team', who:'AD', txt:'adel a scanné 2 colis', sub:'Entrepôt Tripoli · stock −2' },
+  { day:'21 août' },
+  { t:'16:47', c:'team', who:'A', k:'sa', txt:'Admin a modifié 28 réglages de la Tunisie', sub:'dont « Archiver après » — à l’origine de l’échec d’archivage', dr:'c:settings' },
+];
+
+/* ═════════ shell ═════════ */
+function sidebar(){
+  const sec = (icon, t) => `<div class="sh">${ic(icon)}<span>${t}</span>${ic('chev','chev')}</div>`;
+  const open = FIXED() ? 0 : PROBLEMS.length;
+  return `<nav class="sb">
+    <div class="logo">Ordra</div>
+    <div class="mk">Marché <b>Tous les marchés</b>${ic('chevd')}</div>
+    ${sec('home','Accueil')}${sec('bag','Commandes')}${sec('box','Entrepôt')}${sec('truck','Livraison')}${sec('chart','Finances')}${sec('users','Clients')}${sec('gauge','Équipe')}
+    <div class="sh">${ic('server')}<span>Système</span><b class="adm">ADMIN</b>${ic('chevd','chev')}</div>
+    <a class="si">${ic('gear')}Réglages</a>
+    <a class="si" aria-current="page">${ic('scroll')}Journaux${open?`<span class="dot">${open}</span>`:''}</a>
+    <div class="me"><span class="av">AD</span><div>Admin<small>Administrateur</small></div></div>
+  </nav>`;
+}
+function head(){
+  const open = FIXED() ? 0 : PROBLEMS.length;
+  return `<div class="ph"><h1>Journaux</h1>
+      <div class="find" data-a="drawer:trace" role="button" tabindex="0">${ic('search')}<span>Retrouver une commande</span><kbd>/</kbd></div></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="${S.screen==='apercu'}" data-a="screen:apercu">Aperçu${open?` <span class="cnt">${open}</span>`:''}</button>
+      <button role="tab" aria-selected="${S.screen==='historique'}" data-a="screen:historique">Historique</button>
+    </nav>`;
+}
+
+/* ═════════ Aperçu — « est-ce que tout marche ? » ═════════ */
+function apercu(){
+  const sys = SYSTEMS.map(s => FIXED() && s.fixed ? {...s, ...s.fixed} : s);
+  const healthy = sys.filter(s => s.st[0]==='ok' || s.st[0]==='mute').length;
+  const verdict = FIXED()
+    ? `<div class="verdict" data-s="ok"><span class="vi">${ic('checkc')}</span><div><h2>Tout fonctionne</h2><p>Rien à régler. Les ${sys.length} systèmes suivis répondent normalement.</p></div></div>`
+    : `<div class="verdict"><span class="vi">${ic('xc')}</span><div><h2>${PROBLEMS.length} choses à régler</h2><p>${healthy} systèmes sur ${sys.length} fonctionnent normalement.</p></div></div>`;
+  const problems = FIXED() ? '' : `<section class="sec"><h3 class="st">À régler</h3>
+    ${PROBLEMS.map(p=>`<button class="pb" data-s="${p.s}" data-a="drawer:p:${p.id}"><span class="d"></span>
+      <span><h4>${nb(p.title)}</h4><p>${nb(p.line)}</p></span>
+      <span class="imp"><b>${p.imp[0]}</b><span>${nb(p.imp[1])}</span></span>${ic('chev','chev')}</button>`).join('')}</section>`;
+  const systems = `<section class="sec"><h3 class="st">Systèmes</h3>
+    <div class="grid">${sys.map(s=>`<button class="sy" data-s="${s.st[0]}" data-a="drawer:${['jobs','app'].includes(s.id)?s.id:'sys:'+s.id}">${tile(s.f)}
+      <span class="nm"><b>${esc(s.name)}</b><small>${nb(s.where)}</small>
+      <span class="state" data-s="${s.st[0]}"><i></i>${nb(s.st[1])}</span><small>${nb(s.last)}</small></span></button>`).join('')}</div></section>`;
+  return verdict + problems + systems;
+}
+
+// newest first inside each day, whatever order the rows were written in
+function sortedFeed(){
+  const out = []; let buf = [];
+  const flush = () => { out.push(...buf.sort((a,b) => b.t.localeCompare(a.t))); buf = []; };
+  for (const r of FEED){ if (r.day){ flush(); out.push(r); } else buf.push(r); }
+  flush(); return out;
+}
+/* ═════════ Historique — « que s'est-il passé ? » ═════════ */
+function historique(){
+  const F = [['all','Tout'],['ext','Systèmes externes'],['team','Équipe'],['auto','Automatique'],['sec','Sécurité et erreurs']];
+  const rows = []; let day = null;
+  for (const raw of sortedFeed()){
+    if (raw.day){ if (day && day.n && !S.onlyIssues) rows.push(day.tail); day = { head:`<div class="day">${raw.day}</div>`, tail:raw.routine?`<div class="routine">${nb(raw.routine)} · <button>afficher</button></div>`:'', n:0 }; continue; }
+    if (FIXED() && raw.hideFixed) continue;
+    if (raw.ex && !S.ex) continue;
+    const e = FIXED() && raw.fixed ? {...raw, ...raw.fixed, s:'', dr:''} : raw;
+    if (S.filter !== 'all' && e.c !== S.filter) continue;
+    if (S.onlyIssues && !e.s) continue;
+    if (!day.n) rows.push(day.head);
+    day.n++;
+    const av = e.c==='ext' ? `<span class="av t" style="background:var(--fam-${e.f}-bg);color:var(--fam-${e.f}-ink)">${ic(FAMI[e.f])}</span>`
+      : e.c==='auto' ? `<span class="av t" style="background:var(--fam-auto-bg);color:var(--fam-auto-ink)">${ic('gear')}</span>`
+      : e.c==='sec' ? `<span class="av t" style="background:#EEF0F4;color:#2F3A4B">${ic('shield')}</span>`
+      : `<span class="av" data-k="${e.k||''}">${e.who}</span>`;
+    const flag = (e.s==='fail' ? '<span class="flag" data-s="fail">Échec</span>' : e.s==='warn' ? '<span class="flag" data-s="warn">À vérifier</span>' : '')
+      + (e.ex ? '<span class="flag" data-s="ex" title="Ce que le nouveau journal enregistrera — pas enregistré aujourd’hui">exemple</span>' : '');
+    rows.push(`<div class="row" data-s="${e.s||''}" ${e.dr?`data-a="drawer:${e.dr}"`:''}><span class="tm">${e.t}</span>${av}
+      <div class="wh">${nb(e.txt)}${flag}${e.sub?`<small>${nb(e.sub)}</small>`:''}</div>${e.dr?ic('chev','chev'):'<span></span>'}</div>`);
+  }
+  if (day && day.n && !S.onlyIssues) rows.push(day.tail);
+  return `<div class="tb">${F.map(([v,l])=>`<button class="chip" aria-pressed="${S.filter===v}" data-a="filter:${v}">${l}</button>`).join('')}
+      <button class="tg" role="switch" aria-checked="${S.onlyIssues}" data-a="onlyIssues"><i></i>Problèmes seulement</button></div>
+    <div class="feed">${rows.join('') || '<div style="padding:48px;text-align:center;color:var(--text2)">Rien à afficher pour ce filtre.</div>'}</div>`;
+}
+
+/* ═════════ panels ═════════ */
+function drawer(){
+  const d = S.drawer;
+  const shell = (title, sub, body, foot, wide) => `<div class="dw" data-a="close"><aside class="dp${wide?' wide':''}" data-stop>
+    <div class="dh"><div><h3>${nb(title)}</h3><div class="sub">${sub}</div></div><button class="x" data-a="close" aria-label="Fermer">${ic('x')}</button></div>
+    <div class="db">${body}</div>${foot?`<div class="df">${foot}</div>`:''}</aside></div>`;
+  const h = t => `<h4>${nb(t)}</h4>`;
+  const figs = arr => `<div class="figs">${arr.map(([v,l,s])=>`<div class="fig" data-s="${s||''}"><b class="num">${v}</b><span>${nb(l)}</span></div>`).join('')}</div>`;
+  const steps = arr => `<ol class="steps">${arr.map(s=>`<li>${nb(s)}</li>`).join('')}</ol>`;
+  const tech = html => `<details class="tech"><summary>${ic('chev')}Détails techniques</summary><div class="in">${html}</div></details>`;
+
+  if (d === 'p:archive') return shell('L’archivage nocturne échoue depuis 43 nuits', `${pill('fail','À régler')}<span>depuis le 22 août</span>`,
+    h('Ce qui se passe') + `<p>${nb('Chaque nuit, Ordra range les commandes terminées depuis 30 jours dans « Archivées ». Depuis le 22 août, la tâche s’arrête sur un réglage tunisien qu’elle n’arrive pas à lire — et la Libye n’est plus archivée non plus.')}</p>` +
+    h('Combien') + figs([['921','commandes encore dans les listes','fail'],['43','nuits d’échec']]) +
+    h('Que faire') + steps(['Fusionner la PR #58 et coller sa migration dans Supabase.','Relancer l’archivage (ou attendre 05:00).','Le problème disparaît seul au premier passage réussi.']) +
+    tech(`<p class="s">${nb('Le réglage « Archiver après » a été enregistré le 21 août à 16:47 sous la forme {"value": 30} ; la tâche attendait 30.')}</p><div class="code">ERROR: invalid input syntax for type integer: "{"value": 30}"
+CONTEXT: archive_finished_orders()</div>`),
+    `<button class="btn" data-quiet data-a="toast">Ignorer 7 jours</button><span class="sp"></span><button class="btn" data-primary data-a="toast">${ic('play')}Relancer l’archivage</button>`);
+
+  if (d === 'p:navex') return shell('Navex : 139 colis d’avril bloqués', `${pill('fail','À régler')}<span>Tunisie</span>`,
+    h('Ce qui se passe') + `<p>${nb('Navex a livré ou retourné ces colis en avril, mais Ordra refuse ce que Navex lui dit. Les commandes restent « en route » depuis cinq mois : le revenu n’est pas compté et le stock des retours n’est pas réintégré.')}</p>` +
+    h('Combien') + figs([['8 211 TND','jamais soldés','fail'],['139','colis']]) +
+    h('Deux causes') + `<table class="mini"><tr><td>${nb('« Livrer Payé » — statut inconnu d’Ordra')}</td><td class="end">91 colis</td><td class="end">5 479 TND</td></tr>
+      <tr><td>${nb('« Retour reçu » — refusé par la règle des statuts')}</td><td class="end">48 colis</td><td class="end">2 732 TND</td></tr></table>` +
+    h('Que faire') + steps(['Faire reconnaître « Livrer Payé » comme « Livrée ».','Accepter « Retour reçu » depuis un colis en route.','Au passage suivant, les 139 colis se soldent et le problème disparaît.']) +
+    tech(`<p class="s">${nb('Navex est interrogé toutes les 10 min pour les mêmes 139 colis : 19 880 lignes écrites par jour, 921 017 lignes et 540 Mo depuis le 20 mai. Le futur journal n’écrira qu’un changement de statut.')}</p>`),
+    `<span class="sp"></span><button class="btn" data-a="toast">Voir les 139 colis</button>`);
+
+  if (d === 'p:benghazi') return shell('Darb Benghazi ne se synchronise plus', `${pill('warn','À vérifier')}<span>Libye · depuis le 1 oct. 18:26</span>`,
+    h('Ce qui se passe') + `<p>${nb('Le compte Darb de Benghazi a été désactivé trois minutes après sa dernière synchronisation. Désactiver un compte arrête aussi le suivi des colis déjà partis.')}</p>` +
+    h('Combien') + figs([['63','colis en cours'],['15 347 LYD','de valeur'],['15','sans aucune nouvelle','fail']]) +
+    `<div class="callout" style="margin-top:14px">${nb('Qui l’a désactivé ? Ordra ne l’enregistre pas aujourd’hui. Le nouveau journal le dira.')}</div>` +
+    h('Que faire') + steps(['Si c’était voulu : continuer de suivre les colis déjà partis (proposé dans le plan).','Sinon : réactiver le compte dans Réglages › Livraison.']),
+    `<span class="sp"></span><button class="btn" data-a="toast">Voir les 63 colis</button><button class="btn" data-primary data-a="toast">Ouvrir le transporteur</button>`);
+
+  if (d === 'p:sheets') return shell('Converty : 66 lignes refusées à l’import', `${pill('warn','À vérifier')}<span>Libye · depuis le 31 août</span>`,
+    h('Ce qui se passe') + `<p>${nb('66 lignes du Google Sheet Converty n’ont pas de nom de client. Ordra les a refusées une fois et ne les a jamais retentées.')}</p>` +
+    h('Combien') + figs([['66','commandes jamais importées','fail']]) +
+    h('Que faire') + steps(['Compléter le nom dans la feuille Converty.','Cliquer « Réessayer » : Ordra relit ces lignes seulement.']),
+    `<span class="sp"></span><button class="btn" data-a="toast">Voir les 66 lignes</button><button class="btn" data-primary data-a="toast">Réessayer</button>`);
+
+  if (d.startsWith('sys:')){
+    const s0 = SYSTEMS.find(x => 'sys:'+x.id === d); if (!s0) return '';
+    const s = FIXED() && s0.fixed ? {...s0, ...s0.fixed} : s0;
+    const recent = FEED.filter(e => !e.day && e.c==='ext' && (s.id.startsWith('darbT') ? /Darb|livrée|annulée/.test(e.txt) : s.id==='navex' ? /Navex/.test(e.txt) : false)).slice(0,5);
+    return shell(s.name, `${pill(s.st[0], s.st[1])}<span>${nb(s.where)}</span>`,
+      (s.bars ? h('Les 48 dernières heures') + `<div class="ub">${[...s.bars].map(c=>`<i data-s="${({o:'ok',f:'fail',i:'idle',m:'miss'})[c]}"></i>`).join('')}</div><div class="axis"><span>il y a 48 h</span><span>maintenant</span></div>
+        <p class="s" style="margin-top:8px">${nb('Une barre par heure. Vert : a fonctionné · gris : rien de nouveau · rouge : en échec · creux : attendu mais absent.')}</p>` : '') +
+      h('Dernière activité') + `<p>${nb(s.last)}</p>` +
+      (recent.length ? h('Récemment') + `<table class="mini">${recent.map(e=>`<tr><td class="num" style="width:56px;color:var(--text3)">${e.t}</td><td>${nb(e.txt)}</td></tr>`).join('')}</table>` : '') +
+      (s0.pb && !FIXED() ? `<p style="margin-top:18px"><button class="btn" data-a="drawer:p:${s0.pb}">Voir le problème</button></p>` : ''),
+      `<span class="sp"></span><button class="btn" data-a="toast">${ic('ext')}Ouvrir dans Réglages</button>`);
+  }
+
+  if (d === 'p:server') return shell('Accès : désactiver un utilisateur échoue', `${pill('fail','À régler')}<span>depuis le 24 sept.</span>`,
+    h('Ce qui se passe') + `<p>${nb('Dans Accès, désactiver, réactiver ou supprimer un utilisateur renvoie une erreur à chaque fois. Pire : la désactivation rend d’abord les commandes de l’agent à la file, puis échoue — l’agent reste actif.')}</p>` +
+    h('Combien') + figs([['100 %','des essais échouent','fail'],['3','actions touchées'],['9 j','sans que personne ne le voie']]) +
+    `<div class="callout" style="margin-top:14px">${nb('Ordra n’enregistre pas ses propres erreurs aujourd’hui. Le nouveau journal compte chaque erreur serveur par action, et ouvre un problème dès qu’elle se répète.')}</div>` +
+    h('Que faire') + steps(['Fusionner la PR #59.','Le problème disparaît seul après une heure sans erreur.']) +
+    tech(`<div class="code">PATCH /api/agents/[id]  →  500
+42501 permission denied for table users</div><p class="s" style="margin-top:8px">${nb('Depuis le 24 sept., une session ne peut plus écrire que last_seen_at dans users ; la route utilisait encore la session.')}</p>`),
+    `<span class="sp"></span><button class="btn" data-a="toast">${ic('ext')}Ouvrir la PR #59</button>`);
+
+  if (d === 'app') { const s = FIXED() ? {st:['ok','Aucune erreur répétée']} : {st:['fail','1 erreur répétée']};
+    return shell('Ordra — erreurs et sécurité', pill(s.st[0], s.st[1]),
+    h('Erreurs répétées') + (FIXED() ? `<p class="s">${nb('Aucune. Les erreurs isolées restent dans l’Historique, filtre « Sécurité et erreurs ».')}</p>`
+      : `<table class="mini"><tr><td>Accès › désactiver un utilisateur</td><td class="end" style="color:var(--fail-ink);font-weight:600">100 % d’échecs</td><td class="end"><button class="btn" style="height:30px" data-a="drawer:p:server">Voir</button></td></tr></table>`) +
+    h('Sécurité · 24 dernières heures') + `<table class="mini"><tr><td>Connexions</td><td class="end">14</td></tr><tr><td>Échecs de connexion</td><td class="end">3</td></tr><tr><td>Exports de données</td><td class="end">1</td></tr><tr><td>Changements de rôle ou de marché</td><td class="end">0</td></tr></table>
+    <p class="s" style="margin-top:10px">${nb('Chiffres d’exemple : rien de cela n’est enregistré aujourd’hui.')}</p>`, ''); }
+
+  if (d === 'e:upload') return shell('Envoi chez Darb refusé', `${pill('fail','Échec')}<span class="flag" data-s="ex" style="margin:0">exemple</span><span>Aujourd’hui, 12:41 · Libye</span>`,
+    h('Ce qui s’est passé') + `<p>${nb('tasnim a confirmé la commande ; Ordra l’a envoyée chez Darb, qui l’a refusée : la destination manque. La commande reste « Confirmée » — rien n’est perdu, il suffit de corriger et de renvoyer.')}</p>` +
+    `<div class="callout" style="margin-top:12px">${nb('Aujourd’hui, un envoi refusé n’est écrit nulle part : l’agent voit l’erreur une fois, puis elle disparaît.')}</div>` +
+    h('Que faire') + steps(['Choisir la destination Darb sur la commande.','Renvoyer — l’essai suivant apparaît juste au-dessus dans l’Historique.']) +
+    tech(`<table class="mini"><tr><td>Code</td><td class="end mono">DARB_VALIDATION</td></tr><tr><td>Durée</td><td class="end">1,2 s</td></tr><tr><td>Tentative</td><td class="end">1</td></tr></table>`),
+    `<span class="sp"></span><button class="btn" data-primary data-a="toast">Ouvrir la commande</button>`);
+
+  if (d === 'c:settings') return shell('Admin a modifié 28 réglages de la Tunisie', '<span>21 août, 16:47 · Réglages</span>',
+    h('Ce qui a changé') + `<table class="chg"><tr><th>Réglage</th><th>Avant</th><th>Après</th></tr>
+      <tr><td>Archiver après</td><td class="b">—</td><td class="a"><span class="mono">{"value": 30}</span></td></tr>
+      <tr><td colspan="3" style="color:var(--text2)">${nb('… et 27 autres réglages, dont 22 écrits pour la première fois')}</td></tr></table>` +
+    `<div class="callout" style="margin-top:14px">${nb('Cette modification est à l’origine de l’échec d’archivage depuis le lendemain. Le nouveau journal relie automatiquement une modification au problème qui la suit.')}</div>`,
+    `<span class="sp"></span><button class="btn" data-a="drawer:p:archive">Voir le problème</button>`);
+
+  if (d === 'c:price') return shell('Super Admin a changé le prix d’un produit', `<span class="flag" data-s="ex" style="margin:0">exemple</span><span>Hier, 19:10 · Produits · Libye</span>`,
+    h('Ce qui a changé') + `<table class="chg"><tr><th>Champ</th><th>Avant</th><th>Après</th></tr>
+      <tr><td>Prix de vente</td><td class="b num">199 LYD</td><td class="a num">179 LYD</td></tr></table>` +
+    `<p class="s" style="margin-top:14px">${nb('Aujourd’hui, prix, coûts et prix planchers changent sans trace. Le nouveau journal garde l’avant et l’après de chaque champ, pour les produits, transporteurs, boutiques, utilisateurs, réglages et dépenses pub.')}</p>`,
+    `<span class="sp"></span><button class="btn" data-a="toast">Ouvrir le produit</button>`);
+
+  if (d === 'jobs') return shell('Tâches automatiques', FIXED() ? pill('ok','14 sur 14 réussies') : `${pill('fail','1 en échec')}<span>13 sur 14 réussissent</span>`,
+    `<p class="s" style="margin-top:4px">${nb('Ce qu’Ordra fait seul, en arrière-plan. Le résultat est ce que la tâche a réellement fait, pas seulement « lancée ».')}</p>
+     <div class="jobs">${JOBS.map(j=>{ const [st,res] = FIXED() && j[4] ? [j[4],j[5]] : [j[2],j[3]];
+       return `<div class="jr"><span><b>${nb(j[0])}</b><small>${nb(j[1])}</small></span>${pill(st, res)}</div>`; }).join('')}</div>`, '');
+
+  if (d === 'a:sa-reopen') return shell('Super Admin a rouvert et confirmé une commande', '<span>Hier, 17:27 · Libye</span>',
+    h('Ce qui s’est passé') + `<ul class="tl">
+      <li><span class="tt">17:27:20</span><span class="dot"></span><div class="what">Rouverte : <b>Rejetée → En attente</b><small>« Réouvert par manager »</small></div></li>
+      <li><span class="tt">17:27:25</span><span class="dot"></span><div class="what">Reprise à <b>tasnim</b></div></li>
+      <li><span class="tt">17:27:25</span><span class="dot"></span><div class="what"><b>Confirmée</b> par Super Admin</div></li>
+      <li><span class="tt">17:27:38</span><span class="dot" data-s="ok"></span><div class="what">Colis créé chez <b>Darb Tripoli</b><small>13 s plus tard</small></div></li></ul>` +
+    `<div class="callout" style="margin-top:6px">${nb('Le motif du rejet a été effacé à la réouverture. Le nouveau journal gardera l’avant et l’après de chaque modification.')}</div>`,
+    `<span class="sp"></span><button class="btn" data-a="drawer:trace">Voir toute la commande</button>`);
+
+  if (d === 'trace') return shell('Commande 2165688', `${pill('ok','Livrée')}<span>Libye · Converty · 199 LYD · Benghazi</span>`,
+    `<ul class="tl" style="margin-top:10px">
+      <li><span class="tt">17 sept. 01:45</span><span class="dot" data-s="ok"></span><div class="what"><b>Reçue</b> de Converty<small>par l’import Google Sheets</small></div></li>
+      <li><span class="tt">17 → 20 sept.</span><span class="dot"></span><div class="what">6 appels, 3 agentes<small>salima, roqaya, tasnim · pas de réponse jusqu’au 20</small></div></li>
+      <li><span class="tt">20 sept. 18:19</span><span class="dot" data-s="ok"></span><div class="what"><b>Confirmée</b> par tasnim</div></li>
+      <li><span class="tt">20 sept. 18:20</span><span class="dot" data-s="ok"></span><div class="what"><b>Envoyée</b> chez Darb<small>colis créé 5 s après la confirmation</small></div></li>
+      <li><span class="tt">21 sept. 18:37</span><span class="dot" data-s="ok"></span><div class="what"><b>Scannée</b> par adel<small>entrepôt Tripoli · stock 140 → 139</small></div></li>
+      <li><span class="tt">21 sept. 21:05</span><span class="dot"></span><div class="what">Retardée par Darb<small>« <span class="ar" dir="rtl">الطلبيه نقل السلماني</span> »</small></div></li>
+      <li><span class="tt">22 sept. 16:00</span><span class="dot" data-s="ok"></span><div class="what"><b>Livrée</b><small>Ordra l’a su 3 min plus tard</small></div></li>
+      <li><span class="tt">22 sept. 16:08</span><span class="dot" data-s="ok"></span><div class="what">Commission de 9,000 LYD créditée à tasnim</div></li></ul>` +
+    tech(`<p class="s">${nb('Réunit 6 sources : import, historique des statuts, Darb, entrepôt, stock, commissions. Le détail des 6 appels et des 5 réattributions s’ouvre en cliquant la ligne.')}</p>`),
+    `<span class="sp"></span><button class="btn" data-primary data-a="toast">Ouvrir la commande</button>`, true);
+  return '';
+}
+
+/* ═════════ frame, studio, events ═════════ */
+function frame(){
+  const body = S.screen==='apercu' ? apercu() : historique();
+  return `<div class="frame">${sidebar()}<main class="main"><div class="body" id="scroll"><div class="wrap">${head()}${body}</div></div>${S.drawer?drawer():''}${S.toast?`<div class="toast">${S.toast}</div>`:''}</main></div>`;
+}
+const NOTES = {
+  apercu:'<b>Aperçu</b> — « est-ce que tout marche ? ». Un verdict, les 5 choses à régler (une carte = une cause), puis 9 tuiles : chaque système externe, les tâches automatiques, et <b>Ordra lui-même</b> (erreurs serveur et sécurité — l’erreur d’Accès est restée invisible 9 jours). Le détail est dans les panneaux.',
+  historique:'<b>Historique</b> — un seul fil pour tout : systèmes externes, équipe (commandes, livraison, stock, prospects, voix du client, campagnes, prix, accès, réglages), automatismes, sécurité et erreurs. Seul ce qui a changé quelque chose ou échoué est listé. Les lignes <span style="border:1px dashed #9DBAE6;color:#2C6ECB;border-radius:999px;padding:0 6px">exemple</span> montrent ce que le nouveau journal enregistrera et qu’Ordra n’enregistre pas aujourd’hui — « Réel seulement » les masque.',
+};
+function studio(){
+  const seg = (name, items, cur) => `<div class="seg">${items.map(([v,l])=>`<button data-s="${name}:${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
+  const drs = [['','—'],['p:archive','Problème : archivage'],['p:navex','Problème : Navex'],['p:benghazi','Problème : Darb Benghazi'],['p:sheets','Problème : Converty'],['sys:darbT','Système : Darb Tripoli'],['p:server','Problème : erreur serveur'],['jobs','Tâches automatiques'],['app','Ordra : erreurs et sécurité'],['e:upload','Envoi refusé (exemple)'],['c:settings','Modification : réglages'],['c:price','Modification : prix (exemple)'],['a:sa-reopen','Action : Super Admin'],['trace','Trace : commande 2165688']];
+  document.getElementById('bar').innerHTML = `<h1>Ordra — Journaux <span>· prototype v2 (allégé) · données réelles du 2026-10-03</span></h1>
+    ${seg('screen',[['apercu','Aperçu'],['historique','Historique']],S.screen)}
+    ${seg('state',[['today','Aujourd’hui (réel)'],['fixed','Après correctifs']],S.state)}
+    ${seg('ex',[['1','Avec exemples'],['0','Réel seulement']],S.ex?'1':'0')}
+    <span class="grp">Panneau <select id="drsel">${drs.map(([v,l])=>`<option value="${v}" ${S.drawer===v?'selected':''}>${l}</option>`).join('')}</select></span>`;
+  document.getElementById('note').innerHTML = NOTES[S.screen];
+}
+function syncURL(){
+  const p = new URLSearchParams(); p.set('screen', S.screen);
+  if (S.state!=='today') p.set('state', S.state); if (S.drawer) p.set('drawer', S.drawer); if (!S.ex) p.set('ex','0');
+  history.replaceState(null, '', '?' + p.toString());
+}
+let keep = false;
+function render(){
+  const sc = document.getElementById('scroll'); const top = sc ? sc.scrollTop : 0;
+  studio();
+  document.getElementById('stage').innerHTML = frame();
+  const ns = document.getElementById('scroll'); if (ns && keep) ns.scrollTop = top; keep = false;
+  const sel = document.getElementById('drsel'); if (sel) sel.onchange = e => { S.drawer = e.target.value; keep = true; render(); };
+  syncURL();
+}
+let tt;
+function toast(m){ S.toast = m; keep = true; render(); clearTimeout(tt); tt = setTimeout(()=>{ S.toast=''; keep = true; render(); }, 1600); }
+document.addEventListener('click', e => {
+  const sb = e.target.closest('#bar [data-s]');
+  if (sb){ const [k,v] = sb.dataset.s.split(':'); S[k] = k==='ex' ? v==='1' : v; if (k==='screen') S.drawer=''; render(); return; }
+  if (e.target.closest('summary')) return;
+  const el = e.target.closest('[data-a]');
+  if (!el || !document.getElementById('stage').contains(el)) return;
+  if (el.classList.contains('dw') && e.target.closest('[data-stop]')) return;
+  e.preventDefault();
+  const a = el.dataset.a, i = a.indexOf(':'), cmd = i<0 ? a : a.slice(0,i), arg = i<0 ? '' : a.slice(i+1);
+  if (cmd==='screen'){ S.screen = arg; S.drawer=''; render(); return; }
+  if (cmd==='drawer'){ S.drawer = arg; keep = true; render(); return; }
+  if (cmd==='close'){ S.drawer = ''; keep = true; render(); return; }
+  if (cmd==='filter'){ S.filter = arg; keep = true; render(); return; }
+  if (cmd==='onlyIssues'){ S.onlyIssues = !S.onlyIssues; keep = true; render(); return; }
+  if (cmd==='toast'){ toast('Action de démonstration'); return; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.drawer){ S.drawer=''; keep = true; render(); } if (e.key === '/' && !S.drawer){ e.preventDefault(); S.drawer='trace'; render(); } });
+render();
+</script>
+</body>
+</html>

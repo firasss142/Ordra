@@ -10,6 +10,7 @@ import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { zoneForOrder, type OrderZone } from "@/lib/warehouse/zone-index";
 import type { StickerBindState } from "@/lib/carriers/darb-assabil-reference";
 import type { OrderLine } from "@/lib/warehouse/summary";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ function decodeCursor(raw: string | null): { at: string; id: string } | null {
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -171,3 +172,5 @@ export async function GET(req: NextRequest) {
     headers: { "Cache-Control": "private, max-age=2, stale-while-revalidate=30" },
   });
 }
+
+export const GET = withRouteErrors("/api/warehouse/scanned", "GET", handleGET);

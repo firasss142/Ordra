@@ -4,6 +4,7 @@ import { canManageCarriers } from "@/lib/settings-permissions";
 import { encrypt, decrypt, maskCredential } from "@/lib/crypto";
 import { getActor } from "@/lib/auth/actor";
 import { getAdapterDescriptor } from "@/lib/carriers/adapter-registry";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ function encodeCredentials(
   return encrypt(JSON.stringify(merged));
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -127,7 +128,7 @@ export async function GET(
   });
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -198,7 +199,7 @@ export async function DELETE(
   return new NextResponse(null, { status: 204 });
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -244,7 +245,7 @@ export async function PATCH(
   if (body.is_active !== undefined) patch.is_active = body.is_active;
 
   // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role.
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   // Only when credentials are being touched: fetch the existing (encrypted)
   // blob via the admin client so a partial update can be merged over it.
@@ -285,3 +286,7 @@ export async function PATCH(
     data: { ...data, api_credentials: maskCredential("") },
   });
 }
+
+export const GET = withRouteErrors("/api/carriers/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/carriers/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/carriers/[id]", "DELETE", handleDELETE);

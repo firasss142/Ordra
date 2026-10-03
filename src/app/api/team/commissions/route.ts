@@ -5,6 +5,7 @@ import { resolveTeamMarket } from "@/lib/team/api-market";
 import { canManageCommissions } from "@/lib/role-permissions";
 import { ISO_DAY } from "@/lib/commissions/api";
 import type { TeamCommissions } from "@/lib/commissions/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Per-agent commissions for the period + all-time balances — one RPC
  * (`get_team_commissions`), market-local days. Managers and super_admin.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canManageCommissions(actorResult.actor.role)) {
@@ -45,3 +46,5 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ data: (data ?? {}) as TeamCommissions });
 }
+
+export const GET = withRouteErrors("/api/team/commissions", "GET", handleGET);

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * its causes. Damaged writeoffs are not reachable from here — those stay on
  * adjust_product_stock, super_admin only.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -123,3 +124,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(data);
 }
+
+export const POST = withRouteErrors("/api/warehouse/stock/count", "POST", handlePOST);

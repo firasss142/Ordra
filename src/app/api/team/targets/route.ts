@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import type { TargetMetric } from "@/lib/team/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const METRICS: readonly TargetMetric[] = ["daily_treated", "min_rate", "conf_per
  * agent's market and to super_admin; this handler mirrors that so the error
  * is a clean 403 rather than an RLS violation.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -64,3 +65,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/team/targets", "POST", handlePOST);

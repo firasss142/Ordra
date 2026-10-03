@@ -6,6 +6,7 @@ import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { canViewReceptions, canDraftReception } from "@/lib/receptions/permissions";
 import { projectReceptionList } from "@/lib/receptions/project";
 import type { RawReception } from "@/lib/receptions/project";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ const RECEPTION_SELECT = `
   reception_payments ( id, paid_at, amount, method, note )
 `;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest) {
  * Créer un brouillon. Rien n'entre en stock ici — c'est `POST .../[id]/post`
  * qui le fait, et lui seul.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -242,3 +243,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id: created.id, reference: created.reference }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/warehouse/receptions", "GET", handleGET);
+export const POST = withRouteErrors("/api/warehouse/receptions", "POST", handlePOST);

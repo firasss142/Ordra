@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { performDispatch } from "@/lib/carriers/perform-dispatch";
+import { withRouteErrors } from "@/lib/journal/route-errors";
+import { startJobRun, type JobRun, type JobRunOutcome } from "@/lib/journal/job-run";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +12,7 @@ type ReadyRow = {
   scheduled_at: string;
 };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const expected = process.env.CRON_SECRET ?? "";
   if (!expected) {
     return NextResponse.json(
@@ -25,15 +27,49 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // Journaux: one job_runs row per run, closed with what the run really did.
+  // Writing it never changes the answer (startJobRun/finish swallow, and so
+  // does closeRun around them).
+  let run: JobRun | null = null;
+  try {
+    run = await startJobRun(admin, "dispatch-scheduled");
+  } catch {
+    run = null;
+  }
+  const closeRun = async (outcome: JobRunOutcome) => {
+    try {
+      await run?.finish(outcome);
+    } catch {
+      // bookkeeping only
+    }
+  };
+
+  try {
+    const { response, outcome } = await dispatchReady(admin);
+    await closeRun(outcome);
+    return response;
+  } catch (err) {
+    await closeRun({ status: "failed", error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+}
+
+async function dispatchReady(
+  admin: ReturnType<typeof createAdminClient>
+): Promise<{ response: NextResponse; outcome: JobRunOutcome }> {
   const { data: rows, error } = await admin.rpc("dispatch_scheduled_ready", {
     p_limit: 50,
   });
 
   if (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch ready rows", detail: error.message },
-      { status: 500 }
-    );
+    return {
+      response: NextResponse.json(
+        { error: "Failed to fetch ready rows", detail: error.message },
+        { status: 500 }
+      ),
+      outcome: { status: "failed", error: `Failed to fetch ready rows: ${error.message}` },
+    };
   }
 
   const ready: ReadyRow[] = (rows ?? []) as ReadyRow[];
@@ -43,6 +79,10 @@ export async function POST(req: NextRequest) {
     ok: boolean;
     error?: string;
   }> = [];
+  // For job_runs: an order sent back to confirmed for a missing destination
+  // was handled (and changed); everything else that is not ok is a failure.
+  let reverted = 0;
+  const failures: string[] = [];
 
   for (const row of ready) {
     // Pull the carrier code + order-side extras the adapter needs. Dexpress
@@ -98,6 +138,8 @@ export async function POST(req: NextRequest) {
         p_note: note,
       });
 
+      if (revertError) failures.push(`reverted-to-confirmed failed: ${revertError.message}`);
+      else reverted++;
       results.push({
         order_id: row.order_id,
         ok: false,
@@ -129,6 +171,7 @@ export async function POST(req: NextRequest) {
     if (result.ok) {
       results.push({ order_id: row.order_id, ok: true });
     } else {
+      failures.push(`upload failed: ${result.error}`);
       results.push({
         order_id: row.order_id,
         ok: false,
@@ -137,10 +180,30 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    processed: ready.length,
-    succeeded: results.filter((r) => r.ok).length,
-    failed: results.filter((r) => !r.ok).length,
-    results,
-  });
+  const uploaded = results.filter((r) => r.ok).length;
+  const outcome: JobRunOutcome = {
+    status:
+      ready.length === 0
+        ? "skipped"
+        : failures.length === 0
+          ? "succeeded"
+          : failures.length === ready.length
+            ? "failed"
+            : "partial",
+    counters: { ready: ready.length, uploaded, reverted, failed: failures.length },
+    changed: uploaded + reverted,
+    error: failures[0] ?? null,
+  };
+
+  return {
+    response: NextResponse.json({
+      processed: ready.length,
+      succeeded: uploaded,
+      failed: results.filter((r) => !r.ok).length,
+      results,
+    }),
+    outcome,
+  };
 }
+
+export const POST = withRouteErrors("/api/cron/dispatch-scheduled", "POST", handlePOST);

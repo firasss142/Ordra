@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { resolveTeamMarket } from "@/lib/team/api-market";
 import { ISO_DAY } from "@/lib/commissions/api";
 import type { AgentPanel } from "@/lib/team/room/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ const MAX_DAYS = 31;
  * One agent over a short period: products, rejection groups, her uploads of
  * the last 30 days, and her commission. One RPC (`get_team_agent_panel`).
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
 
@@ -54,3 +55,5 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ data: data as AgentPanel });
 }
+
+export const GET = withRouteErrors("/api/team/agent-panel", "GET", handleGET);

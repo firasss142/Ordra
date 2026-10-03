@@ -11,6 +11,7 @@ import { OrderLabelPdf } from "@/lib/labels/OrderLabelPdf";
 import type { OrderLabelData } from "@/lib/labels/OrderLabelPdf";
 import React from "react";
 import { randomUUID } from "crypto";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ async function code128DataUrl(text: string): Promise<string> {
   return `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -191,3 +192,5 @@ export async function POST(req: NextRequest) {
     },
   });
 }
+
+export const POST = withRouteErrors("/api/warehouse/label-prints", "POST", handlePOST);
