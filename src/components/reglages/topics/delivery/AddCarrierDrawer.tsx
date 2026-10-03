@@ -177,14 +177,19 @@ export function AddCarrierDrawer({
       </DrawerSection>
 
       <DrawerSection title={t("delivery.drawer.fees")}>
-        <div className="grid grid-cols-2 gap-[12px]">
-          <Field label={t("delivery.drawer.feeDelivery")}>
-            <NumberField label={t("delivery.drawer.feeDelivery")} value={fee} onChange={setFee} unit={currency} step={0.5} fill />
-          </Field>
-          <Field label={t("delivery.drawer.feeReturn")}>
-            <NumberField label={t("delivery.drawer.feeReturn")} value={ret} onChange={setRet} unit={currency} step={0.5} fill />
-          </Field>
-        </div>
+        {code === "darb_assabil" ? (
+          // Darb bills every delivered parcel; Ordra reads the invoice (owner, 2026-10-03).
+          <p className="m-0 text-[13px] text-ink-secondary">{t("delivery.drawer.feesDarb")}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-[12px]">
+            <Field label={t("delivery.drawer.feeDelivery")}>
+              <NumberField label={t("delivery.drawer.feeDelivery")} value={fee} onChange={setFee} unit={currency} step={0.5} fill />
+            </Field>
+            <Field label={t("delivery.drawer.feeReturn")}>
+              <NumberField label={t("delivery.drawer.feeReturn")} value={ret} onChange={setRet} unit={currency} step={0.5} fill />
+            </Field>
+          </div>
+        )}
       </DrawerSection>
     </Drawer>
   );

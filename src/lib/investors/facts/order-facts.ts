@@ -19,6 +19,10 @@ import { attributeOrderRevenue } from "@/lib/calculations/order-revenue-attribut
  *    pending_reason='awaiting_billing' — unless the carrier is flagged
  *    investor_billing_mode='flat_is_final', in which case the flat fee is
  *    accepted (cost_source='flat');
+ *  - a FAILED Darb parcel costs nothing (owner, 2026-10-03): its return cost is
+ *    0 and final, whatever shipping amount Darb printed on the shipment — Darb
+ *    takes its fee out of delivered cash only. Applies to facts derived from now
+ *    on; settled statements are immutable and do not move;
  *  - Dexpress-carried orders are EXCLUDED (row kept, money 0, count printable);
  *  - deleted orders excluded; orders with no product excluded;
  *  - unit-cost snapshots freeze at first observed outcome (existing snapshot
@@ -112,6 +116,7 @@ export interface OrderFactRow {
 }
 
 export const DEXPRESS_CODE = "dexpress";
+export const DARB_CODE = "darb_assabil";
 export const NOT_SHIPPED_STATUSES = new Set(["rejected", "cancelled"]);
 /** Any of these in order_history means the parcel left our hands. */
 export const SHIPPED_STAGE_STATUSES = new Set([
@@ -305,6 +310,8 @@ export function deriveOrderFacts(input: OrderFactInput): OrderFactRow[] {
   const flatSplit = flatFee === null ? null : splitMillimes(flatFee, weights);
 
   const flatIsFinal = carrier?.investorBillingMode === "flat_is_final";
+  // Darb charges nothing on a parcel it failed to deliver.
+  const freeFailure = outcome === "returned" && carrier?.code === DARB_CODE;
 
   // ── Rows ─────────────────────────────────────────────────────────────────
   return lines.map((l, i) => {
@@ -334,10 +341,15 @@ export function deriveOrderFacts(input: OrderFactInput): OrderFactRow[] {
     let expectedRevenue = 0;
 
     if (!excluded && outcome) {
-      const carrierKnown = carrierBilled !== null || (flatIsFinal && flatSplit !== null);
-      const carrierMillimes =
-        carrierBilled !== null ? carrierBilled : flatIsFinal && flatSplit ? flatSplit[i] : null;
-      costSource = carrierBilled !== null ? "billed" : carrierKnown ? "flat" : null;
+      const carrierKnown = freeFailure || carrierBilled !== null || (flatIsFinal && flatSplit !== null);
+      const carrierMillimes = freeFailure
+        ? 0
+        : carrierBilled !== null
+          ? carrierBilled
+          : flatIsFinal && flatSplit
+            ? flatSplit[i]
+            : null;
+      costSource = freeFailure || carrierBilled !== null ? "billed" : carrierKnown ? "flat" : null;
 
       if (deliveredAt) revenueGross = revShare;
       if (carrierKnown && carrierMillimes !== null) {
