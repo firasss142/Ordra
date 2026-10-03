@@ -152,7 +152,7 @@ describe("Réglages › Équipe", () => {
     it("an administrator moves the call delay and gives one agent her own hours, through the save bar", async () => {
       mount(admin);
       const card = screen.getByRole("heading", { name: "Salle de contrôle" }).closest("section") as HTMLElement;
-      const delay = within(card).getByRole("spinbutton", { name: "Commande « non appelée » après" });
+      const delay = within(card).getByRole("spinbutton", { name: "Commande «\u00a0non appelée\u00a0» après" });
       expect(delay).toHaveValue(2);
       await userEvent.clear(delay);
       await userEvent.type(delay, "3");

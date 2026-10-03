@@ -186,7 +186,7 @@ describe("Salle de contrôle — the agents over a period", () => {
     expect(screen.getByText("Agents · septembre 2026")).toBeInTheDocument();
     expect(screen.getByText("vs mois d'avant")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Mois" })).toHaveValue("2026-09");
-    expect(screen.getByText("▲ 3")).toHaveAttribute("title", "août 2026 : 23");
+    expect(screen.getByText("▲ 3")).toHaveAttribute("title", "août 2026\u00a0: 23");
   });
 });
 
