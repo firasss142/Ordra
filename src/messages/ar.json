@@ -3779,6 +3779,8 @@
       "alreadyAdded": "مضاف إلى هذا الاستلام",
       "back": "رجوع",
       "cancel": "إلغاء",
+      "catalogueCount": "{count} منتجات في السوق",
+      "catalogueEmpty": "لا منتجات نشطة في هذا السوق.",
       "chipExpected": "المتوقع {qty}",
       "chipZero": "صفر",
       "clearSearch": "محو البحث",

@@ -833,13 +833,50 @@ table.dec td b{font-weight:600}
 
 <div class="states">
   <div class="state-card">
-    <div class="sc-h">Au repos</div>
+    <div class="sc-h">Au repos — rien n'est ouvert</div>
     <div class="pk-row pk-search" style="border-top:0">
       <div class="srch">
         <span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg></span>
         <input placeholder="Chercher un produit…">
       </div>
       <div></div><div></div><div></div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="sc-h">Au focus — le catalogue du marché</div>
+    <div class="pk-row pk-search" style="border-top:0">
+      <div class="srch">
+        <span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/></svg></span>
+        <input placeholder="Chercher un produit…" style="border-color:var(--ok);box-shadow:0 0 0 3px rgba(14,122,69,.12)">
+      </div>
+      <div></div><div></div><div></div>
+    </div>
+    <div class="results">
+      <button class="res on">
+        <span class="th2">📗</span>
+        <span><span class="nm" dir="auto">القرآن تدبر وعمل</span><span class="mt">qr-01</span></span>
+        <span class="st-num">en stock 943</span><span class="kbd"><kbd>↵</kbd></span>
+      </button>
+      <button class="res">
+        <span class="th2">📘</span>
+        <span><span class="nm" dir="auto">مصحف التهجد و قيام الليل</span><span class="mt">th-01</span></span>
+        <span class="st-num">en stock 218</span><span class="kbd"><kbd>↵</kbd></span>
+      </button>
+      <button class="res">
+        <span class="th2">📕</span>
+        <span><span class="nm" dir="auto">كتاب الحفظ الميسر</span><span class="mt">hm-01</span></span>
+        <span class="st-num">en stock 61</span><span class="kbd"><kbd>↵</kbd></span>
+      </button>
+      <button class="res">
+        <span class="th2">🧸</span>
+        <span><span class="nm" dir="auto">دميه ملاكمه حجم صغير</span><span class="mt">box-wafra-shop</span></span>
+        <span class="st-num"><span class="z">en stock 0</span></span><span class="kbd"><kbd>↵</kbd></span>
+      </button>
+      <div class="res-foot">
+        <span><b style="color:var(--ink-2)">10</b> produits du marché</span>
+        <span><kbd>↑</kbd> <kbd>↓</kbd> choisir</span><span><kbd>↵</kbd> ajouter</span>
+      </div>
     </div>
   </div>
 
@@ -889,6 +926,8 @@ table.dec td b{font-weight:600}
 
 <div class="note">
   <h3>La recherche dynamique</h3>
+  <p><b>La liste s'ouvre AU FOCUS, avant qu'on ait tapé.</b> Chercher suppose qu'on sache déjà quoi chercher. Devant un bon de livraison on reconnaît un produit bien plus vite qu'on ne l'épelle — surtout un titre arabe — donc le catalogue du marché s'ouvre dès que le champ prend le focus, et la frappe le <i>filtre</i> au lieu de le faire apparaître. Effacer y ramène ; <span class="mono">Échap</span> le referme ; et un ajout ne la referme pas, pour qu'on enchaîne dix lignes.</p>
+  <p><b>Le marché vient du bâtiment choisi.</b> <span class="mono">/api/products/search</span> résout le marché comme <span class="mono">?market_id ?? actor.market_id</span> et rend une liste VIDE sans l'un ni l'autre — et les deux super_admin de production ont <span class="mono">market_id</span> NULL. Aucun d'eux ne pouvait donc ajouter une seule ligne à une réception. C'est le bâtiment qui tranche, comme côté serveur, puisque c'est lui qui est physique.</p>
   <p><b>Le panneau s'ouvre dans le sélecteur, pas par-dessus.</b> On doit voir les lignes déjà posées en même temps que les résultats, sinon on ajoute deux fois le même produit — et l'index unique <span class="mono">(réception, produit, variante)</span> refuserait l'enregistrement bien plus tard, loin du geste.</p>
   <p><b>Un produit déjà sur la réception reste VISIBLE et dit pourquoi.</b> Le code le retirait silencieusement de la liste : on tapait son nom, rien n'apparaissait, et on en concluait qu'il n'existait pas. Une absence inexpliquée est pire qu'une ligne barrée.</p>
   <p><b>La correspondance est en gras, pas surlignée en couleur.</b> La couleur fonctionnelle est réservée aux statuts ; un surlignage ambre ici se lirait « attention ».</p>
@@ -1028,6 +1067,7 @@ table.dec td b{font-weight:600}
     <tr><td><b>Abîmé silencieux à zéro</b></td><td>L'avarie est l'exception. Un encadré ambre partout finit par ne plus rien signaler.</td><td>Ambre seulement sur la ligne concernée ; sur le téléphone, un geste.</td></tr>
     <tr><td><b>Seuls les coûts qui bougent</b></td><td>« 40,000 → 40,000 » deux fois cachait les deux vrais changements.</td><td>La boîte est deux fois plus courte et dit quelque chose.</td></tr>
     <tr><td><b>Le paiement est replié</b></td><td>Son titre porte déjà le fait entier : « acompte 40 % · reste 11 232,000 ».</td><td>On l'ouvre pour agir, pas pour lire.</td></tr>
+    <tr><td><b>Le catalogue au focus</b></td><td>Chercher suppose qu'on sache quoi chercher ; devant un bon de livraison on reconnaît un produit plus vite qu'on ne l'épelle.</td><td>La liste s'ouvre au focus, la frappe la filtre. Et le marché vient du bâtiment — sans quoi un super_admin voyait une liste vide.</td></tr>
     <tr><td><b>Recherche produit en direct</b></td><td>La maquette ne montrait qu'un champ vide : le vrai travail d'un sélecteur est dans ses états — rien tapé, une lettre, en cours, aucun résultat, déjà ajouté.</td><td>Cinq états dessinés, résultats sous le champ, correspondance en gras.</td></tr>
     <tr><td><b>Récapitulatif téléphone</b></td><td>Le parcours n'avait pas de fin : compter la dernière ligne ne déclarait rien.</td><td>Un écran de plus, et le geste existe.</td></tr>
     <tr><td><b>Les vrais jetons <span class="mono">--wh-*</span></b></td><td>La v2 inventait un gris bleuté et un vert plus vif. On ne juge pas un contraste sur des couleurs absentes du produit.</td><td>Ce qui est validé ici est ce qui s'affichera.</td></tr>

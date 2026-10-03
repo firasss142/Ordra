@@ -89,20 +89,33 @@ export function ProductSearchPanel({
   const t = useTranslations("warehouse.receptions");
   const [cursor, setCursor] = useState(0);
   const [dismissed, setDismissed] = useState(false);
+  /*
+   * LA LISTE S'OUVRE AU FOCUS, AVANT QU'ON AIT TAPÉ.
+   *
+   * Chercher suppose qu'on sache déjà quoi chercher. Devant un bon de livraison
+   * on reconnaît un produit bien plus vite qu'on ne l'épelle — surtout un titre
+   * arabe — donc le catalogue s'ouvre dès que le champ prend le focus, et la
+   * frappe le FILTRE au lieu de le faire apparaître.
+   */
+  const [focused, setFocused] = useState(false);
   const own = useRef<HTMLInputElement>(null);
   const field = inputRef ?? own;
 
   const trimmed = query.trim();
+  const browsing = trimmed.length === 0;
+  // Une seule lettre ne lance pas de requête ; on garde donc le catalogue ouvert
+  // plutôt que de le remplacer par un message qui gronde.
   const tooShort = trimmed.length > 0 && trimmed.length < MIN_QUERY;
-  const active = trimmed.length >= MIN_QUERY && !dismissed;
+  const active = (trimmed.length >= MIN_QUERY || (focused && browsing)) && !dismissed;
 
   // Les résultats déjà posés restent dans la liste, mais ne sont pas choisissables :
   // le curseur clavier ne doit donc jamais s'arrêter dessus.
   const pickable = useMemo(() => results.filter((p) => !chosenIds.has(p.id)), [results, chosenIds]);
 
   useEffect(() => setCursor(0), [trimmed, results.length]);
+  // Taper après avoir fermé la liste la rouvre : on redemande quelque chose.
   useEffect(() => {
-    if (trimmed.length < MIN_QUERY) setDismissed(false);
+    if (trimmed.length > 0) setDismissed(false);
   }, [trimmed]);
 
   function pick(product: SearchableProduct) {
@@ -167,6 +180,10 @@ export function ProductSearchPanel({
               setDismissed(false);
             }}
             onKeyDown={onKeyDown}
+            onFocus={() => {
+              setFocused(true);
+              setDismissed(false);
+            }}
             placeholder={t("searchProduct")}
             dir="auto"
             className="min-w-0 flex-1 rounded-[8px] border border-wh-border px-2.5 py-2 text-[13px]"
@@ -264,7 +281,11 @@ export function ProductSearchPanel({
           </ul>
 
           <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-t border-wh-border bg-wh-sunken px-3.5 py-2 text-[11.5px] text-wh-ink-3">
-            <span>{t("searchResults", { count: results.length })}</span>
+            <span>
+              {browsing
+                ? t("catalogueCount", { count: results.length })
+                : t("searchResults", { count: results.length })}
+            </span>
             <span className="inline-flex items-center gap-1">
               <Kbd>↑</Kbd>
               <Kbd>↓</Kbd> {t("kbdChoose")}
@@ -283,7 +304,9 @@ export function ProductSearchPanel({
           cherché du tout — un produit désactivé ou archivé est exclu en amont. */}
       {active && !isLoading && results.length === 0 ? (
         <div className="border-t border-wh-border px-4 py-5 text-center">
-          <p className="text-[12.5px] text-wh-ink-3">{t("searchEmpty", { query: trimmed })}</p>
+          <p className="text-[12.5px] text-wh-ink-3">
+            {browsing ? t("catalogueEmpty") : t("searchEmpty", { query: trimmed })}
+          </p>
           <p className="mt-1 text-[11.5px] text-wh-ink-3">{t("searchEmptyHint")}</p>
         </div>
       ) : null}

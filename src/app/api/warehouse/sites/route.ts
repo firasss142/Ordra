@@ -21,6 +21,8 @@ export interface WarehouseSite {
   code: string;
   name: string;
   isDefault: boolean;
+  /** Le marché du bâtiment — la seule source fiable pour un super_admin. */
+  marketId: string;
 }
 
 export interface WarehouseSitesResponse {
@@ -48,7 +50,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("warehouses")
-    .select("id, code, name_fr, name_ar, is_default")
+    .select("id, code, name_fr, name_ar, is_default, market_id")
     .eq("is_active", true)
     .order("is_default", { ascending: false })
     .order("code", { ascending: true });
@@ -65,6 +67,7 @@ export async function GET(req: NextRequest) {
     name_fr: string;
     name_ar: string;
     is_default: boolean;
+    market_id: string;
   }>;
 
   const body: WarehouseSitesResponse = {
@@ -75,6 +78,14 @@ export async function GET(req: NextRequest) {
       code: r.code,
       name: marketCode === "ly" ? r.name_ar : r.name_fr,
       isDefault: r.is_default,
+      /*
+       * LE BÂTIMENT PORTE SON MARCHÉ, parce qu'un super_admin n'en a pas : les
+       * deux en production ont `market_id` NULL. Tout écran qui doit nommer un
+       * marché pour lui le déduit donc du bâtiment choisi — ce qui est déjà la
+       * règle du domaine, « le marché vient du bâtiment », puisque c'est le
+       * bâtiment qui est physique.
+       */
+      marketId: r.market_id,
     })),
     mine: site.warehouseId,
     pinned: site.pinned,

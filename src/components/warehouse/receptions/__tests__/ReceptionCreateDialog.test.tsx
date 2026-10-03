@@ -25,12 +25,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   swrData.clear();
   swrData.set("/api/warehouse/sites", {
-    sites: [{ id: "w-tripoli", code: "tripoli", name: "Tripoli", isDefault: true }],
+    sites: [
+      { id: "w-tripoli", code: "tripoli", name: "Tripoli", isDefault: true, marketId: "m-ly" },
+    ],
     mine: null,
     pinned: false,
     unassigned: false,
   });
-  swrData.set("/api/products/search?q=qur", {
+  swrData.set("/api/products/search?market_id=m-ly&q=qur", {
     data: [{ id: "p1", name: "القرآن تدبر وعمل", sku: "qr-01", current_stock: 943 }],
   });
   global.fetch = vi
@@ -139,7 +141,7 @@ describe("ReceptionCreateDialog — la recherche en direct", () => {
 
   it("met la correspondance en gras plutôt qu'en couleur", async () => {
     // La clé SWR porte la requête ENCODÉE : un nom arabe n'y apparaît pas en clair.
-    swrData.set(`/api/products/search?q=${encodeURIComponent("القرآن")}`, {
+    swrData.set(`/api/products/search?market_id=m-ly&q=${encodeURIComponent("القرآن")}`, {
       data: [{ id: "p1", name: "القرآن تدبر وعمل", sku: "qr-01", current_stock: 943 }],
     });
     wrap();
@@ -169,7 +171,7 @@ describe("ReceptionCreateDialog — la recherche en direct", () => {
   });
 
   it("dit qu'il n'a rien trouvé, et nomme ce qu'on a cherché", async () => {
-    swrData.set("/api/products/search?q=biovera", { data: [] });
+    swrData.set("/api/products/search?market_id=m-ly&q=biovera", { data: [] });
     wrap();
     type("biovera");
     expect(await screen.findByText(/aucun produit actif ne correspond/i)).toBeInTheDocument();
@@ -177,7 +179,7 @@ describe("ReceptionCreateDialog — la recherche en direct", () => {
   });
 
   it("compte les résultats", async () => {
-    swrData.set("/api/products/search?q=kit", {
+    swrData.set("/api/products/search?market_id=m-ly&q=kit", {
       data: [
         { id: "p1", name: "Kit A", sku: "a-1", current_stock: 5 },
         { id: "p2", name: "Kit B", sku: "b-1", current_stock: 0 },
@@ -195,7 +197,7 @@ describe("ReceptionCreateDialog — la recherche en direct", () => {
  */
 describe("ReceptionCreateDialog — au clavier", () => {
   beforeEach(() => {
-    swrData.set("/api/products/search?q=kit", {
+    swrData.set("/api/products/search?market_id=m-ly&q=kit", {
       data: [
         { id: "p1", name: "Kit A", sku: "a-1", current_stock: 5 },
         { id: "p2", name: "Kit B", sku: "b-1", current_stock: 9 },
@@ -240,5 +242,116 @@ describe("ReceptionCreateDialog — au clavier", () => {
     fireEvent.keyDown(field, { key: "Escape" });
     expect(screen.queryByRole("button", { name: /Kit A/ })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * LA LISTE S'OUVRE AU FOCUS, AVANT QU'ON AIT TAPÉ.
+ *
+ * Chercher suppose qu'on sache déjà quoi chercher. Devant un bon de livraison on
+ * reconnaît un produit plus vite qu'on ne l'épelle — surtout un titre arabe —
+ * donc le catalogue du bâtiment s'ouvre dès que le champ prend le focus, et la
+ * frappe le FILTRE au lieu de le faire apparaître.
+ */
+describe("ReceptionCreateDialog — le catalogue au focus", () => {
+  const CATALOGUE = {
+    data: [
+      { id: "p1", name: "القرآن تدبر وعمل", sku: "qr-01", current_stock: 943 },
+      { id: "p2", name: "مصحف التهجد", sku: "th-01", current_stock: 0 },
+    ],
+  };
+
+  beforeEach(() => {
+    swrData.set("/api/products/search?market_id=m-ly", CATALOGUE);
+  });
+
+  function field() {
+    return screen.getByPlaceholderText(/chercher un produit/i);
+  }
+
+  it("ne montre rien tant que le champ n'a pas le focus", () => {
+    wrap();
+    expect(screen.queryByRole("button", { name: /القرآن تدبر وعمل/ })).not.toBeInTheDocument();
+  });
+
+  it("ouvre le catalogue du bâtiment au focus", async () => {
+    wrap();
+    fireEvent.focus(field());
+    expect(await screen.findByRole("button", { name: /القرآن تدبر وعمل/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /مصحف التهجد/ })).toBeInTheDocument();
+  });
+
+  it("permet d'ajouter une ligne sans rien taper", async () => {
+    wrap();
+    fireEvent.focus(field());
+    fireEvent.click(await screen.findByRole("button", { name: /القرآن تدبر وعمل/ }));
+    // La ligne posée porte la référence ET le stock ; la liste, elle, reste
+    // ouverte pour le produit suivant — d'où la précision de l'assertion.
+    expect(screen.getByText(/qr-01 · en stock 943/)).toBeInTheDocument();
+  });
+
+  /* Enchaîner dix lignes sans jamais refermer la liste est tout l'intérêt. */
+  it("reste ouverte après un ajout, en marquant ce qui est déjà pris", async () => {
+    wrap();
+    fireEvent.focus(field());
+    fireEvent.click(await screen.findByRole("button", { name: /القرآن تدبر وعمل/ }));
+    expect(screen.getByText(/déjà sur cette réception/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /مصحف التهجد/ })).toBeInTheDocument();
+  });
+
+  /* Taper FILTRE une liste déjà ouverte — ce n'est pas elle qui la fait naître. */
+  it("bascule sur les résultats de recherche dès deux lettres", async () => {
+    wrap();
+    fireEvent.focus(field());
+    await screen.findByRole("button", { name: /مصحف التهجد/ });
+    fireEvent.change(field(), { target: { value: "qur" } });
+    expect(await screen.findByRole("button", { name: /القرآن تدبر وعمل/ })).toBeInTheDocument();
+    // La liste du catalogue a laissé place aux résultats : le second produit sort.
+    expect(screen.queryByRole("button", { name: /مصحف التهجد/ })).not.toBeInTheDocument();
+  });
+
+  it("revient au catalogue quand on efface", async () => {
+    wrap();
+    fireEvent.focus(field());
+    fireEvent.change(field(), { target: { value: "qur" } });
+    await screen.findByRole("button", { name: /القرآن تدبر وعمل/ });
+    fireEvent.change(field(), { target: { value: "" } });
+    expect(await screen.findByRole("button", { name: /مصحف التهجد/ })).toBeInTheDocument();
+  });
+
+  it("Échap referme la liste ouverte au focus", async () => {
+    wrap();
+    fireEvent.focus(field());
+    await screen.findByRole("button", { name: /مصحف التهجد/ });
+    fireEvent.keyDown(field(), { key: "Escape" });
+    expect(screen.queryByRole("button", { name: /مصحف التهجد/ })).not.toBeInTheDocument();
+  });
+
+  it("marque déjà ajouté dans le catalogue aussi", async () => {
+    wrap();
+    fireEvent.focus(field());
+    fireEvent.click(await screen.findByRole("button", { name: /القرآن تدبر وعمل/ }));
+    fireEvent.focus(field());
+    expect(await screen.findByText(/déjà sur cette réception/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * LE MARCHÉ VIENT DU BÂTIMENT.
+ *
+ * `/api/products/search` résout le marché comme `?market_id ?? actor.market_id`
+ * et rend une liste VIDE sans l'un ni l'autre. Les deux super_admin de production
+ * ont `market_id` NULL : sans ce paramètre, aucun d'eux ne pouvait ajouter une
+ * seule ligne à une réception. Le bâtiment est la bonne source, et c'est déjà la
+ * règle du domaine côté serveur.
+ */
+describe("ReceptionCreateDialog — le marché du produit", () => {
+  it("cherche dans le marché du bâtiment choisi", async () => {
+    swrData.set("/api/products/search?market_id=m-ly", { data: [] });
+    wrap("super_admin");
+    fireEvent.focus(screen.getByPlaceholderText(/chercher un produit/i));
+    // Rien ne doit être demandé sans market_id : ce serait la liste vide.
+    expect(swrData.has("/api/products/search")).toBe(false);
+    expect(await screen.findByText(/aucun produit actif/i)).toBeInTheDocument();
   });
 });

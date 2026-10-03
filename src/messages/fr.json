@@ -3779,6 +3779,8 @@
       "alreadyAdded": "déjà sur cette réception",
       "back": "Retour",
       "cancel": "Annuler",
+      "catalogueCount": "{count} produits du marché",
+      "catalogueEmpty": "Aucun produit actif dans ce marché.",
       "chipExpected": "l'attendu {qty}",
       "chipZero": "zéro",
       "clearSearch": "Effacer la recherche",

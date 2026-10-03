@@ -35,7 +35,7 @@ interface Draft {
 }
 
 interface SitesResponse {
-  sites: { id: string; code: string; name: string; isDefault: boolean }[];
+  sites: { id: string; code: string; name: string; isDefault: boolean; marketId: string }[];
   mine: string | null;
   pinned: boolean;
   unassigned: boolean;
@@ -85,9 +85,37 @@ export function ReceptionCreateDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /*
+   * LE MARCHÉ VIENT DU BÂTIMENT.
+   *
+   * `/api/products/search` résout le marché comme `?market_id ?? actor.market_id`
+   * et rend une liste VIDE sans l'un ni l'autre. Les deux super_admin de
+   * production ont `market_id` NULL : sans ce paramètre, aucun d'eux ne pouvait
+   * ajouter une seule ligne à une réception. Le bâtiment choisi est la bonne
+   * source — c'est déjà la règle du domaine côté serveur, puisque c'est lui qui
+   * est physique — et pour un manager ou un agent elle redonne leur propre
+   * marché, donc le paramètre est toujours accepté.
+   */
+  const marketId = sites?.sites.find((x) => x.id === warehouseId)?.marketId ?? null;
+
+  /*
+   * DEUX SOURCES, UN SEUL PANNEAU. Le catalogue du marché s'ouvre au focus ; la
+   * frappe le remplace par des résultats filtrés. Les deux clés sont distinctes
+   * pour que revenir au champ vide ne relance pas de requête, et la clé du
+   * catalogue est celle qu'utilisent déjà les autres sélecteurs du produit —
+   * le cache SWR est donc partagé gratuitement.
+   */
+  const catalogueKey = marketId ? `/api/products/search?market_id=${marketId}` : null;
+  const { data: catalogue, isLoading: loadingCatalogue } = useSWR<{ data: ProductRow[] }>(
+    catalogueKey,
+    fetcher,
+    { keepPreviousData: true },
+  );
+
+  const searchable = query.trim().length >= MIN_QUERY;
   const { data: found, isLoading: searching } = useSWR<{ data: ProductRow[] }>(
-    query.trim().length >= MIN_QUERY
-      ? `/api/products/search?q=${encodeURIComponent(query.trim())}`
+    searchable && marketId
+      ? `/api/products/search?market_id=${marketId}&q=${encodeURIComponent(query.trim())}`
       : null,
     fetcher,
     // Les résultats précédents restent affichés pendant la requête suivante : un
@@ -294,8 +322,8 @@ export function ReceptionCreateDialog({
             <ProductSearchPanel
               query={query}
               onQueryChange={setQuery}
-              results={found?.data ?? []}
-              isLoading={searching}
+              results={(searchable ? found?.data : catalogue?.data) ?? []}
+              isLoading={searchable ? searching : loadingCatalogue}
               chosenIds={chosen}
               onPick={addLine}
               inputRef={search}
