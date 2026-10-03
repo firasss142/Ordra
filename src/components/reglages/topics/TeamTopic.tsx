@@ -31,6 +31,7 @@ import { Switch } from "../kit/Switch";
 import { HistoryButton } from "../kit/HistoryButton";
 import { RgButton } from "../kit/RgButton";
 import { TopicSkeleton } from "../kit/TopicSkeleton";
+import { ControlRoomCard } from "./ControlRoomCard";
 
 /** The four methods that do something. « Par produit » and « Par région » stay hidden until built. */
 const METHODS = ["manual", "round_robin", "workload", "percentage"] as const;
@@ -89,6 +90,8 @@ export function TeamTopic({ user, marketId }: TopicProps) {
         <NumberSetting form={form} marketId={marketId} settingKey="goal_conf_per_hour" {...goal("goal_conf_per_hour")} step={0.5} editable={editable} help={() => null} />
         <NumberSetting form={form} marketId={marketId} settingKey="goal_team_weekly_conf" {...goal("goal_team_weekly_conf")} editable={editable} help={() => null} />
       </SettingsCard>
+
+      <ControlRoomCard form={form} marketId={marketId} editable={isSA} />
 
       {isSA && <CommissionsCard marketId={marketId} />}
     </>

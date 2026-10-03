@@ -13,6 +13,8 @@ import {
   type AlertType,
 } from "@/lib/alerts/catalogue";
 import type { Alert, AlertsSummary } from "@/lib/alerts/types";
+import { teamAlertInputs } from "@/lib/team/room/alerts";
+import type { TeamAlerts } from "@/lib/team/room/types";
 
 export const dynamic = "force-dynamic";
 
@@ -338,6 +340,14 @@ export async function GET(req: NextRequest) {
     p_rate_from: stockWindow.from_date,
   });
 
+  /**
+   * The control room's three (prototypes/team-v5.html): orders stopped arriving,
+   * orders not called N h after assignment, an agent online but not calling.
+   * Thresholds are the market's Réglages, applied inside the RPC so the bell and
+   * /team agree. NULL market = every market (super_admin).
+   */
+  const qTeam = supabase.rpc("get_team_alerts", { p_market_id: marketId || null });
+
   const [
     overdueRes,
     unassignedRes,
@@ -353,6 +363,7 @@ export async function GET(req: NextRequest) {
     syncRunsRes,
     sheetSourcesRes,
     stockPositionRes,
+    teamRes,
   ] = await Promise.all([
     qOverdueCallback,
     qUnassigned,
@@ -368,6 +379,7 @@ export async function GET(req: NextRequest) {
     qSyncRuns,
     qSheetSources,
     qStockPosition,
+    qTeam,
   ]);
 
   const failed = Object.entries({
@@ -583,6 +595,12 @@ export async function GET(req: NextRequest) {
         marketId: setting.market_id,
       });
     }
+  }
+
+  // A failed team read loses three rules, not the whole bell.
+  if (teamRes.error) console.error("[alerts/summary] get_team_alerts failed", teamRes.error);
+  for (const a of teamAlertInputs(teamRes.error ? null : (teamRes.data as TeamAlerts | null), now)) {
+    push(a);
   }
 
   for (const h of (oversightRes.data ?? []) as unknown as HistoryRow[]) {

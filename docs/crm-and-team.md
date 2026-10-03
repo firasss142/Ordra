@@ -70,20 +70,15 @@ in_progress → resolved | escalated). RPCs `create_order_follow_up`,
 
 ### Salle de contrôle — `(dashboard)/team`
 
-"Who is working, what is moving, what is stuck — right now."
-
-`get_team_live(p_market_id, p_tz)` — SECURITY DEFINER, and it guards itself: a
-non-super_admin asking for another market gets `{}`, not an error. Presence is **three**
-states off `users.last_seen_at`: `online` within 5 minutes, `idle` within 30, `offline`
-beyond. Goals fall back to `goal_daily_treated` = 12 and `goal_min_rate` = 40 when the
-market has not set them.
+Rebuilt 2026-10-03 from `prototypes/team-v5.html` (v5, co-designed with the owner).
+Two bands: the day (strip, agents with a done-vs-left bar, the agent panel) and the
+agents over a period (assigned → uploaded → delivered, with commission balances).
+Definitions, RPCs, settings and the bell's three alerts: **docs/team-control-room.md**.
 
 Agents hitting this route are redirected to `/queue`. For super_admin with scope "all"
 it falls back to the default market — a cross-market roster is deliberately not a thing,
 because an agent belongs to one market and a merged list would imply otherwise.
-
-Renders `TeamLiveWorkspace` with `LiveTiles`, `AgentRoster`, `BlockedOrdersCard`,
-`UpcomingCallbacksCard`, `ProductsCard`, `TeamStrip`.
+`get_team_live` and `AgentDrawer` survive only for Performance équipe below.
 
 > A different "control room" exists for the Darb carrier
 > (`/api/darb/control-room`, `components/in-delivery/DarbControlRoom.tsx`). Unrelated

@@ -136,6 +136,34 @@ const config: Config = {
         // in globals.css. Status pair (green above the floor, red below) plus
         // the six validated cost-stack hues. See the contrast note there
         // before putting type on a raw hue.
+        // Salle de contrôle — scoped extension; values live in globals.css.
+        room: {
+          hover: "var(--room-hover)",
+          "line-faint": "var(--room-line-faint)",
+          "ink-2": "var(--room-ink-2)",
+          "ink-3": "var(--room-ink-3)",
+          "ink-4": "var(--room-ink-4)",
+          teal: "var(--room-teal)",
+          "teal-soft": "var(--room-teal-soft)",
+          "teal-bg": "var(--room-teal-bg)",
+          green: "var(--room-green)",
+          "green-bg": "var(--room-green-bg)",
+          red: "var(--room-red)",
+          "red-bg": "var(--room-red-bg)",
+          "red-soft": "var(--room-red-soft)",
+          "red-edge": "var(--room-red-edge)",
+          amber: "var(--room-amber)",
+          "amber-ink": "var(--room-amber-ink)",
+          "amber-bg": "var(--room-amber-bg)",
+          "amber-dot": "var(--room-amber-dot)",
+          prog: "var(--room-prog)",
+          todo: "var(--room-todo)",
+          live: "var(--room-live)",
+          tick: "var(--room-tick)",
+          session: "var(--room-session)",
+          plan: "var(--room-plan)",
+          bar: "var(--room-bar)",
+        },
         wh: {
           bg: "var(--wh-bg)",
           surface: "var(--wh-surface)",
