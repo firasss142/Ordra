@@ -89,6 +89,7 @@ src/
   the WORST of all lines — one unrecognised line must reach the review queue. `lines` is
   optional: a single-line source omits it and the old path applies unchanged.
 - Supabase service role → server only (webhooks, admin user creation) — never in browser client
+- A `settings.value` is bare (`30`) OR wrapped (`{"value": 30}`). SQL reads a scalar through `public.setting_scalar(value)`, never `(value #>> '{}')::int`; that cast stopped nightly archiving for six weeks. See docs/reglages.md
 
 ## OMS status model — two phases
 

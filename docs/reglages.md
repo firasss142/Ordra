@@ -53,6 +53,15 @@ Old routes redirect to their topic:
   - Leaving a topic or switching market with unsaved changes asks first.
   - Lists (shops, carriers, sites, accounts) act immediately. Panels have their own
     Annuler / Enregistrer.
+- **A setting has two storage shapes, and every reader accepts both.** The settings route
+  stores a scalar wrapped (`{"value": 30}`); seeds and older writes are bare (`30`);
+  `PUT /api/assignment-rules` writes `{ type }`. In TypeScript, `storedScalar` /
+  `getMarketSetting` unwrap. In SQL, read a scalar with `public.setting_scalar(value)`, never
+  `(value #>> '{}')::int` directly. That direct cast made `archive_finished_orders()` fail
+  every night from 2026-08-22, the night after Tunisia saved its archive delay from the
+  screen. The exception aborted both markets, and 918 Libyan orders went unarchived.
+  `20261003120000_settings_scalar_readers.sql` patched the seven readers, and its last block
+  fails if any settings reader casts a raw value again.
 - **Partial settings save.** `PATCH /api/settings/[marketId]` takes only the changed keys and
   validates the object they produce.
   - Nothing is written for an unchanged value, including values stored in the old
