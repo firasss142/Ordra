@@ -72,8 +72,13 @@ export async function PATCH(
 
   const admin = createAdminClient();
 
+  // Status and deletion are written with the service client, like avatar and
+  // building below: since 20260919230419_users_update_column_grant.sql a
+  // logged-in session may only UPDATE users.last_seen_at, so these writes
+  // through the session failed with 42501. Who may act on whom is decided
+  // above, before any write.
   if (action === "reactivate") {
-    const { error } = await supabase
+    const { error } = await admin
       .from("users")
       .update({ is_active: true, deactivation_reason: null })
       .eq("id", id);
@@ -105,7 +110,7 @@ export async function PATCH(
       returned++;
     }
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("users")
       .update({ is_active: false, deactivation_reason: reason })
       .eq("id", id);
@@ -295,7 +300,8 @@ export async function DELETE(
     );
   }
 
-  const { error } = await supabase
+  // Service client, for the same reason as the status writes in PATCH.
+  const { error } = await admin
     .from("users")
     .update({ is_active: false, deleted_at: new Date().toISOString() })
     .eq("id", id);

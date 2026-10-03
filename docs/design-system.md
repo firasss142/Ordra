@@ -1244,3 +1244,40 @@ Gradients · a raw fill hue carrying type · colour as the only channel for a co
 category or a verdict · a dark ground · inventing a figure the data has not
 earned. A young cohort must read as unfinished (`maturityPct`), never as a
 confident number.
+
+---
+
+## 4.23 Accès — one hue per role (2026-10-03)
+
+`/users` (Équipe › Accès) gives each **role** one hue. Approved by the owner from
+`prototypes/acces-v2.html` ("j'aime le design"); the structure and its rationale are
+in `prototypes/acces-v1.html`. This is colour carrying a **category**, which §1 rule 3
+forbids — allowed here, narrowly, like §4.22 and the carrier-account ring, because a
+list of people reads by team first and the hue is what makes the team visible at a glance.
+
+| Role | Hue (fill, dot, icon) | Ink (text) | Tint (fill) | Edge | Ink / tint | Hue / tint |
+|---|---|---|---|---|---|---|
+| Agents | `--role-agent` `#0284C7` | `#0369A1` | `#EAF6FD` | `#B9E1F7` | 5.4:1 | 3.7:1 |
+| Entrepôt | `--role-warehouse` `#EA580C` | `#C2410C` | `#FFF3EB` | `#FDCDB0` | 4.8:1 | 3.3:1 |
+| Managers | `--role-manager` `#6366F1` | `#4338CA` | `#EEF0FF` | `#C9CDFB` | 7.0:1 | 3.9:1 |
+| Investisseurs | `--role-investor` `#0D9488` | `#0F766E` | `#E8F8F5` | `#A9E5DB` | 5.0:1 | 3.4:1 |
+| Super admins | `--role-admin` `#475569` | `#334155` | `#EEF1F5` | `#CBD3DE` | 9.1:1 | 6.7:1 |
+| « Tous » (chrome) | `--brand` | `--brand-hover` | `--brand-bg` | `--role-all-edge` | 6.1:1 | 4.5:1 |
+
+A wrapper names the hue — `.tone-agent | .tone-warehouse | .tone-manager |
+.tone-investor | .tone-admin | .tone-all` — and everything inside reads the Tailwind
+colour `tone` (`bg-tone`, `bg-tone-bg`, `text-tone-ink`, `border-tone-edge`), the same
+mechanism as the warehouse `job` hues. `src/lib/users/role-tones.test.ts` reads the
+tokens out of `globals.css` and holds ink ≥ 4.5:1 and hue ≥ 3:1 on the tint.
+
+**Conditions.**
+1. The colour is never the only signal: the role is always written next to it.
+2. These hues never carry an order status, and status hues never mark a role.
+3. They may appear elsewhere only to represent a **person** (an avatar, a role chip) —
+   never as decoration, never for a non-person category.
+
+**Where they show on Accès:** the role tiles (§4.19 holder, selected tile filled with
+its tint), avatars (initials or photo on the role tint, with a green or amber presence
+beat), the role chip in each row, the warehouse pill (always `tone-warehouse`), the
+creation cards, and the band at the top of a person's file. Brand green keeps the
+chrome: the primary button, the « Tous » tile, focus, the selected row.

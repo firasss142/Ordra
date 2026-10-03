@@ -89,6 +89,7 @@ src/
   the WORST of all lines — one unrecognised line must reach the review queue. `lines` is
   optional: a single-line source omits it and the old path applies unchanged.
 - Supabase service role → server only (webhooks, admin user creation) — never in browser client
+- A `settings.value` is bare (`30`) OR wrapped (`{"value": 30}`). SQL reads a scalar through `public.setting_scalar(value)`, never `(value #>> '{}')::int`; that cast stopped nightly archiving for six weeks. See docs/reglages.md
 
 ## OMS status model — two phases
 
@@ -226,6 +227,7 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Zero gradients, zero shadows at rest, zero decoration
 - Functional color ONLY on status badges — everything else black/white/gray
 - Finance surfaces add measured categorical palettes (`--fin-*`, `--ads-*`) — §4.21
+- Accès (/users) gives one hue per ROLE (`--role-*`, `.tone-*`) — §4.23; never a status
 - RTL: full layout mirror for Arabic market
 - See docs/design-system.md for full tokens and rules
 
@@ -259,6 +261,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Order status pipeline: docs/order-pipeline.md
 - Scheduled jobs — all 12 pg_cron jobs + the notifications tick: docs/notifications-cron.md
 - Design system tokens + rules: docs/design-system.md
+- Accès (/users) — role tiles, the file per person, the role palette, what the old page hid
+  (dead Permissions toggle, journal always « Système », the market UUID): plans/acces-redesign.md +
+  prototypes/acces-v2.html (structure and rationale in acces-v1.html)
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
 - Claude Code mastery patterns: docs/mastery-guide.md

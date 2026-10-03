@@ -1,0 +1,1253 @@
+<!doctype html>
+<!--
+  Accès (/users) — v1. Construit 2026-10-03 : refonte visuelle et structurelle demandée par le propriétaire
+  (« rendre la page plus claire, plus intuitive, plus agréable — sans changer ce qu'elle fait ni ce qu'elle montre »).
+
+  Contraintes tenues :
+   · mêmes données (colonnes de GET /api/users), mêmes actions, mêmes règles de rôle
+     (qui crée quoi, suppression super admin seulement et jamais soi-même, journal super admin seulement,
+     présence visible selon le rôle) ;
+   · docs/design-system.md : sidebar sombre, contenu clair, vert de marque pour le chrome seulement,
+     couleur fonctionnelle sur les statuts seulement ;
+   · WCAG 2.2 AA : texte ≥ 4,5:1, contrôles ≥ 3:1, présence jamais par la couleur seule, clavier complet.
+
+  DONNÉES RÉELLES, lues en lecture seule le sam. 3 oct. 2026 à 15:30 (Tripoli) : les 22 comptes non supprimés
+  (users ⋈ markets ⋈ warehouses) et le journal user_audit_log. Aucune donnée client.
+  « États limites » ajoute des cas qui n'existent pas aujourd'hui en base (agent entrepôt sans entrepôt,
+  invitation en attente, compte désactivé avec motif, agent inactif) — les deux comptes inventés sont marqués « fictif ».
+
+  « Avant » reproduit la page actuelle à partir du code (UsersPageClient, UserRoleSection, UserCard),
+  avec des pastilles rouges numérotées qui renvoient au diagnostic des notes.
+
+  URL : ?v=after|before &as=admin|manager &data=real|edge &lang=fr|ar &tab=<rôle> &mk=all|ly|tn &q=<texte>
+        &screen=user|create|deactivate|delete|reset|menu|loading &u=<identifiant>
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accès — prototype v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFFFFF; --sunken:#FAFAFB; --hover:#F7F7F8; --sel:#F2F2F3;
+    --line:#E1E3E5; --line-subtle:#ECEEF0; --line-faint:#F2F3F5; --line-strong:#DADCE0; --line-input:#D1D5DB;
+    /* text — every step used for TEXT is ≥ 4.5:1 on white; --ink-4/5 are for icons and rules only */
+    --ink-1:#1A1A1A; --ink-2:#5C6166; --ink-3:#6D7175; --ink-4:#8A9096; --ink-5:#B4B9BF;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+    /* status hues (globals.css --oms-*) */
+    --crit:#B23A32; --crit-bg:#FBECEA; --crit-edge:#F0C9C4;
+    --amber:#A9670C; --amber-ink:#8F5608; --amber-bg:#FBF1E2; --idle:#D97706;
+    --ok:#2F7A4A; --ok-bg:#E8F4EC; --live:#16A34A;
+    --sidebar:#0E1013; --sidebar-el:#14171C; --sidebar-ink:#E6E8EB; --sidebar-2:#B5BAC2; --sidebar-3:#7F858F;
+    --f:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --f-ar:"Noto Sans Arabic","Inter",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --e-panel:0 4px 16px rgba(16,24,40,.06); --e-float:0 8px 24px rgba(16,24,40,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+  [dir=rtl], [dir=rtl] button, [dir=rtl] input, [dir=rtl] select{font-family:var(--f-ar)}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0;padding:0}
+  h1,h2,h3,p{margin:0}
+  .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .num{font-variant-numeric:tabular-nums}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+
+  /* ── prototype chrome (NOT part of the app) ─────────────────────── */
+  .pbar{position:sticky;top:0;z-index:300;background:#1F2328;color:#E6E8EB;padding:9px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--brand);font-family:var(--f)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar .grow{flex:1}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+  .pbar .warnfr{font-size:11px;color:#E0A43A}
+
+  /* ── app shell ─────────────────────────────────────────────────── */
+  .stage{display:flex;min-height:calc(100vh - 50px)}
+  .side{width:232px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);padding:14px 10px 20px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+  .side .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;padding:2px 8px 12px}
+  .side .brand i{width:22px;height:22px;border-radius:6px;background:var(--brand);display:grid;place-items:center;font-style:normal;font-size:12px;color:#fff}
+  .side .mk{display:flex;align-items:center;justify-content:space-between;margin:0 4px 10px;padding:7px 10px;border-radius:8px;background:var(--sidebar-el);border:1px solid rgba(255,255,255,.06);color:var(--sidebar-2);font-size:12.5px}
+  .side .mk b{color:#fff;font-weight:600}
+  .side .nsec{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;color:var(--sidebar-2);font-weight:500}
+  .side .nsec .ic{width:15px;height:15px;color:var(--sidebar-3)}
+  .side .nsec .chev{margin-inline-start:auto;width:13px;height:13px}
+  .side .it{display:flex;align-items:center;padding:6px 8px;padding-inline-start:32px;border-radius:7px;color:var(--sidebar-2)}
+  .side .it.on{background:var(--brand);color:#fff;font-weight:600}
+  .side .foot{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px 8px 0;border-top:1px solid rgba(255,255,255,.06)}
+  .side .foot span{width:28px;height:28px;border-radius:50%;background:#2A2F36;display:grid;place-items:center;font-size:12px;font-weight:600;text-transform:uppercase}
+  .side .foot small{display:block;color:var(--sidebar-3);font-size:11.5px}
+  main{flex:1;min-width:0;padding:24px 32px 64px}
+  .page{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+
+  /* ── header ────────────────────────────────────────────────────── */
+  .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .ph h1{font-size:20px;font-weight:600;letter-spacing:-.01em}
+  .ph .sub{font-size:13.5px;color:var(--ink-2);margin-top:4px}
+  .btn{height:34px;padding:0 14px;border:1px solid var(--line-input);border-radius:8px;background:var(--card);font-size:13.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;transition:background-color 120ms ease,border-color 120ms ease}
+  .btn:hover{background:var(--hover);border-color:var(--line-strong)}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn.pri:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+  .btn.danger{background:#D72C0D;border-color:#D72C0D;color:#fff;font-weight:600}
+  .btn.danger:hover{background:#B8250B}
+  .btn.ghost-crit{color:var(--crit);border-color:var(--crit-edge)}
+  .btn.ghost-crit:hover{background:var(--crit-bg)}
+  .btn.link-crit{border-color:transparent;color:var(--crit);padding:0 6px}
+  .btn.link-crit:hover{background:var(--crit-bg)}
+  .btn[disabled]{background:#F3F4F6;border-color:#F3F4F6;color:#6B7280;cursor:not-allowed}
+  .btn.sm{height:30px;padding:0 10px;font-size:12.5px;border-radius:7px}
+
+  /* ── attention banner (only when a warehouse agent has no building) ── */
+  .banner{display:flex;align-items:flex-start;gap:12px;background:var(--crit-bg);border:1px solid var(--crit-edge);border-radius:8px;padding:12px 14px;color:#7A2620}
+  .banner>.ic{width:18px;height:18px;margin-top:1px;color:var(--crit)}
+  .banner b{display:block;color:var(--crit);font-size:14px;font-weight:600;margin-bottom:2px}
+  .banner p{font-size:13px;line-height:1.5}
+  .banner .who-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .banner .btn{background:#fff;border-color:var(--crit-edge);color:var(--crit)}
+
+  /* ── list card ─────────────────────────────────────────────────── */
+  .card{background:var(--card);border:1px solid var(--line-subtle);border-radius:8px}
+  .tabs{display:flex;gap:2px;padding:0 10px;border-bottom:1px solid var(--line-subtle);overflow-x:auto}
+  .tab{position:relative;height:46px;padding:0 10px;font-size:13.5px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:6px 6px 0 0}
+  .tab:hover{color:var(--ink-1)}
+  .tab[aria-selected=true]{color:var(--ink-1);font-weight:600}
+  .tab[aria-selected=true]::after{content:"";position:absolute;inset-inline:8px;bottom:-1px;height:2px;border-radius:2px;background:var(--brand)}
+  .tab .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--sel);color:var(--ink-2);font-size:11.5px;font-weight:600;display:inline-grid;place-items:center}
+  .tools{display:flex;align-items:center;gap:10px;padding:12px 16px;flex-wrap:wrap;border-bottom:1px solid var(--line-subtle)}
+  .search{position:relative;flex:1 1 240px;max-width:340px}
+  .search input{width:100%;height:34px;border:1px solid var(--line-input);border-radius:8px;padding:0 12px;padding-inline-start:34px;background:#fff}
+  .search input::placeholder{color:var(--ink-3)}
+  .search .ic{position:absolute;inset-inline-start:11px;top:9px;color:var(--ink-4)}
+  .seg{display:inline-flex;background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px}
+  .seg button{height:28px;padding:0 10px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+  .seg button:hover{color:var(--ink-1)}
+  .seg button[aria-pressed=true]{background:#fff;color:var(--ink-1);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+  .seg .n{font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .chip{height:30px;padding:0 11px;border:1px solid var(--line-input);border-radius:99px;font-size:12.5px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:7px;background:#fff}
+  .chip:hover{border-color:var(--ink-4);color:var(--ink-1)}
+  .chip[aria-pressed=true]{border-color:var(--ink-1);color:var(--ink-1);background:var(--sel);font-weight:600}
+  .chip .dot{width:8px;height:8px}
+  .rc{margin-inline-start:auto;font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+
+  table.tbl{width:100%;border-collapse:collapse}
+  .tbl th{font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;text-align:start;padding:9px 16px;border-bottom:1px solid var(--line-subtle);background:var(--sunken);white-space:nowrap}
+  [dir=rtl] .tbl th{letter-spacing:0;font-size:12.5px}
+  .tbl td{padding:10px 16px;border-bottom:1px solid var(--line-faint);vertical-align:middle}
+  .tbl tbody tr:last-child td{border-bottom:0}
+  .tbl tr.r{cursor:pointer}
+  .tbl tr.r:hover td{background:var(--hover)}
+  .tbl tr.r.sel td{background:var(--brand-tint)}
+  .tbl tr.r.sel td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+  [dir=rtl] .tbl tr.r.sel td:first-child{box-shadow:inset -3px 0 0 var(--brand)}
+  .tbl tr.r.flash td{animation:flash 2.4s ease-out}
+  @keyframes flash{0%,40%{background:var(--brand-bg)}100%{background:transparent}}
+  .tbl tr.off .nm b{color:var(--ink-2)}
+  .tbl .c-role{width:250px}
+  .tbl .c-mk{width:130px}
+  .tbl .c-seen{width:210px}
+  .tbl .c-act{width:56px;text-align:end;padding-inline-end:12px}
+  .who{display:flex;align-items:center;gap:12px;text-align:start;min-width:0;border-radius:8px}
+  .av{position:relative;width:32px;height:32px;border-radius:50%;background:#E7E9EC;color:#3A3F44;display:grid;place-items:center;font-weight:600;font-size:12.5px;flex:none;text-transform:uppercase}
+  .av.lg{width:44px;height:44px;font-size:16px}
+  .nm{min-width:0}
+  .nm b{font-weight:500;font-size:14px}
+  .nm small{display:block;font-size:12.5px;color:var(--ink-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .you{font-size:11.5px;font-weight:600;color:var(--ink-2);background:var(--sel);border-radius:99px;padding:1px 7px;margin-inline-start:6px;vertical-align:1px}
+  .rl{font-size:13.5px}
+  .whc{margin-top:5px;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+  .whwrap{position:relative;display:inline-flex;align-items:center}
+  .whwrap .ic{position:absolute;inset-inline-start:8px;width:14px;height:14px;color:var(--ink-4);pointer-events:none}
+  .whsel{height:28px;border:1px solid var(--line-input);border-radius:6px;font-size:12.5px;padding:0 8px;padding-inline-start:28px;background:#fff;cursor:pointer;max-width:200px}
+  .whsel:hover{border-color:var(--ink-4)}
+  .whsel[disabled]{background:var(--sunken);color:var(--ink-3);cursor:default}
+  .whwrap.none .whsel{border-color:var(--crit);color:var(--crit);font-weight:500}
+  .whwrap.none .ic{color:var(--crit)}
+  .whmiss{font-size:12px;color:var(--crit);font-weight:500}
+  .muted{color:var(--ink-3)}
+  .pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:99px;font-size:12px;font-weight:500;white-space:nowrap}
+  .pill .ic{width:13px;height:13px}
+  .pill.crit{background:var(--crit-bg);color:var(--crit)}
+  .pill.warn{background:var(--amber-bg);color:var(--amber-ink)}
+  .pill.neu{background:var(--sel);color:var(--ink-2)}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}
+  .seen{display:inline-flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13.5px;white-space:nowrap}
+  .seen.on{color:var(--ok);font-weight:500}
+  .seen.idle{color:var(--amber-ink);font-weight:500}
+  .seen.none{color:var(--ink-3)}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+  .dot.on{background:var(--live)}
+  .dot.idle{background:var(--idle)}
+  .dot.off{background:var(--ink-4)}
+  .dot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink-4)}
+  .kebab{width:32px;height:32px;border-radius:8px;display:inline-grid;place-items:center;color:var(--ink-2)}
+  .kebab:hover,.kebab[aria-expanded=true]{background:var(--sel);color:var(--ink-1)}
+  .fold{border-top:1px solid var(--line-subtle)}
+  .fold>button{display:flex;align-items:center;gap:8px;width:100%;padding:11px 16px;font-size:13px;font-weight:500;color:var(--ink-2);text-align:start}
+  .fold>button:hover{background:var(--hover);color:var(--ink-1)}
+  .fold>button .ic{width:14px;height:14px}
+  .fold .tbl td{background:var(--sunken)}
+  .empty{padding:40px 16px;text-align:center;color:var(--ink-2);font-size:13.5px}
+  .empty .btn{margin-top:12px}
+  .foot-note{font-size:12.5px;color:var(--ink-3);padding:2px 4px}
+  .sk{display:block;background:#EEF0F2;border-radius:6px;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.45}}
+  @media (prefers-reduced-motion:reduce){.sk,.tbl tr.r.flash td{animation:none}.drawer{transition:none}}
+
+  /* ── menu ──────────────────────────────────────────────────────── */
+  .menu{position:fixed;z-index:70;min-width:240px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--e-float);padding:4px;display:none}
+  .menu.on{display:block}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border-radius:7px;font-size:13.5px;text-align:start;color:var(--ink-1)}
+  .menu button .ic{color:var(--ink-3)}
+  .menu button:hover,.menu button:focus-visible{background:var(--hover);outline:none}
+  .menu button:focus-visible{box-shadow:inset 0 0 0 2px var(--brand)}
+  .menu button.crit,.menu button.crit .ic{color:var(--crit)}
+  .menu hr{border:0;border-top:1px solid var(--line-subtle);margin:4px 0}
+
+  /* ── drawers + dialogs ─────────────────────────────────────────── */
+  .scrim{position:fixed;inset:var(--pb,0px) 0 0 0;background:rgba(26,26,26,.5);z-index:49;display:none}
+  .scrim.on{display:block}
+  .drawer{position:fixed;top:var(--pb,0px);bottom:0;inset-inline-end:0;width:440px;max-width:100vw;background:#fff;border-inline-start:1px solid var(--line-subtle);box-shadow:var(--e-panel);z-index:50;display:flex;flex-direction:column;transform:translateX(104%);transition:transform .18s ease;visibility:hidden}
+  [dir=rtl] .drawer{transform:translateX(-104%)}
+  .drawer.on{transform:none;visibility:visible}
+  .dh{padding:16px;border-bottom:1px solid var(--line-subtle);display:flex;gap:12px;align-items:center}
+  .dh .t{flex:1;min-width:0}
+  .dh .t b{display:block;font-size:16px;font-weight:600}
+  .dh .t small{display:block;color:var(--ink-3);font-size:13px}
+  .xbtn{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2);flex:none}
+  .xbtn:hover{background:var(--sel);color:var(--ink-1)}
+  .db{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .df{border-top:1px solid var(--line-subtle);padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .df .grow{flex:1}
+  .sec{border:1px solid var(--line-subtle);border-radius:8px;padding:14px 16px}
+  .sl{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px}
+  [dir=rtl] .sl{letter-spacing:0;font-size:12px}
+  .sl .ic{width:13px;height:13px;color:var(--ink-4)}
+  .kv{display:grid;grid-template-columns:128px 1fr;gap:12px 12px;font-size:13.5px;margin:0;align-items:start}
+  .kv dt{color:var(--ink-3)}
+  .kv dd{margin:0;min-width:0}
+  .kv .hint{margin-top:5px}
+  .perms{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px;list-style:none;margin:0;padding:0}
+  .perms li{display:flex;gap:7px;align-items:flex-start}
+  .perms .ic{width:15px;height:15px;margin-top:1px}
+  .perms .yes .ic{color:var(--ok)}
+  .perms .no{color:var(--ink-3)}
+  .perms .no .ic{color:var(--ink-4)}
+  .perm-note{font-size:12px;color:var(--ink-3);margin-top:10px}
+  .jr{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line-faint);font-size:13px}
+  .jr:first-of-type{border-top:0;padding-top:0}
+  .jr .jd{width:7px;height:7px;border-radius:50%;background:var(--ink-4);margin-top:6px;flex:none}
+  .jr small{display:block;color:var(--ink-3);font-size:12px;margin-top:1px}
+  .jempty{font-size:13px;color:var(--ink-3)}
+
+  .dlgw{position:fixed;inset:var(--pb,0px) 0 0 0;z-index:60;display:none;place-items:center;background:rgba(26,26,26,.5);padding:16px}
+  .dlgw.on{display:grid}
+  .dlg{background:#fff;border-radius:10px;width:460px;max-width:100%;box-shadow:var(--e-float);max-height:calc(100vh - 32px);display:flex;flex-direction:column}
+  .dlg .hd{padding:16px 20px;border-bottom:1px solid var(--line-subtle);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .dlg .hd h2{font-size:16px;font-weight:600}
+  .dlg .bd{padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}
+  .dlg .ft{padding:12px 20px;border-top:1px solid var(--line-subtle);display:flex;justify-content:flex-end;gap:8px}
+  .field>.l, fieldset>legend{display:block;font-size:13px;font-weight:500;color:var(--ink-2);margin-bottom:6px;padding:0}
+  fieldset{border:0;margin:0;padding:0;min-width:0}
+  .inp{height:36px;width:100%;border:1px solid var(--line-input);border-radius:6px;padding:0 10px;background:#fff}
+  .inp::placeholder{color:var(--ink-3)}
+  .inp:hover{border-color:var(--ink-4)}
+  .inp.bad{border-color:#D72C0D}
+  .pw{position:relative}
+  .pw .inp{padding-inline-end:84px}
+  .pw .tg{position:absolute;inset-inline-end:5px;top:5px;height:26px;padding:0 9px;font-size:12px;font-weight:600;color:var(--ink-2);border-radius:5px;display:inline-flex;align-items:center;gap:5px}
+  .pw .tg:hover{background:var(--sel);color:var(--ink-1)}
+  .pw .tg .ic{width:14px;height:14px}
+  .hint{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+  .err{color:#B8250B;font-size:12.5px;margin-top:6px;display:flex;gap:6px;align-items:center}
+  .err .ic{width:14px;height:14px}
+  .ident{margin-top:8px;display:flex;align-items:flex-start;gap:8px;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:6px;padding:8px 10px;font-size:13px;color:var(--ink-2)}
+  .ident .ic{width:15px;height:15px;color:var(--ink-4);margin-top:2px}
+  .ident code{font-family:var(--mono);font-size:12.5px;color:var(--ink-1);background:#fff;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .ident small{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
+  .ident.taken{background:var(--crit-bg);border-color:var(--crit-edge);color:var(--crit)}
+  .rcards{display:grid;gap:8px}
+  .rcard{display:flex;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;align-items:flex-start;transition:border-color 120ms ease,background-color 120ms ease}
+  .rcard:hover{border-color:var(--ink-4)}
+  .rcard:has(input:checked){border-color:var(--brand);background:var(--brand-tint);box-shadow:inset 0 0 0 1px var(--brand)}
+  .rcard:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}
+  .rcard input{accent-color:var(--brand);margin:3px 0 0;flex:none}
+  .rcard input:focus-visible{outline:none}
+  .rcard .t{font-weight:600;font-size:13.5px}
+  .rcard .d{font-size:12.5px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+  .segr{display:flex;background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px}
+  .segr label{flex:1;position:relative;height:32px;border-radius:6px;display:grid;place-items:center;font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer}
+  .segr label:hover{color:var(--ink-1)}
+  .segr input{position:absolute;opacity:0;pointer-events:none}
+  .segr label:has(input:checked){background:#fff;color:var(--ink-1);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+  .segr label:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:1px}
+  .fixed{font-size:13px;color:var(--ink-2);background:var(--sunken);border:1px solid var(--line-subtle);border-radius:6px;padding:8px 10px}
+  .note-warn{display:flex;gap:8px;align-items:flex-start;background:var(--amber-bg);color:var(--amber-ink);border-radius:6px;padding:8px 10px;font-size:12.5px;margin-top:8px}
+  .note-warn .ic{width:14px;height:14px;margin-top:1px}
+  .conseq{display:flex;gap:10px;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--ink-2);line-height:1.5}
+  .conseq .ic{color:var(--ink-4);margin-top:1px}
+  .conseq.crit{background:var(--crit-bg);border-color:var(--crit-edge);color:#7A2620}
+  .conseq.crit .ic{color:var(--crit)}
+  .rlist{display:grid;gap:8px}
+
+  .toast{position:fixed;bottom:24px;inset-inline-end:24px;background:#1A1A1A;color:#fff;padding:10px 14px;border-radius:8px;font-size:13.5px;z-index:200;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;pointer-events:none;max-width:420px}
+  .toast.show{opacity:1;transform:none}
+
+  /* ── « Avant » pins ─────────────────────────────────────────────── */
+  .pin{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:99px;background:#D72C0D;color:#fff;font:700 10.5px/1 var(--f);margin-inline-start:6px;vertical-align:middle;letter-spacing:0;text-transform:none;box-shadow:0 0 0 2px #fff}
+
+  /* ── narrow screens: the table reflows into stacked rows ───────── */
+  @media (max-width:980px){ .side{display:none} main{padding:20px 16px 48px} }
+  @media (max-width:760px){
+    .tbl thead{display:none}
+    .tbl tr.r{display:grid;grid-template-columns:1fr auto;padding:10px 4px;border-bottom:1px solid var(--line-faint)}
+    .tbl tr.r td{border:0;padding:3px 12px;width:auto}
+    .tbl tr.r td.c-act{grid-row:1;grid-column:2}
+    .tbl tr.r td:not(:first-child):not(.c-act){grid-column:1;padding-inline-start:56px}
+    .tbl .c-mk{display:none}
+    .rc{margin-inline-start:0;width:100%}
+    .search{max-width:none}
+    .perms{grid-template-columns:1fr}
+    .kv{grid-template-columns:1fr;gap:2px 0}
+    .kv dd{margin-bottom:10px}
+  }
+
+  /* ── review notes (NOT part of the app) ─────────────────────────── */
+  .notes{max-width:1080px;margin:0 auto;padding:16px 30px 100px;font-family:var(--f)}
+  .notes h2{font-size:18px;margin:26px 0 10px;font-weight:650}
+  .notes .n{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 15px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .notes .n.q{border-inline-start-color:#E0A43A}
+  .notes .n.f{border-inline-start-color:var(--crit)}
+  .notes .n.g{border-inline-start-color:var(--brand)}
+  .notes .n b{font-weight:650}
+  .notes ul,.notes ol{margin:6px 0 0;padding-inline-start:22px}
+  .notes li{margin:3px 0}
+  .notes code{font-size:12.5px;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:4px;padding:0 4px}
+  .notes pre{font:12px/1.45 var(--mono);background:#1F2328;color:#E6E8EB;border-radius:8px;padding:14px 16px;overflow-x:auto;margin:8px 0 0}
+  .notes table{border-collapse:collapse;width:100%;margin-top:8px;font-size:13px}
+  .notes th,.notes td{border-top:1px solid var(--line-subtle);padding:7px 8px;text-align:start;vertical-align:top}
+  .notes th{font-size:12px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-top:0}
+  .notes .pin{box-shadow:none;margin:0 4px 0 0}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <h1>Accès · v1</h1>
+  <span class="src">Données réelles, lues le <b>sam. 3 oct. à 15:30</b> (Tripoli)</span>
+  <span class="grow"></span>
+  <span class="pctl">Page <button data-v="before">Avant</button><button data-v="after">Après</button></span>
+  <span class="pctl">Vue <button data-as="admin">Super admin</button><button data-as="manager">Manager Libye</button></span>
+  <span class="pctl">Données <button data-data="real">Réelles</button><button data-data="edge">États limites</button></span>
+  <span class="pctl">Langue <button data-lang="fr">FR</button><button data-lang="ar">AR</button></span>
+  <span class="warnfr" id="warnfr" hidden>Un super admin est toujours servi en français dans l'app.</span>
+  <a href="#notes">Notes de revue ↓</a>
+</div>
+
+<div class="stage" id="stage" dir="ltr">
+  <aside class="side" id="side" aria-label="Navigation"></aside>
+  <main><div class="page" id="page"></div></main>
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"></aside>
+  <aside class="drawer" id="cpanel" role="dialog" aria-modal="true" aria-labelledby="cpanel-title"></aside>
+  <div class="dlgw" id="dlgw"><div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title"></div></div>
+  <div class="menu" id="menu" role="menu"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<section class="notes" id="notes">
+  <h2>Notes de revue</h2>
+
+  <div class="n"><b>Ce que fait la page, et ce qui ne change pas.</b> Accès répond à trois besoins : <b>trouver une personne</b> et agir sur son compte (mot de passe, désactivation, réactivation, suppression, journal), <b>créer un compte</b>, et <b>rattacher un agent entrepôt à son bâtiment</b>, ce qui est un contrôle de sécurité, pas une préférence. La refonte garde exactement les mêmes données (les colonnes de <code>GET /api/users</code>), les mêmes actions, les mêmes routes et les mêmes règles de rôle : un manager ne voit et ne crée que les agents et agents entrepôt de son marché ; seul le super admin supprime (jamais soi-même) et lit le journal. Seules changent la <b>forme</b> et l'<b>ordre de lecture</b>.</div>
+
+  <h2>1 · Diagnostic de la page actuelle</h2>
+  <div class="n f"><b>Ce que montre « Avant » (les pastilles rouges renvoient ici).</b>
+    <ol>
+      <li><span class="pin">1</span><b>Titre « ACCÈS » en majuscules et en dur</b>, avec le sous-titre et « Chargement… » : du français codé dans le composant. Un manager libyen, servi en arabe, voit une page mi-arabe mi-française. Même chose pour « Permissions », « Masquer », « Continuer », les libellés des pastilles de rôle, les durées « il y a 3 h », « Sélectionner un rôle ».</li>
+      <li><span class="pin">2</span><b>Bouton principal noir</b> (<code>#1A1A1A</code>). Le design system en fait un bouton vert de marque depuis §4.18 : c'est le seul endroit de la console où le CTA principal est encore noir.</li>
+      <li><span class="pin">3</span><b>Cinq sections empilées, chacune découpée en Actifs / Invités / Désactivés.</b> Les colonnes ne s'alignent pas d'une carte à l'autre, on ne peut pas lire verticalement, et il faut faire défiler environ 1,7 écran pour 22 comptes. Les en-têtes et les compteurs sont en <code>#9CA3AF</code> sur blanc : <b>2,5:1</b>, sous le minimum WCAG de 4,5:1.</li>
+      <li><span class="pin">4</span><b>Cinq teintes décoratives pour les rôles</b> (indigo, vert, orange, bleu, ambre). Le design system réserve la couleur aux statuts. Et la pastille répète la section dans laquelle la ligne se trouve déjà.</li>
+      <li><span class="pin">5</span><b>Le marché s'affiche mal pour tout le monde.</b> Le super admin lit <code>markets.name</code>, qui est en anglais (« Libya », « Tunisia ») sur une page française. Le manager lit… l'UUID du marché (<code>00000000-…-000000000002</code>) : la page ne charge pas la liste des marchés pour lui et retombe sur <code>{ name: user.market_id }</code>.</li>
+      <li><span class="pin">6</span><b>La présence ne passe que par la couleur</b> d'un point de 10 px (WCAG 1.4.1) ; le gris « hors ligne » <code>#9CA3AF</code> est à peine visible.</li>
+      <li><span class="pin">7</span><b>« Permissions » ne fait rien.</b> Le lien bascule un état <code>showPermissions</code> que rien ne lit ; le composant <code>PermissionsList</code> existe mais n'est importé nulle part. Il est en 11 px <code>#9CA3AF</code>, positionné en absolu, et chevauche la ligne.</li>
+      <li><span class="pin">8</span><b>« · il y a 156 j »</b> : une durée relative sans borne, en gris 2,5:1, collée à l'e-mail <code>@oms.local</code>, alors que l'identifiant qu'on tape à la connexion est la partie avant l'arobase.</li>
+      <li><span class="pin">9</span><b>La pastille d'un compte désactivé dit « Désactivés »</b> (pluriel, c'est la clé du titre de section). Le motif de désactivation est chargé par l'API mais jamais affiché.</li>
+      <li><span class="pin">10</span><b>Un agent entrepôt sans entrepôt</b> (visible en « États limites ») n'est signalé que par une petite pastille au milieu de sa carte, alors que cet agent ne voit aucun colis et ne peut rien scanner.</li>
+    </ol>
+    <b>Et ce qui ne se voit pas :</b>
+    <ul>
+      <li>Les puces « N actions » et « N conv. » ne s'affichent jamais : le hook demande <code>?include_stats=true</code>, mais la route l'ignore et ne renvoie ni <code>orders_actioned</code> ni <code>leads_converted</code>.</li>
+      <li>Le menu « ⋯ » ne se ferme ni au clic à l'extérieur ni avec Échap (le <code>menuRef</code> n'est branché sur rien), et il n'a pas de rôle <code>menu</code> ni de navigation au clavier.</li>
+      <li>La désactivation en deux étapes affiche à la seconde « <b>…</b> commande(s) seront retournées » : des points de suspension littéraux à la place du nombre.</li>
+      <li>La réinitialisation annonce « Minimum 8 caractères requis » mais accepte un caractère (<code>invalid = false</code>, contrôle <code>pw.length &lt; 1</code>).</li>
+      <li>Le journal affiche la clé brute pour <code>warehouse_assigned</code> (aucune traduction), alors que c'est l'événement le plus récent en base.</li>
+      <li>Pendant le chargement, la page affiche le texte « Chargement… » (§4.12 demande un squelette).</li>
+    </ul>
+  </div>
+
+  <h2>2 · Structure proposée</h2>
+  <div class="n g"><b>Maquette fil de fer.</b>
+<pre>┌ Sidebar ┐┌───────────────────────────────────────────────────────────────────────┐
+│ Équipe  ││ Accès                                               [+ Créer un utilisateur] │
+│  Salle  ││ Qui peut se connecter à Ordra, avec quel rôle et sur quel marché.        │
+│  Perf.  ││ ┌ ⚠ 1 agent entrepôt n'a pas d'entrepôt · [tarek]  ───────────────────┐ │ ← seulement si ≥ 1
+│ ▌Accès  ││ └────────────────────────────────────────────────────────────────────┘ │
+│         ││ ┌──────────────────────────────────────────────────────────────────────┐ │
+│         ││ │ Tous 21 · Agents 10 · Entrepôt 2 · Managers 6 · Invest. 1 · Admins 2  │ │ ← onglets (§4.11)
+│         ││ │ [🔍 Rechercher…]  [Tous|Tunisie|Libye]  (○ Sans activité 9)  21 comptes │ │
+│         ││ │ UTILISATEUR          RÔLE                    MARCHÉ  DERNIÈRE ACTIVITÉ  │ │
+│         ││ │ (T) tasnim           Agent de confirmation   Libye   ● En ligne      ⋯ │ │
+│         ││ │ (A) adel             Agent entrepôt          Libye   ● il y a 12 h   ⋯ │ │
+│         ││ │                      [▣ Benghazi ▾]                                    │ │
+│         ││ │ ▸ 1 compte désactivé                                                   │ │ ← replié
+│         ││ └──────────────────────────────────────────────────────────────────────┘ │
+└─────────┘└───────────────────────────────────────────────────────────────────────┘
+                                   clic sur une ligne → ┌ Fiche, 440 px (§4.13) ──────┐
+                                                        │ (T) tarek · tarek        ✕ │
+                                                        │ COMPTE  rôle, marché,       │
+                                                        │   entrepôt, statut, activité│
+                                                        │ CE QUE CE RÔLE PERMET ✓ / — │
+                                                        │ JOURNAL  (super admin)      │
+                                                        │ [Mot de passe] [Désactiver] │
+                                                        └─────────────────────────────┘</pre></div>
+
+  <div class="n g"><b>Hiérarchie des composants (pour la phase React).</b>
+<pre>UsersPageClient                         même hook useUsersWorkspace, mêmes routes
+├─ AccessHeader                         titre + sous-titre selon le rôle + Button primary « Créer »
+├─ UnassignedWarehouseBanner            rendu seulement si ≥ 1 agent entrepôt actif sans entrepôt
+├─ Card
+│  ├─ RoleTabs                          onglets soulignés, compteurs (remplace UserRoleSection ×5)
+│  ├─ AccessToolbar                     SearchInput · MarketSegment (super admin) · DormantChip · compte
+│  ├─ UsersTable                        &lt;table&gt; sémantique, th scope="col"
+│  │  └─ UserRow ×n                     Identity (Avatar) · RoleCell (+ WarehouseAssignment compact)
+│  │                                    · MarketCell (super admin) · ActivityCell · RowMenu
+│  ├─ DisabledFold → UserRow ×n         comptes désactivés, repliés
+│  └─ EmptyState | SkeletonRows
+├─ UserDrawer                           fiche : Compte · PermissionsList (enfin branché) · Journal (super admin)
+├─ CreateUserPanel                      mêmes champs : RoleCards · MarketSegment · SitePicker · aperçu identifiant
+├─ DeactivateUserDialog                 une étape : motif + conséquence + confirmer
+├─ DeleteUserDialog · ResetPasswordDialog
+└─ Toast (components/ui/Toast)</pre></div>
+
+  <h2>3 · Changements et raisons</h2>
+  <div class="n">
+    <table>
+      <tr><th>Changement</th><th>Pourquoi</th></tr>
+      <tr><td><b>Une table au lieu de 5 sections × 3 sous-groupes</b>, et le rôle devient un onglet avec son compteur.</td><td>Les colonnes s'alignent, l'œil descend une colonne (« qui est en ligne ? », « qui n'a pas d'entrepôt ? »). Les 21 comptes actifs tiennent sur un écran. Le regroupement par rôle reste, mais comme un filtre, pas comme une pile.</td></tr>
+      <tr><td><b>Recherche + filtre de marché</b> (super admin).</td><td>Le super admin voit les deux marchés mélangés dans chaque section. Trouver « asma » demandait de parcourir la page.</td></tr>
+      <tr><td><b>Rôle en texte neutre</b>, plus aucune teinte de rôle.</td><td>§1 règle 3 : la couleur dit un statut, pas une catégorie. Les seules couleurs restantes sont la présence, « sans entrepôt » (critique), « invitation en attente » (ambre) et « désactivé » (gris).</td></tr>
+      <tr><td><b>CTA vert de marque.</b></td><td>§4.18, comme partout ailleurs dans la console.</td></tr>
+      <tr><td><b>Colonne « Dernière activité » : point + texte</b>, relatif le jour même (« il y a 12 h »), « hier, 15:02 », puis jour (« jeu. 1 oct. ») et enfin date (« 29 avr. »).</td><td>WCAG 1.4.1 : la couleur n'est plus le seul signal. « il y a 156 j » ne se lit pas, une date si.</td></tr>
+      <tr><td><b>Identifiant de connexion</b> au lieu de l'e-mail (<code>agent1.tn</code>, pas <code>agent1.tn@oms.local</code>), sous le nom <b>seulement quand il en diffère</b> (5 comptes sur 22 : Agent TN 1 et 2, Test Agent 88, Super Admin…). La fiche l'affiche toujours, avec l'e-mail complet. Une adresse d'un autre domaine s'affiche en entier.</td><td>C'est ce que la personne tape sur l'écran de connexion (<code>resolveEmail</code> ajoute <code>@oms.local</code>). Pour 17 comptes, « roqaya » sous « roqaya » doublait la hauteur de la ligne sans rien apprendre.</td></tr>
+      <tr><td><b>Fiche utilisateur</b> en panneau latéral au clic sur la ligne : compte, ce que le rôle permet, journal, actions.</td><td>Un seul endroit par personne. « Ce que ce rôle permet » est <code>PermissionsList</code>, ce que le lien mort « Permissions » voulait montrer. Le journal, aujourd'hui dans un deuxième panneau, y entre. Le menu « ⋯ » reste pour aller vite.</td></tr>
+      <tr><td><b>Agent entrepôt sans entrepôt : bandeau rouge en haut</b> + sélecteur rouge dans la ligne.</td><td>Règle CLAUDE.md : sans entrepôt, l'agent ne voit rien et ne scanne rien. Le problème doit se voir avant de chercher la ligne.</td></tr>
+      <tr><td><b>Comptes désactivés repliés en bas</b>, avec leur motif.</td><td>Ils n'appellent aucune action quotidienne. Le motif était chargé mais jamais montré.</td></tr>
+      <tr><td><b>Filtre « Sans activité »</b> (9 comptes actifs aujourd'hui).</td><td>Accès sert à gérer qui peut entrer : un compte actif jamais utilisé reste une porte ouverte (voir §5). Le filtre réutilise <code>last_seen_at</code>, déjà affiché.</td></tr>
+      <tr><td><b>Création</b> : rôles en cartes avec une phrase chacune, marché et entrepôt en choix visibles, aperçu de l'identifiant, mot de passe affichable.</td><td>Mêmes champs, même requête. On voit ce qu'implique un rôle avant de le choisir, et on sait quoi dire à la personne (« ton identifiant est <code>ahmed.ben.ali</code> »). « Afficher » aide à recopier le mot de passe sans faute.</td></tr>
+      <tr><td><b>Désactivation en une étape</b> : motif, conséquence, bouton rouge actif seulement une fois le motif choisi.</td><td>La seconde étape ne contenait que la phrase cassée « … commande(s) ». La sécurité tient au bouton rouge et à la phrase de conséquence, pas au nombre de clics. Les émojis sont retirés (§1 : aucune décoration).</td></tr>
+      <tr><td><b>Squelette</b> au chargement, <b>toutes les chaînes traduites</b>, <b>menu accessible</b> (Échap, clic extérieur, flèches, <code>role="menu"</code>).</td><td>§4.12, règle i18n du projet, WCAG 2.1.1 et 4.1.2.</td></tr>
+      <tr><td><b>Retirés</b> : les puces de statistiques et le lien « Permissions ».</td><td>Aucun des deux n'a jamais rien affiché. Retirer aussi <code>?include_stats=true</code> du hook et les deux champs du type.</td></tr>
+    </table>
+  </div>
+
+  <div class="n"><b>Accessibilité, point par point.</b>
+    <ul>
+      <li><b>Contraste</b> : tout texte ≥ 4,5:1 (<code>#6D7175</code> = 4,9:1 au plus clair ; <code>#9CA3AF</code> n'est plus utilisé pour du texte). Points et bordures de contrôle ≥ 3:1.</li>
+      <li><b>Présence</b> : point + mot (« En ligne », « Inactif · 12 min », « Aucune activité »), jamais la couleur seule.</li>
+      <li><b>Clavier</b> : onglets aux flèches (inversées en RTL), le nom de chaque ligne est un bouton qui ouvre la fiche, menu aux flèches avec Échap qui rend le focus au bouton « ⋯ », panneaux et dialogues avec focus piégé, Échap, et retour du focus à l'élément d'origine.</li>
+      <li><b>Sémantique</b> : vraie <code>&lt;table&gt;</code> avec <code>th scope="col"</code>, <code>aria-selected</code> sur les onglets, <code>aria-pressed</code> sur les filtres, <code>aria-expanded</code> sur « ⋯ », toasts en <code>aria-live</code>, chaque sélecteur d'entrepôt avec son libellé.</li>
+      <li><b>Cibles</b> : 32 px minimum (WCAG 2.5.8 en demande 24). Anneau de focus vert de marque, décalé de 2 px.</li>
+      <li><b>RTL et largeur</b> : propriétés logiques partout, la page entière se met en miroir. Sous 760 px, la table se replie en lignes empilées (WCAG 1.4.10).</li>
+      <li><b>Mouvement</b> : la surbrillance d'un nouveau compte et le squelette s'arrêtent avec <code>prefers-reduced-motion</code>.</li>
+    </ul></div>
+
+  <h2>4 · Décisions prises en expert</h2>
+  <div class="n"><ul>
+    <li><b>Ordre des onglets : Agents, Entrepôt, Managers, Investisseurs, Super admins.</b> Les agents font la moitié des comptes et la quasi-totalité des créations et désactivations. Les comptes d'administration passent en dernier.</li>
+    <li><b>Tri dans un rôle : en ligne, puis inactif, puis activité la plus récente, et les comptes sans activité en bas.</b> La recherche sert à trouver un nom ; l'ordre sert à voir qui est là et qui dort.</li>
+    <li><b>Pas de tuiles de synthèse.</b> Pour 22 comptes, les compteurs des onglets suffisent ; des tuiles seraient de la décoration.</li>
+    <li><b>Pas de colonne « Statut ».</b> 21 lignes sur 22 diraient « Actif ». Seules les exceptions portent une pastille (désactivé, invitation).</li>
+    <li><b>Le marché d'un super admin s'écrit « Tous »</b>, et la colonne Marché disparaît pour un manager, qui n'en a qu'un. C'est aussi ce qui fait disparaître le bug de l'UUID : les noms de marché viennent des fichiers de traduction, plus de <code>markets.name</code>.</li>
+    <li><b>Le sélecteur d'entrepôt reste dans la ligne</b>, en version compacte, parce que c'est la correction la plus fréquente. Il est aussi dans la fiche.</li>
+    <li><b>La présence s'affiche aussi sur sa propre ligne</b>, avec la mention « vous ». La masquer n'apportait rien.</li>
+    <li><b>L'état « Invitation en attente » est conservé</b>, même si plus rien ne crée d'invitation (aucun compte invité parmi les comptes actifs ; les deux qui existent sont supprimés).</li>
+  </ul></div>
+
+  <h2>5 · Trouvé dans les vraies données — à traiter</h2>
+  <div class="n f"><ul>
+    <li><b>Des comptes de test sont actifs en production et peuvent se connecter</b> : « Test Agent 88 » (<code>testagent88@test.com</code>, Tunisie), « Agent TN 1 », « Agent TN 2 », « Manager LY », « MANAGER_LIBYA », « Admin ». Le filtre « Sans activité » les fait ressortir. Je recommande de désactiver ceux qui ne servent plus (motif « Départ »).</li>
+    <li><b>9 comptes actifs n'ont aucune activité enregistrée</b> : mouna, riheb, imen, MANAGER_LIBYA, tarek, ilyes, Agent TN 2, asma, Test Agent 88. Attention : « aucune activité » ne veut pas dire « jamais connecté ». Le signal de présence a déjà manqué une agente qui travaillait tous les jours (roqaya, vide jusqu'à fin septembre).</li>
+    <li><b>À l'inverse, <code>POST /api/users</code> écrit <code>last_seen_at = now()</code> à la création.</b> Un compte créé aujourd'hui et jamais ouvert apparaît donc « vu à l'instant ». Il faudrait laisser le champ vide à la création ; le prototype le montre vide (essayer « Créer »).</li>
+    <li><b>Le seul agent rattaché à l'entrepôt de Tripoli (tarek) n'a aucune activité enregistrée</b>, alors que Tripoli est l'entrepôt par défaut. Qui scanne à Tripoli ? Si c'est un manager, rien à faire ; sinon c'est une question d'exploitation.</li>
+    <li><b>Arabe</b> : la section super admin s'appelle « المشرفون العاملون » (« les superviseurs qui travaillent »), au lieu de « المشرفون العامّون ». Corrigé dans le prototype.</li>
+  </ul></div>
+
+  <h2>6 · À valider par toi</h2>
+  <div class="n q"><ol>
+    <li><b>Mot de passe : faut-il appliquer les 8 caractères minimum</b> que le message annonce déjà ? Aujourd'hui, un caractère suffit, à la création comme à la réinitialisation. C'est un changement de comportement, donc ta décision. Ma recommandation : oui.</li>
+    <li><b>Désactivation en une étape</b> au lieu de deux : d'accord ?</li>
+    <li><b>Ordre des onglets</b> : les agents d'abord (ma proposition), ou la hiérarchie actuelle (super admins d'abord) ?</li>
+    <li><b>Comptes de test en production</b> : je peux préparer la liste à désactiver, mais je n'y touche pas sans ton accord.</li>
+  </ol></div>
+
+  <div class="n"><b>Limites du prototype.</b> Rien n'est écrit : les actions modifient la liste en mémoire et affichent le toast que la vraie page afficherait. Après une désactivation, l'API renvoie le nombre de commandes retournées ; le prototype ne le connaît pas, donc son toast ne donne pas de nombre. Les avatars sont des initiales (quatre agents ont une photo en base). « États limites » invente deux comptes, marqués « fictif » : nour (invitation en attente) et yassine (désactivé, congé). Il ajoute aussi un journal fictif pour yassine, retire l'entrepôt de tarek et met salima « inactive depuis 12 min ».</div>
+</section>
+
+<script>
+/* ═════════════ REAL DATA — read-only, 2026-10-03 15:30 Africa/Tripoli ═════════════ */
+const NOW = Date.parse("2026-10-03T13:30:00Z");
+const TZ_OFF = 2 * 3600e3; /* Libya, UTC+2, no DST */
+
+/* id · n name · e email · r role · mk market · wh building · s last_seen_at (UTC) · c created · off disabled */
+const REAL = [
+  {id:"tasnim", n:"tasnim", e:"tasnim@oms.local", r:"agent", mk:"ly", s:"2026-10-03T13:25:03Z", c:"2026-06-23"},
+  {id:"roqaya", n:"roqaya", e:"roqaya@oms.local", r:"agent", mk:"ly", s:"2026-10-03T11:45:45Z", c:"2026-05-24"},
+  {id:"salima", n:"salima", e:"salima@oms.local", r:"agent", mk:"ly", s:"2026-10-01T17:15:40Z", c:"2026-08-07"},
+  {id:"hend", n:"hend", e:"hend@oms.local", r:"agent", mk:"ly", s:"2026-09-29T15:13:07Z", c:"2026-05-28"},
+  {id:"mouna", n:"mouna", e:"mouna@oms.local", r:"agent", mk:"ly", s:null, c:"2026-05-13"},
+  {id:"riheb", n:"riheb", e:"riheb@oms.local", r:"agent", mk:"ly", s:null, c:"2026-08-10"},
+  {id:"agent1tn", n:"Agent TN 1", e:"agent1.tn@oms.local", r:"agent", mk:"tn", s:"2026-09-14T12:46:42Z", c:"2026-04-13"},
+  {id:"agent2tn", n:"Agent TN 2", e:"agent2.tn@oms.local", r:"agent", mk:"tn", s:null, c:"2026-04-13"},
+  {id:"asma", n:"asma", e:"asma@oms.local", r:"agent", mk:"tn", s:null, c:"2026-04-20"},
+  {id:"testagent88", n:"Test Agent 88", e:"testagent88@test.com", r:"agent", mk:"tn", s:null, c:"2026-04-16"},
+  {id:"agent1tntest", n:"Agent 1 TN", e:"agent1.tn@oms.test", r:"agent", mk:"tn", s:null, c:"2026-04-12", off:true},
+  {id:"adel", n:"adel", e:"adel@oms.local", r:"warehouse_agent", mk:"ly", wh:"benghazi", s:"2026-10-03T00:48:44Z", c:"2026-09-03"},
+  {id:"tarek", n:"tarek", e:"tarek@oms.local", r:"warehouse_agent", mk:"ly", wh:"tripoli", s:null, c:"2026-06-07"},
+  {id:"hamidaly", n:"hamidaly", e:"hamidaly@oms.local", r:"market_manager", mk:"ly", s:"2026-10-03T11:56:54Z", c:"2026-05-29"},
+  {id:"imen", n:"imen", e:"imen@oms.local", r:"market_manager", mk:"ly", s:null, c:"2026-06-27"},
+  {id:"managerly", n:"Manager LY", e:"manager.ly@oms.local", r:"market_manager", mk:"ly", s:"2026-09-18T11:00:39Z", c:"2026-04-13"},
+  {id:"managerlibya", n:"MANAGER_LIBYA", e:"manager_libya@oms.local", r:"market_manager", mk:"ly", s:null, c:"2026-07-07"},
+  {id:"firas", n:"firas hadj ameur", e:"firas.hadj.ameur@oms.local", r:"market_manager", mk:"tn", s:"2026-04-29T15:58:19Z", c:"2026-04-29"},
+  {id:"managertn", n:"Manager TN", e:"manager.tn@oms.local", r:"market_manager", mk:"tn", s:"2026-09-15T18:08:23Z", c:"2026-04-13"},
+  {id:"ilyes", n:"ilyes", e:"ilyes@oms.local", r:"investor", mk:"ly", s:null, c:"2026-07-30"},
+  {id:"superadmin", n:"Super Admin", e:"admin@oms.tn", r:"super_admin", mk:null, s:"2026-10-03T13:28:32Z", c:"2026-04-11"},
+  {id:"admin", n:"Admin", e:"admin@oms.local", r:"super_admin", mk:null, s:"2026-10-02T13:02:47Z", c:"2026-04-13"},
+];
+/* created_at order (API returns created_at DESC — the « Avant » view keeps it) */
+const CREATED_AT = {superadmin:"2026-04-11T10:00", agent1tntest:"2026-04-12T09:00", admin:"2026-04-13T08:00", agent1tn:"2026-04-13T08:01", agent2tn:"2026-04-13T08:02", managerly:"2026-04-13T08:03", managertn:"2026-04-13T08:04"};
+
+/* user_audit_log, Tripoli time, actor resolved */
+const AUDIT_REAL = {
+  tarek:[{e:"warehouse_assigned", by:"Super Admin", at:"2026-09-09 19:03", wh:"tripoli"},{e:"user_created", by:"Super Admin", at:"2026-06-07 15:34"}],
+  adel:[{e:"user_created", by:"Super Admin", at:"2026-09-03 20:20"}],
+  riheb:[{e:"user_created", by:"Super Admin", at:"2026-08-10 20:17"}],
+  salima:[{e:"user_created", by:"Super Admin", at:"2026-08-07 21:27"}],
+  ilyes:[{e:"user_created", by:"Super Admin", at:"2026-07-30 17:15"}],
+  managerlibya:[{e:"user_created", by:"Super Admin", at:"2026-07-08 00:27"}],
+  imen:[{e:"user_created", by:"Super Admin", at:"2026-06-27 13:38"}],
+  tasnim:[{e:"user_created", by:"Super Admin", at:"2026-06-23 11:18"}],
+  hamidaly:[{e:"password_reset", by:"Super Admin", at:"2026-05-29 15:58"},{e:"user_created", by:"Super Admin", at:"2026-05-29 15:57"}],
+  hend:[{e:"user_created", by:"Super Admin", at:"2026-05-28 23:41"}],
+  roqaya:[{e:"user_created", by:"Super Admin", at:"2026-05-24 23:41"}],
+  mouna:[{e:"user_created", by:"Super Admin", at:"2026-05-13 19:32"}],
+  firas:[{e:"user_created", by:"Super Admin", at:"2026-04-29 17:58"}],
+};
+
+const SITES = {
+  ly:[{id:"tripoli", fr:"Tripoli", ar:"طرابلس"},{id:"benghazi", fr:"Benghazi", ar:"بنغازي"}],
+  tn:[{id:"tunis", fr:"Tunis", ar:"تونس"}],
+};
+const MARKET_UUID = {ly:"00000000-0000-0000-0000-000000000002", tn:"00000000-0000-0000-0000-000000000001"};
+
+/* src/lib/user-permissions.ts, verbatim */
+const PERM_KEYS = ["canConfirmOrders","canViewAllOrders","canManageAgents","canViewFinances","canAccessSettings","canScanWarehouse","canManageProducts","canInviteUsers"];
+const PERMS = {
+  super_admin:[1,1,1,1,1,1,1,1],
+  market_manager:[0,1,1,0,1,1,0,1],
+  agent:[1,0,0,0,0,0,0,0],
+  warehouse_agent:[0,0,0,0,0,1,0,0],
+  investor:[0,0,0,0,0,0,0,0],
+};
+
+const ROLE_ORDER = ["agent","warehouse_agent","market_manager","investor","super_admin"];
+const BEFORE_ORDER = ["super_admin","market_manager","agent","warehouse_agent","investor"];
+
+/* ═════════════ i18n ═════════════ */
+const I = {
+ fr:{
+  dir:"ltr", locale:"fr-FR",
+  nav:{brand:"Ordra", market:"Marché", all:"Tous", sections:[["accueil","Accueil",null],["commandes","Commandes",null],["logistique","Entrepôt",null],["livraison","Livraison",null],["finances","Finances",null],["clients","Clients",null],["equipe","Équipe",["Salle de contrôle","Performance","Accès"]],["systeme","Système",null]], active:"Accès", role:{admin:"Super admin", manager:"Market manager"}},
+  title:"Accès",
+  sub_admin:"Qui peut se connecter à Ordra, avec quel rôle et sur quel marché.",
+  sub_mgr:m=>`Les comptes de l'équipe ${m} : agents de confirmation et agents entrepôt.`,
+  create:"Créer un utilisateur",
+  search:"Rechercher un nom ou un identifiant",
+  tabs_label:"Filtrer par rôle",
+  tab:{all:"Tous", agent:"Agents", warehouse_agent:"Entrepôt", market_manager:"Managers", investor:"Investisseurs", super_admin:"Super admins"},
+  mk_label:"Filtrer par marché", mk_all:"Tous", mk:{ly:"Libye", tn:"Tunisie"}, mk_none:"Tous",
+  dormant:"Sans activité",
+  rc:n=>`${n} compte${n>1?"s":""}`, rc_dorm:n=>`${n} compte${n>1?"s":""} sans activité enregistrée`,
+  col:{user:"Utilisateur", role:"Rôle", market:"Marché", seen:"Dernière activité", actions:"Actions"},
+  role:{agent:"Agent de confirmation", warehouse_agent:"Agent entrepôt", market_manager:"Market manager", investor:"Investisseur", super_admin:"Super admin"},
+  role_desc:{
+    agent:"Appelle les clients et confirme les commandes de sa file.",
+    warehouse_agent:"Prépare et scanne les colis d'un entrepôt, reçoit les retours.",
+    market_manager:"Suit les commandes, l'équipe et l'entrepôt d'un marché.",
+    investor:"N'accède qu'à son portail investisseur.",
+  },
+  you:"vous", fictif:"fictif",
+  open_aria:n=>`Ouvrir la fiche de ${n}`, actions_for:n=>`Actions pour ${n}`,
+  wh_label:"Entrepôt", wh_pick:"Choisir un entrepôt", wh_none:"Aucun entrepôt", wh_miss:"Ne voit aucun colis",
+  wh_hint:"Détermine les colis que cet agent prépare et peut scanner.",
+  pres:{on:"En ligne", idle:m=>`Inactif · ${m} min`, min:m=>`il y a ${m} min`, h:n=>`il y a ${n} h`, yest:t=>`hier, ${t}`, none:"Aucune activité"},
+  st_active:"Actif", st_disabled:"Désactivé", st_invited:"Invitation en attente",
+  reasons:{"on-leave":"Congé / absence", "off-boarded":"Départ de l'entreprise", "terminated":"Licenciement"},
+  fold:n=>`${n} compte${n>1?"s":""} désactivé${n>1?"s":""}`,
+  banner_t:n=>n===1?"1 agent entrepôt n'a pas d'entrepôt":`${n} agents entrepôt n'ont pas d'entrepôt`,
+  banner_b:"Sans entrepôt, un agent ne voit aucun colis et ne peut rien scanner. Affectez-le avant sa prochaine prise de poste.",
+  empty_q:q=>`Aucun compte ne correspond à « ${q} ».`, empty:"Aucun compte dans cette vue.", clear:"Effacer les filtres",
+  foot:"La dernière activité vient du signal de présence, envoyé toutes les 60 s tant que l'onglet est ouvert.",
+  loading:"Chargement des comptes",
+  menu:{open:"Ouvrir la fiche", reset:"Réinitialiser le mot de passe", deactivate:"Désactiver", reactivate:"Réactiver", journal:"Journal d'activité", delete:"Supprimer l'utilisateur"},
+  d:{account:"Compte", perms:"Ce que ce rôle permet", journal:"Journal d'activité", ident:"Identifiant", email:"E-mail", status:"Statut", created:"Créé le", seen:"Dernière activité", market:"Marché", role:"Rôle", wh:"Entrepôt", jempty:"Aucun événement.", by:"par", close:"Fermer", perm_note:"Les droits découlent du rôle ; ils ne se règlent pas compte par compte."},
+  perm:{canConfirmOrders:"Confirmer des commandes", canViewAllOrders:"Voir toutes les commandes", canManageAgents:"Gérer les agents", canViewFinances:"Voir les finances", canAccessSettings:"Accéder aux paramètres", canScanWarehouse:"Accès entrepôt", canManageProducts:"Gérer les produits", canInviteUsers:"Inviter des utilisateurs"},
+  ev:{user_created:"Compte créé", user_invited:"Invitation envoyée", user_deactivated:"Compte désactivé", user_reactivated:"Compte réactivé", user_deleted:"Compte supprimé", password_reset:"Mot de passe réinitialisé", avatar_updated:"Photo mise à jour", warehouse_assigned:"Entrepôt affecté"},
+  ret:n=>`${n} commande${n>1?"s":""} retournée${n>1?"s":""}`,
+  c:{title:"Créer un utilisateur", user:"Nom d'utilisateur", user_ph:"ex : ahmed ben ali", ident:"Identifiant de connexion :", ident_hint:"C'est ce que la personne tapera pour se connecter.", taken:"Cet identifiant est déjà utilisé.", pw:"Mot de passe", show:"Afficher", hide:"Masquer", role:"Rôle", market:"Marché", market_fixed:m=>`Marché : ${m}`, wh:"Entrepôt", wh_warn:"Sans entrepôt, l'agent ne verra aucun colis et ne pourra rien scanner.", cancel:"Annuler", submit:"Créer le compte"},
+  da:{title:n=>`Désactiver ${n} ?`, body:n=>`${n} ne pourra plus se connecter. Ses commandes en cours retourneront à la file non assignée.`, reason:"Motif", confirm:"Désactiver", cancel:"Annuler"},
+  de:{title:n=>`Supprimer définitivement ${n} ?`, body:"Cette action est irréversible. L'utilisateur ne pourra plus se connecter et ses commandes en cours seront retournées à la file non assignée. L'historique et le journal d'audit sont conservés.", confirm:"Supprimer définitivement", cancel:"Annuler"},
+  rp:{title:"Réinitialiser le mot de passe", pw1:"Nouveau mot de passe", pw2:"Confirmer le mot de passe", mismatch:"Les mots de passe ne correspondent pas.", save:"Enregistrer", cancel:"Annuler"},
+  toast:{created:(n,id)=>`${n} créé · identifiant ${id}`, deactivated:n=>`${n} désactivé. Ses commandes en cours sont retournées à la file.`, reactivated:n=>`${n} réactivé.`, deleted:n=>`${n} supprimé.`, reset:"Mot de passe réinitialisé.", wh:"Entrepôt enregistré.", proto:" (prototype : rien n'est écrit)"},
+  before:{title:"ACCÈS", sub:"Gestion des utilisateurs et des accès", perms:"Permissions"},
+ },
+ ar:{
+  dir:"rtl", locale:"ar-LY-u-nu-latn",
+  nav:{brand:"Ordra", market:"السوق", all:"الكل", sections:[["accueil","الرئيسية",null],["commandes","الطلبات",null],["logistique","المستودع",null],["livraison","التوصيل",null],["finances","المالية",null],["clients","العملاء",null],["equipe","الفريق",["غرفة التحكم","أداء الفريق","الوصول"]],["systeme","النظام",null]], active:"الوصول", role:{admin:"مشرف عام", manager:"مدير السوق"}},
+  title:"الوصول",
+  sub_admin:"من يمكنه الدخول إلى Ordra، وبأي دور، وفي أي سوق.",
+  sub_mgr:m=>`حسابات فريق ${m}: وكلاء التأكيد ووكلاء المستودع.`,
+  create:"إنشاء مستخدم",
+  search:"ابحث بالاسم أو المعرّف",
+  tabs_label:"تصفية حسب الدور",
+  tab:{all:"الكل", agent:"الوكلاء", warehouse_agent:"المستودع", market_manager:"المديرون", investor:"المستثمرون", super_admin:"المشرفون العامّون"},
+  mk_label:"تصفية حسب السوق", mk_all:"الكل", mk:{ly:"ليبيا", tn:"تونس"}, mk_none:"الكل",
+  dormant:"بلا نشاط",
+  rc:n=>arCount(n), rc_dorm:n=>`${arCount(n)} بلا نشاط مسجّل`,
+  col:{user:"المستخدم", role:"الدور", market:"السوق", seen:"آخر نشاط", actions:"الإجراءات"},
+  role:{agent:"وكيل تأكيد", warehouse_agent:"وكيل مستودع", market_manager:"مدير السوق", investor:"مستثمر", super_admin:"مشرف عام"},
+  role_desc:{
+    agent:"يتصل بالزبائن ويؤكّد الطلبات في قائمته.",
+    warehouse_agent:"يجهّز الطرود ويمسحها في مستودع واحد، ويستلم المرتجعات.",
+    market_manager:"يتابع الطلبات والفريق والمستودع في سوق واحد.",
+    investor:"يصل فقط إلى بوابة المستثمر الخاصة به.",
+  },
+  you:"أنت", fictif:"وهمي",
+  open_aria:n=>`فتح بطاقة ${n}`, actions_for:n=>`إجراءات ${n}`,
+  wh_label:"المستودع", wh_pick:"اختر مستودعًا", wh_none:"لا يوجد مستودع", wh_miss:"لا يرى أي طرد",
+  wh_hint:"يحدّد الطرود التي يجهّزها هذا الموظف ويمكنه مسحها.",
+  pres:{on:"متصل", idle:m=>`غير نشط · ${m} د`, min:m=>`منذ ${m} دقيقة`, h:n=>`منذ ${n} ساعة`, yest:t=>`أمس، ${t}`, none:"لا نشاط مسجّل"},
+  st_active:"نشط", st_disabled:"معطّل", st_invited:"في انتظار القبول",
+  reasons:{"on-leave":"إجازة / غياب مؤقت", "off-boarded":"مغادرة الشركة", "terminated":"إنهاء الخدمة"},
+  fold:n=>`حسابات معطّلة (${n})`,
+  banner_t:n=>n===1?"وكيل مستودع واحد بلا مستودع":`${n} وكلاء مستودع بلا مستودع`,
+  banner_b:"وكيل المستودع بلا مستودع لا يرى أي طرد ولا يمكنه مسح أي شيء. عيّنه قبل مناوبته القادمة.",
+  empty_q:q=>`لا يوجد حساب يطابق « ${q} ».`, empty:"لا توجد حسابات في هذا العرض.", clear:"مسح عوامل التصفية",
+  foot:"آخر نشاط مصدره إشارة الحضور، تُرسل كل 60 ثانية ما دامت الصفحة مفتوحة.",
+  loading:"جارٍ تحميل الحسابات",
+  menu:{open:"فتح البطاقة", reset:"إعادة تعيين كلمة المرور", deactivate:"تعطيل", reactivate:"إعادة التفعيل", journal:"سجل النشاط", delete:"حذف المستخدم"},
+  d:{account:"الحساب", perms:"ما يتيحه هذا الدور", journal:"سجل النشاط", ident:"المعرّف", email:"البريد", status:"الحالة", created:"أُنشئ في", seen:"آخر نشاط", market:"السوق", role:"الدور", wh:"المستودع", jempty:"لا توجد أحداث.", by:"بواسطة", close:"إغلاق", perm_note:"الصلاحيات مرتبطة بالدور، ولا تُضبط لكل حساب على حدة."},
+  perm:{canConfirmOrders:"تأكيد الطلبات", canViewAllOrders:"عرض جميع الطلبات", canManageAgents:"إدارة الوكلاء", canViewFinances:"عرض المالية", canAccessSettings:"الوصول إلى الإعدادات", canScanWarehouse:"الوصول إلى المستودع", canManageProducts:"إدارة المنتجات", canInviteUsers:"دعوة المستخدمين"},
+  ev:{user_created:"تم إنشاء الحساب", user_invited:"تم إرسال الدعوة", user_deactivated:"تم تعطيل الحساب", user_reactivated:"تم إعادة تفعيل الحساب", user_deleted:"تم حذف الحساب", password_reset:"تمت إعادة تعيين كلمة المرور", avatar_updated:"تم تحديث الصورة", warehouse_assigned:"تم تعيين المستودع"},
+  ret:n=>n === 1 ? "أُعيد طلب واحد" : n === 2 ? "أُعيد طلبان" : n <= 10 ? `أُعيد ${n} طلبات` : `أُعيد ${n} طلبًا`,
+  c:{title:"إنشاء مستخدم", user:"اسم المستخدم", user_ph:"مثال: ahmed ben ali", ident:"معرّف الدخول:", ident_hint:"هذا ما سيكتبه الشخص لتسجيل الدخول.", taken:"هذا المعرّف مستخدم بالفعل.", pw:"كلمة المرور", show:"إظهار", hide:"إخفاء", role:"الدور", market:"السوق", market_fixed:m=>`السوق: ${m}`, wh:"المستودع", wh_warn:"بلا مستودع، لن يرى الوكيل أي طرد ولن يتمكن من المسح.", cancel:"إلغاء", submit:"إنشاء الحساب"},
+  da:{title:n=>`تعطيل ${n}؟`, body:n=>`لن يتمكن ${n} من تسجيل الدخول، وستعود الطلبات الجارية لهذا الحساب إلى قائمة الانتظار غير المعيّنة.`, reason:"السبب", confirm:"تعطيل", cancel:"إلغاء"},
+  de:{title:n=>`حذف ${n} نهائياً؟`, body:"هذا الإجراء لا يمكن التراجع عنه. لن يتمكّن المستخدم من تسجيل الدخول وسيتم إعادة طلباته الجارية إلى قائمة الانتظار غير المعيّنة. يُحتفظ بسجل النشاط والتاريخ.", confirm:"حذف نهائي", cancel:"إلغاء"},
+  rp:{title:"إعادة تعيين كلمة المرور", pw1:"كلمة المرور الجديدة", pw2:"تأكيد كلمة المرور", mismatch:"كلمتا المرور غير متطابقتين.", save:"حفظ", cancel:"إلغاء"},
+  toast:{created:(n,id)=>`تم إنشاء ${n} · المعرّف ${id}`, deactivated:n=>`تم تعطيل ${n}. عادت طلباته الجارية إلى القائمة.`, reactivated:n=>`تمت إعادة تفعيل ${n}.`, deleted:n=>`تم حذف ${n}.`, reset:"تمت إعادة تعيين كلمة المرور.", wh:"تم حفظ المستودع.", proto:" (نموذج أولي: لم يُكتب شيء)"},
+  before:{title:"ACCÈS", sub:"Gestion des utilisateurs et des accès", perms:"Permissions"},
+ }
+};
+const L = () => I[S.lang];
+function arCount(n){ return n === 1 ? "حساب واحد" : n === 2 ? "حسابان" : n <= 10 ? `${n} حسابات` : `${n} حسابًا`; }
+
+/* ═════════════ helpers ═════════════ */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ICON = {
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  userx:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5M22 8l-5 5"/>',
+  usercheck:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>',
+  history:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  trash:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  minus:'<path d="M6 12h12"/>',
+  mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>',
+  ban:'<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  idcard:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>',
+  info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  left:'<polyline points="15 18 9 12 15 6"/>', right:'<polyline points="9 18 15 12 9 6"/>', down:'<polyline points="6 9 12 15 18 9"/>',
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>',
+  truck:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>', chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>', server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/>',
+};
+const ic = (n, cls="") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
+function initials(name){ const w = name.trim().split(/\s+/); return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 1)).toUpperCase(); }
+const avatar = (u, cls="") => `<span class="av ${cls}" aria-hidden="true">${esc(initials(u.n))}</span>`;
+const ident = u => u.e.endsWith("@oms.local") ? u.e.slice(0, -10) : u.e;
+const identOf = s => s.trim().toLowerCase().replace(/\s+/g, ".");
+/* the row repeats the login only when the name does not already spell it */
+const identShown = u => identOf(u.n) !== ident(u);
+const dayIndex = ms => Math.floor((ms + TZ_OFF) / 86400e3);
+function hm(ms){ const d = new Date(ms + TZ_OFF); return `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`; }
+const fmt = (ms, o) => new Intl.DateTimeFormat(L().locale, {timeZone:"Africa/Tripoli", ...o}).format(ms);
+const fmtDay = d => new Intl.DateTimeFormat(L().locale, {timeZone:"UTC", day:"numeric", month:"long", year:"numeric"}).format(Date.parse(d + "T00:00:00Z"));
+function fmtStamp(s){ const [d, t] = s.split(" "); return `${new Intl.DateTimeFormat(L().locale, {timeZone:"UTC", day:"numeric", month:"short", year:"numeric"}).format(Date.parse(d + "T00:00:00Z"))} · <bdi>${t}</bdi>`; }
+
+function seenOf(u){
+  if (!u.s) return {k:"none"};
+  const t = Date.parse(u.s), min = Math.floor((NOW - t) / 60000);
+  if (min < 5) return {k:"on", t};
+  if (min < 30) return {k:"idle", m:min, t};
+  if (min < 60) return {k:"min", m:min, t};
+  const dd = dayIndex(NOW) - dayIndex(t);
+  if (dd === 0) return {k:"h", n:Math.floor(min / 60), t};
+  if (dd === 1) return {k:"yest", t};
+  if (dd < 7) return {k:"wd", t};
+  return {k:"date", t};
+}
+function seenText(sn){
+  const p = L().pres;
+  switch (sn.k){
+    case "on": return p.on;
+    case "idle": return p.idle(sn.m);
+    case "min": return p.min(sn.m);
+    case "h": return p.h(sn.n);
+    case "yest": return p.yest(hm(sn.t));
+    case "wd": return fmt(sn.t, {weekday:"short", day:"numeric", month:"short"});
+    case "date": return fmt(sn.t, {day:"numeric", month:"short", ...(new Date(sn.t).getUTCFullYear() !== 2026 ? {year:"numeric"} : {})});
+    default: return p.none;
+  }
+}
+const seenCls = sn => sn.k === "on" ? "on" : sn.k === "idle" ? "idle" : sn.k === "none" ? "none" : "off";
+const seenHtml = sn => { const c = seenCls(sn); return `<span class="seen ${c}"><i class="dot ${c}" aria-hidden="true"></i>${seenText(sn)}</span>`; };
+const siteName = (mk, id) => (SITES[mk] || []).find(s => s.id === id)?.[S.lang] ?? id;
+
+/* ═════════════ state ═════════════ */
+const S = {lang:"fr", as:"admin", data:"real", v:"after", tab:"all", mk:"all", q:"", dorm:false, fold:false,
+  user:null, menu:null, dlg:null, loading:false, flash:null, focus:null, users:[], audit:{},
+  form:{user:"", pw:"", show:false, role:"", mk:"", wh:""}};
+
+function loadData(){
+  S.users = REAL.map(u => ({...u}));
+  S.audit = JSON.parse(JSON.stringify(AUDIT_REAL));
+  if (S.data === "edge"){
+    S.users.find(u => u.id === "tarek").wh = null;
+    S.users.find(u => u.id === "salima").s = new Date(NOW - 12 * 60000).toISOString();
+    S.users.push({id:"nour", n:"nour", e:"nour@oms.local", r:"agent", mk:"ly", s:null, c:"2026-10-02", off:true, inv:true, fake:true});
+    S.users.push({id:"yassine", n:"yassine", e:"yassine@oms.local", r:"warehouse_agent", mk:"ly", wh:"tripoli", s:"2026-09-20T10:00:00Z", c:"2026-07-12", off:true, reason:"on-leave", fake:true});
+    S.audit.nour = [{e:"user_invited", by:"Super Admin", at:"2026-10-02 18:40"}];
+    S.audit.yassine = [{e:"user_deactivated", by:"hamidaly", at:"2026-09-21 09:12", reason:"on-leave", ret:3},{e:"user_created", by:"Super Admin", at:"2026-07-12 11:05"}];
+    S.audit.tarek.unshift({e:"warehouse_assigned", by:"Super Admin", at:"2026-10-03 09:40", wh:null});
+  }
+}
+const isAdmin = () => S.as === "admin";
+const sees = u => isAdmin() || ((u.r === "agent" || u.r === "warehouse_agent") && u.mk === "ly");
+const isSelf = u => isAdmin() && u.id === "superadmin";
+const status = u => !u.off ? "active" : u.inv ? "invited" : "disabled";
+const inMk = u => !isAdmin() || S.mk === "all" || u.mk === S.mk;
+const inTab = u => S.tab === "all" || u.r === S.tab;
+const inQ = u => { const q = S.q.trim().toLowerCase(); return !q || u.n.toLowerCase().includes(q) || ident(u).toLowerCase().includes(q); };
+const presRank = u => { const k = seenOf(u).k; return k === "on" ? 0 : k === "idle" ? 1 : 2; };
+function cmp(a, b){
+  return ROLE_ORDER.indexOf(a.r) - ROLE_ORDER.indexOf(b.r)
+    || (status(a) === "invited") - (status(b) === "invited")
+    || presRank(a) - presRank(b)
+    || (b.s ? Date.parse(b.s) : 0) - (a.s ? Date.parse(a.s) : 0)
+    || a.n.localeCompare(b.n);
+}
+const tabsFor = () => isAdmin() ? ["all", ...ROLE_ORDER] : ["all", "agent", "warehouse_agent"];
+const findU = id => S.users.find(u => u.id === id);
+
+/* ═════════════ render: sidebar ═════════════ */
+function renderSide(){
+  const n = L().nav;
+  const icons = {accueil:"home", commandes:"bag", logistique:"box", livraison:"truck", finances:"chart", clients:"users", equipe:"gauge", systeme:"server"};
+  let h = `<div class="brand"><i>O</i>${n.brand}</div><div class="mk"><span>${n.market}</span><b>${isAdmin() ? n.all : L().mk.ly}</b></div>`;
+  for (const [id, label, items] of n.sections){
+    if (!isAdmin() && (id === "finances" || id === "systeme")) continue;
+    h += `<div class="nsec">${ic(icons[id])}<span>${label}</span>${ic(items ? "down" : (S.lang === "ar" ? "left" : "right"), "chev")}</div>`;
+    if (items) for (const it of items) h += `<div class="it ${it === n.active ? "on" : ""}" ${it === n.active ? 'aria-current="page"' : ""}>${it}</div>`;
+  }
+  const me = isAdmin() ? "Super Admin" : "hamidaly";
+  h += `<div class="foot"><span>${initials(me)}</span><div>${me}<small>${n.role[S.as]}</small></div></div>`;
+  document.getElementById("side").innerHTML = h;
+}
+
+/* ═════════════ render: AFTER ═════════════ */
+function whSelect(u, ctx){
+  const l = L(), none = !u.wh, active = status(u) === "active", id = `wh-${ctx}-${u.id}`;
+  return `<label class="sr" for="${id}">${l.wh_label} — ${esc(u.n)}</label>
+    <span class="whwrap ${none && active ? "none" : ""}">${ic("box")}<select id="${id}" class="whsel" data-wh="${u.id}" ${active ? "" : "disabled"} ${none && active ? 'aria-invalid="true"' : ""}>
+      <option value="">${none ? l.wh_none : l.wh_pick}</option>
+      ${(SITES[u.mk] || []).map(s => `<option value="${s.id}" ${u.wh === s.id ? "selected" : ""}>${s[S.lang]}</option>`).join("")}
+    </select></span>${none && active ? `<span class="whmiss">${l.wh_miss}</span>` : ""}`;
+}
+function rowHtml(u){
+  const l = L(), st = status(u), self = isSelf(u);
+  let role = `<span class="rl">${l.role[u.r]}</span>`;
+  if (u.r === "warehouse_agent") role += `<div class="whc">${whSelect(u, "row")}</div>`;
+  let act;
+  if (st === "disabled") act = `<span class="pill neu">${ic("ban")}${l.st_disabled}${u.reason ? ` · ${l.reasons[u.reason]}` : ""}</span>`;
+  else if (st === "invited") act = `<span class="pill warn">${ic("mail")}${l.st_invited}</span>`;
+  else act = seenHtml(seenOf(u));
+  return `<tr class="r${S.user === u.id ? " sel" : ""}${S.flash === u.id ? " flash" : ""}${st === "disabled" ? " off" : ""}" data-row="${u.id}">
+    <td><button class="who" data-open="${u.id}" aria-label="${esc(l.open_aria(u.n))}">${avatar(u)}<span class="nm"><b><bdi>${esc(u.n)}</bdi></b>${self ? `<span class="you">${l.you}</span>` : ""}${u.fake ? `<span class="you">${l.fictif}</span>` : ""}${identShown(u) ? `<small><bdi>${esc(ident(u))}</bdi></small>` : ""}</span></button></td>
+    <td class="c-role">${role}</td>
+    ${isAdmin() ? `<td class="c-mk">${u.mk ? l.mk[u.mk] : `<span class="muted">${l.mk_none}</span>`}</td>` : ""}
+    <td class="c-seen">${act}</td>
+    <td class="c-act"><button class="kebab" data-menu="${u.id}" aria-haspopup="menu" aria-expanded="${S.menu === u.id}" aria-label="${esc(l.actions_for(u.n))}">${ic("more")}</button></td>
+  </tr>`;
+}
+function theadHtml(){
+  const c = L().col;
+  return `<thead><tr><th scope="col">${c.user}</th><th scope="col" class="c-role">${c.role}</th>${isAdmin() ? `<th scope="col" class="c-mk">${c.market}</th>` : ""}<th scope="col" class="c-seen">${c.seen}</th><th scope="col" class="c-act"><span class="sr">${c.actions}</span></th></tr></thead>`;
+}
+function renderAfter(){
+  const l = L(), vis = S.users.filter(sees);
+  let h = `<div class="ph"><div><h1>${l.title}</h1><p class="sub">${isAdmin() ? l.sub_admin : l.sub_mgr(l.mk.ly)}</p></div>
+    <button class="btn pri" data-create>${ic("plus")}${l.create}</button></div>`;
+
+  /* banner — active warehouse agents with no building, ignoring filters */
+  const lost = vis.filter(u => u.r === "warehouse_agent" && status(u) === "active" && !u.wh);
+  if (lost.length) h += `<div class="banner" role="alert">${ic("alert")}<div><b>${l.banner_t(lost.length)}</b><p>${l.banner_b}</p>
+    <div class="who-list">${lost.map(u => `<button class="btn sm" data-open="${u.id}">${ic("box")}<bdi>${esc(u.n)}</bdi></button>`).join("")}</div></div></div>`;
+
+  const pool = vis.filter(inMk);
+  const live = pool.filter(u => status(u) !== "disabled");
+  const count = r => r === "all" ? live.length : live.filter(u => u.r === r).length;
+
+  h += `<div class="card">`;
+  h += `<div class="tabs" role="tablist" aria-label="${l.tabs_label}">${tabsFor().map(r =>
+      `<button class="tab" role="tab" data-tab="${r}" aria-selected="${S.tab === r}" aria-controls="users-panel" tabindex="${S.tab === r ? 0 : -1}">${l.tab[r]}<span class="cnt num">${count(r)}</span></button>`).join("")}</div>`;
+
+  const inScope = pool.filter(inTab);
+  const dormN = inScope.filter(u => status(u) === "active" && !u.s).length;
+  const rows = inScope.filter(u => status(u) !== "disabled" && inQ(u) && (!S.dorm || (status(u) === "active" && !u.s))).sort(cmp);
+  const off = S.dorm ? [] : inScope.filter(u => status(u) === "disabled" && inQ(u)).sort(cmp);
+
+  h += `<div class="tools"><div class="search">${ic("search")}<input id="q" type="search" dir="auto" value="${esc(S.q)}" placeholder="${l.search}" aria-label="${l.search}" autocomplete="off"></div>`;
+  if (isAdmin()){
+    const mkCount = m => vis.filter(u => status(u) !== "disabled" && inTab(u) && (m === "all" || u.mk === m)).length;
+    h += `<div class="seg" role="group" aria-label="${l.mk_label}">${["all","tn","ly"].map(m =>
+      `<button data-mk="${m}" aria-pressed="${S.mk === m}">${m === "all" ? l.mk_all : l.mk[m]}<span class="n num">${mkCount(m)}</span></button>`).join("")}</div>`;
+  }
+  if (dormN || S.dorm) h += `<button class="chip" data-dorm aria-pressed="${S.dorm}"><i class="dot none" aria-hidden="true"></i>${l.dormant}<span class="num">${dormN}</span></button>`;
+  h += `<span class="rc" aria-live="polite">${S.dorm ? l.rc_dorm(rows.length) : l.rc(rows.length)}</span></div>`;
+
+  h += `<div id="users-panel" role="tabpanel">`;
+  if (S.loading){
+    h += `<table class="tbl">${theadHtml()}<tbody role="status" aria-label="${l.loading}">${Array.from({length:8}, (_, i) =>
+      `<tr><td><div style="display:flex;gap:12px;align-items:center"><span class="sk" style="width:32px;height:32px;border-radius:50%"></span><span><span class="sk" style="width:${110 + (i * 37) % 70}px;height:12px"></span><span class="sk" style="width:70px;height:10px;margin-top:6px"></span></span></div></td>
+       <td><span class="sk" style="width:${120 + (i * 23) % 50}px;height:12px"></span></td>${isAdmin() ? `<td class="c-mk"><span class="sk" style="width:50px;height:12px"></span></td>` : ""}<td><span class="sk" style="width:90px;height:12px"></span></td><td></td></tr>`).join("")}</tbody></table>`;
+  } else if (!rows.length){
+    h += `<div class="empty">${S.q.trim() ? l.empty_q(esc(S.q.trim())) : l.empty}<br><button class="btn sm" data-clear>${l.clear}</button></div>`;
+  } else {
+    h += `<table class="tbl">${theadHtml()}<tbody>${rows.map(rowHtml).join("")}</tbody></table>`;
+  }
+  if (!S.loading && off.length){
+    h += `<div class="fold"><button data-fold aria-expanded="${S.fold}">${ic(S.fold ? "down" : (S.lang === "ar" ? "left" : "right"))}${l.fold(off.length)}</button>
+      ${S.fold ? `<table class="tbl"><caption class="sr">${l.fold(off.length)}</caption>${theadHtml().replace("<thead>", '<thead class="sr">')}<tbody>${off.map(rowHtml).join("")}</tbody></table>` : ""}</div>`;
+  }
+  h += `</div></div><p class="foot-note">${l.foot}</p>`;
+  return h;
+}
+
+/* ═════════════ render: BEFORE (faithful to UsersPageClient / UserRoleSection / UserCard) ═════════════ */
+function renderBefore(){
+  const l = L(), vis = S.users.filter(sees), pinned = new Set();
+  const pin = n => { if (pinned.has(n)) return ""; pinned.add(n); return `<span class="pin">${n}</span>`; };
+  const BADGE = {super_admin:["Super Admin","#EEF2FF","#4338CA"], market_manager:["Manager","#F0FDF4","#166534"], agent:["Agent","#FFF7ED","#9A3412"], warehouse_agent:["Entrepôt","#F0F9FF","#075985"], investor:["Investisseur","#FEF3C7","#92400E"]};
+  const SECT = {fr:{super_admin:"Super admins", market_manager:"Market managers", agent:"Agents de confirmation", warehouse_agent:"Agents entrepôt", investor:"Investisseurs", active:"Actifs", invited:"Invités", disabled:"Désactivés"},
+                ar:{super_admin:"المشرفون العاملون", market_manager:"مديرو السوق", agent:"وكلاء التأكيد", warehouse_agent:"وكلاء المستودع", investor:"المستثمرون", active:"نشطون", invited:"مدعوون", disabled:"معطّلون"}}[S.lang];
+  const rel = s => { if (!s) return ""; const m = Math.floor((NOW - Date.parse(s)) / 60000); if (m < 1) return "à l'instant"; if (m < 60) return `il y a ${m} min`; const hh = Math.floor(m / 60); if (hh < 24) return `il y a ${hh} h`; return `il y a ${Math.floor(hh / 24)} j`; };
+  const pres = s => { const k = seenOf({s}).k; return k === "on" ? "#008060" : k === "idle" ? "#D97706" : "#9CA3AF"; };
+  const created = u => CREATED_AT[u.id] || u.c + "T12:00";
+  const card = u => {
+    const self = isSelf(u), dot = !self && (isAdmin() || u.r === "agent" || u.r === "warehouse_agent");
+    const pending = !!u.inv, disabled = !!u.off, b = BADGE[u.r];
+    const mkName = isAdmin() ? {ly:"Libya", tn:"Tunisia"}[u.mk] : MARKET_UUID[u.mk];
+    const badge = (txt, bg, col, w=500) => `<span style="font-size:11px;font-weight:${w};padding:2px 7px;border-radius:4px;background:${bg};color:${col}">${txt}</span>`;
+    let x = `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #E1E3E5;background:#fff;position:relative">
+      <div style="position:relative;flex-shrink:0"><span class="av" style="width:36px;height:36px;background:#F2F2F2;color:#1A1A1A">${esc(initials(u.n))}</span>
+        ${dot ? `<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:${pres(u.s)};border:2px solid #fff"></span>${pin(6)}` : ""}</div>
+      <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:14px;font-weight:500;color:#1A1A1A">${esc(u.n)}</span>${badge(b[0], b[1], b[2])}${pin(4)}
+        ${u.mk ? badge(mkName, "#F4F4F4", "#374151", 400) + pin(5) : ""}
+        ${pending ? badge(l === I.ar ? "في انتظار القبول" : "En attente d'acceptation", "#FFFBEB", "#B45309") : ""}
+        ${disabled && !pending ? badge(SECT.disabled, "#F4F4F4", "#6B7280", 400) + pin(9) : ""}</div>`;
+    if (u.r === "warehouse_agent"){
+      x += `<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:12px;color:#6D7175">${l.wh_label}</label>
+        <select style="font-size:13px;padding:4px 8px;border-radius:4px;border:1px solid #E1E3E5;background:#fff" ${disabled ? "disabled" : ""}><option>${l.wh_pick}</option>${(SITES[u.mk] || []).map(s => `<option ${u.wh === s.id ? "selected" : ""}>${s.fr}</option>`).join("")}</select>
+        ${!u.wh ? `<span style="font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;background:#FEF2F2;color:#B91C1C">${l.wh_none}</span>${pin(10)}` : ""}</div>`;
+    }
+    x += `<div style="font-size:13px;color:#6D7175;margin-top:2px">${esc(u.e)}${u.s ? `<span style="margin-inline-start:8px;color:#9CA3AF">· ${rel(u.s)}</span>${pin(8)}` : ""}</div></div>
+      <div style="width:32px;height:32px;border-radius:50%;border:1px solid #E1E3E5;display:grid;place-items:center;color:#6D7175;flex-shrink:0">${ic("more")}</div>
+      <span style="position:absolute;bottom:4px;inset-inline-end:56px;font-size:11px;color:#9CA3AF">${l.before.perms}${pin(7)}</span></div>`;
+    return x;
+  };
+  let h = `<div style="max-width:900px;margin:0 auto;padding:8px 0;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div><h1 style="font-size:22px;font-weight:600;color:#1A1A1A;margin:0">${l.before.title}${pin(1)}</h1><p style="font-size:14px;color:#6D7175;margin:4px 0 0">${l.before.sub}</p></div>
+      <span style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:#1A1A1A;color:#fff;border-radius:8px;font-size:14px;font-weight:500">${l.c.title}${pin(2)}</span></div>`;
+  for (const r of BEFORE_ORDER){
+    const us = vis.filter(u => u.r === r).sort((a, b) => created(b).localeCompare(created(a)));
+    if (!us.length) continue;
+    h += `<section style="margin-bottom:24px"><div style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.08em;padding:16px 16px 8px;border-bottom:1px solid #E1E3E5;background:#fff;display:flex;justify-content:space-between">
+      <span>${SECT[r]}${pin(3)}</span><span style="font-size:11px;font-weight:400;color:#9CA3AF;text-transform:none">${us.length}</span></div>`;
+    for (const g of ["active","invited","disabled"]){
+      const gu = us.filter(u => status(u) === g);
+      if (!gu.length) continue;
+      h += `<div style="font-size:11px;font-weight:500;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;padding:8px 16px 4px;background:#FAFAFA">${SECT[g]}</div>${gu.map(card).join("")}`;
+    }
+    h += `</section>`;
+  }
+  return h + `</div>`;
+}
+
+/* ═════════════ render: menu ═════════════ */
+function renderMenu(){
+  const m = document.getElementById("menu"), u = S.menu && findU(S.menu);
+  if (!u || S.v !== "after"){ m.classList.remove("on"); m.innerHTML = ""; return; }
+  const l = L().menu, active = status(u) === "active";
+  const it = (k, i, txt, cls="") => `<button role="menuitem" tabindex="-1" class="${cls}" data-act="${k}" data-u="${u.id}">${ic(i)}${txt}</button>`;
+  m.innerHTML = it("open","user",l.open) + it("reset","key",l.reset)
+    + (active ? it("deactivate","userx",l.deactivate,"crit") : it("reactivate","usercheck",l.reactivate))
+    + (isAdmin() ? it("journal","history",l.journal) : "")
+    + (isAdmin() && !isSelf(u) ? `<hr>` + it("delete","trash",l.delete,"crit") : "");
+  m.setAttribute("aria-label", L().actions_for(u.n));
+  m.classList.add("on");
+  const b = document.querySelector(`[data-menu="${u.id}"]`);
+  if (b){
+    const r = b.getBoundingClientRect(), w = m.offsetWidth, hgt = m.offsetHeight;
+    const rtl = L().dir === "rtl";
+    let left = rtl ? r.left : r.right - w;
+    left = Math.max(8, Math.min(left, innerWidth - w - 8));
+    let top = r.bottom + 4; if (top + hgt > innerHeight - 8) top = r.top - hgt - 4;
+    m.style.left = left + "px"; m.style.top = top + "px";
+  }
+}
+
+/* ═════════════ render: user drawer ═════════════ */
+function renderDrawer(){
+  const el = document.getElementById("drawer"), u = S.user && findU(S.user);
+  el.classList.toggle("on", !!u && S.v === "after");
+  el.setAttribute("aria-hidden", String(!u));
+  if (!u){ el.innerHTML = ""; return; }
+  const l = L(), d = l.d, st = status(u), self = isSelf(u);
+  const stHtml = st === "active" ? `<span class="pill ok">${l.st_active}</span>`
+    : st === "invited" ? `<span class="pill warn">${ic("mail")}${l.st_invited}</span>`
+    : `<span class="pill neu">${ic("ban")}${l.st_disabled}${u.reason ? ` · ${l.reasons[u.reason]}` : ""}</span>`;
+  let h = `<div class="dh">${avatar(u, "lg")}<div class="t"><b id="drawer-title"><bdi>${esc(u.n)}</bdi>${self ? `<span class="you">${l.you}</span>` : ""}${u.fake ? `<span class="you">${l.fictif}</span>` : ""}</b><small>${l.role[u.r]}${isAdmin() && u.mk ? ` · ${l.mk[u.mk]}` : ""}</small></div>
+    <button class="xbtn" data-close aria-label="${d.close}">${ic("x")}</button></div><div class="db">`;
+  h += `<section class="sec" aria-labelledby="s-acc"><h3 class="sl" id="s-acc">${ic("idcard")}${d.account}</h3><dl class="kv">
+    <dt>${d.ident}</dt><dd><bdi>${esc(ident(u))}</bdi>${ident(u) !== u.e ? `<div class="hint"><bdi>${esc(u.e)}</bdi></div>` : ""}</dd>
+    <dt>${d.role}</dt><dd>${l.role[u.r]}</dd>
+    ${isAdmin() ? `<dt>${d.market}</dt><dd>${u.mk ? l.mk[u.mk] : l.mk_none}</dd>` : ""}
+    ${u.r === "warehouse_agent" ? `<dt>${d.wh}</dt><dd><div class="whc" style="margin-top:0">${whSelect(u, "drawer")}</div><p class="hint">${l.wh_hint}</p></dd>` : ""}
+    <dt>${d.status}</dt><dd>${stHtml}</dd>
+    <dt>${d.seen}</dt><dd>${seenHtml(seenOf(u))}${u.s ? `<div class="hint">${fmt(Date.parse(u.s), {weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"})}</div>` : ""}</dd>
+    <dt>${d.created}</dt><dd>${fmtDay(u.c)}</dd></dl></section>`;
+  const p = PERMS[u.r];
+  h += `<section class="sec" aria-labelledby="s-perm"><h3 class="sl" id="s-perm">${ic("shield")}${d.perms}</h3><ul class="perms">${PERM_KEYS.map((k, i) =>
+      `<li class="${p[i] ? "yes" : "no"}">${ic(p[i] ? "check" : "minus")}<span><span class="sr">${p[i] ? "✓" : "✗"} </span>${l.perm[k]}</span></li>`).join("")}</ul><p class="perm-note">${d.perm_note}</p></section>`;
+  if (isAdmin()){
+    const ev = S.audit[u.id] || [];
+    h += `<section class="sec" id="s-journal" aria-labelledby="s-jt"><h3 class="sl" id="s-jt">${ic("history")}${d.journal}</h3>${ev.length ? ev.map(e =>
+      `<div class="jr"><span class="jd" aria-hidden="true"></span><div><b style="font-weight:500">${l.ev[e.e]}</b>${e.e === "warehouse_assigned" ? ` · ${e.wh ? siteName(u.mk, e.wh) : l.wh_none}` : ""}${e.reason ? ` · ${l.reasons[e.reason]}` : ""}${e.ret ? ` · ${l.ret(e.ret)}` : ""}
+        <small>${d.by} <bdi>${esc(e.by)}</bdi> · ${fmtStamp(e.at)}</small></div></div>`).join("") : `<p class="jempty">${d.jempty}</p>`}</section>`;
+  }
+  h += `</div><div class="df">`;
+  if (st === "active") h += `<button class="btn" data-act="reset" data-u="${u.id}">${ic("key")}${l.menu.reset}</button><button class="btn ghost-crit" data-act="deactivate" data-u="${u.id}">${ic("userx")}${l.menu.deactivate}</button>`;
+  else h += `<button class="btn pri" data-act="reactivate" data-u="${u.id}">${ic("usercheck")}${l.menu.reactivate}</button><button class="btn" data-act="reset" data-u="${u.id}">${ic("key")}${l.menu.reset}</button>`;
+  if (isAdmin() && !self) h += `<span class="grow"></span><button class="btn link-crit" data-act="delete" data-u="${u.id}">${ic("trash")}${l.menu.delete}</button>`;
+  el.innerHTML = h + `</div>`;
+}
+
+/* ═════════════ render: create panel ═════════════ */
+function renderCreate(){
+  const el = document.getElementById("cpanel"), on = S.dlg?.k === "create" && S.v === "after";
+  el.classList.toggle("on", on);
+  el.setAttribute("aria-hidden", String(!on));
+  if (!on){ el.innerHTML = ""; return; }
+  const l = L(), c = l.c, f = S.form;
+  const roles = isAdmin() ? ["agent","warehouse_agent","market_manager","investor"] : ["agent","warehouse_agent"];
+  const mk = isAdmin() ? f.mk : "ly";
+  let h = `<div class="dh"><div class="t"><b id="cpanel-title">${c.title}</b></div><button class="xbtn" data-close aria-label="${l.d.close}">${ic("x")}</button></div><div class="db" style="gap:18px">`;
+  h += `<div class="field"><label class="l" for="f-user">${c.user}</label><input class="inp" id="f-user" dir="auto" value="${esc(f.user)}" placeholder="${esc(c.user_ph)}" autocomplete="off" aria-describedby="ident">
+    <div id="ident">${identBox()}</div></div>`;
+  h += `<div class="field"><label class="l" for="f-pw">${c.pw}</label><div class="pw"><input class="inp" id="f-pw" type="${f.show ? "text" : "password"}" value="${esc(f.pw)}" autocomplete="new-password">
+    <button type="button" class="tg" data-pwshow="form" aria-pressed="${f.show}">${ic(f.show ? "eyeoff" : "eye")}${f.show ? c.hide : c.show}</button></div></div>`;
+  h += `<fieldset><legend>${c.role}</legend><div class="rcards">${roles.map(r =>
+      `<label class="rcard"><input type="radio" name="role" value="${r}" ${f.role === r ? "checked" : ""}><span><span class="t">${l.role[r]}</span><span class="d" style="display:block">${l.role_desc[r]}</span></span></label>`).join("")}</div></fieldset>`;
+  if (isAdmin()) h += `<fieldset><legend>${c.market}</legend><div class="segr">${["tn","ly"].map(m =>
+      `<label><input type="radio" name="mk" value="${m}" ${f.mk === m ? "checked" : ""}>${l.mk[m]}</label>`).join("")}</div></fieldset>`;
+  else h += `<p class="fixed">${c.market_fixed(l.mk.ly)}</p>`;
+  if (f.role === "warehouse_agent" && mk){
+    h += `<fieldset><legend>${c.wh}</legend><div class="segr">${(SITES[mk] || []).map(s =>
+      `<label><input type="radio" name="wh" value="${s.id}" ${f.wh === s.id ? "checked" : ""}>${s[S.lang]}</label>`).join("")}</div>
+      <p class="hint">${l.wh_hint}</p>${f.wh ? "" : `<div class="note-warn">${ic("alert")}<span>${c.wh_warn}</span></div>`}</fieldset>`;
+  }
+  h += `</div><div class="df"><span class="grow"></span><button class="btn" data-close>${c.cancel}</button><button class="btn pri" data-submit="create" ${createValid() ? "" : "disabled"}>${c.submit}</button></div>`;
+  el.innerHTML = h;
+}
+function identBox(){
+  const c = L().c, id = identOf(S.form.user);
+  if (!id) return "";
+  const taken = S.users.some(u => u.e === id + "@oms.local");
+  return `<div class="ident ${taken ? "taken" : ""}" role="status">${ic(taken ? "alert" : "idcard")}<div>${c.ident} <code><bdi>${esc(id)}</bdi></code><small>${taken ? c.taken : c.ident_hint}</small></div></div>`;
+}
+function createValid(){
+  const f = S.form, id = identOf(f.user);
+  return !!(id && f.pw && f.role && (!isAdmin() || f.mk) && !S.users.some(u => u.e === id + "@oms.local"));
+}
+
+/* ═════════════ render: dialogs ═════════════ */
+function renderDlg(){
+  const w = document.getElementById("dlgw"), el = document.getElementById("dlg");
+  const k = S.dlg?.k, u = S.dlg?.u && findU(S.dlg.u);
+  const on = !!u && ["deactivate","delete","reset"].includes(k) && S.v === "after";
+  w.classList.toggle("on", on);
+  if (!on){ el.innerHTML = ""; return; }
+  const l = L(), x = `<button class="xbtn" data-close aria-label="${l.d.close}">${ic("x")}</button>`;
+  let h = "";
+  if (k === "deactivate"){
+    const a = l.da;
+    h = `<div class="hd"><h2 id="dlg-title">${a.title(`<bdi>${esc(u.n)}</bdi>`)}</h2>${x}</div><div class="bd">
+      <div class="conseq">${ic("info")}<span>${a.body(`<bdi>${esc(u.n)}</bdi>`)}</span></div>
+      <fieldset><legend>${a.reason}</legend><div class="rlist">${["on-leave","off-boarded","terminated"].map(r =>
+        `<label class="rcard"><input type="radio" name="reason" value="${r}" ${S.dlg.reason === r ? "checked" : ""}><span class="t" style="font-weight:500">${l.reasons[r]}</span></label>`).join("")}</div></fieldset></div>
+      <div class="ft"><button class="btn" data-close>${a.cancel}</button><button class="btn danger" data-submit="deactivate" ${S.dlg.reason ? "" : "disabled"}>${a.confirm}</button></div>`;
+  } else if (k === "delete"){
+    const a = l.de;
+    h = `<div class="hd"><h2 id="dlg-title">${a.title(`<bdi>${esc(u.n)}</bdi>`)}</h2>${x}</div><div class="bd">
+      <div class="conseq crit">${ic("alert")}<span>${a.body}</span></div></div>
+      <div class="ft"><button class="btn" data-close>${a.cancel}</button><button class="btn danger" data-submit="delete">${a.confirm}</button></div>`;
+  } else if (k === "reset"){
+    const a = l.rp, c = l.c, mism = S.dlg.pw2 && S.dlg.pw1 !== S.dlg.pw2, t = S.dlg.show ? "text" : "password";
+    h = `<div class="hd"><div><h2 id="dlg-title">${a.title}</h2><p class="hint" style="margin-top:2px"><bdi>${esc(u.n)}</bdi> · <bdi>${esc(ident(u))}</bdi></p></div>${x}</div><div class="bd">
+      <div class="field"><label class="l" for="rp1">${a.pw1}</label><div class="pw"><input class="inp" id="rp1" type="${t}" value="${esc(S.dlg.pw1 || "")}" autocomplete="new-password">
+        <button type="button" class="tg" data-pwshow="reset" aria-pressed="${!!S.dlg.show}">${ic(S.dlg.show ? "eyeoff" : "eye")}${S.dlg.show ? c.hide : c.show}</button></div></div>
+      <div class="field"><label class="l" for="rp2">${a.pw2}</label><input class="inp ${mism ? "bad" : ""}" id="rp2" type="${t}" value="${esc(S.dlg.pw2 || "")}" autocomplete="new-password" aria-describedby="rp-err" ${mism ? 'aria-invalid="true"' : ""}>
+        <div id="rp-err">${mism ? `<p class="err">${ic("alert")}${a.mismatch}</p>` : ""}</div></div></div>
+      <div class="ft"><button class="btn" data-close>${a.cancel}</button><button class="btn pri" data-submit="reset" ${S.dlg.pw1 && S.dlg.pw1 === S.dlg.pw2 ? "" : "disabled"}>${a.save}</button></div>`;
+  }
+  el.innerHTML = h;
+}
+
+/* ═════════════ render all ═════════════ */
+function render(){
+  const l = L();
+  document.documentElement.lang = S.lang;
+  document.documentElement.style.setProperty("--pb", document.querySelector(".pbar").offsetHeight + "px"); /* prototype bar only */
+  document.getElementById("stage").setAttribute("dir", l.dir);
+  document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === S.lang));
+  document.querySelectorAll("[data-as]").forEach(b => b.classList.toggle("on", b.dataset.as === S.as));
+  document.querySelectorAll("[data-data]").forEach(b => b.classList.toggle("on", b.dataset.data === S.data));
+  document.querySelectorAll("[data-v]").forEach(b => b.classList.toggle("on", b.dataset.v === S.v));
+  document.getElementById("warnfr").hidden = !(S.lang === "ar" && isAdmin());
+  renderSide();
+  document.getElementById("page").innerHTML = S.v === "before" ? renderBefore() : renderAfter();
+  renderDrawer(); renderCreate(); renderDlg(); renderMenu();
+  const overlay = S.v === "after" && (!!S.user || S.dlg?.k === "create");
+  document.getElementById("scrim").classList.toggle("on", overlay);
+  syncUrl();
+  if (S.focus){
+    const el = document.querySelector(S.focus); S.focus = null;
+    if (el){ el.focus({preventScroll:false}); if (el.setSelectionRange && (el.type === "search" || el.type === "text" || el.type === "password")) { const n = el.value.length; try { el.setSelectionRange(n, n); } catch {} } }
+  }
+}
+function syncUrl(){
+  const p = new URLSearchParams();
+  if (S.v !== "after") p.set("v", S.v);
+  if (S.as !== "admin") p.set("as", S.as);
+  if (S.data !== "real") p.set("data", S.data);
+  if (S.lang !== "fr") p.set("lang", S.lang);
+  if (S.tab !== "all") p.set("tab", S.tab);
+  if (S.mk !== "all") p.set("mk", S.mk);
+  if (S.q) p.set("q", S.q);
+  if (S.dlg?.k){ p.set("screen", S.dlg.k); if (S.dlg.u) p.set("u", S.dlg.u); }
+  else if (S.user){ p.set("screen", "user"); p.set("u", S.user); }
+  history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : "") + location.hash);
+}
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg + L().toast.proto; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 3200); }
+
+/* ═════════════ actions ═════════════ */
+let lastTrigger = null;
+function openDlg(k, uid){
+  S.menu = null;
+  if (k === "deactivate") S.dlg = {k, u:uid, reason:null};
+  else if (k === "reset") S.dlg = {k, u:uid, pw1:"", pw2:"", show:false};
+  else S.dlg = {k, u:uid};
+  S.focus = k === "deactivate" ? "#dlg input[name=reason]" : k === "reset" ? "#rp1" : "#dlg [data-close]";
+}
+function act(k, uid){
+  const u = findU(uid), l = L();
+  if (k === "open"){ S.menu = null; S.user = uid; S.focus = "#drawer [data-close]"; lastTrigger = `[data-open="${uid}"]`; }
+  else if (k === "journal"){ S.menu = null; S.user = uid; lastTrigger = `[data-open="${uid}"]`; render(); document.getElementById("s-journal")?.scrollIntoView({block:"start"}); document.querySelector("#drawer [data-close]")?.focus(); return; }
+  else if (k === "reactivate"){ S.menu = null; u.off = false; u.inv = false; u.reason = null; toast(l.toast.reactivated(u.n)); S.focus = S.user ? "#drawer [data-close]" : `[data-menu="${uid}"]`; }
+  else openDlg(k, uid);
+  render();
+}
+function submit(k){
+  const l = L();
+  if (k === "create"){
+    if (!createValid()) return;
+    const f = S.form, id = identOf(f.user);
+    const nu = {id:"new-" + id, n:f.user.trim(), e:id + "@oms.local", r:f.role, mk:isAdmin() ? f.mk : "ly", wh:f.role === "warehouse_agent" ? (f.wh || null) : null, s:null, c:"2026-10-03"};
+    S.users.push(nu);
+    if (isAdmin()) S.audit[nu.id] = [{e:"user_created", by:"Super Admin", at:"2026-10-03 15:30"}];
+    S.dlg = null; S.form = {user:"", pw:"", show:false, role:"", mk:"", wh:""};
+    S.tab = "all"; S.q = ""; S.dorm = false; if (isAdmin() && S.mk !== "all" && S.mk !== nu.mk) S.mk = "all";
+    S.flash = nu.id; setTimeout(() => { S.flash = null; }, 2500);
+    toast(l.toast.created(nu.n, id)); S.focus = `[data-open="${nu.id}"]`;
+  } else {
+    const u = findU(S.dlg.u);
+    if (k === "deactivate"){ if (!S.dlg.reason) return; u.off = true; u.reason = S.dlg.reason; toast(l.toast.deactivated(u.n)); }
+    if (k === "delete"){ S.users = S.users.filter(x => x.id !== u.id); if (S.user === u.id) S.user = null; toast(l.toast.deleted(u.n)); }
+    if (k === "reset"){ if (!S.dlg.pw1 || S.dlg.pw1 !== S.dlg.pw2) return; toast(l.toast.reset); }
+    S.dlg = null;
+    S.focus = S.user ? "#drawer [data-close]" : (lastTrigger || "#q");
+  }
+  render();
+}
+function closeTop(){
+  if (S.menu){ const id = S.menu; S.menu = null; S.focus = `[data-menu="${id}"]`; }
+  else if (S.dlg){ const k = S.dlg.k; S.dlg = null; S.focus = k === "create" ? "[data-create]" : S.user ? "#drawer [data-close]" : lastTrigger; }
+  else if (S.user){ S.focus = lastTrigger || `[data-open="${S.user}"]`; S.user = null; }
+  else return false;
+  render(); return true;
+}
+
+/* ═════════════ wiring ═════════════ */
+document.addEventListener("click", e => {
+  const t = e.target;
+  const pb = t.closest("[data-lang],[data-as],[data-data],[data-v]");
+  if (pb){
+    if (pb.dataset.lang) S.lang = pb.dataset.lang;
+    if (pb.dataset.as){ S.as = pb.dataset.as; S.tab = "all"; S.mk = "all"; S.user = null; S.dlg = null; S.menu = null; loadData(); }
+    if (pb.dataset.data){ S.data = pb.dataset.data; S.user = null; S.dlg = null; S.menu = null; loadData(); }
+    if (pb.dataset.v){ S.v = pb.dataset.v; S.user = null; S.dlg = null; S.menu = null; }
+    render(); return;
+  }
+  if (S.menu && !t.closest("#menu") && !t.closest("[data-menu]")){ S.menu = null; render(); if (!t.closest("button,select,input,label,tr.r")) return; }
+  const b = t.closest("button,[data-row]");
+  if (!b) return;
+  if (b.matches("[data-act]")) return act(b.dataset.act, b.dataset.u);
+  if (b.matches("[data-menu]")){ const id = b.dataset.menu; S.menu = S.menu === id ? null : id; lastTrigger = `[data-menu="${id}"]`; render(); if (S.menu) document.querySelector("#menu [role=menuitem]")?.focus(); return; }
+  if (b.matches("[data-open]")){ e.stopPropagation(); return act("open", b.dataset.open); }
+  if (b.matches("[data-tab]")){ S.tab = b.dataset.tab; S.focus = `[data-tab="${S.tab}"]`; return render(); }
+  if (b.matches("[data-mk]")){ S.mk = b.dataset.mk; return render(); }
+  if (b.matches("[data-dorm]")){ S.dorm = !S.dorm; S.focus = "[data-dorm]"; return render(); }
+  if (b.matches("[data-fold]")){ S.fold = !S.fold; S.focus = "[data-fold]"; return render(); }
+  if (b.matches("[data-clear]")){ S.q = ""; S.dorm = false; S.tab = "all"; S.mk = "all"; S.focus = "#q"; return render(); }
+  if (b.matches("[data-create]")){ S.user = null; S.dlg = {k:"create"}; S.focus = "#f-user"; return render(); }
+  if (b.matches("[data-close]")) return closeTop();
+  if (b.matches("[data-submit]")) return submit(b.dataset.submit);
+  if (b.matches("[data-pwshow]")){
+    if (b.dataset.pwshow === "form"){ S.form.show = !S.form.show; S.focus = "#cpanel [data-pwshow]"; }
+    else { S.dlg.show = !S.dlg.show; S.focus = "#dlg [data-pwshow]"; }
+    return render();
+  }
+  if (b.matches("[data-row]") && !t.closest("select,label,button")) return act("open", b.dataset.row);
+});
+document.getElementById("scrim").addEventListener("click", () => { S.dlg?.k === "create" ? (S.dlg = null, render()) : closeTop(); });
+document.getElementById("dlgw").addEventListener("click", e => { if (e.target.id === "dlgw") closeTop(); });
+
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "q"){ S.q = t.value; S.focus = "#q"; render(); }
+  else if (t.id === "f-user"){ S.form.user = t.value; document.getElementById("ident").innerHTML = identBox(); document.querySelector("[data-submit=create]").disabled = !createValid(); }
+  else if (t.id === "f-pw"){ S.form.pw = t.value; document.querySelector("[data-submit=create]").disabled = !createValid(); }
+  else if (t.id === "rp1" || t.id === "rp2"){
+    S.dlg[t.id === "rp1" ? "pw1" : "pw2"] = t.value;
+    const mism = S.dlg.pw2 && S.dlg.pw1 !== S.dlg.pw2, rp2 = document.getElementById("rp2");
+    rp2.classList.toggle("bad", !!mism); rp2.toggleAttribute("aria-invalid", !!mism);
+    document.getElementById("rp-err").innerHTML = mism ? `<p class="err">${ic("alert")}${L().rp.mismatch}</p>` : "";
+    document.querySelector("[data-submit=reset]").disabled = !(S.dlg.pw1 && S.dlg.pw1 === S.dlg.pw2);
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.matches("[data-wh]")){ const u = findU(t.dataset.wh); u.wh = t.value || null; S.audit[u.id] = [{e:"warehouse_assigned", by:isAdmin() ? "Super Admin" : "hamidaly", at:"2026-10-03 15:30", wh:u.wh}, ...(S.audit[u.id] || [])]; toast(L().toast.wh); S.focus = "#" + t.id; render(); }
+  else if (t.name === "role"){ S.form.role = t.value; if (t.value !== "warehouse_agent") S.form.wh = ""; S.focus = `input[name=role][value="${t.value}"]`; render(); }
+  else if (t.name === "mk"){ S.form.mk = t.value; S.form.wh = ""; S.focus = `input[name=mk][value="${t.value}"]`; render(); }
+  else if (t.name === "wh"){ S.form.wh = t.value; S.focus = `input[name=wh][value="${t.value}"]`; render(); }
+  else if (t.name === "reason"){ S.dlg.reason = t.value; document.querySelector("[data-submit=deactivate]").disabled = false; }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape"){ if (closeTop()) e.preventDefault(); return; }
+  /* menu: arrows, Home/End, Tab closes */
+  if (S.menu && e.target.closest("#menu")){
+    const items = [...document.querySelectorAll("#menu [role=menuitem]")], i = items.indexOf(e.target);
+    if (e.key === "ArrowDown"){ e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp"){ e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === "Home"){ e.preventDefault(); items[0].focus(); }
+    else if (e.key === "End"){ e.preventDefault(); items.at(-1).focus(); }
+    else if (e.key === "Tab"){ e.preventDefault(); closeTop(); }
+    return;
+  }
+  /* tabs: arrows (mirrored in RTL) */
+  if (e.target.matches("[role=tab]") && (e.key === "ArrowRight" || e.key === "ArrowLeft")){
+    const tabs = tabsFor(), rtl = L().dir === "rtl";
+    const step = (e.key === "ArrowRight") !== rtl ? 1 : -1;
+    S.tab = tabs[(tabs.indexOf(S.tab) + step + tabs.length) % tabs.length]; S.focus = `[data-tab="${S.tab}"]`; e.preventDefault(); render(); return;
+  }
+  /* focus trap in the topmost layer */
+  if (e.key === "Tab"){
+    const layer = S.dlg && S.dlg.k !== "create" ? document.getElementById("dlg") : S.dlg?.k === "create" ? document.getElementById("cpanel") : S.user ? document.getElementById("drawer") : null;
+    if (!layer) return;
+    const f = [...layer.querySelectorAll("button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex='-1'])")].filter(x => x.offsetParent !== null);
+    if (!f.length) return;
+    if (!layer.contains(document.activeElement)){ e.preventDefault(); f[0].focus(); return; }
+    if (e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f.at(-1).focus(); }
+    else if (!e.shiftKey && document.activeElement === f.at(-1)){ e.preventDefault(); f[0].focus(); }
+  }
+});
+addEventListener("resize", () => { if (S.menu) renderMenu(); });
+addEventListener("scroll", () => { if (S.menu){ S.menu = null; renderMenu(); } }, true);
+
+(function init(){
+  const p = new URLSearchParams(location.search);
+  if (I[p.get("lang")]) S.lang = p.get("lang");
+  if (["admin","manager"].includes(p.get("as"))) S.as = p.get("as");
+  if (["real","edge"].includes(p.get("data"))) S.data = p.get("data");
+  if (["before","after"].includes(p.get("v"))) S.v = p.get("v");
+  loadData();
+  if (tabsFor().includes(p.get("tab"))) S.tab = p.get("tab");
+  if (["ly","tn"].includes(p.get("mk")) && isAdmin()) S.mk = p.get("mk");
+  if (p.get("q")) S.q = p.get("q");
+  const sc = p.get("screen"), q = p.get("u"), u = S.users.find(x => sees(x) && (x.id === q || x.n === q));
+  const def = id => u ? u.id : id;
+  if (sc === "user") S.user = def("tarek");
+  else if (sc === "create"){ S.dlg = {k:"create"}; S.form = {user:"ahmed ben ali", pw:"", show:false, role:"warehouse_agent", mk:"ly", wh:""}; }
+  else if (["deactivate","delete","reset"].includes(sc)){ openDlg(sc, def("roqaya")); S.focus = null; }
+  else if (sc === "menu"){ S.menu = def("roqaya"); }
+  else if (sc === "loading") S.loading = true;
+  render();
+  if (S.menu) renderMenu();
+})();
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import type { DeactivationReason, UserWithStats } from "@/types";
 
 export function useUsersWorkspace() {
   const { data, mutate, isLoading } = useSWR<{ data: UserWithStats[] }>(
-    "/api/users?include_stats=true",
+    "/api/users",
     fetcher
   );
 

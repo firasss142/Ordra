@@ -354,6 +354,18 @@
   --job-receive: #4D7C0F;  --job-receive-bg: #EEF5E1;  --job-receive-ink: #3F6212;
   --job-count: #A16207;    --job-count-bg: #FBF3DC;    --job-count-ink: #854D0E;
 
+  /* ── One hue per role (Accès, design-system §4.23) ────────────────
+     prototypes/acces-v2.html, approved 2026-10-03. The brand green keeps the
+     chrome; around it two cool neighbours (sky, teal), one deep (indigo), one
+     warm (orange) and one neutral (slate). Fill + tint + ink + edge each;
+     only -ink carries text. They name a PERSON's role — never an order status. */
+  --role-agent: #0284C7;     --role-agent-bg: #EAF6FD;     --role-agent-ink: #0369A1;     --role-agent-edge: #B9E1F7;
+  --role-warehouse: #EA580C; --role-warehouse-bg: #FFF3EB; --role-warehouse-ink: #C2410C; --role-warehouse-edge: #FDCDB0;
+  --role-manager: #6366F1;   --role-manager-bg: #EEF0FF;   --role-manager-ink: #4338CA;   --role-manager-edge: #C9CDFB;
+  --role-investor: #0D9488;  --role-investor-bg: #E8F8F5;  --role-investor-ink: #0F766E;  --role-investor-edge: #A9E5DB;
+  --role-admin: #475569;     --role-admin-bg: #EEF1F5;     --role-admin-ink: #334155;     --role-admin-edge: #CBD3DE;
+  --role-all-edge: #A9DDBC;
+
   /* ── Dispatch flow palette ────────────────────────────────────────
      Scoped to the post-confirm carrier picker, delivery scheduling, and
      the Darb Assabil dispatch modal — the one flow in the product that
@@ -509,6 +521,15 @@
 .job-returns { --job: var(--job-returns); --job-bg: var(--job-returns-bg); --job-ink: var(--job-returns-ink); }
 .job-receive { --job: var(--job-receive); --job-bg: var(--job-receive-bg); --job-ink: var(--job-receive-ink); }
 .job-count   { --job: var(--job-count);   --job-bg: var(--job-count-bg);   --job-ink: var(--job-count-ink); }
+
+/* A role's hue, inherited by everything inside the element that names it.
+   Tailwind reads it as `bg-tone`, `bg-tone-bg`, `text-tone-ink`, `border-tone-edge`. */
+.tone-all       { --tone: var(--brand);           --tone-bg: var(--brand-bg);           --tone-ink: var(--brand-hover);        --tone-edge: var(--role-all-edge); }
+.tone-agent     { --tone: var(--role-agent);      --tone-bg: var(--role-agent-bg);      --tone-ink: var(--role-agent-ink);     --tone-edge: var(--role-agent-edge); }
+.tone-warehouse { --tone: var(--role-warehouse);  --tone-bg: var(--role-warehouse-bg);  --tone-ink: var(--role-warehouse-ink); --tone-edge: var(--role-warehouse-edge); }
+.tone-manager   { --tone: var(--role-manager);    --tone-bg: var(--role-manager-bg);    --tone-ink: var(--role-manager-ink);   --tone-edge: var(--role-manager-edge); }
+.tone-investor  { --tone: var(--role-investor);   --tone-bg: var(--role-investor-bg);   --tone-ink: var(--role-investor-ink);  --tone-edge: var(--role-investor-edge); }
+.tone-admin     { --tone: var(--role-admin);      --tone-bg: var(--role-admin-bg);      --tone-ink: var(--role-admin-ink);     --tone-edge: var(--role-admin-edge); }
 
 /* Figures are bold sans here, not mono: IBM Plex Mono reads as the desk
    console. Tabular figures stay on so columns of numbers still line up. */
