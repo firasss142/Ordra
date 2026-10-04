@@ -9,7 +9,12 @@
 --       completed → delivered · released/returned → to_be_returned · returning or
 --       cancelled after pickup → returning · delayed → delivery_delayed ·
 --       processing/booked → at_carrier · on-branch → in_transit · resent → out_for_delivery
---   · one APPEND-ONLY order_history row per order, saying why;
+--   · one APPEND-ONLY order_history row per order, saying why, DATED WHEN DARB SAYS IT
+--     HAPPENED, not today: carrier_parcel_outcome takes a delivery's date from the first
+--     `delivered` history row, and the P&L books revenue on that row's date — dated
+--     today, 38 deliveries from the summer would land in October. Darb's completion
+--     (timeline, else shipment), its hand-back for to_be_returned, its last status change
+--     otherwise; never before Ordra's cancel row (chronology) and never in the future;
 --   · leaving `cancelled` un-archives the order (orders_stamp_terminal): the handed-back
 --     parcels appear in Entrepôt › Retours, where scanning them puts the stock back;
 --   · WhatsApp: a status change queues a lifecycle message (delivered, last chance…).
@@ -31,9 +36,22 @@ WITH cand AS (
          OR EXISTS (SELECT 1 FROM darb_shipments s WHERE s.order_id = o.id))
 ),
 latest AS (
-  SELECT DISTINCT ON (s.order_id) s.order_id, s.status_slug
+  SELECT DISTINCT ON (s.order_id) s.order_id, s.status_slug, s.completed_at, s.carrier_updated_at
   FROM darb_shipments s JOIN cand ON cand.id = s.order_id
   ORDER BY s.order_id, s.carrier_updated_at DESC NULLS LAST
+),
+ev AS (
+  SELECT t.order_id,
+         min(t.occurred_at) FILTER (WHERE t.type = 'completed')              AS completed_at,
+         max(t.occurred_at) FILTER (WHERE t.type IN ('released', 'returned')) AS handed_back_at
+  FROM darb_timeline_events t JOIN cand ON cand.id = t.order_id
+  GROUP BY t.order_id
+),
+cancel_row AS (
+  SELECT h.order_id, max(h.created_at) AS cancelled_at
+  FROM order_history h JOIN cand ON cand.id = h.order_id
+  WHERE h.status_to = 'cancelled'
+  GROUP BY h.order_id
 ),
 picked AS (
   SELECT e.order_id FROM darb_timeline_events e JOIN cand ON cand.id = e.order_id WHERE e.type = 'assigned'
@@ -51,9 +69,19 @@ SELECT cand.id AS order_id, l.status_slug,
           WHEN l.status_slug IN ('processing','booked')                THEN 'at_carrier'
           WHEN l.status_slug = 'on-branch'                             THEN 'in_transit'
           WHEN l.status_slug = 'resent'                                THEN 'out_for_delivery'
-        END)::order_status AS target
+        END)::order_status AS target,
+       LEAST(now(), GREATEST(
+         COALESCE(cr.cancelled_at, '-infinity'::timestamptz) + interval '1 second',
+         COALESCE(CASE
+                    WHEN l.status_slug = 'completed'             THEN COALESCE(ev.completed_at, l.completed_at)
+                    WHEN l.status_slug IN ('released','returned') THEN ev.handed_back_at
+                  END,
+                  l.carrier_updated_at, now())
+       )) AS happened_at
 FROM cand
 LEFT JOIN latest l ON l.order_id = cand.id
+LEFT JOIN ev ON ev.order_id = cand.id
+LEFT JOIN cancel_row cr ON cr.order_id = cand.id
 LEFT JOIN (SELECT DISTINCT order_id FROM picked) p ON p.order_id = cand.id;
 
 DELETE FROM darb_history_moves WHERE target IS NULL;
@@ -65,9 +93,11 @@ FROM darb_history_moves m
 WHERE o.id = m.order_id
   AND o.status = 'cancelled';
 
-INSERT INTO order_history (order_id, status_from, status_to, actor_id, actor_type, note)
+INSERT INTO order_history (order_id, status_from, status_to, actor_id, actor_type, note, created_at)
 SELECT m.order_id, 'cancelled', m.target, NULL, 'system',
-       'Darb history backfill 2026-10: Darb kept the parcel after its cancel and says ' || m.status_slug
+       'Darb history backfill (recorded ' || to_char(now() AT TIME ZONE 'Africa/Tripoli', 'YYYY-MM-DD')
+         || ', dated at Darb''s own event): Darb kept the parcel after its cancel and says ' || m.status_slug,
+       m.happened_at
 FROM darb_history_moves m;
 
 -- No customer hears about a months-old parcel: drop what the status trigger queued here.
@@ -77,6 +107,8 @@ WHERE w.order_id = m.order_id
   AND w.kind = 'lifecycle'
   AND w.created_at >= now();
 
-SELECT target AS new_status, count(*) AS orders FROM darb_history_moves GROUP BY target ORDER BY orders DESC;
+SELECT target AS new_status, count(*) AS orders,
+       min(happened_at)::date AS earliest, max(happened_at)::date AS latest
+FROM darb_history_moves GROUP BY target ORDER BY orders DESC;
 
 COMMIT;

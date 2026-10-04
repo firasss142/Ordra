@@ -163,9 +163,9 @@ After Phases 1–3, recompute qr-01, DA2 and th-01 in SQL and compare with the A
   on 2026-10-03 evening qr-01 was 77 delivered / 67 failed / 4 in flight, money unchanged.
 
 ### 9.3 Production SQL (the owner pastes it; `apply_migration` always declines here)
-One file, five migrations, one transaction, `schema_migrations` rows included, a check at the end:
-`20261004090000` (same as the Transporteurs PR — harmless twice), `…100000`, `…100100`, `…100200`,
-`…100300`. The pages need it before the PR merges.
+One file, four migrations, one transaction, `schema_migrations` rows included, a check at the end:
+`…100000`, `…100100`, `…100200`, `…100300`. `20261004090000` is NOT in it: PR #65 merged and the
+owner pasted it (seen in prod `schema_migrations` on 2026-10-04). The pages need it before the PR merges.
 
 ### 9.4 Darb « cancelled » history — dry run done, backfill NOT run
 `supabase/scripts/darb-cancelled-history-dry-run.sql` on prod, 2026-10-03 (Libya, 595 orders Ordra closed
@@ -174,4 +174,6 @@ back), 38 → delivered (7 770 LYD, 32 already paid out), 40 → returning, 2 �
 cancelled. Three investor statements settled on 2026-08-18 (period 20 May → 31 Jul) cover some of them;
 they do not move. `…-apply.sql` writes it in one transaction, un-archives the handed-back parcels into
 Entrepôt › Retours, and drops the WhatsApp messages the status change would queue. Run it only on the
-owner's word.
+owner's word. 2026-10-04: its history rows are now dated at Darb's own event, not at the run — the
+view takes a delivery's date from the first `delivered` row and the P&L books revenue on it, so a
+row dated today would have put the 38 recovered deliveries (7 770 LYD) into October.

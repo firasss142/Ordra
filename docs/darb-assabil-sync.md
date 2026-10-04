@@ -214,5 +214,7 @@ and stops on orders closed in Ordra.
 SELECT) shows what would move — 2026-10-03 on prod: 476 → to_be_returned (485 units), 38 → delivered
 (7 770 LYD, 32 already paid out), 40 → returning, 2 → delivery_delayed, 39 stay cancelled; three
 settled investor statements (20 May → 31 Jul) cover some of them. `…-apply.sql` writes it in one
-transaction, appends history rows, deletes the WhatsApp messages the status change would queue —
-run it only once the owner has read the dry run.
+transaction, appends history rows DATED AT DARB'S OWN EVENT (completion, hand-back, else its last
+status change; never before Ordra's cancel row) — dated today, the 38 deliveries would land in
+October in the P&L and in `carrier_parcel_outcome.outcome_at` — and deletes the WhatsApp messages the
+status change would queue. Run it only once the owner has read the dry run.

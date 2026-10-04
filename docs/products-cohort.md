@@ -28,7 +28,7 @@ confirmations). Never mix the two bases on one screen.
 with the Transporteurs page: delivered when Ordra says so or Darb says `completed`; failed when picked
 up by the carrier and not delivered (Darb's own status wins when Ordra says `cancelled`; a `released`
 counts as handed back only behind a cancel); in flight otherwise; cancelled before pickup. Change it
-only through a NEW migration — both branches carry the file byte for byte.
+only through a NEW migration — the Transporteurs page (`docs/carrier-scorecard.md`) reads it too.
 
 `src/lib/products/cohort.ts` maps a line to its bucket (`bucketOf`) and counts (`countCohort`).
 
