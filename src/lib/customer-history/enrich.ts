@@ -28,6 +28,9 @@ export interface RepeatBuyerEnrichment {
   prior_order_count: number;
   prior_lead_count: number;
   prior_rejected_count: number;
+  /** Delivered / returned before this order — the « Client fidèle » and « À risque » tags read them. */
+  prior_delivered_count: number;
+  prior_returned_count: number;
   last_known_address: string | null;
 }
 
@@ -36,6 +39,8 @@ const EMPTY: RepeatBuyerEnrichment = {
   prior_order_count: 0,
   prior_lead_count: 0,
   prior_rejected_count: 0,
+  prior_delivered_count: 0,
+  prior_returned_count: 0,
   last_known_address: null,
 };
 
@@ -106,6 +111,8 @@ export async function enrichRowsWithCustomerHistory<T extends EnrichableRow>(
       prior_order_count: b.prior_order_count,
       prior_lead_count: b.prior_lead_count,
       prior_rejected_count: b.prior_rejected_count,
+      prior_delivered_count: b.prior_delivered_count ?? 0,
+      prior_returned_count: b.prior_returned_count ?? 0,
       last_known_address: b.last_known_address,
     };
   });

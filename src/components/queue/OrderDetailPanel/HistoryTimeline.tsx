@@ -3,8 +3,7 @@
 import { useTranslations } from "next-intl";
 import { getStatusLabel } from "@/lib/status-labels";
 import { formatOrderHistoryNote } from "@/lib/order-history-display";
-import { StatusIcon } from "@/components/shared/StatusIcon";
-import { presentStatus, type StatusHue } from "@/lib/orders/status-presentation";
+import { presentStatus } from "@/lib/orders/status-presentation";
 import type { HistoryEntry } from "./types";
 
 export interface HistoryTimelineProps {
@@ -14,33 +13,13 @@ export interface HistoryTimelineProps {
 }
 
 /**
- * The order's narrative, newest first.
+ * The Historique pane (prototypes/commandes-v4.html `.tl`): the order's story
+ * the way it happened, oldest first, a dot per step in that status's hue, the
+ * time above each line. What the log already said stays: who did it, how long
+ * the order sat before the step, and the translated note.
  *
- * No card and no collapse: the tab is already the disclosure, and a card that
- * also collapses inside it made the log two clicks away from a panel that had
- * just been opened to read it.
- *
- * The rail carries four readings the text-only version made you reconstruct:
- *
- *   icon   — the destination status, wearing the SAME mark the queue pill and
- *            the console badge wear. `presentStatus` is the single source, so a
- *            status cannot look like one thing in the list and another here.
- *   hue    — phase. Warm while the order still owes someone a call, cool once
- *            it is with the carrier, red for an unsuccessful ending.
- *   actor  — who did it. `order_history.actor_type` was on every row all along
- *            and the panel dropped it; "Confirmée" with no author is the most
- *            asked question about a disputed order.
- *   gap    — how long the order sat between this step and the one before it.
- *            Two absolute timestamps make you do that subtraction by hand on
- *            every pair, and the gap is the reason anyone opens this tab.
- *
- * The timestamp sits under its entry rather than right-aligned beside it —
- * an Arabic transition label and a French timestamp on one baseline produced
- * a different gap on every row, so nothing lined up to scan down.
- *
- * Labels are chosen by `historyLocale`, not by `useTranslations`: a Libya order
- * renders Arabic inside an otherwise French console, so the row's own language
- * decides, exactly as the empty state and the status labels already do.
+ * Labels follow `historyLocale`: a Libya order renders Arabic inside an
+ * otherwise French console, so the row's own language decides.
  */
 export function HistoryTimeline({ entries, historyLocale }: HistoryTimelineProps) {
   const t = useTranslations("orders.detail");
@@ -75,121 +54,56 @@ export function HistoryTimeline({ entries, historyLocale }: HistoryTimelineProps
   }
 
   if (entries.length === 0) {
-    return <div className="py-1 text-[12px] text-oms-ink-3">{emptyText}</div>;
+    return <div className="tl-empty">{emptyText}</div>;
   }
 
+  // The log arrives newest-first; the prototype reads it the way it happened,
+  // oldest at the top, with where the order stands now at the bottom.
+  const ordered = [...entries].reverse();
+
   return (
-    <ol
-      role="list"
+    <ul
+      className="tl"
       aria-label={label("label")}
-      className="m-0 flex list-none flex-col p-0"
       lang={isAr ? "ar" : undefined}
       dir={isAr ? "rtl" : undefined}
     >
-      {entries.map((entry, i) => {
-        const isLatest = i === 0;
-        const isLast = i === entries.length - 1;
+      {ordered.map((entry, i) => {
+        const isLatest = i === ordered.length - 1;
         const face = presentStatus(entry.to_status);
         const note = formatOrderHistoryNote(entry.note, historyLocale);
-        // Entries are newest-first, so the step *before* this one is the next
-        // element down — the gap belongs to the row that ended the wait.
-        const previous = entries[i + 1];
-        const gap = previous
-          ? formatGap(previous.created_at, entry.created_at, gapLabel)
-          : null;
+        // The gap belongs to the row that ended the wait.
+        const previous = ordered[i - 1];
+        const gap = previous ? formatGap(previous.created_at, entry.created_at, gapLabel) : null;
 
         return (
           <li
             key={entry.id}
+            className={`h-${face.hue}${isLatest ? " now" : ""}`}
             data-current={isLatest ? "true" : undefined}
-            className="grid grid-cols-[26px_1fr] gap-x-2.5"
+            data-status={entry.to_status}
+            data-hue={face.hue}
           >
-            {/* Rail: the node carries the status mark, the thread joins it to
-                the step below. Both are decorative — every reading in them is
-                also spelled out in the text column. */}
-            <span className="flex flex-col items-center" aria-hidden="true">
-              <span
-                data-testid="history-icon"
-                data-status={entry.to_status}
-                data-hue={face.hue}
-                className={[
-                  "grid h-[26px] w-[26px] flex-none place-items-center rounded-full border",
-                  NODE[face.hue],
-                  isLatest ? `ring-[3px] ${RING[face.hue]}` : "",
-                ].join(" ")}
-              >
-                <StatusIcon name={face.icon} size={13} />
-              </span>
-              {!isLast && <span className="my-1 min-h-[14px] w-[1.5px] flex-1 bg-oms-border" />}
+            <time dateTime={entry.created_at}>
+              {new Date(entry.created_at).toLocaleString(isAr ? "ar-LY" : "fr-TN", {
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              {gap && <span data-testid="history-gap"> · {gap}</span>}
+            </time>
+            {formatTransition(entry)}
+            <span className="odp-sub" data-testid="history-actor">
+              {actorLabel(entry.actor_type, label)}
             </span>
-
-            <div className="min-w-0 pb-4">
-              {/* Transition and actor share a baseline: what happened, then who
-                  caused it — the two halves of a single sentence. */}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span className="text-[13px] font-semibold text-oms-ink-1">
-                  {formatTransition(entry)}
-                </span>
-                <span
-                  data-testid="history-actor"
-                  className="rounded-pill bg-oms-sunken px-[7px] py-[1px] text-[10.5px] font-medium text-oms-ink-3"
-                >
-                  {actorLabel(entry.actor_type, label)}
-                </span>
-              </div>
-
-              <div className="mt-px flex flex-wrap items-center gap-x-2 text-[11.5px] tabular-nums text-oms-ink-3">
-                <span>
-                  {new Date(entry.created_at).toLocaleString(isAr ? "ar-LY" : "fr-TN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-                {gap && (
-                  <span data-testid="history-gap" className="text-oms-ink-3/85">
-                    {gap}
-                  </span>
-                )}
-              </div>
-
-              {note && (
-                <div className="mt-1.5 rounded-[8px] bg-oms-sunken px-[9px] py-[7px] text-[12.5px] leading-[1.45] text-oms-ink-2">
-                  {note}
-                </div>
-              )}
-            </div>
+            {note && <span className="odp-note">{note}</span>}
           </li>
         );
       })}
-    </ol>
+    </ul>
   );
 }
-
-/**
- * The node's fill and face. A tint rather than the solid used by the delivery
- * rail: this list is up to thirty rows tall, and thirty saturated discs down one
- * edge is a decoration, not a signal.
- */
-const NODE: Record<StatusHue, string> = {
-  neutral: "bg-hue-neutral-bg border-hue-neutral-edge-mid text-hue-neutral-ink",
-  amber: "bg-hue-amber-bg border-hue-amber-edge-mid text-hue-amber-ink",
-  violet: "bg-hue-violet-bg border-hue-violet-edge-mid text-hue-violet-ink",
-  teal: "bg-hue-teal-bg border-hue-teal-edge-mid text-hue-teal-ink",
-  green: "bg-hue-green-bg border-hue-green-edge-mid text-hue-green-ink",
-  red: "bg-hue-red-bg border-hue-red-edge-mid text-hue-red-ink",
-};
-
-/** Only the newest entry wears it — where the order stands right now. */
-const RING: Record<StatusHue, string> = {
-  neutral: "ring-hue-neutral-fill-soft",
-  amber: "ring-hue-amber-fill-soft",
-  violet: "ring-hue-violet-fill-soft",
-  teal: "ring-hue-teal-fill-soft",
-  green: "ring-hue-green-fill-soft",
-  red: "ring-hue-red-fill-soft",
-};
 
 /** Forced-Arabic copies, for Libya orders rendered inside the French console. */
 const AR_LABELS = {

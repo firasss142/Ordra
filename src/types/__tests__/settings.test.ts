@@ -408,8 +408,8 @@ describe("isValidMarketSettings — new operations keys", () => {
     it("accepts 1..365", () => {
       expect(isValidMarketSettings({ ...valid, auto_archive_after_days: 30 })).toBe(true);
     });
-    it("rejects zero and beyond a year", () => {
-      expect(isValidMarketSettings({ ...valid, auto_archive_after_days: 0 })).toBe(false);
+    it("rejects a negative delay and beyond a year (0 = the rule is off)", () => {
+      expect(isValidMarketSettings({ ...valid, auto_archive_after_days: -1 })).toBe(false);
       expect(isValidMarketSettings({ ...valid, auto_archive_after_days: 366 })).toBe(false);
     });
   });
@@ -668,5 +668,15 @@ describe("isValidMarketSettings — Salle de contrôle keys", () => {
     expect(isValidMarketSettings({ ...base, team_shift_overrides: { roqaya: { start: "13:00", end: "16:00" } } })).toBe(false);
     expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "1pm", end: "16:00" } } })).toBe(false);
     expect(isValidMarketSettings({ ...base, team_shift_overrides: [] })).toBe(false);
+  });
+});
+
+describe("isValidMarketSettings — auto_archive_after_days (Archivées « Ranger tout seul »)", () => {
+  it("accepts 0: the rule is off, as archive_finished_orders reads it", () => {
+    expect(isValidMarketSettings({ ...DEFAULT_MARKET_SETTINGS, auto_archive_after_days: 0 })).toBe(true);
+  });
+  it("still refuses a negative delay or more than a year", () => {
+    expect(isValidMarketSettings({ ...DEFAULT_MARKET_SETTINGS, auto_archive_after_days: -1 })).toBe(false);
+    expect(isValidMarketSettings({ ...DEFAULT_MARKET_SETTINGS, auto_archive_after_days: 366 })).toBe(false);
   });
 });

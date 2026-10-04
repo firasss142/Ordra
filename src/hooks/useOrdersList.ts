@@ -10,6 +10,7 @@ export interface OrdersListRow {
   external_id: string | null;
   external_platform: string | null;
   market_id: string;
+  storefront_id?: string | null;
   customer_name: string;
   customer_phone: string | null;
   customer_address: string | null;
@@ -26,6 +27,7 @@ export interface OrdersListRow {
   status: string;
   assigned_to: string | null;
   carrier_id: string | null;
+  tracking_number?: string | null;
   rejection_reason: string | null;
   /**
    * The specific reason, and the agent's own words for `autre`. Both are on the
@@ -62,6 +64,8 @@ export interface OrdersListRow {
   prior_order_count?: number;
   prior_lead_count?: number;
   prior_rejected_count?: number;
+  prior_delivered_count?: number;
+  prior_returned_count?: number;
   is_potential_duplicate?: boolean;
   duplicate_count?: number;
   duplicate_siblings?: import("@/lib/duplicate-orders/detect").SiblingOrder[];

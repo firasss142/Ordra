@@ -1,0 +1,94 @@
+/*
+ * The order panel — what prototypes/commandes-v4.html's drawer needs on top of
+ * commandes.css (which carries the prototype's own classes, scoped under .cmd).
+ * Panel-only: the two shells, the phone layout, and the few app widgets that
+ * sit inside the panel's panes. px on purpose (root font is 14px).
+ */
+
+/* The .cmd root only carries the tokens; it must not draw or take a grid cell. */
+.cmd.odp-root{display:contents}
+
+/* Overlay — the prototype drawer. z-index matches the app's Sheet (z-40/z-50),
+   so a modal opened from the panel (carrier picker, reopen) stacks above it. */
+.cmd .odp.drawer{z-index:50}
+.cmd .odp-scrim.scrim{z-index:40}
+
+/* Side — the agent queue: a sticky card beside the list on a desktop… */
+.cmd .odp-side{position:sticky;top:16px;display:flex;flex-direction:column;max-height:calc(100vh - 88px);margin-inline-end:20px;background:#fff;border-radius:18px;border:1px solid var(--line);box-shadow:var(--card-sh);overflow:hidden;animation:cmd-fade .2s}
+/* …and the whole screen on a phone, where there is one column. */
+@media (max-width:1023px){
+  .cmd .odp-side{position:fixed;inset:0;z-index:50;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;animation:cmd-slide .24s cubic-bezier(.2,.8,.2,1)}
+  [dir=rtl] .cmd .odp-side{animation-name:cmd-slideR}
+}
+
+.cmd .odp .dr-body{min-height:0}
+.cmd .odp-msg{padding:64px 20px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-3)}
+.cmd .odp-msg.bad{color:var(--bad)}
+
+/* Header: the app's chips that sit beside the prototype's (presence, saved). */
+.cmd .dr-top .odp-saved{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--good)}
+.cmd .dr-top .odp-saved .ic{width:12px;height:12px}
+.cmd .dr-top .odp-saved.bad{color:var(--bad)}
+.cmd .dr-top .sla.vlate{background:var(--bad-bg);color:var(--bad)}
+
+/* Client block: the editable name and phone keep the prototype's type. */
+.cmd .odp .pc-n h2 > span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd .odp .pc-ph .num{min-width:0}
+.cmd .odp .pc-2nd{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.cmd .odp .pc-2nd .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.cmd .odp .btn2.wa{position:relative}
+.cmd .odp .btn2.wa[data-state=active]{color:var(--brand)}
+.cmd .odp .btn2.wa[data-state=not_connected],.cmd .odp .btn2.wa[data-state=opted_out]{color:var(--ink-3);background:#F9FAFB}
+.cmd .odp .btn2.wa[data-state=opted_out]{cursor:not-allowed}
+.cmd .odp .btn2.wa em{position:absolute;top:-7px;inset-inline-end:-7px;min-width:19px;height:19px;border-radius:10px;padding:0 5px;display:grid;place-items:center;background:var(--brand);color:#fff;font-style:normal;font-size:11px;font-weight:800;box-shadow:0 0 0 2px #fff}
+
+/* Facts: the editable values and the destination picker's trigger. */
+.cmd .odp .facts dd > .odp-val{min-width:0}
+.cmd .odp .facts .odp-note{font-weight:500;color:var(--ink-2)}
+
+/* Panes */
+.cmd .odp .tabwrap{overflow-x:auto;scrollbar-width:none}
+.cmd .odp .tabwrap::-webkit-scrollbar{display:none}
+.cmd .odp .tabs{flex:none}
+.cmd .odp .pane.msgs{padding:0;background:#F9FAFB;min-height:100%}
+.cmd .odp .pane.msgs:not([hidden]){display:flex;flex-direction:column}
+.cmd .odp .pane.msgs > .odp-thread{flex:1}
+.cmd .odp .line .odp-qty{display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:12.5px;color:var(--ink-3);font-weight:600;margin-top:2px}
+.cmd .odp .line .odp-stock{display:inline-flex;align-items:center;gap:5px;margin-top:3px;font-size:12px;font-weight:700}
+.cmd .odp .line .odp-stock i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.cmd .odp .line .odp-stock.ok{color:var(--good)}
+.cmd .odp .line .odp-stock.warn{color:var(--warn)}
+.cmd .odp .line .odp-stock.bad{color:var(--bad)}
+.cmd .odp .line .odp-name{display:flex;align-items:flex-start;gap:2px}
+.cmd .odp .line .odp-name b{flex:1;min-width:0}
+.cmd .odp .line select{margin-top:6px;height:30px;border-radius:9px;border:1px solid #D0D5DD;background:#fff;padding:0 8px;font-size:12.5px;width:100%}
+.cmd .odp .tot .odp-fee{display:flex;align-items:center;gap:4px}
+.cmd .odp .tl .odp-sub{display:block;font-size:12px;font-weight:600;color:var(--ink-3);margin-top:1px}
+.cmd .odp .tl .odp-note{display:block;margin-top:5px;padding:6px 9px;border-radius:9px;background:#F2F4F7;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.cmd .odp .tl-empty{padding:18px 0;font-size:13px;color:var(--ink-3)}
+.cmd .odp .trk .btn2{height:32px}
+.cmd .odp .odp-h{margin:16px 0 0;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+[lang=ar] .cmd .odp .odp-h{letter-spacing:0}
+
+/* Footer: the queue's keyboard hint under the buttons (desktop only). */
+.cmd .odp-hint{margin:-4px 0 0;padding:0 16px 12px;text-align:center;font-size:12px;color:var(--ink-3)}
+.cmd .odp-hint kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:5px;border:1px solid #D0D5DD;background:#F2F4F7;font:inherit;font-size:11px;font-weight:700;color:var(--ink-2)}
+.cmd .odp-hint b{font-weight:700;color:#6D28D9}
+.cmd .fa.disabled,.cmd .fa:disabled{opacity:.42;cursor:not-allowed}
+.cmd .fa.pri:disabled:hover{background:var(--brand)}
+@media (max-width:1023px){ .cmd .odp-hint{display:none} }
+
+/* Phone: the call buttons get their own row; the footer goes two by two. */
+@media (max-width:600px){
+  .cmd .odp .dr-top{flex-wrap:wrap;row-gap:6px}
+  .cmd .odp .pc{grid-template-columns:minmax(0,1fr);padding:16px 16px 14px}
+  .cmd .odp .pc-btns{grid-column:1;grid-row:auto;order:5}
+  .cmd .odp .pc-btns > *{flex:1}
+  .cmd .odp .pc-btns .btn,.cmd .odp .pc-btns .btn2{height:44px}
+  .cmd .odp .pc-n h2{white-space:normal}
+  .cmd .odp .facts{grid-template-columns:96px minmax(0,1fr);padding:14px 16px 16px}
+  .cmd .odp .tabwrap{padding:10px 16px}
+  .cmd .odp .pane{padding:6px 16px 22px}
+  .cmd .odp .dr-foot{flex-wrap:wrap;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+  .cmd .odp .dr-foot .fa:not(.io){flex:1 1 calc(50% - 30px)}
+}

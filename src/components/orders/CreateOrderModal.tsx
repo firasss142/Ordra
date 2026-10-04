@@ -4,24 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  AlertCircle,
-  BadgeCheck,
-  Check,
-  ChevronDown,
-  Info,
-  Minus,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Search,
-  ShoppingBag,
-  ShoppingCart,
-  Tag,
-  User,
-  UserRound,
-  X,
-} from "lucide-react";
 import type FocusTrapType from "focus-trap-react";
 import type { Role } from "@/types";
 import { TUNISIAN_GOVERNORATES } from "@/lib/carriers/governorates";
@@ -36,7 +18,10 @@ import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker
 import { useMarketScope } from "@/context/market-scope";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ProductAvatar } from "./ProductAvatar";
+import { ICON_PATHS } from "./commandes/icons";
 import type { CustomerLookup } from "@/app/api/customers/lookup/route";
+import "./commandes/commandes.css";
+import "./create-order.css";
 
 const FocusTrap = dynamic(
   () => import("focus-trap-react"),
@@ -45,10 +30,30 @@ const FocusTrap = dynamic(
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+/** The prototype's icons (commandes-v4.html, ICON), drawn as it draws them. Static paths only. */
+function Ic({ n }: { n: string }) {
+  return (
+    <svg
+      className="ic"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: ICON_PATHS[n] ?? "" }}
+    />
+  );
+}
+
 interface Market {
   id: string;
   name: string;
   code: string;
+}
+
+interface Storefront {
+  id: string;
+  name: string;
+  platform?: string | null;
+  is_active?: boolean;
+  created_at?: string | null;
 }
 
 interface Product {
@@ -99,6 +104,12 @@ interface FormState {
   darb_destination: DarbDestinationOption | null;
   customer_address: string;
   customer_note: string;
+  /**
+   * The shop the order is filed under. Empty means "the market's oldest active
+   * shop" — the same one the server falls back to, so leaving it alone is
+   * never a different answer from picking it.
+   */
+  storefront_id: string;
   product_id: string;
   variant_id: string;
   variant_label: string;
@@ -122,6 +133,7 @@ function emptyForm(): FormState {
     darb_destination: null,
     customer_address: "",
     customer_note: "",
+    storefront_id: "",
     product_id: "",
     variant_id: "",
     variant_label: "",
@@ -133,12 +145,7 @@ function emptyForm(): FormState {
   };
 }
 
-const inputClass =
-  "w-full h-10 px-3 text-[13.5px] rounded-lg border border-oms-border bg-oms-surface text-oms-ink-1 placeholder:text-oms-ink-3 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-oms-sunken disabled:text-oms-ink-3 disabled:cursor-not-allowed transition-colors duration-fast";
-
-const textareaClass =
-  "w-full px-3 py-2 text-[13.5px] rounded-lg border border-oms-border bg-oms-surface text-oms-ink-1 placeholder:text-oms-ink-3 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 resize-y transition-colors duration-fast";
-
+/** The prototype's `.fld label` — the red asterisk is an `<i>`. */
 function FieldLabel({
   children,
   required = false,
@@ -149,39 +156,34 @@ function FieldLabel({
   htmlFor?: string;
 }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1 block text-[12px] font-medium text-oms-ink-2">
+    <label htmlFor={htmlFor}>
       {children}
-      {required && <span className="ms-0.5 text-hue-red-ink">*</span>}
+      {required && <i aria-hidden="true">*</i>}
     </label>
   );
 }
 
-/**
- * A titled card with a tinted icon holder — the same §4.19 device the KPI tiles
- * use. It replaces a bare uppercase eyebrow: at a glance the panel now reads as
- * two things to fill in rather than one long column of fields.
- */
-function SectionCard({
+/** One of the drawer's two soft sections (`.fs`), with its tinted icon tile. */
+function FormSection({
   icon,
+  hue,
   title,
   children,
 }: {
-  icon: React.ReactNode;
+  icon: string;
+  hue: "blue" | "green" | "amber";
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-oms-border bg-oms-surface">
-      <div className="flex items-center gap-2.5 px-4 pb-1 pt-4">
-        <span
-          aria-hidden
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-bg text-brand"
-        >
-          {icon}
+    <section className="fs">
+      <h3>
+        <span className={`hold h-${hue}`} aria-hidden="true">
+          <Ic n={icon} />
         </span>
-        <h3 className="text-[14px] font-semibold tracking-[-0.006em] text-oms-ink-1">{title}</h3>
-      </div>
-      <div className="flex flex-col gap-3.5 px-4 pb-4 pt-2.5">{children}</div>
+        {title}
+      </h3>
+      {children}
     </section>
   );
 }
@@ -210,7 +212,7 @@ export function CreateOrderModal({
 }: CreateOrderModalProps) {
   const t = useTranslations("orders.create");
   const locale = useLocale();
-  const modalRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLElement>(null);
   const { scope, marketId: scopedMarketId } = useMarketScope();
   const [form, setForm] = useState<FormState>(() => emptyForm());
 
@@ -245,6 +247,21 @@ export function CreateOrderModal({
   useEffect(() => {
     if (isOpen) setForm(emptyForm());
   }, [isOpen, effectiveMarketId]);
+
+  const { data: storefrontsData } = useSWR<{ data: Storefront[] }>(
+    isOpen && effectiveMarketId ? `/api/storefronts?market_id=${effectiveMarketId}` : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  // Active shops, oldest first — the order the server's own fallback uses.
+  const storefronts = useMemo(
+    () =>
+      (Array.isArray(storefrontsData?.data) ? storefrontsData.data : [])
+        .filter((s) => s.is_active !== false)
+        .sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? ""))),
+    [storefrontsData],
+  );
+  const storefrontId = form.storefront_id || storefronts[0]?.id || "";
 
   const { data: productsData } = useSWR<{ data: Product[] }>(
     isOpen && effectiveMarketId
@@ -366,7 +383,8 @@ export function CreateOrderModal({
    * orderable and the total on screen is the total that gets saved. The server
    * used to overwrite quantity here, which made the two disagree.
    *
-   * Clicking the active variant clears it, back to the product's base price.
+   * Choosing no variant (or the active one again) goes back to the product's
+   * base price.
    */
   function handleVariantChange(variantId: string) {
     if (!variantId || variantId === form.variant_id) {
@@ -461,6 +479,9 @@ export function CreateOrderModal({
 
     const body: Record<string, unknown> = {
       market_id: effectiveMarketId,
+      // Absent when the market's shops could not be listed: the server then
+      // files the order under the oldest active one, as it always has.
+      ...(storefrontId ? { storefront_id: storefrontId } : {}),
       customer_name: form.customer_name.trim(),
       // Stored as the domestic digits the rest of this data already uses; the
       // dial code is a label, not part of the value. Search normalises anyway.
@@ -512,106 +533,76 @@ export function CreateOrderModal({
 
   const money = (n: number) => `${formatPrice(n)} ${currency}`.trim();
 
+  const qtyValue = parseInt(form.quantity, 10) || 1;
+  const overrideNum = form.total_override !== null ? parseFloat(form.total_override) : NaN;
+  const shownTotal = Number.isFinite(overrideNum) ? overrideNum : computedTotal;
+  const overrideDelta =
+    Number.isFinite(overrideNum) && computedTotal !== null
+      ? Math.round((overrideNum - computedTotal) * 1000) / 1000
+      : null;
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-oms-ink-1/40 animate-[fadeInUp_120ms_ease-out]"
-        onClick={() => !form.loading && onClose()}
-      />
+    <div className="cmd co-root">
+      <div className="scrim" aria-hidden="true" onClick={() => !form.loading && onClose()} />
       <FocusTrap
         focusTrapOptions={{
           allowOutsideClick: true,
           fallbackFocus: () => modalRef.current ?? document.body,
         }}
       >
-        <div
+        <aside
           ref={modalRef}
           tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-order-title"
-          className="fixed top-0 end-0 z-50 flex h-full w-full max-w-[92vw] flex-col overflow-hidden border-s border-oms-border bg-oms-bg shadow-panel animate-[slideInEnd_180ms_ease-out] sm:w-[440px] md:w-[520px] lg:w-[600px] xl:w-[680px]"
+          className="drawer co-drawer"
         >
-          {/* Sticky Header */}
-          <div className="flex-shrink-0 border-b border-oms-border bg-oms-surface">
-            <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
-              <div className="min-w-0 flex-1">
-                <h2
-                  id="create-order-title"
-                  className="truncate text-[17px] font-semibold leading-tight tracking-[-0.014em] text-oms-ink-1"
-                >
-                  {t("modalTitle")}
-                </h2>
-                <p className="mt-0.5 truncate text-[12px] text-oms-ink-2">
-                  {t("modalSubtitle")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => !form.loading && onClose()}
-                disabled={form.loading}
-                aria-label={t("cancel")}
-                className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1 disabled:opacity-50"
-              >
-                <X size={16} strokeWidth={2} aria-hidden="true" />
-              </button>
-            </div>
+          <div className="dr-top">
+            <span className="dr-title">
+              <b id="create-order-title">{t("modalTitle")}</b>
+              <small>{t("modalSubtitle")}</small>
+            </span>
+            <button
+              type="button"
+              className="xbtn"
+              onClick={() => !form.loading && onClose()}
+              disabled={form.loading}
+              aria-label={t("close")}
+            >
+              <Ic n="x" />
+            </button>
           </div>
 
-          {/* Scrollable body */}
-          <div className="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5">
+          <div className="dr-body co-body">
             {marketUnscoped ? (
               /* No market in scope: the panel cannot guess which of two
                  isolated markets this order belongs to, and picking wrong is
                  not correctable from the UI. */
-              <div className="flex items-start gap-3 rounded-card border border-oms-border bg-oms-surface px-4 py-4">
-                <span
-                  aria-hidden
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-hue-amber-bg text-hue-amber-ink"
-                >
-                  <Info size={17} strokeWidth={2} />
-                </span>
-                <div className="min-w-0">
-                  <p className="m-0 text-[13.5px] font-semibold text-oms-ink-1">
-                    {t("noMarketScopeTitle")}
-                  </p>
-                  <p className="m-0 mt-1 text-[12.5px] leading-snug text-oms-ink-2">
-                    {t("noMarketScopeBody")}
-                  </p>
-                </div>
-              </div>
+              <FormSection icon="info" hue="amber" title={t("noMarketScopeTitle")}>
+                <p className="co-hint">{t("noMarketScopeBody")}</p>
+              </FormSection>
             ) : (
               <>
-                <SectionCard
-                  icon={<User size={15} strokeWidth={2.1} />}
-                  title={t("sectionCustomer")}
-                >
+                <FormSection icon="user" hue="blue" title={t("sectionCustomer")}>
                   {/* Phone leads: it is the key the customer is known by, and
                       looking it up first can fill everything below it. */}
-                  <div>
+                  <div className="fld">
                     <FieldLabel required htmlFor="co-phone">
                       {t("fields.customerPhone")}
                     </FieldLabel>
-                    <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-oms-border bg-oms-surface transition-colors duration-fast focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/15">
-                      {dialCode && (
-                        <span
-                          aria-hidden
-                          className="grid place-items-center border-e border-oms-border bg-oms-sunken px-3 text-[13px] font-semibold tabular-nums text-oms-ink-2"
-                        >
-                          {dialCode}
-                        </span>
-                      )}
+                    <div className={dialCode ? "inp-pre" : undefined}>
+                      {dialCode && <span>{dialCode}</span>}
                       <input
                         id="co-phone"
                         type="text"
+                        className="inp"
                         value={form.customer_phone}
                         onChange={(e) => update("customer_phone", e.target.value)}
                         placeholder={t("phonePlaceholder")}
                         inputMode="tel"
                         autoComplete="tel"
                         dir="ltr"
-                        className="min-w-0 flex-1 bg-transparent px-3 text-[13.5px] tabular-nums text-oms-ink-1 outline-none placeholder:text-oms-ink-3"
                       />
                     </div>
                   </div>
@@ -641,44 +632,46 @@ export function CreateOrderModal({
                     />
                   )}
 
-                  <div>
+                  <div className="fld">
                     <FieldLabel required htmlFor="co-name">
                       {t("fields.customerName")}
                     </FieldLabel>
                     <input
                       id="co-name"
                       type="text"
+                      className="inp"
                       value={form.customer_name}
                       onChange={(e) => update("customer_name", e.target.value)}
                       placeholder={t("namePlaceholder")}
-                      className={inputClass}
                       dir="auto"
                     />
                   </div>
 
-                  <div>
+                  <div className="fld">
                     <FieldLabel required>{t("fields.customerCity")}</FieldLabel>
                     {marketCode === "ly" ? (
-                      <DarbDestinationPicker
-                        destinations={darbDestinations}
-                        value={form.darb_destination}
-                        placeholder={
-                          form.customer_city
-                            ? `${form.customer_city} — ${t("pickZone")}`
-                            : t("cityPlaceholder")
-                        }
-                        onSelect={(opt) =>
-                          setForm((s) => ({
-                            ...s,
-                            customer_city: opt.city,
-                            darb_destination: opt,
-                            error: null,
-                          }))
-                        }
-                        onClear={() =>
-                          setForm((s) => ({ ...s, customer_city: "", darb_destination: null }))
-                        }
-                      />
+                      <div className="co-pick">
+                        <DarbDestinationPicker
+                          destinations={darbDestinations}
+                          value={form.darb_destination}
+                          placeholder={
+                            form.customer_city
+                              ? `${form.customer_city} — ${t("pickZone")}`
+                              : t("cityPlaceholder")
+                          }
+                          onSelect={(opt) =>
+                            setForm((s) => ({
+                              ...s,
+                              customer_city: opt.city,
+                              darb_destination: opt,
+                              error: null,
+                            }))
+                          }
+                          onClear={() =>
+                            setForm((s) => ({ ...s, customer_city: "", darb_destination: null }))
+                          }
+                        />
+                      </div>
                     ) : cityOptions.length > 0 ? (
                       <CityCombobox
                         options={cityOptions}
@@ -694,241 +687,279 @@ export function CreateOrderModal({
                     ) : (
                       <input
                         type="text"
+                        className="inp"
                         value={form.customer_city}
                         onChange={(e) => update("customer_city", e.target.value)}
-                        className={inputClass}
+                        placeholder={t("cityPlaceholder")}
                         dir="auto"
                       />
                     )}
                   </div>
 
-                  <div>
+                  <div className="fld">
                     <FieldLabel required htmlFor="co-address">
                       {t("fields.customerAddress")}
                     </FieldLabel>
                     <textarea
                       id="co-address"
+                      className="inp"
                       value={form.customer_address}
                       onChange={(e) => update("customer_address", e.target.value)}
-                      rows={2}
                       placeholder={t("addressPlaceholder")}
-                      className={textareaClass}
                       dir="auto"
                     />
                   </div>
 
-                  <div>
+                  <div className="fld">
                     <FieldLabel htmlFor="co-note">{t("fields.customerNote")}</FieldLabel>
                     <textarea
                       id="co-note"
+                      className="inp"
                       value={form.customer_note}
                       onChange={(e) => update("customer_note", e.target.value)}
-                      rows={2}
                       placeholder={t("notePlaceholder")}
-                      className={textareaClass}
                       dir="auto"
                     />
                   </div>
-                </SectionCard>
+                </FormSection>
 
-                <SectionCard
-                  icon={<ShoppingBag size={15} strokeWidth={2.1} />}
-                  title={t("sectionOrder")}
-                >
-                  <div>
-                    <FieldLabel required>{t("fields.product")}</FieldLabel>
-                    <ProductPicker
-                      products={products}
-                      selected={selectedProduct}
-                      currency={currency}
-                      disabled={!effectiveMarketId}
-                      onSelect={handleProductChange}
-                      onClear={() =>
-                        setForm((s) => ({
-                          ...s,
-                          product_id: "",
-                          variant_id: "",
-                          variant_label: "",
-                          unit_price: "",
-                          total_override: null,
-                          error: null,
-                        }))
-                      }
-                    />
-                    {productsEmptyHint && (
-                      <div className="mt-1.5 text-[12px] text-oms-ink-2">{productsEmptyHint}</div>
-                    )}
+                <FormSection icon="bag" hue="green" title={t("sectionOrder")}>
+                  <div className="fld">
+                    <FieldLabel required htmlFor="co-store">
+                      {t("fields.storefront")}
+                    </FieldLabel>
+                    <select
+                      id="co-store"
+                      className="inp"
+                      value={storefrontId}
+                      disabled={storefronts.length === 0}
+                      onChange={(e) => update("storefront_id", e.target.value)}
+                    >
+                      {storefronts.length === 0 ? (
+                        <option value="">{t("storefrontNone")}</option>
+                      ) : (
+                        storefronts.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </div>
 
-                  {form.product_id && variants.length > 0 && (
-                    <div>
-                      <FieldLabel>{t("fields.variantLabel")}</FieldLabel>
-                      <div className="flex flex-wrap gap-1.5">
-                        {variants.map((v) => {
-                          const active = form.variant_id === v.id;
-                          return (
-                            <button
-                              key={v.id}
-                              type="button"
-                              aria-pressed={active}
-                              onClick={() => handleVariantChange(v.id)}
-                              className={
-                                "inline-flex h-8 items-center rounded-lg border px-3 text-[12.5px] font-medium transition-colors duration-fast " +
-                                (active
-                                  ? "border-brand bg-brand-bg text-brand-hover"
-                                  : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1")
-                              }
-                              dir="auto"
-                            >
-                              {v.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {form.product_id && variants.length === 0 && (
-                    <div>
-                      <FieldLabel htmlFor="co-variant">{t("fields.variantLabel")}</FieldLabel>
-                      <input
-                        id="co-variant"
-                        type="text"
-                        value={form.variant_label}
-                        onChange={(e) => update("variant_label", e.target.value)}
-                        className={inputClass}
-                        placeholder={t("noVariants")}
-                        dir="auto"
+                  <div className="two co-pv">
+                    <div className="fld">
+                      <FieldLabel required>{t("fields.product")}</FieldLabel>
+                      <ProductPicker
+                        products={products}
+                        selected={selectedProduct}
+                        currency={currency}
+                        disabled={!effectiveMarketId}
+                        onSelect={handleProductChange}
+                        onClear={() =>
+                          setForm((s) => ({
+                            ...s,
+                            product_id: "",
+                            variant_id: "",
+                            variant_label: "",
+                            unit_price: "",
+                            total_override: null,
+                            error: null,
+                          }))
+                        }
                       />
+                      {productsEmptyHint && <p className="co-hint">{productsEmptyHint}</p>}
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <FieldLabel required>{t("fields.quantity")}</FieldLabel>
-                      <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-oms-border bg-oms-surface">
+                    <div className="fld">
+                      <FieldLabel htmlFor="co-variant">{t("fields.variantLabel")}</FieldLabel>
+                      {!form.product_id ? (
+                        <input
+                          id="co-variant"
+                          className="inp"
+                          disabled
+                          placeholder={t("variantNone")}
+                        />
+                      ) : variants.length > 0 ? (
+                        <select
+                          id="co-variant"
+                          className="inp"
+                          value={form.variant_id}
+                          onChange={(e) => handleVariantChange(e.target.value)}
+                          dir="auto"
+                        >
+                          <option value="">{t("variantBase")}</option>
+                          {variants.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        /* No configured variant: a free label, as before. */
+                        <input
+                          id="co-variant"
+                          type="text"
+                          className="inp"
+                          value={form.variant_label}
+                          onChange={(e) => update("variant_label", e.target.value)}
+                          placeholder={t("variantFree")}
+                          title={t("noVariants")}
+                          dir="auto"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="two">
+                    <div className="fld">
+                      <FieldLabel required htmlFor="co-qty">
+                        {t("fields.quantity")}
+                      </FieldLabel>
+                      <div className="step">
                         <button
                           type="button"
-                          onClick={() => setQuantity((parseInt(form.quantity, 10) || 1) - 1)}
-                          disabled={(parseInt(form.quantity, 10) || 1) <= 1}
+                          onClick={() => setQuantity(qtyValue - 1)}
+                          disabled={qtyValue <= 1}
                           aria-label={t("qtyDecrease")}
-                          className="grid w-10 place-items-center border-e border-oms-border text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          <Minus size={14} strokeWidth={2.2} />
+                          <Ic n="minus" />
                         </button>
                         <input
+                          id="co-qty"
                           type="number"
                           min={1}
+                          className="co-qty"
                           value={form.quantity}
                           onChange={(e) => update("quantity", e.target.value)}
                           aria-label={t("fields.quantity")}
-                          className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13.5px] font-semibold tabular-nums text-oms-ink-1 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                         <button
                           type="button"
                           onClick={() => setQuantity((parseInt(form.quantity, 10) || 0) + 1)}
                           aria-label={t("qtyIncrease")}
-                          className="grid w-10 place-items-center border-s border-oms-border text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
                         >
-                          <Plus size={14} strokeWidth={2.2} />
+                          <Ic n="plus" />
                         </button>
                       </div>
                     </div>
-                    <div>
+                    <div className="fld">
                       <FieldLabel required htmlFor="co-unit">
                         {t("fields.unitPrice")}
                       </FieldLabel>
-                      <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-oms-border bg-oms-surface transition-colors duration-fast focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/15">
-                        <input
-                          id="co-unit"
-                          type="number"
-                          step="0.001"
-                          min={0}
-                          value={form.unit_price}
-                          onChange={(e) =>
-                            setForm((s) => ({
-                              ...s,
-                              unit_price: e.target.value,
-                              total_override: null,
-                              error: null,
-                            }))
-                          }
-                          className="min-w-0 flex-1 bg-transparent px-3 text-[13.5px] tabular-nums text-oms-ink-1 outline-none"
-                        />
-                        {currency && (
-                          <span
-                            aria-hidden
-                            className="grid place-items-center pe-3 text-[12px] text-oms-ink-3"
-                          >
-                            {currency}
-                          </span>
-                        )}
-                      </div>
+                      <input
+                        id="co-unit"
+                        type="number"
+                        step="0.001"
+                        min={0}
+                        inputMode="decimal"
+                        className="inp co-num"
+                        value={form.unit_price}
+                        onChange={(e) =>
+                          setForm((s) => ({
+                            ...s,
+                            unit_price: e.target.value,
+                            total_override: null,
+                            error: null,
+                          }))
+                        }
+                      />
                     </div>
                   </div>
 
-                  <TotalCard
-                    quantity={form.quantity}
-                    unitPrice={form.unit_price}
-                    computed={computedTotal}
-                    override={form.total_override}
-                    money={money}
-                    onEdit={() =>
-                      setForm((s) => ({
-                        ...s,
-                        total_override: computedTotal !== null ? formatPrice(computedTotal) : "",
-                        error: null,
-                      }))
-                    }
-                    onChange={(v) => update("total_override", v)}
-                    onReset={() => update("total_override", null)}
-                  />
-                </SectionCard>
+                  {/* The breakdown beside the figure is what makes the override
+                      safe to offer: a typed total that no longer matches
+                      "3 × 25,500" is visibly a decision rather than a typo, and
+                      the server files a history row saying so. */}
+                  <div className="calc">
+                    <span>
+                      <small>{t("totalComputed")}</small>
+                      <span className="co-num-txt">
+                        {t("totalBreakdown", {
+                          qty: form.quantity || "—",
+                          price: form.unit_price ? money(parseFloat(form.unit_price)) : "—",
+                        })}
+                      </span>
+                    </span>
+                    <b className="co-num-txt">{shownTotal !== null ? money(shownTotal) : "—"}</b>
+                  </div>
+
+                  {form.total_override !== null ? (
+                    <div className="fld">
+                      <div className="co-lblrow">
+                        <FieldLabel htmlFor="co-total">{t("totalTyped")}</FieldLabel>
+                        <button
+                          type="button"
+                          className="lnk"
+                          onClick={() => update("total_override", null)}
+                        >
+                          <Ic n="rotate" />
+                          {t("totalReset")}
+                        </button>
+                      </div>
+                      <input
+                        id="co-total"
+                        type="number"
+                        step="0.001"
+                        min={0}
+                        inputMode="decimal"
+                        autoFocus
+                        className="inp co-num"
+                        value={form.total_override}
+                        onChange={(e) => update("total_override", e.target.value)}
+                      />
+                      {/* A discount is stated, not left for someone to notice later. */}
+                      {overrideDelta !== null && overrideDelta !== 0 && (
+                        <p className="co-hint">
+                          {t("totalOverridden", { delta: money(Math.abs(overrideDelta)) })}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="lnk co-over"
+                      disabled={computedTotal === null}
+                      onClick={() =>
+                        setForm((s) => ({
+                          ...s,
+                          total_override: computedTotal !== null ? formatPrice(computedTotal) : "",
+                          error: null,
+                        }))
+                      }
+                    >
+                      {t("totalEdit")}
+                    </button>
+                  )}
+                </FormSection>
               </>
             )}
 
             {form.error && (
-              <div
-                role="alert"
-                className="flex items-start gap-2 rounded-card border border-hue-red-edge-soft bg-hue-red-bg px-3 py-2.5 text-[13px] text-hue-red-ink"
-              >
-                <AlertCircle
-                  size={14}
-                  strokeWidth={2}
-                  className="mt-0.5 flex-shrink-0"
-                  aria-hidden="true"
-                />
-                <span className="leading-snug">{form.error}</span>
+              <div role="alert" className="co-err h-red">
+                <Ic n="alert" />
+                <span>{form.error}</span>
               </div>
             )}
           </div>
 
-          {/* Sticky footer */}
-          <div
-            className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-oms-border bg-oms-surface px-4 py-3 sm:px-5"
-            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
-          >
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={form.loading}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-oms-border bg-oms-surface px-4 text-[13.5px] font-medium text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {t("cancel")}
+          <div className="dr-foot co-foot">
+            <button type="button" className="fa" onClick={onClose} disabled={form.loading}>
+              <span>{t("cancel")}</span>
             </button>
             <button
               type="button"
+              className="fa pri wide"
               onClick={handleSubmit}
               disabled={form.loading || marketUnscoped}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand px-5 text-[13.5px] font-semibold text-white shadow-hover-row transition-colors duration-fast hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-oms-border-strong disabled:text-oms-ink-3 disabled:shadow-none"
             >
-              <ShoppingCart size={15} strokeWidth={2.1} aria-hidden="true" />
-              {form.loading ? t("submitting") : t("submit")}
+              <Ic n="check" />
+              <span>{form.loading ? t("submitting") : t("submit")}</span>
             </button>
           </div>
-        </div>
+        </aside>
       </FocusTrap>
-    </>
+    </div>
   );
 }
 
@@ -958,35 +989,21 @@ function CustomerCard({
     : null;
 
   return (
-    <div className="flex items-center gap-3 rounded-card border border-hue-teal-edge-soft bg-hue-teal-bg px-3 py-2.5">
-      <span
-        aria-hidden
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-oms-surface text-hue-teal-ink"
-      >
-        <UserRound size={19} strokeWidth={2} />
+    <div className="co-known h-teal">
+      <span className="co-known-av" aria-hidden="true">
+        <Ic n="user" />
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate text-[13.5px] font-semibold text-oms-ink-1" dir="auto">
-            {customer.name ?? customer.phone}
-          </span>
-          <BadgeCheck
-            size={14}
-            strokeWidth={2.2}
-            aria-hidden
-            className="flex-none text-hue-teal-ink"
-          />
-        </div>
-        <div className="mt-0.5 truncate text-[11.5px] text-oms-ink-2">
+      <div className="co-known-tx">
+        <b dir="auto">
+          {customer.name ?? customer.phone}
+          <Ic n="check" />
+        </b>
+        <small>
           {t("existingCustomer")} · {t("customerOrders", { count: customer.orderCount })}
           {lastOrder ? ` · ${t("customerLastOrder", { date: lastOrder })}` : ""}
-        </div>
+        </small>
       </div>
-      <button
-        type="button"
-        onClick={onUse}
-        className="flex-none rounded-lg border border-oms-border bg-oms-surface px-3 py-1.5 text-[12.5px] font-medium text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong"
-      >
+      <button type="button" className="co-use" onClick={onUse}>
         {t("useCustomer")}
       </button>
     </div>
@@ -1058,49 +1075,38 @@ function CityCombobox({
     : options;
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div ref={wrapRef} className="co-dd">
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
+        className={"inp co-trig" + (open ? " on" : "")}
         onClick={() => {
           setQ("");
           setOpen((o) => !o);
         }}
-        className={
-          "flex h-10 w-full items-center justify-between gap-2 rounded-lg border px-3 text-[13.5px] transition-colors duration-fast " +
-          (open
-            ? "border-brand bg-oms-surface ring-2 ring-brand/15"
-            : "border-oms-border bg-oms-surface hover:border-oms-border-strong")
-        }
       >
-        <span
-          className={"min-w-0 truncate " + (value ? "text-oms-ink-1" : "text-oms-ink-3")}
-          dir="auto"
-        >
+        <span className={value ? "" : "co-ph"} dir="auto">
           {value || t("cityPlaceholder")}
         </span>
-        <ChevronDown size={14} strokeWidth={2} aria-hidden className="flex-none text-oms-ink-3" />
+        <Ic n="down" />
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating">
-          <div className="border-b border-oms-border p-2">
-            <div className="flex h-8 items-center gap-2 rounded-md border border-oms-border bg-oms-sunken px-2">
-              <Search size={13} strokeWidth={2} aria-hidden className="flex-none text-oms-ink-3" />
-              <input
-                autoFocus
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={t("citySearchPlaceholder")}
-                className="min-w-0 flex-1 bg-transparent text-[12.5px] text-oms-ink-1 outline-none placeholder:text-oms-ink-3"
-                dir="auto"
-              />
-            </div>
+        <div className="co-menu">
+          <div className="co-menu-q">
+            <Ic n="search" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("citySearchPlaceholder")}
+              dir="auto"
+            />
           </div>
-          <div role="listbox" className="max-h-[220px] overflow-y-auto p-1">
+          <div role="listbox" className="co-menu-list">
             {visible.length === 0 ? (
-              <p className="px-2 py-3 text-[12.5px] text-oms-ink-3">{t("cityNoResults")}</p>
+              <p className="co-menu-empty">{t("cityNoResults")}</p>
             ) : (
               visible.map((o) => {
                 const selected = o.value === value;
@@ -1110,22 +1116,15 @@ function CityCombobox({
                     type="button"
                     role="option"
                     aria-selected={selected}
+                    className={"co-opt" + (selected ? " on" : "")}
                     onClick={() => {
                       onSelect(o);
                       setOpen(false);
                     }}
-                    className={
-                      "flex w-full items-center gap-2 rounded-md px-2 py-2 text-start text-[13px] transition-colors duration-fast " +
-                      (selected
-                        ? "bg-brand-bg text-brand-hover"
-                        : "text-oms-ink-1 hover:bg-oms-sunken")
-                    }
                     dir="auto"
                   >
-                    <span className="grid h-4 w-4 flex-none place-items-center text-brand">
-                      {selected && <Check size={13} strokeWidth={2.6} aria-hidden />}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                    <span className="co-opt-ck">{selected && <Ic n="check" />}</span>
+                    <span className="co-opt-n">{o.label}</span>
                   </button>
                 );
               })
@@ -1176,72 +1175,55 @@ function ProductPicker({
   if (selected) {
     const price = priceOf(selected);
     return (
-      <div className="flex items-center gap-2.5 rounded-lg border border-oms-border bg-oms-surface px-2.5 py-2">
-        <ProductAvatar
-          imageUrl={selected.image_url ?? null}
-          productName={selected.name}
-          size={32}
-        />
-        <span className="min-w-0 flex-1 truncate text-[13.5px] text-oms-ink-1" dir="auto">
+      <div className="inp co-prod">
+        <ProductAvatar imageUrl={selected.image_url ?? null} productName={selected.name} size={24} />
+        <span className="co-prod-n" dir="auto" title={selected.name}>
           {selected.name}
         </span>
         {price !== null && (
-          <span className="flex-none rounded-md bg-oms-sunken px-2 py-1 text-[12px] tabular-nums text-oms-ink-2">
+          <span className="co-prod-p">
             {formatPrice(price)} {currency}
           </span>
         )}
-        <button
-          type="button"
-          onClick={onClear}
-          aria-label={t("productClear")}
-          className="grid h-7 w-7 flex-none place-items-center rounded-md text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
-        >
-          <X size={14} strokeWidth={2.2} />
+        <button type="button" className="co-x" onClick={onClear} aria-label={t("productClear")}>
+          <Ic n="x" />
         </button>
       </div>
     );
   }
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div ref={wrapRef} className="co-dd">
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
+        className={"inp co-trig" + (open ? " on" : "")}
         onClick={() => {
           setQ("");
           setOpen((o) => !o);
         }}
-        className={
-          "flex h-10 w-full items-center justify-between gap-2 rounded-lg border px-3 text-[13.5px] transition-colors duration-fast disabled:cursor-not-allowed disabled:bg-oms-sunken " +
-          (open
-            ? "border-brand bg-oms-surface ring-2 ring-brand/15"
-            : "border-oms-border bg-oms-surface hover:border-oms-border-strong")
-        }
       >
-        <span className="min-w-0 truncate text-oms-ink-3">{t("productPlaceholder")}</span>
-        <ChevronDown size={14} strokeWidth={2} aria-hidden className="flex-none text-oms-ink-3" />
+        <span className="co-ph">{t("productPlaceholder")}</span>
+        <Ic n="down" />
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating">
-          <div className="border-b border-oms-border p-2">
-            <div className="flex h-8 items-center gap-2 rounded-md border border-oms-border bg-oms-sunken px-2">
-              <Search size={13} strokeWidth={2} aria-hidden className="flex-none text-oms-ink-3" />
-              <input
-                autoFocus
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={t("productSearchPlaceholder")}
-                className="min-w-0 flex-1 bg-transparent text-[12.5px] text-oms-ink-1 outline-none placeholder:text-oms-ink-3"
-                dir="auto"
-              />
-            </div>
+        <div className="co-menu co-menu-wide">
+          <div className="co-menu-q">
+            <Ic n="search" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("productSearchPlaceholder")}
+              dir="auto"
+            />
           </div>
-          <div role="listbox" className="max-h-[240px] overflow-y-auto p-1">
+          <div role="listbox" className="co-menu-list">
             {visible.length === 0 ? (
-              <p className="px-2 py-3 text-[12.5px] text-oms-ink-3">{t("cityNoResults")}</p>
+              <p className="co-menu-empty">{t("cityNoResults")}</p>
             ) : (
               visible.map((p) => {
                 const price = priceOf(p);
@@ -1251,18 +1233,18 @@ function ProductPicker({
                     type="button"
                     role="option"
                     aria-selected={false}
+                    className="co-opt"
                     onClick={() => {
                       onSelect(p.id);
                       setOpen(false);
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-start text-[13px] text-oms-ink-1 transition-colors duration-fast hover:bg-oms-sunken"
                   >
                     <ProductAvatar imageUrl={p.image_url ?? null} productName={p.name} size={26} />
-                    <span className="min-w-0 flex-1 truncate" dir="auto">
+                    <span className="co-opt-n" dir="auto">
                       {p.name}
                     </span>
                     {price !== null && (
-                      <span className="flex-none text-[11.5px] tabular-nums text-oms-ink-3">
+                      <span className="co-opt-p">
                         {formatPrice(price)} {currency}
                       </span>
                     )}
@@ -1272,109 +1254,6 @@ function ProductPicker({
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * The line total, and the one place it can be overridden.
- *
- * The breakdown under the figure is what makes the override safe to offer: a
- * typed total that no longer matches "3 × 25,500" is visibly a decision rather
- * than a typo, and the server files a history row saying so.
- */
-function TotalCard({
-  quantity,
-  unitPrice,
-  computed,
-  override,
-  money,
-  onEdit,
-  onChange,
-  onReset,
-}: {
-  quantity: string;
-  unitPrice: string;
-  computed: number | null;
-  override: string | null;
-  money: (n: number) => string;
-  onEdit: () => void;
-  onChange: (v: string) => void;
-  onReset: () => void;
-}) {
-  const t = useTranslations("orders.create");
-  const editing = override !== null;
-  const overrideNum = editing ? parseFloat(override) : NaN;
-  const delta =
-    editing && Number.isFinite(overrideNum) && computed !== null
-      ? Math.round((overrideNum - computed) * 1000) / 1000
-      : null;
-
-  return (
-    <div className="rounded-card border border-brand/20 bg-brand-bg px-3.5 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <span aria-hidden className="mt-0.5 flex-none text-brand">
-            <Tag size={15} strokeWidth={2.1} />
-          </span>
-          <div className="min-w-0">
-            <div className="text-[12.5px] font-semibold text-oms-ink-1">{t("totalComputed")}</div>
-            <div className="mt-0.5 text-[11.5px] tabular-nums text-oms-ink-2">
-              {t("totalBreakdown", {
-                qty: quantity || "—",
-                price: unitPrice ? money(parseFloat(unitPrice)) : "—",
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-none flex-col items-end gap-1">
-          {editing ? (
-            <input
-              type="number"
-              step="0.001"
-              min={0}
-              autoFocus
-              value={override}
-              onChange={(e) => onChange(e.target.value)}
-              aria-label={t("fields.totalPrice")}
-              className="h-9 w-[130px] rounded-lg border border-brand bg-oms-surface px-2 text-end text-[16px] font-bold tabular-nums text-oms-ink-1 outline-none focus:ring-2 focus:ring-brand/15"
-            />
-          ) : (
-            <span className="text-[19px] font-bold leading-none tracking-[-0.02em] tabular-nums text-oms-ink-1">
-              {computed !== null ? money(computed) : "—"}
-            </span>
-          )}
-
-          {editing ? (
-            <button
-              type="button"
-              onClick={onReset}
-              className="inline-flex items-center gap-1 text-[11.5px] font-medium text-brand-hover hover:underline"
-            >
-              <RotateCcw size={11} strokeWidth={2.2} aria-hidden />
-              {t("totalReset")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onEdit}
-              disabled={computed === null}
-              className="inline-flex items-center gap-1 text-[11.5px] font-medium text-brand-hover hover:underline disabled:cursor-not-allowed disabled:text-oms-ink-3 disabled:no-underline"
-            >
-              <Pencil size={11} strokeWidth={2.2} aria-hidden />
-              {t("totalEdit")}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* A discount is stated, not left for someone to notice later. */}
-      {delta !== null && delta !== 0 && (
-        <p className="mt-2 border-t border-brand/15 pt-2 text-[11.5px] text-oms-ink-2">
-          {t("totalOverridden", { delta: money(Math.abs(delta)) })}
-        </p>
       )}
     </div>
   );

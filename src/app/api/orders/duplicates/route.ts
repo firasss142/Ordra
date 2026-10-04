@@ -14,6 +14,7 @@ import {
   type DuplicateGroupMember,
 } from "@/lib/duplicate-orders/groups";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { dropDismissedGroups, readDismissed } from "@/lib/duplicate-orders/dismissals";
 
 export const dynamic = "force-dynamic";
 
@@ -83,9 +84,13 @@ async function handleGET(req: NextRequest) {
     })
     .filter((g) => g.members.length > 1);
 
+  // « Pas un doublon » — a group the manager dismissed stays gone until a new copy arrives.
+  const dismissed = await readDismissed(supabase, groups.flatMap((g) => g.members.map((m) => m.id)));
+  const visible = dropDismissedGroups(groups, dismissed);
+
   return NextResponse.json({
     data: {
-      groups,
+      groups: visible,
       window_hours: windowHours,
       autoselect_window_hours: autoselectHours,
     },

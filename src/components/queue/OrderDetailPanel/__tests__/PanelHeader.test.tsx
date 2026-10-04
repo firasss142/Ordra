@@ -1,128 +1,102 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { NextIntlClientProvider } from "next-intl";
+import messages from "@/messages/fr.json";
 import { PanelHeader } from "../PanelHeader";
 
-vi.mock("next-intl", async () => {
-  const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
-  const frMessages = (await import("@/messages/fr.json")).default;
-  return {
-    useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
-      resolveTranslation(frMessages, ns, key, params),
-    useLocale: () => "fr",
-  };
-});
-
-const CREATED = "2026-08-14T09:00:00.000Z";
+// 10:13 market time in Tunis (UTC+1) — the order came in at 07:00 the same day.
+const NOW = new Date("2026-08-14T09:13:00.000Z");
+const CREATED = "2026-08-14T06:00:00.000Z";
+const TN = "tn-market";
 
 function renderHeader(overrides: Partial<React.ComponentProps<typeof PanelHeader>> = {}) {
-  return render(
-    <PanelHeader
-      reference="A-21837"
-      createdAt={CREATED}
-      status="pending"
-      statusLabel="En attente"
-      locale="fr"
-      slaMinutes={120}
-      confirmedAt={null}
-      now={new Date("2026-08-14T10:13:00.000Z")}
-      saveFlash={null}
-      onClose={vi.fn()}
-      {...overrides}
-    />,
+  const onClose = vi.fn();
+  render(
+    <NextIntlClientProvider locale="fr" messages={messages} timeZone="UTC">
+      <PanelHeader
+        reference="41250"
+        marketId={TN}
+        createdAt={CREATED}
+        pill={{ status: "pending" }}
+        maxAttempts={3}
+        rejection={() => null}
+        locale="fr"
+        slaMinutes={120}
+        now={NOW}
+        saveFlash={null}
+        onClose={onClose}
+        {...overrides}
+      />
+    </NextIntlClientProvider>,
   );
+  return { onClose };
 }
 
-describe("PanelHeader — SLA chip", () => {
-  it("reads the elapsed time against the market's target", () => {
+describe("PanelHeader — the top line (prototype .dr-top)", () => {
+  it("leads with the status pill, in words", () => {
     renderHeader();
-
-    const chip = screen.getByTestId("panel-sla");
-    // Same formatter as the queue row, so one order never reads as two
-    // different ages in two places.
-    expect(chip).toHaveTextContent("1h 13mn");
-    expect(chip).toHaveTextContent("SLA 2h");
+    expect(screen.getByText("En attente").closest(".pl")).not.toBeNull();
   });
 
-  it("states the age and the target on one line, as one pill", () => {
-    const chip = renderHeader().getByTestId("panel-sla");
-    // It used to stack a 12.5px figure over a 9.5px caption, which read as a
-    // badge of its own rather than as the one number the agent is chasing.
-    expect(chip.className).toContain("rounded-pill");
-    expect(chip.className).not.toContain("flex-col");
+  it("counts a call attempt against the market's maximum", () => {
+    renderHeader({ pill: { status: "attempt_2", attempts_count: 2 } });
+    expect(screen.getByText("Appel 2/3")).toBeInTheDocument();
   });
 
-  it("never overrides the text direction on the age", () => {
-    // `formatOrderAge` returns the unit in the reader's own script; an LTR
-    // override reorders the Arabic letters and the chip reads as gibberish.
-    expect(renderHeader().getByTestId("panel-sla")).not.toHaveAttribute("dir");
-  });
-
-  it("fills the pill with its state, rather than outlining it", () => {
-    renderHeader({ now: new Date("2026-08-14T12:00:00.000Z") });
-    expect(screen.getByTestId("panel-sla").className).toContain("bg-oms-bad-bg");
-  });
-
-  it("marks a breach once the target is passed", () => {
-    renderHeader({ now: new Date("2026-08-14T12:00:00.000Z") });
-
-    expect(screen.getByTestId("panel-sla")).toHaveAttribute("data-state", "breached");
-  });
-
-  it("freezes at the time confirmation actually took", () => {
-    renderHeader({
-      status: "confirmed",
-      confirmedAt: "2026-08-14T10:47:00.000Z",
-      now: new Date("2026-08-14T20:00:00.000Z"),
-    });
-
-    const chip = screen.getByTestId("panel-sla");
-    expect(chip).toHaveAttribute("data-state", "met");
-    expect(chip).toHaveTextContent("1h 47mn");
-  });
-
-  it("drops the chip once the order is with the carrier, but still states its age", () => {
-    renderHeader({ status: "uploaded", confirmedAt: "2026-08-14T10:00:00.000Z" });
-
-    expect(screen.queryByTestId("panel-sla")).not.toBeInTheDocument();
-    expect(screen.getByTestId("panel-age")).toBeInTheDocument();
-  });
-
-  it("falls back to the plain age until the market's target has loaded", () => {
-    renderHeader({ slaMinutes: null });
-
-    expect(screen.queryByTestId("panel-sla")).not.toBeInTheDocument();
-    expect(screen.getByTestId("panel-age")).toHaveTextContent("1h 13mn");
-  });
-});
-
-describe("PanelHeader — the chrome it already carried", () => {
-  it("still shows the status and the tail of the reference", () => {
+  it("says when the order came in", () => {
     renderHeader();
-
-    expect(screen.getByText("En attente")).toBeInTheDocument();
-    expect(screen.getByText("#…21837")).toBeInTheDocument();
+    expect(screen.getByTestId("panel-received")).toHaveTextContent(/^reçue aujourd'hui \d\d:\d\d$/);
   });
 
-  it("still exposes a close control", () => {
-    const onClose = vi.fn();
-    renderHeader({ onClose });
-
-    expect(screen.getByRole("button", { name: "Fermer" })).toBeInTheDocument();
-  });
-
-  it("does not state the age twice when the SLA chip is already carrying it", () => {
+  it("shows the late chip only once the order is past the market's target", () => {
     renderHeader();
-
-    expect(screen.queryByTestId("panel-age")).not.toBeInTheDocument();
+    expect(screen.getByTestId("panel-sla")).toHaveTextContent("en retard · délai 2 h");
   });
-});
 
-describe("PanelHeader — the « Voix du client » slot", () => {
-  it("sits after the reference, before the close button", () => {
+  it("stays quiet while the order is within its target", () => {
+    renderHeader({ createdAt: "2026-08-14T09:00:00.000Z" });
+    expect(screen.queryByTestId("panel-sla")).toBeNull();
+  });
+
+  it("never calls an order late once nobody owes it a call", () => {
+    renderHeader({ pill: { status: "delivered" } });
+    expect(screen.queryByTestId("panel-sla")).toBeNull();
+  });
+
+  it("shows the reference whole when it is a storefront number", () => {
+    renderHeader();
+    expect(screen.getByRole("button", { name: /copier la référence/i })).toHaveTextContent("#41250");
+  });
+
+  it("shows only the tail of a UUID", () => {
+    renderHeader({ reference: "8f0c2a4e-1111-4bbb-9ccc-0d3e5f6a7b21" });
+    expect(screen.getByRole("button", { name: /copier la référence/i })).toHaveTextContent("#…6a7b21");
+  });
+
+  it("copies the whole reference, not the truncated form", () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderHeader({ reference: "8f0c2a4e-1111-4bbb-9ccc-0d3e5f6a7b21" });
+    fireEvent.click(screen.getByRole("button", { name: /copier la référence/i }));
+    expect(writeText).toHaveBeenCalledWith("8f0c2a4e-1111-4bbb-9ccc-0d3e5f6a7b21");
+  });
+
+  it("closes", () => {
+    const { onClose } = renderHeader();
+    fireEvent.click(screen.getByRole("button", { name: "Fermer" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("puts the « Voix du client » slot after the reference, before the close button", () => {
     renderHeader({ feedbackSlot: <button type="button">fbk</button> });
-    const buttons = screen.getAllByRole("button").map((b) => b.textContent || b.getAttribute("aria-label"));
+    const buttons = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") || b.textContent);
     const fbk = buttons.indexOf("fbk");
     expect(fbk).toBeGreaterThan(-1);
     expect(buttons[fbk + 1]).toBe("Fermer");
+  });
+
+  it("still names a carrier reference that was pulled back", () => {
+    renderHeader({ carrierDeletedChip: { label: "dexpress annulé", tooltip: "x" } });
+    expect(screen.getByText("dexpress annulé")).toBeInTheDocument();
   });
 });

@@ -1,67 +1,83 @@
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import messages from "@/messages/fr.json";
-import { AlertBanners } from "../OrderDetailPanel/AlertBanners";
+import { AlertBanners, panelNotes, type NoteInput } from "../OrderDetailPanel/AlertBanners";
 
-function renderBanners(props: Partial<React.ComponentProps<typeof AlertBanners>> = {}) {
-  const onResolveCity = vi.fn();
-  render(
-    <NextIntlClientProvider locale="fr" messages={messages}>
-      <AlertBanners
-        locale="fr"
-        editBlocked={false}
-        callbackScheduledAt={null}
-        dispatchScheduledAt={null}
-        dispatchScheduledAuto={false}
-        cancelingSchedule={false}
-        onCancelSchedule={vi.fn()}
-        cityUnmatched={false}
-        onResolveCity={onResolveCity}
-        {...props}
-      />
-    </NextIntlClientProvider>,
-  );
-  return { onResolveCity };
-}
+const BASE: NoteInput = {
+  status: "pending",
+  cityMissing: false,
+  outOfStock: false,
+  dupShipped: false,
+  editBlocked: false,
+  callbackScheduledAt: null,
+  dispatchScheduledAt: null,
+};
 
-describe("AlertBanners — delivery blockers", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  test("says what is blocked, not just what is missing", () => {
-    // The reason the city was empty previously reached the user only as an
-    // English developer string at the bottom of the history timeline.
-    renderBanners({ cityUnmatched: true });
-
-    expect(screen.getByText(/ville non reconnue/i)).toBeInTheDocument();
-    expect(screen.getByText(/bloqué/i)).toBeInTheDocument();
+describe("panelNotes — one short line per problem (prototype notesOf)", () => {
+  test("says nothing when nothing is wrong", () => {
+    expect(panelNotes(BASE)).toEqual([]);
   });
 
-  test("carries the action that fixes it", async () => {
-    const user = userEvent.setup();
-    const { onResolveCity } = renderBanners({ cityUnmatched: true });
-
-    await user.click(screen.getByRole("button", { name: /résoudre/i }));
-
-    expect(onResolveCity).toHaveBeenCalled();
+  test("warns not to confirm a product that is out of stock, while the call is on", () => {
+    expect(panelNotes({ ...BASE, outOfStock: true })).toContain("outOfStock");
+    expect(panelNotes({ ...BASE, outOfStock: true, status: "uploaded" })).not.toContain("outOfStock");
   });
 
-  test("stays silent when the city is set", () => {
-    renderBanners({ cityUnmatched: false });
-    expect(screen.queryByText(/ville non reconnue/i)).not.toBeInTheDocument();
+  test("asks for the city before the order can be sent", () => {
+    expect(panelNotes({ ...BASE, cityMissing: true })).toContain("noCity");
+    expect(panelNotes({ ...BASE, cityMissing: true, status: "confirmed" })).toContain("noCity");
+    expect(panelNotes({ ...BASE, cityMissing: true, status: "delivered" })).not.toContain("noCity");
   });
 
-  test("does not rely on colour alone", () => {
-    renderBanners({ cityUnmatched: true });
-    // A warning that reads only as "amber" disappears in greyscale.
-    const banner = screen.getByRole("status");
-    expect(banner.querySelector("svg")).not.toBeNull();
+  test("flags a copy already with the carrier until this one ships", () => {
+    expect(panelNotes({ ...BASE, dupShipped: true })).toContain("dupShipped");
+    expect(panelNotes({ ...BASE, dupShipped: true, status: "uploaded" })).not.toContain("dupShipped");
   });
 
-  test("leads, so a blocked order is obvious before anything else", () => {
-    renderBanners({ cityUnmatched: true, editBlocked: true });
-    const banners = screen.getAllByRole("status");
-    expect(banners[0]).toHaveTextContent(/ville non reconnue/i);
+  test("tells a shipped order to be reopened before it can be edited", () => {
+    expect(panelNotes({ ...BASE, status: "uploaded", editBlocked: true })).toContain("locked");
+  });
+
+  test("keeps the scheduled callback and the scheduled dispatch in view", () => {
+    expect(panelNotes({ ...BASE, status: "callback_scheduled", callbackScheduledAt: "2026-10-04T16:00:00Z" })).toContain("callback");
+    expect(panelNotes({ ...BASE, status: "dispatch_scheduled", dispatchScheduledAt: "2026-10-05T08:00:00Z" })).toContain("dispatch");
+  });
+
+  test("leads with the blockers", () => {
+    const notes = panelNotes({ ...BASE, outOfStock: true, cityMissing: true, status: "callback_scheduled", callbackScheduledAt: "2026-10-04T16:00:00Z" });
+    expect(notes[0]).toBe("outOfStock");
+    expect(notes.at(-1)).toBe("callback");
+  });
+});
+
+describe("AlertBanners — the notes above the footer", () => {
+  function renderNotes(props: Partial<React.ComponentProps<typeof AlertBanners>>) {
+    return render(
+      <NextIntlClientProvider locale="fr" messages={messages}>
+        <AlertBanners notes={[]} marketId={null} {...props} />
+      </NextIntlClientProvider>,
+    );
+  }
+
+  test("renders nothing when there is nothing to say", () => {
+    const { container } = renderNotes({});
+    expect(container.querySelector(".notes")).toBeNull();
+  });
+
+  test("writes each problem as a line in its hue, with an icon", () => {
+    renderNotes({ notes: ["outOfStock", "noCity", "locked"] });
+    expect(screen.getByText("Rupture de stock — ne pas confirmer").closest(".note")).toHaveClass("h-red");
+    expect(screen.getByText("Ville non renseignée — à définir avant l'envoi").closest(".note")).toHaveClass("h-amber");
+    const locked = screen.getByText("Réouvrez la commande pour modifier ses détails.").closest(".note")!;
+    expect(locked).toHaveClass("h-neutral");
+    expect(locked.querySelector("svg")).not.toBeNull();
+  });
+
+  test("adds the panel's own feedback lines after the problems", () => {
+    renderNotes({ notes: ["locked"], extra: [{ key: "x", hue: "red", icon: "alert", text: "Échec de l'envoi", alert: true }] });
+    const lines = screen.getAllByText(/./, { selector: ".note > span" }).map((n) => n.textContent);
+    expect(lines).toEqual(["Réouvrez la commande pour modifier ses détails.", "Échec de l'envoi"]);
+    expect(screen.getByRole("alert")).toHaveTextContent("Échec de l'envoi");
   });
 });

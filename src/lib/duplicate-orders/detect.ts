@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readDismissed, siblingsAfterDismissal } from "./dismissals";
 
 /**
  * A duplicate "sibling" is a distinct order (different external_id) that looks
@@ -150,9 +151,18 @@ export async function enrichRowsWithDuplicates<T extends EnrichableRow>(
     byId.set(b.source_id, b);
   }
 
+  // « Pas un doublon »: a dismissed order stops being tagged by the copies it
+  // was dismissed with (lib/duplicate-orders/dismissals).
+  const involved = data.filter((b) => (b.siblings ?? []).length > 0);
+  const dismissed =
+    involved.length && typeof supabase.from === "function"
+      ? await readDismissed(supabase, involved.flatMap((b) => [b.source_id, ...(b.siblings ?? []).map((x) => x.id)]))
+      : new Set<string>();
+
   return rows.map((r) => {
     const b = byId.get(r.id);
     if (!b) return { ...r, ...EMPTY };
-    return { ...r, ...deriveDuplicateEnrichment(b.siblings ?? [], r.created_at) };
+    const siblings = siblingsAfterDismissal(r.id, b.siblings ?? [], dismissed);
+    return { ...r, ...deriveDuplicateEnrichment(siblings, r.created_at) };
   });
 }
