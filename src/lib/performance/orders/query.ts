@@ -1,6 +1,6 @@
 // The page's state in its URL, so a link opens the same view
 // (?period=30d|90d|m:2026-09|custom&from=&to= &p=<id>.<size>~<size>,<id> &ag=<id>,<id>
-//  &cmp=p:<products>|a:<agents>|d:<from>|<to>). Shared by the page and the API.
+//  &cmp=p:<products>|a:<agents>|d:<from>|<to> &boutique=<storefront id>). Shared by the page and the API.
 
 import { isDay, isPeriodKey, type PeriodKey } from "./period";
 import type { ProductSel } from "./facts";
@@ -18,9 +18,11 @@ export interface PerfState {
   sel: ProductSel;
   ag: string[];
   cmp: Cmp;
+  /** One store only — the card clicked on Accueil (?boutique=). */
+  store: string | null;
 }
 
-export const EMPTY_STATE: PerfState = { period: "30d", from: null, to: null, sel: {}, ag: [], cmp: null };
+export const EMPTY_STATE: PerfState = { period: "30d", from: null, to: null, sel: {}, ag: [], cmp: null, store: null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -66,7 +68,8 @@ export function parseState(q: URLSearchParams): PerfState {
     const [f, t] = c.slice(2).split("|");
     if (isDay(f) && isDay(t) && f <= t) cmp = { kind: "d", from: f, to: t };
   }
-  return { period, from, to, sel: decSel(q.get("p")), ag: decAg(q.get("ag")), cmp };
+  const b = q.get("boutique");
+  return { period, from, to, sel: decSel(q.get("p")), ag: decAg(q.get("ag")), cmp, store: b && UUID.test(b) ? b : null };
 }
 
 export function stateToParams(s: PerfState): URLSearchParams {
@@ -81,5 +84,6 @@ export function stateToParams(s: PerfState): URLSearchParams {
   if (s.cmp?.kind === "p") q.set("cmp", `p:${encSel(s.cmp.sel)}`);
   if (s.cmp?.kind === "a") q.set("cmp", `a:${s.cmp.ag.join(",")}`);
   if (s.cmp?.kind === "d") q.set("cmp", `d:${s.cmp.from}|${s.cmp.to}`);
+  if (s.store) q.set("boutique", s.store);
   return q;
 }

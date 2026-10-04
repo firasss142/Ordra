@@ -102,6 +102,18 @@ describe("GET /api/performance/orders", () => {
     expect(text).not.toMatch(/mDel|mLost|"ad":|"value"/);
   });
 
+  test("?boutique= keeps only that store's orders and names it", async () => {
+    const STORE = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    fake.rpcs.get_orders_performance = (args) => {
+      const p = payload(String(args.p_from));
+      return { ...p, orders: p.orders.map((o, i) => ({ ...o, storefront_id: i === 0 ? STORE : null })) };
+    };
+    fake.tables.storefronts = [{ id: STORE, market_id: LY, name: "Nour Store" }];
+    const body = (await (await GET(req("", `market_id=${LY}&boutique=${STORE}`))).json()) as PerfView;
+    expect(body.A.n).toBe(1);
+    expect(body.store).toEqual({ id: STORE, name: "Nour Store" });
+  });
+
   test("B = other dates fetches B's own window", async () => {
     const spy = vi.fn(fake.rpcs.get_orders_performance);
     fake.rpcs.get_orders_performance = spy;

@@ -343,6 +343,8 @@ entry has not meant deleting its page — check before assuming a route is dead.
   en deux temps) : docs/reception-de-marchandises.md + plans/reception-de-marchandises.md
   + plans/reception-parite-maquette.md — à lire comme de l'archéologie, pas comme l'état
   du système.
+- Accueil « vos boutiques » (/dashboard) — une carte par boutique, flèches « au même âge », couleur de boutique
+  `storefronts.accent_color`, profit du marché seulement: plans/dashboard-redesign.md + prototypes/dashboard-v2.html
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +

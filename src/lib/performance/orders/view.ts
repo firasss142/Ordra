@@ -97,6 +97,8 @@ export interface PerfView {
   products: CatalogueProduct[];
   agents: AgentInfo[];
   subLabels: Record<string, SubLabel>;
+  /** The store the page is narrowed to (?boutique=). */
+  store: { id: string; name: string } | null;
   A: SumM;
   P: SumM;
   comparable: Comparability;
