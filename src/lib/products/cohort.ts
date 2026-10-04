@@ -320,13 +320,18 @@ const DARB_CAUSE: Record<string, FailureCause> = {
   "not-needed": "notneeded",
 };
 
+/** The carrier's cancellation cause on a failed parcel, as the screens group it. */
+export function failureCauseOf(slug: string | null): FailureCause {
+  return (slug && DARB_CAUSE[slug]) || "unknown";
+}
+
 export function failureCauses(
   lines: readonly CohortLine[],
 ): { cause: FailureCause; count: number }[] {
   const m = new Map<FailureCause, number>();
   for (const l of lines) {
     if (lineBucket(l) !== "failed") continue;
-    const cause = (l.failure_cause && DARB_CAUSE[l.failure_cause]) || "unknown";
+    const cause = failureCauseOf(l.failure_cause);
     m.set(cause, (m.get(cause) ?? 0) + 1);
   }
   return sortedCounts(m).map(({ key, count }) => ({ cause: key, count }));
