@@ -81,7 +81,7 @@ interface LogWebhookDeliveryInput {
 
 async function logWebhookDelivery(input: LogWebhookDeliveryInput): Promise<void> {
   try {
-    await input.adminClient.from("webhook_delivery_log").insert({
+    const row = {
       source: input.source,
       event: input.event,
       payload: input.payload,
@@ -94,7 +94,33 @@ async function logWebhookDelivery(input: LogWebhookDeliveryInput): Promise<void>
       shopify_event_id: input.deliveryHeaders?.shopifyEventId ?? null,
       shopify_topic: input.deliveryHeaders?.shopifyTopic ?? null,
       shopify_triggered_at: input.deliveryHeaders?.shopifyTriggeredAt ?? null,
-    });
+    };
+    const { error } = (await input.adminClient.from("webhook_delivery_log").insert(row)) ?? {};
+
+    /*
+     * (storefront_id, delivery_id) is UNIQUE. When an earlier attempt of this
+     * same delivery was logged as `error`, a retry that now succeeds cannot get
+     * a row of its own — so it takes over the error row. Otherwise the log says
+     * "error" forever about an order that exists, and the retry's outcome is
+     * lost. The dedupe lookup already ignores `error` rows, which is why this
+     * retry got through at all.
+     */
+    if ((error as { code?: string } | null)?.code === "23505" && row.storefront_id && row.delivery_id) {
+      await input.adminClient
+        .from("webhook_delivery_log")
+        .update({
+          status: row.status,
+          order_id: row.order_id,
+          error_message: row.error_message,
+          event: row.event,
+          payload: row.payload,
+          external_id: row.external_id,
+        })
+        .eq("storefront_id", row.storefront_id)
+        .eq("delivery_id", row.delivery_id)
+        // Never over a processed/ignored row: a duplicate retry is not news.
+        .eq("status", "error");
+    }
   } catch {
     // Best-effort: log failures must never propagate
   }
@@ -143,6 +169,18 @@ interface PriorLogRow {
   order_id: string | null;
 }
 
+/**
+ * Only a delivery that was HANDLED makes a later one a duplicate.
+ *
+ * The lookup used to match any prior row, including `error` ones — so a
+ * delivery that failed (a transient insert error, a mapping fix deployed since)
+ * turned every retry of it into `{ success: true, duplicate: true }` and the
+ * sale was never created. And `.maybeSingle()` errors out on two matching rows,
+ * which a retry of a retry produces, quietly switching dedupe off; `limit(1)`
+ * keeps it on.
+ */
+const HANDLED_STATUSES = ["processed", "ignored"];
+
 async function findPriorByDeliveryId(
   adminClient: SupabaseClient,
   storefrontId: string,
@@ -153,6 +191,8 @@ async function findPriorByDeliveryId(
     .select("id, status, order_id")
     .eq("storefront_id", storefrontId)
     .eq("delivery_id", deliveryId)
+    .in("status", HANDLED_STATUSES)
+    .limit(1)
     .maybeSingle();
   return (data as PriorLogRow | null) ?? null;
 }
@@ -169,6 +209,8 @@ async function findPriorByLegacyKey(
     .eq("storefront_id", storefrontId)
     .eq("external_id", externalId)
     .eq("event", event)
+    .in("status", HANDLED_STATUSES)
+    .limit(1)
     .maybeSingle();
   return (data as PriorLogRow | null) ?? null;
 }
@@ -663,7 +705,7 @@ async function handleOrderUpdated(
 
   const { data: existing } = await adminClient
     .from("orders")
-    .select("id, status")
+    .select("id, status, customer_city")
     .eq("storefront_id", storefront.id)
     .eq("external_id", orderData.external_id)
     .single();
@@ -678,14 +720,31 @@ async function handleOrderUpdated(
     return { status: 200, body: { success: true, order_id: existing.id, skipped: true } };
   }
 
+  // The same city resolution as intake: an update must not replace the canonical
+  // Darb city snapshotted at creation with the storefront's raw spelling.
+  const cityResolution = await resolveCity(adminClient, {
+    platform: orderData.external_platform,
+    market_id: storefront.market_id,
+    customer_city: orderData.customer_city,
+  });
+
+  const newCity = resolvedCustomerCity(cityResolution, orderData.customer_city);
+
   // Only update customer fields — NEVER update product, financial, or raw_payload fields
   const customerUpdate: Record<string, unknown> = {
     customer_name: orderData.customer_name,
     customer_phone: orderData.customer_phone,
     customer_address: orderData.customer_address,
-    customer_city: orderData.customer_city,
+    customer_city: newCity,
     customer_note: orderData.customer_note,
   };
+  // A different city moves the destination with it, or the name and the Darb
+  // destination would disagree. The same city leaves them alone: the area an
+  // agent picked for a multi-area city must not be reset to "undecided".
+  if (newCity !== (existing as { customer_city?: string | null }).customer_city) {
+    customerUpdate.city_id = cityResolution.city_id;
+    customerUpdate.darb_destination_id = cityResolution.darb_destination_id;
+  }
   // Only touch dexpress_state_id when the payload actually resolved one. A null
   // from the adapter means "no opinion" — overwriting would wipe a value an
   // agent set manually via the order detail panel.

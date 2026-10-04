@@ -11,6 +11,8 @@ export interface ShopRow {
   platform: string;
   is_active: boolean;
   auth_mode?: string | null;
+  /** For a Google Sheets shop: `{ spreadsheet_id, sheet_name }`. */
+  config?: Record<string, unknown> | null;
 }
 
 export interface ShopActivity {
@@ -31,8 +33,11 @@ export const PLATFORMS: Record<string, { label: string; mark: string }> = {
 };
 export const platformOf = (p: string) => PLATFORMS[p] ?? { label: p, mark: p.slice(0, 2).toUpperCase() };
 
-/** The platforms a shop can be created for from the screen (the existing wizard's set). */
-export const CREATABLE_PLATFORMS = ["easy_orders", "shopify", "woocommerce", "lightfunnels"] as const;
+/**
+ * The platforms a shop can be created for from the screen. Google Sheets is how
+ * a Converty account connects — one shop per account, each with its own sheet.
+ */
+export const CREATABLE_PLATFORMS = ["easy_orders", "shopify", "woocommerce", "lightfunnels", "google_sheets"] as const;
 
 /** BuyBox posts from the browser: the link is the only secret. */
 export const linkOnly = (s: ShopRow) => (s.auth_mode ?? (s.platform === "buybox" ? "uuid_only" : "hmac")) === "uuid_only";

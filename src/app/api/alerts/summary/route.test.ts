@@ -88,6 +88,9 @@ function setup(opts: {
   products?: unknown[];
   history?: unknown[];
   acks?: unknown[];
+  storefronts?: unknown[];
+  sheetSettings?: unknown[];
+  syncRuns?: unknown[];
 }) {
   const {
     role = "market_manager",
@@ -96,6 +99,9 @@ function setup(opts: {
     products = [],
     history = [],
     acks = [],
+    storefronts = [],
+    sheetSettings = [],
+    syncRuns = [],
   } = opts;
 
   const queues: Record<string, ReturnType<typeof buildChain>[]> = {
@@ -104,6 +110,9 @@ function setup(opts: {
     products: [buildChain({ data: products, error: null })],
     order_history: [buildChain({ data: history, error: null })],
     alert_acknowledgements: [buildChain({ data: acks, error: null })],
+    storefronts: [buildChain({ data: storefronts, error: null })],
+    settings: [buildChain({ data: sheetSettings, error: null })],
+    sheet_sync_runs: [buildChain({ data: syncRuns, error: null })],
   };
 
   const cursors: Record<string, number> = {};
@@ -571,5 +580,38 @@ describe("the control room's alerts (get_team_alerts)", () => {
     const { res, types } = await getAlerts();
     expect(res.status).toBe(200);
     expect(types).toEqual(["overdue_callback"]);
+  });
+});
+
+describe("GET /api/alerts/summary — sheet import stalled, one alert per connected account", () => {
+  const sheetShop = (id: string, is_active = true) => ({
+    id,
+    market_id: "m-1",
+    platform: "google_sheets",
+    is_active,
+    config: { spreadsheet_id: `sheet-${id}-0123456789abcdef`, sheet_name: "Orders", sheet_adapter: "converty" },
+  });
+
+  test("a second Converty account that never synced raises its own alert", async () => {
+    setup({ storefronts: [sheetShop("sf-a"), sheetShop("sf-b")] });
+    const { json } = await getAlerts();
+    const ids = (json.alerts as Array<{ type: string; entity_id?: string; entityId?: string }>)
+      .filter((a) => a.type === "sheet_sync_stalled")
+      .map((a) => a.entity_id ?? a.entityId);
+    expect(ids.sort()).toEqual(["sf-a", "sf-b"]);
+  });
+
+  test("an archived account does not alert — its import is stopped on purpose", async () => {
+    setup({ storefronts: [sheetShop("sf-a", false)] });
+    const { types } = await getAlerts();
+    expect(types).not.toContain("sheet_sync_stalled");
+  });
+
+  test("a legacy settings entry with no storefront does not alert", async () => {
+    setup({
+      sheetSettings: [{ market_id: "m-1", value: [{ storefront_id: "ghost", spreadsheet_id: "x", sheet_name: "T", platform: "converty", is_active: true }] }],
+    });
+    const { types } = await getAlerts();
+    expect(types).not.toContain("sheet_sync_stalled");
   });
 });

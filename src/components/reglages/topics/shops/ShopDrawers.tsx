@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { useGoogleSheetsSync } from "@/hooks/useGoogleSheetsSync";
 import { generateSecret } from "@/lib/storefronts/secret-gen";
-import { Drawer, DrawerSection, Field, SwitchRow, inputClass, StateBadge, ReadOnlyLine, Mark } from "../../kit/parts";
+import { Drawer, DrawerSection, Field, SwitchRow, inputClass, StateBadge, ReadOnlyLine, Mark, RgBadge } from "../../kit/parts";
 import { OptionCards } from "../../kit/OptionCards";
 import { Switch } from "../../kit/Switch";
 import { RgButton } from "../../kit/RgButton";
@@ -132,6 +134,30 @@ export function ShopDrawer({
           <dl className="m-0 grid grid-cols-[170px_minmax(0,1fr)] gap-x-[14px] gap-y-[9px] text-[13.5px]">
             <dt className="text-ink-secondary">{t("shops.drawer.source")}</dt>
             <dd className="m-0 font-medium">Google Sheets</dd>
+            {typeof shop.config?.spreadsheet_id === "string" && (
+              <>
+                <dt className="text-ink-secondary">{t("shops.drawer.sheet")}</dt>
+                <dd className="m-0 min-w-0">
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${shop.config.spreadsheet_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-[4px] font-medium text-status-action"
+                  >
+                    {t("shops.drawer.openSheet")}
+                    <ChevronRight className="h-[14px] w-[14px] rtl:-scale-x-100" aria-hidden />
+                  </a>
+                </dd>
+              </>
+            )}
+            {typeof shop.config?.sheet_name === "string" && (
+              <>
+                <dt className="text-ink-secondary">{t("shops.drawer.tab")}</dt>
+                <dd dir="ltr" className="m-0 font-mono text-[12.5px] font-medium">
+                  {shop.config.sheet_name}
+                </dd>
+              </>
+            )}
             <dt className="text-ink-secondary">{t("shops.drawer.reading")}</dt>
             <dd className="m-0 font-medium">{t("shops.drawer.every15")}</dd>
           </dl>
@@ -160,6 +186,8 @@ export function ShopDrawer({
         )}
       </DrawerSection>
 
+      {isSheets && <SheetSyncSection shopId={shop.id} marketId={shop.market_id} formatDate={formatDate} />}
+
       <DrawerSection title={t("shops.drawer.activity")}>
         <dl className="m-0 grid grid-cols-[170px_minmax(0,1fr)] gap-x-[14px] gap-y-[9px] text-[13.5px]">
           <dt className="text-ink-secondary">{t("shops.colOrders")}</dt>
@@ -178,34 +206,166 @@ export function ShopDrawer({
   );
 }
 
-/** Add a shop: a name, a platform; then its link and secret, shown once. */
+type ImportFrom = "now" | "all";
+
+/**
+ * Is this sheet's import working? The last good read, the last error, how far
+ * the cursor has got, and the rows that could not become orders — per shop,
+ * because with several Converty accounts the alert bell alone does not say
+ * which sheet stopped. "Lire maintenant" runs the market's import at once.
+ */
+function SheetSyncSection({ shopId, marketId, formatDate }: { shopId: string; marketId: string; formatDate: (iso: string) => string }) {
+  const t = useTranslations("reglages");
+  const { status, brokenSources, failures, isSyncing, syncError, triggerSync } = useGoogleSheetsSync(marketId);
+  const source = status?.sources.find((s) => s.storefront_id === shopId);
+  const mine = failures.filter((f) => f.storefront_id === shopId);
+  if (!status) return null;
+
+  const broken = brokenSources.some((s) => s.storefront_id === shopId);
+  const lastGood = source?.last_success?.finished_at ?? source?.last_success?.started_at ?? null;
+  const lastError = source?.last_run?.status === "failed" ? source.last_run.error : null;
+
+  return (
+    <DrawerSection
+      title={t("shops.drawer.sync")}
+      end={
+        <RgButton size="sm" onClick={() => void triggerSync()} disabled={isSyncing}>
+          {isSyncing ? t("shops.drawer.readingNow") : t("shops.drawer.readNow")}
+        </RgButton>
+      }
+    >
+      <dl className="m-0 grid grid-cols-[170px_minmax(0,1fr)] gap-x-[14px] gap-y-[9px] text-[13.5px]">
+        <dt className="text-ink-secondary">{t("shops.drawer.syncState")}</dt>
+        <dd className="m-0">
+          {!source ? (
+            <RgBadge tone="neutral">{t("shops.drawer.syncNever")}</RgBadge>
+          ) : broken ? (
+            <RgBadge tone="warn">{t("shops.drawer.syncBroken")}</RgBadge>
+          ) : (
+            <RgBadge tone="ok">{t("shops.drawer.syncOk")}</RgBadge>
+          )}
+          {lastError && (
+            <span dir="ltr" className="mt-[4px] block break-words font-mono text-[12px] text-status-critical">
+              {lastError}
+            </span>
+          )}
+        </dd>
+        <dt className="text-ink-secondary">{t("shops.drawer.lastRead")}</dt>
+        <dd className="m-0 font-medium">{lastGood ? formatDate(lastGood) : "—"}</dd>
+        <dt className="text-ink-secondary">{t("shops.drawer.rowsRead")}</dt>
+        <dd className="m-0 font-medium tabular-nums">{(source?.last_row ?? 0).toLocaleString("fr-FR")}</dd>
+        <dt className="text-ink-secondary">{t("shops.drawer.failedRows")}</dt>
+        <dd className="m-0">
+          {mine.length === 0 ? (
+            <span className="font-medium">{t("shops.drawer.failedNone")}</span>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-[4px] p-0">
+              {mine.slice(0, 10).map((f) => (
+                <li key={f.id} className="text-[13px]">
+                  <b className="font-medium tabular-nums">{t("shops.drawer.rowN", { row: f.row_index })}</b>
+                  <span className="text-ink-secondary"> · </span>
+                  <span dir="ltr">{f.message}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </dd>
+      </dl>
+      {syncError && (
+        <p role="alert" className="m-0 mt-[10px] text-[12.5px] text-status-critical">
+          {t("shops.drawer.readFailed", { error: syncError })}
+        </p>
+      )}
+    </DrawerSection>
+  );
+}
+
+/** What the API says when a sheet cannot be connected, by `code`. */
+interface SheetRefusal {
+  code?: string;
+  columns?: string[];
+  service_account?: string | null;
+}
+
+/**
+ * Add a shop: a name, a platform; then its link and secret, shown once.
+ *
+ * A Google Sheets shop (a Converty account) has no link or secret: instead it
+ * names its sheet and tab, says whether the rows already there are history or
+ * orders to call, and is checked by the server before it exists.
+ */
 export function AddShopDrawer({ marketId, onClose, onCreated }: { marketId: string; onClose: () => void; onCreated: () => Promise<void> }) {
   const t = useTranslations("reglages");
   const [name, setName] = useState("");
   const [platform, setPlatform] = useState<string>("shopify");
-  const [created, setCreated] = useState<{ id: string; secret: string; name: string } | null>(null);
+  const [sheetLink, setSheetLink] = useState("");
+  const [tab, setTab] = useState("");
+  const [importFrom, setImportFrom] = useState<ImportFrom>("now");
+  const [created, setCreated] = useState<
+    | { kind: "webhook"; id: string; secret: string; name: string }
+    | { kind: "sheet"; name: string; tab: string; rows: number; importFrom: ImportFrom }
+    | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isSheets = platform === "google_sheets";
+  const { data: account } = useSWR<{ email: string | null }>(isSheets ? "/api/storefronts/sheets-service-account" : null);
+  const serviceEmail = account?.email ?? null;
+
+  const sheetError = (body: SheetRefusal): string => {
+    switch (body.code) {
+      case "invalid_sheet":
+        return t("shops.drawer.sheetError.invalid_sheet");
+      case "no_access":
+        return t("shops.drawer.sheetError.no_access", { email: body.service_account ?? serviceEmail ?? "—" });
+      case "no_tab":
+        return t("shops.drawer.sheetError.no_tab", { tab: tab.trim() });
+      case "missing_columns":
+        return t("shops.drawer.sheetError.missing_columns", { columns: (body.columns ?? []).join(", ") });
+      case "already_connected":
+        return t("shops.drawer.sheetError.already_connected");
+      default:
+        return t("common.error");
+    }
+  };
 
   const create = async () => {
     if (!name.trim()) {
       setError(t("shops.drawer.required"));
       return;
     }
-    const secret = generateSecret();
+    if (isSheets && (!sheetLink.trim() || !tab.trim())) {
+      setError(t("shops.drawer.sheetError.invalid_sheet"));
+      return;
+    }
+    setError(null);
+    const secret = isSheets ? null : generateSecret();
     setBusy(true);
     const res = await fetch("/api/storefronts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ market_id: marketId, name: name.trim(), platform, webhook_secret: secret }),
+      body: JSON.stringify(
+        isSheets
+          ? {
+              market_id: marketId,
+              name: name.trim(),
+              platform,
+              config: { spreadsheet: sheetLink.trim(), sheet_name: tab.trim(), import_from: importFrom },
+            }
+          : { market_id: marketId, name: name.trim(), platform, webhook_secret: secret },
+      ),
     });
     setBusy(false);
+    const body = (await res.json().catch(() => ({}))) as SheetRefusal & { data?: { id?: string }; rows_existing?: number };
     if (!res.ok) {
-      setError(t("common.error"));
+      setError(isSheets ? sheetError(body) : t("common.error"));
       return;
     }
-    const body = (await res.json().catch(() => ({}))) as { data?: { id?: string } };
-    setCreated({ id: body.data?.id ?? "", secret, name: name.trim() });
+    setCreated(
+      isSheets
+        ? { kind: "sheet", name: name.trim(), tab: tab.trim(), rows: body.rows_existing ?? 0, importFrom }
+        : { kind: "webhook", id: body.data?.id ?? "", secret: secret ?? "", name: name.trim() },
+    );
     await onCreated();
   };
 
@@ -226,13 +386,24 @@ export function AddShopDrawer({ marketId, onClose, onCreated }: { marketId: stri
         }
       >
         <DrawerSection>
-          <p className="m-0 mb-[12px] text-[13px] text-ink-secondary">{t("shops.drawer.createdHelp")}</p>
-          <Field label={t("shops.drawer.link")}>
-            <CopyBox value={receptionUrl(created.id)} />
-          </Field>
-          <Field label={t("shops.drawer.secret")}>
-            <CopyBox value={created.secret} />
-          </Field>
+          {created.kind === "sheet" ? (
+            <p className="m-0 text-[13px] text-ink-secondary">
+              {t(created.importFrom === "now" ? "shops.drawer.createdSheetsNow" : "shops.drawer.createdSheetsAll", {
+                tab: created.tab,
+                count: created.rows.toLocaleString("fr-FR"),
+              })}
+            </p>
+          ) : (
+            <>
+              <p className="m-0 mb-[12px] text-[13px] text-ink-secondary">{t("shops.drawer.createdHelp")}</p>
+              <Field label={t("shops.drawer.link")}>
+                <CopyBox value={receptionUrl(created.id)} />
+              </Field>
+              <Field label={t("shops.drawer.secret")}>
+                <CopyBox value={created.secret} />
+              </Field>
+            </>
+          )}
         </DrawerSection>
       </Drawer>
     );
@@ -268,14 +439,66 @@ export function AddShopDrawer({ marketId, onClose, onCreated }: { marketId: stri
             label={t("shops.drawer.platform")}
             columns={2}
             value={platform}
-            onChange={setPlatform}
-            options={CREATABLE_PLATFORMS.map((p) => ({ value: p, label: platformOf(p).label }))}
+            onChange={(p) => {
+              setPlatform(p);
+              setError(null);
+            }}
+            options={CREATABLE_PLATFORMS.map((p) => ({
+              value: p,
+              label: platformOf(p).label,
+              ...(p === "google_sheets" ? { description: t("shops.drawer.sheetsDesc") } : {}),
+            }))}
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title={t("shops.drawer.afterCreate")}>
-        <p className="m-0 text-[13px] text-ink-secondary">{t("shops.drawer.afterCreateHelp")}</p>
-      </DrawerSection>
+      {isSheets ? (
+        <DrawerSection title={t("shops.drawer.reception")}>
+          {serviceEmail ? (
+            <Field label={t("shops.drawer.shareWith")}>
+              <CopyBox value={serviceEmail} />
+            </Field>
+          ) : (
+            account && <p className="m-0 mb-[14px] text-[13px] text-status-critical">{t("shops.drawer.shareMissing")}</p>
+          )}
+          <Field label={t("shops.drawer.sheetLink")} htmlFor="rg-add-shop-sheet" help={t("shops.drawer.sheetLinkHelp")}>
+            <input
+              id="rg-add-shop-sheet"
+              dir="ltr"
+              className={inputClass}
+              value={sheetLink}
+              placeholder="https://docs.google.com/spreadsheets/d/…"
+              onChange={(e) => setSheetLink(e.target.value)}
+            />
+          </Field>
+          <Field label={t("shops.drawer.tab")} htmlFor="rg-add-shop-tab" help={t("shops.drawer.tabHelp")}>
+            <input
+              id="rg-add-shop-tab"
+              dir="ltr"
+              className={inputClass}
+              value={tab}
+              placeholder={t("shops.drawer.tabPlaceholder")}
+              onChange={(e) => setTab(e.target.value)}
+            />
+          </Field>
+          <Field label={t("shops.drawer.importFrom")}>
+            <OptionCards
+              label={t("shops.drawer.importFrom")}
+              columns={2}
+              value={importFrom}
+              onChange={setImportFrom}
+              options={[
+                { value: "now", label: t("shops.drawer.importNow"), description: t("shops.drawer.importNowHelp") },
+                { value: "all", label: t("shops.drawer.importAll"), description: t("shops.drawer.importAllHelp") },
+              ]}
+            />
+          </Field>
+          <p className="m-0 text-[13px] text-ink-secondary">{t("shops.drawer.afterCreateSheets")}</p>
+        </DrawerSection>
+      ) : (
+        <DrawerSection title={t("shops.drawer.afterCreate")}>
+          <p className="m-0 text-[13px] text-ink-secondary">{t("shops.drawer.afterCreateHelp")}</p>
+        </DrawerSection>
+      )}
     </Drawer>
   );
 }
