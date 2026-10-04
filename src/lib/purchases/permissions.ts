@@ -22,3 +22,23 @@ export function canViewSuppliers(role: Role): boolean {
 export function canManageSuppliers(role: Role): boolean {
   return role === "super_admin" || role === "market_manager";
 }
+
+/**
+ * Qui voit les bons de commande, et qui en passe.
+ *
+ * LE QUAI N'EN VOIT AUCUN, ET C'EST LE POINT. Montrer « attendu 150 » avant le
+ * comptage ne fait pas gagner du temps : ça fait ÉCRIRE 150. La règle est
+ * portée là où elle tient vraiment — la RLS de
+ * `20261004120000_purchase_orders.sql` n'ouvre `purchase_orders` qu'au bureau —
+ * et l'écart est révélé à l'agent par la VALEUR DE RETOUR de `record_arrival`,
+ * après que son compte est écrit. Ces deux fonctions répliquent cette RLS : si
+ * l'une change, l'autre doit changer avec elle.
+ */
+
+export function canViewPurchaseOrders(role: Role): boolean {
+  return role === "super_admin" || role === "market_manager";
+}
+
+export function canPlacePurchaseOrder(role: Role): boolean {
+  return role === "super_admin" || role === "market_manager";
+}

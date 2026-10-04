@@ -29,6 +29,16 @@
 
 ALTER TABLE public.receptions DROP CONSTRAINT IF EXISTS receptions_status_check;
 
+-- LE DÉCLENCHEUR D'IMMUABILITÉ BLOQUE SA PROPRE MIGRATION. `trg_reception_immutable`
+-- refuse toute écriture sur une réception `posted` ou `reversed` — y compris
+-- celle qui la renomme `settled`, et celle qui lui pose `arrival_date`. En
+-- production il n'y a aucune réception validée, donc rien ne se verrait ; sur
+-- une base qui en porte (46 en local) la migration s'arrête au milieu. On
+-- désactive donc le garde-fou pour la seule durée du remplissage, puis on le
+-- remet — et c'est le seul endroit de tout Ordra où on a le droit de le faire,
+-- parce qu'ici la réécriture EST la migration.
+ALTER TABLE public.receptions DISABLE TRIGGER trg_reception_immutable;
+
 UPDATE public.receptions
    SET status = CASE
          WHEN status IN ('draft', 'submitted') THEN 'open'
@@ -61,6 +71,8 @@ ALTER TABLE public.receptions
 UPDATE public.receptions
    SET arrival_date = COALESCE(arrival_date, (created_at AT TIME ZONE 'UTC')::DATE)
  WHERE arrival_date IS NULL;
+
+ALTER TABLE public.receptions ENABLE TRIGGER trg_reception_immutable;
 
 COMMENT ON COLUMN public.receptions.arrival_date IS
   'Le jour local du marché où les arrivages ont été comptés. Clé de '

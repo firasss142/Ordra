@@ -21,11 +21,15 @@ const BY_CODE: Record<string, number> = {
   NO_SITE_ASSIGNED: 403,
   WRONG_SITE: 403,
   NO_RECEPTION: 404,
+  // Les bons de commande partagent cette table : même convention de DETAIL,
+  // même échelle. Deux tables auraient divergé en une semaine.
+  NOT_FOUND: 404,
   NO_PRODUCT: 404,
   NO_LINE: 404,
   NO_WAREHOUSE: 404,
   NO_SUPPLIER: 404,
   ALREADY_SETTLED: 409,
+  ALREADY_CLOSED: 409,
   RECEPTION_IMMUTABLE: 409,
   // Une course sur le document du jour : l'appelant peut réessayer tel quel.
   RETRY: 409,
