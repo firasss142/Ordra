@@ -54,6 +54,7 @@ import { Amount, Bars, Kpi, Num, Pct, SHARE_CLASS, Spark, Thumb, useUiLocale } f
 import { OutcomeFlow } from "./OutcomeFlow";
 import { PeriodSeg } from "./PeriodSeg";
 import { useProductActions } from "./useProductActions";
+import { ProductSheetSkeleton } from "./skeletons";
 import "./products-v6.css";
 
 /** The product row as GET /api/products/[id] returns it. */
@@ -93,7 +94,7 @@ export function ProductSheetV6({ productId, role, locale }: { productId: string;
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const { data: productRes, mutate: mutateProduct } = useSWR<{ data: SheetProduct }>(
+  const { data: productRes, error: productError, mutate: mutateProduct } = useSWR<{ data: SheetProduct }>(
     `/api/products/${encodeURIComponent(productId)}`,
     fetcher,
   );
@@ -102,15 +103,22 @@ export function ProductSheetV6({ productId, role, locale }: { productId: string;
   const period: DayRange = useMemo(() => resolvePeriod(params.get("from"), params.get("to"), tz), [params, tz]);
 
   const canMoney = role === "super_admin" || role === "market_manager";
-  const { data: o, mutate: mutateOverview } = useProductSheetOverview(productId, period, canMoney && Boolean(product));
+  const { data: o, error: overviewError, mutate: mutateOverview } = useProductSheetOverview(productId, period, canMoney && Boolean(product));
   const actions = useProductActions(async () => {
     await Promise.all([mutateProduct(), mutateOverview()]);
   });
 
   if (!product) {
+    if (!productError) return <ProductSheetSkeleton money={canMoney} />;
     return (
       <div className="pv6 page">
-        <div className="card empty-q">{t("loading")}</div>
+        <div className="note call" role="alert">
+          <Info className="ic" aria-hidden />
+          <span>{t("e_load")}</span>
+          <button type="button" className="btn sm" onClick={() => void mutateProduct()}>
+            {t("retry")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -233,13 +241,22 @@ export function ProductSheetV6({ productId, role, locale }: { productId: string;
     </div>
   );
 
+  // One skeleton until the figures arrive too (first load only: SWR keeps the
+  // previous period's while a new one loads) — never the hero over a blank page.
   if (!o) {
+    if (!overviewError) return <ProductSheetSkeleton />;
     return (
       <div className="pv6 page">
         {actions.modals}
         {hero}
         {periodBar}
-        <div className="card empty-q">{t("loading")}</div>
+        <div className="note call" role="alert">
+          <Info className="ic" aria-hidden />
+          <span>{t("e_load")}</span>
+          <button type="button" className="btn sm" onClick={() => void mutateOverview()}>
+            {t("retry")}
+          </button>
+        </div>
       </div>
     );
   }

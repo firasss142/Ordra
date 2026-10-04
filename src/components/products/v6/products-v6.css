@@ -356,3 +356,7 @@
 .pv6.pv6-menu button:hover{background:var(--fill)}
 .pv6.pv6-menu button.danger{color:var(--bad-ink)}
 .pv6 .note .btn{margin-inline-start:auto}
+/* Loading: the pages' own markup with these bars where figures go (skeletons.tsx). */
+.pv6 .skl{display:block;flex:none;max-width:100%;height:12px;border-radius:6px;background:var(--fill);animation:pv6-pulse 1.4s ease-in-out infinite}
+.pv6 .ord .skl,.pv6 .chips .skl,.pv6 .acts .skl{display:inline-block}
+@keyframes pv6-pulse{50%{opacity:.55}}
