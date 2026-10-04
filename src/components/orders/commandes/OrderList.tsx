@@ -192,8 +192,12 @@ function Row({ o, p, now }: { o: OrdersListRow; p: OrderListProps; now: Date }) 
               {o.variant_label ? ` · ${o.variant_label}` : ""}
             </b>
             {o.quantity > 1 && <span className="qty"> ×{o.quantity}</span>}
-            {" · "}
-            {o.customer_city ? <span dir="auto">{o.customer_city}</span> : <span className="miss">{t("row.noCity")}</span>}
+            {o.customer_city ? (
+              <>
+                {" · "}
+                <span dir="auto">{o.customer_city}</span>
+              </>
+            ) : null}
           </div>
         </div>
       </div>

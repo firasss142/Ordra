@@ -9,7 +9,7 @@ prototype's own CSS scoped under `.cmd` by a script — px on purpose) and one s
 | --- | --- | --- |
 | Commandes | `/orders` | `commandes/CommandesPage.tsx` |
 | Archivées | `/orders/archive` (`?state=eligible\|archived\|recent\|deleted`) | `commandes/ArchivePage.tsx` |
-| Commandes répétées | `/orders/duplicates` (`?f=rep\|dup\|risk\|ok`) | `commandes/RepeatedPage.tsx` |
+| Récurrentes (was « Commandes répétées ») | `/orders/duplicates` (`?f=rep\|dup\|risk\|ok`) | `commandes/RepeatedPage.tsx` |
 | The order panel | everywhere, agents included | `queue/OrderDetailPanel/` (root carries `.cmd`) |
 | Nouvelle commande | drawer | `orders/CreateOrderModal.tsx` |
 
@@ -46,7 +46,7 @@ only here; « Restaurer » = `/api/orders/bulk-recover` (one `recover_deleted_or
 `/api/orders/archive/counts`. The analysis (`get_archive_summary`, its route) is gone — the
 SQL function is left in place, unused.
 
-## Commandes répétées
+## Récurrentes
 
 `/api/orders/repeat-customers` (`get_repeat_customers`: a customer with an order this week and
 ≥ 2 orders over 90 days, every order oldest first) + `/api/orders/duplicates`, merged in

@@ -368,7 +368,7 @@ entry has not meant deleting its page — check before assuming a route is dead.
   Compte investisseur), le logo de chaque boutique et compte transporteur (bucket `logos`),
   et pourquoi la migration passe AVANT le déploiement: docs/photos-and-logos.md
 - Commandes (prototype v4, built 2026-10-04) — the four work shortcuts and why a count is the
-  list it opens, multi-select facets, Archivées (Supprimées, rule 0 = off), Commandes répétées
+  list it opens, multi-select facets, Archivées (Supprimées, rule 0 = off), Récurrentes
   (cases, the cleanup, « Pas un doublon »), the new panel for everyone: docs/commandes.md +
   plans/commandes-redesign.md
 - WhatsApp Business Cloud API — credentials per market, the send gate, the

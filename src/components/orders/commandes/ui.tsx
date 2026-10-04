@@ -19,7 +19,7 @@ import { ICON_PATHS } from "./icons";
 export type T = ReturnType<typeof useTranslations>;
 
 export function Ic({ n, className = "" }: { n: string; className?: string }) {
-  return <svg className={`ic ${className}`} viewBox="0 0 24 24" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICON_PATHS[n] ?? "" }} />;
+  return <svg className={`ic ${className}`} viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICON_PATHS[n] ?? "" }} />;
 }
 
 // ── time words ──────────────────────────────────────────────────────────────
@@ -149,16 +149,16 @@ export function RowTags({ tags }: { tags: RowTag[] }) {
   return (
     <>
       {tags.map((g) => {
-        const [icon, text, tip] =
+        // Icons only on the row; the words are the tooltip and the accessible name.
+        const [icon, tip] =
           g.kind === "dup"
-            ? ["copy", g.shipped ? t("dupShipped", { n: g.n }) : t("dup", { n: g.n }), g.shipped ? t("dupShippedTip", { n: g.n }) : t("dupTip", { n: g.n })]
+            ? ["copy", g.shipped ? t("dupShippedTip", { n: g.n }) : t("dupTip", { n: g.n })]
             : g.kind === "rejected"
-              ? ["alert", t("rejected", { n: g.n }), t("rejectedTip", { n: g.n, of: g.of })]
-              : ["star", t("loyal", { n: g.n }), t("loyalTip", { n: g.n })];
+              ? ["alert", t("rejectedTip", { n: g.n, of: g.of })]
+              : ["star", t("loyalTip", { n: g.n })];
         return (
-          <span key={g.kind} className={`tg h-${g.hue}`} data-tip={tip}>
+          <span key={g.kind} className={`tg ico h-${g.hue}`} data-tip={tip} role="img" aria-label={tip}>
             <Ic n={icon} />
-            {text}
           </span>
         );
       })}
@@ -240,7 +240,7 @@ export function Thumb({ src, seed, size }: { src: string | null | undefined; see
   const style = { "--tb": bg, "--ti": ink, ...(size ? { width: size, height: size, borderRadius: size > 30 ? 10 : 7 } : {}) } as CSSProperties;
   return (
     <span className="thumb" style={style}>
-      {src ? <img src={src} alt="" loading="lazy" /> : <Ic n="bag" />}
+      {src ? <img src={src} alt="" loading="lazy" width={size ?? 40} height={size ?? 40} /> : <Ic n="bag" />}
     </span>
   );
 }
