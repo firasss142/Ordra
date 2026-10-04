@@ -23,7 +23,7 @@ function rows(over: Partial<DayLoopRows> = {}): DayLoopRows {
     marketQueue: { to_prepare: 32, oldest_prepare_hours: 70, returns_inbox: 3, set_aside: 393 },
     returning: [{ warehouse_id: "B" }, { warehouse_id: "B" }, { warehouse_id: "B" }],
     receptions: [
-      { warehouse_id: "T", status: "draft", expected_at: "2026-10-01", line_count: 0 },
+      { warehouse_id: "T", status: "open", arrival_date: "2026-10-01" },
     ],
     productIds: ["p1", "p2", "p3", "p4", "p5", "p6", "p7"],
     countRows: [],
@@ -67,26 +67,39 @@ describe("assembleDayLoop — the agent's building", () => {
   });
 });
 
+/**
+ * CE QUE LE QUAI A COMPTÉ ET QUE LE BUREAU N'A PAS ENCORE CHIFFRÉ.
+ *
+ * Ces trois chiffres parlaient de `draft` et `submitted`, des états supprimés le
+ * 3 octobre : la requête ne ramenait donc plus RIEN et le compteur « recevoir »
+ * du poste du jour affichait zéro en permanence. Un zéro qui ment est exactement
+ * ce que cette refonte était censée supprimer, et je l'avais introduit.
+ *
+ * « Attendu » n'existe plus non plus — personne n'annonce une réception. Ce
+ * qu'il faut voir, c'est un groupe OUVERT : des unités sur l'étagère dont la
+ * marge est encore inconnue. C'est le prix assumé de l'inversion, et il doit
+ * rester visible.
+ */
 describe("assembleDayLoop — receptions", () => {
-  it("counts a draft past its expected date as late, and one with no line as empty", () => {
+  it("compte les groupes ouverts, et dit ceux qui traînent depuis la veille", () => {
     const out = assembleDayLoop(rows(), { focus: "T", today: TODAY, locale: "fr", withManagerViews: false });
-    expect(out.counts.receptionsExpected).toBe(1);
+    expect(out.counts.receptionsOpen).toBe(1);
     expect(out.counts.receptionsLate).toBe(1);
-    expect(out.counts.receptionsEmpty).toBe(1);
   });
 
-  it("does not call a reception due today late", () => {
+  it("ne crie pas sur un groupe ouvert aujourd'hui", () => {
+    // Le groupe du jour est le cas NORMAL : le bureau solde une fois la semaine.
     const out = assembleDayLoop(
-      rows({ receptions: [{ warehouse_id: "T", status: "submitted", expected_at: TODAY, line_count: 3 }] }),
+      rows({ receptions: [{ warehouse_id: "T", status: "open", arrival_date: TODAY }] }),
       { focus: "T", today: TODAY, locale: "fr", withManagerViews: false },
     );
+    expect(out.counts.receptionsOpen).toBe(1);
     expect(out.counts.receptionsLate).toBe(0);
-    expect(out.counts.receptionsEmpty).toBe(0);
   });
 
-  it("never calls a reception with no expected date late", () => {
+  it("ne crie jamais sur un groupe sans date d'arrivage", () => {
     const out = assembleDayLoop(
-      rows({ receptions: [{ warehouse_id: "T", status: "draft", expected_at: null, line_count: 1 }] }),
+      rows({ receptions: [{ warehouse_id: "T", status: "open", arrival_date: null }] }),
       { focus: "T", today: TODAY, locale: "fr", withManagerViews: false },
     );
     expect(out.counts.receptionsLate).toBe(0);

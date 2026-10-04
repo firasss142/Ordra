@@ -22,9 +22,8 @@ const EMPTY: DayCounts = {
   setAside: 0,
   returnsAtCarrier: 0,
   returnsOnTheWay: 0,
-  receptionsExpected: 0,
+  receptionsOpen: 0,
   receptionsLate: 0,
-  receptionsEmpty: 0,
   products: 0,
   neverCounted: 0,
 };
@@ -37,7 +36,7 @@ describe("buildDayLoop", () => {
 
   it("gives each job the size of its backlog, and nothing else", () => {
     const loop = buildDayLoop({
-      counts: { ...EMPTY, toPrepare: 31, returnsAtCarrier: 2, receptionsExpected: 1, products: 7, neverCounted: 7 },
+      counts: { ...EMPTY, toPrepare: 31, returnsAtCarrier: 2, receptionsOpen: 1, products: 7, neverCounted: 7 },
       scannedToday: 14,
       goal: null,
     });
@@ -145,9 +144,19 @@ describe("buildDecisions", () => {
     expect(first.severity).toBe("critical");
   });
 
-  it("flags a reception with no line even when it is not late", () => {
-    const decisions = buildDecisions({ ...EMPTY, receptionsExpected: 1, receptionsEmpty: 1 });
-    expect(decisions.map((d) => d.key)).toEqual(["receptionsEmpty"]);
+  /*
+   * UN GROUPE OUVERT N'EST PAS UNE ALERTE. Le bureau solde une fois la semaine :
+   * crier dès le premier carton transformerait le fonctionnement normal en
+   * reproche quotidien. Seul un groupe ouvert DEPUIS LA VEILLE mérite un mot —
+   * la marchandise est vendable et sa marge reste inconnue.
+   */
+  it("ne signale pas un groupe ouvert du jour", () => {
+    expect(buildDecisions({ ...EMPTY, receptionsOpen: 1 })).toEqual([]);
+  });
+
+  it("signale un groupe ouvert depuis la veille", () => {
+    const decisions = buildDecisions({ ...EMPTY, receptionsOpen: 2, receptionsLate: 1 });
+    expect(decisions.map((d) => d.key)).toEqual(["receptionsLate"]);
   });
 });
 

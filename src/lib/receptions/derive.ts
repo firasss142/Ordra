@@ -178,38 +178,45 @@ export function paidPercent(input: { value: number | null; paid: number }): numb
 }
 
 /**
- * En retard = la date annoncée est passée et le groupe n'est toujours pas soldé.
+ * EN RETARD = OUVERT DEPUIS LA VEILLE, et toujours pas soldé.
  *
- * `expected_at` ne se remplit que depuis un bon de commande (étape 6) ; sans
- * annonce il n'y a pas de retard possible, et la fonction répond `false` plutôt
- * que d'inventer une échéance.
+ * Cette fonction se mesurait contre `expected_at`, la date ANNONCÉE. Personne
+ * n'annonce plus une réception : le quai compte, le bureau solde. Rien n'écrit
+ * cette colonne, donc la fonction répondait `false` pour l'éternité et le
+ * liseré rouge de la liste ne pouvait plus s'allumer. UN SIGNAL MORT EST PIRE
+ * QU'ABSENT : on croit qu'il n'y a rien à voir.
+ *
+ * Ce qui mérite d'être signalé est un groupe ouvert depuis la veille : de la
+ * marchandise vendable dont la marge reste inconnue. C'est le coût assumé de
+ * l'inversion du 3 octobre, et il ne doit pas s'éterniser. Le groupe du JOUR
+ * n'est pas en retard — le bureau solde une fois la semaine, et crier dès le
+ * premier carton transformerait la routine en reproche quotidien.
  */
 export function isLate(
-  reception: { expected_at: string | null; status: ReceptionStatus | string },
+  reception: { arrival_date: string | null; status: ReceptionStatus | string },
   now: Date = new Date(),
 ): boolean {
-  if (!reception.expected_at) return false;
+  if (!reception.arrival_date) return false;
   if (reception.status !== "open") return false;
 
-  // Comparaison au jour, en UTC : `expected_at` est une DATE en base, sans
-  // heure. Comparer à un instant ferait basculer la ligne en « retard » selon
-  // l'heure de la journée.
-  const expected = new Date(`${reception.expected_at}T00:00:00Z`);
+  // Comparaison au JOUR, en UTC : `arrival_date` est une DATE en base, sans
+  // heure. Comparer à un instant ferait basculer la ligne selon l'heure.
+  const arrived = new Date(`${reception.arrival_date}T00:00:00Z`);
   const today = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
-  return expected.getTime() < today.getTime();
+  return arrived.getTime() < today.getTime();
 }
 
-/** De combien de jours, pour l'afficher. `null` si pas en retard. */
+/** Depuis combien de jours le groupe attend son soldage. `null` s'il est à jour. */
 export function daysLate(
-  reception: { expected_at: string | null; status: ReceptionStatus | string },
+  reception: { arrival_date: string | null; status: ReceptionStatus | string },
   now: Date = new Date(),
 ): number | null {
   if (!isLate(reception, now)) return null;
-  const expected = new Date(`${reception.expected_at}T00:00:00Z`).getTime();
+  const arrived = new Date(`${reception.arrival_date}T00:00:00Z`).getTime();
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  return Math.round((today - expected) / 86_400_000);
+  return Math.round((today - arrived) / 86_400_000);
 }
 
 /**

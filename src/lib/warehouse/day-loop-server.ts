@@ -33,10 +33,15 @@ export async function fetchDayLoopRows(
   // Every read is one market's. Written out rather than through a generic
   // helper: Supabase's builder types recurse past tsc's depth limit otherwise.
   let returningQuery = supabase.from("orders").select("warehouse_id").eq("status", "returning").is("archived_at", null);
+  /*
+   * LES GROUPES OUVERTS. Cette requête demandait `draft` et `submitted`, deux
+   * états supprimés le 3 octobre : elle ne ramenait donc plus rien, et le
+   * compteur « recevoir » du poste du jour affichait zéro en permanence.
+   */
   let receptionsQuery = supabase
     .from("receptions")
-    .select("warehouse_id, status, expected_at, reception_lines(count)")
-    .in("status", ["draft", "submitted"]);
+    .select("warehouse_id, status, arrival_date")
+    .eq("status", "open");
   let productsQuery = supabase.from("products").select("id").eq("is_active", true);
   let agentsQuery = supabase
     .from("users")
@@ -107,13 +112,11 @@ export async function fetchDayLoopRows(
     receptions: ((receptions ?? []) as Array<{
       warehouse_id: string | null;
       status: string;
-      expected_at: string | null;
-      reception_lines: Array<{ count: number }> | null;
+      arrival_date: string | null;
     }>).map((r) => ({
       warehouse_id: r.warehouse_id,
       status: r.status,
-      expected_at: r.expected_at,
-      line_count: Number(r.reception_lines?.[0]?.count ?? 0),
+      arrival_date: r.arrival_date,
     })),
     productIds,
     countRows: (countRows ?? []) as DayLoopRows["countRows"],

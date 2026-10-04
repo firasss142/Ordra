@@ -35,12 +35,11 @@ export interface DayLoopRows {
   marketQueue: QueueStatsRow;
   /** One row per `returning` order. */
   returning: Array<{ warehouse_id: string | null }>;
-  /** Receptions still `draft` or `submitted`. */
+  /** Open arrival groups — counted on the dock, not yet settled. */
   receptions: Array<{
     warehouse_id: string | null;
     status: string;
-    expected_at: string | null;
-    line_count: number;
+    arrival_date: string | null;
   }>;
   /** Active products of the market. */
   productIds: string[];
@@ -97,10 +96,15 @@ function siteCounts(rows: DayLoopRows, siteId: string | null, today: string): Da
     setAside: n(q.set_aside),
     returnsAtCarrier: n(q.returns_inbox),
     returnsOnTheWay: rows.returning.filter((r) => inScope(r.warehouse_id)).length,
-    receptionsExpected: receptions.length,
-    // Dates compare as ISO strings; a reception with no date is never late.
-    receptionsLate: receptions.filter((r) => r.expected_at !== null && r.expected_at.slice(0, 10) < today).length,
-    receptionsEmpty: receptions.filter((r) => r.line_count === 0).length,
+    receptionsOpen: receptions.length,
+    /*
+     * « EN RETARD » A CHANGÉ DE SENS, parce qu'« attendu » n'existe plus :
+     * personne n'annonce une réception. Un groupe ouvert DEPUIS LA VEILLE est de
+     * la marchandise vendable dont la marge reste inconnue — le coût assumé de
+     * l'inversion, qui ne doit pas s'éterniser. Les dates se comparent comme des
+     * chaînes ISO, et un groupe sans date n'est jamais en retard.
+     */
+    receptionsLate: receptions.filter((r) => r.arrival_date !== null && r.arrival_date.slice(0, 10) < today).length,
     products,
     neverCounted: rows.productIds.filter((id) => !counted.has(id)).length,
   };

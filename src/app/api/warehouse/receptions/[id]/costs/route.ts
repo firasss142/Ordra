@@ -59,11 +59,22 @@ async function guard(req: NextRequest, id: string): Promise<Guard> {
 
   if (error) return { error: NextResponse.json({ error: error.message }, { status: 500 }) };
   if (!reception) return { error: NextResponse.json({ error: "Not found" }, { status: 404 }) };
-  if (reception.status !== "draft" && reception.status !== "submitted") {
+  /*
+   * SEUL UN GROUPE OUVERT SE CHIFFRE. Ce garde exigeait `draft` ou `submitted`,
+   * deux états supprimés le 3 octobre : plus aucune réception ne satisfaisait la
+   * condition, donc plus une seule ligne de frais ne pouvait être saisie — et
+   * l'étape des frais d'approche devenait inatteignable.
+   *
+   * Une fois la réception SOLDÉE, le coût de revient est écrit dans
+   * `landed_unit_cost` et a pu nourrir `unit_cogs` : rouvrir les frais ferait
+   * mentir le registre. C'est aussi ce que refuse le déclencheur
+   * d'immuabilité ; la route le dit plus tôt et avec des mots.
+   */
+  if (reception.status !== "open") {
     return {
       error: NextResponse.json(
         {
-          error: "Les frais d'une réception validée ne changent plus",
+          error: "Les frais d'une réception soldée ne changent plus",
           error_code: "ALREADY_POSTED",
         },
         { status: 409 },

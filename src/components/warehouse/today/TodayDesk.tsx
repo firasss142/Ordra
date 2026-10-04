@@ -37,11 +37,11 @@ const HUE: Record<DayJob["key"], string> = {
   count: "job-count",
 };
 
-type SiteCountKey = "toPrepare" | "returnsAtCarrier" | "receptionsExpected" | "neverCounted";
+type SiteCountKey = "toPrepare" | "returnsAtCarrier" | "receptionsOpen" | "neverCounted";
 const SPLIT_KEY: Record<DayJob["key"], SiteCountKey> = {
   out: "toPrepare",
   returns: "returnsAtCarrier",
-  receive: "receptionsExpected",
+  receive: "receptionsOpen",
   count: "neverCounted",
 };
 
@@ -79,7 +79,6 @@ export function TodayDesk({
       case "receive": {
         const parts = [
           counts.receptionsLate > 0 ? t("receiveLate", { n: counts.receptionsLate }) : null,
-          counts.receptionsEmpty > 0 ? t("receiveEmpty", { n: counts.receptionsEmpty }) : null,
         ].filter(Boolean);
         return parts.length ? { text: parts.join(" · "), warn: true } : null;
       }

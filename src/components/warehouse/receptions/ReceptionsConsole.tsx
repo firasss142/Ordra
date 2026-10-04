@@ -200,11 +200,14 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                * portent la vraie nuance — c'est ainsi qu'une ligne en retard
                * finissait par crier sur cinq canaux à la fois.
                */
-              const stripe = r.is_late
-                ? WH_STRIPE.bad
-                : r.status === "submitted"
-                  ? WH_STRIPE.warn
-                  : "";
+              /*
+               * LE LISERÉ NE MARQUE PLUS QUE LE RETARD. La seconde branche
+               * cherchait `submitted`, un état supprimé le 3 octobre : elle ne
+               * pouvait plus jamais être vraie. Un groupe OUVERT est le
+               * fonctionnement normal — le quai compte, le bureau solde une
+               * fois la semaine — et le teinter ferait crier la routine.
+               */
+              const stripe = r.is_late ? WH_STRIPE.bad : "";
 
               const headline = headlineQuantity(r);
               const site =
