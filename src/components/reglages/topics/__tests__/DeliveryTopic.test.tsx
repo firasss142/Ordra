@@ -79,6 +79,14 @@ const mount = (user: AuthUser) =>
 const carriersCard = () => screen.getByRole("heading", { name: "Transporteurs" }).closest("section") as HTMLElement;
 
 describe("Réglages › Livraison", () => {
+  it("sets the thresholds Transporteurs judges each carrier on, editable by a manager", () => {
+    mount(manager);
+    const card = screen.getByRole("heading", { name: "Objectifs des transporteurs" }).closest("section") as HTMLElement;
+    expect(within(card).getByLabelText(/Objectif de livraison/)).toHaveValue(60);
+    expect(within(card).getByLabelText(/Colis en retard/)).toHaveValue(3);
+    expect(within(card).getByLabelText(/Objectif de livraison/)).toBeEnabled();
+  });
+
   it("lists each carrier with its site, its fees and what it delivered in 30 days", () => {
     mount(admin);
     const rows = within(carriersCard()).getAllByRole("row").slice(1);

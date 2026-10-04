@@ -184,17 +184,15 @@ const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     /*
-     * Post-handover tracking. Split out of Entrepôt because the warehouse can
-     * take no action on a parcel that has already left the building — keeping
-     * these two here made the section list eight items across three different
-     * audiences, and nothing in it read as primary.
+     * After the parcel leaves: the worklist (which parcel to act on now) and
+     * Transporteurs (is each carrier doing its job?). The two older boards,
+     * Suivi transporteur and Tableau livraison, were retired 2026-10-03.
      */
     id: "livraison",
     icon: Truck,
     items: [
       { key: "deliveryWorklist", href: "delivery", icon: PackageCheck, prefetchRoute: "delivery" },
-      { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
-      { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },
+      { key: "carriers", href: "carriers", icon: Truck },
     ],
   },
   {

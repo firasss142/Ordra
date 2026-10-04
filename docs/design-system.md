@@ -763,16 +763,20 @@ the **active segment's count badge**.
 One shared primitive, `components/ui/SegmentedTabs`, serves all of them. §4.11 remains in force
 for any surface with a single level of navigation.
 
-### The carrier-account ring — a named exception
+### The carrier-account colour — a named exception
 
 Libya runs two Darb Assabil accounts as two `carriers` rows sharing one `code`, so they resolve
-to the same logo file. They are distinguished by a `ring-1` tinted per account.
+to the same logo file. Until 2026-10-03 a thin tinted ring told them apart; the owner could not
+read it, and it is gone. Each account now has a colour in the data (`carriers.accent_color`,
+`#RRGGBB`) and is **named by its warehouse city in that colour**: a full band on Transporteurs
+(`/carriers`), a solid city pill beside the logo in the agent queue. Defaults are the validated
+pair `#1F5FBF` / `#C24E17` (CVD ΔE 25.2, white text ≥ 4.7:1); a carrier with one account gets
+no pill.
 
 This is colour carrying something that is **not** status, which §1 rule 3 and §4.15 both
-forbid. It is allowed here, narrowly, because the alternative — two near-identical wordmarks at
-20px — is not separable at a glance either. The condition is that colour is **never the only
-signal**: the account name stays in `title` and the city in `aria-label`, so the distinction
-survives greyscale and a screen reader. Do not extend this to any other carrier.
+forbid. It is allowed here, narrowly, because two identical logos are not separable otherwise.
+The condition is unchanged: colour is **never the only signal** — the city is written in the
+band and in the pill. See docs/carrier-scorecard.md.
 
 ---
 
@@ -1260,7 +1264,7 @@ confident number.
 `/users` (Équipe › Accès) gives each **role** one hue. Approved by the owner from
 `prototypes/acces-v2.html` ("j'aime le design"); the structure and its rationale are
 in `prototypes/acces-v1.html`. This is colour carrying a **category**, which §1 rule 3
-forbids — allowed here, narrowly, like §4.22 and the carrier-account ring, because a
+forbids — allowed here, narrowly, like §4.22 and the carrier-account colour, because a
 list of people reads by team first and the hue is what makes the team visible at a glance.
 
 | Role | Hue (fill, dot, icon) | Ink (text) | Tint (fill) | Edge | Ink / tint | Hue / tint |

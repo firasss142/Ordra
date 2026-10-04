@@ -188,5 +188,5 @@ mesures. En bref :
 | **Retours** | `/warehouse/returns` | File `to_be_returned` + décisions |
 | **Stock** | `/warehouse/stock` | Niveaux, comptages, **Journal en sous-onglet** |
 
-`Suivi transporteur` reste sous *Livraison*. `/warehouse/preparation`,
+*Livraison* = Suivi livraison · Transporteurs (`Suivi transporteur` supprimé le 2026-10-03). `/warehouse/preparation`,
 `/warehouse/scan` et `/warehouse/history` redirigent vers leur nouvel hôte.

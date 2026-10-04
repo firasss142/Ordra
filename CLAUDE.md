@@ -211,7 +211,7 @@ Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Navigation (as coded in components/layout/Sidebar.tsx → NAV_SECTIONS)
 Accueil → Dashboard · Commandes → Commandes, Archivées · Entrepôt (id `logistique`) →
-Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
+Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison, Transporteurs · Finances
 (canViewFinances) → P&L global, Produits & marges, Stock & inventaire, Dépenses pub,
 Investisseurs · Clients → Prospects, Relances · Équipe → Salle de contrôle, Performance,
 Accès · Système → Réglages (super_admin + market_manager; one page by topic, see
@@ -247,6 +247,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Delivery follow-up — customers, delivery_actions, zones, worklist, the /delivery screen
   (agent page + manager board shipped; `lost` status and the commission rule are not):
   docs/delivery-worklist.md + plans/suivi-livraison.md
+- Transporteurs (/carriers) — is each carrier doing its job; `carrier_parcel_outcome`, the ONE
+  failed-parcel definition (shared with Produits v6), the account colour, what replaced Suivi
+  transporteur and Tableau livraison: docs/carrier-scorecard.md + plans/transporteurs.md
 - Ad spend + Meta sync (break-even math, cost stack, cohort basis): docs/ad-spend.md +
   plans/ad-spend-meta-sync-redesign.md (NOT ad-spend-campaign-redesign.md — superseded)
 - Ad spend mapping — per ad set, several products per campaign, dated history; meta
@@ -343,10 +346,9 @@ decision, not a typo.
    → docs/delivery-worklist.md §2
 2. **`line-strong` (#DADCE0, Tailwind) ≠ `--border-strong` (#C9CCCF, CSS var)** — same
    intent, two values. → docs/design-system.md §2
-3. **The delivery worklist and the manager board are both live at /delivery, but the surfaces
-   its plan marks for deletion (Relances, Tableau livraison) are still live.** The board now
-   covers what /in-delivery showed; deleting the old pages is the plan's deletion phase.
-   → docs/delivery-worklist.md
+3. ~~The surfaces the delivery plan marked for deletion are still live.~~ Resolved
+   2026-10-03: Relances, Tableau livraison and Suivi transporteur are deleted; their URLs
+   redirect to /carriers. → docs/carrier-scorecard.md
 4. **The reassign sheet on /delivery says the delivery commission follows the new owner; the
    ledger does not do that yet.** Decision 38 changed the rule to "assigned_to at delivered",
    but `agent_commission_ledger` still attributes to the agent of the last confirmed
