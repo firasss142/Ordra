@@ -39,6 +39,7 @@ export async function POST(
     invoice_total?: number | null;
     due_at?: string | null;
     discrepancy_reason?: string | null;
+    claim_amount?: number | null;
   };
   try {
     body = await req.json();
@@ -66,6 +67,38 @@ export async function POST(
     );
   }
 
+  /*
+   * LE LITIGE EST CE QU'ON REFUSE DE PAYER, pas une facture rabotée.
+   * `invoice_total` garde le chiffre que le fournisseur a écrit ; le montant
+   * réclamé vit dans `supplier_claims` et se retire du solde. Y ranger la valeur
+   * marchandise à la place stockerait un chiffre qui ne figure sur aucun
+   * document, et il faudrait deviner écran par écran lequel des deux on lit.
+   *
+   * Les deux voyagent dans LE MÊME appel : solder puis réclamer en deux
+   * requêtes laisserait une fenêtre où la réception est soldée et la
+   * réclamation perdue — alors que l'écran a promis qu'elle resterait visible
+   * dans Achats jusqu'à sa résolution.
+   */
+  const claim =
+    body.claim_amount === null || body.claim_amount === undefined
+      ? null
+      : Number(body.claim_amount);
+  if (claim !== null && (!Number.isFinite(claim) || claim <= 0)) {
+    return NextResponse.json(
+      { error: "Le montant réclamé doit être strictement positif" },
+      { status: 400 },
+    );
+  }
+  if (claim !== null && invoice === null) {
+    return NextResponse.json(
+      {
+        error: "On ne réclame rien sans facture à contester",
+        error_code: "CLAIM_WITHOUT_INVOICE",
+      },
+      { status: 400 },
+    );
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("settle_reception", {
     p_reception_id: id,
@@ -74,6 +107,7 @@ export async function POST(
     p_invoice_total: invoice,
     p_due_at: body.due_at || null,
     p_discrepancy_reason: body.discrepancy_reason?.trim() || null,
+    p_claim_amount: claim,
   });
 
   if (error) return rpcErrorResponse(error);

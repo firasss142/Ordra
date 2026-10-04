@@ -21,6 +21,17 @@ export interface PayableInput {
   paid: number;
   /** Échéance convenue, ISO `YYYY-MM-DD`. `null` quand personne ne l'a posée. */
   dueAt: string | null;
+  /**
+   * Ce qu'un litige retire de cette facture — on ne le paiera pas.
+   *
+   * `invoice_total` porte ce que le fournisseur a ÉCRIT ; ce qu'on refuse de
+   * payer vit dans `supplier_claims`. Sans cette soustraction l'échéancier
+   * réclamerait des unités arrivées cassées, et continuerait de les réclamer
+   * APRÈS que le fournisseur a émis son avoir.
+   *
+   * Absent = rien de retenu. Voir src/lib/purchases/claims.ts.
+   */
+  withheld?: number;
 }
 
 export interface PayableRow extends PayableInput {
@@ -55,7 +66,7 @@ export function payable(input: PayableInput, today: Date): Payable {
     return { balance: null, state: "unknown", daysLate: null };
   }
 
-  const rest = input.invoiceTotal - input.paid;
+  const rest = input.invoiceTotal - input.paid - (input.withheld ?? 0);
   // Un virement en trop est une créance SUR le fournisseur, pas une dette
   // négative. On l'écrase à zéro plutôt que de l'inventer à l'envers ici.
   const balance = rest <= MONEY_EPSILON ? 0 : rest;

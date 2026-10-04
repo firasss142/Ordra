@@ -15,8 +15,10 @@ import {
 import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
 import { canSeeReceptionCosts, canRecordArrival } from "@/lib/receptions/permissions";
+import { canManageSuppliers } from "@/lib/purchases/permissions";
 import { lineVariance, receptionTotals, paidPercent } from "@/lib/receptions/derive";
 import { ReceptionFeesBlock } from "./ReceptionFeesBlock";
+import { ReceptionClaimBlock } from "./ReceptionClaimBlock";
 import { ReceptionLineEditor, type LinePatch } from "./ReceptionLineEditor";
 import { WH_CARD, WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
@@ -437,6 +439,24 @@ export function ReceptionSheet({
               editable={r.status === "open"}
               onChanged={mutate}
             />
+          ) : null}
+
+          {/*
+           * LE LITIGE, SUR LE DOCUMENT QUI L'A FAIT NAÎTRE. Achats dit COMBIEN
+           * est en litige, parce que c'est une question de trésorerie ;
+           * trancher demande le contexte — quelles unités, à quel prix, sur
+           * quelle facture — et ce contexte est cette feuille. Un écran de
+           * litiges séparé obligerait à revenir ici pour décider.
+           */}
+          {r.claim ? (
+            <div className="px-4 pb-3 md:px-5">
+              <ReceptionClaimBlock
+                claim={r.claim}
+                currency={currency}
+                editable={canManageSuppliers(role)}
+                onChanged={mutate}
+              />
+            </div>
           ) : null}
 
           {/* ── totaux + action ── */}

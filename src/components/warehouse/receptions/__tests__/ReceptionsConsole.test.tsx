@@ -65,6 +65,7 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
     payments: [],
     paid_total: 7488,
     outstanding: 11232,
+    claim: null,
     payment_state: "partial",
     can: { recordArrival: false, settle: true, reverse: false, pay: true },
     ...over,
@@ -105,7 +106,8 @@ describe("ReceptionsConsole", () => {
       receptions: [
         reception({
           totals: { units: 312, damaged: 2, value: null, lines: 4, expected: 310, countedLines: 4 },
-          payment_state: null,
+          claim: null,
+    payment_state: null,
           outstanding: null,
           paid_total: null,
         }),
@@ -218,7 +220,8 @@ describe("ReceptionsConsole — les segments", () => {
         reference: "REC-LY-2026-0043",
         status: "open",
         totals: { units: 0, damaged: 0, value: null, lines: 2, expected: 480, countedLines: 0 },
-        payment_state: "not_applicable",
+        claim: null,
+    payment_state: "not_applicable",
         outstanding: null,
         paid_total: 0,
       }),
@@ -228,7 +231,8 @@ describe("ReceptionsConsole — les segments", () => {
         reference: "REC-LY-2026-0039",
         status: "settled",
         totals: { units: 602, damaged: 3, value: 45150, lines: 14, expected: 600, countedLines: 14 },
-        payment_state: "paid",
+        claim: null,
+    payment_state: "paid",
         outstanding: 0,
         paid_total: 45150,
       }),
@@ -398,7 +402,8 @@ describe("ReceptionsConsole — les deux vides", () => {
       receptions: [
         reception({
           status: "settled",
-          payment_state: "paid",
+          claim: null,
+    payment_state: "paid",
           totals: { units: 10, damaged: 0, value: 100, lines: 1, expected: 10, countedLines: 1 },
         }),
       ],
@@ -476,7 +481,8 @@ describe("ReceptionsConsole — la densité de la v3", () => {
       receptions: [
         reception({
           status: "open",
-          payment_state: "not_applicable",
+          claim: null,
+    payment_state: "not_applicable",
           outstanding: null,
           paid_total: 0,
           totals: { units: 0, damaged: 0, value: null, lines: 2, expected: 300, countedLines: 0 },

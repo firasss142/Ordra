@@ -5,6 +5,7 @@ import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { canViewReceptions, canSettleReception } from "@/lib/receptions/permissions";
 import { projectReception, type RawReception } from "@/lib/receptions/project";
 import { orderedByReceptionLine } from "@/lib/receptions/ordered";
+import type { RawReceptionClaim } from "@/lib/receptions/project";
 
 export const dynamic = "force-dynamic";
 
@@ -73,12 +74,36 @@ async function withOrdered(
   supabase: Awaited<ReturnType<typeof createClient>>,
   raw: RawReception,
 ): Promise<RawReception> {
-  const ordered = await orderedByReceptionLine(
-    supabase,
-    raw.reception_lines.map((l) => l.id),
-  );
+  const [ordered, claim] = await Promise.all([
+    orderedByReceptionLine(
+      supabase,
+      raw.reception_lines.map((l) => l.id),
+    ),
+    /*
+     * LE LITIGE NÉ DE CE SOLDAGE. Requête séparée parce qu'un litige a sa
+     * propre vie : sa résolution et sa pièce justificative ne sont pas des
+     * champs de la réception.
+     *
+     * La RLS de `supplier_claims` est fermée au `warehouse_agent` : sa requête
+     * rend `null`, sa feuille n'affiche aucun montant, et aucun filtrage par
+     * rôle n'est écrit ici — il serait le deuxième endroit où la règle vit.
+     *
+     * `maybeSingle` et non `single` : l'absence de litige est le cas NORMAL.
+     */
+    supabase
+      .from("supplier_claims")
+      .select(
+        "id, kind, amount, units, status, opened_at, resolved_at, resolution_note, credit_ref",
+      )
+      .eq("reception_id", raw.id)
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
   return {
     ...raw,
+    claim: (claim.data as RawReceptionClaim | null) ?? null,
     reception_lines: raw.reception_lines.map((l) => ({
       ...l,
       ordered_qty: ordered.get(l.id) ?? null,

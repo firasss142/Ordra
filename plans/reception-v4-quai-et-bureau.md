@@ -179,7 +179,8 @@ couleurs de statut.
 6. `purchase_orders` nés du réassort, et l'écart contre notre plan. **FAIT** — voir
    « Étape 6, telle qu'elle a été construite » plus bas.
 7. `supplier_claims` — l'abîmé devient une action, proposée par le système quand
-   `damaged_qty × unit_cost` explique exactement l'écart de facture.
+   `damaged_qty × unit_cost` explique exactement l'écart de facture. **FAIT** — voir
+   « Étape 7 » plus bas.
 8. Docs : `docs/reception-de-marchandises.md`, la liste des chemins de stock de
    `CLAUDE.md` (l'arrivage devient le chemin 6), `docs/database-schema.md` §8.
 
@@ -285,3 +286,78 @@ maintenant son absence.
 - **Une liste des bons de commande en cours.** Ils se voient par fournisseur sur
   Achats (« 200 en commande ») et par produit sur Niveaux ; il n'y a pas d'écran
   qui les liste. `GET /api/purchases/orders` existe et est testé.
+
+## Étape 7, telle qu'elle a été construite (4 octobre 2026)
+
+### Une promesse que l'écran faisait déjà
+
+Le dialogue de soldage affiche, en toutes lettres, « **le litige reste visible dans
+Achats jusqu'à sa résolution** ». Il écrivait `discrepancy_reason = 'claim'` sur la
+réception et rien d'autre : aucune ardoise, aucune relance, aucune résolution. Une
+promesse faite à l'utilisateur et non tenue par la base est pire qu'une fonction
+absente — c'est ce qui a fixé le périmètre de cette étape.
+
+Au passage, `reception_lines.damaged_qty` cesse d'être une donnée écrite et jamais
+relue. Elle existait depuis le 30 septembre, saisie sur le quai, lue par personne.
+
+### La correction de modèle qui a eu lieu en route
+
+J'avais d'abord fait porter à `invoice_total` la **valeur marchandise** (18 720) et au
+litige le reste. C'était faux, et le banc d'essai SQL l'a montré : la facture aurait
+stocké un chiffre figurant sur **aucun document**, et chaque écran aurait ensuite dû
+deviner lequel des deux il lisait. Le commentaire de la colonne le disait depuis le
+premier jour — « total de la facture fournisseur ».
+
+Le modèle retenu : `invoice_total` garde **ce que le fournisseur a écrit** (18 890), le
+litige porte **ce qu'on refuse de payer** (170), et le solde est
+`facture − versements − retenu`. Chaque chiffre est rattachable à une pièce.
+
+### Trois états, trois conséquences, et pas un quatrième mot
+
+| état | retenu | encore contesté |
+|---|---|---|
+| `open` | le montant | le montant |
+| `credited` (avoir reçu) | le montant | rien |
+| `conceded` (on renonce) | rien | rien |
+
+Pas de « retiré » ni d'« abandonné » : ils auraient exactement la conséquence de
+`conceded`, et deux noms sous un seul effet finissent toujours par être comptés deux
+fois.
+
+**Un avoir se prouve.** `credited` exige `credit_ref`, refusé à l'écran *et* dans la
+RPC — effacer une créance sur une parole est précisément l'écriture qu'un audit
+demandera à voir.
+
+**Rien n'est jamais réécrit.** `receptions` est immuable après soldage, et n'a rien à
+corriger : la facture portait déjà le total. Concéder, c'est cesser de retenir.
+
+### Où ça se voit, et pourquoi là
+
+- **Achats** dit COMBIEN est en litige — une question de trésorerie. Une *clause* sur
+  la carte « Dû », pas une quatrième carte ; une sous-ligne « 170,000 retenus » sur la
+  ligne d'échéancier, parce que sans elle un solde de 11 062 sur une facture de 18 720
+  moins 7 488 versés ne tombe pas juste et se lit comme un bug.
+- **La feuille de réception** permet de TRANCHER, parce que trancher demande le
+  contexte : quelles unités, à quel prix, sur quelle facture. Un écran de litiges
+  séparé obligerait à revenir ici pour décider.
+
+### Le quai est la source du chiffre et n'en voit pas un dinar
+
+`supplier_claims` n'a aucune politique RLS pour `warehouse_agent`. Vérifié sous de vrais
+JWT : le manager LY voit 1 ligne, l'agent du quai 0, le manager TN 0, et une insertion
+directe est refusée par la RLS (aucune politique d'INSERT — tout passe par les RPC).
+`src/lib/receptions/ordered.ts` et l'injection du litige dans la route n'écrivent donc
+**aucun** filtrage par rôle : il serait le deuxième endroit où la règle vit.
+
+### Ce que l'étape 7 n'a pas fait
+
+- **Un litige né du MANQUANT.** `kind = 'shortage'` existe dans la contrainte et rien
+  ne l'écrit : le manquant se voit sur le bon de commande (`outstanding_qty`), et en
+  faire une créance demande de décider s'il est facturé ou simplement pas encore livré.
+  C'est une question, pas un oubli.
+- **Plusieurs litiges par réception.** L'index n'autorise qu'un seul litige OUVERT par
+  réception ; la feuille lit le plus récent. Deux causes distinctes sur une facture
+  devront attendre qu'elles se présentent.
+- **Une liste des litiges.** Ils se voient par fournisseur et par réception ; il n'y a
+  pas d'écran qui les liste, pour la même raison qu'il n'y a pas d'écran des bons de
+  commande.

@@ -307,7 +307,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   masque d'écran. Bons de commande nés du réassort (`purchase_orders` +
   `purchase_order_receipts`, un registre d'allocation signé et en ajout seul) : ils
   allument « en route », le taux de service et le délai, et `reception_lines.expected_qty`
-  est mort. Plan et décisions : plans/reception-v4-quai-et-bureau.md
+  est mort. Réclamations fournisseur (`supplier_claims`) : `invoice_total` garde le
+  chiffre du fournisseur, le litige porte ce qu'on REFUSE de payer, et le solde est
+  `facture − versements − retenu` ; trois états (`open`/`credited`/`conceded`), un
+  avoir exige sa référence, et rien n'est jamais réécrit. Plan et décisions :
+  plans/reception-v4-quai-et-bureau.md
   (prototypes `prototypes/reception-marchandises-v4.html` — la maquette est la référence
   de l'écran et le code en est la copie). Historique de la v3 (trois documents, validation
   en deux temps) : docs/reception-de-marchandises.md + plans/reception-de-marchandises.md

@@ -97,7 +97,21 @@ export function ReceptionSettleDialog({
     (l) => Math.abs((l.cogs_next as number) - (l.cogs_current ?? 0)) >= MONEY_EPSILON,
   );
 
-  async function settle(opts: { amount: number | null; reason: string | null }) {
+  /**
+   * LA FACTURE GARDE LE CHIFFRE DU FOURNISSEUR, ET LE LITIGE PORTE CE QU'ON
+   * REFUSE DE PAYER.
+   *
+   * On envoyait ici la valeur marchandise à la place du total facturé, ce qui
+   * rangeait dans `invoice_total` un chiffre figurant sur AUCUN document — et
+   * obligeait ensuite chaque écran à devenir lequel des deux il lisait. Le
+   * montant retenu se soustrait du solde (voir src/lib/purchases/claims.ts),
+   * donc rien n'est perdu et tout reste rattachable à une pièce.
+   */
+  async function settle(opts: {
+    amount: number | null;
+    reason: string | null;
+    claim?: number | null;
+  }) {
     if (busy || !supplierId) return;
     setBusy(true);
     setError(null);
@@ -110,6 +124,7 @@ export function ReceptionSettleDialog({
           invoice_total: opts.amount,
           due_at: dueAt || null,
           discrepancy_reason: opts.reason,
+          claim_amount: opts.claim ?? null,
         }),
       });
       if (!res.ok) {
@@ -232,7 +247,15 @@ export function ReceptionSettleDialog({
                   type="button"
                   disabled={busy || !supplierId}
                   onClick={() =>
-                    void settle({ amount: goods, reason: explained ? "damaged_billed" : "claim" })
+                    void settle({
+                      amount: typed,
+                      reason: explained ? "damaged_billed" : "claim",
+                      // On ne réclame que du SURPLUS facturé. Si la facture est
+                      // plus BASSE que le compte (écart négatif), il n'y a rien
+                      // à réclamer — c'est une remise, ou une erreur en notre
+                      // faveur, et dans les deux cas on ne la contestera pas.
+                      claim: gap > 0 ? gap : null,
+                    })
                   }
                   className="rounded-[12px] border border-wh-ok bg-wh-ok-tint p-3.5 text-start disabled:opacity-50"
                 >
@@ -240,7 +263,11 @@ export function ReceptionSettleDialog({
                     {t("settleClaim", { amount: nf.format(Math.abs(gap)) })}
                   </span>
                   <span className="mt-1 block text-[12.5px] text-wh-ink-2">
-                    {t("settleClaimHint", { amount: nf.format(goods) })}
+                    {t("settleClaimHint", {
+                      invoice: nf.format(typed),
+                      amount: nf.format(Math.abs(gap)),
+                      net: nf.format(goods),
+                    })}
                   </span>
                 </button>
                 <button

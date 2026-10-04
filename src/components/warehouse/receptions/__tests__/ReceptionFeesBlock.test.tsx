@@ -46,6 +46,7 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
     payments: [],
     paid_total: 0,
     outstanding: 18720,
+    claim: null,
     payment_state: "unpaid",
     can: { recordArrival: true, settle: true, reverse: false, pay: true },
     ...over,

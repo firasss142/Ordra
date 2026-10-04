@@ -8,6 +8,12 @@ import {
   supplierReliability,
   type PurchaseOrderRow,
 } from "@/lib/purchases/orders";
+import {
+  claimEffect,
+  disputedTotal,
+  summariseClaims,
+  type SupplierClaim,
+} from "@/lib/purchases/claims";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +96,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const now = new Date();
 
-  const [receptionsRes, suppliersRes, ordersRes] = await Promise.all([
+  const [receptionsRes, suppliersRes, ordersRes, claimsRes] = await Promise.all([
     supabase
       .from("receptions")
       .select(
@@ -109,6 +115,12 @@ export async function GET(req: NextRequest) {
         "id, reference, market_id, warehouse_id, supplier_id, status, wanted_by, ordered_at, closed_at, close_reason, note",
       )
       .eq("market_id", marketId),
+    supabase
+      .from("supplier_claims")
+      .select(
+        "id, market_id, supplier_id, reception_id, kind, amount, units, status, opened_at, resolved_at, resolution_note, credit_ref",
+      )
+      .eq("market_id", marketId),
   ]);
 
   if (receptionsRes.error) {
@@ -117,6 +129,38 @@ export async function GET(req: NextRequest) {
 
   const receptions = (receptionsRes.data ?? []) as unknown as RawReception[];
   const suppliers = (suppliersRes.data ?? []) as unknown as RawSupplier[];
+
+  /*
+   * LES LITIGES. `invoice_total` porte ce que le fournisseur a ÉCRIT ; un litige
+   * dit ce qu'on REFUSE DE PAYER. Sans cette soustraction, l'échéancier
+   * réclamerait des unités arrivées cassées — et continuerait de les réclamer
+   * APRÈS que le fournisseur a émis son avoir.
+   */
+  const claims: SupplierClaim[] = ((claimsRes.data ?? []) as unknown as Array<
+    Record<string, unknown>
+  >).map((c) => ({
+    id: c.id as string,
+    supplierId: c.supplier_id as string,
+    receptionId: (c.reception_id as string | null) ?? null,
+    kind: c.kind as SupplierClaim["kind"],
+    amount: Number(c.amount ?? 0),
+    units: c.units === null || c.units === undefined ? null : Number(c.units),
+    status: c.status as SupplierClaim["status"],
+    openedAt: c.opened_at as string,
+    resolvedAt: (c.resolved_at as string | null) ?? null,
+    resolutionNote: (c.resolution_note as string | null) ?? null,
+    creditRef: (c.credit_ref as string | null) ?? null,
+  }));
+
+  // Par réception, parce que la retenue appartient à UNE facture.
+  const withheldByReception = new Map<string, number>();
+  for (const c of claims) {
+    if (!c.receptionId) continue;
+    const w = claimEffect(c).withheld;
+    if (w === 0) continue;
+    withheldByReception.set(c.receptionId, (withheldByReception.get(c.receptionId) ?? 0) + w);
+  }
+  const claimsBySupplier = summariseClaims(claims);
 
   /*
    * LES COMMANDES, PAR FOURNISSEUR — ce qui allume enfin les deux colonnes.
@@ -179,6 +223,7 @@ export async function GET(req: NextRequest) {
     invoiceTotal: r.invoice_total === null ? null : Number(r.invoice_total),
     paid: sumPaid(r),
     dueAt: r.due_at,
+    withheld: withheldByReception.get(r.id) ?? 0,
   }));
 
   const summary = summarise(rows, now);
@@ -193,6 +238,7 @@ export async function GET(req: NextRequest) {
           invoiceTotal: r.invoice_total === null ? null : Number(r.invoice_total),
           paid: sumPaid(r),
           dueAt: r.due_at,
+          withheld: withheldByReception.get(r.id) ?? 0,
         },
         now
       );
@@ -210,6 +256,9 @@ export async function GET(req: NextRequest) {
       invoiceTotal: r.invoice_total === null ? null : Number(r.invoice_total),
       paid: sumPaid(r),
       balance: p.balance,
+      // Ce qui est retiré de cette facture, pour que la ligne puisse l'expliquer
+      // au lieu de montrer un solde inférieur à la facture sans raison visible.
+      withheld: withheldByReception.get(r.id) ?? 0,
       dueAt: r.due_at,
       state: p.state,
       daysLate: p.daysLate,
@@ -271,6 +320,10 @@ export async function GET(req: NextRequest) {
         spend90d,
         owed: owed?.owed ?? 0,
         overdue: owed?.overdue ?? 0,
+        /* `null` ET JAMAIS `0` : « rien en litige » ne doit pas se lire comme
+           « on a vérifié, il n'y a rien ». */
+        disputed: claimsBySupplier.get(s.id)?.disputed || null,
+        openClaims: claimsBySupplier.get(s.id)?.openCount ?? 0,
         fillRate,
         /** Médiane et non moyenne : un conteneur bloqué trois mois en douane
          *  déplacerait une moyenne de plusieurs semaines et ferait commander
@@ -295,7 +348,13 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     marketId,
-    summary: { ...summary, purchases30d, windowDays: WINDOW_DAYS },
+    summary: {
+      ...summary,
+      purchases30d,
+      windowDays: WINDOW_DAYS,
+      // L'argent en jeu mais pas encore dû : ni dans `owed`, ni oublié.
+      disputed: disputedTotal(claims),
+    },
     payables,
     suppliers: supplierRows,
   });

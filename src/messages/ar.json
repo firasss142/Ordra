@@ -481,7 +481,22 @@
     "whyEmptyColumns": "«التوريد الكامل» و«المدة» يُقاسان على أوامر الشراء المنتهية فقط: ما دام الأمر سارياً فقد يصل الباقي بعد. الفراغ يعني «لا نعلم» — لا 0 % ولا 100 %.",
     "loading": "جارٍ التحميل…",
     "onOrder": "{units} قيد الطلب",
-    "fromClosedOrders": "{count, plural, one {# أمر منتهٍ} other {# أوامر منتهية}}"
+    "fromClosedOrders": "{count, plural, one {# أمر منتهٍ} other {# أوامر منتهية}}",
+    "disputedSub": "منها {amount} قيد النزاع، غير محسوبة في المستحق",
+    "withheldOnRow": "{amount} محتجزة",
+    "disputedOnSupplier": "{amount} قيد النزاع",
+    "claimKindDamaged": "{units, plural, one {# وحدة وصلت مكسورة} other {# وحدات وصلت مكسورة}}",
+    "claimKindShortage": "ناقص مفوتر",
+    "claimKindOverbilled": "زيادة فوترة غير مفسّرة",
+    "claimOpen": "قيد النزاع",
+    "claimCredited": "وصل إشعار دائن",
+    "claimConceded": "سُدّد رغم ذلك",
+    "claimCredit": "وصل إشعار دائن",
+    "claimConcede": "التنازل والسداد",
+    "claimCreditRef": "مرجع الإشعار الدائن",
+    "claimCreditRefHint": "الإشعار الدائن يُثبت: بدون مرجع نكون قد أسقطنا ديناً بكلمة.",
+    "claimResolveNote": "ملاحظة",
+    "claimErrorGeneric": "لم يتمكّن النظام من حلّ النزاع."
   },
   "pnl": {
     "title": "الأرباح والخسائر",
@@ -4054,7 +4069,7 @@
       "settleFoundHint": "لم تدخل المخزون قط: لم تكن قابلة للبيع وليست لنا.",
       "settleUnexplained": "لا يجد أوردرا سبب هذا الفرق. احسم أدناه: يُسجَّل الاختيار مع الاستلام.",
       "settleClaim": "المطالبة بـ {amount}",
-      "settleClaimHint": "ندين بـ {amount} — ما دخل فعلاً. الفرق يذهب إلى نزاع مع المورّد.",
+      "settleClaimHint": "تبقى الفاتورة {invoice}؛ يُحتجز {amount} ويُفتح نزاع. لا نسدّد سوى {net}.",
       "settleAccept": "الدفع رغم ذلك",
       "settleAcceptHint": "ندين بـ {amount}. الفرق يُسجَّل خسارة.",
       "savePrices": "حفظ الأسعار",
@@ -4063,7 +4078,11 @@
       "dockCounted": "المعدود",
       "dockGap": "الفرق",
       "dockComplete": "مكتمل — لا ينقص شيء",
-      "notOrdered": "غير مطلوب"
+      "notOrdered": "غير مطلوب",
+      "claimTitle": "نزاع مع المورّد",
+      "claimWithheldNote": "محتجز من الفاتورة: لا يُسدّد قبل الحسم.",
+      "claimSave": "حفظ",
+      "claimCancel": "إلغاء"
     }
   },
   "users": {

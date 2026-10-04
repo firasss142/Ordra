@@ -1,4 +1,5 @@
 import type { Role } from "@/types";
+import { claimEffect } from "@/lib/purchases/claims";
 import {
   canSettleReception,
   canReverseReception,
@@ -30,6 +31,18 @@ import {
  * L'ÉCART RESTE, LUI. Savoir qu'il manque 6 unités est le cœur du métier de
  * l'agent ; savoir qu'elles valaient 85 dinars ne l'est pas.
  */
+
+export interface RawReceptionClaim {
+  id: string;
+  kind: "damaged" | "shortage" | "overbilled";
+  amount: number;
+  units: number | null;
+  status: "open" | "credited" | "conceded";
+  opened_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  credit_ref: string | null;
+}
 
 export interface RawReceptionLine {
   id: string;
@@ -81,6 +94,15 @@ export interface RawReception {
   invoice_total: number | null;
   due_at: string | null;
   discrepancy_reason: string | null;
+  /**
+   * LE LITIGE NÉ DE CE SOLDAGE, injecté par la route depuis `supplier_claims`.
+   *
+   * Pas une colonne de `receptions` : un litige a sa propre vie, sa propre
+   * résolution et sa propre pièce justificative. Absent pour un agent
+   * d'entrepôt — la RLS de `supplier_claims` lui est fermée, donc la route ne
+   * peut rien lui injecter, et c'est la même frontière que les coûts.
+   */
+  claim?: RawReceptionClaim | null;
   reverses_reception_id: string | null;
   created_at: string;
   warehouse: { code: string; name_fr: string; name_ar: string } | null;
@@ -205,6 +227,11 @@ export interface ProjectedReception {
   paid_total: number | null;
   outstanding: number | null;
   payment_state: PaymentState | null;
+  /**
+   * Le litige ouvert ou résolu sur cette réception. `null` quand il n'y en a
+   * pas — et `null` aussi pour un agent, qui ne voit pas les montants.
+   */
+  claim: ProjectedClaim | null;
   can: {
     /** Ajouter ou corriger un arrivage : tant que le groupe est ouvert. */
     recordArrival: boolean;
@@ -213,6 +240,13 @@ export interface ProjectedReception {
     reverse: boolean;
     pay: boolean;
   };
+}
+
+export interface ProjectedClaim extends RawReceptionClaim {
+  /** Ce que le litige retire de la facture : on ne le paiera pas. */
+  withheld: number;
+  /** Ce qui est ENCORE contesté. Zéro dès qu'il est résolu, dans un sens ou l'autre. */
+  disputed: number;
 }
 
 export function projectReception(
@@ -375,6 +409,7 @@ export function projectReception(
     outstanding:
       withCosts && totals.value !== null ? Math.max(totals.value - (paid ?? 0), 0) : null,
     payment_state: withCosts ? paymentState({ value: totals.value, paid: paid ?? 0 }) : null,
+    claim: withCosts && raw.claim ? projectClaim(raw.claim) : null,
     can: {
       /* Compter encore sur ce groupe : tant qu'il est ouvert. */
       recordArrival: canRecordArrival(role) && isOpen,
@@ -392,4 +427,25 @@ export function projectReceptionList(
   now: Date = new Date(),
 ): ProjectedReception[] {
   return rows.map((row) => projectReception(row, role, now));
+}
+
+/**
+ * Un litige, avec ses deux conséquences chiffrées.
+ *
+ * La règle vit dans `src/lib/purchases/claims.ts` et n'est pas recopiée ici :
+ * deux définitions de « retenu » finiraient par ne plus se répondre, et c'est
+ * de l'argent.
+ */
+function projectClaim(raw: RawReceptionClaim): ProjectedClaim {
+  const e = claimEffect({
+    id: raw.id,
+    supplierId: "",
+    receptionId: null,
+    kind: raw.kind,
+    amount: Number(raw.amount),
+    units: raw.units,
+    status: raw.status,
+    openedAt: raw.opened_at,
+  });
+  return { ...raw, amount: Number(raw.amount), withheld: e.withheld, disputed: e.disputed };
 }

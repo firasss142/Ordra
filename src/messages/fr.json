@@ -481,7 +481,22 @@
     "whyEmptyColumns": "« Livre complet » et « délai » se mesurent sur les bons de commande TERMINÉS : tant qu'une commande court, le reste peut encore arriver. Vides, ils disent « on ne sait pas » — jamais 0 % ni 100 %.",
     "loading": "Chargement…",
     "onOrder": "{units} en commande",
-    "fromClosedOrders": "{count, plural, one {# commande terminée} other {# commandes terminées}}"
+    "fromClosedOrders": "{count, plural, one {# commande terminée} other {# commandes terminées}}",
+    "disputedSub": "dont {amount} en litige, pas comptés dans le dû",
+    "withheldOnRow": "{amount} retenus",
+    "disputedOnSupplier": "{amount} en litige",
+    "claimKindDamaged": "{units, plural, one {# unité arrivée cassée} other {# unités arrivées cassées}}",
+    "claimKindShortage": "Manquant facturé",
+    "claimKindOverbilled": "Surfacturation inexpliquée",
+    "claimOpen": "En litige",
+    "claimCredited": "Avoir reçu",
+    "claimConceded": "Payé malgré tout",
+    "claimCredit": "Avoir reçu",
+    "claimConcede": "Renoncer et payer",
+    "claimCreditRef": "Référence de l'avoir",
+    "claimCreditRefHint": "Un avoir se prouve : sans référence, on effacerait une créance sur une parole.",
+    "claimResolveNote": "Note",
+    "claimErrorGeneric": "Le litige n'a pas pu être résolu."
   },
   "pnl": {
     "title": "P&L global",
@@ -4054,7 +4069,7 @@
       "settleFoundHint": "Elles ne sont jamais entrées en stock : elles n'étaient pas vendables et ne sont pas à nous.",
       "settleUnexplained": "Ordra ne trouve pas la cause de cet écart. Tranchez ci-dessous : le choix est enregistré avec la réception.",
       "settleClaim": "Réclamer les {amount}",
-      "settleClaimHint": "On doit {amount} — ce qui est entré. L'écart part en litige chez le fournisseur.",
+      "settleClaimHint": "La facture reste à {invoice} ; {amount} sont retenus et partent en litige. On ne paie que {net}.",
       "settleAccept": "Payer quand même",
       "settleAcceptHint": "On doit {amount}. L'écart passe en perte.",
       "savePrices": "Enregistrer les prix",
@@ -4063,7 +4078,11 @@
       "dockCounted": "Compté",
       "dockGap": "Écart",
       "dockComplete": "Complet — rien ne manque",
-      "notOrdered": "non commandé"
+      "notOrdered": "non commandé",
+      "claimTitle": "Litige fournisseur",
+      "claimWithheldNote": "Retenu de la facture : on ne le paiera pas tant que ce n'est pas tranché.",
+      "claimSave": "Enregistrer",
+      "claimCancel": "Annuler"
     }
   },
   "users": {

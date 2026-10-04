@@ -30,6 +30,7 @@ const BY_CODE: Record<string, number> = {
   NO_SUPPLIER: 404,
   ALREADY_SETTLED: 409,
   ALREADY_CLOSED: 409,
+  ALREADY_RESOLVED: 409,
   RECEPTION_IMMUTABLE: 409,
   // Une course sur le document du jour : l'appelant peut réessayer tel quel.
   RETRY: 409,
