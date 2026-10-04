@@ -1,234 +1,131 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   DEFAULT_FILTERS,
   clearFilterField,
-  decodeCursor,
-  encodeCursor,
   filtersToSearchParams,
   hasActiveFilters,
+  listQuerySchema,
   parseFiltersFromSearchParams,
   resetFilters,
-} from "../list-filters";
+  csvList,
+  type OrderListFilters,
+} from "@/lib/orders/list-filters";
+
+const parse = (qs: string) => parseFiltersFromSearchParams(new URLSearchParams(qs));
 
 describe("parseFiltersFromSearchParams", () => {
   it("returns defaults for empty params", () => {
-    const f = parseFiltersFromSearchParams(new URLSearchParams());
-    expect(f).toEqual(DEFAULT_FILTERS);
+    expect(parse("")).toEqual(DEFAULT_FILTERS);
   });
 
-  it("parses preset + statuses + agent + dates + numeric range", () => {
-    const p = new URLSearchParams({
-      preset: "callbacks",
-      status: "attempt_1,attempt_2,confirmed",
-      agent_id: "unassigned",
-      date_from: "2026-04-01",
-      date_to: "2026-04-22",
-      total_min: "10",
-      total_max: "500",
-      rejection_reason: "refus_client",
-      include_deleted: "1",
-    });
-    const f = parseFiltersFromSearchParams(p);
-    expect(f.preset).toBe("callbacks");
-    expect(f.statuses).toEqual(["attempt_1", "attempt_2", "confirmed"]);
-    expect(f.agentId).toBe("unassigned");
-    expect(f.dateFrom).toBe("2026-04-01");
-    expect(f.dateTo).toBe("2026-04-22");
-    expect(f.totalMin).toBe(10);
-    expect(f.totalMax).toBe(500);
-    expect(f.rejectionReason).toBe("refus_client");
-    expect(f.includeDeleted).toBe(true);
+  it("reads every multi-value filter as a list", () => {
+    const f = parse(
+      "status=pending,attempt_1&agent_id=a1,unassigned&storefront_id=s1,s2&city=Tripoli,none&product_id=p1&carrier_id=c1,none&date_from=2026-10-01&date_to=2026-10-04",
+    );
+    expect(f.statuses).toEqual(["pending", "attempt_1"]);
+    expect(f.agentIds).toEqual(["a1", "unassigned"]);
+    expect(f.storefrontIds).toEqual(["s1", "s2"]);
+    expect(f.cities).toEqual(["Tripoli", "none"]);
+    expect(f.productIds).toEqual(["p1"]);
+    expect(f.carrierIds).toEqual(["c1", "none"]);
+    expect(f.dateFrom).toBe("2026-10-01");
+    expect(f.dateTo).toBe("2026-10-04");
   });
 
-  it("drops invalid preset, invalid status, malformed date", () => {
-    const p = new URLSearchParams({
-      preset: "bogus",
-      status: "attempt_1,not_a_status,confirmed",
-      date_from: "04/01/2026",
-    });
-    const f = parseFiltersFromSearchParams(p);
+  it("knows the four work shortcuts", () => {
+    for (const p of ["today", "unassigned", "recall", "uploaded_today"]) {
+      expect(parse(`preset=${p}`).preset).toBe(p);
+    }
+  });
+
+  it("reads the old « callbacks » deep link as À rappeler", () => {
+    expect(parse("preset=callbacks").preset).toBe("recall");
+  });
+
+  it("drops an unknown preset, an invalid status and a malformed date", () => {
+    const f = parse("preset=in_delivery&status=pending,nope&date_from=04/10/2026");
     expect(f.preset).toBe("all");
-    expect(f.statuses).toEqual(["attempt_1", "confirmed"]);
+    expect(f.statuses).toEqual(["pending"]);
     expect(f.dateFrom).toBeNull();
   });
-});
 
-describe("filtersToSearchParams round-trip", () => {
-  it("survives encode → decode for a busy filter (marketId is not URL-serialized)", () => {
-    const filters = {
-      ...DEFAULT_FILTERS,
-      preset: "unassigned" as const,
-      q: "216 55",
-      statuses: ["attempt_1" as const, "attempt_2" as const],
-      agentId: "unassigned" as const,
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-22",
-      city: "Tunis",
-      totalMin: 10,
-      totalMax: 500,
-      rejectionReason: "refus_client" as const,
-    };
-    const params = filtersToSearchParams(filters);
-    const parsed = parseFiltersFromSearchParams(params);
-    expect(parsed).toEqual(filters);
-  });
-
-  it("does not include market_id in the URL even if marketId is set", () => {
-    const params = filtersToSearchParams({
-      ...DEFAULT_FILTERS,
-      marketId: "11111111-2222-3333-4444-555555555555",
-    });
-    expect(params.has("market_id")).toBe(false);
-    expect(params.toString()).toBe("");
-  });
-
-  it("omits default keys to keep URL clean", () => {
-    const params = filtersToSearchParams(DEFAULT_FILTERS);
-    expect(params.toString()).toBe("");
-  });
-
-  it("round-trips include_deleted=1 and omits it when false", () => {
-    const params = filtersToSearchParams({ ...DEFAULT_FILTERS, includeDeleted: true });
-    expect(params.get("include_deleted")).toBe("1");
-    expect(parseFiltersFromSearchParams(params).includeDeleted).toBe(true);
-    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, includeDeleted: false }).has("include_deleted")).toBe(false);
+  it("keeps the archive tab, and defaults it to « Prêtes à ranger »", () => {
+    expect(parse("scope=archive").archiveTab).toBe("eligible");
+    expect(parse("scope=archive&state=deleted").archiveTab).toBe("deleted");
+    expect(parse("scope=archive&state=bogus").archiveTab).toBe("eligible");
   });
 });
 
-describe("hasActiveFilters", () => {
-  it("false for defaults", () => {
-    expect(hasActiveFilters(DEFAULT_FILTERS)).toBe(false);
-  });
-  it("true when preset changes", () => {
-    expect(hasActiveFilters({ ...DEFAULT_FILTERS, preset: "callbacks" })).toBe(true);
-  });
-  it("true when any filter is set", () => {
-    expect(hasActiveFilters({ ...DEFAULT_FILTERS, city: "Tunis" })).toBe(true);
-  });
-  it("true when deleted orders are included", () => {
-    expect(hasActiveFilters({ ...DEFAULT_FILTERS, includeDeleted: true })).toBe(true);
-  });
-});
-
-describe("clearFilterField", () => {
-  it("clears date range with a single call", () => {
-    const f = { ...DEFAULT_FILTERS, dateFrom: "2026-04-01", dateTo: "2026-04-22" };
-    expect(clearFilterField(f, "date")).toMatchObject({ dateFrom: null, dateTo: null });
-  });
-  it("clears statuses", () => {
-    const f = { ...DEFAULT_FILTERS, statuses: ["confirmed" as const] };
-    expect(clearFilterField(f, "statuses").statuses).toEqual([]);
-  });
-});
-
-describe("resetFilters", () => {
-  it("preserves marketId but clears everything else", () => {
-    const f = {
+describe("filtersToSearchParams", () => {
+  it("round-trips a busy filter (market is never in the URL)", () => {
+    const busy: OrderListFilters = {
       ...DEFAULT_FILTERS,
       marketId: "m-1",
-      preset: "callbacks" as const,
-      q: "x",
-      statuses: ["confirmed" as const],
+      preset: "recall",
+      q: "0912",
+      statuses: ["attempt_1", "callback_scheduled"],
+      agentIds: ["a1", "unassigned"],
+      storefrontIds: ["s1"],
+      cities: ["Benghazi", "none"],
+      productIds: ["p1", "p2"],
+      carrierIds: ["none"],
+      dateFrom: "2026-09-01",
+      dateTo: "2026-09-30",
+      pageSize: 50,
     };
-    const reset = resetFilters(f);
-    expect(reset.marketId).toBe("m-1");
-    expect(reset.preset).toBe("all");
-    expect(reset.q).toBe("");
-    expect(reset.statuses).toEqual([]);
-    expect(reset.includeDeleted).toBe(false);
+    const p = filtersToSearchParams(busy);
+    expect(p.has("market_id")).toBe(false);
+    expect(parse(p.toString())).toEqual({ ...busy, marketId: null });
+  });
+
+  it("omits defaults to keep the URL clean", () => {
+    expect(filtersToSearchParams(DEFAULT_FILTERS).toString()).toBe("");
+  });
+
+  it("writes the archive tab only in archive scope", () => {
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "archive", archiveTab: "deleted" }).get("state")).toBe("deleted");
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, archiveTab: "deleted" }).has("state")).toBe(false);
   });
 });
 
-describe("pageSize", () => {
-  it("defaults to 25", () => {
-    const f = parseFiltersFromSearchParams(new URLSearchParams());
-    expect(f.pageSize).toBe(25);
+describe("hasActiveFilters / clear / reset", () => {
+  it("false for defaults, true for any filter or shortcut", () => {
+    expect(hasActiveFilters(DEFAULT_FILTERS)).toBe(false);
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, preset: "today" })).toBe(true);
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, storefrontIds: ["s"] })).toBe(true);
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, pageSize: 100 })).toBe(false);
   });
 
-  it("parses an allowed limit from the URL", () => {
-    const f = parseFiltersFromSearchParams(new URLSearchParams({ limit: "100" }));
-    expect(f.pageSize).toBe(100);
+  it("clears one field at a time", () => {
+    const f = { ...DEFAULT_FILTERS, dateFrom: "2026-10-01", dateTo: "2026-10-02", cities: ["x"], preset: "today" as const };
+    expect(clearFilterField(f, "date")).toMatchObject({ dateFrom: null, dateTo: null, cities: ["x"] });
+    expect(clearFilterField(f, "cities").cities).toEqual([]);
+    expect(clearFilterField(f, "preset").preset).toBe("all");
   });
 
-  it("falls back to default when limit is not in the allow-list", () => {
-    expect(parseFiltersFromSearchParams(new URLSearchParams({ limit: "37" })).pageSize).toBe(25);
-    expect(parseFiltersFromSearchParams(new URLSearchParams({ limit: "999" })).pageSize).toBe(25);
-    expect(parseFiltersFromSearchParams(new URLSearchParams({ limit: "abc" })).pageSize).toBe(25);
-  });
-
-  it("serializes a non-default pageSize and omits it when default", () => {
-    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, pageSize: 50 as const }).get("limit")).toBe("50");
-    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, pageSize: 25 as const }).has("limit")).toBe(false);
-  });
-
-  it("round-trips a non-default pageSize", () => {
-    const params = filtersToSearchParams({ ...DEFAULT_FILTERS, pageSize: 100 as const });
-    expect(parseFiltersFromSearchParams(params).pageSize).toBe(100);
-  });
-
-  it("is NOT treated as an active filter (resetFilters preserves it; hasActiveFilters ignores it)", () => {
-    const f = { ...DEFAULT_FILTERS, pageSize: 100 as const };
-    expect(hasActiveFilters(f)).toBe(false);
-    expect(resetFilters(f).pageSize).toBe(100);
+  it("reset keeps market, page size, scope and archive tab", () => {
+    const f: OrderListFilters = {
+      ...DEFAULT_FILTERS,
+      marketId: "m",
+      pageSize: 50,
+      scope: "archive",
+      archiveTab: "archived",
+      q: "x",
+      agentIds: ["a"],
+    };
+    expect(resetFilters(f)).toEqual({ ...DEFAULT_FILTERS, marketId: "m", pageSize: 50, scope: "archive", archiveTab: "archived" });
   });
 });
 
-/**
- * `scope` selects which view of the orders table is being read — the working
- * list or the archive. It is deliberately separate from `includeDeleted`, which
- * is the "Afficher supprimées" checkbox on the orders page: the archive needs
- * every terminal status, and reusing the soft-delete toggle to express that is
- * what collapsed the archive table down to deleted orders only.
- */
-describe("scope", () => {
-  it("defaults to the orders list", () => {
-    expect(DEFAULT_FILTERS.scope).toBe("orders");
-    expect(parseFiltersFromSearchParams(new URLSearchParams()).scope).toBe("orders");
+describe("listQuerySchema + csvList", () => {
+  it("accepts the new presets and the archive tab", () => {
+    expect(listQuerySchema.parse({ preset: "uploaded_today" }).preset).toBe("uploaded_today");
+    expect(listQuerySchema.parse({ preset: "callbacks" }).preset).toBe("recall");
+    expect(listQuerySchema.parse({ scope: "archive", state: "deleted" }).state).toBe("deleted");
   });
 
-  it("parses scope=archive", () => {
-    expect(parseFiltersFromSearchParams(new URLSearchParams({ scope: "archive" })).scope).toBe(
-      "archive",
-    );
-  });
-
-  it("falls back to orders for an unknown scope", () => {
-    expect(parseFiltersFromSearchParams(new URLSearchParams({ scope: "bogus" })).scope).toBe(
-      "orders",
-    );
-  });
-
-  it("serializes a non-default scope and omits the default", () => {
-    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "archive" }).get("scope")).toBe(
-      "archive",
-    );
-    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "orders" }).has("scope")).toBe(false);
-  });
-
-  it("round-trips", () => {
-    const params = filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "archive" });
-    expect(parseFiltersFromSearchParams(params).scope).toBe("archive");
-  });
-
-  // Scope is which page you are on, not a filter you applied to it. Counting it
-  // would light up the "clear filters" affordance the moment the archive loads,
-  // and clearing filters would throw the user back to the orders list.
-  it("is not an active filter, and survives a reset", () => {
-    const f = { ...DEFAULT_FILTERS, scope: "archive" as const };
-    expect(hasActiveFilters(f)).toBe(false);
-    expect(resetFilters(f).scope).toBe("archive");
-  });
-});
-
-describe("cursor", () => {
-  it("round-trips a cursor", () => {
-    const c = { createdAt: "2026-04-22T10:00:00.000Z", id: "abc-123" };
-    const encoded = encodeCursor(c);
-    expect(decodeCursor(encoded)).toEqual(c);
-  });
-  it("rejects malformed input", () => {
-    expect(decodeCursor("not-base64!!!")).toBeNull();
-    expect(decodeCursor(Buffer.from("no-pipe", "utf8").toString("base64url"))).toBeNull();
-    expect(decodeCursor(Buffer.from("bad-ts|abc", "utf8").toString("base64url"))).toBeNull();
+  it("splits, trims and de-duplicates a CSV parameter", () => {
+    expect(csvList(" a, b ,a,,")).toEqual(["a", "b"]);
+    expect(csvList(undefined)).toEqual([]);
   });
 });

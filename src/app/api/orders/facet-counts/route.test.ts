@@ -47,37 +47,50 @@ beforeEach(() => {
 });
 
 /**
- * The facet counts must bound the same set the list shows. The list now cuts
- * days at the market's midnight, so the RPC receives UTC instants for the
- * window — not calendar dates it would cast at UTC midnight — and the zone for
- * its own `today` preset.
+ * The facet counts must bound the same set the list shows: the same scope, the
+ * same shortcut, the market's day edges as UTC instants, multi-value facets.
  */
-describe("GET /api/orders/facet-counts — market-local window", () => {
-  test("passes the Libyan day edges as UTC instants and the market zone", async () => {
+describe("GET /api/orders/facet-counts — v2", () => {
+  test("passes the Libyan day edges as UTC instants", async () => {
     runAs("market_manager", LY_MARKET_ID);
-
     const res = await GET(createRequest("?date_from=2026-09-04&date_to=2026-09-05"));
     expect(res.status).toBe(200);
-
-    expect(mockRpc).toHaveBeenCalledWith(
-      "get_order_facet_counts",
-      expect.objectContaining({
-        p_market_id: LY_MARKET_ID,
-        p_date_from: "2026-09-03T22:00:00.000Z",
-        p_date_to: "2026-09-05T21:59:59.999Z",
-        p_tz: "Africa/Tripoli",
-      }),
-    );
+    const [fn, args] = mockRpc.mock.calls[0];
+    expect(fn).toBe("get_order_facet_counts_v2");
+    expect(args.p_date_from).toBe("2026-09-03T22:00:00.000Z");
+    expect(args.p_date_to).toBe("2026-09-05T21:59:59.999Z");
+    expect(args.p_market_id).toBe(LY_MARKET_ID);
   });
 
-  test("leaves an absent window open and still names the zone", async () => {
+  test("sends every facet as a list, and the shortcut with the market's midnight", async () => {
     runAs("market_manager", LY_MARKET_ID);
+    await GET(createRequest("?preset=recall&agent_id=a,unassigned&storefront_id=00000000-0000-0000-0000-00000000000a&city=none&carrier_id=none&status=attempt_1"));
+    const args = mockRpc.mock.calls[0][1];
+    expect(args.p_preset).toBe("recall");
+    expect(args.p_day_start).toEqual(expect.any(String));
+    expect(args.p_agents).toEqual(["a", "unassigned"]);
+    expect(args.p_storefronts).toEqual(["00000000-0000-0000-0000-00000000000a"]);
+    expect(args.p_cities).toEqual(["none"]);
+    expect(args.p_carriers).toEqual(["none"]);
+    expect(args.p_statuses).toEqual(["attempt_1"]);
+    expect(args.p_products).toBeNull();
+  });
 
-    await GET(createRequest("?preset=today"));
-
-    expect(mockRpc).toHaveBeenCalledWith(
-      "get_order_facet_counts",
-      expect.objectContaining({ p_date_from: null, p_date_to: null, p_tz: "Africa/Tripoli" }),
-    );
+  test("in Archivées it sends the tab and the cut-off of the market's archive delay", async () => {
+    runAs("market_manager", LY_MARKET_ID);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return actorChain("market_manager", LY_MARKET_ID);
+      const c: Record<string, unknown> = {};
+      c.select = vi.fn(() => c);
+      c.eq = vi.fn(() => c);
+      c.single = vi.fn().mockResolvedValue({ data: { value: 15 }, error: null });
+      return c;
+    });
+    await GET(createRequest("?scope=archive&state=recent"));
+    const args = mockRpc.mock.calls[0][1];
+    expect(args.p_scope).toBe("archive");
+    expect(args.p_state).toBe("recent");
+    const days = (Date.now() - Date.parse(args.p_archive_cutoff)) / 86_400_000;
+    expect(Math.round(days)).toBe(15);
   });
 });
