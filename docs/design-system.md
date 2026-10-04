@@ -1320,3 +1320,38 @@ itself `#EEF0F4`/`#2F3A4B`.
 `--jx-warn-bg`; everything else is white. The 48 h bars draw « expected, absent » as a
 **hollow** bar (amber inset line), not merely another colour. Brand green stays chrome:
 the active tab underline, « Problèmes seulement » on, primary buttons.
+
+## 4.25 Équipe « Aurore » — agent colours, gradients, glass (2026-10-04)
+
+The owner chose this look for the team surfaces from a four-look board (Performance v3,
+then Salle de contrôle v6, `prototypes/team-v6.html`). It is a **scoped exception** to
+« zero gradients, zero shadows »: it lives under `.r6` only (the page root of `/team`)
+and must not leak into any other screen.
+
+**How it is built.** The prototype's stylesheet is ported rule for rule into
+`globals.css` (« Salle de contrôle v6 »): every class keeps the prototype's name with an
+`r6-` prefix, and the prototype's tokens (`--ink`, `--card`, `--w-*`, `--f-*`…) are set on
+`.r6`, not `:root`. Components write `className="r6-tile"` etc. instead of Tailwind, so
+the page can follow the mockup line for line. Element resets are `:where()` (zero
+specificity) so they never beat a prototype rule.
+
+**Agent colours** — global, because Performance will wear them too:
+
+| Key (`users.color`) | Identity (`--agent-<key>-5`) |
+|---|---|
+| indigo | `#444CE7` |
+| pink | `#DD2590` |
+| cyan | `#088AB2` |
+| gold | `#CA8504` |
+| lime | `#4CA30D` |
+| orange | `#E04F16` |
+
+Each has a ramp `-0 -1 -2 -5 -7 -9` (wash, soft, line, identity, deep, ink).
+`lib/team/agent-color.ts` hands it to an element as `--a0…--a9`; a trigger gives a new
+agent the least-worn hue of her market, so a colour never moves. Outcomes keep fixed
+hues and never borrow an agent's: uploaded `#0E9384`, rejected `#E8385A`, delivered
+`#079455`, en route `#38C0AE`, returned `#F79009` (< 3:1 on white → the number is always
+written next to it).
+
+**Still forbidden here:** an agent hue on a status, a status hue on an agent, and the
+look anywhere outside the team pages.

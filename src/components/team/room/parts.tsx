@@ -1,36 +1,38 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { MessageCircle, Phone } from "lucide-react";
 import { toWhatsAppE164 } from "@/lib/whatsapp/phone";
+import { agentColorKey, agentColorVars } from "@/lib/team/agent-color";
 import type { MarketCode } from "@/lib/markets";
 
-export type Presence = "working" | "idle" | "late" | "off" | null;
+/**
+ * Salle de contrôle v6 — the small pieces every block shares. Class names are the
+ * prototype's own (prototypes/team-v6.html) with the r6- prefix; the rules live in
+ * globals.css under « Salle de contrôle v6 ».
+ */
 
-const DOT: Record<Exclude<Presence, null>, string> = {
-  working: "bg-room-live",
-  idle: "bg-room-amber-dot",
-  late: "bg-room-amber-dot",
-  off: "bg-room-ink-4",
-};
+export type Presence = "working" | "idle" | "late" | "early" | "off" | null;
 
-/** Initial in a grey disc, with the presence dot when there is one to show. */
-export function Avatar({ name, presence = null, size = 34, dark = false }: { name: string; presence?: Presence; size?: number; dark?: boolean }) {
-  const dot = Math.round(size * 0.32);
+/** Her colour ramp as --a0…--a9, for every child of the element that wears it. */
+export function agentStyle(color: string | null | undefined, agentId: string): CSSProperties {
+  return agentColorVars(agentColorKey(color, agentId));
+}
+
+/** Her initial on her colour, with the live dot when there is one to show. */
+export function Avatar({ name, agentId, color, presence = null, className = "", style }: {
+  name: string;
+  agentId: string;
+  color: string | null | undefined;
+  presence?: Presence;
+  className?: string;
+  style?: CSSProperties;
+}) {
   return (
-    <span
-      className={`relative grid flex-none place-items-center rounded-full font-semibold uppercase ${dark ? "bg-ink-primary text-white" : "bg-[#E7E9EC] text-[#3A3F44]"}`}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
-      aria-hidden="true"
-    >
+    <span className={`r6-av ${className}`} style={{ ...agentStyle(color, agentId), ...style }} aria-hidden="true">
       {name.slice(0, 1)}
-      {presence && (
-        <i
-          className={`absolute -bottom-px -end-px rounded-full border-2 border-white ${DOT[presence]}`}
-          style={{ width: dot, height: dot }}
-        />
-      )}
+      {presence && <i className={`r6-dot r6-${presence}`} />}
     </span>
   );
 }
@@ -40,84 +42,114 @@ export function WhatsAppButton({ phone, market, variant = "icon" }: { phone: str
   const t = useTranslations("team.room.agents");
   const number = toWhatsAppE164(phone, market);
   const title = number ? t("wa") : t("waNone");
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
   if (variant === "labelled") {
-    const cls = "inline-flex h-[28px] items-center gap-[6px] rounded-[8px] border border-line bg-surface-card px-[10px] text-[12.5px] font-medium";
+    const inner = (
+      <>
+        <MessageCircle className="r6-ic" aria-hidden="true" />
+        <span>WhatsApp</span>
+      </>
+    );
     return number ? (
-      <a href={`https://wa.me/${number}`} target="_blank" rel="noreferrer" title={title} onClick={(e) => e.stopPropagation()} className={`${cls} hover:border-line-strong hover:bg-room-hover`}>
-        <MessageCircle size={15} strokeWidth={1.8} aria-hidden="true" />
-        <span className="max-[900px]:hidden">WhatsApp</span>
+      <a href={`https://wa.me/${number}`} target="_blank" rel="noreferrer" className="r6-btn r6-sm" data-tip={title} onClick={stop}>
+        {inner}
       </a>
     ) : (
-      <button type="button" disabled title={title} aria-label={title} className={`${cls} cursor-not-allowed text-room-ink-3 opacity-60`}>
-        <MessageCircle size={15} strokeWidth={1.8} aria-hidden="true" />
-        <span className="max-[900px]:hidden">WhatsApp</span>
+      <button type="button" disabled className="r6-btn r6-sm" data-tip={title} aria-label={title}>
+        {inner}
       </button>
     );
   }
-  const cls = "inline-grid h-[32px] w-[32px] place-items-center rounded-[9px] border border-line-subtle bg-white";
   return number ? (
-    <a href={`https://wa.me/${number}`} target="_blank" rel="noreferrer" title={title} aria-label={title} onClick={(e) => e.stopPropagation()} className={`${cls} text-room-ink-2 hover:border-line-strong hover:text-ink-primary`}>
-      <MessageCircle size={15} strokeWidth={1.8} aria-hidden="true" />
+    <a href={`https://wa.me/${number}`} target="_blank" rel="noreferrer" className="r6-wa" data-tip={title} aria-label={title} onClick={stop}>
+      <MessageCircle className="r6-ic" aria-hidden="true" />
     </a>
   ) : (
-    <button type="button" disabled title={title} aria-label={title} onClick={(e) => e.stopPropagation()} className={`${cls} cursor-not-allowed text-room-ink-4`}>
-      <MessageCircle size={15} strokeWidth={1.8} aria-hidden="true" />
+    <button type="button" disabled className="r6-wa" data-tip={title} aria-label={title} onClick={stop}>
+      <MessageCircle className="r6-ic" aria-hidden="true" />
     </button>
   );
 }
 
-/** A plain call, for the panel header. */
+/** A plain call, for the drawer header. */
 export function CallButton({ phone }: { phone: string | null }) {
   const t = useTranslations("team.room.agents");
-  const cls = "inline-grid h-[28px] w-[32px] place-items-center rounded-[8px] border border-line bg-surface-card";
   return phone ? (
-    <a href={`tel:${phone}`} title={t("call")} aria-label={t("call")} className={`${cls} hover:border-line-strong hover:bg-room-hover`}>
-      <Phone size={15} strokeWidth={1.8} aria-hidden="true" />
+    <a href={`tel:${phone}`} className="r6-btn r6-sm r6-icon" aria-label={t("call")} data-tip={t("call")}>
+      <Phone className="r6-ic" aria-hidden="true" />
     </a>
   ) : (
-    <button type="button" disabled title={t("waNone")} aria-label={t("call")} className={`${cls} cursor-not-allowed text-room-ink-4`}>
-      <Phone size={15} strokeWidth={1.8} aria-hidden="true" />
+    <button type="button" disabled className="r6-btn r6-sm r6-icon" aria-label={t("call")} data-tip={t("waNone")}>
+      <Phone className="r6-ic" aria-hidden="true" />
     </button>
   );
 }
 
-/** The panel's small uppercase section label, with an optional reading at its end. */
-export function SectionLabel({ icon, children, end }: { icon?: ReactNode; children: ReactNode; end?: ReactNode }) {
+/** The drawer's small uppercase section label, with an optional reading at its end. */
+export function SectionLabel({ icon, children, end, style }: { icon?: ReactNode; children: ReactNode; end?: ReactNode; style?: CSSProperties }) {
   return (
-    <div className="mb-[11px] flex items-center gap-[6px] text-[10.5px] font-[650] uppercase tracking-[0.09em] text-room-ink-3 rtl:text-[12px] rtl:tracking-normal">
+    <div className="r6-sl" style={style}>
       {icon}
       {children}
-      {end !== undefined && <span className="ms-auto text-[11.5px] font-medium normal-case tracking-normal">{end}</span>}
+      {end !== undefined && <span className="r6-r">{end}</span>}
     </div>
   );
 }
 
-/** A legend swatch. */
-export function Swatch({ className }: { className: string }) {
-  return <i className={`inline-block h-[10px] w-[10px] rounded-[3px] ${className}`} aria-hidden="true" />;
+/** A legend swatch: k = up | rej | prog | todo | late | del | road | ret | x. */
+export function Swatch({ k, style }: { k?: string; style?: CSSProperties }) {
+  return <i className={`r6-sw ${k ? `r6-k-${k}` : ""}`} style={style} aria-hidden="true" />;
 }
 
-/** The hatching for « non appelées > N h » — in the bar, the legend and nowhere else. */
-export const HATCH_STYLE = {
-  background: "repeating-linear-gradient(-45deg, var(--room-red-bg) 0 3px, var(--room-red-soft) 3px 5px)",
-} as const;
-export const HATCH_SMALL_STYLE = {
-  background: "repeating-linear-gradient(-45deg, var(--room-red-bg) 0 2px, var(--room-red-soft) 2px 4px)",
-} as const;
-
-/** A card, as the prototype draws them: white, hairline, 12 px corners. */
-export function RoomCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-[12px] border border-line-subtle bg-surface-card ${className}`}>{children}</section>;
+/**
+ * The dark tooltip of the prototype: anything inside `root` with data-tip shows it,
+ * following the pointer. One layer for the whole page; touch screens never see it.
+ */
+export function TipLayer() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const tip = ref.current;
+    if (!tip) return;
+    const over = (e: MouseEvent) => {
+      const el = (e.target as Element | null)?.closest?.("[data-tip]") as HTMLElement | null;
+      if (!el || !el.closest(".r6")) {
+        tip.classList.remove("r6-on");
+        return;
+      }
+      tip.textContent = el.dataset.tip ?? "";
+      tip.classList.add("r6-on");
+    };
+    const move = (e: MouseEvent) => {
+      if (!tip.classList.contains("r6-on")) return;
+      const w = tip.offsetWidth;
+      const h = tip.offsetHeight;
+      let x = e.clientX + 14;
+      let y = e.clientY - h - 12;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+      if (y < 8) y = e.clientY + 18;
+      tip.style.left = `${x}px`;
+      tip.style.top = `${y}px`;
+    };
+    document.addEventListener("mouseover", over);
+    document.addEventListener("mousemove", move);
+    return () => {
+      document.removeEventListener("mouseover", over);
+      document.removeEventListener("mousemove", move);
+    };
+  }, []);
+  return <div ref={ref} className="r6-tip" role="tooltip" aria-hidden="true" />;
 }
 
-/** Band heading: « AUJOURD'HUI ── 27 sept. · 17:20 ─────── » */
-export function Band({ title, meta, end }: { title: string; meta?: ReactNode; end?: ReactNode }) {
+/** The hatching pattern « non appelées > N h » uses inside an SVG ring. */
+export function HatchDefs() {
   return (
-    <div className="mx-[2px] -mb-[2px] mt-[10px] flex flex-wrap items-center gap-[10px]">
-      <h2 className="text-[11.5px] font-[650] uppercase tracking-[0.1em] text-room-ink-2 rtl:text-[14px] rtl:tracking-normal">{title}</h2>
-      {meta !== undefined && <span className="text-[12.5px] text-room-ink-3 tabular-nums">{meta}</span>}
-      <span className="h-px min-w-[20px] flex-1 bg-line-subtle" />
-      {end}
-    </div>
+    <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
+      <defs>
+        <pattern id="r6-hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+          <rect width="6" height="6" fill="#FFD9E1" />
+          <rect width="2.6" height="6" fill="#EF5A78" />
+        </pattern>
+      </defs>
+    </svg>
   );
 }

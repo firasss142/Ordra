@@ -9,7 +9,7 @@ import { useTeamDay, useTeamFunnel } from "@/hooks/useTeamRoom";
 import { useTeamCommissions } from "@/hooks/useTeamCommissions";
 import { buildDayView } from "@/lib/team/room/day-view";
 import { buildFunnelView } from "@/lib/team/room/funnel-view";
-import { parsePeriod, periodRange, serializePeriod, type FunnelPeriod } from "@/lib/team/room/period";
+import { parsePeriod, periodRange, serializePeriod } from "@/lib/team/room/period";
 import { addDays, localDayMinute, todayIn } from "@/lib/team/room/time";
 import { buildCommissionView } from "@/lib/commissions/view-models";
 import { submitPayout } from "@/lib/commissions/payouts-client";
@@ -18,11 +18,11 @@ import { marketIdToCode } from "@/lib/markets";
 import type { Role } from "@/types";
 import { PayoutModal, type PayoutRequest } from "@/components/team/control-room/PayoutModal";
 import { RoomHeader, IntakeBanner } from "./RoomHeader";
-import { TodayStrip } from "./TodayStrip";
-import { AgentsTodayCard } from "./AgentsTodayCard";
-import { FunnelCard, PeriodControl, type BalanceInfo } from "./FunnelCard";
+import { TodayOverview } from "./TodayOverview";
+import { AgentCards } from "./AgentCards";
+import { FunnelCard, type BalanceInfo } from "./FunnelCard";
 import { AgentPanel, type PanelPeriod } from "./AgentPanel";
-import { Band, RoomCard } from "./parts";
+import { HatchDefs, TipLayer } from "./parts";
 import { useRoomFormat } from "./useRoomFormat";
 
 /** How far back the day stepper goes. */
@@ -36,10 +36,11 @@ interface Props {
 }
 
 /**
- * /team — Salle de contrôle v5 (prototypes/team-v5.html, plans/team-control-room-v5.md).
- * Two bands: the day (who is working, what moved, what is still held) and the
- * agents over a period (assigned → uploaded → delivered, commission). Everything
- * the user picks lives in the URL, so a link from the bell opens the same view.
+ * /team — Salle de contrôle v6 (prototypes/team-v6.html): v5's content in the
+ * « Aurore » look. Three blocks — the day's work (waffle + six numbers), one live
+ * card per agent in her colour, the agents over a period (assigned → uploaded →
+ * delivered, commission) — and her drawer. Everything the user picks lives in the
+ * URL, so a link from the bell opens the same view.
  */
 export function ControlRoom({ marketId, locale, tz, role }: Props) {
   const t = useTranslations("team.room");
@@ -113,12 +114,20 @@ export function ControlRoom({ marketId, locale, tz, role }: Props) {
   );
 
   const marketName = t(`market.${market}`);
-  const fallbackName = agentId ? funnel?.agents.find((a) => a.agent_id === agentId)?.name ?? commissionView?.byId[agentId]?.agent.name ?? null : null;
+  const fallback = useMemo(() => {
+    if (!agentId) return null;
+    const f = funnel?.agents.find((a) => a.agent_id === agentId);
+    if (f) return { name: f.name, color: f.color ?? null };
+    const c = commissionView?.byId[agentId]?.agent;
+    return c ? { name: c.name, color: null } : null;
+  }, [agentId, funnel, commissionView]);
   const periodTitle =
     period.kind === "rolling30" ? t("period.bandRolling") : period.kind === "month" ? t("period.bandMonth", { m: fmt.month(period.month) }) : t("period.bandRange", { from: fmt.dayNum(range.from), to: fmt.dayNum(range.to) });
 
   return (
-    <div className="mx-auto flex max-w-[1320px] flex-col gap-[14px]">
+    <div className="r6-page">
+      <TipLayer />
+      <HatchDefs />
       <RoomHeader
         locale={locale}
         marketName={marketName}
@@ -148,57 +157,49 @@ export function ControlRoom({ marketId, locale, tz, role }: Props) {
         />
       )}
 
-      <Band title={live ? t("band.today") : t("band.past")} meta={live && view ? `${fmt.dayShort(day)} · ${fmt.hm(view.cut)}` : fmt.dayShort(day)} />
-
-      {dayError && !view && <RoomCard className="px-[18px] py-[16px] text-[13.5px] text-room-red">{t("loadError")}</RoomCard>}
+      {dayError && !view && (
+        <div className="r6-card" style={{ padding: "16px 20px", color: "var(--bad)", fontWeight: 600 }}>
+          {t("loadError")}
+        </div>
+      )}
       {!view && !dayError && (
-        <div className="flex flex-col gap-[14px]" role="status">
-          <Skeleton className="h-[104px] w-full" />
-          <Skeleton className="h-[320px] w-full" />
+        <div role="status" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <Skeleton className="h-[260px] w-full" />
+          <Skeleton className="h-[360px] w-full" />
         </div>
       )}
       {view && (
         <>
-          <TodayStrip view={view} fmt={fmt} />
-          <AgentsTodayCard view={view} fmt={fmt} market={market} selected={agentId} onSelect={(id) => setParams({ agent: id })} />
+          <TodayOverview view={view} fmt={fmt} />
+          <AgentCards view={view} fmt={fmt} market={market} selected={agentId} onSelect={(id) => setParams({ agent: id })} />
         </>
       )}
 
-      <Band
-        title={periodTitle}
-        meta={t("band.assignedRange", { from: fmt.dayNum(range.from), to: fmt.dayNum(range.to) })}
-        end={
-          <>
-            <PeriodControl key={serializePeriod(period)} period={period} today={today} fmt={fmt} onChange={(p: FunnelPeriod) => setParams({ periode: p.kind === "rolling30" ? null : serializePeriod(p) })} />
-            {commissionView && (
-              <span className="flex items-baseline gap-[8px] text-[12.5px] text-room-ink-3">
-                <span>{t("band.due")}</span>
-                <b className="text-[16px] font-[650] text-ink-primary tabular-nums">{fmt.money(commissionView.totals.to_pay_sum)}</b>
-              </span>
-            )}
-          </>
-        }
-      />
       {funnelView ? (
         <FunnelCard
           view={funnelView}
           period={period}
+          today={today}
           fmt={fmt}
+          title={periodTitle}
+          meta={t("band.assignedRange", { from: fmt.dayNum(range.from), to: fmt.dayNum(range.to) })}
+          due={commissionView ? commissionView.totals.to_pay_sum : null}
           balances={balances}
           canPay={canPay}
           selected={agentId}
+          onPeriod={(p) => setParams({ periode: p.kind === "rolling30" ? null : serializePeriod(p) })}
           onSelect={(id) => setParams({ agent: id })}
           onPay={setPayId}
         />
       ) : (
-        <Skeleton className="h-[360px] w-full" />
+        <Skeleton className="h-[420px] w-full" />
       )}
 
       <AgentPanel
         marketId={marketId}
         market={market}
         agentId={agentId}
-        fallbackName={fallbackName}
+        fallback={fallback}
         view={view}
         period={panelPeriod}
         locale={locale}

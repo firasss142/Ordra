@@ -6,6 +6,7 @@ function fa(o: Partial<FunnelAgent> & { agent_id: string }): FunnelAgent {
   return {
     name: o.agent_id,
     avatar_url: null,
+    color: null,
     is_active: true,
     last_action_at: "2026-10-02T12:00:00Z",
     assigned: 0,
@@ -94,5 +95,12 @@ describe("the agents table", () => {
 
   test("bars share one scale: the biggest cohort", () => {
     expect(v.max).toBe(555);
+  });
+});
+
+describe("v6 — her colour", () => {
+  test("each row carries the colour the database gave her", () => {
+    const f = buildFunnelView({ ...FUNNEL, agents: [fa({ agent_id: "tasnim", color: "indigo", assigned: 40 })] }, { balances: {}, today: "2026-10-02" });
+    expect(f.rows[0].color).toBe("indigo");
   });
 });

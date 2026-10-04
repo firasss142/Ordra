@@ -257,9 +257,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
   rows of ad_spend are a projection rewritten whole; two-step rollout (cutover
   migration AFTER deploy): docs/ad-spend-mapping.md + plans/ad-spend-adset-mapping.md
 - CRM prospects/leads + Équipe (control room, performance, presence): docs/crm-and-team.md
-- Salle de contrôle v5 (/team) — the day, the period table, the agent panel, the four RPCs,
+- Salle de contrôle v6 (/team, « Aurore » look + agent colours, §4.25) — the day, the period table, the agent panel, the four RPCs,
   the control-room settings and the bell's three alerts: docs/team-control-room.md +
-  plans/team-control-room-v5.md (spec `prototypes/team-v5.html`)
+  plans/team-control-room-v5.md (spec `prototypes/team-v6.html`, untracked)
 - Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
   trigger, the columns that do not exist): docs/prospects-worklist.md
 - Distribution des commandes — l'algorithme par pourcentages, la disponibilité

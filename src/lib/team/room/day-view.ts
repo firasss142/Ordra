@@ -15,6 +15,11 @@ export const INTAKE_SILENCE_MIN = 360;
 const SESSION_GAP_MIN = 20;
 /** Assignments this close together are one marker. */
 const ASSIGN_GROUP_MIN = 10;
+/**
+ * « En poste » (v6, owner's answer 9 of 2026-10-03): her actions of the day chained
+ * together; a pause longer than this starts a new stretch and is not counted.
+ */
+export const STRETCH_GAP_MIN = 60;
 
 export type AgentState =
   | "working"
@@ -43,6 +48,7 @@ export interface AgentDayRow {
   agentId: string;
   name: string;
   avatarUrl: string | null;
+  color: string | null;
   phone: string | null;
   lastActionAt: string | null;
   online: boolean;
@@ -68,6 +74,10 @@ export interface AgentDayRow {
   asg: { m: number; n: number }[];
   sessions: { a: number; b: number }[];
   activeMin: number;
+  /** v6 « En poste »: stretches of her day, n = actions in each. */
+  stretches: { b: number; e: number; n: number }[];
+  /** Sum of the stretches — first to last action, pauses over an hour removed. */
+  onShiftMin: number;
   plannedMin: number;
   /** Minutes between her planned start and her first action (negative = early). */
   lateBy: number | null;
@@ -77,6 +87,7 @@ export interface DormantAgent {
   agentId: string;
   name: string;
   avatarUrl: string | null;
+  color: string | null;
   cf: number;
   lastActionAt: string | null;
 }
@@ -159,6 +170,43 @@ function sessionsOf(mins: number[]): { a: number; b: number }[] {
   return out;
 }
 
+function stretchesOf(mins: number[]): { b: number; e: number; n: number }[] {
+  const out: { b: number; e: number; n: number }[] = [];
+  for (const m of mins) {
+    const cur = out[out.length - 1];
+    if (cur && m - cur.e <= STRETCH_GAP_MIN) {
+      cur.e = m;
+      cur.n += 1;
+    } else out.push({ b: m, e: m, n: 1 });
+  }
+  return out;
+}
+
+/** The day's work in five kinds, for the waffle and each agent's ring. */
+export interface DayWork {
+  up: number;
+  rej: number;
+  /** Live only: called since assignment, still open. */
+  prog: number;
+  /** Live only: not called yet, inside the delay. */
+  todo: number;
+  /** Live only: not called, past the delay (« non appelées > N h »). */
+  late: number;
+}
+
+export function dayWork(rows: AgentDayRow[], live: boolean): DayWork {
+  const w: DayWork = { up: 0, rej: 0, prog: 0, todo: 0, late: 0 };
+  for (const r of rows) {
+    w.up += r.up;
+    w.rej += r.rej;
+    if (!live) continue;
+    w.prog += r.queue.prog;
+    w.todo += r.queue.toCall - r.queue.unc;
+    w.late += r.queue.unc;
+  }
+  return w;
+}
+
 function groupAssignments(mins: number[]): { m: number; n: number }[] {
   const out: { m: number; n: number; last: number }[] = [];
   for (const m of mins) {
@@ -208,11 +256,13 @@ export function buildDayView(d: TeamDay): DayView {
     } else if (last !== null) state = "done";
     else state = agentWork === false ? "rest" : "absent";
 
+    const stretches = stretchesOf(mins);
     const planned = agentWork && shift ? Math.max(0, Math.min(cut, shift[1]) - shift[0]) : 0;
     return {
       agentId: a.agent_id,
       name: a.name,
       avatarUrl: a.avatar_url,
+      color: a.color ?? null,
       phone: a.phone,
       lastActionAt: a.last_action_at,
       online,
@@ -234,6 +284,8 @@ export function buildDayView(d: TeamDay): DayView {
       asg: groupAssignments(a.assigned.map((x) => x[0]).filter((m) => m <= cut)),
       sessions: sessionsOf(mins),
       activeMin: new Set(mins.map((m) => Math.floor(m / 10))).size * 10,
+      stretches,
+      onShiftMin: stretches.reduce((s, x) => s + (x.e - x.b), 0),
       plannedMin: planned,
       lateBy: agentWork && shift && first !== null ? first - shift[0] : null,
     };
@@ -279,6 +331,7 @@ export function buildDayView(d: TeamDay): DayView {
       agentId: a.agent_id,
       name: a.name,
       avatarUrl: a.avatar_url,
+      color: a.color ?? null,
       cf: a.queue.filter((q) => q[0] === "cf").length,
       lastActionAt: a.last_action_at,
     })),

@@ -8,7 +8,7 @@ import { ControlRoom } from "@/components/team/room/ControlRoom";
 export const dynamic = "force-dynamic";
 
 /**
- * /team — Salle de contrôle (prototypes/team-v5.html). The day, then the agents
+ * /team — Salle de contrôle (prototypes/team-v6.html). The day, then the agents
  * over a period, for one market. Managers see their own; super_admin sees the
  * scoped market (falls back to the default market when "all" is selected,
  * because a roster across markets is not a thing).
@@ -22,7 +22,8 @@ export default async function TeamControlRoomPage({ params }: { params: { locale
   const marketId = scoped ?? getDefaultMarketId(await getAllActiveMarkets());
 
   return (
-    <div className="min-h-screen bg-surface-page px-[32px] pb-[64px] pt-[26px] max-[900px]:px-[14px] max-[900px]:pb-[40px] max-[900px]:pt-[16px]">
+    // « Aurore »: the soft gradient ground and the page's tokens (globals.css, Salle de contrôle v6)
+    <div className="r6 r6-main">
       <ControlRoom marketId={marketId} locale={params.locale} tz={marketTimezone(marketId)} role={user.role} />
     </div>
   );
