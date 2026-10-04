@@ -6,13 +6,14 @@ import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import type { OrderNameSource } from "@/lib/orders/display-name";
-import { OrdersPageClient } from "./OrdersPageClient";
+import { CommandesPage } from "@/components/orders/commandes/CommandesPage";
 import type { Locale } from "@/types";
+import { todayInMarket } from "@/lib/dates/market-day";
 
 export const dynamic = "force-dynamic";
 
 const LIST_COLS =
-  "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_city, " +
+  "id, external_id, external_platform, market_id, storefront_id, customer_name, customer_phone, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
   "created_at, updated_at, terminal_at, archived_at, archived_by, " +
@@ -53,7 +54,7 @@ export default async function OrdersPage({
       : DEFAULT_PAGE_SIZE;
 
   // Parallelize: market label + orders first page + agents — all independent after profile
-  const [marketResult, ordersResult, agentsResult] = await Promise.all([
+  const [marketResult, ordersResult, agentsResult, firstResult] = await Promise.all([
     user.market_id
       ? supabase
           .from("markets")
@@ -87,11 +88,21 @@ export default async function OrdersPage({
           .eq("role", "agent")
           .eq("market_id", prefetchMarketId)
       : Promise.resolve({ data: null }),
+
+    // The first order of the market: « Toutes les dates · depuis le … ».
+    prefetchMarketId
+      ? supabase
+          .from("orders")
+          .select("created_at")
+          .eq("market_id", prefetchMarketId)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const userMarketLabel = marketResult.data?.name ?? "";
   const userMarketCurrency = marketResult.data?.currency ?? "TND";
-  const userMarketCode = marketResult.data?.code ?? "TN";
   const fallbackFirstPage = ordersResult.data
     ? {
         rows: (
@@ -115,17 +126,21 @@ export default async function OrdersPage({
   const fallbackAgents = agentsResult.data ?? [];
 
   return (
-    <OrdersPageClient
+    <CommandesPage
       role={user.role}
       userId={user.id}
       userMarketId={user.market_id ?? superAdminInitialMarketId}
       userMarketLabel={userMarketLabel}
       userMarketCurrency={userMarketCurrency}
-      userMarketCode={userMarketCode}
       locale={params.locale as Locale}
       fallbackFirstPage={fallbackFirstPage as never}
       initialMarketId={superAdminInitialMarketId}
       fallbackAgents={fallbackAgents}
+      firstOrderDay={
+        (firstResult.data as { created_at?: string } | null)?.created_at
+          ? todayInMarket(prefetchMarketId, new Date((firstResult.data as { created_at: string }).created_at))
+          : null
+      }
     />
   );
 }
