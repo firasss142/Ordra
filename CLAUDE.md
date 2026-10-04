@@ -211,10 +211,10 @@ Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Navigation (as coded in lib/navigation/sidebar-nav.ts → TOP_ITEMS + NAV_GROUPS)
 Dashboard (no group) · Commandes → Commandes, Archivées, Doublons · Entrepôt (id
-`logistique`) → Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison,
-Transporteurs · Finances (canViewFinances) → P&L global, Produits & marges, Stock &
+`logistique`) → Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison ·
+Performance → Commandes, Équipe (/team/performance), Livraison (/carriers) · Finances (canViewFinances) → P&L global, Produits & marges, Stock &
 inventaire, Achats, Dépenses pub, Investisseurs · Clients → Prospects, Voix du client,
-Messages · Équipe → Salle de contrôle, Performance, Accès · Système → Réglages (super_admin +
+Messages · Équipe → Salle de contrôle, Accès · Système → Réglages (super_admin +
 market_manager), Journaux (super_admin). Head/foot pinned, 64 px rail, ⌘K « Aller à… », market
 card with per-market counts — see docs/sidebar.md.
 
@@ -296,6 +296,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Réglages transporteurs, préférences de commande (défaut + verrou par option) et
   activation des sites d'entrepôt — Réglages › Livraison (transporteurs) et › Entrepôts (sites):
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
+- Performance › Commandes (/performance/orders) — où se perdent les commandes reçues
+  d'une période, filtres produits × agents, comparaison B, l'argent réservé au
+  propriétaire; mêmes définitions que Produits: plans/performance-commandes.md +
+  prototypes/performance-commandes-v4.html
 - Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
   pastille est toujours rouge et porte l'icône du groupe: docs/rejection-reasons.md +
   plans/rejection-reasons-crud-and-badge.md

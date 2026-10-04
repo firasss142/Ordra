@@ -23,19 +23,27 @@ describe("visibleNav", () => {
     expect(NAV_GROUPS.some((g) => (g.id as string) === "accueil")).toBe(false);
   });
 
-  it("gives a super_admin the seven groups, in the order of the working day", () => {
+  it("gives a super_admin the eight groups, in the order of the working day", () => {
     expect(keys("super_admin")).toEqual({
       top: ["pulse"],
       groups: [
         ["commandes", ["orders", "archived", "duplicates"]],
         ["logistique", ["warehouseToday", "warehouseOut", "warehouseReturns", "warehouseStock"]],
-        ["livraison", ["deliveryWorklist", "carriers"]],
+        ["livraison", ["deliveryWorklist"]],
+        ["performance", ["perfOrders", "perfTeam", "perfDelivery"]],
         ["finances", ["pnl", "productsMargins", "stockInventory", "purchases", "adSpend", "investors"]],
         ["clients", ["activeProspects", "customerVoice", "messages"]],
-        ["equipe", ["controlRoom", "performanceLive", "access"]],
+        ["equipe", ["controlRoom", "access"]],
         ["systeme", ["reglages", "logs"]],
       ],
     });
+  });
+
+  it("gathers the analytics in one « Performance » group, for managers too (plans/performance-commandes.md)", () => {
+    const perf = keys("market_manager").groups.find(([id]) => id === "performance");
+    expect(perf?.[1]).toEqual(["perfOrders", "perfTeam", "perfDelivery"]);
+    const hrefs = NAV_GROUPS.find((g) => g.id === "performance")!.items.map((i) => i.href);
+    expect(hrefs).toEqual(["performance/orders", "team/performance", "carriers"]);
   });
 
   it("hides Finances and Journaux from a market_manager", () => {
