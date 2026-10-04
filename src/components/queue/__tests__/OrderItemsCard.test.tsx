@@ -45,7 +45,6 @@ function renderCard(overrides: Partial<OrderItemsCardProps> = {}) {
     displayCurrency: "DT",
     canEdit: true,
     isLibyaOrder: false,
-    saveError: null,
     onCommitLegacyProduct: vi.fn(),
     onCommitLegacyQuantity: vi.fn(),
     onCommitLegacyPrice,
@@ -137,5 +136,18 @@ describe("OrderItemsCard — the receipt", () => {
   it("reports stock in words, not by colour alone", () => {
     renderCard({ products: [{ id: "p-1", current_stock: 0, product_variants: [] }] });
     expect(screen.getByTestId("item-stock-item-1")).toHaveTextContent(/.+/);
+  });
+
+  it("puts adding a product and merging in the pane's action row", () => {
+    renderCard({ renderAddProduct: () => <button type="button">add-it</button> });
+    expect(screen.getByRole("button", { name: "add-it" }).closest(".pane-acts")).not.toBeNull();
+  });
+
+  it("draws each line as the prototype's line: thumb, name, amount", () => {
+    renderCard();
+    const line = screen.getByText("Widget").closest(".line");
+    expect(line).not.toBeNull();
+    expect(line!.querySelector(".thumb")).not.toBeNull();
+    expect(line!.querySelector(".amt")).toHaveTextContent("50.00");
   });
 });

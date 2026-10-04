@@ -78,28 +78,21 @@ describe("ActionFooter — the four call outcomes", () => {
     expect(onInvoke).toHaveBeenCalledWith("confirm");
   });
 
-  it("gives every button the same height, so none of them ranks by size", () => {
+  it("draws every ending as the prototype's footer button", () => {
     render(<ActionFooter actions={CALL_OUTCOMES} onInvoke={vi.fn()} />);
     for (const button of within(bar()).getAllByRole("button")) {
-      expect(button.className).toContain("h-[46px]");
+      expect(button).toHaveClass("fa");
     }
+    expect(bar()).toHaveClass("dr-foot");
   });
 
-  it("ranks them by tone instead: one filled button, three outlines", () => {
+  it("ranks them by tone: one filled button, refusal in red, the rest outlines", () => {
     render(<ActionFooter actions={CALL_OUTCOMES} onInvoke={vi.fn()} />);
-    const tone = (name: string) =>
-      screen.getByRole("button", { name }).className;
-
-    expect(tone("Confirmer")).toContain("bg-brand");
-    expect(tone("Refuser")).toContain("text-oms-bad");
-    expect(tone("Rappeler")).toContain("bg-oms-warn-bg");
-    expect(tone("Pas de réponse")).not.toContain("bg-brand");
-  });
-
-  it("stacks two by two below lg, where four labels do not fit side by side", () => {
-    render(<ActionFooter actions={CALL_OUTCOMES} onInvoke={vi.fn()} />);
-    expect(bar().className).toContain("grid-cols-2");
-    expect(bar().className).toContain("lg:[grid-template-columns:repeat(4,auto)]");
+    const b = (name: string) => screen.getByRole("button", { name });
+    expect(b("Confirmer")).toHaveClass("pri");
+    expect(b("Refuser")).toHaveClass("neg");
+    expect(b("Rappeler")).not.toHaveClass("pri");
+    expect(b("Pas de réponse")).not.toHaveClass("pri");
   });
 
   it("drops the ⋯ when the four endings are the whole story", () => {
@@ -147,6 +140,20 @@ describe("ActionFooter — everywhere else", () => {
     render(<ActionFooter actions={SINGLE_CTA} onInvoke={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "Annuler la commande" })).not.toBeInTheDocument();
+  });
+
+  it("makes the single next step the wide filled button", () => {
+    render(<ActionFooter actions={SINGLE_CTA} onInvoke={vi.fn()} />);
+    const send = screen.getByRole("button", { name: "Envoyer au transporteur" });
+    expect(send).toHaveClass("pri");
+    expect(send).toHaveClass("wide");
+  });
+
+  it("draws « Fermer » as a plain wide button, not a filled one", () => {
+    render(<ActionFooter actions={{ primary: { kind: "close", labelKey: "actions.close" }, overflow: [] }} onInvoke={vi.fn()} />);
+    const close = screen.getByRole("button", { name: "Fermer" });
+    expect(close).toHaveClass("wide");
+    expect(close).not.toHaveClass("pri");
   });
 
   it("leads with the primary, since a promoted item is not one of the four", () => {
