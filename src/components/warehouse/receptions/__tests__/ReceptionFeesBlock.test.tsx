@@ -15,18 +15,23 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
     warehouse_name_ar: "طرابلس",
     supplier_name: "مكتبة الرسالة",
     supplier_ref: "4471",
-    status: "draft",
+    status: "open",
     expected_at: null,
     note: null,
     photo_url: null,
-    submitted_at: null,
-    submitted_by_name: null,
-    posted_at: null,
-    posted_by_name: null,
+    settled_at: null,
+    counted_by_name: null,
+    settled_by_name: null,
     reverses_reception_id: null,
     created_at: "2026-09-29T08:00:00Z",
     is_late: false,
     days_late: null,
+    arrival_date: "2026-09-29",
+    supplier_id: null,
+    supplier: null,
+    invoice_total: null,
+    due_at: null,
+    discrepancy_reason: null,
     lines: [],
     totals: { units: 312, damaged: 2, value: 18720, lines: 4, expected: null, countedLines: 4 },
     fee_basis: "value",
@@ -42,7 +47,7 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
     paid_total: 0,
     outstanding: 18720,
     payment_state: "unpaid",
-    can: { submit: true, post: true, reverse: false, pay: true, sendBack: false },
+    can: { recordArrival: true, settle: true, reverse: false, pay: true },
     ...over,
   };
 }
@@ -146,7 +151,7 @@ describe("ReceptionFeesBlock — une réception validée est figée", () => {
    * `unit_cogs` : rouvrir les frais après coup ferait mentir le registre.
    */
   it("n'offre ni ajout, ni suppression, ni bascule de critère", () => {
-    wrap({ status: "posted" }, false);
+    wrap({ status: "settled" }, false);
     expect(screen.queryByRole("button", { name: /ajouter un frais/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retirer ce frais/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /par unité/i })).not.toBeInTheDocument();

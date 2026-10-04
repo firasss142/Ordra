@@ -18,19 +18,25 @@ const RAW: RawReception = {
   reference: "REC-LY-2026-0042",
   supplier_name: "مكتبة الرسالة",
   supplier_ref: "BL-4471",
-  status: "submitted",
+  status: "open",
   expected_at: "2026-09-28",
   note: null,
   photo_url: null,
-  submitted_at: "2026-09-28T09:00:00Z",
-  submitted_by: "u-adel",
-  posted_at: null,
-  posted_by: null,
+  arrival_date: "2026-09-28",
+  settled_at: "2026-09-28T09:00:00Z",
+  settled_by: null,
+  supplier_id: null,
+  invoice_total: null,
+  due_at: null,
+  discrepancy_reason: null,
+  fee_basis: "value",
+  reception_costs: [],
   reverses_reception_id: null,
   created_at: "2026-09-27T08:00:00Z",
   warehouse: { code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس" },
-  submitted_by_user: { full_name: "Adel Ben Salah" },
-  posted_by_user: null,
+  counted_by_user: { full_name: "Adel Ben Salah" },
+  settled_by_user: null,
+  supplier: null,
   reception_lines: [
     {
       id: "l1",
@@ -97,18 +103,22 @@ describe("projectReception — agent d'entrepôt", () => {
   });
 
   it("ne peut pas valider", () => {
-    expect(out.can.post).toBe(false);
+    expect(out.can.settle).toBe(false);
   });
 
-  it("ne peut pas re-déclarer ce qui est déjà déclaré", () => {
-    // La fixture est déjà `submitted` : déclarer deux fois n'a pas de sens.
-    expect(out.can.submit).toBe(false);
+  it("peut compter tant que le groupe est ouvert", () => {
+    expect(out.can.recordArrival).toBe(true);
   });
 
-  it("peut déclarer un brouillon", () => {
-    const draft = projectReception({ ...RAW, status: "draft" }, "warehouse_agent");
-    expect(draft.can.submit).toBe(true);
-    expect(draft.can.post).toBe(false);
+  /*
+   * UNE FOIS SOLDÉE, PLUS RIEN NE BOUGE. Le coût de revient est écrit dans
+   * `landed_unit_cost` et a pu nourrir `unit_cogs` : rouvrir le comptage ferait
+   * mentir le registre.
+   */
+  it("ne compte plus sur une réception soldée", () => {
+    const settled = projectReception({ ...RAW, status: "settled" }, "warehouse_agent");
+    expect(settled.can.recordArrival).toBe(false);
+    expect(settled.can.settle).toBe(false);
   });
 });
 
@@ -136,7 +146,7 @@ describe("projectReception — manager", () => {
   });
 
   it("peut valider", () => {
-    expect(out.can.post).toBe(true);
+    expect(out.can.settle).toBe(true);
     expect(out.can.reverse).toBe(false);
   });
 });
@@ -144,13 +154,13 @@ describe("projectReception — manager", () => {
 describe("projectReception — super_admin", () => {
   it("peut contre-passer, mais seulement une réception validée", () => {
     expect(projectReception(RAW, "super_admin").can.reverse).toBe(false);
-    const posted = { ...RAW, status: "posted" as const };
+    const posted = { ...RAW, status: "settled" as const };
     expect(projectReception(posted, "super_admin").can.reverse).toBe(true);
   });
 
   it("ne peut plus valider une réception déjà validée", () => {
-    const posted = { ...RAW, status: "posted" as const };
-    expect(projectReception(posted, "super_admin").can.post).toBe(false);
+    const posted = { ...RAW, status: "settled" as const };
+    expect(projectReception(posted, "super_admin").can.settle).toBe(false);
   });
 });
 
@@ -172,14 +182,14 @@ describe("projectReception — l'honnêteté des chiffres", () => {
   });
 
   it("marque « en retard » sur une réception attendue dont la date est passée", () => {
-    const late = { ...RAW, status: "draft" as const, expected_at: "2026-09-01" };
+    const late = { ...RAW, status: "open" as const, expected_at: "2026-09-01" };
     const out = projectReception(late, "market_manager", new Date("2026-09-30T10:00:00Z"));
     expect(out.is_late).toBe(true);
     expect(out.days_late).toBe(29);
   });
 
   it("ne marque jamais « en retard » une réception validée", () => {
-    const posted = { ...RAW, status: "posted" as const, expected_at: "2026-09-01" };
+    const posted = { ...RAW, status: "settled" as const, expected_at: "2026-09-01" };
     const out = projectReception(posted, "market_manager", new Date("2026-09-30T10:00:00Z"));
     expect(out.is_late).toBe(false);
     expect(out.days_late).toBeNull();
@@ -196,10 +206,11 @@ describe("projectReceptionList", () => {
 
   it("compte les segments sans inventer de total", () => {
     const list = projectReceptionList(
-      [RAW, { ...RAW, id: "r2", status: "posted" }, { ...RAW, id: "r3", status: "draft" }],
+      [RAW, { ...RAW, id: "r2", status: "settled" }, { ...RAW, id: "r3", status: "open" }],
       "market_manager",
     );
     expect(list).toHaveLength(3);
-    expect(list.filter((r) => r.status === "submitted")).toHaveLength(1);
+    expect(list.filter((r) => r.status === "open")).toHaveLength(2);
+    expect(list.filter((r) => r.status === "settled")).toHaveLength(1);
   });
 });

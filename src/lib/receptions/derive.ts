@@ -19,7 +19,18 @@
 
 export type PaymentState = "not_applicable" | "unpaid" | "partial" | "paid";
 
-export type ReceptionStatus = "draft" | "submitted" | "posted" | "cancelled" | "reversed";
+/**
+ * TROIS ÉTATS, PAS CINQ.
+ *
+ * `open`    — le quai y ajoute des arrivages, et le stock est DÉJÀ entré.
+ * `settled` — soldée : fournisseur, prix, frais, référence frappée, dû créé.
+ * `reversed`— contre-passée.
+ *
+ * `draft`, `submitted`, `posted` et `cancelled` ont disparu avec la bascule du
+ * quai et du bureau : il n'y a plus de moment où la marchandise est sur
+ * l'étagère et où Ordra dit qu'elle n'existe pas.
+ */
+export type ReceptionStatus = "open" | "settled" | "reversed";
 
 /**
  * Tolérance de comparaison monétaire. `amount` est NUMERIC(12,3) en base, donc
@@ -144,9 +155,9 @@ export function headlineQuantity(reception: {
   // Une contre-passation porte ce qu'elle a retiré, au signe près : le nombre
   // est le même, le mot change tout.
   if (status === "reversed") return { value: totals.units, kind: "cancelled" };
-  if (status === "posted") return { value: totals.units, kind: "units" };
+  if (status === "settled") return { value: totals.units, kind: "units" };
 
-  // Avant la validation, le fait le plus récent gagne : dès qu'un humain a
+  // Sur un groupe ouvert, le fait le plus récent gagne : dès qu'un humain a
   // compté une ligne, c'est son comptage qu'on montre, pas la promesse.
   if (totals.countedLines > 0) return { value: totals.units, kind: "counted" };
   if (totals.expected !== null) return { value: totals.expected, kind: "expected" };
@@ -167,15 +178,18 @@ export function paidPercent(input: { value: number | null; paid: number }): numb
 }
 
 /**
- * En retard = la date prévue est passée et la marchandise n'est pas entrée.
- * Une réception validée, annulée ou contre-passée n'est plus en attente de rien.
+ * En retard = la date annoncée est passée et le groupe n'est toujours pas soldé.
+ *
+ * `expected_at` ne se remplit que depuis un bon de commande (étape 6) ; sans
+ * annonce il n'y a pas de retard possible, et la fonction répond `false` plutôt
+ * que d'inventer une échéance.
  */
 export function isLate(
   reception: { expected_at: string | null; status: ReceptionStatus | string },
   now: Date = new Date(),
 ): boolean {
   if (!reception.expected_at) return false;
-  if (reception.status !== "draft" && reception.status !== "submitted") return false;
+  if (reception.status !== "open") return false;
 
   // Comparaison au jour, en UTC : `expected_at` est une DATE en base, sans
   // heure. Comparer à un instant ferait basculer la ligne en « retard » selon
@@ -199,10 +213,10 @@ export function daysLate(
 }
 
 /**
- * La moyenne pondérée qu'adopterait `post_reception(p_adopt_costs => true)`.
+ * La moyenne pondérée qu'écrira le soldage, si la politique du marché l'allume.
  *
- * Le front la calcule pour MONTRER l'arithmétique avant de l'appliquer — c'est
- * ce qui rend la case à cocher honnête. Le chiffre qui compte reste celui que
+ * Le front la calcule pour MONTRER l'arithmétique avant qu'elle s'applique. Le
+ * chiffre qui compte reste celui que
  * la RPC écrit ; celui-ci doit lui être identique, d'où le même arrondi au
  * millième et le même traitement d'un stock négatif.
  */

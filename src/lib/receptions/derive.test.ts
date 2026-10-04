@@ -119,22 +119,22 @@ describe("isLate", () => {
   const today = new Date("2026-09-30T10:00:00Z");
 
   it("est en retard quand la date prévue est passée et rien n'est validé", () => {
-    expect(isLate({ expected_at: "2026-09-26", status: "draft" }, today)).toBe(true);
-    expect(isLate({ expected_at: "2026-09-26", status: "submitted" }, today)).toBe(true);
+    expect(isLate({ expected_at: "2026-09-26", status: "open" }, today)).toBe(true);
+    expect(isLate({ expected_at: "2026-09-26", status: "open" }, today)).toBe(true);
   });
 
   it("n'est jamais en retard une fois validée", () => {
-    expect(isLate({ expected_at: "2026-09-26", status: "posted" }, today)).toBe(false);
+    expect(isLate({ expected_at: "2026-09-26", status: "settled" }, today)).toBe(false);
     expect(isLate({ expected_at: "2026-09-26", status: "reversed" }, today)).toBe(false);
-    expect(isLate({ expected_at: "2026-09-26", status: "cancelled" }, today)).toBe(false);
+    expect(isLate({ expected_at: "2026-09-26", status: "reversed" }, today)).toBe(false);
   });
 
   it("n'est pas en retard le jour même", () => {
-    expect(isLate({ expected_at: "2026-09-30", status: "draft" }, today)).toBe(false);
+    expect(isLate({ expected_at: "2026-09-30", status: "open" }, today)).toBe(false);
   });
 
   it("n'est pas en retard sans date prévue — on n'invente pas une échéance", () => {
-    expect(isLate({ expected_at: null, status: "draft" }, today)).toBe(false);
+    expect(isLate({ expected_at: null, status: "open" }, today)).toBe(false);
   });
 });
 
@@ -186,13 +186,13 @@ describe("headlineQuantity", () => {
   });
 
   it("annonce l'attendu d'une réception que personne n'a encore comptée", () => {
-    const h = headlineQuantity({ status: "draft", totals: t({ expected: 300, lines: 3 }) });
+    const h = headlineQuantity({ status: "open", totals: t({ expected: 300, lines: 3 }) });
     expect(h).toEqual({ value: 300, kind: "expected" });
   });
 
   it("bascule sur le compté dès qu'une ligne porte un nombre", () => {
     const h = headlineQuantity({
-      status: "draft",
+      status: "open",
       totals: t({ units: 150, expected: 300, lines: 3, countedLines: 1 }),
     });
     expect(h).toEqual({ value: 150, kind: "counted" });
@@ -200,7 +200,7 @@ describe("headlineQuantity", () => {
 
   it("dit « comptées » sur une déclaration en attente de manager", () => {
     const h = headlineQuantity({
-      status: "submitted",
+      status: "open",
       totals: t({ units: 312, expected: 310, lines: 5, countedLines: 5 }),
     });
     expect(h).toEqual({ value: 312, kind: "counted" });
@@ -208,7 +208,7 @@ describe("headlineQuantity", () => {
 
   it("dit « unités » une fois validée — ce n'est plus une promesse", () => {
     const h = headlineQuantity({
-      status: "posted",
+      status: "settled",
       totals: t({ units: 602, expected: 600, lines: 14, countedLines: 14 }),
     });
     expect(h).toEqual({ value: 602, kind: "units" });
@@ -228,7 +228,7 @@ describe("headlineQuantity", () => {
    * « rien n'est arrivé » n'a été établi. Le tiret dit « on ne sait pas encore ».
    */
   it("ne rend aucun nombre quand rien n'est ni annoncé ni compté", () => {
-    const h = headlineQuantity({ status: "draft", totals: t({ lines: 0 }) });
+    const h = headlineQuantity({ status: "open", totals: t({ lines: 0 }) });
     expect(h).toEqual({ value: null, kind: "unknown" });
   });
 });

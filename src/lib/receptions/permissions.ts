@@ -3,15 +3,13 @@ import type { Role } from "@/types";
 /**
  * Qui fait quoi sur une réception de marchandises.
  *
- * DEUX PERSONNES, DEUX GESTES. L'agent d'entrepôt qui décharge le camion
- * DÉCLARE ce qu'il a compté ; un manager VALIDE, et la validation seule fait
- * exister le stock. Recevoir est le seul mouvement qui crée des unités à partir
- * de rien sans document en face — une sortie a sa commande, un retour a son
- * colis — donc c'est là que la séparation des tâches paie.
+ * DEUX LIEUX, DEUX NATURES. Le quai enregistre des ARRIVAGES et le stock entre
+ * immédiatement ; le bureau SOLDE le groupe et c'est là que l'argent entre.
  *
- * C'est un ASSOUPLISSEMENT de l'état actuel, pas un durcissement : aujourd'hui
- * seul un super_admin peut faire monter le stock, et l'agent qui reçoit la
- * marchandise n'a aucun chemin d'écriture.
+ * CE N'EST PLUS UNE SÉPARATION DES TÂCHES. Une deuxième signature ne crée pas
+ * de preuve : elle crée un deuxième nom sous le même chiffre non vérifié. Le
+ * contrôle est devenu un RAPPROCHEMENT contre une pièce externe — la facture du
+ * fournisseur — et il vit dans `settle_reception`, pas dans ces droits.
  *
  * LE COÛT N'EST PAS UNE INFORMATION D'ENTREPÔT. Un agent compte des objets ; ce
  * qu'ils ont coûté ne l'aide pas à compter et ne le regarde pas. Le filtre est
@@ -25,13 +23,19 @@ export function canViewReceptions(role: Role): boolean {
   return role === "super_admin" || role === "market_manager" || role === "warehouse_agent";
 }
 
-/** Créer un brouillon, saisir les lignes, déclarer ce qui est arrivé. */
-export function canDraftReception(role: Role): boolean {
+/**
+ * Enregistrer un arrivage — le geste du quai, et le seul chemin d'entrée de
+ * stock. Deux champs : le produit et la quantité.
+ */
+export function canRecordArrival(role: Role): boolean {
   return role === "super_admin" || role === "market_manager" || role === "warehouse_agent";
 }
 
-/** Valider — le seul geste qui écrit le registre et fait exister le stock. */
-export function canPostReception(role: Role): boolean {
+/**
+ * Solder — fournisseur, prix, frais, rapprochement, référence. C'est le geste
+ * du BUREAU : l'agent du quai compte, il ne chiffre pas.
+ */
+export function canSettleReception(role: Role): boolean {
   return role === "super_admin" || role === "market_manager";
 }
 

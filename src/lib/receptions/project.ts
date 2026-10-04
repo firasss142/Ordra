@@ -1,8 +1,8 @@
 import type { Role } from "@/types";
 import {
-  canPostReception,
+  canSettleReception,
   canReverseReception,
-  canDraftReception,
+  canRecordArrival,
   canSeeReceptionCosts,
 } from "./permissions";
 import { allocateFees, feesTotal, type FeeBasis } from "./landed";
@@ -62,15 +62,19 @@ export interface RawReception {
   expected_at: string | null;
   note: string | null;
   photo_url: string | null;
-  submitted_at: string | null;
-  submitted_by: string | null;
-  posted_at: string | null;
-  posted_by: string | null;
+  arrival_date: string | null;
+  settled_at: string | null;
+  settled_by: string | null;
+  supplier_id: string | null;
+  invoice_total: number | null;
+  due_at: string | null;
+  discrepancy_reason: string | null;
   reverses_reception_id: string | null;
   created_at: string;
   warehouse: { code: string; name_fr: string; name_ar: string } | null;
-  submitted_by_user: { full_name: string } | null;
-  posted_by_user: { full_name: string } | null;
+  counted_by_user: { full_name: string } | null;
+  settled_by_user: { full_name: string } | null;
+  supplier: { id: string; name: string } | null;
   reception_lines: RawReceptionLine[];
   fee_basis?: string | null;
   reception_costs?: {
@@ -136,10 +140,18 @@ export interface ProjectedReception {
   expected_at: string | null;
   note: string | null;
   photo_url: string | null;
-  submitted_at: string | null;
-  submitted_by_name: string | null;
-  posted_at: string | null;
-  posted_by_name: string | null;
+  /** Le jour où la marchandise est arrivée — la clé de regroupement du quai. */
+  arrival_date: string | null;
+  /** Qui a compté. Sur un groupe, c'est l'auteur du premier arrivage. */
+  counted_by_name: string | null;
+  settled_at: string | null;
+  settled_by_name: string | null;
+  supplier_id: string | null;
+  supplier: { id: string; name: string } | null;
+  invoice_total: number | null;
+  due_at: string | null;
+  /** Ce qui justifie un écart accepté contre la facture. */
+  discrepancy_reason: string | null;
   reverses_reception_id: string | null;
   created_at: string;
   is_late: boolean;
@@ -180,12 +192,12 @@ export interface ProjectedReception {
   outstanding: number | null;
   payment_state: PaymentState | null;
   can: {
-    submit: boolean;
-    post: boolean;
+    /** Ajouter ou corriger un arrivage : tant que le groupe est ouvert. */
+    recordArrival: boolean;
+    /** Solder : fournisseur, prix, frais, rapprochement, référence. */
+    settle: boolean;
     reverse: boolean;
     pay: boolean;
-    /** Rendre une déclaration à son agent. Rien n'a bougé : c'est un retour en brouillon. */
-    sendBack: boolean;
   };
 }
 
@@ -195,7 +207,7 @@ export function projectReception(
   now: Date = new Date(),
 ): ProjectedReception {
   const withCosts = canSeeReceptionCosts(role);
-  const isDraftish = raw.status === "draft" || raw.status === "submitted";
+  const isOpen = raw.status === "open";
 
   const lines: ProjectedLine[] = raw.reception_lines.map((line) => {
     const base: ProjectedLine = {
@@ -308,16 +320,21 @@ export function projectReception(
     warehouse_id: raw.warehouse_id,
     warehouse_name: raw.warehouse?.name_fr ?? null,
     warehouse_name_ar: raw.warehouse?.name_ar ?? null,
-    supplier_name: raw.supplier_name,
+    supplier_name: raw.supplier?.name ?? raw.supplier_name,
     supplier_ref: raw.supplier_ref,
     status: raw.status,
     expected_at: raw.expected_at,
     note: raw.note,
     photo_url: raw.photo_url,
-    submitted_at: raw.submitted_at,
-    submitted_by_name: raw.submitted_by_user?.full_name ?? null,
-    posted_at: raw.posted_at,
-    posted_by_name: raw.posted_by_user?.full_name ?? null,
+    arrival_date: raw.arrival_date,
+    counted_by_name: raw.counted_by_user?.full_name ?? null,
+    settled_at: raw.settled_at,
+    settled_by_name: raw.settled_by_user?.full_name ?? null,
+    supplier_id: raw.supplier_id,
+    supplier: raw.supplier,
+    invoice_total: raw.invoice_total === null ? null : Number(raw.invoice_total),
+    due_at: raw.due_at,
+    discrepancy_reason: raw.discrepancy_reason,
     reverses_reception_id: raw.reverses_reception_id,
     created_at: raw.created_at,
     is_late: isLate({ expected_at: raw.expected_at, status: raw.status }, now),
@@ -343,17 +360,12 @@ export function projectReception(
       withCosts && totals.value !== null ? Math.max(totals.value - (paid ?? 0), 0) : null,
     payment_state: withCosts ? paymentState({ value: totals.value, paid: paid ?? 0 }) : null,
     can: {
-      submit: canDraftReception(role) && raw.status === "draft",
-      post: canPostReception(role) && isDraftish,
-      reverse: canReverseReception(role) && raw.status === "posted",
+      /* Compter encore sur ce groupe : tant qu'il est ouvert. */
+      recordArrival: canRecordArrival(role) && isOpen,
+      /* Chiffrer et clore — geste de bureau. */
+      settle: canSettleReception(role) && isOpen,
+      reverse: canReverseReception(role) && raw.status === "settled",
       pay: canSeeReceptionCosts(role) && raw.status !== "reversed",
-      /*
-       * Renvoyer est le geste de celui qui VALIDE, pas de celui qui déclare :
-       * sans lui, un manager qui voit une erreur n'a que deux issues, valider
-       * ce qui est faux ou ne rien faire. Et sur un brouillon il n'y a personne
-       * à qui le rendre.
-       */
-      sendBack: canPostReception(role) && raw.status === "submitted",
     },
   };
 }

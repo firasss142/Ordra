@@ -14,15 +14,15 @@ import {
 } from "lucide-react";
 import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
-import { canSeeReceptionCosts, canDraftReception } from "@/lib/receptions/permissions";
+import { canSeeReceptionCosts, canRecordArrival } from "@/lib/receptions/permissions";
 import { lineVariance, receptionTotals, paidPercent } from "@/lib/receptions/derive";
 import { ReceptionFeesBlock } from "./ReceptionFeesBlock";
 import { ReceptionLineEditor, type LinePatch } from "./ReceptionLineEditor";
 import { WH_CARD, WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
-import { ReceptionPostDialog } from "./ReceptionPostDialog";
+import { ReceptionSettleDialog } from "./ReceptionSettleDialog";
 import { ReceptionReverseDialog } from "./ReceptionReverseDialog";
-import { ReceptionCountFlow } from "./ReceptionCountFlow";
+import { ReceptionDockFlow } from "./ReceptionDockFlow";
 
 /**
  * La feuille d'une réception — plein écran, pas une modale de 480 px.
@@ -87,8 +87,8 @@ export function ReceptionSheet({
     if (typeof window === "undefined" || !window.matchMedia) return;
     const narrow = window.matchMedia("(max-width: 767px)").matches;
     const editableNow =
-      canDraftReception(role) &&
-      (reception.status === "draft" || reception.status === "submitted") &&
+      canRecordArrival(role) &&
+      (reception.status === "open") &&
       reception.lines.length > 0;
     if (narrow && editableNow) {
       autoCounted.current = true;
@@ -211,7 +211,7 @@ export function ReceptionSheet({
   // Un brouillon ou une déclaration se modifie ; une réception validée est
   // définitive, et le déclencheur en base le refuse de toute façon.
   const editable =
-    canDraftReception(role) && (r.status === "draft" || r.status === "submitted");
+    canRecordArrival(role) && (r.status === "open");
   const dirty = Object.keys(edits).length > 0;
 
   /*
@@ -282,12 +282,11 @@ export function ReceptionSheet({
                 <span>
                   {locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
                 </span>
-                {r.submitted_by_name ? (
+                {r.counted_by_name ? (
                   <>
                     <Sep />
                     <span>
-                      {t("countedBy").toLocaleLowerCase(locale)}{" "}
-                      <span className="font-semibold text-wh-ink-1">{r.submitted_by_name}</span>
+                      {t("countedBy", { name: r.counted_by_name })}
                       {/*
                        * La maquette appelle cette date « Arrivée ». C'est en
                        * vérité la date de la DÉCLARATION, et les deux ne
@@ -295,19 +294,17 @@ export function ReceptionSheet({
                        * rien ne nous autorise à affirmer un jour d'arrivée que
                        * personne n'a saisi.
                        */}
-                      {r.submitted_at ? ` · ${df(r.submitted_at.slice(0, 10))}` : ""}
+                      {r.arrival_date ? ` · ${df(r.arrival_date)}` : ""}
                     </span>
                   </>
                 ) : null}
-                {r.expected_at && !r.submitted_at ? (
+                {r.settled_by_name ? (
                   <>
                     <Sep />
-                    <span>
-                      {t("fieldExpectedAt").toLocaleLowerCase(locale)} {df(r.expected_at)}
-                    </span>
+                    <span>{t("settledBy", { name: r.settled_by_name })}</span>
                   </>
                 ) : null}
-                {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
+                {(r.status === "open") && r.lines.length > 0 ? (
                   <>
                     <Sep />
                     <span className="font-semibold text-wh-ok">
@@ -353,7 +350,7 @@ export function ReceptionSheet({
            * légende ci-dessus ; il ne reste ici que ce qui a besoin d'être
            * continu pour être lu d'un coup d'œil : la longueur.
            */}
-          {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
+          {(r.status === "open") && r.lines.length > 0 ? (
             <div
               data-testid="reception-progress-rail"
               className="h-[3px] w-full bg-wh-sunken"
@@ -437,7 +434,7 @@ export function ReceptionSheet({
             <ReceptionFeesBlock
               reception={r}
               currency={currency}
-              editable={r.status === "draft" || r.status === "submitted"}
+              editable={r.status === "open"}
               onChanged={mutate}
             />
           ) : null}
@@ -517,7 +514,7 @@ export function ReceptionSheet({
                     onClick={() => void saveLines()}
                   >
                     <Check size={17} strokeWidth={2.2} />
-                    {t("saveLines")}
+                    {t("savePrices")}
                   </button>
                 </>
               ) : (
@@ -530,35 +527,15 @@ export function ReceptionSheet({
                    * voulait juste entrer sa marchandise. L'API, elle, reste
                    * honnête : `can.submit` dit que la route l'accepterait.
                    */}
-                  {r.can.submit && !r.can.post ? (
-                    <button
-                      type="button"
-                      className={WH_BTN_PRIMARY}
-                      disabled={busy}
-                      onClick={() => void act("/submit")}
-                    >
-                      <Check size={17} strokeWidth={2.2} />
-                      {t("submit")}
-                    </button>
-                  ) : null}
+
                   {/*
                    * LA TROISIÈME ISSUE. Sans « renvoyer », un manager qui voit
                    * une erreur n'a que deux choix : valider ce qui est faux, ou
                    * laisser la réception bloquée dans sa file pour toujours.
                    * Rien n'a bougé en stock, donc il n'y a rien à annuler.
                    */}
-                  {r.can.sendBack ? (
-                    <button
-                      type="button"
-                      className={WH_BTN}
-                      disabled={busy}
-                      onClick={() => void act("/unsubmit")}
-                    >
-                      <Undo2 size={16} className="rtl:-scale-x-100" />
-                      {t("sendBack")}
-                    </button>
-                  ) : null}
-                  {r.can.post ? (
+
+                  {r.can.settle ? (
                     <button
                       type="button"
                       className={WH_BTN_PRIMARY}
@@ -566,7 +543,7 @@ export function ReceptionSheet({
                       onClick={() => setPosting(true)}
                     >
                       <Check size={17} strokeWidth={2.2} />
-                      {t("post")}
+                      {t("settle")}
                     </button>
                   ) : null}
                   {/*
@@ -617,11 +594,11 @@ export function ReceptionSheet({
       </div>
 
       {posting ? (
-        <ReceptionPostDialog
+        <ReceptionSettleDialog
           reception={r}
           currency={currency}
           onClose={() => setPosting(false)}
-          onPosted={() => {
+          onSettled={() => {
             setPosting(false);
             void mutate();
             onChanged();
@@ -642,29 +619,15 @@ export function ReceptionSheet({
       ) : null}
 
       {counting ? (
-        <ReceptionCountFlow
+        <ReceptionDockFlow
           reception={r}
-          locale={locale}
-          edits={edits}
-          onPatch={(lineId, patch) => setEdits((prev) => ({ ...prev, [lineId]: patch }))}
+          warehouseId={r.warehouse_id}
+          marketId={r.market_id}
+          warehouseName={locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
           onClose={() => setCounting(false)}
-          /*
-           * ENREGISTRER D'ABORD, DÉCLARER ENSUITE — la même règle que le pied de
-           * la feuille, et elle ne vit qu'ici. Déclarer sans enregistrer porterait
-           * sur les chiffres du SERVEUR et non sur ceux que l'agent vient de
-           * compter : c'est la façon la plus sûre de faire valider une quantité
-           * que personne n'a voulue. Si l'enregistrement échoue, on reste sur le
-           * récapitulatif avec le message, et rien n'est déclaré.
-           */
-          onDeclare={async () => {
-            if (dirty && !(await saveLines())) return;
-            // Déjà déclarée : il n'y a plus rien à déclarer, seulement à
-            // enregistrer. `POST …/submit` refuserait avec NOT_DRAFT.
-            if (!r.can.submit) {
-              setCounting(false);
-              return;
-            }
-            if (await act("/submit")) setCounting(false);
+          onChanged={async () => {
+            await mutate();
+            onChanged();
           }}
         />
       ) : null}

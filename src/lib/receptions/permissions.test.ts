@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   canViewReceptions,
-  canDraftReception,
-  canPostReception,
+  canRecordArrival,
+  canSettleReception,
   canReverseReception,
   canSeeReceptionCosts,
   canManageReceptionPayments,
@@ -35,33 +35,33 @@ describe("canViewReceptions", () => {
   });
 });
 
-describe("canDraftReception", () => {
-  it("laisse l'agent d'entrepôt déclarer ce qu'il a compté", () => {
-    expect(canDraftReception("warehouse_agent")).toBe(true);
-    expect(canDraftReception("market_manager")).toBe(true);
-    expect(canDraftReception("super_admin")).toBe(true);
+describe("canRecordArrival", () => {
+  it("laisse l'agent d'entrepôt enregistrer un arrivage — c'est le geste du quai", () => {
+    expect(canRecordArrival("warehouse_agent")).toBe(true);
+    expect(canRecordArrival("market_manager")).toBe(true);
+    expect(canRecordArrival("super_admin")).toBe(true);
   });
 
   it("n'ouvre rien à un agent de confirmation ni à un investisseur", () => {
-    expect(canDraftReception("agent")).toBe(false);
-    expect(canDraftReception("investor")).toBe(false);
+    expect(canRecordArrival("agent")).toBe(false);
+    expect(canRecordArrival("investor")).toBe(false);
   });
 });
 
-describe("canPostReception", () => {
-  it("réserve la validation à l'encadrement — c'est la séparation des tâches", () => {
-    expect(canPostReception("market_manager")).toBe(true);
-    expect(canPostReception("super_admin")).toBe(true);
+describe("canSettleReception", () => {
+  it("réserve le soldage au bureau : l'agent compte, il ne chiffre pas", () => {
+    expect(canSettleReception("market_manager")).toBe(true);
+    expect(canSettleReception("super_admin")).toBe(true);
   });
 
-  it("refuse l'agent d'entrepôt, qui a pourtant pu déclarer", () => {
-    expect(canDraftReception("warehouse_agent")).toBe(true);
-    expect(canPostReception("warehouse_agent")).toBe(false);
+  it("refuse l'agent d'entrepôt, qui a pourtant pu compter", () => {
+    expect(canRecordArrival("warehouse_agent")).toBe(true);
+    expect(canSettleReception("warehouse_agent")).toBe(false);
   });
 
   it("refuse tout le reste", () => {
-    expect(canPostReception("agent")).toBe(false);
-    expect(canPostReception("investor")).toBe(false);
+    expect(canSettleReception("agent")).toBe(false);
+    expect(canSettleReception("investor")).toBe(false);
   });
 });
 

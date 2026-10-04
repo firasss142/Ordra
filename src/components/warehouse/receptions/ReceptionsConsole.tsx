@@ -6,12 +6,10 @@ import { Plus, AlertCircle, Clock, Inbox, ChevronRight } from "lucide-react";
 import type { Role } from "@/types";
 import type { ProjectedReception } from "@/lib/receptions/project";
 import { useReceptions } from "@/hooks/useReceptions";
-import { canDraftReception } from "@/lib/receptions/permissions";
 import { headlineQuantity, paidPercent } from "@/lib/receptions/derive";
 import { WH_CARD, WH_LABEL, WH_BTN_PRIMARY, WH_STRIPE } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
 import { ReceptionSheet } from "./ReceptionSheet";
-import { ReceptionCreateDialog } from "./ReceptionCreateDialog";
 
 /**
  * Entrepôt › Stock › Réceptions.
@@ -30,7 +28,7 @@ import { ReceptionCreateDialog } from "./ReceptionCreateDialog";
  * ce qui l'attend l'oubliait dès qu'on s'en servait.
  */
 
-type Segment = "all" | "draft" | "submitted" | "posted" | "unpaid";
+type Segment = "all" | "open" | "settled" | "unpaid";
 
 /**
  * CINQ COLONNES, PAS HUIT.
@@ -48,9 +46,8 @@ function matchesSegment(r: ProjectedReception, segment: Segment): boolean {
   switch (segment) {
     case "all":
       return true;
-    case "draft":
-    case "submitted":
-    case "posted":
+    case "open":
+    case "settled":
       return r.status === segment;
     // « Impayées » n'est pas un statut en base : c'est une déduction de
     // somme(paiements) contre la valeur reçue. Le filtre porte donc sur l'état
@@ -75,9 +72,10 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
 
   const segments: { key: Segment; label: string; count: number; tone?: "warn" | "bad" }[] = [
     { key: "all", label: t("segAll"), count: counts.all },
-    { key: "draft", label: t("segExpected"), count: counts.draft },
-    { key: "submitted", label: t("segToValidate"), count: counts.submitted, tone: "warn" },
-    { key: "posted", label: t("segPosted"), count: counts.posted },
+    // « À solder » porte le compteur ambre, et lui seul : « Soldées 14 » est une
+    // information, « À solder 2 » est une réclamation.
+    { key: "open", label: t("segToSettle"), count: counts.open, tone: "warn" },
+    { key: "settled", label: t("segSettled"), count: counts.settled },
     { key: "unpaid", label: t("segUnpaid"), count: counts.unpaid, tone: "bad" },
   ];
 
@@ -136,12 +134,12 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
           })}
         </div>
 
-        {canDraftReception(role) ? (
-          <button type="button" className={WH_BTN_PRIMARY} onClick={() => setCreating(true)}>
-            <Plus size={16} strokeWidth={2.2} />
-            {t("new")}
-          </button>
-        ) : null}
+        {/*
+          * PAS DE « NOUVELLE RÉCEPTION » ICI. Le document naît au QUAI, au
+          * premier arrivage — un formulaire de bureau qui réclamait bâtiment,
+          * fournisseur, numéro de bon et date avant d'accepter une seule unité
+          * demandait la paperasse avant la marchandise.
+          */}
       </div>
 
       {/*
@@ -211,6 +209,16 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
               const headline = headlineQuantity(r);
               const site =
                 locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name;
+              // Qui a touché le document : celui qui a compté tant qu'il est
+              // ouvert, celui qui l'a soldé ensuite.
+              const who =
+                r.status === "open"
+                  ? r.counted_by_name
+                    ? t("countedBy", { name: r.counted_by_name })
+                    : null
+                  : r.settled_by_name
+                    ? t("settledBy", { name: r.settled_by_name })
+                    : null;
 
               return (
                 <li key={r.id} className="border-b border-wh-border last:border-b-0">
@@ -220,7 +228,7 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                     className={`${GRID} ${stripe} w-full px-5 py-4 text-start hover:bg-wh-ok-tint`}
                   >
                     {/* Référence, et sous elle le fait qui compte : ce qui bloque,
-                        ou à défaut le bâtiment et la date. */}
+                        ou à défaut le bâtiment et qui a touché le document. */}
                     <span className="min-w-0">
                       <span className="block font-mono text-[13.5px] font-semibold tabular-nums">
                         {r.reference}
@@ -229,38 +237,20 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
                         <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-wh-bad">
                           <AlertCircle size={12} strokeWidth={2.4} />
                           {t("lateBy", { days: r.days_late })}
-                          {site ? (
-                            <>
-                              {"· "}
-                              <span className="font-medium text-wh-ink-3">{site}</span>
-                            </>
-                          ) : null}
                         </span>
-                      ) : r.status === "submitted" ? (
-                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-wh-warn">
-                          <Clock size={12} strokeWidth={2.4} />
-                          {t("waitingManager")}
-                          {site ? (
-                            <>
-                              {"· "}
-                              <span className="font-medium text-wh-ink-3">{site}</span>
-                            </>
-                          ) : null}
-                        </span>
-                      ) : (
-                        <span className="mt-1 block truncate text-[11.5px] text-wh-ink-3">
-                          {[
-                            site,
-                            r.status === "draft" && r.expected_at
-                              ? t("expectedOn", { date: r.expected_at })
-                              : r.posted_by_name
-                                ? t("postedBy", { name: r.posted_by_name })
-                                : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                      )}
+                      ) : null}
+                      {/*
+                        * LE BÂTIMENT EST UN NŒUD DE TEXTE À LUI. Collé à la
+                        * suite dans une seule chaîne, « Tripoli » devient
+                        * « Tripoli · comptée par Adel » et n'est plus
+                        * retrouvable — ni par un lecteur d'écran, ni par un test.
+                        * Le séparateur est donc un FRÈRE, jamais une concaténation.
+                        */}
+                      <span className="mt-1 block truncate text-[11.5px] text-wh-ink-3">
+                        {site ? <span>{site}</span> : null}
+                        {site && who ? <span className="mx-1">·</span> : null}
+                        {who ? <span>{who}</span> : null}
+                      </span>
                     </span>
 
                     <span className="truncate text-[13px]" dir="auto">
@@ -345,17 +335,6 @@ export function ReceptionsConsole({ locale, role }: { locale: string; role: Role
         />
       ) : null}
 
-      {creating ? (
-        <ReceptionCreateDialog
-          role={role}
-          onClose={() => setCreating(false)}
-          onCreated={(id) => {
-            setCreating(false);
-            void mutate();
-            setOpenId(id);
-          }}
-        />
-      ) : null}
     </div>
   );
 }
