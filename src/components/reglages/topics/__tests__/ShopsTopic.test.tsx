@@ -97,7 +97,6 @@ describe("Réglages › Boutiques", () => {
     mount(admin);
     await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ajouter une boutique" }));
     const panel = screen.getByRole("dialog");
-    expect(within(panel).queryByRole("radio", { name: /Google Sheets/ })).not.toBeInTheDocument();
     await userEvent.type(within(panel).getByLabelText("Nom"), "Biovera Libye");
     await userEvent.click(within(panel).getByRole("radio", { name: /Shopify/ }));
     await userEvent.click(within(panel).getByRole("button", { name: "Créer la boutique" }));
@@ -106,6 +105,100 @@ describe("Réglages › Boutiques", () => {
     const done = await screen.findByRole("dialog");
     expect(done).toHaveTextContent("/api/webhooks/new-shop");
     expect(done).toHaveTextContent("a".repeat(48));
+  });
+
+  it("connects a second Converty account from its Google Sheet, new orders only by default", async () => {
+    swr.byKey["/api/storefronts/sheets-service-account"] = { email: "ordra@x.iam.gserviceaccount.com" };
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: "new-sheet", name: "Converty — compte 2" }, rows_existing: 5422 }), { status: 201 }),
+    );
+    mount(admin);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ajouter une boutique" }));
+    const panel = screen.getByRole("dialog");
+    await userEvent.type(within(panel).getByLabelText("Nom"), "Converty — compte 2");
+    await userEvent.click(within(panel).getByRole("radio", { name: /Google Sheets/ }));
+    // The address to share the sheet with, before anything is created.
+    expect(panel).toHaveTextContent("ordra@x.iam.gserviceaccount.com");
+    expect(within(panel).getByRole("radio", { name: /Nouvelles commandes seulement/ })).toHaveAttribute("aria-checked", "true");
+    await userEvent.type(within(panel).getByLabelText("Lien de la feuille"), "https://docs.google.com/spreadsheets/d/abc/edit");
+    await userEvent.type(within(panel).getByLabelText("Onglet"), "Orders");
+    await userEvent.click(within(panel).getByRole("button", { name: "Créer la boutique" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/storefronts", expect.objectContaining({ method: "POST" })));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      market_id: LY,
+      name: "Converty — compte 2",
+      platform: "google_sheets",
+      config: { spreadsheet: "https://docs.google.com/spreadsheets/d/abc/edit", sheet_name: "Orders", import_from: "now" },
+    });
+    const done = await screen.findByRole("dialog");
+    expect(done).toHaveTextContent("5 422");
+    expect(done).not.toHaveTextContent("/api/webhooks/");
+  });
+
+  it("says what to fix when the sheet cannot be connected", async () => {
+    swr.byKey["/api/storefronts/sheets-service-account"] = { email: "ordra@x.iam.gserviceaccount.com" };
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ code: "missing_columns", columns: ["QR Code", "Total Price"] }), { status: 422 }),
+    );
+    mount(admin);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ajouter une boutique" }));
+    const panel = screen.getByRole("dialog");
+    await userEvent.type(within(panel).getByLabelText("Nom"), "X");
+    await userEvent.click(within(panel).getByRole("radio", { name: /Google Sheets/ }));
+    await userEvent.type(within(panel).getByLabelText("Lien de la feuille"), "abc");
+    await userEvent.type(within(panel).getByLabelText("Onglet"), "Orders");
+    await userEvent.click(within(panel).getByRole("button", { name: "Créer la boutique" }));
+    expect(await within(panel).findByRole("alert")).toHaveTextContent("QR Code, Total Price");
+  });
+
+  it("shows which sheet and tab a sheet shop reads", async () => {
+    swr.byKey[`/api/storefronts?market_id=${LY}`] = {
+      data: [{ ...shop("s1", "Converty Libya (Sheets)", "google_sheets"), config: { spreadsheet_id: "1RT7e_Tmmz3krH3quHNQ6Hmv", sheet_name: "converty-orders-bachir" } }],
+    };
+    mount(admin);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ouvrir Converty Libya (Sheets)" }));
+    const panel = screen.getByRole("dialog");
+    expect(panel).toHaveTextContent("converty-orders-bachir");
+    expect(within(panel).getByRole("link", { name: /Ouvrir la feuille/ })).toHaveAttribute(
+      "href",
+      "https://docs.google.com/spreadsheets/d/1RT7e_Tmmz3krH3quHNQ6Hmv",
+    );
+  });
+
+  it("tells, per sheet shop, whether its import works and which rows did not import", async () => {
+    swr.byKey[`/api/google-sheets/sync-status?market_id=${LY}`] = {
+      configs_count: 2,
+      sources: [
+        {
+          storefront_id: "s1",
+          platform: "converty",
+          is_active: true,
+          last_row: 5422,
+          last_run: { status: "failed", started_at: "2026-10-02T13:45:00Z", finished_at: "2026-10-02T13:45:05Z", error: "Unable to parse range: 'Orders'!A1:Z" },
+          last_success: { status: "succeeded", started_at: "2026-10-02T12:00:00Z", finished_at: "2026-10-02T12:00:09Z" },
+          open_failures: 1,
+        },
+        { storefront_id: "other", platform: "converty", is_active: true, last_row: 9, last_run: null, last_success: null, open_failures: 3 },
+      ],
+      failures: [
+        { id: "f1", storefront_id: "s1", row_index: 5400, message: "Missing customer phone", raw_row: {}, created_at: "2026-10-02T12:00:00Z" },
+        { id: "f2", storefront_id: "other", row_index: 3, message: "Missing QR Code", raw_row: {}, created_at: "2026-10-02T12:00:00Z" },
+      ],
+    };
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: true, results: [] }), { status: 200 }));
+    mount(admin);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ouvrir Converty Libya (Sheets)" }));
+    const panel = screen.getByRole("dialog");
+    expect(panel).toHaveTextContent("En panne");
+    expect(panel).toHaveTextContent("Unable to parse range");
+    expect(panel).toHaveTextContent("5 422");
+    expect(panel).toHaveTextContent("Ligne 5400");
+    expect(panel).toHaveTextContent("Missing customer phone");
+    // Another account's failures are not this shop's.
+    expect(panel).not.toHaveTextContent("Missing QR Code");
+    await userEvent.click(within(panel).getByRole("button", { name: "Lire maintenant" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/google-sheets/sync", expect.objectContaining({ method: "POST" })));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ market_id: LY });
   });
 
   it("regenerates a shop's secret and shows the new one once", async () => {

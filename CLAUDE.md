@@ -316,6 +316,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
   pastille est toujours rouge et porte l'icône du groupe: docs/rejection-reasons.md +
   plans/rejection-reasons-crud-and-badge.md
+- Boutiques multi-comptes — un compte (Shopify, EasyOrders, Converty…) = une ligne
+  `storefronts` ; Converty se branche par Google Sheets depuis Réglages › Boutiques,
+  la feuille vit dans `storefronts.config`, `settings.google_sheets_sources` n'est plus
+  qu'une surcharge héritée: docs/storefront-accounts.md + plans/storefront-multi-account.md
 - Intake multi-lignes — les cinq adaptateurs lisent TOUTES les lignes, le webhook écrit
   `order_items`, chaque ligne résout son produit, et `mapping_status` est le pire de
   toutes: docs/storefront-multi-line-intake.md

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runSyncForMarket } from "@/lib/google-sheets/run-sync";
 import type { SyncResult } from "@/lib/google-sheets/sync-engine";
+import { rotateSources } from "@/lib/google-sheets/sources-config";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,10 @@ async function run(req: NextRequest): Promise<NextResponse> {
 
   const allResults: Array<{ market_id: string; results: SyncResult[] }> = [];
 
-  for (const market of markets) {
+  // Markets share the deadline too: rotate which one goes first each tick, as
+  // the accounts inside a market are, so the first market's backlog cannot
+  // starve the second one's every time.
+  for (const market of rotateSources(markets, Math.floor(Date.now() / (15 * 60_000)))) {
     try {
       const results = await runSyncForMarket(adminClient, market.id as string, {
         trigger: "cron",

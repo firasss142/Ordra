@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSheetsSources } from "./sources-config";
+import { getSheetsSources, rotateSources } from "./sources-config";
 import { getLastRowForStorefront, setLastRowForStorefront } from "./sync-state";
 import { fetchSheetRows } from "./client";
 import { syncOneStorefront, type SyncResult } from "./sync-engine";
@@ -24,6 +24,9 @@ import type { FetchRowsOptions } from "./types";
  * why it lost every batch it started.
  */
 const DEFAULT_BUDGET_MS = 40_000;
+
+/** The cron cadence; one rotation of the source order per tick. */
+const CRON_TICK_MS = 15 * 60_000;
 
 export interface RunSyncOptions {
   trigger?: SyncTrigger;
@@ -53,7 +56,12 @@ export async function runSyncForMarket(
   // before claiming, or the sync stops forever the first time it is killed.
   await reapStaleRuns(adminClient);
 
-  const sources = await getSheetsSources(adminClient, marketId);
+  // Rotated so that with several accounts in one market, the one listed first
+  // cannot spend the whole shared deadline every tick while the rest wait.
+  const sources = rotateSources(
+    await getSheetsSources(adminClient, marketId),
+    Math.floor(Date.now() / CRON_TICK_MS),
+  );
   const results: SyncResult[] = [];
 
   for (const source of sources) {
@@ -72,11 +80,9 @@ export async function runSyncForMarket(
       continue;
     }
 
-    const config = { ...source, market_id: marketId };
-
     try {
       const result = await syncOneStorefront(
-        config,
+        source,
         {
           fetchRows: (opts: FetchRowsOptions) => fetchSheetRows(opts),
           processRow: async ({ storefront, orderData, rawRow }) => {
