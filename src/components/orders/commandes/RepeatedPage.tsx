@@ -34,6 +34,8 @@ const TILES: { k: Tile; icon: string; hue: string; f: (c: RepeatCase) => boolean
   { k: "ok", icon: "star", hue: "green", f: (c) => c.rel === "ok" },
 ];
 const REL: Record<RepeatCase["rel"], [string, string]> = { risk: ["red", "alert"], ok: ["green", "check"], mid: ["amber", "help"], new: ["neutral", "user"] };
+/** Only a clear verdict gets a badge; an in-between record (« mid ») says nothing. */
+const SHOWN_REL = new Set<RepeatCase["rel"]>(["risk", "ok"]);
 
 export interface RepeatedPageProps {
   role: Role;
@@ -357,7 +359,7 @@ function CaseRow({ c, on, onPick, ctx }: { c: RepeatCase; on: boolean; onPick: (
             <Ic n="copy" />×{c.group.members.length}
           </span>
         )}
-        {c.rel !== "new" && <span className={`mc h-${hue}`}>{tr(`rel.${c.rel}`)}</span>}
+        {SHOWN_REL.has(c.rel) && <span className={`mc h-${hue}`}>{tr(`rel.${c.rel}`)}</span>}
       </span>
     </button>
   );
@@ -391,10 +393,12 @@ function CaseDetail({ c, ctx, onList }: { c: RepeatCase; ctx: Ctx; onList: () =>
             ) : null}
           </small>
         </div>
-        <span className={`conf h-${hue}`}>
-          <Ic n={icon} />
-          {tr(`rel.${c.rel}`)}
-        </span>
+        {c.rel !== "mid" && (
+          <span className={`conf h-${hue}`}>
+            <Ic n={icon} />
+            {tr(`rel.${c.rel}`)}
+          </span>
+        )}
         <span className="sp" />
         <button type="button" className="btn2" onClick={onList}>
           <Ic n="search" />

@@ -119,7 +119,7 @@
       "inConfirmation": "En confirmation",
       "orders": "Commandes",
       "archived": "Archivées",
-      "duplicates": "Commandes répétées",
+      "duplicates": "Récurrentes",
       "bench": "Banc",
       "dispatch": "Expédition",
       "returns": "Retours",
@@ -9595,7 +9595,6 @@
       "select": "Sélectionner la commande #{ref}",
       "selectAll": "Tout sélectionner sur cette page",
       "unassigned": "Non assignée",
-      "noCity": "ville ?",
       "here": "{name} est dans la commande en ce moment",
       "received": "Reçue {when}",
       "lateSuffix": " — en retard (délai {h} h)",
@@ -9632,14 +9631,10 @@
       "rejectedTip": "Rejetée — {reason}"
     },
     "tags": {
-      "dup": "Doublon ×{n}",
-      "dupShipped": "Doublon ×{n} · déjà envoyé",
-      "dupTip": "{n} commandes du même client — à revoir dans Commandes répétées.",
-      "dupShippedTip": "{n} commandes du même client — une copie est déjà chez le transporteur. À revoir dans Commandes répétées.",
-      "rejected": "{n, plural, one {Déjà rejeté 1 fois} other {Déjà rejeté # fois}}",
-      "rejectedTip": "{n, plural, one {# commande rejetée} other {# commandes rejetées}} sur {of} — tout son parcours dans Commandes répétées.",
-      "loyal": "{n, plural, one {Client fidèle · # livrée} other {Client fidèle · # livrées}}",
-      "loyalTip": "{n, plural, one {# commande déjà livrée} other {# commandes déjà livrées}} à ce client — son parcours dans Commandes répétées."
+      "dupTip": "{n} commandes du même client — à revoir dans Récurrentes.",
+      "dupShippedTip": "{n} commandes du même client — une copie est déjà chez le transporteur. À revoir dans Récurrentes.",
+      "rejectedTip": "{n, plural, one {# commande rejetée} other {# commandes rejetées}} sur {of} — tout son parcours dans Récurrentes.",
+      "loyalTip": "{n, plural, one {# commande déjà livrée} other {# commandes déjà livrées}} à ce client — son parcours dans Récurrentes."
     },
     "pager": {
       "range": "{from}–{to} sur {total}",
@@ -9703,7 +9698,7 @@
       "ruleError": "La règle n'a pas pu être enregistrée"
     },
     "repeated": {
-      "title": "Commandes répétées",
+      "title": "Récurrentes",
       "sub": "Le même client, plusieurs commandes : ceux qui reviennent, et les doublons à nettoyer.",
       "scope": "même numéro · {n} derniers jours",
       "tiles": {
@@ -9724,7 +9719,6 @@
       "rel": {
         "risk": "À risque",
         "ok": "Fiable",
-        "mid": "Moyen",
         "new": "Nouveau client"
       },
       "seeInList": "Voir dans Commandes",
@@ -9787,7 +9781,7 @@
         "confirm": "{n, plural, one {Supprimer # copie ? Elle reste restaurable dans Archivées › Supprimées.} other {Supprimer # copies ? Elles restent restaurables dans Archivées › Supprimées.}}",
         "readOnly": "Lecture seule — seul un manager peut nettoyer les doublons."
       },
-      "error": "Les commandes répétées n'ont pas pu être chargées."
+      "error": "Les commandes récurrentes n'ont pas pu être chargées."
     }
   }
 }
