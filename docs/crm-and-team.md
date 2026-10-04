@@ -85,25 +85,28 @@ because an agent belongs to one market and a merged list would imply otherwise.
 
 ### Performance équipe — `(dashboard)/team/performance`
 
-"The period review: débit × taux, goals, presence." `get_team_performance(market, from,
-to, tz)` reading goals `daily`, `rate`, `cph`, `team`; day drill-down via
-`get_agent_day_detail(...)`.
+Rebuilt 2026-10-04 from `prototypes/team-performance-v3.html` (« Aurore »); the plan and
+every definition are in `plans/team-performance-redesign.md`. One question: **why do agents
+lose orders?** Five blocks — the waffle of 100, one card per agent (ring, biggest leak,
+« À lui dire »), Débit × taux, Par produit, Présence (shift timelines).
 
-The two measures that matter are **débit** (traitées per active hour) and **taux**
-(confirmation rate) — the ranking is their product (conf/h), which is why an agent can
-lead on neither column alone and still rank first. `ThroughputRateChart` plots them
-against the team median and the target, so "fast but leaky" and "careful but slow" are
-visibly different failures. `PresenceHeatmap` bins active hours per day
-(`src/lib/team/heat.ts`). Agents under a minimum volume are held out of the ranking
-rather than shown with a meaningless rate.
+- **Data:** `get_team_performance_v2(market, from, to, tz, prev_from, prev_to)` returns
+  facts only (orders assigned per agent with flags, decisions, action minutes per local
+  day). Every rule is TypeScript with tests: `src/lib/team/performance/` (`model.ts`
+  outcomes / ranking / leaks / map / default day / products; `build.ts` facts → view,
+  run in `GET /api/team/performance`).
+- **Score** = livrées pour 100 attribuées, ranked from 30 (same as Salle de contrôle v5).
+  **Hours on shift** use the room's `stretchesOf` (gaps over 60 min removed), shared.
+- **Leaks** compare her with the rest of the team in orders; the advice lines are the
+  `teamPerformance.say.*` keys — the owner's to validate.
+- Components: `src/components/team/performance/` with the prototype's own stylesheet
+  scoped under `.tpf`.
 
-Components: `src/components/team/control-room/` — `RankingCard`, `ThroughputRateChart`,
-`PresenceHeatmap`, `AgentDayDrawer`, `GoalSegments`, `PeriodControls`,
-`CommissionsCard`, `PayoutModal`. Lib: `src/lib/team/` (view-models, day-view, goals,
-heat, format, reassign-queue).
-
-Goals live in `agent_targets`, written append-style — the latest row per
-`(agent_id, metric)` wins via `agent_targets_latest_idx`, so a target's history survives.
+Gone with the rebuild: conf/h ranking, goals on this page, the agent and day drawers,
+`useTeamPerformance`, `src/lib/team/{view-models,goals,heat,day-view,format}`. Still in
+place without a caller: `/api/team/{live,agent-day,targets}`, and the old
+`get_team_performance` RPC (drop after deploy). `agent_targets` and the `goal_*` settings
+stay in the database, unread.
 
 ### Commissions
 
