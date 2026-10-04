@@ -4982,25 +4982,16 @@
       },
       "agents": {
         "title": "Agents",
-        "hint": "fait aujourd'hui · reste en main",
-        "hintPast": "fini ce jour-là",
         "lgU": "Uploadées",
         "lgR": "Rejetées",
         "lgP": "En cours",
         "lgT": "À appeler",
         "lgO": "Non appelées > {h} h",
         "cAgent": "Agent",
-        "cBar": "Fait · reste en main",
         "cAssigned": "Assignées",
         "cUploaded": "Uploadées",
         "cRejected": "Rejetées",
         "cAttempts": "Tentatives",
-        "cUnc": "Non app. > {h} h",
-        "cUncPast": "Appelées > {h} h",
-        "capDone": "<b>{u}</b> upl. · <b>{r}</b> rej.",
-        "capLeft": "<b>{p}</b> en cours · <b>{t}</b> à appeler",
-        "capNone": "rien en main",
-        "capUnc": "{n} > {h} h",
         "tagCf": "{n, plural, one {# confirmée non uploadée} other {# confirmées non uploadées}}",
         "st": {
           "working": "Au travail · appel il y a {d}",
@@ -5024,8 +5015,7 @@
         "phAssigned": "Assig.",
         "phUploaded": "Upload.",
         "phRejected": "Rejet.",
-        "phAttempts": "Tent.",
-        "hShort": "h"
+        "phAttempts": "Tent."
       },
       "funnel": {
         "title": "Assignées → uploadées → livrées",
@@ -5057,9 +5047,9 @@
         "footScore": "livrées pour 100 assignées = livrées ÷ assignées · classement à partir de {n} commandes",
         "trendTitle": "{p} : {v}",
         "trendNone": "{p} : pas assez de commandes pour comparer",
-        "capD": "{n} livrées",
-        "capE": "{n} en route",
-        "capF": "{n} retournées"
+        "capD": "<b>{n}</b> livrées",
+        "capE": "<b>{n}</b> en route",
+        "capF": "<b>{n}</b> retournées"
       },
       "period": {
         "label": "Période",
@@ -5091,14 +5081,12 @@
         "dlvR": "retournées",
         "dlvE": "en route",
         "day": "La journée",
-        "plan": "Planning {a}–{b}",
+        "plan": "Planning {a} → {b}",
         "noPlan": "Pas de planning",
         "start": "Début",
-        "active": "Actif",
         "last": "Dernier appel",
         "lateBy": "+{d}",
         "onTime": "à l'heure",
-        "actPct": "{p} du prévu",
         "products": "Par produit",
         "phProduct": "Produit",
         "phAssigned": "Assig.",
@@ -5131,11 +5119,68 @@
         "lastPay": "Dernier paiement le <b>{d}</b> · {v}",
         "neverPaid": "Jamais payé",
         "asOf": "au {d}",
-        "pay": "Payer"
+        "pay": "Payer",
+        "onShift": "En poste",
+        "onShiftPct": "{p} du planning"
       },
       "payout": {
         "saved": "Paiement enregistré",
         "failed": "Le paiement n'a pas pu être enregistré"
+      },
+      "crumb": "Équipe",
+      "ov": {
+        "title": "Le travail du jour",
+        "meta": "{n, plural, one {# commande} other {# commandes}} · faites ou en main",
+        "metaPast": "{n, plural, one {# commande finie} other {# commandes finies}} ce jour-là",
+        "grpDone": "Fait aujourd'hui",
+        "grpDonePast": "Fait ce jour-là",
+        "grpHand": "Reste en main",
+        "up": "uploadées",
+        "rej": "rejetées",
+        "prog": "en cours",
+        "todo": "à appeler",
+        "late": "non appelées > {h} h",
+        "empty": "Rien de fait ni en main ce jour.",
+        "tipToday": "{k} · {n} aujourd'hui",
+        "tipPast": "{k} · {n} ce jour-là",
+        "one": {
+          "up": "Uploadée",
+          "rej": "Rejetée",
+          "prog": "En cours (déjà appelée)",
+          "todo": "À appeler",
+          "late": "Non appelée > {h} h"
+        }
+      },
+      "cards": {
+        "band": "Agents · aujourd'hui",
+        "bandPast": "Agents · ce jour-là",
+        "meta": "fait aujourd'hui · reste en main · cliquez une carte pour sa fiche",
+        "metaPast": "ce qu'elles ont fini ce jour-là",
+        "done": "faites",
+        "hand": "{n} en main",
+        "rate": "taux {p}",
+        "uncBad": "{n, plural, one {# non appelée} other {# non appelées}} > {h} h",
+        "uncOld": "la plus ancienne attend depuis {d}",
+        "uncOk": "Tout est appelé à temps",
+        "uncOkSub": "rien n'attend plus de {h} h",
+        "uncPast": "{n, plural, one {# appelée} other {# appelées}} après {h} h",
+        "uncPastSub": "sur {n} attribuées ce jour",
+        "uncPastOk": "Toutes appelées en moins de {h} h",
+        "tip": "{k} · {n}"
+      },
+      "lane": {
+        "plan": "Planning {a} → {b}",
+        "late": "Retard : {d}",
+        "pause": "Pause de {d}",
+        "stretch": "{a} → {b} · {d} en poste · {n, plural, one {# action} other {# actions}}",
+        "asg": "{n, plural, one {# commande attribuée} other {# commandes attribuées}} à {t}",
+        "seen": "Connexion à {t}, sans appel",
+        "now": "Maintenant · {t}",
+        "kShift": "en poste",
+        "kUp": "upload",
+        "kRej": "rejet",
+        "kAs": "commandes reçues",
+        "kPlan": "planning"
       }
     }
   },

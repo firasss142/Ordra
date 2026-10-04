@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { buildDayView, INTAKE_SILENCE_MIN } from "./day-view";
+import { buildDayView, dayWork, INTAKE_SILENCE_MIN } from "./day-view";
 import type { DayAgent, TeamDay, RoomSettings } from "./types";
 
 // 2026-10-02 is a Friday, 2026-10-03 a Saturday. Africa/Tripoli is UTC+2.
@@ -15,6 +15,7 @@ function agent(o: Partial<DayAgent> & { agent_id: string }): DayAgent {
   return {
     name: o.agent_id,
     avatar_url: null,
+    color: null,
     phone: null,
     last_seen_at: null,
     is_available: false,
@@ -247,7 +248,7 @@ describe("the strip", () => {
       ]),
     );
     expect(v.rows.map((r) => r.agentId)).toEqual(["a"]);
-    expect(v.dormant).toEqual([{ agentId: "hend", name: "hend", avatarUrl: null, cf: 1, lastActionAt: "2026-09-16T12:00:00Z" }]);
+    expect(v.dormant).toEqual([{ agentId: "hend", name: "hend", avatarUrl: null, color: null, cf: 1, lastActionAt: "2026-09-16T12:00:00Z" }]);
   });
 
   test("a past day keeps an agent who worked that day even if she has been silent since", () => {
@@ -275,5 +276,68 @@ describe("the timeline window", () => {
     expect(buildDayView(live([agent({ agent_id: "a", events: [[800, "a"]] })])).t0).toBe(720);
     expect(buildDayView(live([agent({ agent_id: "a", events: [[100, "a"]] })])).t0).toBe(480);
     expect(buildDayView(live([agent({ agent_id: "a", events: [[650, "a"]] })], { settings: { ...SETTINGS, shift: null } })).t0).toBe(540);
+  });
+});
+
+describe("v6 — « En poste »: stretches of her day", () => {
+  test("her actions (calls, decisions, uploads) chain into stretches; a gap over 60 min starts a new one", () => {
+    const v = buildDayView(
+      live([
+        agent({
+          agent_id: "a",
+          events: [[840, "a"], [870, "u"], [930, "r"], [991, "a"], [1000, "a"]],
+        }),
+      ]),
+    );
+    const r = v.rows[0];
+    // 840 → 930 (gaps of 30 and 60 stay together), then 991 → 1000 after a 61-minute pause.
+    expect(r.stretches).toEqual([
+      { b: 840, e: 930, n: 3 },
+      { b: 991, e: 1000, n: 2 },
+    ]);
+    expect(r.onShiftMin).toBe(90 + 9);
+  });
+
+  test("nothing done is nothing on shift", () => {
+    const r = buildDayView(live([agent({ agent_id: "a" })])).rows[0];
+    expect(r.stretches).toEqual([]);
+    expect(r.onShiftMin).toBe(0);
+  });
+
+  test("a live day stops at now", () => {
+    const r = buildDayView(live([agent({ agent_id: "a", events: [[1000, "a"], [1100, "a"]] })])).rows[0];
+    expect(r.stretches).toEqual([{ b: 1000, e: 1000, n: 1 }]);
+  });
+});
+
+describe("v6 — the work of the day (waffle and rings)", () => {
+  test("done = uploaded + rejected; in hand, live only = in progress, to call, past the delay", () => {
+    const v = buildDayView(
+      live([
+        agent({ agent_id: "a", up: 3, rej: 2, queue: [["a", 30, 1], ["p", 30, 0], ["p", 200, 0], ["cf", 500, 1]] }),
+        agent({ agent_id: "b", up: 1, rej: 0, queue: [["cb", 10, 1]] }),
+      ]),
+    );
+    const a = v.rows.find((r) => r.agentId === "a")!;
+    expect(dayWork([a], true)).toEqual({ up: 3, rej: 2, prog: 1, todo: 1, late: 1 });
+    expect(dayWork(v.rows, true)).toEqual({ up: 4, rej: 2, prog: 2, todo: 1, late: 1 });
+  });
+
+  test("a past day only knows what was done", () => {
+    const v = buildDayView(past([agent({ agent_id: "a", up: 3, rej: 2, queue: [["p", 300, 0]] })]));
+    expect(dayWork(v.rows, false)).toEqual({ up: 3, rej: 2, prog: 0, todo: 0, late: 0 });
+  });
+});
+
+describe("v6 — her colour", () => {
+  test("rows and dormant accounts carry the colour the database gave her", () => {
+    const v = buildDayView(
+      live([
+        agent({ agent_id: "a", color: "pink" }),
+        agent({ agent_id: "z", color: "lime", active_7d: false, last_action_at: "2026-09-01T10:00:00Z" }),
+      ]),
+    );
+    expect(v.rows[0].color).toBe("pink");
+    expect(v.dormant[0].color).toBe("lime");
   });
 });

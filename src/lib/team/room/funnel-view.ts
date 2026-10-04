@@ -17,6 +17,7 @@ export interface FunnelRow {
   agentId: string;
   name: string;
   avatarUrl: string | null;
+  color: string | null;
   isActive: boolean;
   assigned: number;
   uploaded: number;
@@ -108,6 +109,7 @@ export function buildFunnelView(
         agentId: a.agent_id,
         name: a.name,
         avatarUrl: a.avatar_url,
+        color: a.color ?? null,
         isActive: a.is_active,
         assigned: a.assigned,
         uploaded: a.uploaded,

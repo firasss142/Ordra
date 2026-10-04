@@ -1,6 +1,7 @@
 /**
- * Salle de contrôle v5 — the payloads of the four RPCs in
- * supabase/migrations/20261003200000_team_control_room_v5.sql, as the API returns them.
+ * Salle de contrôle — the payloads of the four RPCs in
+ * supabase/migrations/20261003200000_team_control_room_v5.sql (+ `color`,
+ * 20261004200000_team_room_v6_agent_colour.sql), as the API returns them.
  * Spec: prototypes/team-v5.html · plans/team-control-room-v5.md.
  */
 
@@ -32,10 +33,14 @@ export interface RoomSettings {
   overrides: ShiftOverrides | null;
 }
 
+/** Her own colour on the team surfaces (users.color, v6) — a key of AGENT_COLORS. */
+export type AgentColorKey = "indigo" | "pink" | "cyan" | "gold" | "lime" | "orange";
+
 export interface DayAgent {
   agent_id: string;
   name: string;
   avatar_url: string | null;
+  color: string | null;
   phone: string | null;
   last_seen_at: string | null;
   is_available: boolean;
@@ -67,6 +72,7 @@ export interface FunnelAgent {
   agent_id: string;
   name: string;
   avatar_url: string | null;
+  color: string | null;
   is_active: boolean;
   last_action_at: string | null;
   assigned: number;

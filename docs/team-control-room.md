@@ -1,4 +1,15 @@
-# Salle de contrôle (/team) — v5
+# Salle de contrôle (/team) — v6
+
+**v6 (2026-10-04)** = v5's content in the « Aurore » look (`prototypes/team-v6.html`,
+design-system §4.25): the day's work as a waffle + the six numbers as tiles, one live
+card per agent in her colour (ring done / in hand, four numbers, the red « non appelées »
+box), the period table with medals, her drawer in frosted glass. Changes of substance:
+« Actif » (10-minute windows) became **« En poste »** — her actions chained, a pause over
+60 min starts a new stretch (`STRETCH_GAP_MIN`, `day-view.ts`), drawn as pills on her
+lane; and `users.color` (migration `20261004200000`), returned by `get_team_day` and
+`get_team_funnel`. The owner kept v5's period switch (30 j · Mois · Dates) in v6.
+Everything below still holds.
+
 
 Spec: `prototypes/team-v5.html` (owner's final review, 2026-10-03). Plan:
 `plans/team-control-room-v5.md`. Code: `src/components/team/room/`, view models in
