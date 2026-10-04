@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ProductsListV6 } from "@/components/products/v6/ProductsListV6";
+import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 import { canViewProductProfitability } from "@/lib/finance-permissions";
 import { getTranslations } from "next-intl/server";
 
@@ -30,18 +31,17 @@ export default async function ProductsPage({
   if (!canViewProductProfitability(profile.role)) {
     const t = await getTranslations({ locale: params.locale, namespace: "products" });
     return (
-      <div className="min-h-screen bg-surface-page px-[16px] pb-[120px] pt-[16px] md:px-[28px] md:pt-[24px]">
+      <ProductsFrame>
         <div className="mx-auto max-w-[1260px] rounded-[14px] border border-line-subtle bg-surface-card px-6 py-16 text-center text-[14px] text-ink-secondary">
           {t("noPermission")}
         </div>
-      </div>
+      </ProductsFrame>
     );
   }
 
-  // Padding is the prototype's <main> (24px 28px 120px; 16px on a phone).
   return (
-    <div className="min-h-screen bg-surface-page px-[16px] pb-[120px] pt-[16px] md:px-[28px] md:pt-[24px]">
+    <ProductsFrame>
       <ProductsListV6 role={profile.role} userMarketId={profile.market_id ?? null} locale={params.locale} />
-    </div>
+    </ProductsFrame>
   );
 }

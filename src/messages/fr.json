@@ -2110,42 +2110,6 @@
     "callResultFootnote": "Le résultat est enregistré dans l'historique de la commande."
   },
   "products": {
-    "title": "Produits",
-    "addButton": "Ajouter un produit",
-    "emptyState": "Aucun produit",
-    "table": {
-      "product": "Produit",
-      "variants": "Variantes",
-      "stock": "Stock",
-      "systemInventory": "Stock système",
-      "realInventory": "Stock réel",
-      "threshold": "Seuil",
-      "unitCogs": "COGS unitaire",
-      "packing": "Emballage",
-      "status": "Statut",
-      "actions": "Actions",
-      "sku": "SKU",
-      "price": "Prix de vente",
-      "stockValue": "Valeur du stock",
-      "revenue": "CA",
-      "netProfit": "Profit net",
-      "margin": "Marge",
-      "confRate": "Conv.",
-      "delivRate": "Liv.",
-      "returnRate": "Ret.",
-      "leads": "Prospects",
-      "adSpend": "Publicité",
-      "costPerDelivered": "Coût / livrée",
-      "damaged": "Endommagés",
-      "selectAll": "Tout sélectionner",
-      "selectRow": "Sélectionner {name}",
-      "loading": "Chargement des produits…"
-    },
-    "lowStock": "Stock bas",
-    "edit": "Modifier",
-    "adjustStock": "Ajuster stock",
-    "deactivate": "Désactiver",
-    "activate": "Activer",
     "stockModal": {
       "title": "Ajustement stock — {name}",
       "quantityLabel": "Quantité (+ ou −)",
@@ -2160,190 +2124,10 @@
       "errorNote": "La note est obligatoire."
     },
     "stockReasons": {
-      "initial_stock": "Stock initial",
-      "deposit": "Dépôt",
-      "returned": "Retourné",
       "manual_adjustment": "Ajustement manuel",
       "damaged_writeoff": "Dépréciation (endommagé)"
     },
-    "pagination": {
-      "previous": "Précédent",
-      "next": "Suivant",
-      "pageOf": "Page {page} sur {total}"
-    },
-    "modes": {
-      "catalogue": "Catalogue",
-      "performance": "Performance"
-    },
-    "filters": {
-      "title": "Filtres",
-      "allMarkets": "Tous les marchés",
-      "status": {
-        "all": "Tous",
-        "active": "Actifs",
-        "lowStock": "Stock bas",
-        "losingMoney": "Perdant de l'argent",
-        "inactive": "Inactifs",
-        "outOfStock": "Rupture de stock",
-        "noSales": "Sans ventes",
-        "thinMargin": "Marge faible"
-      },
-      "search": {
-        "placeholder": "Rechercher un produit…"
-      }
-    },
-    "bulk": {
-      "selectedCount": "{count} sélectionné(s)",
-      "activate": "Activer",
-      "deactivate": "Désactiver",
-      "clear": "Effacer la sélection",
-      "confirmTitle": "Confirmer l'action groupée",
-      "label": "Actions groupées",
-      "selected": "{count} sélectionnées"
-    },
-    "metrics": {
-      "confirmationRate": "Conf.",
-      "deliveryRate": "Liv.",
-      "returnRate": "Ret.",
-      "margin": "Marge",
-      "revenue": "CA",
-      "noData": "Aucune donnée"
-    },
-    "health": {
-      "green": "Sain",
-      "yellow": "À surveiller",
-      "red": "Déficitaire",
-      "grey": "Pas de données"
-    },
-    "portfolio": {
-      "topEarner": "Top vendeur",
-      "worstMargin": "Pire marge",
-      "lowStock": "Stock faible",
-      "active": "Actifs",
-      "ofTotal": "sur {total}",
-      "ofActive": "sur {total} actifs",
-      "noData": "—"
-    },
-    "sort": {
-      "label": "Trier",
-      "default": "Par défaut",
-      "revenueDesc": "CA (plus élevé)",
-      "marginAsc": "Marge (plus faible)",
-      "stockAsc": "Stock (plus bas)",
-      "name": "Nom",
-      "profitDesc": "Profit net (plus élevé)",
-      "returnDesc": "Retours (plus élevé)"
-    },
-    "create": {
-      "title": "Nouveau produit",
-      "intro": "Renseignez les informations du produit. Les coûts servent à calculer la marge en temps réel.",
-      "sections": {
-        "identity": "Identité",
-        "costModel": "Modèle de coûts",
-        "inventory": "Inventaire"
-      },
-      "fields": {
-        "sku": "SKU"
-      },
-      "hints": {
-        "unitCogs": "Coût d'achat ou de fabrication par unité livrée.",
-        "packingCost": "Emballage, ruban, protections — par commande confirmée.",
-        "processingCost": "Coût de traitement de confirmation par commande confirmée.",
-        "threshold": "En dessous de ce seuil, le produit est signalé en stock bas.",
-        "sku": "Identifiant unique pour la correspondance webhook (optionnel)."
-      },
-      "errors": {
-        "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
-      },
-      "submit": "Créer le produit",
-      "cancel": "Annuler",
-      "variants": {
-        "toggle": "Ce produit se décline",
-        "toggleHint": "tailles, couleurs, parfums…",
-        "off": "Produit simple : un seul coût, un seul prix, un seul stock. C'est le cas courant — laissez éteint si vous ne vendez qu'une seule version.",
-        "moved": "Déplacé dans les variantes. Le coût, le prix et le SKU appartiennent maintenant à chaque taille. Le produit garde seulement ce qui ne varie pas : frais d'emballage, frais de confirmation, seuil de stock bas.",
-        "skuHint": "Chaque variante a son propre SKU. C'est lui qui permet à une commande boutique « …حجم كبير » d'arriver directement sur la bonne taille, sans correspondance à créer à la main.",
-        "stockFromVariants": "Le stock initial est saisi par variante. Le total du produit en est la somme : {total}.",
-        "columns": {
-          "label": "Nom de la variante",
-          "sku": "SKU",
-          "unitCogs": "Coût unit.",
-          "displayPrice": "Prix",
-          "initialStock": "Stock initial"
-        },
-        "add": "Ajouter une variante",
-        "remove": "Retirer",
-        "labelPlaceholder": "Grand",
-        "skuPlaceholder": "Optionnel",
-        "errors": {
-          "labelRequired": "Chaque variante doit porter un nom.",
-          "priceRequired": "Chaque variante doit avoir un prix de vente supérieur à zéro.",
-          "atLeastOne": "Ajoutez au moins une variante, ou éteignez l'interrupteur."
-        }
-      }
-    },
-    "editForm": {
-      "title": "Modifier le produit",
-      "intro": "Mettez à jour les informations du produit.",
-      "sections": {
-        "inventoryAndStatus": "Inventaire et statut"
-      },
-      "fields": {
-        "name": "Nom du produit",
-        "sku": "SKU",
-        "description": "Description",
-        "imageUrl": "URL de l'image",
-        "unitCogs": "COGS unitaire",
-        "packingCost": "Coût d'emballage",
-        "processingCost": "Coût de traitement",
-        "threshold": "Seuil stock bas",
-        "defaultPrice": "Prix de vente (optionnel)",
-        "isActive": "Produit actif"
-      },
-      "hints": {
-        "sku": "Identifiant unique pour la correspondance webhook (optionnel)."
-      },
-      "errors": {
-        "nameRequired": "Le nom est obligatoire.",
-        "unitCogsInvalid": "COGS unitaire invalide.",
-        "thresholdInvalid": "Seuil stock bas invalide.",
-        "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
-      },
-      "submit": "Enregistrer",
-      "saving": "Enregistrement…",
-      "agentContent": {
-        "section": "Fiche agent",
-        "sectionHint": "Ce que l'agent de confirmation voit pendant l'appel. Les coûts et le stock ne sont jamais affichés.",
-        "agentBrief": "À savoir (épinglé)",
-        "agentBriefHint": "Une seule ligne, toujours visible sur la commande sans clic. 280 caractères max.",
-        "agentBriefTone": "Importance",
-        "toneInfo": "Information",
-        "toneWarning": "Attention",
-        "toneCritical": "Critique",
-        "agentNotes": "Notes internes",
-        "agentNotesHint": "Objections, packs, ce qu'il ne faut pas dire. Une idée par ligne.",
-        "charsLeft": "{count} caractères restants",
-        "composition": "Composition",
-        "compositionHint": "Ingrédients ou matériaux — demandé très souvent au téléphone.",
-        "usage": "Mode d'emploi",
-        "usageHint": "Application, fréquence, durée.",
-        "contraindications": "Contre-indications",
-        "contraindicationsHint": "Grossesse, âge, allergies. Affiché en rouge à l'agent — à remplir dès qu'il y a un risque.",
-        "floorPrice": "Prix plancher",
-        "floorPriceHint": "Prix le plus bas que l'agent peut accepter sans validation.",
-        "crossSell": "Produit alternatif",
-        "crossSellHint": "Proposé à l'agent quand ce produit est refusé. Même marché uniquement.",
-        "crossSellNone": "Aucun"
-      },
-      "placeholders": {
-        "sku": "bv-01"
-      }
-    },
     "image": {
-      "label": "Image du produit",
-      "add": "Ajouter une image",
-      "change": "Changer l'image",
-      "remove": "Supprimer l'image",
       "uploadFailed": "Échec du téléversement de l'image.",
       "errors": {
         "notImage": "Fichier image requis.",
@@ -2351,289 +2135,18 @@
         "decodeFailed": "Impossible de lire l'image."
       }
     },
-    "row": {
-      "editThreshold": "Modifier le seuil",
-      "variants": "{count} variante(s)",
-      "moreVariants": "+{count} autres",
-      "edit": "Modifier la fiche",
-      "adjustStock": "Ajuster le stock",
-      "duplicate": "Dupliquer"
-    },
     "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour afficher le catalogue.",
-    "noSearchMatch": "Aucun produit ne correspond à « {q} ».",
-    "subtitle": "Gérez votre catalogue, vos stocks et la performance de vos produits",
-    "refreshing": "actualisation…",
-    "exportCsv": "Exporter CSV",
     "noPermission": "Vous n'avez pas accès à la rentabilité des produits.",
-    "activeLabel": "Actif",
-    "inactive": "Inactif",
-    "emptyStateHint": "Ajoutez un produit ou changez de filtre pour en voir.",
-    "emptySearchTitle": "Aucun résultat",
-    "columns": {
-      "label": "Colonnes",
-      "heading": "Colonnes affichées",
-      "fixed": "fixe"
-    },
-    "facets": {
-      "heading": "Attention requise",
-      "flagged": "{count} produits signalés",
-      "allClear": "Rien à signaler",
-      "showAll": "Tout afficher",
-      "outOfStock": "Rupture",
-      "lowStock": "Stock bas",
-      "losingMoney": "Perte",
-      "noSales": "Sans ventes",
-      "inactive": "Inactifs"
-    },
-    "period": {
-      "lastNDays": "{count} derniers jours",
-      "compact": "{count}j"
-    },
     "errors": {
-      "toggleFailed": "{count} produit(s) n'ont pas pu être mis à jour.",
-      "thresholdFailed": "Le seuil n'a pas pu être enregistré.",
       "generic": "Erreur {status}",
       "archiveStillActive": "Désactivez d'abord le produit, puis archivez-le."
     },
-    "rowList": {
-      "summary": "{count} produit(s) · {active} actif(s)",
-      "density": "Densité",
-      "densityComfortable": "Confortable",
-      "densityCompact": "Compact",
-      "sortBy": "Trier : {value}",
-      "sortAscending": "Croissant",
-      "sortDescending": "Décroissant",
-      "sortKeys": {
-        "name": "Nom",
-        "currentStock": "Stock",
-        "unitCogs": "COGS unitaire",
-        "revenue": "Chiffre d'affaires",
-        "netProfit": "Profit net",
-        "marginPct": "Marge nette",
-        "confirmationRate": "Taux de confirmation",
-        "deliveryRate": "Taux de livraison",
-        "returnRate": "Taux de retour",
-        "totalLeads": "Commandes reçues",
-        "isActive": "Statut"
-      },
-      "orders": "Commandes",
-      "ordersCaption": "reçues",
-      "confirmed": "Confirmées",
-      "delivered": "Livrées",
-      "noDispatch": "aucun upload",
-      "marginValue": "Marge {value}",
-      "noRevenueYet": "Coûts engagés, rien d'encaissé",
-      "stockCount": "{count} en stock",
-      "stockThreshold": "seuil {count}",
-      "inFlight": "{count} en cours",
-      "inFlightHint": "Uploadées, en attente d'un statut transporteur",
-      "noOrders": "Aucune commande sur ce produit",
-      "metricsUnavailable": "Chiffres indisponibles",
-      "openProduct": "Ouvrir la fiche de {name}",
-      "archive": "Archiver le produit"
-    },
-    "sheet": {
-      "breadcrumb": {
-        "label": "Fil d'Ariane",
-        "current": "Détails du produit"
-      },
-      "header": {
-        "thumbAlt": "Photo du produit",
-        "catalogPrice": "prix catalogue",
-        "stock": "Stock",
-        "stockThreshold": "/ seuil {value}",
-        "stockValue": "Valeur du stock",
-        "orders": "Commandes",
-        "agentsInvolved": "Agents impliqués",
-        "damaged": "Endommagés"
-      },
-      "funnel": {
-        "title": "Entonnoir",
-        "leads": "Commandes",
-        "leadsSub": "reçues de la boutique",
-        "treated": "Traitées",
-        "treatedSub": "un agent a posé une action",
-        "confirmed": "Confirmées",
-        "confirmedSub": "{value} des commandes",
-        "uploaded": "Uploadées",
-        "uploadedSub": "{count} encore en cours",
-        "delivered": "Livrées",
-        "deliveredSub": "{rate} des {count} uploadées",
-        "shareOfOrders": "{value} des commandes",
-        "unavailable": "donnée indisponible"
-      },
-      "callout": {
-        "text": "Le taux de livraison se calcule sur tout ce qui a été uploadé : les {inFlight} commandes encore chez le transporteur comptent comme non-livrées. Il répond à « quelle part du parti est arrivée à ce jour », pas à « le transporteur livre-t-il bien ».",
-        "convergence": "Sur les {settled} commandes déjà réglées, {rate} ont été livrées — c'est vers ce chiffre que le taux converge à mesure que le stock en vol se règle.",
-        "noSettled": "Aucune commande n'est encore réglée : le taux ne peut pas encore converger."
-      },
-      "money": {
-        "title": "Argent",
-        "meta": "CA compté uniquement sur les commandes livrées",
-        "netProfit": "Profit net",
-        "netProfitSub": "Marge {margin} · {count} livraisons",
-        "revenue": "Chiffre d'affaires",
-        "grossProfit": "Profit brut",
-        "netMargin": "Marge nette",
-        "netPerDelivery": "Net / livraison",
-        "waterfall": {
-          "revenue": "Chiffre d'affaires",
-          "cogs": "COGS",
-          "delivery": "Livraison",
-          "returns": "Retours",
-          "packing": "Emballage",
-          "processing": "Traitement",
-          "ads": "Publicité",
-          "netProfit": "Profit net",
-          "note": "Le CA ne compte que les {count} commandes livrées. Les barres se soustraient exactement au profit net, sans arrondi intermédiaire.",
-          "zeroNote": "{posts} valent {value} sur ce produit — les postes à zéro ne sont pas tracés, mais ils sont bien dans le calcul.",
-          "chartLabel": "Cascade du chiffre d'affaires au profit net"
-        }
-      },
-      "agents": {
-        "title": "Agents",
-        "meta": "{count} personnes ont travaillé ce produit",
-        "kpi": {
-          "calls": "Appels",
-          "callsSub": "sur {count} commandes appelées · {avg} appels / commande",
-          "callsSubPerConfirmation": "{avg} appels par confirmation · {count} confirmées",
-          "treated": "Traitées",
-          "treatedSub": "{rate} des {total} commandes",
-          "treatedUnavailable": "Total distinct indisponible : plusieurs agents peuvent traiter la même commande.",
-          "confirmed": "Confirmées",
-          "confirmedSub": "{rate} des commandes · {treatedRate} des traitées",
-          "confirmedSubNoTreated": "{rate} des commandes",
-          "delivered": "Livrées",
-          "deliveredSub": "{rate} des {uploaded} uploadées · {inFlight} en vol",
-          "deliveredSubNoFlight": "{rate} des {uploaded} uploadées",
-          "unavailable": "Donnée indisponible sur la période"
-        },
-        "table": {
-          "title": "Classement des agents",
-          "subtitle": "trié par CA généré · en-têtes triables",
-          "caption": "Comparaison des agents ayant travaillé ce produit",
-          "empty": "Aucun agent n'a travaillé ce produit sur la période."
-        },
-        "columns": {
-          "rank": "Rang",
-          "agent": "Agent",
-          "calls": "Appels",
-          "confirmation": "Confirmation",
-          "delivery": "Livraison",
-          "revenue": "CA généré"
-        },
-        "tips": {
-          "rank": "Classement par CA généré sur ce produit. Managers et administrateurs en sont exclus : ils confirment en lot sans appeler, ce qui fausserait la comparaison.",
-          "agent": "Rôle actuel. Un agent désactivé reste listé tant que son travail compte dans la période.",
-          "calls": "Tentatives d'appel enregistrées (attempt_1/2/3) et nombre de commandes distinctes appelées. Le repère sur la jauge est la médiane de l'équipe.",
-          "confirmation": "Confirmées ÷ traitées. L'agent est crédité s'il est le dernier à avoir confirmé la commande.",
-          "delivery": "Livrées ÷ confirmées. Les commandes encore chez le transporteur comptent comme non-livrées — d'où la pastille « en cours », qui indique ce qui peut encore remonter.",
-          "revenue": "Somme des prix des commandes livrées, attribuée au dernier agent qui a confirmé. Seules les livraisons comptent : rien n'est compté à l'upload."
-        },
-        "tipLabel": "À propos de {column}",
-        "callsDen": "sur {count} commandes",
-        "noCalls": "aucun appel passé",
-        "confirmationDen": "{confirmed} sur {treated} traitées",
-        "deliveryDen": "{delivered} livrées",
-        "deliveryDenWithReturns": "{delivered} livrées · {returned} retours",
-        "noConfirmation": "aucune confirmation",
-        "inFlightPill": "+{count} en cours",
-        "inFlightNone": "0 en cours",
-        "inFlightTitle": "Commandes confirmées par cet agent, encore chez le transporteur",
-        "teamMedian": "Médiane de l'équipe",
-        "supervisorsGroup": "Managers et administrateurs — hors classement",
-        "openAgent": "Ouvrir la fiche de {name}",
-        "openAgentColumn": "Ouvrir la fiche agent",
-        "unknownAgent": "Compte système / hors marché",
-        "roles": {
-          "agent": "Agent",
-          "market_manager": "Manager marché",
-          "super_admin": "Super admin",
-          "warehouse_agent": "Entrepôt",
-          "investor": "Investisseur",
-          "unknown": "Rôle inconnu"
-        },
-        "readingNote": "Lecture — tout ce qui suit la confirmation est attribué au dernier agent qui a confirmé, si bien que pour chaque ligne confirmées = livrées + retours + en cours + autres. Le trait vertical sur chaque jauge est la médiane de l'équipe. La pastille « en cours » est ce qui peut encore faire monter le taux de livraison. Les livrées de ce tableau lisent le statut COURANT des commandes, là où l'entonnoir compte les transitions de la période : les deux peuvent différer."
-      },
-      "stock": {
-        "title": "Stock",
-        "current": "Stock actuel",
-        "threshold": "Seuil d'alerte",
-        "initial": "Stock initial",
-        "value": "Valeur du stock",
-        "damaged": "Retours endommagés",
-        "deliveredUnits": "Unités livrées"
-      },
-      "agentContent": {
-        "title": "Fiche agent",
-        "meta": "ce que l'agent lit pendant l'appel",
-        "emptyTitle": "Aucun contenu rédigé pour ce produit",
-        "emptyBody": "Brief, notes, composition, utilisation, contre-indications et vente croisée sont vides — les agents qui appellent sur ce produit le font sans script.",
-        "emptyCta": "Rédiger la fiche",
-        "briefLabel": "À savoir (épinglé)",
-        "written": "Le contenu agent de ce produit est rédigé.",
-        "editCta": "Modifier la fiche"
-      }
-    },
     "editV2": {
-      "intro": "Identité, fiche agent, modèle de coût et statut. Les champs verrouillés dépendent de votre rôle.",
-      "asideLabel": "Aperçus",
-      "nav": {
-        "label": "Sections du formulaire"
-      },
-      "sections": {
-        "composition": "Composition et utilisation"
-      },
-      "hints": {
-        "identity": "Nom affiché partout dans la console et sur les bordereaux transporteur.",
-        "agentSheet": "Ce bloc s'affiche à l'agent pendant l'appel. Un brief court en haut, le détail en dessous. La colonne latérale montre le rendu en direct.",
-        "composition": "Les trois champs que l'agent déplie quand le client pose une question précise.",
-        "costModel": "Ces champs alimentent chaque calcul de rentabilité du produit.",
-        "stockStatus": "Le stock ne se modifie pas ici — il passe par « Ajuster le stock », qui écrit une ligne au journal d'inventaire.",
-        "currentStock": "Lecture seule — le stock passe par l'ajustement d'inventaire.",
-        "isActive": "Visible dans la file des agents et acceptant de nouvelles commandes."
-      },
-      "permission": {
-        "superAdmin": "Super admin",
-        "marketManager": "Manager du marché",
-        "requiredRole": "Rôle requis : {role}"
-      },
-      "fields": {
-        "currentStock": "Stock actuel"
-      },
       "variants": {
         "title": "Notes par pack",
         "hint": "Une ligne par pack, lue par l'agent au moment de proposer la quantité."
       },
-      "margin": {
-        "title": "Marge unitaire — en direct",
-        "price": "Prix catalogue",
-        "cogs": "− Coût unitaire",
-        "packing": "− Emballage",
-        "processing": "− Traitement",
-        "delivery": "− Livraison (moy. réelle)",
-        "total": "Marge par livraison",
-        "note": "Frais de livraison moyens observés sur les livraisons réelles de ce produit. Les retours ne sont pas dans ce calcul unitaire — ils apparaissent dans le profit net de la fiche.",
-        "noDeliveryFee": "Frais de livraison moyens indisponibles — cette marge ne les déduit pas.",
-        "noPrice": "Renseignez un prix catalogue pour voir la marge."
-      },
-      "preview": {
-        "title": "Aperçu agent",
-        "emptyBrief": "Brief vide — l'agent ne verra rien ici",
-        "emptyNotes": "Les notes détaillées s'afficheront ici, sous le nom du produit, dans la fiche que l'agent ouvre pendant l'appel."
-      },
-      "impact": {
-        "title": "Impact",
-        "body": "Changer le coût unitaire recalcule le profit net de toutes les livraisons passées — la marge historique bougera dans le tableau de bord.",
-        "inFlight": "Ce produit a {count} commande(s) en cours chez le transporteur."
-      },
-      "savebar": {
-        "label": "Enregistrement",
-        "clean": "Aucune modification en attente",
-        "dirty": "Modifications non enregistrées"
-      },
       "variantsEditor": {
-        "title": "Variantes",
         "hint": "Une taille est un objet différent en rayon : elle porte son stock, son coût et son SKU. Un palier est une façon de vendre le même objet — « Pack 2 » consomme deux unités de la taille choisie.",
         "axis": {
           "attribute": "Tailles et déclinaisons",
@@ -2642,7 +2155,6 @@
           "packHint": "Ne portent pas de stock : ils en consomment."
         },
         "empty": "Aucune variante. Le produit se vend tel quel.",
-        "add": "Ajouter une variante",
         "addAttribute": "Ajouter une taille",
         "addPack": "Ajouter un palier",
         "fields": {
@@ -2650,12 +2162,10 @@
           "labelPlaceholder": "Grand",
           "sku": "SKU",
           "skuPlaceholder": "Optionnel",
-          "skuHint": "Unique dans le marché, produits et variantes confondus.",
           "unitCogs": "Coût unitaire",
           "displayPrice": "Prix de vente",
           "quantity": "Unités par palier",
-          "stock": "Stock",
-          "active": "Active"
+          "stock": "Stock"
         },
         "stockReadOnly": "Le stock se corrige depuis Stock & inventaire, jamais ici : chaque mouvement laisse une ligne au registre.",
         "actions": {
@@ -2683,40 +2193,6 @@
       "confirm": "Archiver",
       "cancel": "Annuler",
       "pending": "Archivage…"
-    },
-    "createV2": {
-      "intro": "Renseignez l'identité, les coûts et le stock de départ. La marge se met à jour pendant la saisie.",
-      "asideLabel": "Résumé du produit",
-      "nav": {
-        "label": "Sections du formulaire"
-      },
-      "hints": {
-        "identity": "Le nom et le SKU servent à retrouver le produit — dans la liste, sur la commande et à la correspondance webhook.",
-        "costModel": "Ce que le produit coûte réellement, avant livraison. Ces montants nourrissent la marge et le profit net.",
-        "inventory": "Le stock de départ et le seuil d'alerte. La fiche agent s'écrit après la création."
-      },
-      "fields": {
-        "market": "Marché",
-        "initialStock": "Stock initial"
-      },
-      "hintsField": {
-        "market": "Le marché ne peut plus être changé après la création.",
-        "initialStock": "Quantité déjà en entrepôt au moment de la création."
-      },
-      "namePlaceholder": "Ex : Chaussures Sport",
-      "margin": {
-        "empty": "Renseignez un prix de vente et un coût unitaire pour voir la marge."
-      },
-      "next": {
-        "title": "Après la création",
-        "body": "Le produit s'ouvre sur sa fiche. La fiche agent — brief, composition, contre-indications — s'écrit depuis « Modifier »."
-      },
-      "savebar": {
-        "label": "Création",
-        "ready": "Prêt à créer",
-        "incomplete": "Nom et coût unitaire obligatoires"
-      },
-      "creating": "Création…"
     },
     "v6": {
       "l_title": "Produits",
@@ -3011,93 +2487,45 @@
       "mv_reception": "Réception",
       "mv_reception_reversal": "Réception annulée",
       "a_menu": "Actions",
-      "f_active_sw": "Produit actif"
-    }
-  },
-  "productPnl": {
-    "rentabilityTitle": "Rentabilité",
-    "loading": "Chargement…",
-    "empty": "Aucune donnée pour la période sélectionnée",
-    "backToProducts": "Produits",
-    "edit": "Modifier",
-    "status": {
-      "active": "Actif",
-      "inactive": "Inactif"
-    },
-    "stock": {
-      "label": "Stock",
-      "low": "Stock bas",
-      "units": "{count} unités"
-    },
-    "costsReference": {
-      "title": "Coûts de référence",
-      "cogs": "Coût unitaire (COGS)",
-      "packing": "Emballage",
-      "processing": "Traitement",
-      "variants": "Variantes",
-      "noVariants": "Aucune variante",
-      "variantPriceLine": "{label} · ×{quantity} · {price}"
-    },
-    "header": {
-      "skuLabel": "SKU",
-      "variantsCount": "{count, plural, one {# variante} other {# variantes}}"
-    },
-    "stockHistory": {
-      "title": "Historique du stock",
-      "loading": "Chargement…",
-      "empty": "Aucun mouvement de stock",
-      "colDate": "Date",
-      "colMovement": "Mouvement",
-      "colReason": "Motif",
-      "colNote": "Note",
-      "prev": "Précédent",
-      "next": "Suivant",
-      "pageOf": "{page} / {total}"
-    },
-    "hero": {
-      "netProfit": "Profit net",
-      "revenue": "Chiffre d'affaires",
-      "profitPerDelivered": "Profit / livrée",
-      "marginLabel": "{value} de marge",
-      "deliveredLabel": "{count} livrées",
-      "vsCostLabel": "vs coût {value}",
-      "noDelivery": "Aucune livraison",
-      "vsPrev": "vs période précédente"
-    },
-    "funnel": {
-      "title": "Entonnoir de conversion",
-      "leads": "Leads",
-      "confirmed": "Confirmées",
-      "delivered": "Livrées",
-      "toConfirmed": "→ confirmation",
-      "toDelivered": "→ livraison"
-    },
-    "composition": {
-      "title": "Composition des coûts",
-      "cogs": "COGS",
-      "delivery": "Livraison",
-      "returns": "Retours",
-      "packing": "Emballage",
-      "ads": "Publicité",
-      "processing": "Traitement",
-      "netProfit": "Profit net",
-      "ofRevenue": "du CA"
-    },
-    "ops": {
-      "title": "Opérations",
-      "confirmationRate": "Taux de confirmation",
-      "deliveryRate": "Taux de livraison",
-      "returnRate": "Taux de retour",
-      "costPerDelivered": "Coût / livrée"
-    },
-    "pills": {
-      "high": "Élevé",
-      "watch": "À surveiller",
-      "low": "Bas",
-      "healthy": "Sain",
-      "lowStock": "Stock bas",
-      "adsPressure": "Pub élevée",
-      "negativeProfit": "Déficitaire"
+      "f_active_sw": "Produit actif",
+      "n_title": "Nouveau produit",
+      "n_unnamed": "Sans nom pour l’instant",
+      "n_create": "Créer le produit",
+      "n_creating": "Création…",
+      "n_created": "Produit créé",
+      "n_pick": "Ajouter une photo",
+      "n_market": "Marché",
+      "n_market_h": "Le marché ne peut plus être changé après la création.",
+      "n_g_start": "Stock de départ",
+      "n_initial": "Stock initial",
+      "n_initial_h": "Quantité déjà en entrepôt au moment de la création.",
+      "n_stock_var": "Le stock initial se saisit par taille, dans l’onglet Variantes : {n} unités au total.",
+      "e_amount": "Le montant doit être un nombre positif.",
+      "e_qty": "La quantité doit être un entier positif.",
+      "n_var_moved": "Le coût, le prix et le SKU se saisissent par taille, dans l’onglet Variantes. Le produit garde l’emballage, le traitement et le seuil de stock bas.",
+      "n_v_off": "Produit simple : un seul coût, un seul prix, un seul stock. C’est le cas courant.",
+      "n_v_packs": "Les lots (2 pour…, 3 pour…) s’ajoutent après la création, depuis « Modifier ».",
+      "n_v_title": "Tailles",
+      "n_v_sub": "Chaque taille a son coût, son prix, son SKU et son stock. Le SKU fait arriver une commande boutique directement sur la bonne taille.",
+      "n_v_label": "Nom de la taille",
+      "n_v_cogs": "Coût d’achat",
+      "n_v_price": "Prix",
+      "n_v_stock": "Stock initial",
+      "n_v_remove": "Retirer cette taille",
+      "n_v_simple": "Revenir à un produit simple",
+      "n_v_total": "{n} unités au total, la somme des tailles",
+      "e_v_label": "Chaque taille doit porter un nom.",
+      "e_v_price": "Chaque taille doit avoir un prix supérieur à zéro.",
+      "n_m_title": "Marge par pièce",
+      "n_m_before": "Avant livraison et pub",
+      "n_m_note": "La livraison et la pub par livraison seront connues après les premières ventes.",
+      "n_m_empty": "Saisissez un prix et un coût d’achat pour voir la marge.",
+      "n_m_var": "Par taille, avant livraison et pub.",
+      "n_next_t": "Après la création",
+      "n_next_b": "Le produit s’ouvre sur sa fiche. La fiche agent (brief, composition, contre-indications) s’écrit depuis « Modifier ».",
+      "n_ready": "Prêt à créer",
+      "n_incomplete": "Il manque le nom ou le coût d’achat",
+      "n_leaveQ": "Abandonner ce nouveau produit ?"
     }
   },
   "crm": {

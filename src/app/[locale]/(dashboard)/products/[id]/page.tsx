@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProductSheetV6 } from "@/components/products/v6/ProductSheetV6";
+import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 
 /*
  * FICHE PRODUIT — prototypes/products-v6.html (detail), approved 2026-10-03.
@@ -29,10 +30,9 @@ export default async function ProductSheetPage({
     redirect(`/${params.locale}/products`);
   }
 
-  // Padding is the prototype's <main> (24px 28px 120px; 16px on a phone).
   return (
-    <div className="min-h-screen bg-surface-page px-[16px] pb-[120px] pt-[16px] md:px-[28px] md:pt-[24px]">
+    <ProductsFrame>
       <ProductSheetV6 productId={params.id} role={role} locale={params.locale} />
-    </div>
+    </ProductsFrame>
   );
 }

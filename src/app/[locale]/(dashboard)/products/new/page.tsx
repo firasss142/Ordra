@@ -1,14 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ProductCreateForm } from "@/components/products/ProductCreateForm";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
+import { ProductCreateV6, type CreateMarket } from "@/components/products/v6/ProductCreateV6";
+import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 
-interface Market {
-  id: string;
-  name: string;
-  currency: string | null;
-}
-
+/*
+ * NOUVEAU PRODUIT — the edit page's design (tabs, one save, the rail), for a
+ * product that does not exist yet. Super admin only, as POST /api/products.
+ * The market is the one the super admin is scoped to; scoped to all markets,
+ * they choose it on the General tab. Amounts carry THAT market's currency,
+ * never the locale's: the Libyan catalogue is authored in French.
+ */
 export default async function NewProductPage({
   params,
 }: {
@@ -28,43 +30,28 @@ export default async function NewProductPage({
     .single();
 
   if (!profile) redirect(`/${params.locale}/login`);
-
-  if (profile.role !== "super_admin") {
-    redirect(`/${params.locale}/products`);
-  }
+  if (profile.role !== "super_admin") redirect(`/${params.locale}/products`);
 
   const { data: marketsData } = await supabase
     .from("markets")
     .select("id, name, currency")
     .order("name", { ascending: true });
-
-  const markets: Market[] = (marketsData ?? []) as Market[];
+  const markets = (marketsData ?? []) as CreateMarket[];
 
   const activeScope = await getActiveMarketScope({
     role: profile.role,
     market_id: profile.market_id,
   } as Parameters<typeof getActiveMarketScope>[0]);
-  const lockedMarketId = activeScope.marketId;
-  const defaultMarketId = lockedMarketId ?? markets[0]?.id ?? "";
-
-  // Le symbole vient du marché visé, jamais de la locale : un super admin
-  // saisit le catalogue libyen en français. Marché inconnu → montants nus.
-  const currency = markets.find((m) => m.id === defaultMarketId)?.currency;
-  const currencySymbol =
-    currency === "LYD" ? "\u062f.\u0644" : currency === "TND" ? "DT" : undefined;
+  const lockedMarketId = activeScope.marketId ?? null;
 
   return (
-    <div className="min-h-screen bg-surface-page px-4 pb-28 pt-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1400px]">
-        <ProductCreateForm
-          role={profile.role}
-          markets={markets}
-          defaultMarketId={defaultMarketId}
-          lockedMarketId={lockedMarketId}
-          locale={params.locale}
-          currencySymbol={currencySymbol}
-        />
-      </div>
-    </div>
+    <ProductsFrame>
+      <ProductCreateV6
+        locale={params.locale}
+        markets={markets}
+        defaultMarketId={lockedMarketId ?? markets[0]?.id ?? ""}
+        lockedMarketId={lockedMarketId}
+      />
+    </ProductsFrame>
   );
 }

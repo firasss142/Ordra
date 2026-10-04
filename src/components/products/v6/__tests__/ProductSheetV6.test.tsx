@@ -166,6 +166,34 @@ const byNorm = (want: string) => (_: string, el: Element | null) =>
 const FLOW_TITLE = byNorm("Ce que sont devenues les 581 commandes");
 
 describe("ProductSheetV6 — the approved product sheet", () => {
+  test("until the product AND its figures arrive, one skeleton — never the hero alone over « Chargement… »", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        const json = (d: unknown) => new Response(JSON.stringify(d), { status: 200, headers: { "Content-Type": "application/json" } });
+        if (url.startsWith("/api/products/qr/overview")) {
+          await gate;
+          return json(overview);
+        }
+        if (url.startsWith("/api/products/qr")) return json({ data: PRODUCT });
+        return new Response("{}", { status: 404 });
+      }),
+    );
+    const { container } = renderSheet();
+    // let the product request settle while the figures are still held back
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+    expect(container.querySelector(".empty-q")).toBeNull();
+    expect(container.querySelectorAll(".hero")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    release();
+    expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   test("the hero names the product, its state, SKU, price and last order", async () => {
     renderSheet();
     await screen.findByRole("heading", { level: 1, name: "القرآن تدبر وعمل" });
