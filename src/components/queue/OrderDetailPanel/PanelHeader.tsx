@@ -1,89 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { X, Check, RotateCcw, Copy, Clock } from "lucide-react";
-import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
-import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
-import { resolveSlaChip, type SlaState } from "@/lib/orders/sla";
+import { Ic, StatusPill, useWhen, type PillOrder } from "@/components/orders/commandes/ui";
+import { ageTone } from "@/lib/orders/row-signals";
 import { formatDateTime } from "@/lib/format";
 import { ManagerPresenceMark } from "../ManagerPresenceMark";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
-
-/**
- * Amber while it runs, red past the target, green once it was met.
- *
- * Filled, not outlined: the chip is the one thing in this bar an agent scans
- * a column of open orders for, and an outline at 13px lost that race against
- * the status badge beside it.
- */
-const SLA_TONE: Record<SlaState, string> = {
-  running: "bg-oms-warn-bg text-oms-warn-ink",
-  breached: "bg-oms-bad-bg text-oms-bad",
-  met: "bg-oms-ok-bg text-oms-ok",
-};
+import type { RejectionBadge } from "@/hooks/useRejectionBadge";
 
 export interface PanelHeaderProps {
   /** Full human reference — storefront order number, else the order id. */
   reference: string;
-  /** Intake time. Drives the elapsed-time reading. */
+  /** The order's market — « aujourd'hui 17:20 » is read in its time zone. */
+  marketId: string | null;
+  /** Intake time. */
   createdAt: string;
-  /** Raw status — the aging scale escalates only while an order is still open. */
-  status: string;
-  /** Localised status label e.g. "Confirmé" / "مؤكد". */
-  statusLabel: string;
+  /** What the status pill reads: status, attempts, callback time, rejection. */
+  pill: PillOrder;
+  /** The market's `max_call_attempts` — « Appel 2/3 ». */
+  maxAttempts: number | null;
+  /** Sub-reason + group icon for a rejected order (useRejectionBadge). */
+  rejection: (o: PillOrder) => RejectionBadge | null;
   locale: string;
-  /**
-   * The market's confirmation target. Null while it loads — the chip stays out
-   * and the header falls back to the plain age reading.
-   */
+  /** The market's confirmation target, in minutes. Null while it loads. */
   slaMinutes?: number | null;
-  /** When the order reached `confirmed`, from its history. Freezes the chip. */
-  confirmedAt?: string | null;
   /** Injectable clock, for deterministic tests. */
   now?: Date;
-  /** Calls made — the status label stops counting at three. */
-  attemptsCount?: number | null;
-  /** The market's `max_call_attempts`. Omit until settings load. */
-  maxAttempts?: number | null;
-  /** When provided, renders the "Change status" affordance next to the badge. */
-  onChangeStatus?: () => void;
   /** Inline save-flash signal coming from inline-edit commits. */
   saveFlash: "saved" | "error" | null;
   /** Other people in this order right now. Advisory; blocks nothing. */
   presenceRows?: PresenceRow[];
-  /** Optional carrier-barcode pulled-back chip (e.g. "Dexpress annulé"). */
+  /** A carrier reference that was pulled back (e.g. « dexpress annulé »). */
   carrierDeletedChip?: { label: string; tooltip: string } | null;
-  /** « Voix du client » — the one header addition of plans/voix-du-client.md. */
-  feedbackSlot?: React.ReactNode;
+  /** « Voix du client » — sits after the reference, before the close button. */
+  feedbackSlot?: ReactNode;
   onClose: () => void;
 }
 
 /**
- * Quiet chrome: what this order is, how long it has been waiting, and how to
- * leave. Nothing here should out-shout the customer's name below it.
- *
- * The elapsed time is the addition that matters. The list has shown it since
- * the redesign; opening an order used to drop it, so the one number that
- * decides "call now or later" disappeared at exactly the moment you act on it.
- * It shares `order-age.ts` with the row so both readings always agree.
- *
- * The reference went the other way — it was a bordered mono pill competing with
- * the status badge for something nobody reads unless they are pasting it into a
- * carrier's site. Now it is grey text with a copy button, which is the whole job.
+ * The drawer's top line (prototypes/commandes-v4.html `.dr-top`): status pill,
+ * « reçue {when} », the late chip once the order is past its target, then the
+ * reference (a copy button) and the close X at the end.
  */
 export function PanelHeader({
   reference,
+  marketId,
   createdAt,
-  status,
-  statusLabel,
+  pill,
+  maxAttempts,
+  rejection,
   locale,
   slaMinutes = null,
-  confirmedAt = null,
   now,
-  attemptsCount,
-  maxAttempts,
-  onChangeStatus,
   saveFlash,
   presenceRows,
   carrierDeletedChip,
@@ -91,13 +60,17 @@ export function PanelHeader({
   onClose,
 }: PanelHeaderProps) {
   const t = useTranslations("orders.detail");
+  const when = useWhen(marketId, locale);
   const [copied, setCopied] = useState(false);
+  const clock = now ?? new Date();
 
-  const age = classifyOrderAge(createdAt, status, now?.getTime());
-  const sla = resolveSlaChip({ createdAt, confirmedAt, status, slaMinutes, now });
-  // Show the tail — the leading digits are identical across a market's orders
-  // and carry no information at a glance.
-  const short = reference.length > 6 ? `…${reference.slice(-5)}` : reference;
+  const late = ageTone(
+    { status: pill.status, created_at: createdAt, callback_scheduled_at: pill.callback_scheduled_at ?? null },
+    slaMinutes,
+    clock,
+  );
+  // A storefront number is short and read whole; a UUID fallback only by its tail.
+  const shown = reference.length > 12 ? `…${reference.slice(-6)}` : reference;
 
   async function copyReference() {
     try {
@@ -105,123 +78,46 @@ export function PanelHeader({
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     } catch {
-      /* clipboard denied — the value is still on screen and selectable */
+      /* clipboard denied — the value is still on screen */
     }
   }
 
   return (
-    <div className="flex-shrink-0 border-b border-oms-border bg-oms-surface">
-      <div className="flex min-h-[46px] flex-wrap items-center gap-3 px-3.5 max-lg:py-2.5">
-        <OrderStatusBadge
-          status={status}
-          label={statusLabel}
-          locale={locale}
-          attemptsCount={attemptsCount}
-          maxAttempts={maxAttempts}
-        />
-
-        {/* The SLA chip states the age against a target, so the bare age would
-            be the same number twice. It stays as the fallback for the stretches
-            where there is no target to state it against: once the order is with
-            the carrier, and while the setting is still loading. */}
-        {sla ? (
-          <span
-            data-testid="panel-sla"
-            data-state={sla.state}
-            title={formatDateTime(createdAt, locale)}
-            className={`inline-flex h-[30px] flex-none items-center gap-[7px] whitespace-nowrap rounded-pill px-3 text-[13.5px] font-bold ${SLA_TONE[sla.state]}`}
-          >
-            <Clock size={15} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
-            <span className="tabular-nums">{formatOrderAge(sla.minutes, locale)}</span>
-            <span className="font-semibold opacity-80">
-              · {t("slaTarget", { target: formatOrderAge(sla.targetMinutes, locale) })}
-            </span>
-          </span>
-        ) : (
-          <span
-            data-testid="panel-age"
-            data-tier={age.tier}
-            // Shared formatter rather than a fourth local Intl call, so the
-            // hover reads identically here, in the queue row and in the table.
-            title={formatDateTime(createdAt, locale)}
-            className={`whitespace-nowrap text-[11.5px] tabular-nums ${AGE_TONE[age.tier]}`}
-          >
-            {formatOrderAge(age.minutes, locale)}
-          </span>
-        )}
-
-        {onChangeStatus ? (
-          <button
-            type="button"
-            onClick={onChangeStatus}
-            className="text-[11px] font-medium text-oms-ink-2 underline-offset-2 hover:text-oms-ink-1 hover:underline"
-          >
-            {t("changeStatus")}
-          </button>
-        ) : null}
-
-        {carrierDeletedChip ? (
-          <span
-            className="inline-flex h-[22px] flex-shrink-0 items-center gap-1 rounded-card border border-oms-border bg-oms-sunken px-2 text-[11px] font-medium text-oms-ink-2"
-            title={carrierDeletedChip.tooltip}
-          >
-            <RotateCcw size={10} strokeWidth={2} aria-hidden="true" />
-            {carrierDeletedChip.label}
-          </span>
-        ) : null}
-
-        {/* Who else is in here. The agent stays free to work; the ring only
-            says whether the office is reading or changing something. */}
-        {presenceRows && presenceRows.length > 0 ? (
-          <ManagerPresenceMark rows={presenceRows} size={16} />
-        ) : null}
-
-        {saveFlash === "saved" ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-oms-ok">
-            <Check size={11} strokeWidth={2.5} aria-hidden="true" />
-            {t("inlineSaved")}
-          </span>
-        ) : null}
-        {saveFlash === "error" ? (
-          <span className="text-[11px] text-oms-bad">{t("inlineSaveError")}</span>
-        ) : null}
-
-        {/* Reference and close sit at the trailing edge — chrome, not content. */}
-        <span className="ms-auto flex flex-shrink-0 items-center gap-1">
-          {/* `#` + digits is a Latin run: in an Arabic panel it otherwise
-              renders with the hash trailing the number. Safe to pin here —
-              unlike the age beside it, this string has no localised words in
-              it to reorder. */}
-          <span
-            dir="ltr"
-            className="text-[14px] tabular-nums tracking-[0.01em] text-oms-ink-2"
-          >
-            #{short}
-          </span>
-          <button
-            type="button"
-            onClick={() => void copyReference()}
-            aria-label={t("copyReference")}
-            title={reference}
-            className="grid h-8 w-8 place-items-center rounded-[8px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
-          >
-            {copied ? (
-              <Check size={15} strokeWidth={2.5} aria-hidden="true" />
-            ) : (
-              <Copy size={15} strokeWidth={2} aria-hidden="true" />
-            )}
-          </button>
-          {feedbackSlot}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("close")}
-            className="grid h-9 w-9 place-items-center rounded-[8px] text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1 max-lg:hidden"
-          >
-            <X size={17} strokeWidth={2} aria-hidden="true" />
-          </button>
+    <div className="dr-top">
+      <StatusPill o={pill} maxAttempts={maxAttempts} rejection={rejection} when={when} now={clock} />
+      <span className="dr-age" data-testid="panel-received" title={formatDateTime(createdAt, locale)}>
+        {t("receivedWhen", { when: when(createdAt, { now: clock }) })}
+      </span>
+      {late && slaMinutes != null ? (
+        <span className={`sla${late === "vlate" ? " vlate" : ""}`} data-testid="panel-sla" data-state={late}>
+          <Ic n="clock" />
+          {t("slaLate", { h: Math.round((slaMinutes / 60) * 10) / 10 })}
         </span>
-      </div>
+      ) : null}
+      {carrierDeletedChip ? (
+        <span className="pl h-neutral" title={carrierDeletedChip.tooltip}>
+          <Ic n="rotate" />
+          <span>{carrierDeletedChip.label}</span>
+        </span>
+      ) : null}
+      {presenceRows && presenceRows.length > 0 ? <ManagerPresenceMark rows={presenceRows} size={16} /> : null}
+      {saveFlash === "saved" ? (
+        <span className="odp-saved">
+          <Ic n="check" />
+          {t("inlineSaved")}
+        </span>
+      ) : saveFlash === "error" ? (
+        <span className="odp-saved bad">{t("inlineSaveError")}</span>
+      ) : null}
+      <span className="sp" />
+      <button type="button" className="ref" onClick={() => void copyReference()} aria-label={t("copyReference")} title={reference}>
+        #{shown}
+        <Ic n={copied ? "check" : "copy"} />
+      </button>
+      {feedbackSlot}
+      <button type="button" className="xbtn" onClick={onClose} aria-label={t("close")}>
+        <Ic n="x" />
+      </button>
     </div>
   );
 }

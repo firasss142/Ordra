@@ -98,7 +98,8 @@ describe("ActionFooter — on a phone", () => {
         <ActionFooter actions={{ primary: PRIMARY, overflow: [] }} onInvoke={vi.fn()} showNavHint />
       </NextIntlClientProvider>,
     );
+    // panel.css hides .odp-hint below 1024px.
     const hint = screen.getByText(/pour passer d'une commande à l'autre/).closest("p");
-    expect(hint?.className).toMatch(/(^|\s)max-lg:hidden(\s|$)/);
+    expect(hint).toHaveClass("odp-hint");
   });
 });

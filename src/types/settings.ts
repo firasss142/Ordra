@@ -576,7 +576,7 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (!isValidOptionalBoolean(s.auto_restock_on_return_scan)) return false;
 
   // Opérations › Cycle de vie
-  if (!isValidOptionalInt(s.auto_archive_after_days, 1, 365)) return false;
+  if (!isValidOptionalInt(s.auto_archive_after_days, 0, 365)) return false;
 
   // Équipe
   if (!isValidOptionalInt(s.max_open_orders_per_agent, 1, 10_000)) return false;

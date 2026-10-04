@@ -14,7 +14,6 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { GET } from "./route";
 import { NextRequest } from "next/server";
-import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
 import { LY_MARKET_ID } from "@/lib/markets";
 
 function createRequest(url: string) {
@@ -26,6 +25,9 @@ function queryChain(resolveWith: { data: unknown; error: unknown }) {
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
   chain.neq = vi.fn().mockReturnValue(chain);
+  chain.is = vi.fn().mockReturnValue(chain);
+  chain.not = vi.fn().mockReturnValue(chain);
+  chain.lt = vi.fn().mockReturnValue(chain);
   chain.in = vi.fn().mockReturnValue(chain);
   chain.or = vi.fn().mockReturnValue(chain);
   chain.gte = vi.fn().mockReturnValue(chain);
@@ -95,10 +97,10 @@ describe("GET /api/orders/export", () => {
     expect(lines[1]).toContain("Tunis");
   });
 
-  test("applies filters to export query", async () => {
+  /** Runs an export as a Tunisian manager and returns the orders query chain. */
+  async function exportWith(qs: string) {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-
-    let orderChainRef: ReturnType<typeof queryChain>;
+    let orderChainRef: ReturnType<typeof queryChain> | null = null;
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
       if (table === "orders") {
@@ -107,112 +109,28 @@ describe("GET /api/orders/export", () => {
       }
       return queryChain({ data: null, error: null });
     });
-
-    const req = createRequest("/api/orders/export?status=pending&city=Tunis");
-    const res = await GET(req);
+    const res = await GET(createRequest(`/api/orders/export${qs}`));
     expect(res.status).toBe(200);
+    return orderChainRef! as ReturnType<typeof queryChain>;
+  }
 
-    const eqCalls = (orderChainRef!.eq as ReturnType<typeof vi.fn>).mock.calls;
-    expect(eqCalls.find((c: unknown[]) => c[0] === "status" && c[1] === "pending")).toBeDefined();
-    expect(eqCalls.find((c: unknown[]) => c[0] === "customer_city" && c[1] === "Tunis")).toBeDefined();
-    expect(orderChainRef!.neq).toHaveBeenCalledWith("status", "deleted");
+  test("exports the rows the list shows: same filters, deleted and archived hidden", async () => {
+    const c = await exportWith("?status=pending,confirmed&city=Tunis");
+    expect(c.in).toHaveBeenCalledWith("status", ["pending", "confirmed"]);
+    expect(c.in).toHaveBeenCalledWith("customer_city", ["Tunis"]);
+    expect(c.neq).toHaveBeenCalledWith("status", "deleted");
+    expect(c.is).toHaveBeenCalledWith("archived_at", null);
   });
 
-  test("applies comma-separated status via .in()", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    let orderChainRef: ReturnType<typeof queryChain>;
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") {
-        orderChainRef = queryChain({ data: [], error: null });
-        return orderChainRef;
-      }
-      return queryChain({ data: null, error: null });
-    });
-
-    const req = createRequest("/api/orders/export?status=delivered,returned,rejected,deleted");
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-
-    const inCalls = (orderChainRef!.in as ReturnType<typeof vi.fn>).mock.calls;
-    const statusIn = inCalls.find((c: unknown[]) => c[0] === "status");
-    expect(statusIn).toBeDefined();
-    expect(statusIn![1]).toEqual(["delivered", "returned", "rejected", "deleted"]);
-    expect(orderChainRef!.neq).toHaveBeenCalledWith("status", "deleted");
+  test("Archivées exports the tab it was launched from", async () => {
+    const c = await exportWith("?scope=archive&state=archived&status=returned");
+    expect(c.not).toHaveBeenCalledWith("archived_at", "is", null);
+    expect(c.in).toHaveBeenCalledWith("status", ["returned"]);
   });
 
-  test("include_deleted=1 exports ONLY deleted orders", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    let orderChainRef: ReturnType<typeof queryChain>;
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") {
-        orderChainRef = queryChain({ data: [], error: null });
-        return orderChainRef;
-      }
-      return queryChain({ data: null, error: null });
-    });
-
-    const req = createRequest("/api/orders/export?include_deleted=1");
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    expect(orderChainRef!.eq).toHaveBeenCalledWith("status", "deleted");
-    expect(orderChainRef!.neq).not.toHaveBeenCalledWith("status", "deleted");
-  });
-
-  /**
-   * The archive's "Exporter CSV" button reached the terminal-status view
-   * through include_deleted, so the default export from the archive contained
-   * soft-deleted orders only — while the page it was launched from reported
-   * every terminal order. Export and table now share one scope axis.
-   */
-  test("scope=archive exports every archive status, not just deleted", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    let orderChainRef: ReturnType<typeof queryChain>;
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") {
-        orderChainRef = queryChain({ data: [], error: null });
-        return orderChainRef;
-      }
-      return queryChain({ data: null, error: null });
-    });
-
-    const req = createRequest("/api/orders/export?scope=archive");
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-
-    const statusIn = (orderChainRef!.in as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (c: unknown[]) => c[0] === "status",
-    );
-    expect(statusIn).toHaveLength(1);
-    expect(statusIn[0][1]).toEqual(ARCHIVE_STATUSES);
-    expect(orderChainRef!.eq).not.toHaveBeenCalledWith("status", "deleted");
-    expect(orderChainRef!.neq).not.toHaveBeenCalledWith("status", "deleted");
-  });
-
-  test("scope=archive narrows to the selected outcomes without a second status filter", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    let orderChainRef: ReturnType<typeof queryChain>;
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") {
-        orderChainRef = queryChain({ data: [], error: null });
-        return orderChainRef;
-      }
-      return queryChain({ data: null, error: null });
-    });
-
-    const req = createRequest("/api/orders/export?scope=archive&status=returned");
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-
-    const statusIn = (orderChainRef!.in as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (c: unknown[]) => c[0] === "status",
-    );
-    expect(statusIn).toHaveLength(1);
-    expect(statusIn[0][1]).toEqual(["returned"]);
-    expect(orderChainRef!.eq).not.toHaveBeenCalledWith("status", "returned");
+  test("Supprimées exports the deleted orders", async () => {
+    const c = await exportWith("?scope=archive&state=deleted");
+    expect(c.eq).toHaveBeenCalledWith("status", "deleted");
   });
 
   test("date_from/date_to bound created_at at the market's day edges, in UTC", async () => {

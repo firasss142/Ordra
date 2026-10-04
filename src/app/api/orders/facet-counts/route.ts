@@ -2,48 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
-import { listQuerySchema } from "@/lib/orders/list-filters";
+import { csvList, listQuerySchema } from "@/lib/orders/list-filters";
 import { searchToLegs } from "@/lib/orders/search-query";
-import { marketDayBounds } from "@/lib/dates/market-day";
-import { marketTimezone } from "@/lib/markets";
+import { marketDayBounds, marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
+import { readArchiveAfterDays } from "@/lib/orders/list-context";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /**
- * How many orders each facet option would yield.
+ * How many orders each value of the filter line would yield — the number next
+ * to every option of Statut · Agent · Boutique · Plus de filtres.
  *
- * The facet bar named every filter but said nothing about what picking one
- * would return, so narrowing a list meant guessing and backing out of dead
- * ends. Each option now carries its own count.
- *
- * A dimension is counted with every OTHER filter applied but not its own —
- * standard faceted search. Counting the status options while a status filter is
- * active would report the selection back to itself, leaving every unselected
- * option at 0.
- *
- * One RPC, not one query per option: a market with 144 cities and 50 products
- * would otherwise be 200+ round-trips to draw a menu.
+ * A dimension is counted with every OTHER filter applied but not its own, so an
+ * unpicked option says what picking it would add. One RPC
+ * (get_order_facet_counts_v2), whose scope and predicates restate
+ * lib/orders/list-query so a count never disagrees with the list it opens.
  */
 export interface FacetCounts {
-  /** status → count */
   statuses: Record<string, number>;
-  /** agent uuid (or the literal "unassigned") → count */
+  /** agent uuid, or "unassigned" */
   agents: Record<string, number>;
-  /** city name → count */
+  storefronts: Record<string, number>;
+  /** city name, or "none" */
   cities: Record<string, number>;
-  /** product uuid → count */
   products: Record<string, number>;
-  /** carrier uuid → count */
+  /** carrier uuid, or "none" */
   carriers: Record<string, number>;
 }
 
-const EMPTY: FacetCounts = {
-  statuses: {},
-  agents: {},
-  cities: {},
-  products: {},
-  carriers: {},
+const EMPTY: FacetCounts = { statuses: {}, agents: {}, storefronts: {}, cities: {}, products: {}, carriers: {} };
+
+const listOrNull = (raw: string | undefined) => {
+  const v = csvList(raw);
+  return v.length ? v : null;
 };
 
 async function handleGET(req: NextRequest) {
@@ -56,61 +48,43 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const parsed = listQuerySchema.safeParse(
-    Object.fromEntries(req.nextUrl.searchParams.entries()),
-  );
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid query" }, { status: 400 });
-  }
+  const parsed = listQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams.entries()));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid query" }, { status: 400 });
   const q = parsed.data;
 
-  // Non-super_admin is pinned to their own market whatever the query says; RLS
-  // would catch it anyway, but a silently-wrong count is worse than a 403.
   const marketId = actor.role === "super_admin" ? q.market_id ?? null : actorMarketId;
   if (marketId && !canViewOrders(actor.role, marketId, actorMarketId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const statuses = q.status
-    ? q.status.split(",").map((s) => s.trim()).filter(Boolean)
-    : null;
-
-  const window = marketDayBounds(q.date_from, q.date_to, marketId);
-
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_order_facet_counts", {
+  const window = marketDayBounds(q.date_from ?? null, q.date_to ?? null, marketId);
+  const archiveDays = q.scope === "archive" && q.state !== "deleted" ? await readArchiveAfterDays(supabase, marketId) : null;
+
+  const { data, error } = await supabase.rpc("get_order_facet_counts_v2", {
     p_market_id: marketId,
+    p_scope: q.scope,
+    p_state: q.state,
+    p_archive_cutoff: archiveDays === null ? null : new Date(Date.now() - archiveDays * 86_400_000).toISOString(),
     p_preset: q.preset,
-    p_statuses: statuses && statuses.length > 0 ? statuses : null,
-    p_agent_id: q.agent_id ?? null,
-    // UTC instants cut at the market's day edges, inclusive — the same window
-    // the list route applies — plus the zone for the RPC's own `today` preset.
+    p_day_start: marketDayStartUtc(todayInMarket(marketId), marketId),
+    p_statuses: listOrNull(q.status),
+    p_agents: listOrNull(q.agent_id),
+    p_storefronts: listOrNull(q.storefront_id),
+    p_cities: listOrNull(q.city),
+    p_products: listOrNull(q.product_id),
+    p_carriers: listOrNull(q.carrier_id),
     p_date_from: window.fromIso,
     p_date_to: window.toIso,
-    p_tz: marketTimezone(marketId),
-    p_product_id: q.product_id ?? null,
-    p_city: q.city ?? null,
-    p_total_min: q.total_min ?? null,
-    p_total_max: q.total_max ?? null,
-    p_rejection_reason: q.rejection_reason ?? null,
-    p_carrier_id: q.carrier_id ?? null,
-    p_include_deleted: q.include_deleted,
     p_search_legs: searchToLegs(q.q),
   });
 
   if (error) {
-    return NextResponse.json(
-      { error: "Internal server error", detail: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error", detail: error.message }, { status: 500 });
   }
 
   const counts = { ...EMPTY, ...((data as Partial<FacetCounts> | null) ?? {}) };
-
-  return NextResponse.json(
-    { data: counts },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  return NextResponse.json({ data: counts }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export const GET = withRouteErrors("/api/orders/facet-counts", "GET", handleGET);

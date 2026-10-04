@@ -12,7 +12,6 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { GET } from "./route";
 import { NextRequest } from "next/server";
-import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
 import { LY_MARKET_ID } from "@/lib/markets";
 import { marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 
@@ -41,6 +40,7 @@ function ordersChain() {
   for (const m of ["select", "eq", "neq", "in", "is", "not", "or", "gte", "gt", "lt", "lte", "ilike", "order", "limit"]) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
+  chain.single = vi.fn().mockResolvedValue({ data: null, error: null });
   chain.then = (fn: (v: unknown) => unknown) => Promise.resolve(result).then(fn);
   return chain;
 }
@@ -62,143 +62,44 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("GET /api/orders/list — scope=archive", () => {
-  /**
-   * The archive used to reach the terminal-status view through the
-   * "Afficher supprimées" flag, which the route turns into
-   * `.eq("status","deleted")`. ANDed with the archive's own status list, the
-   * net predicate was `status = 'deleted'` — so the table could only ever
-   * render soft-deleted orders while the summary above it counted all five
-   * terminal statuses. These tests pin the two axes apart.
-   */
-  test("asks for every archive status and applies neither soft-delete branch", async () => {
-    const orders = runAs();
-
-    const res = await GET(createRequest("?scope=archive"));
-    expect(res.status).toBe(200);
-
-    const statusIn = callsFor(orders.in, "status");
-    expect(statusIn).toHaveLength(1);
-    expect(statusIn[0][1]).toEqual(ARCHIVE_STATUSES);
-    expect(orders.eq).not.toHaveBeenCalledWith("status", "deleted");
-    expect(orders.neq).not.toHaveBeenCalledWith("status", "deleted");
-  });
-
-  test("narrows to the requested outcomes", async () => {
-    const orders = runAs();
-
-    await GET(createRequest("?scope=archive&status=delivered,returned"));
-
-    const statusIn = callsFor(orders.in, "status");
-    expect(statusIn).toHaveLength(1);
-    expect(statusIn[0][1]).toEqual(["delivered", "returned"]);
-  });
-
-  test("a non-terminal status cannot narrow or widen the archive", async () => {
-    const orders = runAs();
-
-    await GET(createRequest("?scope=archive&status=pending"));
-
-    const statusIn = callsFor(orders.in, "status");
-    expect(statusIn).toHaveLength(1);
-    expect(statusIn[0][1]).toEqual(ARCHIVE_STATUSES);
-    // The generic status multi-select must not run a second time in archive
-    // scope: `.eq("status","pending")` here would collapse the view to nothing.
-    expect(orders.eq).not.toHaveBeenCalledWith("status", "pending");
-  });
-
-  test("a single requested outcome still uses .in, never .eq", async () => {
-    const orders = runAs();
-
-    await GET(createRequest("?scope=archive&status=delivered"));
-
-    expect(callsFor(orders.in, "status")[0][1]).toEqual(["delivered"]);
-    expect(orders.eq).not.toHaveBeenCalledWith("status", "delivered");
-  });
-});
-
 /**
- * Archiving is visibility only. `terminal_at` says when an order finished;
- * `archived_at` says when someone put it away. The working list hides what has
- * been put away; the archive reports on everything finished and splits it by
- * where it currently sits.
+ * The filters themselves are pinned in lib/orders/__tests__/list-query.test.ts;
+ * these check that the route hands the query to them with the right context.
  */
-describe("GET /api/orders/list — archived orders leave the working list", () => {
-  test("the default orders list hides orders that were put away", async () => {
+describe("GET /api/orders/list — scope and context", () => {
+  test("the working list hides archived and deleted orders", async () => {
     const orders = runAs();
-
     await GET(createRequest());
-
     expect(orders.is).toHaveBeenCalledWith("archived_at", null);
+    expect(orders.neq).toHaveBeenCalledWith("status", "deleted");
   });
 
-  test("the archive does not hide them", async () => {
+  test("Archivées reads the market's archive delay for its cut-off", async () => {
     const orders = runAs();
-
-    await GET(createRequest("?scope=archive"));
-
-    expect(orders.is).not.toHaveBeenCalledWith("archived_at", null);
-    // Membership is "has finished", not "has a terminal status" — the two are
-    // the same set, but terminal_at is the indexed, date-comparable one.
-    expect(orders.not).toHaveBeenCalledWith("terminal_at", "is", null);
-  });
-
-  test("state=archived shows only what was put away", async () => {
-    const orders = runAs();
-
-    await GET(createRequest("?scope=archive&state=archived"));
-
-    expect(orders.not).toHaveBeenCalledWith("archived_at", "is", null);
-    expect(orders.is).not.toHaveBeenCalledWith("archived_at", null);
-  });
-
-  test("state=eligible is finished long enough ago but still in the list", async () => {
-    const orders = runAs();
-
     await GET(createRequest("?scope=archive&state=eligible"));
-
-    expect(orders.is).toHaveBeenCalledWith("archived_at", null);
-    const cutoff = callsFor(orders.lt, "terminal_at");
-    expect(cutoff).toHaveLength(1);
-    expect(Date.parse(String(cutoff[0][1]))).toBeLessThan(Date.now());
+    expect(mockFrom).toHaveBeenCalledWith("settings");
+    expect(orders.not).toHaveBeenCalledWith("terminal_at", "is", null);
+    expect(callsFor(orders.lt, "terminal_at")).toHaveLength(1);
   });
 
-  test("state=recent is finished too recently to be put away", async () => {
+  test("Supprimées shows every soft-deleted order", async () => {
     const orders = runAs();
-
-    await GET(createRequest("?scope=archive&state=recent"));
-
-    expect(orders.is).toHaveBeenCalledWith("archived_at", null);
-    expect(callsFor(orders.gte, "terminal_at")).toHaveLength(1);
-  });
-});
-
-describe("GET /api/orders/list — the orders list is unchanged", () => {
-  test("hides deleted orders by default", async () => {
-    const orders = runAs();
-
-    await GET(createRequest());
-
-    expect(orders.neq).toHaveBeenCalledWith("status", "deleted");
-    expect(orders.eq).not.toHaveBeenCalledWith("status", "deleted");
-  });
-
-  test("include_deleted=1 still shows only soft-deleted orders", async () => {
-    const orders = runAs();
-
-    await GET(createRequest("?include_deleted=1"));
-
+    await GET(createRequest("?scope=archive&state=deleted"));
     expect(orders.eq).toHaveBeenCalledWith("status", "deleted");
-    expect(orders.neq).not.toHaveBeenCalledWith("status", "deleted");
+    expect(orders.is).not.toHaveBeenCalledWith("archived_at", null);
   });
 
-  test("status multi-select still applies outside the archive", async () => {
+  test("Téléchargées aujourd'hui reads today's uploads from the history", async () => {
     const orders = runAs();
+    await GET(createRequest("?preset=uploaded_today"));
+    expect(mockFrom).toHaveBeenCalledWith("order_history");
+    expect(callsFor(orders.in, "id")).toHaveLength(1);
+  });
 
+  test("status multi-select applies outside the archive", async () => {
+    const orders = runAs();
     await GET(createRequest("?status=confirmed,uploaded"));
-
     expect(callsFor(orders.in, "status")[0][1]).toEqual(["confirmed", "uploaded"]);
-    expect(orders.neq).toHaveBeenCalledWith("status", "deleted");
   });
 
   test("agents are refused", async () => {

@@ -57,17 +57,16 @@ describe("useOrdersFiltersUrl", () => {
     expect(routerReplace).not.toHaveBeenCalled();
   });
 
-  it("preserves the UI-only open and view params across a filter change", () => {
-    currentSearch = "open=abc-123&view=table";
+  it("preserves the panel's open param across a filter change", () => {
+    currentSearch = "open=abc-123";
     const { result } = renderHook(() => useOrdersFiltersUrl());
 
     act(() => {
-      result.current.update({ city: "Tripoli" });
+      result.current.update({ cities: ["Tripoli"] });
     });
 
     const url = new URL(String(replaceState.mock.calls[0][2]), "http://x");
     expect(url.searchParams.get("open")).toBe("abc-123");
-    expect(url.searchParams.get("view")).toBe("table");
     expect(url.searchParams.get("city")).toBe("Tripoli");
   });
 

@@ -1,145 +1,116 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { AlertTriangle, Calendar } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { Ic, useWhen } from "@/components/orders/commandes/ui";
+import { CALLING_STATUSES, SHIPPED_STATUSES } from "@/lib/orders/row-signals";
 
-export interface AlertBannersProps {
-  /** Display-name locale for date formatting. */
-  locale: "ar" | "fr";
-  /** True when the order is in a state where inline-edit is blocked. */
+export type NoteKind = "outOfStock" | "noCity" | "dupShipped" | "locked" | "callback" | "dispatch";
+
+export interface NoteInput {
+  status: string;
+  /** No delivery city — the carrier upload cannot proceed. */
+  cityMissing: boolean;
+  /** A product on the order has no stock left. */
+  outOfStock: boolean;
+  /** A duplicate of this order is already with the carrier. */
+  dupShipped: boolean;
+  /** The order can no longer be edited without reopening it. */
   editBlocked: boolean;
-  /** Callback scheduled banner (only when status === callback_scheduled). */
   callbackScheduledAt: string | null;
-  /** Dispatch scheduled banner (only when status === dispatch_scheduled). */
   dispatchScheduledAt: string | null;
-  /** True when the scheduled dispatch will auto-fire at the chosen time. */
-  dispatchScheduledAuto: boolean;
-  /** Whether the cancel-schedule action is currently in flight. */
-  cancelingSchedule: boolean;
-  onCancelSchedule: () => void;
-  /** No delivery city resolved — carrier upload cannot proceed. */
-  cityUnmatched?: boolean;
-  /** Opens the city picker so the blocker can be cleared where it is reported. */
-  onResolveCity?: () => void;
 }
 
 /**
- * Inline alert strip rendered between the hero card and the body sections.
- * Surfaces edit-blocked + callback-scheduled + dispatch-scheduled state.
- * The cancel-schedule pill stays here (in addition to the overflow menu) so
- * it's a single click from where the user is looking.
+ * Which notices the panel pins above its footer (prototypes/commandes-v4.html
+ * `notesOf`), blockers first. Pure — the panel and its tests read one rule.
+ */
+export function panelNotes(i: NoteInput): NoteKind[] {
+  const calling = CALLING_STATUSES.has(i.status);
+  const notes: NoteKind[] = [];
+  if (i.outOfStock && calling) notes.push("outOfStock");
+  if (i.cityMissing && (calling || i.status === "confirmed" || i.status === "dispatch_scheduled")) notes.push("noCity");
+  if (i.dupShipped && !SHIPPED_STATUSES.has(i.status)) notes.push("dupShipped");
+  if (i.editBlocked) notes.push("locked");
+  if (i.status === "callback_scheduled" && i.callbackScheduledAt) notes.push("callback");
+  if (i.status === "dispatch_scheduled" && i.dispatchScheduledAt) notes.push("dispatch");
+  return notes;
+}
+
+/** A transient line the panel adds itself — an upload result, a failed save. */
+export interface ExtraNote {
+  key: string;
+  hue: "red" | "amber" | "green" | "neutral";
+  icon: string;
+  text: string;
+  /** Announced as an alert rather than a status. */
+  alert?: boolean;
+}
+
+const LOOK: Record<NoteKind, { hue: string; icon: string }> = {
+  outOfStock: { hue: "red", icon: "alert" },
+  noCity: { hue: "amber", icon: "pin" },
+  dupShipped: { hue: "red", icon: "copy" },
+  locked: { hue: "neutral", icon: "lock" },
+  callback: { hue: "violet", icon: "clock" },
+  dispatch: { hue: "teal", icon: "cal" },
+};
+
+/**
+ * The notices pinned above the footer (`.notes`): one short line per problem,
+ * in its hue, then the panel's own feedback. Renders nothing when all is well.
  */
 export function AlertBanners({
-  locale,
-  editBlocked,
-  callbackScheduledAt,
-  dispatchScheduledAt,
-  dispatchScheduledAuto,
-  cancelingSchedule,
-  onCancelSchedule,
-  cityUnmatched = false,
-  onResolveCity,
-}: AlertBannersProps) {
+  notes,
+  extra = [],
+  marketId,
+  callbackScheduledAt = null,
+  dispatchScheduledAt = null,
+  dispatchScheduledAuto = false,
+}: {
+  notes: NoteKind[];
+  extra?: ExtraNote[];
+  marketId: string | null;
+  callbackScheduledAt?: string | null;
+  dispatchScheduledAt?: string | null;
+  dispatchScheduledAuto?: boolean;
+}) {
   const t = useTranslations("orders.detail");
+  const locale = useLocale();
+  const when = useWhen(marketId, locale);
 
-  function formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString(locale === "ar" ? "ar-LY" : "fr-TN", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
+  if (notes.length === 0 && extra.length === 0) return null;
 
-  if (!editBlocked && !callbackScheduledAt && !dispatchScheduledAt && !cityUnmatched) {
-    return null;
-  }
+  const text = (k: NoteKind): string => {
+    switch (k) {
+      case "outOfStock":
+        return t("noteOutOfStock");
+      case "noCity":
+        return t("noteNoCity");
+      case "dupShipped":
+        return t("noteDupShipped");
+      case "locked":
+        return t("editBlockedStatus");
+      case "callback":
+        return `${t("scheduledCallbackBanner")} · ${when(callbackScheduledAt)}`;
+      case "dispatch":
+        return `${dispatchScheduledAuto ? t("scheduledDispatchAutoBanner") : t("scheduledDispatchBanner")} · ${when(dispatchScheduledAt)}`;
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-2 px-[18px] pb-1 pt-3.5">
-      {/* Blockers lead. Something that stops the order moving should be the
-          first thing read, not a consequence discovered later in the log. */}
-      {cityUnmatched && (
-        <div
-          role="status"
-          className="flex items-center gap-2.5 rounded-[10px] border border-oms-warn/25 bg-oms-warn-bg px-3 py-[11px]"
-        >
-          <AlertTriangle
-            size={15}
-            strokeWidth={2}
-            className="flex-none text-oms-warn"
-            aria-hidden="true"
-          />
-          <div className="min-w-0 flex-1">
-            <b className="block text-[12.5px] font-[650] leading-[1.35] text-oms-warn">
-              {t("blockerCity")}
-            </b>
-            <p className="m-0 mt-0.5 text-[12px] leading-[1.4] text-oms-ink-2">
-              {t("blockerCityBody")}
-            </p>
-          </div>
-          {onResolveCity && (
-            <button
-              type="button"
-              onClick={onResolveCity}
-              className="h-7 flex-none whitespace-nowrap rounded-[8px] border border-oms-warn/40 px-[11px] text-[11.5px] font-[650] text-oms-warn transition-colors duration-fast hover:bg-oms-warn/10"
-            >
-              {t("blockerResolve")}
-            </button>
-          )}
+    <div className="notes">
+      {notes.map((k) => (
+        <div key={k} className={`note h-${LOOK[k].hue}`} role="status" data-note={k}>
+          <Ic n={LOOK[k].icon} />
+          <span>{text(k)}</span>
         </div>
-      )}
-
-      {editBlocked && (
-        <div
-          role="status"
-          className="flex items-center gap-2.5 rounded-[10px] border border-oms-border bg-oms-sunken px-3 py-[11px] text-[12px] text-oms-ink-2"
-        >
-          <AlertTriangle
-            size={14}
-            strokeWidth={2}
-            className="flex-none text-oms-warn"
-            aria-hidden="true"
-          />
-          <span>{t("editBlockedStatus")}</span>
+      ))}
+      {extra.map((n) => (
+        <div key={n.key} className={`note h-${n.hue}`} role={n.alert ? "alert" : "status"}>
+          <Ic n={n.icon} />
+          <span>{n.text}</span>
         </div>
-      )}
-
-      {callbackScheduledAt && (
-        <div className="flex items-center gap-2.5 rounded-[10px] border border-oms-accent/20 bg-oms-accent-bg px-3 py-[11px] text-[12px] text-oms-accent-ink">
-          <Calendar size={14} strokeWidth={2} className="flex-none" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <span className="font-[650]">{t("scheduledCallbackBanner")}</span>
-            <span className="ms-2 tabular-nums opacity-75">
-              {formatDateTime(callbackScheduledAt)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {dispatchScheduledAt && (
-        <div className="flex items-center gap-2.5 rounded-[10px] border border-oms-accent/20 bg-oms-accent-bg px-3 py-[11px] text-[12px] text-oms-accent-ink">
-          <Calendar size={14} strokeWidth={2} className="flex-none" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <span className="font-[650]">
-              {dispatchScheduledAuto
-                ? t("scheduledDispatchAutoBanner")
-                : t("scheduledDispatchBanner")}
-            </span>
-            <span className="ms-2 tabular-nums opacity-75">
-              {formatDateTime(dispatchScheduledAt)}
-            </span>
-          </div>
-          <button
-            type="button"
-            disabled={cancelingSchedule}
-            onClick={onCancelSchedule}
-            className="h-7 flex-none whitespace-nowrap rounded-[8px] border border-oms-accent/30 px-[11px] text-[11.5px] font-[650] transition-colors duration-fast hover:bg-oms-accent/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {cancelingSchedule ? t("scheduledDispatchCanceling") : t("scheduledDispatchCancel")}
-          </button>
-        </div>
-      )}
+      ))}
     </div>
   );
 }

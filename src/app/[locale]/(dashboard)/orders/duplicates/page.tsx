@@ -3,13 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
-import { DuplicatesPageClient } from "@/components/orders/duplicates/DuplicatesPageClient";
+import { RepeatedPage } from "@/components/orders/commandes/RepeatedPage";
 import type { Locale } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Commandes → Doublons.
+ * Commandes → Commandes répétées (prototypes/commandes-v4.html).
  *
  * Unlike the other pages in this folder, agents are NOT redirected away: they
  * get the screen read-only, so a duplicate can be spotted before the customer
@@ -42,8 +42,9 @@ export default async function OrdersDuplicatesPage({
     : null;
 
   return (
-    <DuplicatesPageClient
+    <RepeatedPage
       role={user.role}
+      userId={user.id}
       locale={params.locale as Locale}
       userMarketId={user.market_id ?? ""}
       initialMarketId={initialMarketId}

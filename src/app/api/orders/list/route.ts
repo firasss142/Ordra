@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { marketDayBounds, marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
@@ -8,12 +7,8 @@ import {
   encodeCursor,
   listQuerySchema,
 } from "@/lib/orders/list-filters";
-import {
-  DEFAULT_ARCHIVE_AFTER_DAYS,
-  resolveArchiveState,
-  resolveArchiveStatuses,
-} from "@/lib/orders/archive-scope";
-import { applySearch } from "@/lib/orders/search-query";
+import { applyOrderListFilters } from "@/lib/orders/list-query";
+import { loadListContext } from "@/lib/orders/list-context";
 import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
@@ -22,10 +17,10 @@ import { withRouteErrors } from "@/lib/journal/route-errors";
 export const dynamic = "force-dynamic";
 
 const LIST_SELECT =
-  "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_phone_2, " +
+  "id, external_id, external_platform, market_id, storefront_id, customer_name, customer_phone, customer_phone_2, " +
   "customer_address, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
-  "assigned_to, carrier_id, rejection_reason, rejection_subreason, rejection_note, " +
+  "assigned_to, carrier_id, tracking_number, rejection_reason, rejection_subreason, rejection_note, " +
   "callback_scheduled_at, attempts_count, " +
   "carrier_barcode_deleted_at, carrier_barcode_deleted_carrier_code, " +
   "created_at, updated_at, terminal_at, archived_at, archived_by, " +
@@ -84,116 +79,10 @@ async function handleGET(req: NextRequest) {
     .order("id", { ascending: false })
     .limit(q.limit + 1); // peek one extra to know if there's a next page
 
-  if (marketId) query = query.eq("market_id", marketId);
-
-  // Two separate axes, deliberately.
-  //
-  // `scope=archive` is the terminal-status view: it wants delivered, returned,
-  // rejected, cancelled and deleted together, so the soft-delete axis does not
-  // apply to it at all. Expressing the archive through `include_deleted`
-  // instead — which this route turns into `.eq("status","deleted")` — ANDed
-  // with the archive's own status list and left `status = 'deleted'` as the
-  // net predicate, so the archive table could only ever show soft-deleted
-  // orders while the summary above it counted all five.
-  //
-  // `include_deleted` keeps its original meaning for the orders list: it is the
-  // "Afficher supprimées" checkbox, and when on it shows ONLY soft-deleted
-  // orders.
-  if (q.scope === "archive") {
-    // Membership is "has finished". terminal_at carries the same set as the
-    // terminal statuses but is indexed and date-comparable, which is what the
-    // 30-day rule and the cohorts need.
-    query = query.not("terminal_at", "is", null).in("status", resolveArchiveStatuses(q.status));
-
-    // Where the finished order currently sits. Archiving is visibility only, so
-    // this narrows what is displayed and never what is counted.
-    const state = resolveArchiveState(q.state);
-    if (state === "archived") {
-      query = query.not("archived_at", "is", null);
-    } else if (state === "eligible" || state === "recent") {
-      const cutoff = new Date(
-        Date.now() - DEFAULT_ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000,
-      ).toISOString();
-      query = query.is("archived_at", null);
-      query =
-        state === "eligible"
-          ? query.lt("terminal_at", cutoff)
-          : query.gte("terminal_at", cutoff);
-    }
-  } else {
-    // Orders that were put away drop out of the working list. This is the only
-    // thing archiving does — they are still counted and still searchable.
-    query = query.is("archived_at", null);
-
-    if (q.include_deleted) query = query.eq("status", "deleted");
-    else query = query.neq("status", "deleted");
-  }
-
-  // ---- Preset filters ----
-  switch (q.preset) {
-    case "unassigned":
-      query = query.eq("status", "pending").is("assigned_to", null);
-      break;
-    case "callbacks":
-      query = query
-        .eq("status", "callback_scheduled")
-        .lte("callback_scheduled_at", new Date().toISOString());
-      break;
-    case "today": {
-      // The market's today, opening at the market's midnight. UTC midnight is
-      // 02:00 in Tripoli, which put every late-evening order on tomorrow.
-      const start = marketDayStartUtc(todayInMarket(marketId), marketId);
-      if (start) query = query.gte("created_at", start);
-      break;
-    }
-    case "in_delivery":
-      query = query.in("status", [
-        "uploaded",
-        "dispatched",
-        "deposit",
-        "in_transit",
-        "to_be_returned",
-      ]);
-      break;
-    case "all":
-    default:
-      break;
-  }
-
-  // ---- Status multi-select ----
-  // Skipped in archive scope: `resolveArchiveStatuses` already consumed
-  // `q.status` above, and re-applying it here would AND a second predicate onto
-  // the same column — collapsing the view to nothing whenever the requested
-  // status was not itself terminal.
-  if (q.status && q.scope !== "archive") {
-    const statuses = q.status.split(",").map((s) => s.trim()).filter(Boolean);
-    if (statuses.length === 1) query = query.eq("status", statuses[0]);
-    else if (statuses.length > 1) query = query.in("status", statuses);
-  }
-
-  // ---- Agent filter ----
-  if (q.agent_id === "unassigned") query = query.is("assigned_to", null);
-  else if (q.agent_id) query = query.eq("assigned_to", q.agent_id);
-
-  // ---- Search ----
-  // Terms AND, each term ORs across every column a dispatcher can see, and a
-  // number is matched by its national digits so the three phone formats in
-  // this data are one search. See lib/orders/search-query.
-  query = applySearch(query, q.q);
-
-  // ---- Advanced filters ----
-  if (q.product_id) query = query.eq("product_id", q.product_id);
-  if (q.city) query = query.ilike("customer_city", `%${q.city}%`);
-  // Calendar dates name the market's local day; created_at is UTC. Bound at the
-  // market's day edges (lib/dates/market-day) or every order placed between
-  // 22:00 and midnight in Tripoli lands on the following day.
-  const window = marketDayBounds(q.date_from, q.date_to, marketId);
-  if (window.fromIso) query = query.gte("created_at", window.fromIso);
-  if (window.toIso) query = query.lte("created_at", window.toIso);
-  if (q.total_min != null) query = query.gte("total_price", q.total_min);
-  if (q.total_max != null) query = query.lte("total_price", q.total_max);
-  if (q.rejection_reason) query = query.eq("rejection_reason", q.rejection_reason);
-  if (q.carrier_id) query = query.eq("carrier_id", q.carrier_id);
+  // Every filter — scope, shortcut, facets, search, dates — in one function
+  // shared with /api/orders/export (lib/orders/list-query).
+  const ctx = await loadListContext(supabase, q, marketId);
+  query = applyOrderListFilters(query, q, ctx);
 
   // ---- Keyset cursor ----
   if (q.cursor) {

@@ -45,95 +45,55 @@ const CONFIRMED = entry({
   created_at: "2026-05-01T09:30:00Z",
 });
 
-describe("HistoryTimeline — reading the order's story at a glance", () => {
-  test("gives every entry the status icon the rest of the app already uses", () => {
-    // The log was text-only: twelve rows of near-identical French sentences,
-    // scanned one word at a time. The icon is the thing the eye lands on, and
-    // it has to be the SAME mark the queue pill and the console badge wear —
-    // one status, one face, everywhere.
+describe("HistoryTimeline — the prototype's .tl", () => {
+  test("reads the story the way it happened, oldest first", () => {
     renderTimeline([CONFIRMED, WEBHOOK]);
-
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(2);
-
-    // A mark per entry, keyed to the destination status, not a generic bullet.
-    expect(within(items[0]).getByTestId("history-icon")).toHaveAttribute(
-      "data-status",
-      "confirmed",
-    );
-    expect(within(items[1]).getByTestId("history-icon")).toHaveAttribute(
-      "data-status",
-      "pending",
-    );
+    expect(items[0]).toHaveAttribute("data-status", "pending");
+    expect(items[1]).toHaveAttribute("data-status", "confirmed");
   });
 
-  test("colours the mark with the status's own hue, so phase is visible", () => {
-    // Warm while the order is still the agent's problem, cool once it is with
-    // the carrier. Reusing presentStatus() is what keeps that promise true here
-    // without a second hue table to drift out of sync.
+  test("colours each step's dot with the status's own hue", () => {
     renderTimeline([
       entry({ id: "d", to_status: "delivered", created_at: "2026-05-02T10:00:00Z" }),
       CONFIRMED,
     ]);
-
     const items = screen.getAllByRole("listitem");
-    expect(within(items[0]).getByTestId("history-icon")).toHaveAttribute(
-      "data-hue",
-      "green",
-    );
-    expect(within(items[1]).getByTestId("history-icon")).toHaveAttribute(
-      "data-hue",
-      "violet",
-    );
+    expect(items[0]).toHaveClass("h-violet");
+    expect(items[1]).toHaveClass("h-green");
   });
 
-  test("says who did it — agent, system or manager — which the log never showed", () => {
-    // order_history has carried actor_type all along and the panel dropped it.
-    // "Confirmée" with no author is the single most-asked question about a
-    // disputed order, and the answer was already in the row.
+  test("says who did it — agent, system or manager", () => {
     renderTimeline([CONFIRMED, WEBHOOK]);
-
     const items = screen.getAllByRole("listitem");
-    expect(within(items[0]).getByTestId("history-actor")).toHaveTextContent(/agent/i);
-    expect(within(items[1]).getByTestId("history-actor")).toHaveTextContent(
-      /système|systeme/i,
-    );
+    expect(within(items[0]).getByTestId("history-actor")).toHaveTextContent(/système|systeme/i);
+    expect(within(items[1]).getByTestId("history-actor")).toHaveTextContent(/agent/i);
   });
 
-  test("marks the newest entry as current, and shows relative age beside the date", () => {
-    // Newest-first only tells you the order; it does not tell you the log is
-    // live. The top entry is where the order stands right now, so it is the one
-    // that gets the emphasis.
+  test("marks where the order stands now — the last step", () => {
     renderTimeline([CONFIRMED, WEBHOOK]);
-
     const items = screen.getAllByRole("listitem");
-    expect(items[0]).toHaveAttribute("data-current", "true");
-    expect(items[1]).not.toHaveAttribute("data-current", "true");
+    expect(items[1]).toHaveAttribute("data-current", "true");
+    expect(items[1]).toHaveClass("now");
+    expect(items[0]).not.toHaveAttribute("data-current");
   });
 
   test("states the gap between two steps, so a stall is visible", () => {
-    // Two timestamps 90 minutes apart require mental arithmetic on every pair.
-    // The elapsed reading is the actual question being asked of this log:
-    // where did this order sit, and for how long.
     renderTimeline([CONFIRMED, WEBHOOK]);
-
     const items = screen.getAllByRole("listitem");
-    expect(within(items[0]).getByTestId("history-gap")).toHaveTextContent("1h30");
+    expect(within(items[1]).getByTestId("history-gap")).toHaveTextContent("1h30");
   });
 
   test("keeps the translated note and never leaks a raw status code", () => {
     renderTimeline([WEBHOOK]);
-
     expect(screen.getByText("Commande reçue via webhook")).toBeTruthy();
-    expect(screen.getByText("En attente")).toBeTruthy();
+    expect(screen.getByText(/En attente/)).toBeTruthy();
     expect(screen.queryByText("pending")).toBeNull();
   });
 
-  test("mirrors for Arabic, including the transition arrow direction", () => {
-    // Libya orders render Arabic inside a French UI, so the list carries its own
-    // dir — a French-direction arrow between two Arabic labels reads backwards.
+  test("mirrors for Arabic", () => {
     renderTimeline([CONFIRMED], "ar");
-
     const list = screen.getByRole("list");
     expect(list).toHaveAttribute("dir", "rtl");
     expect(list).toHaveAttribute("lang", "ar");

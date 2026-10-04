@@ -82,8 +82,13 @@ vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const arMessages = (await import("@/messages/ar.json")).default;
   return {
-    useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
-      resolveTranslation(arMessages, ns, key, params),
+    useTranslations: (ns: string) => {
+      const t = (key: string, params?: Record<string, unknown>) =>
+        resolveTranslation(arMessages, ns, key, params);
+      // The status pill asks whether a status has a label before using it.
+      t.has = (key: string) => resolveTranslation(arMessages, ns, key) !== key;
+      return t;
+    },
     useLocale: () => "ar",
   };
 });
@@ -195,7 +200,7 @@ describe("OrderDetailPanel", () => {
     );
 
     expect(screen.getAllByText("Tripoli").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("LBY").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/LBY/).length).toBeGreaterThan(0);
     expect(container.querySelector('a[href*="google.com/maps"]')).toBeNull();
   });
 
@@ -253,11 +258,11 @@ describe("OrderDetailPanel", () => {
 
     // On Articles: the receipt is on screen, the delivery rows are not.
     expect(screen.getByTestId("items-grand-total")).toBeVisible();
-    expect(screen.getByText("التتبع")).not.toBeVisible();
+    expect(screen.getByText("لم يصل بعد إلى شركة التوصيل")).not.toBeVisible();
 
     fireEvent.click(screen.getByRole("tab", { name: /livraison|التوصيل/i }));
 
-    expect(screen.getByText("التتبع")).toBeVisible();
+    expect(screen.getByText("لم يصل بعد إلى شركة التوصيل")).toBeVisible();
     expect(screen.getByTestId("items-grand-total")).not.toBeVisible();
   });
 
@@ -303,6 +308,49 @@ describe("OrderDetailPanel", () => {
     expect(screen.queryByText("pending")).toBeNull();
   });
 
+  describe("the prototype's layout (commandes-v4)", () => {
+    it("is the drawer over a scrim on the orders page, under the .cmd token root", () => {
+      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+      const drawer = screen.getByRole("dialog");
+      expect(drawer).toHaveClass("drawer");
+      expect(drawer.closest(".cmd")).not.toBeNull();
+      expect(document.querySelector(".cmd > .scrim")).not.toBeNull();
+    });
+
+    it("closes from the scrim", () => {
+      const onClose = vi.fn();
+      render(<OrderDetailPanel orderId="order-1" onClose={onClose} onCallTerminated={() => {}} userId="user-1" />);
+      fireEvent.click(document.querySelector(".scrim")!);
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it("pins a missing city as a notice directly above the footer", () => {
+      currentOrder = { ...order, customer_city: null };
+      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+      const note = screen.getByText("المدينة غير محددة — يجب تحديدها قبل الإرسال").closest(".notes")!;
+      expect(note.nextElementSibling).toHaveClass("dr-foot");
+    });
+
+    it("reads the customer's record from the list row when it carries one", () => {
+      render(
+        <OrderDetailPanel
+          orderId="order-1"
+          onClose={() => {}}
+          onCallTerminated={() => {}}
+          userId="user-1"
+          fallbackOrder={{ ...order, prior_order_count: 4, prior_rejected_count: 1, prior_returned_count: 1, prior_delivered_count: 2 }}
+        />,
+      );
+      expect(screen.getByTestId("customer-reliability")).toHaveClass("h-red");
+    });
+
+    it("tells a shipped order to be reopened before editing", () => {
+      currentOrder = { ...order, status: "delivered" };
+      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+      expect(screen.getByText("أعد فتح الطلب لتعديل تفاصيله.")).toBeInTheDocument();
+    });
+  });
+
   describe("under the call sheet", () => {
     // The panel now stays open beneath the sheet. Both listen for Escape on
     // `document`, so without this one press closed both layers at once.
@@ -344,17 +392,17 @@ describe("OrderDetailPanel", () => {
       expect(scroller.contains(screen.getAllByRole("tabpanel")[0])).toBe(true);
     });
 
-    it("lets the tab strip scroll sideways rather than clip its last tab", () => {
+    it("pins the tab strip in the prototype's sticky track (it scrolls sideways on a phone)", () => {
       renderPanel();
-      expect(screen.getByRole("tablist").className).toMatch(/(^|\s)max-lg:overflow-x-auto(\s|$)/);
+      expect(screen.getByRole("tablist").parentElement).toHaveClass("tabwrap");
     });
 
     // The call and WhatsApp buttons shared a row with the name and a
     // `flex-none` reliability pill, which squeezed the name to one letter a
     // line on a 375px screen.
-    it("gives calling its own full-width row under the customer's name", () => {
+    it("keeps calling in the client block's button group (its own row on a phone)", () => {
       renderPanel();
-      expect(screen.getByRole("link", { name: /اتصال/ }).className).toMatch(/(^|\s)max-lg:flex-1(\s|$)/);
+      expect(screen.getByRole("link", { name: /اتصال/ }).parentElement).toHaveClass("pc-btns");
     });
 
     it("holds the queue behind it still while an order is open", () => {

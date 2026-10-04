@@ -1,44 +1,31 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 
 import { panelShellClasses } from "../OrderDetailPanel/shell";
 
-afterEach(() => vi.restoreAllMocks());
-
 /**
- * Rev 2 (2026-09-18): on desktop the panel opens beside the list instead of
- * over it. Only the shell moves — the panel's content is untouched — so the
- * contract worth pinning is the shell's two shapes.
+ * prototypes/commandes-v4.html: one panel, two places. The orders page gets the
+ * prototype's drawer over a scrim; the agent queue gets the same content as a
+ * card beside the list. Only the shell differs, so its two shapes are pinned.
  */
 describe("panelShellClasses", () => {
-  it("overlays the page in the default (phone / fallback) variant", () => {
-    const { overlay, panel } = panelShellClasses("overlay");
-    expect(overlay).not.toBeNull();
-    expect(panel).toMatch(/fixed/);
-    expect(panel).toMatch(/z-50/);
+  it("is the prototype's drawer, over a scrim, on the orders page", () => {
+    const { root, overlay, panel } = panelShellClasses("overlay");
+    expect(root.split(" ")).toContain("cmd");
+    expect(overlay?.split(" ")).toContain("scrim");
+    expect(panel.split(" ")).toContain("drawer");
   });
 
-  it("sits in the page flow beside the list in the side variant", () => {
-    const { overlay, panel } = panelShellClasses("side");
-    // No scrim: the list stays readable and clickable next to the panel.
+  it("sits beside the list in the queue, with no scrim", () => {
+    const { root, overlay, panel } = panelShellClasses("side");
+    // The tokens must reach the agent queue too — they live on `.cmd`.
+    expect(root.split(" ")).toContain("cmd");
     expect(overlay).toBeNull();
-    // No *unprefixed* `fixed`: the desktop shape is in flow. The `max-lg:fixed`
-    // fallback below is deliberate and asserted separately.
-    expect(panel.split(/\s+/)).not.toContain("fixed");
-    expect(panel).toMatch(/lg:sticky/);
+    expect(panel.split(" ")).toContain("odp-side");
+    expect(panel.split(" ")).not.toContain("drawer");
   });
 
-  it("stops at its content on a desktop, rather than reserving a column of white", () => {
-    // A fixed `h-[calc(100vh-…)]` made every short order end in a band of
-    // empty panel between the receipt and the buttons that act on it.
-    const { panel } = panelShellClasses("side");
-    expect(panel).toMatch(/lg:max-h-\[calc\(100vh/);
-    expect(panel).not.toMatch(/lg:h-\[calc\(100vh/);
-  });
-
-  it("keeps the panel full-width over the page on small screens in both variants", () => {
-    // Below lg there is no room for two columns, so `side` still covers.
-    const { panel } = panelShellClasses("side");
-    expect(panel).toMatch(/max-lg:fixed/);
+  it("shares one content class, so both shapes get the same panel", () => {
+    expect(panelShellClasses("overlay").panel.split(" ")).toContain("odp");
+    expect(panelShellClasses("side").panel.split(" ")).toContain("odp");
   });
 });
