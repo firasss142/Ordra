@@ -1,8 +1,10 @@
 import {
+  Activity,
   Archive,
   BarChart3,
   Boxes,
   CopyCheck,
+  Filter,
   HandCoins,
   Headset,
   Inbox,
@@ -49,6 +51,7 @@ export type NavGroupId =
   | "commandes"
   | "logistique"
   | "livraison"
+  | "performance"
   | "finances"
   | "clients"
   | "equipe"
@@ -118,14 +121,23 @@ export const NAV_GROUPS: readonly NavGroupDef[] = [
     ],
   },
   {
-    // After the parcel leaves: the worklist (which parcel to act on now) and
-    // Transporteurs (is each carrier doing its job?). Suivi transporteur and
-    // Tableau livraison were retired 2026-10-03 (docs/carrier-scorecard.md).
+    // After the parcel leaves: the worklist (which parcel to act on now).
+    // Suivi transporteur and Tableau livraison were retired 2026-10-03
+    // (docs/carrier-scorecard.md); Transporteurs moved to Performance.
     id: "livraison",
     icon: Truck,
+    items: [{ key: "deliveryWorklist", href: "delivery", icon: PackageCheck, prefetchRoute: "delivery" }],
+  },
+  {
+    // One section for judging a period, by question (owner, 2026-10-04 —
+    // plans/performance-commandes.md): where orders are lost, how the team
+    // does, how delivery does. The pages to act on today stay in their groups.
+    id: "performance",
+    icon: Activity,
     items: [
-      { key: "deliveryWorklist", href: "delivery", icon: PackageCheck, prefetchRoute: "delivery" },
-      { key: "carriers", href: "carriers", icon: Route },
+      { key: "perfOrders", href: "performance/orders", icon: Filter, prefetchRoute: "performance" },
+      { key: "perfTeam", href: "team/performance", icon: BarChart3, prefetchRoute: "team" },
+      { key: "perfDelivery", href: "carriers", icon: Route, activeOn: ["carriers"] },
     ],
   },
   {
@@ -156,7 +168,6 @@ export const NAV_GROUPS: readonly NavGroupDef[] = [
     icon: Headset,
     items: [
       { key: "controlRoom", href: "team", icon: PhoneCall, prefetchRoute: "team" },
-      { key: "performanceLive", href: "team/performance", icon: BarChart3, prefetchRoute: "team" },
       { key: "access", href: "users", icon: UserCog, prefetchRoute: "users" },
     ],
   },

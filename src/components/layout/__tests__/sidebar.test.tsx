@@ -135,12 +135,18 @@ describe("Sidebar — what each role sees", () => {
     ]);
   });
 
-  it("LIVRAISON is the worklist, then Transporteurs — the two old boards are gone", () => {
+  it("LIVRAISON is the worklist — the two old boards are gone, Transporteurs moved to Performance", () => {
     renderSidebar({ user: superAdmin });
-    expect(groupLinks(/^Suivi livraison$/)).toEqual(["/fr/delivery", "/fr/carriers"]);
-    expect(screen.getByRole("link", { name: /^Transporteurs$/ })).toBeInTheDocument();
+    expect(groupLinks(/^Suivi livraison$/)).toEqual(["/fr/delivery"]);
     expect(screen.queryByRole("link", { name: /Suivi transporteur/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Tableau livraison/ })).not.toBeInTheDocument();
+  });
+
+  it("PERFORMANCE judges a period: Commandes, Équipe, Livraison", () => {
+    renderSidebar({ user: managerUser });
+    expect(screen.getByRole("button", { name: /^Performance/ })).toBeInTheDocument();
+    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(expect.arrayContaining(["/fr/performance/orders", "/fr/team/performance", "/fr/carriers"]));
   });
 
   it("separates the floor's stock screen from the capital one, and hides the latter from a manager", () => {
@@ -177,7 +183,7 @@ describe("Sidebar — folding", () => {
   it("opens every group on the first visit", () => {
     renderSidebar({ user: managerUser });
     expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Performance$/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Salle de contrôle$/ })).toBeInTheDocument();
   });
 
   it("folds a group from its label, and remembers it on the next visit", () => {
@@ -230,13 +236,20 @@ describe("Sidebar — the current page", () => {
     ["/fr/warehouse/scan", "", /^Sortir$/],
     ["/fr/warehouse/stock/p1", "", /^Stock$/],
     ["/fr/warehouse/count", "", /^Stock$/],
-    ["/fr/orders", "preset=unassigned", /^Commandes/],
     ["/fr/messages/templates", "", /^Messages/],
     ["/fr/system/settings/delivery", "", /^Réglages$/],
   ])("marks the right link on %s?%s", (path, search, name) => {
     at(path, search);
     renderSidebar({ user: managerUser, currentPath: path });
     expect(screen.getByRole("link", { name })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks Commandes on /fr/orders?preset=unassigned, not Performance › Commandes", () => {
+    at("/fr/orders", "preset=unassigned");
+    renderSidebar({ user: managerUser, currentPath: "/fr/orders" });
+    const links = screen.getAllByRole("link", { name: /^Commandes/ });
+    expect(links.find((a) => a.getAttribute("href") === "/fr/orders")).toHaveAttribute("aria-current", "page");
+    expect(links.find((a) => a.getAttribute("href") === "/fr/performance/orders")).not.toHaveAttribute("aria-current");
   });
 
   it("marks only Aujourd'hui on /fr/warehouse", () => {
@@ -255,7 +268,8 @@ describe("Sidebar — the current page", () => {
 describe("Sidebar — counts", () => {
   it("counts unassigned orders on Commandes", () => {
     renderSidebar({ user: managerUser, unassignedCount: 12 });
-    expect(within(screen.getByRole("link", { name: /^Commandes/ })).getByText("12")).toBeInTheDocument();
+    const orders = screen.getAllByRole("link", { name: /^Commandes/ }).find((a) => a.getAttribute("href") === "/fr/orders")!;
+    expect(within(orders).getByText("12")).toBeInTheDocument();
   });
 
   it("counts the super_admin's chosen market, as the WhatsApp count already did", async () => {
@@ -414,7 +428,7 @@ describe("Sidebar — the 64 px rail", () => {
   it("marks the group of the current page", () => {
     at("/fr/team/performance");
     renderSidebar({ user: managerUser, rail: true, currentPath: "/fr/team/performance" });
-    expect(screen.getByRole("button", { name: "Équipe" })).toHaveAttribute("data-current", "true");
+    expect(screen.getByRole("button", { name: "Performance" })).toHaveAttribute("data-current", "true");
   });
 });
 
