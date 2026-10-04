@@ -35,7 +35,19 @@ export interface RawReceptionLine {
   id: string;
   product_id: string;
   variant_id: string | null;
-  expected_qty: number | null;
+  /**
+   * CE QUI ÉTAIT COMMANDÉ, injecté par la route depuis les bons de commande
+   * auxquels ce comptage est rattaché — PAS une colonne de `reception_lines`.
+   *
+   * `reception_lines.expected_qty` existe encore en base et vaut NULL partout :
+   * personne n'écrit un attendu dans un formulaire vide, et c'est la raison
+   * d'être des bons de commande. L'écart se mesure donc contre NOTRE PLAN.
+   *
+   * Absent pour un agent d'entrepôt, et pas par politesse : la RLS de
+   * `purchase_order_receipts` lui est fermée, donc la route ne peut rien lui
+   * injecter. Le comptage à l'aveugle se garde en base.
+   */
+  ordered_qty?: number | null;
   received_qty: number | null;
   damaged_qty: number | null;
   unit_cost: number | null;
@@ -107,7 +119,8 @@ export interface ProjectedLine {
    */
   product_stock: number | null;
   variant_label: string | null;
-  expected_qty: number | null;
+  /** Ce qui était commandé. `null` quand aucune commande ne couvre ce carton. */
+  ordered_qty: number | null;
   received_qty: number | null;
   damaged_qty: number;
   /** `null` dès qu'un des deux nombres manque — « non annoncé », pas 0. */
@@ -162,7 +175,8 @@ export interface ProjectedReception {
     damaged: number;
     value: number | null;
     lines: number;
-    /** `null` quand rien n'est annoncé — « non annoncé », pas « zéro attendu ». */
+    /** Σ des quantités COMMANDÉES. `null` quand aucune commande ne couvre ce
+     *  document — « rien de commandé », pas « zéro attendu ». */
     expected: number | null;
     /** Lignes portant un nombre reçu, zéro compris. */
     countedLines: number;
@@ -219,10 +233,10 @@ export function projectReception(
       product_image_url: line.product?.image_url ?? null,
       product_stock: line.product?.current_stock ?? null,
       variant_label: line.variant?.label ?? null,
-      expected_qty: line.expected_qty,
+      ordered_qty: line.ordered_qty ?? null,
       received_qty: line.received_qty,
       damaged_qty: line.damaged_qty ?? 0,
-      variance: lineVariance({ expected: line.expected_qty, received: line.received_qty }),
+      variance: lineVariance({ expected: line.ordered_qty ?? null, received: line.received_qty }),
       note: line.note,
     };
 
@@ -244,7 +258,9 @@ export function projectReception(
 
   const totals = receptionTotals(
     raw.reception_lines.map((l) => ({
-      expected_qty: l.expected_qty,
+      // `receptionTotals` parle d'« attendu » au sens générique : ce qu'on
+      // attendait. Depuis les bons de commande, c'est ce qu'on a COMMANDÉ.
+      expected_qty: l.ordered_qty ?? null,
       received_qty: l.received_qty,
       damaged_qty: l.damaged_qty,
       // Sans droit sur les coûts, la valeur ne peut pas être calculée : elle

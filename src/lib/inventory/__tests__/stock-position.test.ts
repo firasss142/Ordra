@@ -266,3 +266,25 @@ describe("mapStockPayload — actions", () => {
     expect(res.actions.map((a) => a.kind)).toContain("liquidate");
   });
 });
+
+/**
+ * « EN COMMANDE » SUR LA LIGNE DE STOCK.
+ *
+ * Sans lui, la suggestion de réassort recommanderait une deuxième fois ce qui
+ * est déjà en route, et la couverture serait lue comme pire qu'elle n'est.
+ */
+describe("ce qui est déjà commandé", () => {
+  it("se reporte depuis les bons de commande ouverts", () => {
+    const p = mapStockPayload(payload([oversoldRow()]), {
+      ...OPTS,
+      onOrderByProduct: new Map([["p-1", 200]]),
+    }).products[0];
+    expect(p.on_order).toBe(200);
+  });
+
+  it("vaut null et jamais 0 quand rien n'est commandé", () => {
+    // « rien en commande » et « on ne sait pas » ne doivent pas partager un
+    // chiffre, et un zéro rassurant est le pire des deux.
+    expect(mapStockPayload(payload([oversoldRow()]), OPTS).products[0].on_order).toBeNull();
+  });
+});

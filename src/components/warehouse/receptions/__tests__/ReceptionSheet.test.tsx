@@ -71,7 +71,7 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
         product_image_url: null,
     product_stock: 943,
         variant_label: null,
-        expected_qty: 150,
+        ordered_qty: 150,
         received_qty: null,
         damaged_qty: 0,
         variance: null,
@@ -305,7 +305,7 @@ describe("ReceptionSheet — hors bon de livraison", () => {
         lines: [
           {
             ...reception().lines[0],
-            expected_qty: null,
+            ordered_qty: null,
             received_qty: 8,
             variance: null,
           },
@@ -323,7 +323,7 @@ describe("ReceptionSheet — hors bon de livraison", () => {
   it("ne dit rien quand rien n'est annoncé ET rien n'est compté", () => {
     mockUseReception.mockReturnValue({
       reception: reception({
-        lines: [{ ...reception().lines[0], expected_qty: null, received_qty: null }],
+        lines: [{ ...reception().lines[0], ordered_qty: null, received_qty: null }],
       }),
       isLoading: false,
       error: undefined,

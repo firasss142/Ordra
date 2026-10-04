@@ -106,13 +106,17 @@ export function ReceptionLineEditor({
         </span>
       </span>
 
-      {/* Attendu — toujours en lecture seule : il vient du bon, pas du quai. */}
+      {/* COMMANDÉ — en lecture seule, et il vient du BON DE COMMANDE.
+          `reception_lines.expected_qty` ne l'a jamais porté : personne n'écrit
+          un attendu dans un formulaire vide. L'écart se mesure donc contre
+          notre propre plan, ce qui est plus utile que contre le papier du
+          fournisseur. Vide quand aucune commande ne couvre ce carton. */}
       <span className="text-end">
-        {line.expected_qty === null ? (
-          <span className="text-[11.5px] italic text-wh-ink-3">{t("notAnnounced")}</span>
+        {line.ordered_qty === null ? (
+          <span className="text-[11.5px] italic text-wh-ink-3">{t("notOrdered")}</span>
         ) : (
           <span className="font-mono text-[14px] font-medium text-wh-ink-3 tabular-nums">
-            {line.expected_qty}
+            {line.ordered_qty}
           </span>
         )}
       </span>
@@ -141,16 +145,12 @@ export function ReceptionLineEditor({
                   : "border-wh-ok bg-wh-ok-bg/50"
               }`}
             />
-            {/* Le cas courant sur un quai : tout est arrivé. Un geste, pas six touches. */}
-            {line.expected_qty !== null && line.received_qty !== line.expected_qty ? (
-              <button
-                type="button"
-                onClick={() => onChange({ ...current, received_qty: line.expected_qty })}
-                className="mt-1 w-full rounded-[5px] border border-wh-border bg-wh-surface px-1 py-0.5 font-mono text-[11px] font-semibold text-wh-ink-2 hover:bg-wh-sunken"
-              >
-                {line.expected_qty}
-              </button>
-            ) : null}
+            {/* L'ANCRE EST PARTIE, ET NE REVIENDRA PAS. Il y avait ici un
+                bouton qui adoptait la quantité attendue d'un seul doigt : on
+                avait construit l'ancrage exprès et on l'appelait confort. C'est
+                la fonction la plus susceptible de produire une réception qui
+                dit 150 quand 144 sont arrivés. Les quantités appartiennent
+                désormais au quai, qui ne voit pas l'attendu du tout. */}
           </>
         )}
 
@@ -175,7 +175,7 @@ export function ReceptionLineEditor({
           >
             {variance === 0 ? t("conform") : `${variance > 0 ? "+" : "−"}${Math.abs(variance)}`}
           </span>
-        ) : line.expected_qty === null && line.received_qty > 0 ? (
+        ) : line.ordered_qty === null && line.received_qty > 0 ? (
           <span className="mt-1 block font-mono text-[11.5px] font-bold text-wh-move">
             {t("offDocket", { delta: `+${line.received_qty}` })}
           </span>

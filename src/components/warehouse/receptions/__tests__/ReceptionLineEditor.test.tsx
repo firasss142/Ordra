@@ -33,7 +33,7 @@ function line(over: Partial<ProjectedLine> = {}): ProjectedLine {
     product_image_url: null,
     product_stock: 943,
     variant_label: null,
-    expected_qty: 150,
+    ordered_qty: 150,
     received_qty: null,
     damaged_qty: 0,
     variance: null,
@@ -55,10 +55,18 @@ describe("ReceptionLineEditor — la saisie", () => {
     expect(received.value).toBe("");
   });
 
-  it("propose l'attendu en un geste — le cas courant sur un quai", () => {
+  /*
+   * L'ANCRE N'EXISTE PLUS, ET CE TEST EST LÀ POUR QU'ELLE NE REVIENNE PAS.
+   *
+   * Il y avait ici un bouton qui adoptait la quantité commandée d'un seul
+   * doigt. Montrer « commandé 150 » avant le comptage ne fait pas gagner du
+   * temps : ça fait ÉCRIRE 150 — on avait construit l'ancrage exprès et on
+   * l'appelait confort. Les quantités appartiennent désormais au quai, qui ne
+   * voit pas le commandé du tout.
+   */
+  it("n'offre aucun geste pour adopter la quantité commandée", () => {
     wrap(<ReceptionLineEditor line={line()} withCosts={false} onChange={onChange} />);
-    fireEvent.click(screen.getByRole("button", { name: /150/ }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ received_qty: 150 }));
+    expect(screen.queryByRole("button", { name: /150/ })).not.toBeInTheDocument();
   });
 
   it("permet de déclarer zéro explicitement — « rien n'est arrivé » est une réponse", () => {
@@ -109,7 +117,7 @@ describe("ReceptionLineEditor — l'écart", () => {
   it("montre le manque signé", () => {
     wrap(
       <ReceptionLineEditor
-        line={line({ expected_qty: 100, received_qty: 94, variance: -6 })}
+        line={line({ ordered_qty: 100, received_qty: 94, variance: -6 })}
         withCosts={false}
         onChange={onChange}
       />,
@@ -120,12 +128,12 @@ describe("ReceptionLineEditor — l'écart", () => {
   it("dit « hors bon » pour ce qui n'était pas annoncé, sans inventer d'écart", () => {
     wrap(
       <ReceptionLineEditor
-        line={line({ expected_qty: null, received_qty: 8, variance: null })}
+        line={line({ ordered_qty: null, received_qty: 8, variance: null })}
         withCosts={false}
         onChange={onChange}
       />,
     );
-    expect(screen.getByText(/non annoncé/i)).toBeInTheDocument();
+    expect(screen.getByText(/non commandé/i)).toBeInTheDocument();
     expect(screen.queryByText(/conforme/i)).not.toBeInTheDocument();
   });
 });
@@ -179,7 +187,7 @@ describe("ReceptionLineEditor — lecture seule", () => {
   it("ne propose aucun champ quand la réception est validée", () => {
     wrap(
       <ReceptionLineEditor
-        line={line({ expected_qty: 150, received_qty: 148, variance: -2 })}
+        line={line({ ordered_qty: 150, received_qty: 148, variance: -2 })}
         withCosts
         readOnly
         onChange={onChange}

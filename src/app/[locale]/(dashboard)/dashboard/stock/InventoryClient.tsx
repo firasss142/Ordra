@@ -25,6 +25,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StockAdjustModal, type StockAdjustState } from "@/components/products/StockAdjustModal";
 import { StockKpiCard, KpiChip, type KpiStat } from "@/components/stock/StockKpiCard";
 import { StockProductRow, STOCK_ROW_GRID } from "@/components/stock/StockProductRow";
+import { ReorderDialog, type ReorderTarget } from "@/components/stock/ReorderDialog";
+import { canPlacePurchaseOrder } from "@/lib/purchases/permissions";
+import { suggestOrderQty } from "@/lib/purchases/suggest";
 import { CapitalBreakdown } from "@/components/stock/CapitalBreakdown";
 import { Bar, CAPITAL_COLORS, LegendDot } from "@/components/stock/StockPrimitives";
 import { buildStockKey, useStockPosition } from "@/hooks/useStockPosition";
@@ -38,6 +41,7 @@ import {
   type DemandWindowDays,
   type StockAction,
   type StockProduct,
+  type StockState,
 } from "@/lib/inventory/stock-position-types";
 
 const ACTION_ICON = {
@@ -70,6 +74,12 @@ export function InventoryClient({ user }: { user: AuthUser }) {
 
   const locale = user.locale === "ar" ? "ar-LY" : "fr-FR";
   const canAdjust = user.role === "super_admin";
+  /*
+   * COMMANDER EST UN GESTE DE BUREAU. Les mêmes rôles que la RPC et que la RLS
+   * de `purchase_orders` — si l'un des trois change, les trois changent.
+   */
+  const canOrder = canPlacePurchaseOrder(user.role);
+  const [reorder, setReorder] = useState<ReorderTarget | null>(null);
   const showSkeleton = !position && isLoading;
 
   const totals = position?.totals;
@@ -364,6 +374,18 @@ export function InventoryClient({ user }: { user: AuthUser }) {
                   locale={locale}
                   formatMoney={money}
                   onAdjust={canAdjust ? () => openAdjust(p) : undefined}
+                  /*
+                   * LE BOUTON N'APPARAÎT QUE LÀ OÙ IL Y A QUELQUE CHOSE À
+                   * COMMANDER. Un panier sur un produit sur-stocké ou dormant
+                   * serait une invitation à immobiliser du capital, et un
+                   * panier sur chaque ligne n'attirerait plus l'œil sur
+                   * aucune.
+                   */
+                  onOrder={
+                    canOrder && ORDERABLE_STATES.has(p.state)
+                      ? () => setReorder(targetFor(p))
+                      : undefined
+                  }
                   labels={{
                     verdict: t(`verdict.${p.state}`),
                     stockOutOn: p.stock_out_date ? t("table.stockOutOn", { date: day(p.stock_out_date) }) : null,
@@ -387,6 +409,9 @@ export function InventoryClient({ user }: { user: AuthUser }) {
                     engaged: t("table.legend.engaged"),
                     free: t("table.legend.free"),
                     adjust: t("table.adjust", { name: p.name }),
+                    order: t("table.order", { name: p.name }),
+                    onOrder:
+                      p.on_order === null ? null : t("table.onOrder", { units: nf.format(p.on_order) }),
                     sparkAria: t("table.sparkAria", { days: windowDays }),
                     unverified: p.drift_units !== 0 ? t("table.unverifiedValue") : null,
                   }}
@@ -475,6 +500,14 @@ export function InventoryClient({ user }: { user: AuthUser }) {
         </section>
       </div>
 
+      {reorder ? (
+        <ReorderDialog
+          target={reorder}
+          onClose={() => setReorder(null)}
+          onDone={() => mutate()}
+        />
+      ) : null}
+
       {adjust ? (
         <StockAdjustModal
           state={adjust}
@@ -488,6 +521,45 @@ export function InventoryClient({ user }: { user: AuthUser }) {
 }
 
 /* ────────────────────────── helpers ────────────────────────── */
+
+/**
+ * LES SEULS ÉTATS OÙ COMMANDER A UN SENS.
+ *
+ * `overstocked` et `dead` sont du capital déjà immobilisé ; `unknown` n'a pas
+ * de demande mesurée, donc aucune quantité à proposer — y mettre un panier
+ * ferait acheter contre une intuition en se faisant passer pour un calcul. Et
+ * un panier sur CHAQUE ligne n'attirerait plus l'œil sur aucune.
+ */
+const ORDERABLE_STATES = new Set<StockState>(["out", "reorder_now", "watch", "ok"]);
+
+/**
+ * Le manque, traduit en bon de commande pré-rempli.
+ *
+ * La quantité proposée déduit ce qui est DÉJÀ en route : commander deux fois le
+ * même manque est précisément l'erreur que « en commande » existe pour empêcher.
+ */
+function targetFor(p: StockProduct): ReorderTarget {
+  const s = suggestOrderQty({
+    demandRatePerDay: p.demand_rate_per_day,
+    freeToSell: p.free_to_sell,
+    onOrderUnits: p.on_order ?? 0,
+    leadTimeDays: p.lead_time_days,
+  });
+  return {
+    productId: p.id,
+    productName: p.name,
+    marketId: p.market_id,
+    daysOfCover: p.days_of_cover,
+    // LA DATE VOULUE EST LE JOUR DE LA RUPTURE : c'est ce qu'on cherche à
+    // devancer. `null` quand il n'est pas calculable — on ne pose pas une date
+    // inventée, qui ferait ensuite crier un faux retard.
+    stockOutDate: p.stock_out_date,
+    freeToSell: p.free_to_sell,
+    onOrder: p.on_order,
+    suggestedQty: s.qty,
+    targetDays: s.target_days,
+  };
+}
 
 function share(part: number, whole: number): number {
   return whole > 0 ? (part / whole) * 100 : 0;

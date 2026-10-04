@@ -381,7 +381,9 @@
       "sparkAria": "Demande sur {days} jours",
       "unverifiedValue": "non vérifié",
       "adjust": "Ajuster le stock de {name}",
-      "inferred": "demande estimée"
+      "inferred": "demande estimée",
+      "order": "Commander {name}",
+      "onOrder": "{units} en commande"
     },
     "verdict": {
       "out": "Rupture",
@@ -418,6 +420,26 @@
       "button": "Ajuster",
       "openLabel": "Ajuster le stock de {name}",
       "errorGeneric": "Impossible d'ajuster le stock."
+    },
+    "reorder": {
+      "title": "Commander",
+      "situation": "Couverture {days} jours · {free} libres en stock",
+      "situationNoCover": "Pas de couverture calculable",
+      "onOrderAlready": "{units} déjà en commande, déduites",
+      "covers": "De quoi couvrir {days} jours — délai du fournisseur compris",
+      "noDemand": "Pas de demande mesurée : aucune quantité n'est proposée.",
+      "supplier": "Fournisseur",
+      "supplierPick": "Choisir…",
+      "warehouse": "Livrer à",
+      "qty": "Quantité",
+      "unitCost": "Prix annoncé",
+      "unitCostHint": "Facultatif. Vide, la ligne reste non chiffrée — jamais zéro.",
+      "wantedBy": "Voulue le",
+      "wantedByHint": "La date à laquelle on veut la marchandise. C'est notre plan, pas une promesse du fournisseur.",
+      "submit": "Commander",
+      "cancel": "Annuler",
+      "noSuppliers": "Aucun fournisseur enregistré sur ce marché.",
+      "errorGeneric": "La commande n'a pas pu être passée."
     }
   },
   "purchases": {
@@ -456,8 +478,10 @@
     "nDays": "{days} j",
     "noSuppliers": "Aucun fournisseur",
     "noSuppliersHint": "Ils se créent au moment de chiffrer une réception.",
-    "whyEmptyColumns": "« Livre complet » se calcule sur ce qui a été annoncé, et « délai moyen » se mesure de la commande au quai : les deux attendent les bons de commande. Vides, ils disent « on ne sait pas » — jamais 0 % ni 100 %.",
-    "loading": "Chargement…"
+    "whyEmptyColumns": "« Livre complet » et « délai » se mesurent sur les bons de commande TERMINÉS : tant qu'une commande court, le reste peut encore arriver. Vides, ils disent « on ne sait pas » — jamais 0 % ni 100 %.",
+    "loading": "Chargement…",
+    "onOrder": "{units} en commande",
+    "fromClosedOrders": "{count, plural, one {# commande terminée} other {# commandes terminées}}"
   },
   "pnl": {
     "title": "P&L global",
@@ -3902,7 +3926,7 @@
       "catalogueEmpty": "Aucun produit actif dans ce marché.",
       "clearSearch": "Effacer la recherche",
       "colDamaged": "Abîmé",
-      "colExpected": "Attendu",
+      "colExpected": "Commandé",
       "colProduct": "Produit",
       "colQuantities": "Quantités",
       "colReceived": "Reçu",
@@ -3945,7 +3969,6 @@
       "next": "Suivant",
       "noSiteAssigned": "Aucun bâtiment ne vous est assigné",
       "noSiteAssignedHint": "Demandez à votre responsable de vous affecter à un entrepôt avant votre première journée.",
-      "notAnnounced": "non annoncé",
       "notCounted": "pas encore comptée",
       "offDocket": "{delta} hors bon",
       "optional": "facultatif",
@@ -4034,7 +4057,13 @@
       "settleClaimHint": "On doit {amount} — ce qui est entré. L'écart part en litige chez le fournisseur.",
       "settleAccept": "Payer quand même",
       "settleAcceptHint": "On doit {amount}. L'écart passe en perte.",
-      "savePrices": "Enregistrer les prix"
+      "savePrices": "Enregistrer les prix",
+      "dockVsOrder": "Face à la commande",
+      "dockOrdered": "Commandé",
+      "dockCounted": "Compté",
+      "dockGap": "Écart",
+      "dockComplete": "Complet — rien ne manque",
+      "notOrdered": "non commandé"
     }
   },
   "users": {

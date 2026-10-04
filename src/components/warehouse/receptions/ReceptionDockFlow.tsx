@@ -38,6 +38,15 @@ interface Moved {
   qty: number;
   productTotal: number | null;
   siteTotal: number | null;
+  /**
+   * Ce qui était commandé pour cet article dans ce bâtiment. `null` quand rien
+   * ne l'était — l'écran se tait alors, au lieu de reprocher un écart contre un
+   * plan inexistant. Ne peut PAS être lu avant : la RLS de `purchase_orders`
+   * est fermée au quai, et ce chiffre arrive par la valeur de retour de la RPC.
+   */
+  ordered: number | null;
+  /** Le cumul de la ligne après ce comptage, tel que la base le voit. */
+  counted: number | null;
 }
 
 export function ReceptionDockFlow({
@@ -115,6 +124,8 @@ export function ReceptionDockFlow({
         error?: string;
         product_total?: number;
         site_total?: number;
+        ordered?: number | null;
+        counted?: number | null;
       };
       if (!res.ok) {
         setError(body.error ?? String(res.status));
@@ -125,6 +136,8 @@ export function ReceptionDockFlow({
         qty,
         productTotal: body.product_total ?? null,
         siteTotal: body.site_total ?? null,
+        ordered: body.ordered ?? null,
+        counted: body.counted ?? null,
       });
       await onChanged();
       setScreen("done");
@@ -449,6 +462,41 @@ export function ReceptionDockFlow({
           <Row k={t("dockMarketTotal")} v={moved?.productTotal} />
         </div>
 
+        {/* ── LA RÉVÉLATION ──────────────────────────────────────────────
+            Elle arrive APRÈS l'engagement, et c'est tout l'intérêt. Montrer
+            « attendu 150 » avant le comptage ne fait pas gagner du temps : ça
+            fait ÉCRIRE 150. Ici l'écart est une information sur le
+            FOURNISSEUR, et non sur la mémoire de l'agent.
+
+            Silencieux quand `ordered` est null : il n'y a pas de plan contre
+            lequel mesurer, et un reproche inventé est pire qu'un silence. */}
+        {moved?.ordered !== null && moved?.ordered !== undefined ? (
+          <div className="mt-3 overflow-hidden rounded-[10px] border border-wh-border bg-wh-surface text-start">
+            <div className="border-b border-wh-border bg-wh-sunken px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-wh-ink-2">
+              {t("dockVsOrder")}
+            </div>
+            <Row k={t("dockOrdered")} v={moved.ordered} />
+            <Row k={t("dockCounted")} v={moved.counted} />
+            {gapOf(moved) === 0 ? (
+              <div className="flex items-center justify-between px-3 py-2.5 text-[12.5px] font-semibold text-wh-ok">
+                <span>{t("dockComplete")}</span>
+                <Check size={15} strokeWidth={2.6} />
+              </div>
+            ) : (
+              <div className="flex items-center justify-between px-3 py-2.5">
+                <span className="text-[12.5px] font-semibold text-wh-warn">{t("dockGap")}</span>
+                {/* LE SIGNE EST PORTÉ PAR LE CHIFFRE, et le « moins » est un
+                    vrai U+2212 : un trait d'union se lit mal en chiffres
+                    tabulaires, et se perd complètement en RTL. */}
+                <span className="font-mono text-[14px] font-bold tabular-nums text-wh-warn" dir="ltr">
+                  {gapOf(moved)! > 0 ? "+" : "\u2212"}
+                  {Math.abs(gapOf(moved)!)}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <p className="mt-3 text-[11.5px] text-wh-ink-3">{t("dockCorrectableUntilSettled")}</p>
       </div>
       <footer className="flex-none border-t border-wh-border bg-wh-surface p-3">
@@ -473,6 +521,15 @@ export function ReceptionDockFlow({
       </footer>
     </Shell>
   );
+}
+
+/**
+ * L'écart, ou `null` quand il n'y a rien à comparer. Compté − commandé : un
+ * surplus est positif, un manque négatif, et personne n'a à deviner le sens.
+ */
+function gapOf(m: Moved): number | null {
+  if (m.ordered === null || m.counted === null) return null;
+  return m.counted - m.ordered;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {

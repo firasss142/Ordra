@@ -176,7 +176,8 @@ couleurs de statut.
    Protège le P&L et les relevés investisseurs.
 5. `record_arrival` + l'écran du quai ; `settle_reception` + l'écran du bureau ;
    bascule des statuts. Le gros morceau.
-6. `purchase_orders` nés du réassort, et l'écart contre notre plan.
+6. `purchase_orders` nés du réassort, et l'écart contre notre plan. **FAIT** — voir
+   « Étape 6, telle qu'elle a été construite » plus bas.
 7. `supplier_claims` — l'abîmé devient une action, proposée par le système quand
    `damaged_qty × unit_cost` explique exactement l'écart de facture.
 8. Docs : `docs/reception-de-marchandises.md`, la liste des chemins de stock de
@@ -204,3 +205,83 @@ couleurs de statut.
 Emplacements de rangement, plaques de palette, lots et péremption, numéros de série,
 matrices de tolérance de sur-réception, ASN/EDI, couches FIFO. C'est pour 10 000
 références ; il y en a onze.
+
+## Étape 6, telle qu'elle a été construite (4 octobre 2026)
+
+### Pourquoi une table d'allocation et pas une colonne `received_qty`
+
+`purchase_order_receipts` est un REGISTRE : une ligne signée par rattachement,
+en ajout seul, comme `inventory_log`. Un compteur sur la ligne de commande ne
+sait faire ni l'un ni l'autre des deux cas réels sans réécrire du passé :
+
+- un arrivage de 120 unités solde une commande de 100 **et entame la suivante** ;
+- une correction de comptage (100 → 94) doit rendre 6 unités « en route ».
+
+Ce qu'une ligne de commande a reçu est donc toujours la SOMME, et la vue
+`purchase_order_line_progress` est la seule définition de « reçu » et de
+« outstanding » dans tout le système.
+
+### Le comptage à l'aveugle tient aux trois étages
+
+| Étage | Ce qui l'empêche |
+|---|---|
+| Base | `purchase_orders` n'a **aucune** politique RLS pour `warehouse_agent` |
+| Route | `canViewPurchaseOrders` refuse le rôle avant toute requête |
+| Écran | la surface du quai n'affiche l'écart que par la **valeur de retour** de `record_arrival`, après l'écriture |
+
+La RLS est le garde-fou réel, et c'est pour cela que `src/lib/receptions/ordered.ts`
+n'écrit **aucun** filtrage par rôle : il serait le deuxième endroit où la règle
+vit, et donc celui qui finirait par mentir.
+
+### Une commande ne se clôt pas toute seule quand la livraison est courte
+
+La base clôture automatiquement quand **toutes** les lignes sont servies, et
+seulement alors. Une livraison courte est le cas NORMAL : le bon reste ouvert, et
+c'est l'acheteur qui décide d'arrêter d'attendre le reste
+(`close_purchase_order`). Cette RPC choisit alors entre `closed` et `cancelled` —
+une commande dont **rien** n'est arrivé ne pèse pas sur le taux de service du
+fournisseur, parce qu'elle ne dit rien sur sa capacité à servir, seulement sur la
+nôtre à changer d'avis.
+
+Symétriquement, une correction à la baisse ou une contre-passation **rouvre** une
+commande que la base avait clôturée — mais jamais une que quelqu'un avait
+clôturée à la main (`closed_by IS NOT NULL`) : cette décision-là reste la sienne.
+
+### `expected_qty` est mort, et l'écart a changé de référence
+
+`reception_lines.expected_qty` est NULL partout en production et le restera :
+personne n'écrit un attendu dans un formulaire vide. L'écart d'une réception se
+mesure désormais contre **notre propre plan** — les lignes de commande auxquelles
+le quai a rattaché ses comptages — ce qui est plus utile que contre le papier du
+fournisseur. La colonne reste en base (la supprimer est une migration sans
+bénéfice) ; plus rien ne la lit.
+
+Au passage, **l'ancre a été retirée du bureau aussi** :
+`ReceptionLineEditor` offrait encore un bouton qui adoptait la quantité attendue
+d'un seul doigt. C'était le défaut nommé par la critique, et un test assure
+maintenant son absence.
+
+### Deux défauts trouvés en appliquant les migrations sur la base locale
+
+1. **`20261003180000_quai_et_bureau.sql` s'arrêtait au milieu** sur toute base
+   portant une réception validée : son propre déclencheur d'immuabilité refuse la
+   bascule de statut. 46 réceptions en local, zéro en production — donc rien ne
+   se serait vu avant le jour où ça compterait. Corrigé par un
+   `DISABLE TRIGGER` ceinturé autour du seul remplissage.
+2. **`ALTER DEFAULT PRIVILEGES` du projet accorde EXECUTE à `anon`,
+   `authenticated` ET `service_role`** sur toute fonction neuve. Le
+   `REVOKE … FROM PUBLIC, anon` habituel de tout le dépôt laissait donc les deux
+   helpers internes — qui ne portent AUCUN contrôle d'acteur — appelables par
+   n'importe quel compte connecté.
+
+### Ce que l'étape 6 n'a pas fait
+
+- **Fiabilité du prix** (« deux factures sur six ne tombaient pas sur le prix
+  annoncé ») : la maquette la montre, et elle est calculable — `unit_cost` de la
+  ligne de commande contre celui de la ligne de réception. Pas branchée.
+- **Plusieurs produits dans un seul bon de commande depuis l'écran.** La RPC
+  l'accepte (`p_lines` est un tableau) ; le dialogue de réassort naît d'UN manque
+  et n'en envoie qu'un. Grouper par fournisseur est l'amélioration évidente.
+- **Une liste des bons de commande en cours.** Ils se voient par fournisseur sur
+  Achats (« 200 en commande ») et par produit sur Niveaux ; il n'y a pas d'écran
+  qui les liste. `GET /api/purchases/orders` existe et est testé.

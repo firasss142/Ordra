@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { canViewReceptions, canSettleReception } from "@/lib/receptions/permissions";
 import { projectReception, type RawReception } from "@/lib/receptions/project";
+import { orderedByReceptionLine } from "@/lib/receptions/ordered";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ reception: projectReception(raw, actor.role) });
+  return NextResponse.json({ reception: projectReception(await withOrdered(supabase, raw), actor.role) });
+}
+
+/**
+ * Injecte le COMMANDÉ sur chaque ligne, depuis les bons de commande auxquels le
+ * quai l'a rattachée. Voir src/lib/receptions/ordered.ts — et noter que le
+ * comptage à l'aveugle est gardé par la RLS, pas par un filtre de rôle ici.
+ */
+async function withOrdered(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  raw: RawReception,
+): Promise<RawReception> {
+  const ordered = await orderedByReceptionLine(
+    supabase,
+    raw.reception_lines.map((l) => l.id),
+  );
+  return {
+    ...raw,
+    reception_lines: raw.reception_lines.map((l) => ({
+      ...l,
+      ordered_qty: ordered.get(l.id) ?? null,
+    })),
+  };
 }
 
 /**
@@ -167,11 +190,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: fresh } = await load(supabase, id);
   return NextResponse.json({
-    reception: projectReception(fresh as unknown as RawReception, actor.role),
+    reception: projectReception(
+      await withOrdered(supabase, fresh as unknown as RawReception),
+      actor.role,
+    ),
   });
 }
 
-/** Supprimer un groupe ouvert. Une réception soldée se contre-passe, ne se supprime pas. */
+/**
+ * Supprimer un groupe VIDE. Une réception soldée se contre-passe.
+ *
+ * UN ARRIVAGE NE SE DÉ-ARRIVE PAS EN SUPPRIMANT LE DOCUMENT. Depuis la bascule
+ * du quai, les unités d'un groupe ouvert sont DÉJÀ dans
+ * `products.current_stock` — le stock entre quand le carton touche le sol.
+ * Supprimer le document laisserait le stock en place sans rien qui l'explique,
+ * et les lignes de registre `arrival` pointeraient sur une réception disparue.
+ * La bonne réponse est `correct_arrival(ligne, 0)`, qui écrit le DELTA au
+ * registre, parce que le registre est en ajout seul.
+ *
+ * (En v3 la suppression était sans danger : un brouillon n'avait rien bougé.
+ * L'inversion a rendu ce chemin dangereux, et c'est le genre de conséquence
+ * qu'une inversion de modèle laisse derrière elle sans prévenir.)
+ */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
@@ -183,6 +223,24 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   const supabase = await createClient();
+
+  // On COMPTE les lignes, on ne les lit pas : seul leur nombre décide.
+  const { count } = await supabase
+    .from("reception_lines")
+    .select("id", { count: "exact", head: true })
+    .eq("reception_id", id);
+  if ((count ?? 0) > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Ce groupe a déjà des arrivages comptés : le stock est entré. " +
+          "Corrigez les comptages à zéro plutôt que de supprimer le document.",
+        error_code: "ARRIVALS_RECORDED",
+      },
+      { status: 409 },
+    );
+  }
+
   const { error } = await supabase.from("receptions").delete().eq("id", id);
   if (error) {
     // Le trigger d'immutabilité parle en 42501.

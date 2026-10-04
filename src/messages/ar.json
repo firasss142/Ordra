@@ -381,7 +381,9 @@
       "sparkAria": "الطلب على {days} يومًا",
       "unverifiedValue": "غير مُتحقَّق",
       "adjust": "تعديل مخزون {name}",
-      "inferred": "طلب تقديري"
+      "inferred": "طلب تقديري",
+      "order": "اطلب {name}",
+      "onOrder": "{units} قيد الطلب"
     },
     "verdict": {
       "out": "نفاد",
@@ -418,6 +420,26 @@
       "button": "تعديل",
       "openLabel": "تعديل مخزون {name}",
       "errorGeneric": "تعذّر تعديل المخزون."
+    },
+    "reorder": {
+      "title": "أمر شراء",
+      "situation": "تغطية {days} يوماً · {free} متاحة في المخزون",
+      "situationNoCover": "لا تغطية قابلة للحساب",
+      "onOrderAlready": "{units} قيد الطلب أصلاً، مخصومة",
+      "covers": "ما يكفي لتغطية {days} يوماً — بما في ذلك مدة المورّد",
+      "noDemand": "لا طلب مقيس: لا تُقترح أي كمية.",
+      "supplier": "المورّد",
+      "supplierPick": "اختر…",
+      "warehouse": "التسليم إلى",
+      "qty": "الكمية",
+      "unitCost": "السعر المعلن",
+      "unitCostHint": "اختياري. إن تُرك فارغاً يبقى السطر غير مُسعّر — لا صفر.",
+      "wantedBy": "مطلوبة بتاريخ",
+      "wantedByHint": "التاريخ الذي نريد فيه السلعة. هذه خطتنا، لا وعد المورّد.",
+      "submit": "اطلب",
+      "cancel": "إلغاء",
+      "noSuppliers": "لا يوجد مورّدون مسجّلون في هذا السوق.",
+      "errorGeneric": "لم يتمكن النظام من تمرير الأمر."
     }
   },
   "purchases": {
@@ -456,8 +478,10 @@
     "nDays": "{days} ي",
     "noSuppliers": "لا يوجد موردون",
     "noSuppliersHint": "يُنشَأون عند تسعير استلام.",
-    "whyEmptyColumns": "«التسليم الكامل» يُحسب على ما تمّ الإعلان عنه، و«متوسط المهلة» يُقاس من الطلب إلى الرصيف: كلاهما ينتظر أوامر الشراء. وهما فارغان يقولان «لا نعرف» — لا ٠٪ ولا ١٠٠٪.",
-    "loading": "جارٍ التحميل…"
+    "whyEmptyColumns": "«التوريد الكامل» و«المدة» يُقاسان على أوامر الشراء المنتهية فقط: ما دام الأمر سارياً فقد يصل الباقي بعد. الفراغ يعني «لا نعلم» — لا 0 % ولا 100 %.",
+    "loading": "جارٍ التحميل…",
+    "onOrder": "{units} قيد الطلب",
+    "fromClosedOrders": "{count, plural, one {# أمر منتهٍ} other {# أوامر منتهية}}"
   },
   "pnl": {
     "title": "الأرباح والخسائر",
@@ -3930,7 +3954,7 @@
       "catalogueEmpty": "لا منتجات نشطة في هذا السوق.",
       "clearSearch": "محو البحث",
       "colDamaged": "تالف",
-      "colExpected": "متوقع",
+      "colExpected": "المطلوب",
       "colProduct": "المنتج",
       "colQuantities": "الكميات",
       "colReceived": "مستلم",
@@ -3973,7 +3997,6 @@
       "next": "التالي",
       "noSiteAssigned": "لم يُعيّن لك أي مستودع",
       "noSiteAssignedHint": "اطلب من مسؤولك تعيينك إلى مستودع قبل أول يوم عمل.",
-      "notAnnounced": "غير معلن",
       "notCounted": "لم تُعدّ بعد",
       "offDocket": "{delta} خارج الإشعار",
       "optional": "اختياري",
@@ -4034,7 +4057,13 @@
       "settleClaimHint": "ندين بـ {amount} — ما دخل فعلاً. الفرق يذهب إلى نزاع مع المورّد.",
       "settleAccept": "الدفع رغم ذلك",
       "settleAcceptHint": "ندين بـ {amount}. الفرق يُسجَّل خسارة.",
-      "savePrices": "حفظ الأسعار"
+      "savePrices": "حفظ الأسعار",
+      "dockVsOrder": "مقابل أمر الشراء",
+      "dockOrdered": "المطلوب",
+      "dockCounted": "المعدود",
+      "dockGap": "الفرق",
+      "dockComplete": "مكتمل — لا ينقص شيء",
+      "notOrdered": "غير مطلوب"
     }
   },
   "users": {

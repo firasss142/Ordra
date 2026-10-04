@@ -166,7 +166,7 @@ export function ReceptionSheet({
             return {
               product_id: l.product_id,
               variant_id: l.variant_id,
-              expected_qty: l.expected_qty,
+              ordered_qty: l.ordered_qty,
               received_qty: patch ? patch.received_qty : l.received_qty,
               damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
               unit_cost: patch ? patch.unit_cost : (l.unit_cost ?? null),
@@ -224,7 +224,7 @@ export function ReceptionSheet({
         r.lines.map((l) => {
           const patch = edits[l.id];
           return {
-            expected_qty: l.expected_qty,
+            ordered_qty: l.ordered_qty,
             received_qty: patch ? patch.received_qty : l.received_qty,
             damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
             unit_cost: withCosts ? (patch ? patch.unit_cost : (l.unit_cost ?? null)) : null,
@@ -392,7 +392,7 @@ export function ReceptionSheet({
                     damaged_qty: draft.damaged_qty,
                     unit_cost: draft.unit_cost,
                     variance: lineVariance({
-                      expected: l.expected_qty,
+                      expected: l.ordered_qty,
                       received: draft.received_qty,
                     }),
                     line_value:

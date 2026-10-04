@@ -70,6 +70,42 @@ beforeEach(() => {
     error: null,
   };
 
+  /*
+   * LES BONS DE COMMANDE. Deux chez الرسالة : une clôturée à 141 sur 150, une
+   * encore ouverte — qui ne doit PAS peser sur sa note, parce que son camion
+   * roule encore. Aucun chez Biovera : sa colonne reste « — ».
+   */
+  tables.purchase_orders = {
+    data: [
+      {
+        id: "po-1", reference: "BC-LY-2026-0001", market_id: "m-ly", warehouse_id: "w-tripoli",
+        supplier_id: "s-risala", status: "closed", wanted_by: "2026-09-20",
+        ordered_at: "2026-09-11T08:00:00Z", closed_at: "2026-09-22T10:00:00Z",
+        close_reason: null, note: null,
+      },
+      {
+        id: "po-2", reference: "BC-LY-2026-0002", market_id: "m-ly", warehouse_id: "w-tripoli",
+        supplier_id: "s-risala", status: "open", wanted_by: "2026-10-20",
+        ordered_at: "2026-10-01T08:00:00Z", closed_at: null, close_reason: null, note: null,
+      },
+    ],
+    error: null,
+  };
+  tables.purchase_order_line_progress = {
+    data: [
+      {
+        id: "pol-1", purchase_order_id: "po-1", product_id: "p-1", variant_id: null,
+        ordered_qty: 150, unit_cost: 40, received_qty: 141,
+        first_received_at: "2026-09-22T08:00:00Z",
+      },
+      {
+        id: "pol-2", purchase_order_id: "po-2", product_id: "p-1", variant_id: null,
+        ordered_qty: 200, unit_cost: 40, received_qty: 0, first_received_at: null,
+      },
+    ],
+    error: null,
+  };
+
   mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
 });
 
@@ -154,18 +190,38 @@ describe("GET /api/finance/purchases — les fournisseurs", () => {
     expect(risala).toMatchObject({ name: "مكتبة الرسالة", owed: 11232, overdue: 0 });
   });
 
-  test("le taux de service se calcule quand l'attendu existe, et vaut null sinon", async () => {
+  test("le taux de service se mesure sur les commandes TERMINÉES", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
     const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
     const biovera = body.suppliers.find((s: { id: string }) => s.id === "s-biovera");
-    // 141 reçues sur 150 annoncées.
+    /*
+     * 141 reçues sur 150 commandées = 94 %. Les 200 unités de la commande
+     * ENCORE OUVERTE n'entrent pas : tant que le camion roule, le reste peut
+     * arriver, et la compter donnerait 40 % — une note imméritée qui
+     * condamnerait tout fournisseur en cours de livraison.
+     */
     expect(risala.fillRate).toBe(94);
-    // Rien n'a jamais été annoncé chez lui : « — », pas « 0 % » ni « 100 % ».
+    // Aucune commande chez lui : « — », pas « 0 % » ni « 100 % ».
     expect(biovera.fillRate).toBeNull();
   });
 
-  test("le délai moyen est null : il demande un bon de commande, qui n'existe pas encore", async () => {
+  test("le délai se mesure de la commande au premier carton", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
-    for (const s of body.suppliers) expect(s.leadTimeDays).toBeNull();
+    const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
+    // Commandé le 11, premier carton le 22 : onze jours.
+    expect(risala.leadTimeDays).toBe(11);
+  });
+
+  test("le délai reste null sans aucune commande servie", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const biovera = body.suppliers.find((s: { id: string }) => s.id === "s-biovera");
+    expect(biovera.leadTimeDays).toBeNull();
+  });
+
+  test("compte les commandes en cours et ce qu'elles engagent", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
+    expect(risala.openOrders).toBe(1);
+    expect(risala.onOrderUnits).toBe(200);
   });
 });

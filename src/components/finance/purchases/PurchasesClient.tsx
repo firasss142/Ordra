@@ -44,6 +44,12 @@ interface SupplierRow {
   overdue: number;
   fillRate: number | null;
   leadTimeDays: number | null;
+  /** Combien de commandes terminées nourrissent la note — « 94 % » sur une
+   *  commande et sur trente ne se lisent pas pareil. */
+  closedOrders: number;
+  openOrders: number;
+  /** Unités commandées et pas encore arrivées. `null`, jamais 0. */
+  onOrderUnits: number | null;
   lastDeliveryAt: string | null;
 }
 
@@ -285,6 +291,8 @@ export function PurchasesClient({
                     {[sup.category, sup.city].filter(Boolean).join(" · ")}
                     {sup.receptions > 0 && ` · ${t("nReceptions", { count: sup.receptions })}`}
                     {sup.spend90d > 0 && ` · ${t("spend90", { amount: money(sup.spend90d) })}`}
+                    {sup.onOrderUnits !== null &&
+                      ` · ${t("onOrder", { units: sup.onOrderUnits })}`}
                   </div>
                 </div>
 
@@ -312,6 +320,12 @@ export function PurchasesClient({
                     <>
                       <div className={`${NUM} text-[13px] font-semibold text-ink-primary`}>
                         {sup.fillRate} %
+                      </div>
+                      {/* L'ÉCHANTILLON EST DIT. Un taux sans son assise se lit
+                          comme une certitude ; « 94 % · 1 commande terminée »
+                          se lit comme ce que c'est. */}
+                      <div className="mt-0.5 text-[10.5px] text-ink-muted">
+                        {t("fromClosedOrders", { count: sup.closedOrders })}
                       </div>
                       <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-line-subtle">
                         <i

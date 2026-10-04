@@ -42,7 +42,7 @@ const RAW: RawReception = {
       id: "l1",
       product_id: "p1",
       variant_id: null,
-      expected_qty: 150,
+      ordered_qty: 150,
       received_qty: 150,
       damaged_qty: 0,
       unit_cost: 40,
@@ -54,7 +54,7 @@ const RAW: RawReception = {
       id: "l2",
       product_id: "p2",
       variant_id: null,
-      expected_qty: 100,
+      ordered_qty: 100,
       received_qty: 94,
       damaged_qty: 2,
       unit_cost: 85,
@@ -90,7 +90,7 @@ describe("projectReception — agent d'entrepôt", () => {
   it("garde tout ce dont il a besoin pour compter", () => {
     expect(out.reference).toBe("REC-LY-2026-0042");
     expect(out.lines).toHaveLength(2);
-    expect(out.lines[0].expected_qty).toBe(150);
+    expect(out.lines[0].ordered_qty).toBe(150);
     expect(out.lines[0].received_qty).toBe(150);
     expect(out.lines[1].damaged_qty).toBe(2);
     expect(out.totals.units).toBe(244);
@@ -173,10 +173,17 @@ describe("projectReception — l'honnêteté des chiffres", () => {
     expect(projectReception(noCost, "market_manager").totals.value).toBeNull();
   });
 
-  it("rend un écart nul, pas zéro, quand rien n'était annoncé", () => {
+  it("rend un écart nul, pas zéro, quand rien n'était commandé", () => {
+    /*
+     * L'ÉCART SE MESURE CONTRE NOTRE PROPRE PLAN — le bon de commande — et
+     * contre rien d'autre. `reception_lines.expected_qty` ne l'a jamais porté
+     * et ne le portera jamais : personne n'écrit un attendu dans un formulaire
+     * vide. Sans commande il n'y a pas de plan, donc pas d'écart : `null`, et
+     * surtout pas « −150 », qui serait un reproche inventé.
+     */
     const surprise = {
       ...RAW,
-      reception_lines: [{ ...RAW.reception_lines[0], expected_qty: null }],
+      reception_lines: [{ ...RAW.reception_lines[0], ordered_qty: null }],
     };
     expect(projectReception(surprise, "market_manager").lines[0].variance).toBeNull();
   });

@@ -71,6 +71,11 @@ export interface MapStockOptions {
   marketId: string | null;
   /** market_id → lead time in days. Missing markets fall back to the default. */
   leadTimeByMarket: Map<string, number>;
+  /**
+   * product_id → units on open purchase orders. Absent means nothing is on
+   * order, which the row renders as "—" rather than 0.
+   */
+  onOrderByProduct?: Map<string, number>;
   now: Date;
 }
 
@@ -174,6 +179,8 @@ export function mapStockPayload(payload: RpcPayload, opts: MapStockOptions): Sto
       demand_bucket_days: opts.bucketDays,
       demand_is_inferred:
         demandOrders > 0 && num(r.demand_orders_inferred) / demandOrders > 0.5,
+
+      on_order: opts.onOrderByProduct?.get(String(r.id)) ?? null,
 
       days_of_cover: cover,
       stock_out_date: outDate,
@@ -441,7 +448,7 @@ export async function getStockPosition(
   const isSuperAdmin = input.role === "super_admin";
   const scopedMarketId = isSuperAdmin ? input.marketId : input.actorMarketId;
 
-  const [rpc, leadTimes] = await Promise.all([
+  const [rpc, leadTimes, onOrder] = await Promise.all([
     supabase.rpc("get_stock_position", {
       p_market_id: scopedMarketId,
       p_from: period.from_date,
@@ -450,6 +457,7 @@ export async function getStockPosition(
       p_rate_from: returnPeriod.from_date,
     }),
     getLeadTimeByMarket(supabase),
+    getOnOrderByProduct(supabase, scopedMarketId),
   ]);
 
   if (rpc.error) throw new Error(`get_stock_position failed: ${rpc.error.message}`);
@@ -462,8 +470,52 @@ export async function getStockPosition(
     scope: scopedMarketId ? "single" : "all",
     marketId: scopedMarketId,
     leadTimeByMarket: leadTimes,
+    onOrderByProduct: onOrder,
     now,
   });
+}
+
+/**
+ * Unités commandées et pas encore arrivées, par produit.
+ *
+ * DEUX REQUÊTES, PAS UNE IMBRICATION : `purchase_order_line_progress` est une
+ * VUE, et PostgREST ne garantit pas de déduire sa relation vers
+ * `purchase_orders`. Un `select` imbriqué qui échoue rendrait un tableau vide —
+ * donc « rien en commande » partout, et la suggestion de réassort recommanderait
+ * une deuxième fois ce qui est déjà sur la route.
+ *
+ * Une erreur ici ne fait PAS tomber la page : la Map reste vide, les lignes
+ * affichent « — », et c'est la dégradation honnête. Le reste de la console est
+ * du stock réel et n'a pas à disparaître parce qu'une commande est illisible.
+ */
+async function getOnOrderByProduct(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  marketId: string | null,
+): Promise<Map<string, number>> {
+  let q = supabase
+    .from("purchase_orders")
+    .select(
+      "id, reference, market_id, warehouse_id, supplier_id, status, wanted_by, ordered_at, closed_at",
+    )
+    .eq("status", "open");
+  if (marketId) q = q.eq("market_id", marketId);
+
+  const { data: poRows, error } = await q;
+  if (error || !poRows || poRows.length === 0) return new Map();
+
+  const { data: lineRows } = await supabase
+    .from("purchase_order_line_progress")
+    .select("purchase_order_id, product_id, variant_id, ordered_qty, received_qty")
+    .in("purchase_order_id", poRows.map((o) => o.id as string));
+
+  const out = new Map<string, number>();
+  for (const raw of (lineRows ?? []) as unknown as Array<Record<string, unknown>>) {
+    const left = Math.max(Number(raw.ordered_qty ?? 0) - Number(raw.received_qty ?? 0), 0);
+    if (left <= 0) continue;
+    const pid = raw.product_id as string;
+    out.set(pid, (out.get(pid) ?? 0) + left);
+  }
+  return out;
 }
 
 /**

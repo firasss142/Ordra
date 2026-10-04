@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Pencil, Package, Warehouse, TriangleAlert } from "lucide-react";
+import { Pencil, Package, ShoppingCart, Warehouse, TriangleAlert } from "lucide-react";
 import type { StockProduct, StockState } from "@/lib/inventory/stock-position-types";
 import { CarrierMark } from "@/components/shared/CarrierMark";
 import { Bar, CAPITAL_COLORS, Sparkline } from "./StockPrimitives";
@@ -68,6 +68,7 @@ export function StockProductRow({
   locale,
   labels,
   onAdjust,
+  onOrder,
   formatMoney,
 }: {
   p: StockProduct;
@@ -83,10 +84,17 @@ export function StockProductRow({
     engaged: string;
     free: string;
     adjust: string;
+    order: string;
+    onOrder: string | null;
     sparkAria: string;
     unverified: string | null;
   };
   onAdjust?: () => void;
+  /**
+   * Ouvre le bon de commande, pré-rempli de ce manque. Absent quand le rôle ne
+   * commande pas — et absent aussi quand il n'y a rien à commander.
+   */
+  onOrder?: () => void;
   formatMoney: (n: number) => string;
 }) {
   const deficit = p.free_to_sell < 0 ? -p.free_to_sell : 0;
@@ -187,6 +195,16 @@ export function StockProductRow({
               {labels.reorderBy}
             </>
           ) : null}
+          {/* CE QUI EST DÉJÀ EN ROUTE, sous la couverture — sinon on commande
+              deux fois le même manque. Rendu uniquement quand il y en a : la
+              Map ne porte pas les produits entièrement servis, donc « — »
+              plutôt qu'un zéro rassurant. */}
+          {labels.onOrder ? (
+            <>
+              <br />
+              <span className="font-semibold text-brand-hover">{labels.onOrder}</span>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -236,6 +254,16 @@ export function StockProductRow({
         >
           {labels.verdict}
         </span>
+        {onOrder ? (
+          <button
+            type="button"
+            onClick={onOrder}
+            aria-label={labels.order}
+            className="rounded-[6px] p-1 text-brand-hover hover:bg-oms-surface"
+          >
+            <ShoppingCart size={13} aria-hidden />
+          </button>
+        ) : null}
         {onAdjust ? (
           <button
             type="button"
