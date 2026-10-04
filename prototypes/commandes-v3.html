@@ -1,0 +1,1546 @@
+<!doctype html>
+<!--
+  Commandes — prototype v3 (2026-10-04). Depuis v2 : « Reçues aujourd'hui » en premier ; « Téléchargées
+  aujourd'hui » remplace « Confirmées à envoyer » (les confirmées en attente restent dites dans sa ligne) ;
+  « Doublons » devient « Clients récurrents » : 4 tuiles-filtres (Tous · En double · À risque · Fidèles), la
+  liste des clients à gauche, UN client à droite (chiffres, doublons à nettoyer, parcours, en cours).
+
+  v2. Changements depuis v1, demandés par le propriétaire :
+  - Doublons réunit les COMMANDES EN DOUBLE et les CLIENTS QUI REVIENNENT (même téléphone) : deux grandes
+    tuiles ; un client qui revient = une carte avec sa fiabilité, le parcours de toutes ses commandes en
+    pastilles (cliquables), et ses commandes en cours ;
+  - les commandes SUPPRIMÉES vivent dans Archivées › Supprimées (restaurables), plus de filtre dans Commandes ;
+  - les étiquettes « Déjà rejeté » / « Client fidèle » viennent maintenant du vrai passé du client.
+
+  v1 : la rénovation « Aurore » de tout l'espace Commandes.
+
+  Ce que le propriétaire a demandé : « j'aime la page comme elle est, pas trop de changements » ; surtout du
+  visuel et de l'expérience ; simple, clair, facile — pas de densité d'information.
+  Ses réponses (4 oct., deux tours) :
+  - périmètre = TOUT L'ESPACE COMMANDES : la liste, le panneau d'une commande (sa mise en page), Archivées,
+    Doublons et la fenêtre « Nouvelle commande » ;
+  - en haut = des RACCOURCIS DE TRAVAIL, comptés « maintenant », chacun ouvre exactement ce qu'il compte :
+    Non assignées · À rappeler · Confirmées à envoyer · Reçues aujourd'hui. Le taux de confirmation, les
+    livrées et les rejetées vivent dans Performance › Commandes ;
+  - la ligne = mêmes colonnes, même ordre, des SIGNAUX EN MOTS (au plus deux étiquettes) ; l'âge ne prend
+    de couleur que s'il est en retard ; « Source » devient « Boutique » (la couleur de la boutique, comme
+    sur Accueil) ;
+  - les filtres = UNE LIGNE CALME : recherche + dates, puis Statut · Agent · Boutique, le reste sous « Plus » ;
+  - le panneau = LE MÊME CONTENU, PLUS CALME. Il remplacera aussi celui des agents : managers d'abord,
+    agents une semaine plus tard ;
+  - Archivées = RANGER LES COMMANDES (la liste des commandes finies). L'analyse part dans Performance ;
+  - Doublons = UNE CARTE PAR GROUPE.
+  Décisions de l'expert : vue par défaut (toutes, les plus récentes d'abord), 25 par page, temps réel,
+  export et actions groupées inchangés ; les mots et les couleurs des statuts restent, seule la forme de la
+  pastille change (« ☎ 1/3 » devient « Appel 1/3 ») ; « Non assignées » ouvre la liste, où l'on assigne en
+  groupe ; le formulaire « Nouvelle commande » reste le même, habillé Aurore.
+  Habillage : docs/design-system.md « Aurore », densité « établi » (§1.1) — un conteneur en verre, des
+  lignes blanches séparées par un filet, aucune animation sur les lignes.
+
+  DONNÉES FICTIVES générées dans la page (graine fixe) : boutiques, produits, agents et clients inventés.
+  « Avant » = captures de la page actuelle sur la base LOCALE de test (aucun vrai client).
+  URL : ?screen=list|archive|dup &view=rep &tab=deleted &lang=ar &before=1 &open=<réf> &create=1 &tile=un|re|se|to
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commandes · rénovation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --f:"Plus Jakarta Sans","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --fa:"Noto Sans Arabic","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+  --brand:#15803D; --brand-hover:#12692F; --brand-wash:#EEF8F1;
+  --sb-bg:#0E1013; --sb-el:#14171C; --sb-bd:rgba(255,255,255,.06); --sb-bd2:rgba(255,255,255,.10);
+  --sb-ink:#E6E8EB; --sb-2:#B5BAC2; --sb-3:#7F858F; --sb-hov:rgba(255,255,255,.07);
+  --bg:#F6F7FB; --card:rgba(255,255,255,.62); --card-bd:rgba(255,255,255,.9); --r:22px;
+  --card-sh:0 10px 36px rgba(42,52,110,.07); --card-sh-hover:0 18px 46px rgba(42,52,110,.13);
+  --glass-in:rgba(255,255,255,.72); --glass-in-bd:rgba(255,255,255,.95); --blur:blur(20px) saturate(170%);
+  --ink:#0F1728; --ink-2:#475467; --ink-3:#667085; --ink-q:#8A94A6; --ink-4:#C9CED7; --line:rgba(15,23,40,.07);
+  --good:#067647; --good-bg:#DCFAE6; --live:#12B76A; --warn:#B54708; --warn-bg:#FFF4E0; --bad:#B42318; --bad-bg:#FEF3F2;
+  --flat-bg:rgba(15,23,40,.05); --tip-bg:#101828; --accent:#3538CD; --pbh:45px;
+  --page:radial-gradient(58% 40% at 2% 0%, #D3DBFF 0%, transparent 72%), radial-gradient(48% 36% at 100% 0%, #FAD3EC 0%, transparent 72%),
+         radial-gradient(56% 46% at 98% 100%, #C6F2DA 0%, transparent 72%), radial-gradient(52% 46% at 0% 100%, #FFE6B3 0%, transparent 72%),
+         radial-gradient(40% 30% at 50% 50%, #EDE7FF 0%, transparent 80%), var(--bg);
+}
+/* status families — a pill is a wash + a 1px edge + ink in its own hue (design-system §4.19) */
+.h-neutral{--pb:#F2F4F7;--pd:#E4E7EC;--pi:#344054}
+.h-amber{--pb:#FFFAEB;--pd:#FEDF89;--pi:#B54708}
+.h-violet{--pb:#F4F3FF;--pd:#D9D6FE;--pi:#5925DC}
+.h-teal{--pb:#F0FDF9;--pd:#99F6E0;--pi:#107569}
+.h-green{--pb:#ECFDF3;--pd:#ABEFC6;--pi:#067647}
+.h-red{--pb:#FEF3F2;--pd:#FECDCA;--pi:#B42318}
+.h-blue{--pb:#EFF8FF;--pd:#B2DDFF;--pi:#175CD3}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+.stage[lang=ar]{font-family:var(--fa)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+button:disabled{cursor:default}
+h1,h2,h3,h4,p{margin:0}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+[dir=rtl] .flip{transform:scaleX(-1)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+
+/* prototype bar (always LTR, always French) */
+.pbar{position:sticky;top:0;z-index:400;background:#16191E;color:#E6E8EB;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #000;direction:ltr;font-family:"Plus Jakarta Sans",sans-serif}
+.pbar .tag{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7F858F}
+.pbar .pt{font-size:13.5px;font-weight:700;color:#fff}
+.pbar .src{font-size:12px;color:#8B9198}
+.looks{display:inline-flex;gap:3px;background:#0E1013;border:1px solid #2A2F36;border-radius:10px;padding:3px;align-items:center}
+.looks > i{font-style:normal;font-size:11px;color:#7F858F;font-weight:700;padding:0 6px 0 4px}
+.looks button{height:28px;padding:0 10px;border-radius:7px;font-size:12.5px;font-weight:700;color:#B5BAC2}
+.looks button:hover{color:#fff}
+.looks button.on{background:#fff;color:#0E1013}
+
+/* shell + sidebar — the live structure on main */
+.stage{display:flex;min-height:calc(100vh - var(--pbh))}
+.side{width:240px;flex:none;background:var(--sb-bg);color:var(--sb-ink);display:flex;flex-direction:column;position:sticky;top:var(--pbh);height:calc(100vh - var(--pbh))}
+.sb-head{padding:12px 12px 10px;display:grid;gap:10px}
+.sb-top{display:flex;align-items:center;gap:8px}
+.sb-word{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.01em;padding-inline-start:4px;flex:1;font-family:"Plus Jakarta Sans",sans-serif}
+.sb-alerts{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 8px 0 7px;border-radius:8px;border:1px solid var(--sb-bd2);color:var(--sb-ink);font-size:12px;font-weight:600}
+.sb-alerts b{min-width:18px;height:18px;border-radius:9px;background:#D72C0D;color:#fff;font-size:11px;display:grid;place-items:center;padding:0 5px}
+.sb-search{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:8px;background:var(--sb-el);border:1px solid var(--sb-bd);color:var(--sb-3);font-size:13px}
+.sb-search span{flex:1;text-align:start}
+.kbd{font-size:11px;padding:0 5px;line-height:18px;border-radius:5px;border:1px solid var(--sb-bd2);color:var(--sb-3)}
+.sb-mk{display:flex;align-items:center;gap:10px;height:50px;padding:0 10px 0 8px;border-radius:10px;background:var(--sb-el);border:1px solid var(--sb-bd2)}
+.sb-mk svg.flag{width:26px;height:18px;border-radius:4px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+.sb-mk div{flex:1;display:grid}
+.sb-mk strong{font-size:13.5px;color:#fff;font-weight:600}
+.sb-mk small{font-size:11.5px;color:var(--sb-3)}
+.sb-scroll{flex:1;overflow:auto;padding:4px 8px 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1) transparent}
+.sb-item{display:flex;align-items:center;gap:10px;height:32px;margin-top:1px;padding:0 8px 0 10px;border-radius:8px;color:var(--sb-ink);font-size:14px;width:100%;text-align:start}
+.sb-item .ic{color:var(--sb-3)}
+.sb-item:hover{background:var(--sb-hov)}
+.sb-item span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-item.on{background:var(--brand);color:#fff;font-weight:600}
+.sb-item.on .ic{color:#fff}
+.sb-item .sb-badge{flex:none}
+.sb-badge{flex:none;height:18px;min-width:20px;padding:0 6px;border-radius:9px;font-size:11.5px;font-weight:600;display:grid;place-items:center;background:rgba(247,144,9,.18);color:#FDB022}
+.sb-item.on .sb-badge{background:rgba(255,255,255,.22);color:#fff}
+.sb-group{margin-top:14px}
+.sb-gl{height:26px;padding:0 10px;color:var(--sb-3);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center}
+[lang=ar] .sb-gl{letter-spacing:0}
+.sb-foot{border-top:1px solid var(--sb-bd2);padding:8px;display:flex;align-items:center;gap:10px}
+.sb-foot .me{width:30px;height:30px;border-radius:50%;background:#2A2F36;display:grid;place-items:center;font-weight:700;font-size:12px}
+.sb-foot div{display:grid;font-size:13px}.sb-foot small{color:var(--sb-3);font-size:12px}
+
+main{flex:1;min-width:0;padding:24px 28px 120px;background:var(--page);background-attachment:fixed}
+.page{max-width:1380px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+
+/* header — workbench scale (H1 24 / 800) */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.ph h1{font-size:24px;font-weight:800;letter-spacing:-.025em;line-height:1.15}
+[lang=ar] .ph h1{letter-spacing:0}
+.sub{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:var(--ink-2);font-weight:500;flex-wrap:wrap}
+.sub .sep{width:3px;height:3px;border-radius:50%;background:var(--ink-4)}
+.live{display:inline-flex;align-items:center;gap:6px;color:var(--good);font-weight:700}
+.live i{position:relative;width:7px;height:7px;border-radius:50%;background:var(--live)}
+.live i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--live);animation:pulse 1.8s ease-out infinite}
+.acts{display:flex;gap:8px;align-items:center}
+.btn{height:38px;padding:0 15px;border-radius:11px;background:var(--brand);color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:7px;justify-content:center;white-space:nowrap}
+.btn:hover{background:var(--brand-hover)}
+.btn .ic{width:15px;height:15px}
+.btn2{height:36px;padding:0 13px;border-radius:11px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;background:rgba(255,255,255,.88);border:1px solid rgba(15,23,40,.09);color:var(--ink)}
+.btn2:hover:not(:disabled){background:#fff;box-shadow:0 4px 14px rgba(42,52,110,.12)}
+.btn2:disabled{opacity:.4}
+.btn2 .ic{width:15px;height:15px}
+.btn2.neg{color:var(--bad)}
+.ph .acts .btn,.ph .acts .btn2{height:40px}
+
+/* 1 · work shortcuts — counted now, each one a filter */
+.wts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.wt{position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:var(--glass-in);border:1px solid var(--glass-in-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);text-align:start;transition:transform .15s,box-shadow .15s,border-color .15s;min-width:0}
+.wt:hover{transform:translateY(-2px);box-shadow:var(--card-sh-hover)}
+.wt.on{border-color:var(--brand);box-shadow:0 0 0 1.5px var(--brand),var(--card-sh)}
+.wt .hold{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:none;background:var(--pb);color:var(--pi);box-shadow:inset 0 0 0 1px var(--pd)}
+.wt .hold .ic{width:20px;height:20px}
+.wt-t{display:grid;min-width:0}
+.wt b{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.wt-t > span{font-size:13.5px;font-weight:700;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wt small{font-size:12px;color:var(--ink-3);font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wt small em{font-style:normal;color:var(--bad);font-weight:700}
+.wt.zero b{color:var(--ink-q)}
+.wt-x{position:absolute;top:10px;inset-inline-end:10px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--brand);color:#fff}
+.wt-x .ic{width:12px;height:12px;stroke-width:2.6}
+
+/* 2 · search + dates, then one calm line of filters */
+.tools{display:flex;gap:10px;align-items:flex-start}
+.srch{flex:1;display:flex;align-items:center;gap:10px;height:44px;padding:0 10px 0 14px;border-radius:14px;background:rgba(255,255,255,.85);border:1px solid var(--card-bd);box-shadow:var(--card-sh);color:var(--ink-3)}
+.srch input{flex:1;border:0;outline:0;background:none;font-size:14px;color:var(--ink);min-width:0;font-weight:500}
+.srch input::placeholder{color:var(--ink-3)}
+.srch:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,128,61,.12),var(--card-sh)}
+.kbd2{font-size:11.5px;font-weight:700;color:var(--ink-3);border:1px solid rgba(15,23,40,.12);border-radius:6px;padding:0 6px;line-height:20px}
+.fl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fbw{position:relative}
+.fb{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 10px 0 12px;border-radius:11px;background:rgba(255,255,255,.75);border:1px solid rgba(15,23,40,.08);font-size:13px;font-weight:700;color:var(--ink-2)}
+.fb:hover,.fb.open{background:#fff;color:var(--ink)}
+.fb.on{background:#fff;color:var(--ink);border-color:rgba(21,128,61,.55)}
+.fb .ic{width:15px;height:15px}
+.fb .chev{width:13px;height:13px;color:var(--ink-3)}
+.fb em{font-style:normal;min-width:19px;height:19px;border-radius:10px;background:var(--brand);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;padding:0 5px}
+.fl .count{margin-inline-start:auto;font-size:13px;color:var(--ink-2);font-weight:600}
+.fl .count b{color:var(--ink);font-weight:800}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:-4px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 4px 0 11px;border-radius:99px;background:#fff;border:1px solid rgba(15,23,40,.1);font-size:12.5px;font-weight:600;color:var(--ink-3);max-width:420px}
+[dir=rtl] .chip{padding:0 11px 0 4px}
+.chip b{color:var(--ink);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip button{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:var(--ink-3);flex:none}
+.chip button:hover{background:var(--flat-bg);color:var(--ink)}
+.chip button .ic{width:12px;height:12px}
+.clearall{font-size:12.5px;font-weight:700;color:var(--brand);padding:0 6px}
+
+/* menus */
+.menu{position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:90;min-width:270px;max-height:440px;overflow:auto;padding:6px;border-radius:14px;background:rgba(255,255,255,.98);border:1px solid var(--card-bd);box-shadow:0 22px 54px rgba(20,25,60,.2);animation:drop .14s ease-out}
+.menu.end{inset-inline-start:auto;inset-inline-end:0}
+.up > .menu{top:auto;bottom:calc(100% + 8px)}
+.menu h6{margin:10px 8px 4px;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+[lang=ar] .menu h6{letter-spacing:0}
+.menu h6:first-child{margin-top:4px}
+.mi{display:flex;align-items:center;gap:10px;width:100%;min-height:34px;padding:6px 8px;border-radius:9px;font-size:13px;font-weight:600;text-align:start}
+.mi:hover{background:#F2F4F7}
+.mi .cb{width:16px;height:16px;border-radius:5px;border:1.5px solid #C9CED7;display:grid;place-items:center;flex:none;background:#fff}
+.mi.on .cb{background:var(--brand);border-color:var(--brand);color:#fff}
+.mi .cb .ic{width:11px;height:11px;stroke-width:3}
+.mi .ml{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi .n{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;font-weight:600}
+.mi.zero:not(.on){opacity:.42}
+.mi .dotk{width:8px;height:8px;border-radius:50%;background:var(--pi);flex:none}
+.mi.act{color:var(--ink)} .mi.act.neg{color:var(--bad)}
+.mi.act .ic{color:var(--ink-3)} .mi.act.neg .ic{color:var(--bad)}
+.msep{height:1px;background:var(--line);margin:6px 4px}
+
+/* 3 · the list — one glass container, plain white rows with hairlines, no motion on rows */
+.list{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--r);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);overflow:hidden}
+.lh,.row{display:grid;grid-template-columns:44px minmax(250px,1fr) 104px 178px 74px 148px 150px 40px;align-items:center;column-gap:10px;padding-inline:6px 8px}
+.lh{height:42px;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+[lang=ar] .lh{letter-spacing:0;font-size:12px}
+.lh .e{text-align:end}
+.rows{background:#fff}
+.row{position:relative;min-height:64px;border-top:1px solid var(--line);cursor:pointer}
+.row:hover{background:#F8F9FC}
+.row.sel{background:var(--brand-wash)}
+.row.open::before{content:"";position:absolute;inset-block:10px;inset-inline-start:0;width:3px;border-radius:3px;background:var(--brand)}
+.row.del{opacity:.55}
+.ck{width:18px;height:18px;border-radius:6px;border:1.5px solid #C9CED7;display:grid;place-items:center;margin:auto;background:#fff;color:#fff}
+.ck.on{background:var(--brand);border-color:var(--brand)}
+.ck .ic{width:12px;height:12px;stroke-width:3}
+.oc{display:flex;align-items:center;gap:12px;min-width:0}
+.oc-t{min-width:0;flex:1}
+.thumb{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none;background:var(--tb);color:var(--ti);box-shadow:inset 0 0 0 1px rgba(15,23,40,.05)}
+.thumb .ic{width:19px;height:19px}
+.l1{display:flex;align-items:center;gap:6px;min-width:0}
+.nm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.l2{font-size:12.5px;color:var(--ink-3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.l2 b{color:var(--ink-2);font-weight:600}
+.l2 .qty{color:var(--ink);font-weight:800}
+.l2 .miss{color:var(--warn);font-weight:700}
+.amt{text-align:end;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.01em}
+.amt small{font-size:10.5px;font-weight:700;color:var(--ink-3);margin-inline-start:4px;letter-spacing:.02em}
+.age{font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:4px}
+.age .ic{width:12px;height:12px}
+.age.late{color:var(--warn);font-weight:800}
+.age.vlate{color:var(--bad);font-weight:800}
+.who{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600}
+.who > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .none{font-style:italic;color:var(--ink-3);font-weight:500}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none;background:color-mix(in srgb,var(--h) 16%,#fff);color:color-mix(in srgb,var(--h) 78%,#000);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 28%,#fff)}
+/* presence: the assignee is inside the order right now (managers only, as today) */
+.av.here{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--live)}
+.av.free{background:#fff;box-shadow:inset 0 0 0 1.5px #D0D5DD;color:var(--ink-3)}
+.av.free .ic{width:12px;height:12px}
+.shop{display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600;color:var(--ink-2)}
+.shop i{width:10px;height:10px;border-radius:3.5px;background:linear-gradient(135deg,var(--a5),var(--a7));flex:none}
+.shop span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kb{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3)}
+.kb:hover{background:var(--flat-bg);color:var(--ink)}
+.kbw{position:relative}
+
+/* pills and tags — a status says its word; a tag says its number */
+.pl{display:inline-flex;align-items:center;gap:5px;height:25px;padding:0 10px 0 8px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid var(--pd);background:var(--pb);color:var(--pi);max-width:100%;overflow:hidden}
+[dir=rtl] .pl{padding:0 8px 0 10px}
+.pl span{overflow:hidden;text-overflow:ellipsis}
+.pl .ic{width:13px;height:13px}
+.tg{display:inline-flex;align-items:center;gap:4px;height:21px;padding:0 7px;border-radius:7px;font-size:11.5px;font-weight:700;white-space:nowrap;background:var(--pb);color:var(--pi);flex:none;cursor:help}
+.tg .ic{width:11px;height:11px;stroke-width:2.4}
+
+.pg{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:rgba(255,255,255,.82);font-size:13px;color:var(--ink-2);font-weight:600}
+.pg .nav{display:flex;gap:6px;margin-inline-start:auto}
+.pg .btn2{height:32px}
+.ps{display:inline-flex;align-items:center;gap:8px}
+.ps select{height:32px;border-radius:9px;border:1px solid rgba(15,23,40,.12);background:#fff;padding:0 8px;font-weight:700}
+.empty{padding:56px 20px;text-align:center;color:var(--ink-3);font-size:14px;background:#fff;display:grid;justify-items:center;gap:10px}
+.empty .ic{width:28px;height:28px;color:var(--ink-4)}
+
+/* the bulk bar — white glass, never dark (nothing in the content area is dark but the tooltip) */
+.bulk{position:fixed;bottom:22px;inset-inline-start:calc(240px + (100vw - 240px) / 2);transform:translateX(-50%);z-index:120;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;border-radius:16px;background:rgba(255,255,255,.97);border:1px solid var(--card-bd);box-shadow:0 22px 56px rgba(20,25,60,.24);font-size:13px;font-weight:700;animation:rise .2s ease-out;white-space:nowrap}
+[dir=rtl] .bulk{transform:translateX(50%);padding:8px 16px 8px 8px}
+.bulk .vsep{width:1px;height:24px;background:var(--line)}
+.bulk .btn2{height:36px}
+.lnkb{font-size:12.5px;font-weight:700;color:var(--ink-3);padding:0 8px}
+.lnkb:hover{color:var(--ink)}
+
+/* drawers — the order panel and « Nouvelle commande »: opaque, they slide in once */
+.scrim{position:fixed;inset:0;top:var(--pbh);z-index:200;background:rgba(15,23,40,.16);animation:fade .2s}
+.drawer{position:fixed;top:var(--pbh);bottom:0;inset-inline-end:0;z-index:210;width:min(600px,100vw);background:#fff;display:flex;flex-direction:column;box-shadow:0 0 0 1px rgba(15,23,40,.06),-30px 0 70px rgba(20,25,60,.18);animation:slide .24s cubic-bezier(.2,.8,.2,1)}
+[dir=rtl] .drawer{box-shadow:0 0 0 1px rgba(15,23,40,.06),30px 0 70px rgba(20,25,60,.18);animation-name:slideR}
+.dr-top{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 18px;border-bottom:1px solid var(--line);flex:none}
+[dir=rtl] .dr-top{padding:12px 18px 12px 12px}
+.dr-age{font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.sla{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:99px;background:var(--warn-bg);color:var(--warn);font-size:11.5px;font-weight:800;white-space:nowrap}
+.sla .ic{width:12px;height:12px}
+.sp{flex:1}
+.ref{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 8px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;direction:ltr}
+.ref .ic{width:13px;height:13px;color:var(--ink-3)}
+.ref:hover,.xbtn:hover{background:var(--flat-bg)}
+.xbtn{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--ink-2)}
+.dr-body{flex:1;overflow:auto;overscroll-behavior:contain}
+.pc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:18px 20px 16px;align-items:center}
+.pc-n{display:flex;align-items:center;gap:10px;min-width:0}
+.pc-n h2{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rel{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--pb);color:var(--pi);border:1px solid var(--pd);flex:none}
+.rel .ic{width:12px;height:12px}
+.pc-btns{grid-column:2;grid-row:1 / span 2;display:flex;gap:8px}
+.pc-add{grid-column:1 / -1;margin-top:-2px}
+.pc-btns .btn,.pc-btns .btn2{height:40px}
+.pc-ph{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--ink-2);flex-wrap:wrap}
+.pc-ph .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.mini{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3)}
+.mini .ic{width:13px;height:13px}
+.mini:hover{background:var(--flat-bg);color:var(--ink)}
+.lnk{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--brand)}
+.lnk .ic{width:13px;height:13px}
+.lnk:hover{text-decoration:underline}
+.facts{display:grid;grid-template-columns:118px minmax(0,1fr);gap:11px 12px;margin:0;padding:16px 20px 18px;border-top:1px solid var(--line);font-size:13.5px}
+.facts dt{color:var(--ink-3);font-weight:600}
+.facts dd{margin:0;font-weight:600;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.miss{display:inline-flex;align-items:center;gap:5px;color:var(--warn);font-weight:700}
+.miss .ic{width:13px;height:13px}
+.q{color:var(--ink-3);font-weight:500}
+.tabwrap{position:sticky;top:0;z-index:3;background:#fff;padding:10px 20px;border-top:1px solid var(--line)}
+.tabs{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:#F2F4F7}
+.tabs button{height:32px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,23,40,.14)}
+.tabs em{font-style:normal;min-width:18px;height:18px;border-radius:9px;background:var(--brand);color:#fff;font-size:11px;display:grid;place-items:center;padding:0 5px}
+.pane{padding:6px 20px 22px}
+.line{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.line b{font-size:14px;font-weight:700;display:block}
+.line small{display:block;font-size:12.5px;color:var(--ink-3);font-weight:600;margin-top:2px}
+.line .amt{font-size:14.5px;white-space:nowrap}
+.line .amt small{display:inline;margin-top:0}
+.pane-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.pane-acts .btn2{height:34px;font-size:12.5px}
+.tot{display:grid;gap:7px;padding:16px 0 0;font-size:13.5px;color:var(--ink-2);font-weight:600}
+.tot div{display:flex;justify-content:space-between;gap:12px}
+.tot .big{color:var(--ink);font-size:16px;font-weight:800;padding-top:8px;border-top:1px solid var(--line)}
+.tl{list-style:none;margin:6px 0 0;padding:0}
+.tl li{position:relative;padding-inline-start:26px;padding-block:7px;font-size:13.5px;font-weight:600}
+.tl li::before{content:"";position:absolute;inset-inline-start:5px;top:13px;width:9px;height:9px;border-radius:50%;background:var(--pi);box-shadow:0 0 0 3px var(--pb)}
+.tl li::after{content:"";position:absolute;inset-inline-start:9px;top:26px;bottom:-8px;width:1.5px;background:#E4E7EC}
+.tl li:last-child::after{display:none}
+.tl time{display:block;font-size:12px;color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
+.tl li.now{font-weight:800}
+.trk{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#F8F9FC;border:1px solid var(--line);margin:8px 0 10px}
+.trk .hold,.reco .hold{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--pb);color:var(--pi);box-shadow:inset 0 0 0 1px var(--pd)}
+.trk div{flex:1;display:grid;min-width:0}
+.trk small,.reco small{font-size:12px;color:var(--ink-3);font-weight:600}
+.trk b{font-size:14px;font-weight:800;direction:ltr;text-align:start;font-variant-numeric:tabular-nums}
+.reco{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:#F8F9FC;border:1px solid var(--line);margin-top:8px}
+.reco div{display:grid;gap:2px}
+.reco b{font-size:14px;font-weight:800}
+.thread{display:grid;gap:8px;margin-top:8px}
+.bub{max-width:82%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.5;background:#F2F4F7;font-family:var(--fa)}
+.bub.out{margin-inline-start:auto;background:#DCFAE6;color:#05432A;border-end-end-radius:4px}
+.bub.in{border-end-start-radius:4px}
+.bub small{display:block;font-size:11px;color:var(--ink-3);margin-top:3px;font-family:var(--f);font-weight:600}
+.compose{display:flex;gap:8px;margin-top:14px}
+.compose input{flex:1;height:40px;border-radius:11px;border:1px solid #D0D5DD;padding:0 12px;font-size:13.5px;min-width:0}
+.compose .btn{height:40px}
+.thread-empty{display:grid;justify-items:center;gap:6px;padding:26px 10px;color:var(--ink-3);font-size:13px;text-align:center}
+.notes{flex:none;display:grid;gap:6px;padding:12px 16px 0;border-top:1px solid var(--line)}
+.note{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;font-size:12.5px;font-weight:700;background:var(--pb);color:var(--pi);border:1px solid var(--pd)}
+.note .ic{width:14px;height:14px}
+.dr-foot{flex:none;display:flex;gap:8px;padding:12px 16px 14px}
+.fa{flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid #D0D5DD;background:#fff;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;padding:0 6px}
+.fa span{overflow:hidden;text-overflow:ellipsis}
+.fa:hover{background:#F9FAFB}
+.fa .ic{width:15px;height:15px}
+.fa.pri{background:var(--brand);border-color:var(--brand);color:#fff;flex:1.1}
+.fa.pri:hover{background:var(--brand-hover)}
+.fa.neg{color:var(--bad)}
+.fa.io{flex:none;width:44px;padding:0}
+.fa.wide{flex:2}
+
+/* « Nouvelle commande » — the same fields, in Aurore */
+.dr-title{flex:1;display:grid}
+.dr-title b{font-size:17px;font-weight:800}
+.dr-title small{font-size:12.5px;color:var(--ink-3);font-weight:600}
+.fs{margin:16px 20px 0;padding:16px;border-radius:16px;background:#FAFBFD;border:1px solid var(--line);display:grid;gap:13px}
+.fs h3{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800}
+.fs h3 .hold{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--pb);color:var(--pi)}
+.fs h3 .hold .ic{width:15px;height:15px}
+.fld{display:grid;gap:6px;min-width:0}
+.fld label{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.fld label i{color:var(--bad);font-style:normal;margin-inline-start:2px}
+.inp{height:40px;border-radius:11px;border:1px solid #D0D5DD;background:#fff;padding:0 12px;font-size:14px;color:var(--ink);width:100%;font-weight:500}
+.inp:focus{outline:0;border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,128,61,.14)}
+textarea.inp{height:64px;padding:10px 12px;resize:vertical;line-height:1.45}
+.inp-pre{display:flex}
+.inp-pre span{display:grid;place-items:center;padding:0 12px;border:1px solid #D0D5DD;border-inline-end:0;border-start-start-radius:11px;border-end-start-radius:11px;background:#F2F4F7;font-weight:700;font-size:13.5px;direction:ltr}
+.inp-pre .inp{border-start-start-radius:0;border-end-start-radius:0;direction:ltr;text-align:start}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.step{display:flex;height:40px;border:1px solid #D0D5DD;border-radius:11px;overflow:hidden;background:#fff}
+.step button{width:40px;display:grid;place-items:center;color:var(--ink-2)}
+.step button:hover{background:#F2F4F7}
+.step span{flex:1;display:grid;place-items:center;font-weight:800;border-inline:1px solid #EAECF0}
+.calc{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;background:var(--good-bg);color:var(--good)}
+.calc b{font-size:17px;font-weight:800}
+.calc small{display:block;font-size:12px;font-weight:600;opacity:.85}
+
+/* Archivées */
+.rule{display:flex;align-items:center;gap:12px 16px;padding:12px 16px;border-radius:18px;background:var(--glass-in);border:1px solid var(--glass-in-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);flex-wrap:wrap;font-size:13.5px;font-weight:600}
+.rule .rl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rule select{height:32px;border-radius:9px;border:1px solid rgba(15,23,40,.12);background:#fff;padding:0 6px;font-weight:800}
+.rule .rh{font-size:12.5px;color:var(--ink-3);font-weight:500;flex:1 1 300px}
+.tog{width:38px;height:22px;border-radius:99px;background:#D0D5DD;position:relative;flex:none;transition:background .15s}
+.tog.on{background:var(--brand)}
+.tog::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:inset-inline-start .15s}
+.tog.on::after{inset-inline-start:19px}
+.door{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:11px;background:#fff;border:1px solid rgba(15,23,40,.09);font-size:12.5px;font-weight:700;color:var(--ink)}
+.door .ic{width:14px;height:14px;color:var(--accent)}
+.door:hover{box-shadow:0 4px 14px rgba(42,52,110,.12)}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:13px;background:rgba(255,255,255,.62);border:1px solid var(--card-bd);box-shadow:var(--card-sh)}
+.seg button{height:36px;padding:0 14px;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(15,23,40,.14)}
+.seg em{font-style:normal;font-size:12px;color:var(--ink-3);font-weight:800;font-variant-numeric:tabular-nums}
+.seg button.on em{color:var(--brand)}
+.seg-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.seg-row .hint{font-size:12.5px;color:var(--ink-3);font-weight:600}
+
+/* Doublons — one card per group, the copies as rows */
+.grps{display:grid;gap:14px}
+.grp{background:var(--card);border:1px solid var(--card-bd);border-radius:20px;box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);overflow:hidden}
+.gh{display:flex;align-items:center;gap:10px 12px;padding:14px 18px;flex-wrap:wrap}
+.gav{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#EEF2F6;color:var(--ink-2);font-weight:800;flex:none;font-family:var(--fa)}
+.gt{display:grid;min-width:0;margin-inline-end:6px}
+.gt h3{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gt small{font-size:12.5px;color:var(--ink-3);font-weight:600}
+.gt small .num{direction:ltr;unicode-bidi:isolate}
+.conf{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:800;background:var(--pb);color:var(--pi);border:1px solid var(--pd)}
+.conf .ic{width:12px;height:12px}
+.gmeta{font-size:12.5px;color:var(--ink-2);font-weight:600}
+.diff{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--warn)}
+.diff .ic{width:12px;height:12px}
+.cps{background:#fff}
+.cp{display:grid;grid-template-columns:132px 128px minmax(160px,1fr) 186px 104px 120px 34px;align-items:center;gap:12px;padding:10px 18px;border-top:1px solid var(--line);cursor:pointer;min-height:58px}
+.cp:hover{background:#F8F9FC}
+.cp > .keep,.cp > .locked,.cp > .dk{justify-self:start}
+.cp.kept{background:#F6FBF8}
+.cp .tm{font-size:12.5px;color:var(--ink-2);font-weight:600;white-space:nowrap}
+.cp .pr{display:flex;align-items:center;gap:10px;min-width:0;font-size:13px;font-weight:700}
+.cp .pr .thumb{width:34px;height:34px;border-radius:10px}
+.cp .pr .thumb .ic{width:16px;height:16px}
+.cp .pr > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.keep{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:99px;background:var(--good-bg);color:var(--good);font-size:12.5px;font-weight:800;white-space:nowrap}
+.keep .ic{width:13px;height:13px;fill:currentColor}
+.locked{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink-3);white-space:nowrap}
+.locked .ic{width:13px;height:13px}
+.dk{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 10px 0 6px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+[dir=rtl] .dk{padding:0 6px 0 10px}
+.dk:hover{background:#F2F4F7}
+.dk .ck{margin:0}
+.dk.on{color:var(--bad)}
+.dk.on .ck{background:var(--bad);border-color:var(--bad)}
+.mk{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--ink-4)}
+.mk:hover{background:#F2F4F7;color:var(--good)}
+.mk .ic{width:15px;height:15px}
+.gf{display:flex;justify-content:flex-end;gap:8px;padding:10px 18px;border-top:1px solid var(--line);background:rgba(255,255,255,.75)}
+.gf .btn2{height:34px}
+
+/* the returning customer: one card — who, how reliable, every order on one trail, what is still in progress */
+.wts.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.trail{display:flex;align-items:center;flex-wrap:wrap;row-gap:6px;padding:2px 18px 14px}
+.stop{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border-radius:99px;background:var(--pb);border:1px solid var(--pd);color:var(--pi);font-size:12px;font-weight:700;white-space:nowrap}
+[dir=rtl] .stop{padding:0 9px 0 11px}
+.stop i{width:8px;height:8px;border-radius:50%;background:var(--pi);flex:none}
+.stop.now{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--pi)}
+.stop:hover{filter:brightness(.97)}
+.link{width:16px;height:2px;border-radius:2px;background:#D0D5DD;flex:none}
+.cstat{margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap}
+.cstat span{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:8px;background:#F2F4F7;font-size:12px;font-weight:700;color:var(--ink-2)}
+.cstat b{font-weight:800;color:var(--ink)}
+.cstat .g{background:#ECFDF3;color:#067647}.cstat .g b{color:#067647}
+.cstat .r{background:#FEF3F2;color:#B42318}.cstat .r b{color:#B42318}
+
+/* Clients récurrents — the list of clients left, one client right */
+.md{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}
+.mlist,.cd{background:var(--card);border:1px solid var(--card-bd);border-radius:20px;box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);overflow:hidden}
+.mlist{position:sticky;top:calc(var(--pbh) + 16px);max-height:calc(100vh - var(--pbh) - 32px);display:flex;flex-direction:column}
+.mlh{padding:12px 16px;font-size:12px;font-weight:700;color:var(--ink-3);border-bottom:1px solid var(--line)}
+.mrows{overflow:auto;background:#fff}
+.cr{position:relative;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:11px 14px;border-top:1px solid var(--line);text-align:start;background:#fff}
+.cr:first-child{border-top:0}
+.cr:hover{background:#F8F9FC}
+.cr.on{background:var(--brand-wash)}
+.cr.on::before{content:"";position:absolute;inset-block:8px;inset-inline-start:0;width:3px;border-radius:3px;background:var(--brand)}
+.cr .gav{width:34px;height:34px;border-radius:11px}
+.cr-t{display:grid;min-width:0;gap:1px}
+.cr-t b{font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr-t small{font-size:12px;color:var(--ink-3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:3px;margin-top:4px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--pi)}
+.dots i.now{box-shadow:0 0 0 1.5px #fff,0 0 0 3px var(--pi)}
+.cr-b{display:grid;gap:4px;justify-items:end}
+.mc{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 7px;border-radius:7px;font-size:11px;font-weight:800;background:var(--pb);color:var(--pi);white-space:nowrap}
+.mc .ic{width:11px;height:11px}
+.cdh{display:flex;align-items:center;gap:12px;padding:18px 18px 14px;flex-wrap:wrap}
+.gav.big{width:46px;height:46px;border-radius:14px;font-size:18px}
+.cdh h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 18px 14px}
+.kpis div{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.75);border:1px solid var(--glass-in-bd);display:grid;gap:2px}
+.kpis b{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpis span{font-size:12px;color:var(--ink-3);font-weight:600}
+.kpis .g b{color:var(--good)} .kpis .r b{color:var(--bad)}
+.blk{border-top:1px solid var(--line);background:rgba(255,255,255,.55)}
+.sh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 18px 8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+[lang=ar] .sh{letter-spacing:0}
+.sh .ic{width:14px;height:14px}
+.sh .conf,.sh .diff,.sh .shm{text-transform:none;letter-spacing:0}
+.shm{font-size:12px;font-weight:600;color:var(--ink-3)}
+.shh{margin:0;padding:0 18px 10px;font-size:13px;color:var(--ink-2);font-weight:500}
+.dupblk{background:linear-gradient(180deg,rgba(239,248,255,.7),rgba(255,255,255,.5))}
+.cd .cp{grid-template-columns:104px 108px minmax(150px,1fr) 150px 92px 30px;gap:10px}
+.cd .cp .who{display:none}
+@media (max-width:1220px){ .md{grid-template-columns:1fr} .mlist{position:static;max-height:420px} .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+/* « Avant » — the live page today */
+.stage.before .side{display:none}
+.stage.before main{padding:16px 20px 60px}
+.avant{display:grid;gap:12px;max-width:1440px;margin:0 auto}
+.avant .cap{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;background:#FFFAEB;border:1px solid #FEDF89;color:#93370D;font-size:13.5px;font-weight:600;direction:ltr;font-family:"Plus Jakarta Sans",sans-serif}
+.avant .cap b{font-weight:800}
+.avant .cap kbd{font:inherit;font-weight:800;border:1px solid #F7B27A;border-radius:6px;padding:0 6px;background:#fff}
+.avant img{width:100%;border-radius:14px;box-shadow:0 20px 60px rgba(20,25,60,.18);display:block}
+
+.tip{position:fixed;z-index:600;pointer-events:none;background:var(--tip-bg);color:#fff;font-size:12.5px;font-weight:600;padding:8px 11px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.22);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;max-width:340px;line-height:1.45;font-family:var(--f)}
+.tip.on{opacity:1;transform:none}
+
+/* the date button + popover (the one of Accueil and Performance) */
+.dwrap{position:relative}
+.dbtn{display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 12px 0 14px;border-radius:14px;background:rgba(255,255,255,.85);border:1px solid var(--card-bd);box-shadow:var(--card-sh);white-space:nowrap}
+[dir=rtl] .dbtn{padding:0 14px 0 12px}
+.dbtn > span{display:grid;text-align:start;line-height:1.2}
+.dbtn b{font-size:13.5px;font-weight:800}
+.dbtn small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.dbtn:hover,.dbtn.on{border-color:var(--accent)}
+.dbtn.set{border-color:rgba(21,128,61,.55)}
+.dp{position:absolute;top:calc(100% + 8px);inset-inline-end:0;z-index:95;display:grid;grid-template-columns:200px auto;border-radius:18px;background:rgba(255,255,255,.98);border:1px solid var(--card-bd);box-shadow:0 24px 60px rgba(20,25,60,.22);overflow:hidden;text-align:start;animation:drop .14s ease-out}
+.dp-side{padding:12px 8px;border-inline-end:1px solid var(--line);display:grid;gap:2px;align-content:start;background:rgba(246,247,251,.8)}
+.dp-side h6{margin:8px 8px 4px;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+[lang=ar] .dp-side h6{letter-spacing:0}
+.dp-side h6:first-child{margin-top:2px}
+.dp-it{display:grid;text-align:start;padding:7px 10px;border-radius:10px;font-size:13px;font-weight:700}
+.dp-it small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.dp-it:hover{background:#fff}
+.dp-it.on{background:var(--accent);color:#fff}
+.dp-it.on small{color:rgba(255,255,255,.78)}
+.dp-main{padding:14px 18px 12px;display:grid;gap:10px}
+.dp-cals{display:grid;grid-template-columns:repeat(2,238px);gap:24px}
+.cal-h{display:grid;grid-template-columns:28px 1fr 28px;align-items:center;text-align:center;margin-bottom:6px}
+.cal-h b{font-size:13.5px;font-weight:800}
+.cal-nav{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+.cal-nav:hover{background:var(--flat-bg)}
+.cal-nav:disabled{opacity:.25}
+.cal-g{display:grid;grid-template-columns:repeat(7,34px);row-gap:2px}
+.cal-w{height:24px;display:grid;place-items:center;font-size:10.5px;font-weight:800;color:var(--ink-3)}
+.cal-d{height:34px;font-size:12.5px;font-weight:700;color:var(--ink);border-radius:9px;font-variant-numeric:tabular-nums}
+.cal-d:hover{background:var(--flat-bg)}
+.cal-d.c-in,.cal-d.c-hv{background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:0}
+.cal-d.c-st,.cal-d.c-en{background:var(--accent);color:#fff}
+.cal-d.c-st{border-start-start-radius:9px;border-end-start-radius:9px;border-start-end-radius:0;border-end-end-radius:0}
+.cal-d.c-en{border-start-end-radius:9px;border-end-end-radius:9px;border-start-start-radius:0;border-end-start-radius:0}
+.cal-d.c-st.c-en{border-radius:9px}
+.cal-d.c-today{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.cal-d.c-dis{color:var(--ink-4)}
+.cal-d.c-dis:hover{background:none}
+.dp-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);font-weight:600}
+.dp-foot small{display:block;color:var(--ink-3);font-size:11.5px;margin-top:2px}
+.dp-btns{display:flex;gap:8px;flex:none}
+.dp-btns .btn,.dp-btns .btn2{height:34px}
+
+@keyframes pulse{0%{transform:scale(.5);opacity:.5}100%{transform:scale(1.9);opacity:0}}
+@keyframes slide{from{transform:translateX(48px);opacity:0}}
+@keyframes slideR{from{transform:translateX(-48px);opacity:0}}
+@keyframes fade{from{opacity:0}}
+@keyframes drop{from{opacity:0;transform:translateY(-4px)}}
+@keyframes rise{from{opacity:0;transform:translate(-50%,10px)}}
+[dir=rtl] .bulk{animation-name:riseR}
+@keyframes riseR{from{opacity:0;transform:translate(50%,10px)}}
+
+@media (max-width:1360px){ .lh,.row{grid-template-columns:44px minmax(220px,1fr) 100px 170px 66px 128px 128px 36px} }
+@media (max-width:1220px){ .wts{grid-template-columns:repeat(2,minmax(0,1fr))} .lh,.row{grid-template-columns:40px minmax(200px,1fr) 96px 160px 60px 40px 40px 34px} .who > span:last-child,.shop span,.lh > span:nth-child(6),.lh > span:nth-child(7){display:none} .cp{grid-template-columns:120px 110px minmax(140px,1fr) 170px 96px 34px} .cp .who{display:none} }
+@media (max-width:1100px){ .dp{grid-template-columns:1fr} .dp-cals{grid-template-columns:238px} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+<div class="pbar" id="pbar"></div>
+<div class="stage" id="stage"><aside class="side" id="side"></aside><main id="main"><div class="page" id="page"></div></main><div id="over"></div></div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<script>
+/* ═════════════ seeded randomness — every reload shows the same orders ═════════════ */
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let R = rng(4102026);
+const pick = (items, w) => { let r = R() * w.reduce((s, x) => s + x, 0); for (let i = 0; i < items.length; i++){ r -= w[i]; if (r <= 0) return items[i]; } return items[items.length - 1]; };
+const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+const chance = p => R() < p;
+
+/* ═════════════ the calendar of the dummy market ═════════════ */
+const TODAY = "2026-10-04", NOW_MIN = 17 * 60 + 20, DAYS = 80;
+function dt(s){ return new Date(s + "T12:00:00Z"); }
+function addDays(s, k){ const d = dt(s); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10); }
+function daysBetween(a, b){ return Math.round((dt(b) - dt(a)) / 864e5); }
+const FIRST = addDays(TODAY, -(DAYS - 1));
+const NOW_T = (DAYS - 1) * 1440 + NOW_MIN, TODAY_T = (DAYS - 1) * 1440;        /* t = minutes since FIRST 00:00 */
+const dayOfT = t => addDays(FIRST, Math.floor(t / 1440));
+const adOfT = t => DAYS - 1 - Math.floor(t / 1440);
+const hm = m => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const SLA = 120;                                   /* the market's SLA (settings), in minutes */
+
+/* ═════════════ state ═════════════ */
+const S = {screen:"list", lang:"fr", before:false, tile:null, q:"", period:"all", from:null, to:null,
+  st:new Set(), ag:new Set(), sh:new Set(), city:new Set(), prod:new Set(), car:new Set(),
+  page:0, size:25, sel:new Set(), open:null, tab:"art", menu:null, dp:null, create:false, cf:null,
+  arch:"eligible", rule:true, ruleDays:30, dupv:"dup", rept:"all", dupf:"all", case:null, dupt:"all", keep:{}, dsel:new Set()};
+const L = (fr, ar) => S.lang === "ar" ? ar : fr;
+
+/* ═════════════ format ═════════════ */
+const NB = " ";
+/* in Arabic the number is isolated, or the bidi algorithm reorders its digit groups (« 1 679 » read « 679 1 ») */
+const fnum = n => { const s = Math.round(n).toLocaleString("fr-FR").replace(/\s/g, NB); return S.lang === "ar" ? "⁦" + s + "⁩" : s; };
+const CCY = () => L("LYD", "د.ل");
+const MON = {fr:["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."], ar:["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]};
+const MONL = {fr:["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"], ar:MON.ar};
+const dShort = s => `${+s.slice(8)} ${MON[S.lang][+s.slice(5, 7) - 1]}`;
+const dRange = (f, t) => f === t ? dShort(f) : `${dShort(f)} → ${dShort(t)}`;
+const monthName = m => { const n = MONL[S.lang][+m.slice(5, 7) - 1]; return S.lang === "fr" ? n[0].toUpperCase() + n.slice(1) : n; };
+const lastDay = m => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)).toISOString().slice(0, 10);
+const addMonths = (m, k) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1 + k, 1)).toISOString().slice(0, 7);
+function whenText(t){ const ad = adOfT(t), m = t % 1440; return ad === 0 ? L(`aujourd'hui ${hm(m)}`, `اليوم ${hm(m)}`) : ad === 1 ? L(`hier ${hm(m)}`, `أمس ${hm(m)}`) : `${dShort(dayOfT(t))} ${hm(m)}`; }
+function ageText(min){ if (min < 60) return L(`${min} min`, `${min} د`); if (min < 1440) return L(`${Math.floor(min / 60)} h`, `${Math.floor(min / 60)} س`); return L(`${Math.floor(min / 1440)} j`, `${Math.floor(min / 1440)} ي`); }
+const spanText = m => m < 60 ? L(`${m} min`, `${m} د`) : L(`${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`, `${Math.floor(m / 60)} س ${String(m % 60).padStart(2, "0")}`);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtPhone = p => `${p.slice(0, 3)} ${p.slice(3, 6)} ${p.slice(6)}`;
+const pl = (n, a, b) => n <= 1 ? a : b;
+
+/* ═════════════ icons ═════════════ */
+const ICON = {
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  archive:'<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>', copy:'<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  phoneoff:'<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7a2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="22" y1="2" x2="2" y2="22"/>',
+  pkg:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>', sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  out:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m15 11 3 3-3 3"/>', back:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>', boxes:'<rect x="3" y="12" width="8" height="8" rx="1"/><rect x="13" y="12" width="8" height="8" rx="1"/><rect x="8" y="3" width="8" height="8" rx="1"/>',
+  funnel:'<path d="M3 4h18l-7 8v6l-4 2v-8z"/>', team:'<circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M14.5 15.2a4.2 4.2 0 0 1 6 3.8"/>',
+  route:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>', trend:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  pct:'<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>', layers:'<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  receipt:'<path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 1V2l-1 1-3-2-3 2-3-2-3 2-3-2z"/><path d="M8 8h8M8 12h8"/>', mega:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>', target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  quote:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', msg:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  usercog:'<circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4"/><circle cx="18" cy="18" r="3"/>', scroll:'<path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/>',
+  plug:'<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>', search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  left:'<polyline points="15 18 9 12 15 6"/>', right:'<polyline points="9 18 15 12 9 6"/>', down:'<polyline points="6 9 12 15 18 9"/>', ext:'<path d="M7 17 17 7"/><path d="M7 7h10v10"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>', clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>', lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  store:'<path d="M3 9 4.5 4h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M10 20v-5h4v5"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>', spark:'<path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', minus:'<path d="M5 12h14"/>', star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>', more:'<circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/><circle cx="5" cy="12" r="1.2"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  xcircle:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  thumbdown:'<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>',
+  pinoff:'<path d="M12.75 7.09a3 3 0 0 1 2.16 2.16"/><path d="M17.07 17.07c-1.63 2.17-3.53 3.91-4.47 4.73a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 1.43-4.57"/><path d="m2 2 20 20"/><path d="M8.48 2.82A8 8 0 0 1 20 10c0 1.18-.31 2.38-.81 3.53"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  trash:'<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  book:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  hand:'<path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>', merge:'<path d="m8 6 4-4 4 4"/><path d="M12 2v10.3a4 4 0 0 1-1.17 2.87L4 22"/><path d="m20 22-5-5"/>',
+  rotate:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', filter:'<path d="M3 6h18M7 12h10M10 18h4"/>',
+  wa:'<path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9z"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/>'
+};
+const ic = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ""}</svg>`;
+const FLAG_LY = '<svg class="flag" viewBox="0 0 26 18" aria-hidden="true"><rect width="26" height="18" fill="#000"/><rect width="26" height="4.5" fill="#E70013"/><rect y="13.5" width="26" height="4.5" fill="#239E46"/><circle cx="12.4" cy="9" r="2.6" fill="#fff"/><circle cx="13.2" cy="9" r="2.1" fill="#000"/><circle cx="15.2" cy="9" r=".75" fill="#fff"/></svg>';
+
+/* ═════════════ the dummy market — the same stores and colours as the Accueil prototype ═════════════ */
+const HUES = {indigo:["#444CE7","#3538CD"], pink:["#DD2590","#C11574"], cyan:["#088AB2","#0E7090"], gold:["#A15C07","#854A0E"], lime:["#4CA30D","#3B7C0F"], slate:["#667085","#475467"]};
+const hueVars = h => `--a5:${HUES[h][0]};--a7:${HUES[h][1]}`;
+const STORES = [
+  {n:"Nour Store", pf:"Converty", dom:"nour.converty.shop", via:"Google Sheets", hue:"indigo", w:44},
+  {n:"Le Remède", pf:"LightFunnels", dom:"le-remede.lightfunnels.com", hue:"pink", w:22},
+  {n:"Sport Box", pf:"Shopify", dom:"sportbox.ly", hue:"cyan", w:17},
+  {n:"Hikma", pf:"Converty", dom:"hikma.converty.shop", via:"Google Sheets", hue:"gold", w:12},
+  {n:"Maison Douce", pf:"YouCan", dom:"maisondouce.youcan.shop", hue:"lime", w:8},
+  {n:"Kids Corner", pf:"WooCommerce", dom:"kidscorner.ly", hue:"slate", w:3}
+];
+const TINT = {book:["#F4EDE2","#8A5A1F"], fight:["#FDE8E8","#B42318"], pray:["#E6F2EC","#2F6B4F"], home:["#EEF1E4","#566428"], kid:["#FFF0D9","#B54708"]};
+const PRODUCTS = [
+  {fr:"Tadabbur", ar:"تدبّر", price:210, s:0, g:"book", t:"book", w:5},
+  {fr:"Mémoriser facilement", ar:"الحفظ الميسّر", price:180, s:0, g:"book", t:"book", w:3},
+  {fr:"Prière de nuit", ar:"قيام الليل", price:160, s:0, g:"moon", t:"pray", w:2, oos:true},
+  {fr:"Le mal et le remède", ar:"الداء والدواء", price:170, s:1, g:"book", t:"book", w:1},
+  {fr:"Sac de frappe", ar:"كيس ملاكمة", price:260, s:2, g:"bag", t:"fight", w:3},
+  {fr:"Gants de boxe", ar:"قفازات ملاكمة", price:150, s:2, g:"hand", t:"fight", w:2, v:[["10 oz","10 أونصة"],["12 oz","12 أونصة"],["14 oz","14 أونصة"]]},
+  {fr:"Coran couleurs", ar:"مصحف ملوّن", price:230, s:3, g:"book", t:"pray", w:2},
+  {fr:"Tapis de prière", ar:"سجادة صلاة", price:190, s:3, g:"layers", t:"pray", w:1, v:[["Vert","أخضر"],["Bordeaux","عنابي"],["Gris","رمادي"]]},
+  {fr:"Plaid", ar:"بطانية", price:220, s:4, g:"home", t:"home", w:3, v:[["Beige","بيج"],["Gris","رمادي"]]},
+  {fr:"Coussin", ar:"وسادة", price:110, s:4, g:"home", t:"home", w:2},
+  {fr:"Bougie parfumée", ar:"شمعة معطّرة", price:90, s:4, g:"spark", t:"home", w:2},
+  {fr:"Puzzle en bois", ar:"بازل خشبي", price:120, s:5, g:"star", t:"kid", w:1}
+];
+const AGENTS = [{n:"Salma", ar:"سلمى", h:"#7A5AF8"}, {n:"Hiba", ar:"هبة", h:"#EF6820"}, {n:"Asma", ar:"أسماء", h:"#0E9384"}, {n:"Rania", ar:"رانيا", h:"#2E90FA"}, {n:"Yousra", ar:"يسرى", h:"#D444F1"}];
+const CITIES = [["Tripoli","طرابلس",30,"w"],["Benghazi","بنغازي",18,"e"],["Misrata","مصراتة",9,"w"],["Zawiya","الزاوية",7,"w"],["Sebha","سبها",4,"w"],["Al Bayda","البيضاء",4,"e"],["Zliten","زليتن",4,"w"],["Sabratha","صبراتة",3,"w"],["Tarhuna","ترهونة",3,"w"],["Gharyan","غريان",3,"w"],["Ajdabiya","أجدابيا",3,"e"],["Derna","درنة",2,"e"]];
+const CARRIERS = [["Darb · Tripoli","درب · طرابلس"],["Darb · Benghazi","درب · بنغازي"]];
+const FIRSTN = ["محمد","أحمد","علي","خالد","سالم","يوسف","إبراهيم","عبد الله","مصطفى","عمر","حمزة","فاطمة","عائشة","مريم","هند","سارة","رحاب","نور الهدى","آمنة","خديجة"];
+const LASTN = ["الورفلي","الترهوني","الزوي","الشريف","الفيتوري","المصراتي","البرعصي","الغرياني","الشيباني","المبروك","بن عامر","العبيدي","القماطي","الككلي","بوخطوة"];
+const LATIN = ["Ahmed Salem","Ali Ben Omar","Marwa T.","Hamza Fitouri","Omar Zawi","Sara Mabrouk","Khaled Sharif"];
+const ADDRS = ["حي الأندلس، شارع 5","قرجي، قرب المصرف","الهضبة، عمارة 12","سوق الجمعة، قرب الجامع","الفويهات، شارع جمال","تاجوراء، قرب المدرسة","السلماني، خلف السوق","الدريبي، شارع 20","بن عاشور، عمارة 3","الكيش، قرب الصيدلية"];
+/* rejection sub-reasons: the badge shows the short reason with its GROUP's icon, always in the rejected red */
+const REASONS = [{g:"refus_client", fr:"Refus client", ar:"رفض العميل", w:30},{g:"refus_client", fr:"Prix trop élevé", ar:"السعر مرتفع", w:10},{g:"injoignable", fr:"Injoignable", ar:"لا يرد", w:22},{g:"commande_invalide", fr:"Numéro faux", ar:"رقم خاطئ", w:10},{g:"commande_invalide", fr:"Pas commandé", ar:"لم يطلب", w:16},{g:"livraison_impossible", fr:"Zone non desservie", ar:"منطقة غير مخدومة", w:5}];
+const GICON = {refus_client:"thumbdown", injoignable:"phoneoff", commande_invalide:"xcircle", livraison_impossible:"pinoff"};
+
+/* statuses — the app's words and hues (lib/orders/status-presentation.ts); « ☎ 1/3 » becomes « Appel 1/3 » */
+const ST = {
+  pending:["En attente","قيد الانتظار","neutral","clock"], attempt_1:["Appel 1/3","محاولة 1/3","amber","phone"], attempt_2:["Appel 2/3","محاولة 2/3","amber","phone"],
+  attempt_3:["Appel 3/3","محاولة 3/3","amber","phone"], callback_scheduled:["Rappel prévu","اتصال مجدول","violet","clock"], confirmed:["Confirmé","مؤكد","violet","check"],
+  dispatch_scheduled:["Planifiée","مجدول","violet","cal"], uploaded:["Téléchargé","تم الرفع","teal","upload"], scanned:["Scanné","تم المسح","teal","scan"],
+  at_carrier:["Remis au transporteur","تم التسليم للشركة","teal","truck"], in_transit:["En transit","في الطريق","teal","truck"], out_for_delivery:["En cours de livraison","خرجت للتوصيل","teal","route"],
+  delivery_delayed:["Livraison retardée","تأجّل التوصيل","amber","clock"], delivered:["Livré","تم التسليم","green","check"], returning:["Retour en cours","قيد الإرجاع","amber","back"],
+  to_be_returned:["À retourner","للإرجاع","amber","back"], returned:["Retourné","مرتجع","red","back"], rejected:["Rejeté","مرفوض","red","xcircle"],
+  cancelled:["Annulé (transporteur)","ألغته شركة التوصيل","red","x"], deleted:["Supprimé","محذوف","neutral","trash"]
+};
+const CALL_ST = ["pending","attempt_1","attempt_2","attempt_3","callback_scheduled","confirmed","dispatch_scheduled","rejected","cancelled"];
+const DLV_ST = ["uploaded","scanned","at_carrier","in_transit","out_for_delivery","delivery_delayed","delivered","returning","to_be_returned","returned"];
+const SHIPPED = new Set(DLV_ST.concat(["cancelled"]));
+const FINAL = new Set(["delivered","returned","rejected","cancelled"]);
+const CALLING = new Set(["pending","attempt_1","attempt_2","attempt_3","callback_scheduled"]);
+const stLabel = s => L(ST[s][0], ST[s][1]);
+const agName = a => L(a.n, a.ar);
+const cityName = i => L(CITIES[i][0], CITIES[i][1]);
+const pName = P => L(P.fr, P.ar);
+
+/* ═════════════ orders — 80 days of a growing Libyan market, received by the hour ═════════════ */
+const HW = [1,.5,.3,.2,.2,.3,.6,1.2,2,3,3.6,4,4.2,4,3.8,3.9,4.1,4.4,4.6,4.8,4.6,4,3,1.8];
+const HOURS = HW.map((_, i) => i);
+function minuteOf(max){ for (let k = 0; k < 60; k++){ const m = pick(HOURS, HW) * 60 + ri(0, 59); if (m <= max) return m; } return ri(0, max); }
+function statusFor(ad, age){
+  if (ad === 0){
+    if (age < 20) return chance(.65) ? "pending" : "attempt_1";
+    return pick(["pending","attempt_1","attempt_2","attempt_3","callback_scheduled","confirmed","dispatch_scheduled","uploaded","rejected","cancelled","deleted"], [14,17,8,3,10,14,1,7,22,0,1]);
+  }
+  if (ad === 1) return pick(["attempt_2","attempt_3","callback_scheduled","confirmed","uploaded","scanned","at_carrier","in_transit","rejected","deleted","pending"], [2,3,4,3,18,10,14,4,38,2,1]);
+  if (ad <= 3) return pick(["confirmed","uploaded","at_carrier","in_transit","out_for_delivery","delivery_delayed","delivered","returning","rejected","cancelled","deleted"], [1,2,8,22,9,3,12,1,38,2,2]);
+  if (ad <= 8) return pick(["in_transit","out_for_delivery","delivery_delayed","returning","to_be_returned","returned","delivered","rejected","cancelled","deleted"], [5,3,3,5,4,4,34,38,2,2]);
+  if (ad <= 20) return pick(["in_transit","returning","to_be_returned","returned","delivered","rejected","cancelled","deleted"], [1,2,2,8,43,40,3,1]);
+  return pick(["returned","delivered","rejected","cancelled","deleted"], [9,45,41,4,1]);
+}
+let ORDERS = [], GROUPS = [];
+function make(ad, m){
+  const t = (DAYS - 1 - ad) * 1440 + m;
+  const s = pick(STORES.map((_, i) => i), STORES.map(x => x.w));
+  const pis = PRODUCTS.map((_, i) => i).filter(i => PRODUCTS[i].s === s);
+  const p = pick(pis, pis.map(i => PRODUCTS[i].w)), P = PRODUCTS[p];
+  const qty = pick([1, 2, 3], [82, 14, 4]);
+  const o = {t, ad, day:addDays(TODAY, -ad), s, p, v:P.v ? ri(0, P.v.length - 1) : null, qty, total:P.price * qty, age:NOW_T - t};
+  o.name = chance(.13) ? LATIN[ri(0, LATIN.length - 1)] : `${FIRSTN[ri(0, FIRSTN.length - 1)]} ${LASTN[ri(0, LASTN.length - 1)]}`;
+  o.phone = "09" + pick(["1","2","4"], [5, 4, 2]) + String(ri(1000000, 9999999));
+  o.city = chance(.93) ? pick(CITIES.map((_, i) => i), CITIES.map(c => c[2])) : null;
+  o.addr = o.city != null && chance(.92) ? ri(0, ADDRS.length - 1) : null;
+  o.st = statusFor(ad, o.age);
+  o.ag = o.st === "pending" && ad === 0 && o.age < 240 && chance(.45) ? null : ri(0, AGENTS.length - 1);
+  o.att = o.st.startsWith("attempt_") ? +o.st.slice(-1) : o.st === "pending" ? 0 : ri(1, 2);
+  if (o.st === "callback_scheduled"){ o.cb = t + ri(70, 330); if (ad >= 1) o.cb = Math.min(o.cb, NOW_T - ri(200, 900)); }
+  if (o.st === "rejected") o.why = pick(REASONS.map((_, i) => i), REASONS.map(r => r.w));
+  if (SHIPPED.has(o.st)){ o.upT = Math.min(t + ri(45, 900), NOW_T - 10); o.trk = "DRB" + ri(10000000, 99999999); o.car = o.city != null && CITIES[o.city][3] === "e" ? 1 : 0; }
+  if (FINAL.has(o.st)){ const k = {rejected:[0, 1], cancelled:[1, 3], delivered:[2, 7], returned:[7, 15]}[o.st]; o.finAd = Math.max(0, ad - ri(k[0], k[1])); }
+  if (o.st === "deleted") o.delT = Math.min(t + ri(20, 600), NOW_T - 5);
+  return o;
+}
+function generate(){
+  for (let ad = DAYS - 1; ad >= 0; ad--){
+    const base = ad > 60 ? 30 : ad > 30 ? 40 : 48;
+    let n = Math.round(base * (.85 + R() * .3));
+    if (ad === 0) n = 41;
+    for (let i = 0; i < n; i++) ORDERS.push(make(ad, minuteOf(ad === 0 ? NOW_MIN - 3 : 1439)));
+  }
+  /* repeat buyers: 22 recent customers had ordered before (same phone) — their past is real orders, so a
+     « Déjà rejeté » or « Client fidèle » tag always matches what their history shows */
+  const recent = ORDERS.filter(o => o.ad <= 5 && o.st !== "deleted"), olds = ORDERS.filter(o => o.ad >= 8 && o.ad <= 75 && FINAL.has(o.st)), oldOk = olds.filter(o => o.st === "delivered"), oldKo = olds.filter(o => o.st !== "delivered"), taken = new Set();
+  for (let i = 0; i < 22; i++){
+    const o = recent[ri(0, recent.length - 1)]; if (taken.has(o)) continue; taken.add(o);
+    const k = pick([1, 2, 3, 4], [4, 3, 2, 1]), risky = chance(.25);
+    for (let j = 0; j < k; j++){ const pool2 = !risky && chance(.75) ? oldOk : oldKo, p = pool2[ri(0, pool2.length - 1)]; if (taken.has(p)) continue; taken.add(p); Object.assign(p, {name:o.name, phone:o.phone, city:o.city, addr:o.addr}); }
+  }
+  /* duplicates: the same customer again within hours — one group already has a copy at the carrier,
+     two groups ordered a different product (a merge, not a delete) */
+  const pool = ORDERS.filter(o => o.ad <= 2 && ["pending","attempt_1","attempt_2","callback_scheduled","confirmed","uploaded","scanned"].includes(o.st));
+  const used = new Set();
+  [{c:1, same:true}, {c:1, same:true}, {c:2, same:true}, {c:1, same:true, addr:true}, {c:1, same:false}, {c:1, same:true, shipped:true}, {c:1, same:false}, {c:1, same:true}].forEach(pln => {
+    let base = null;
+    for (let k = 0; k < 400 && !base; k++){ const o = pool[ri(0, pool.length - 1)]; if (!used.has(o) && SHIPPED.has(o.st) === !!pln.shipped && o.age > 300) base = o; }
+    if (!base) return; used.add(base);
+    const g = {m:[base], same:pln.same, addr:!!pln.addr};
+    for (let c = 0; c < pln.c; c++){
+      const t = Math.min(base.t + ri(8, 260) * (c + 1), NOW_T - 4);
+      const cp = Object.assign({}, base, {t, ad:adOfT(t), day:dayOfT(t), age:NOW_T - t, trk:undefined, upT:undefined, car:undefined, finAd:undefined, cb:undefined, why:undefined});
+      cp.st = pick(["pending","attempt_1"], [6, 4]); cp.att = cp.st === "attempt_1" ? 1 : 0;
+      if (!pln.same){ const alt = PRODUCTS.map((_, i) => i).filter(i => PRODUCTS[i].s === base.s && i !== base.p); if (alt.length){ cp.p = alt[ri(0, alt.length - 1)]; cp.v = PRODUCTS[cp.p].v ? 0 : null; cp.total = PRODUCTS[cp.p].price * cp.qty; } else g.same = true; }
+      if (pln.addr) cp.addr = base.addr == null ? 0 : (base.addr + 3) % ADDRS.length;
+      g.m.push(cp); ORDERS.push(cp);
+    }
+    GROUPS.push(g);
+  });
+  ORDERS.sort((a, b) => a.t - b.t);
+  ORDERS.forEach((o, i) => { o.id = i; o.ref = String(41207 + i); });
+  GROUPS.forEach((g, i) => {
+    g.id = i; g.m.sort((a, b) => a.t - b.t); g.m.forEach(o => o.dup = i);
+    g.shipped = g.m.some(o => SHIPPED.has(o.st));
+    g.span = g.m[g.m.length - 1].t - g.m[0].t;
+    g.conf = g.same && !g.addr && g.span < 1440 ? "high" : "review";
+  });
+  reputation();
+  /* two agents are inside an order right now */
+  ORDERS.filter(o => o.ad === 0 && CALLING.has(o.st) && o.ag != null).slice(-5, -3).forEach(o => o.here = true);
+  /* putting finished orders away: the rule ranges them 30 days after they finished; tonight's batch is still out */
+  ORDERS.forEach(o => { if (o.finAd != null && o.finAd >= 30) o.arch = !(o.finAd <= 31 && chance(.8)); });
+  /* the high-confidence copies come pre-ticked, as today */
+  GROUPS.forEach(g => { if (g.conf === "high") g.m.forEach(o => { if (o.id !== keepOf(g) && !SHIPPED.has(o.st)) S.dsel.add(o.id); }); });
+}
+/* a customer = a phone. Their past = earlier orders, a duplicate group counted once */
+let CUST = new Map();
+function reputation(){
+  CUST = new Map(); ORDERS.forEach(o => { if (!CUST.has(o.phone)) CUST.set(o.phone, []); CUST.get(o.phone).push(o); });
+  ORDERS.forEach(o => { const prev = CUST.get(o.phone).filter(x => x.t < o.t && x.st !== "deleted" && (o.dup == null || x.dup !== o.dup));
+    o.prior = prev.length; o.rej = prev.filter(x => x.st === "rejected").length; o.ret = prev.filter(x => x.st === "returned").length; o.del = prev.filter(x => x.st === "delivered").length; });
+}
+const finT = o => (DAYS - 1 - o.finAd) * 1440 + 600 + (o.id % 400);
+function keepOf(g){ if (S.keep[g.id] != null) return S.keep[g.id]; const sh = g.m.find(o => SHIPPED.has(o.st)); return (sh || g.m[0]).id; }
+
+/* ═════════════ the rules a row follows ═════════════ */
+const TILES = [
+  {k:"to", icon:"cal", hue:"neutral", fr:"Reçues aujourd'hui", ar:"وصلت اليوم"},
+  {k:"un", icon:"user", hue:"amber", fr:"Non assignées", ar:"غير مسندة"},
+  {k:"re", icon:"phone", hue:"violet", fr:"À rappeler", ar:"إعادة الاتصال"},
+  {k:"up", icon:"upload", hue:"teal", fr:"Téléchargées aujourd'hui", ar:"رُفعت اليوم"}
+];
+/* a shortcut counts exactly the list it opens — the 14-vs-347 bug of today cannot happen by construction */
+function inTile(o, k){
+  if (k === "un") return o.st === "pending" && o.ag == null;
+  if (k === "re") return o.st.startsWith("attempt_") || o.st === "callback_scheduled";
+  if (k === "up") return o.upT != null && o.upT >= TODAY_T;   /* sent to the carrier since midnight, whatever it became since */
+  return o.ad === 0;
+}
+const live = () => ORDERS.filter(o => !o.arch && o.st !== "deleted");
+let TC = {};
+function countTiles(){ const l = live(); TC = {}; TILES.forEach(T => TC[T.k] = l.filter(o => inTile(o, T.k)).length); TC.toSend = l.filter(o => o.st === "confirmed").length; TC.lateCb = l.filter(o => o.st === "callback_scheduled" && o.cb < NOW_T).length; }
+/* the age turns amber only while a human still owes the order something, and only past the SLA */
+function ageInfo(o){
+  const owed = ["pending","attempt_1","attempt_2","attempt_3","confirmed"].includes(o.st) || (o.st === "callback_scheduled" && o.cb < NOW_T);
+  return {cls:!owed ? "" : o.age > 1440 ? "vlate" : o.age > SLA ? "late" : "", txt:ageText(o.age)};
+}
+function pill(hue, icon, text, tip){ return `<span class="pl h-${hue}"${tip ? ` data-tip="${esc(tip)}"` : ""}>${ic(icon)}<span>${esc(text)}</span></span>`; }
+function pillHTML(o){
+  if (o.st === "callback_scheduled"){
+    const late = o.cb < NOW_T, when = adOfT(o.cb) === 0 ? hm(o.cb % 1440) : whenText(o.cb);
+    return late ? pill("red", "clock", L("Rappel en retard", "اتصال متأخر"), L(`Le rappel était prévu ${adOfT(o.cb) === 0 ? "à " : "le "}${when}`, `كان الاتصال مجدولاً ${when}`)) : pill("violet", "clock", L(`Rappel ${when}`, `اتصال ${when}`));
+  }
+  if (o.st === "rejected"){ const r = REASONS[o.why]; return pill("red", GICON[r.g], L(r.fr, r.ar), L(`Rejetée — ${r.fr}`, `مرفوض — ${r.ar}`)); }
+  const m = ST[o.st]; return pill(m[2], m[3], L(m[0], m[1]));
+}
+/* at most two tags, in words, with the number that decides */
+function tagsOf(o){
+  const t = [];
+  if (o.dup != null && o.st !== "deleted"){ const g = GROUPS[o.dup], n = g.m.length;
+    t.push(g.shipped && !SHIPPED.has(o.st) ? ["red", "copy", L(`Doublon ×${n} · déjà envoyé`, `مكرر ×${n} · أُرسل أحدها`), L(`${n} commandes du même client en ${spanText(g.span)} — une copie est déjà chez le transporteur. À revoir dans Clients récurrents.`, `${n} طلبات لنفس العميل خلال ${spanText(g.span)} — نسخة منها لدى شركة التوصيل. راجعها في العملاء المتكررين.`)]
+                                             : ["blue", "copy", L(`Doublon ×${n}`, `مكرر ×${n}`), L(`${n} commandes du même client en ${spanText(g.span)} — à revoir dans Clients récurrents.`, `${n} طلبات لنفس العميل خلال ${spanText(g.span)} — راجعها في العملاء المتكررين.`)]); }
+  if (o.rej) t.push(["red", "alert", L(`Déjà rejeté ${o.rej === 1 ? "1 fois" : o.rej + " fois"}`, `حساس · ${o.rej} مرفوض`), L(`${o.rej} commande${o.rej > 1 ? "s" : ""} rejetée${o.rej > 1 ? "s" : ""} sur ${o.prior} depuis juin — tout son parcours dans Clients récurrents.`, `${o.rej} مرفوض من ${o.prior} منذ يونيو — كل مساره في العملاء المتكررين.`)]);
+  else if (o.del) t.push(["green", "star", L(`Client fidèle · ${o.del} livrée${o.del > 1 ? "s" : ""}`, `عميل وفي · ${o.del} مسلّمة`), L(`${o.del} commande${o.del > 1 ? "s" : ""} déjà livrée${o.del > 1 ? "s" : ""} à ce client — son parcours dans Clients récurrents.`, `${o.del} طلب سبق تسليمه لهذا العميل — مساره في العملاء المتكررين.`)]);
+  return t.slice(0, 2);
+}
+const tagHTML = ([hue, icon, text, tip]) => `<span class="tg h-${hue}" data-tip="${esc(tip)}">${ic(icon)}${esc(text)}</span>`;
+const avatar = (a, here) => `<span class="av${here ? " here" : ""}" style="--h:${a.h}">${esc(agName(a).slice(0, 1))}</span>`;
+const thumb = P => `<span class="thumb" style="--tb:${TINT[P.t][0]};--ti:${TINT[P.t][1]}">${ic(P.g)}</span>`;
+const storeTag = (si, withPf) => { const st = STORES[si]; return `<span class="shop" style="${hueVars(st.hue)}" data-tip="${esc(`${st.pf}${st.via ? L(" via " + st.via, " عبر " + st.via) : ""} · ${st.dom}`)}"><i></i><span>${esc(st.n)}</span></span>${withPf ? ` <span class="q">· ${st.pf}</span>` : ""}`; };
+
+/* ═════════════ filters ═════════════ */
+const PRESETS = [["all","Toutes les dates","كل التواريخ"],["today","Aujourd'hui","اليوم"],["yday","Hier","أمس"],["7d","7 derniers jours","آخر 7 أيام"],["30d","30 derniers jours","آخر 30 يوماً"],["month","Ce mois-ci","هذا الشهر"]];
+const WHOLE = ["2026-09","2026-08"];
+function range(k){
+  if (k === "all") return [FIRST, TODAY];
+  if (k === "today") return [TODAY, TODAY];
+  if (k === "yday") return [addDays(TODAY, -1), addDays(TODAY, -1)];
+  if (k === "7d") return [addDays(TODAY, -6), TODAY];
+  if (k === "30d") return [addDays(TODAY, -29), TODAY];
+  if (k === "month") return [TODAY.slice(0, 8) + "01", TODAY];
+  if (k.startsWith("m:")){ const m = k.slice(2); return [m + "-01" < FIRST ? FIRST : m + "-01", lastDay(m)]; }
+  return [S.from, S.to];
+}
+function nameRange(f, t){
+  const p = PRESETS.find(([k]) => k !== "all" && range(k)[0] === f && range(k)[1] === t); if (p) return p[0];
+  const m = WHOLE.find(x => { const [a, b] = range("m:" + x); return a === f && b === t; }); return m ? "m:" + m : "custom";
+}
+function winLabel(){
+  const k = S.period, [f, t] = range(k), p = PRESETS.find(x => x[0] === k);
+  if (k === "all") return {label:L("Toutes les dates", "كل التواريخ"), sub:L(`depuis le ${dShort(FIRST)}`, `منذ ${dShort(FIRST)}`)};
+  const len = daysBetween(f, t) + 1;
+  return {label:p ? L(p[1], p[2]) : k.startsWith("m:") ? `${monthName(k.slice(2))} ${k.slice(2, 6)}` : L(`${len} jours`, `${len} يوماً`), sub:dRange(f, t)};
+}
+function matches(o, q, qd){
+  if (o.name.toLowerCase().includes(q)) return true;
+  if (qd.length >= 3 && /^\d+$/.test(qd) && (o.phone.includes(qd) || o.ref.includes(qd))) return true;
+  if (o.trk && o.trk.toLowerCase().includes(qd)) return true;
+  const P = PRODUCTS[o.p]; if (P.fr.toLowerCase().includes(q) || P.ar.includes(q)) return true;
+  if (o.city != null && (CITIES[o.city][0].toLowerCase().includes(q) || CITIES[o.city][1].includes(q))) return true;
+  return false;
+}
+function baseRows(){
+  if (S.screen === "archive"){
+    if (S.arch === "deleted") return ORDERS.filter(o => o.st === "deleted");
+    const fin = ORDERS.filter(o => o.finAd != null && o.st !== "deleted");
+    return S.arch === "archived" ? fin.filter(o => o.arch) : S.arch === "eligible" ? fin.filter(o => !o.arch && o.finAd >= S.ruleDays) : fin.filter(o => !o.arch && o.finAd < S.ruleDays);
+  }
+  return ORDERS.filter(o => !o.arch);
+}
+function applyFilters(list, skip){
+  const q = S.q.trim().toLowerCase(), qd = q.replace(/\s/g, "");
+  const [f, t] = range(S.period);
+  return list.filter(o => {
+    if (o.st === "deleted" && !(S.screen === "archive" && S.arch === "deleted")) return false;
+    if (S.screen === "list" && S.tile && !inTile(o, S.tile)) return false;
+    if (S.period !== "all" && (o.day < f || o.day > t)) return false;
+    if (skip !== "st" && S.st.size && !S.st.has(o.st)) return false;
+    if (skip !== "ag" && S.ag.size && !S.ag.has(o.ag == null ? "none" : String(o.ag))) return false;
+    if (skip !== "sh" && S.sh.size && !S.sh.has(String(o.s))) return false;
+    if (skip !== "city" && S.city.size && !S.city.has(o.city == null ? "none" : String(o.city))) return false;
+    if (skip !== "prod" && S.prod.size && !S.prod.has(String(o.p))) return false;
+    if (skip !== "car" && S.car.size && !S.car.has(o.car == null ? "none" : String(o.car))) return false;
+    if (q && !matches(o, q, qd)) return false;
+    return true;
+  });
+}
+const rowsNow = () => applyFilters(baseRows()).reverse();
+function facet(skip, keyFn){ const m = new Map(); applyFilters(baseRows(), skip).forEach(o => { const k = keyFn(o); m.set(k, (m.get(k) || 0) + 1); }); return m; }
+function resetFilters(){ S.tile = null; S.q = ""; S.period = "all"; S.from = S.to = null; ["st","ag","sh","city","prod","car"].forEach(k => S[k].clear()); S.page = 0; S.sel.clear(); S.menu = null; S.dp = null; }
+
+/* ═════════════ sidebar — the live one, nothing moved ═════════════ */
+const NAV = [
+  {items:[["home","Dashboard","لوحة القيادة"]]},
+  {g:["Commandes","الطلبات"], items:[["inbox","Commandes","الطلبات","list"],["archive","Archivées","الأرشيف","archive"],["repeat","Clients récurrents","العملاء المتكررون","dup"]]},
+  {g:["Entrepôt","المستودع"], items:[["sun","Aujourd'hui","اليوم"],["out","Sortir","إخراج"],["back","Rentrer","إرجاع"],["boxes","Stock","المخزون"]]},
+  {g:["Livraison","التوصيل"], items:[["pkg","Suivi livraison","متابعة التوصيل"]]},
+  {g:["Performance","الأداء"], items:[["funnel","Commandes","الطلبات"],["team","Équipe","الفريق"],["route","Livraison","التوصيل"]]},
+  {g:["Finances","المالية"], items:[["trend","P&L global","الأرباح والخسائر"],["pct","Produits & marges","المنتجات والهوامش"],["layers","Stock & inventaire","المخزون والجرد"],["receipt","Achats","المشتريات"],["mega","Dépenses pub","مصاريف الإعلانات"],["coins","Investisseurs","المستثمرون"]]},
+  {g:["Clients","العملاء"], items:[["target","Prospects","العملاء المحتملون"],["quote","Voix du client","صوت العميل"],["msg","Messages","الرسائل"]]},
+  {g:["Équipe","الفريق"], items:[["phone","Salle de contrôle","غرفة التحكم"],["usercog","Accès","الوصول"]]},
+  {g:["Système","النظام"], items:[["plug","Connexions","الاتصالات"],["sliders","Réglages","الإعدادات"],["scroll","Journaux","السجلات"]]}
+];
+function renderSide(){
+  let h = `<div class="sb-head"><div class="sb-top"><span class="sb-word">Ordra</span><button class="sb-alerts" data-toast="${esc(L("Les alertes", "التنبيهات"))}">${ic("bell")}<b>3</b></button></div>
+    <button class="sb-search" data-toast="${esc(L("⌘K — Aller à…", "⌘K — انتقال إلى…"))}">${ic("search")}<span>${L("Aller à…", "انتقال إلى…")}</span><span class="kbd">⌘K</span></button>
+    <div class="sb-mk">${FLAG_LY}<div><strong>${L("Libye", "ليبيا")}</strong><small>LYD · ${hm(NOW_MIN)}</small></div>${ic("down")}</div></div><div class="sb-scroll">`;
+  NAV.forEach(sec => {
+    h += `<div class="sb-group">${sec.g ? `<div class="sb-gl">${L(sec.g[0], sec.g[1])}</div>` : ""}`;
+    sec.items.forEach(([icon, fr, ar, scr]) => {
+      const badge = scr === "list" && TC.un ? `<span class="sb-badge">${TC.un}</span>` : "";
+      h += `<button class="sb-item${scr && S.screen === scr ? " on" : ""}" ${scr ? `data-screen="${scr}"` : `data-toast="${esc(L(fr, ar))}"`}>${ic(icon)}<span>${L(fr, ar)}</span>${badge}</button>`;
+    });
+    h += `</div>`;
+  });
+  h += `</div><div class="sb-foot"><span class="me">F</span><div>${L("Firas", "فراس")}<small>${L("Super admin", "مدير عام")}</small></div></div>`;
+  document.getElementById("side").innerHTML = h;
+}
+const DEMOS = [["call","à appeler"],["conf","confirmée"],["road","en route"],["done","livrée"],["new","+ nouvelle"]];
+function renderBar(){
+  const sc = [["list","Commandes"],["archive","Archivées"],["dup","Clients récurrents"]];
+  document.getElementById("pbar").innerHTML = `<span class="tag">Prototype</span><span class="pt">Commandes · v3 — « Reçues aujourd'hui » d'abord · « Téléchargées aujourd'hui » · Clients récurrents</span>
+    <span class="looks"><i>Écran</i>${sc.map(([k, n]) => `<button class="${S.screen === k ? "on" : ""}" data-screen="${k}">${n}</button>`).join("")}</span>
+    <span class="looks"><i>Voir</i><button class="${S.before ? "" : "on"}" data-before="0">Après</button><button class="${S.before ? "on" : ""}" data-before="1">Avant (aujourd'hui)</button></span>
+    <span class="looks"><i>Langue</i><button class="${S.lang === "fr" ? "on" : ""}" data-lang="fr">FR</button><button class="${S.lang === "ar" ? "on" : ""}" data-lang="ar">عربي</button></span>
+    <span class="looks"><i>Ouvrir</i>${DEMOS.map(([k, n]) => `<button data-demo="${k}">${n}</button>`).join("")}</span>
+    <span class="src">données fictives · touche B = avant / après</span>`;
+}
+
+/* ═════════════ 1 · Commandes ═════════════ */
+function tileHint(k, n){
+  if (k === "un") return n ? L("attendent un agent", "بانتظار وكيل") : L("tout est assigné", "كل الطلبات مسندة");
+  if (k === "re") return TC.lateCb ? `<em>${L(`dont ${TC.lateCb} rappel${TC.lateCb > 1 ? "s" : ""} en retard`, `منها ${TC.lateCb} اتصال متأخر`)}</em>` : L("appels à refaire", "مكالمات يجب إعادتها");
+  if (k === "up") return TC.toSend ? `<em>${L(`+ ${TC.toSend} confirmée${TC.toSend > 1 ? "s" : ""} à envoyer`, `+ ${TC.toSend} مؤكدة للإرسال`)}</em>` : L("envoyées au transporteur depuis minuit", "أُرسلت إلى شركة التوصيل منذ منتصف الليل");
+  return L(`depuis minuit · ${hm(NOW_MIN)}`, `منذ منتصف الليل · ${hm(NOW_MIN)}`);
+}
+function shortcuts(){
+  return `<section class="wts" aria-label="${L("Raccourcis de travail", "اختصارات العمل")}">${TILES.map(T => { const n = TC[T.k], on = S.tile === T.k;
+    return `<button class="wt h-${T.hue}${on ? " on" : ""}${n ? "" : " zero"}" data-tile="${T.k}" aria-pressed="${on}"><span class="hold">${ic(T.icon)}</span><span class="wt-t"><b>${fnum(n)}</b><span>${L(T.fr, T.ar)}</span><small>${tileHint(T.k, n)}</small></span>${on ? `<span class="wt-x">${ic("x")}</span>` : ""}</button>`; }).join("")}</section>`;
+}
+function tools(ph){
+  const w = winLabel();
+  return `<div class="tools"><label class="srch">${ic("search")}<input id="q" type="search" value="${esc(S.q)}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false"><span class="kbd2">/</span></label>
+    <div class="dwrap"><button class="dbtn${S.dp ? " on" : ""}${S.period !== "all" ? " set" : ""}" data-dp aria-haspopup="dialog">${ic("cal")}<span><b>${esc(w.label)}</b><small>${esc(w.sub)}</small></span>${ic("down")}</button>${S.dp ? datePop() : ""}</div></div>`;
+}
+function filterLine(n){
+  const fb = (k, icon, label, cnt, end) => `<div class="fbw"><button class="fb${cnt ? " on" : ""}${S.menu === k ? " open" : ""}" data-menu="${k}" aria-haspopup="menu" aria-expanded="${S.menu === k}">${ic(icon)}${label}${cnt ? `<em>${cnt}</em>` : ""}${ic("down", "chev")}</button>${S.menu === k ? menuHTML(k, end) : ""}</div>`;
+  const more = S.city.size + S.prod.size + S.car.size;
+  return `<div class="fl">${S.screen === "archive" && S.arch === "deleted" ? "" : fb("st", "filter", S.screen === "archive" ? L("Issue", "النتيجة") : L("Statut", "الحالة"), S.st.size)}${fb("ag", "user", L("Agent", "الوكيل"), S.ag.size)}${fb("sh", "store", L("Boutique", "المتجر"), S.sh.size)}${fb("more", "sliders", L("Plus de filtres", "مرشحات إضافية"), more)}
+    <span class="count"><b>${fnum(n)}</b> ${S.lang === "ar" ? "طلب" : pl(n, "commande", "commandes")}</span></div>`;
+}
+function mi(kind, val, on, label, n, lead = ""){ return `<button class="mi${on ? " on" : ""}${n ? "" : " zero"}" data-f="${kind}" data-v="${esc(val)}" role="menuitemcheckbox" aria-checked="${on}"><span class="cb">${on ? ic("check") : ""}</span>${lead}<span class="ml">${label}</span><span class="n">${fnum(n)}</span></button>`; }
+function menuHTML(k){
+  if (k === "st"){
+    const c = facet("st", o => o.st), item = s => mi("st", s, S.st.has(s), esc(stLabel(s)), c.get(s) || 0, `<span class="dotk h-${ST[s][2]}"></span>`);
+    if (S.screen === "archive") return `<div class="menu" role="menu">${["delivered","returned","rejected","cancelled"].map(item).join("")}</div>`;
+    return `<div class="menu" role="menu"><h6>${L("Confirmation", "التأكيد")}</h6>${CALL_ST.map(item).join("")}<h6>${L("Livraison", "التوصيل")}</h6>${DLV_ST.map(item).join("")}</div>`;
+  }
+  if (k === "ag"){
+    const c = facet("ag", o => o.ag == null ? "none" : String(o.ag));
+    return `<div class="menu" role="menu">${S.screen === "list" ? mi("ag", "none", S.ag.has("none"), `<i class="none">${L("Non assignée", "غير مسندة")}</i>`, c.get("none") || 0, `<span class="av free">${ic("user")}</span>`) : ""}${AGENTS.map((a, i) => mi("ag", String(i), S.ag.has(String(i)), esc(agName(a)), c.get(String(i)) || 0, avatar(a))).join("")}</div>`;
+  }
+  if (k === "sh"){
+    const c = facet("sh", o => String(o.s));
+    return `<div class="menu" role="menu">${STORES.map((st, i) => mi("sh", String(i), S.sh.has(String(i)), `${esc(st.n)} <span class="q">· ${st.pf}</span>`, c.get(String(i)) || 0, `<span class="shop" style="${hueVars(st.hue)}"><i></i></span>`)).join("")}</div>`;
+  }
+  if (k === "more"){
+    const cc = facet("city", o => o.city == null ? "none" : String(o.city)), cp = facet("prod", o => String(o.p)), ca = facet("car", o => o.car == null ? "none" : String(o.car));
+    return `<div class="menu" role="menu"><h6>${L("Ville", "المدينة")}</h6>${CITIES.map((c, i) => mi("city", String(i), S.city.has(String(i)), esc(L(c[0], c[1])), cc.get(String(i)) || 0)).join("")}${mi("city", "none", S.city.has("none"), `<span class="miss">${L("Non renseignée", "غير محددة")}</span>`, cc.get("none") || 0)}
+      <h6>${L("Produit", "المنتج")}</h6>${PRODUCTS.map((p, i) => mi("prod", String(i), S.prod.has(String(i)), esc(pName(p)), cp.get(String(i)) || 0, thumbMini(p))).join("")}
+      <h6>${L("Transporteur", "شركة التوصيل")}</h6>${CARRIERS.map((c, i) => mi("car", String(i), S.car.has(String(i)), esc(L(c[0], c[1])), ca.get(String(i)) || 0)).join("")}${mi("car", "none", S.car.has("none"), L("Pas encore envoyée", "لم تُرسل بعد"), ca.get("none") || 0)}
+      ${S.screen === "list" ? `<div class="msep"></div><button class="mi act" data-gotrash>${ic("trash")}<span class="ml">${L("Les commandes supprimées sont dans Archivées › Supprimées", "الطلبات المحذوفة في الأرشيف › المحذوفة")}</span>${ic("ext", "flip")}</button>` : ""}</div>`;
+  }
+  if (k === "assign") return `<div class="menu" role="menu"><h6>${L("Assigner à", "تعيين إلى")}</h6>${AGENTS.map((a, i) => `<button class="mi act" data-assign="${i}">${avatar(a)}<span class="ml">${esc(agName(a))}</span></button>`).join("")}<div class="msep"></div><button class="mi act" data-assign="none"><span class="av free">${ic("user")}</span><span class="ml">${L("Remettre dans le pool", "إرجاع إلى القائمة")}</span></button></div>`;
+  if (k.startsWith("row:")){
+    const o = ORDERS[+k.slice(4)];
+    const items = o.st === "deleted" ? [["rotate", L("Restaurer la commande", "استعادة الطلب"), "recover"]]
+      : [["ext", L("Ouvrir", "فتح"), "open"], ["user", L("Assigner…", "تعيين…"), "assignone"], ...(SHIPPED.has(o.st) || FINAL.has(o.st) ? [["rotate", L("Réouvrir la commande", "إعادة فتح الطلب"), "reopen"]] : [["trash", L("Annuler la commande", "إلغاء الطلب"), "cancel"]])];
+    return `<div class="menu end" role="menu">${items.map(([icon, label, act]) => `<button class="mi act${act === "cancel" ? " neg" : ""}" data-rowact="${act}:${o.id}">${ic(icon)}<span class="ml">${label}</span></button>`).join("")}</div>`;
+  }
+  return "";
+}
+const thumbMini = P => `<span class="thumb" style="--tb:${TINT[P.t][0]};--ti:${TINT[P.t][1]};width:22px;height:22px;border-radius:7px">${ic(P.g)}</span>`;
+function chipsRow(){
+  const ch = [], list = (vals, f) => { const a = [...vals].map(f); return a.length > 3 ? a.slice(0, 3).join(", ") + ` +${a.length - 3}` : a.join(", "); };
+  if (S.tile) ch.push(["tile", L("Raccourci", "اختصار"), L(TILES.find(T => T.k === S.tile).fr, TILES.find(T => T.k === S.tile).ar)]);
+  if (S.q.trim()) ch.push(["q", L("Recherche", "بحث"), `« ${S.q.trim()} »`]);
+  if (S.period !== "all") ch.push(["period", L("Dates", "التواريخ"), winLabel().label]);
+  if (S.st.size) ch.push(["st", S.screen === "archive" ? L("Issue", "النتيجة") : L("Statut", "الحالة"), list(S.st, stLabel)]);
+  if (S.ag.size) ch.push(["ag", L("Agent", "الوكيل"), list(S.ag, v => v === "none" ? L("Non assignée", "غير مسندة") : agName(AGENTS[+v]))]);
+  if (S.sh.size) ch.push(["sh", L("Boutique", "المتجر"), list(S.sh, v => STORES[+v].n)]);
+  if (S.city.size) ch.push(["city", L("Ville", "المدينة"), list(S.city, v => v === "none" ? L("non renseignée", "غير محددة") : cityName(+v))]);
+  if (S.prod.size) ch.push(["prod", L("Produit", "المنتج"), list(S.prod, v => pName(PRODUCTS[+v]))]);
+  if (S.car.size) ch.push(["car", L("Transporteur", "شركة التوصيل"), list(S.car, v => v === "none" ? L("pas encore envoyée", "لم تُرسل بعد") : L(CARRIERS[+v][0], CARRIERS[+v][1]))]);
+  if (!ch.length) return "";
+  return `<div class="chips">${ch.map(([k, a, b]) => `<span class="chip">${esc(a)} : <b>${esc(b)}</b><button data-chipx="${k}" aria-label="${esc(L("Retirer " + a, "إزالة " + a))}">${ic("x")}</button></span>`).join("")}${ch.length > 1 ? `<button class="clearall" data-clearall>${L("Tout effacer", "مسح الكل")}</button>` : ""}</div>`;
+}
+function rowHTML(o, mode){
+  const P = PRODUCTS[o.p], ag = o.ag == null ? null : AGENTS[o.ag], sel = S.sel.has(o.id);
+  const gone = o.st === "deleted" ? Math.floor((NOW_T - o.delT) / 1440) : 0;
+  const a = mode === "arch" && o.st === "deleted" ? {cls:"", txt:gone ? L(`il y a ${gone} j`, `منذ ${gone} ي`) : L("aujourd'hui", "اليوم")} : mode === "arch" ? {cls:"", txt:o.finAd === 0 ? L("aujourd'hui", "اليوم") : L(`il y a ${o.finAd} j`, `منذ ${o.finAd} ي`)} : ageInfo(o);
+  const variant = o.v != null ? ` · ${esc(L(P.v[o.v][0], P.v[o.v][1]))}` : "";
+  const city = o.city == null ? `<span class="miss">${L("ville ?", "المدينة؟")}</span>` : `<span dir="auto">${esc(cityName(o.city))}</span>`;
+  const ageTip = mode === "arch" && o.st === "deleted" ? L(`Supprimée ${whenText(o.delT)}`, `حُذفت ${whenText(o.delT)}`) : mode === "arch" ? L(`Finie le ${dShort(addDays(TODAY, -o.finAd))}`, `انتهت ${dShort(addDays(TODAY, -o.finAd))}`) : L(`Reçue ${whenText(o.t)}`, `وصلت ${whenText(o.t)}`) + (a.cls ? L(` — en retard (délai ${SLA / 60} h)`, ` — متأخر (المهلة ${SLA / 60} س)`) : "");
+  return `<div class="row${sel ? " sel" : ""}${S.open === o.id ? " open" : ""}${o.st === "deleted" && mode !== "arch" ? " del" : ""}" data-open="${o.id}">
+    <button class="ck${sel ? " on" : ""}" data-sel="${o.id}" aria-label="${esc(L("Sélectionner la commande #" + o.ref, "تحديد الطلب #" + o.ref))}">${sel ? ic("check") : ""}</button>
+    <div class="oc">${thumb(P)}<div class="oc-t"><div class="l1"><span class="nm" dir="auto">${esc(o.name)}</span>${tagsOf(o).map(tagHTML).join("")}</div>
+      <div class="l2"><b dir="auto">${esc(pName(P))}${variant}</b>${o.qty > 1 ? ` <span class="qty">×${o.qty}</span>` : ""} · ${city}</div></div></div>
+    <div class="amt">${fnum(o.total)}<small>${CCY()}</small></div>
+    <div>${pillHTML(o)}</div>
+    <div><span class="age ${a.cls}" data-tip="${esc(ageTip)}">${a.cls ? ic("clock") : ""}${a.txt}</span></div>
+    <div class="who"${o.here && ag ? ` data-tip="${esc(L(`${ag.n} est dans la commande en ce moment`, `${ag.ar} داخل الطلب الآن`))}"` : ""}>${ag ? `${avatar(ag, o.here)}<span>${esc(agName(ag))}</span>` : `<span class="av free">${ic("user")}</span><span class="none">${L("Non assignée", "غير مسندة")}</span>`}</div>
+    <div>${storeTag(o.s)}</div>
+    <div class="kbw"><button class="kb" data-menu="row:${o.id}" aria-label="${esc(L("Plus d'actions", "خيارات إضافية"))}">${ic("more")}</button>${S.menu === "row:" + o.id ? menuHTML(S.menu) : ""}</div>
+  </div>`;
+}
+function listBlock(rows, mode){
+  const from = S.page * S.size, page = rows.slice(from, from + S.size);
+  const allOn = page.length > 0 && page.every(o => S.sel.has(o.id));
+  const h = mode === "arch" ? [L("Commande", "الطلب"), L("Montant", "المبلغ"), S.arch === "deleted" ? L("Statut", "الحالة") : L("Issue", "النتيجة"), S.arch === "deleted" ? L("Supprimée", "حُذفت") : L("Finie", "انتهت"), L("Agent", "الوكيل"), L("Boutique", "المتجر")]
+                            : [L("Commande", "الطلب"), L("Montant", "المبلغ"), L("Statut", "الحالة"), L("Âge", "المدة"), L("Agent", "الوكيل"), L("Boutique", "المتجر")];
+  const last = Math.max(0, Math.ceil(rows.length / S.size) - 1);
+  return `<section class="list"><div class="lh"><button class="ck${allOn ? " on" : ""}" data-selall aria-label="${esc(L("Tout sélectionner sur cette page", "تحديد كل الصفحة"))}">${allOn ? ic("check") : ""}</button><span>${h[0]}</span><span class="e">${h[1]}</span><span>${h[2]}</span><span>${h[3]}</span><span>${h[4]}</span><span>${h[5]}</span><span></span></div>
+    <div class="rows">${page.length ? page.map(o => rowHTML(o, mode)).join("") : `<div class="empty">${ic("search")}<span>${L("Aucune commande ne correspond.", "لا توجد طلبات مطابقة.")}</span><button class="btn2" data-clearall>${L("Tout effacer", "مسح الكل")}</button></div>`}</div>
+    <footer class="pg"><span>${fnum(rows.length ? from + 1 : 0)}–${fnum(Math.min(rows.length, from + S.size))} ${L("sur", "من")} ${fnum(rows.length)}</span>
+      <span class="nav"><button class="btn2" data-page="-1" ${S.page ? "" : "disabled"}>${ic("left", "flip")}${L("Précédent", "السابق")}</button><button class="btn2" data-page="1" ${S.page < last ? "" : "disabled"}>${L("Suivant", "التالي")}${ic("right", "flip")}</button></span>
+      <label class="ps"><select id="ps" aria-label="${esc(L("Commandes par page", "طلبات لكل صفحة"))}">${[25, 50, 100].map(x => `<option value="${x}" ${x === S.size ? "selected" : ""}>${x}</option>`).join("")}</select>${L("par page", "لكل صفحة")}</label></footer></section>`;
+}
+function listPage(){
+  const rows = rowsNow();
+  return `<header class="ph"><div><h1>${L("Commandes", "الطلبات")}</h1><div class="sub"><span>${L("Libye", "ليبيا")}</span><span class="sep"></span><span class="live" data-tip="${esc(L("La liste se met à jour toute seule", "القائمة تتحدث تلقائياً"))}"><i></i>${L("en direct", "مباشر")}</span></div></div>
+      <div class="acts"><button class="btn2" data-toast="${esc(L("Export CSV des commandes filtrées", "تصدير CSV للطلبات المصفاة"))}">${ic("download")}${L("Exporter", "تصدير")}</button><button class="btn" data-create>${ic("plus")}${L("Nouvelle commande", "طلب جديد")}</button></div></header>
+    ${shortcuts()}
+    ${tools(L("Rechercher — nom, téléphone, ville, produit, référence, n° de suivi", "بحث — الاسم، الهاتف، المدينة، المنتج، رقم الطلب، رقم التتبع"))}
+    ${filterLine(rows.length)}${chipsRow()}
+    ${listBlock(rows, "list")}`;
+}
+
+/* ═════════════ 2 · the order panel — the same content, calmer ═════════════ */
+function relChip(o){
+  if (o.rej + o.ret) return `<span class="rel h-red">${ic("alert")}${L(`À risque · ${o.rej + o.ret} sur ${o.prior} non livrée${o.rej + o.ret > 1 ? "s" : ""}`, `غير موثوق · ${o.rej + o.ret} من ${o.prior} لم تُسلَّم`)}</span>`;
+  if (o.del) return `<span class="rel h-green">${ic("check")}${L(`Fiable · ${o.del} livrée${o.del > 1 ? "s" : ""}`, `موثوق · ${o.del} تم تسليمها`)}</span>`;
+  return `<span class="rel h-neutral">${L("Nouveau client", "عميل جديد")}</span>`;
+}
+const editable = o => CALLING.has(o.st) || o.st === "confirmed" || o.st === "dispatch_scheduled";
+function historyOf(o){
+  const r = rng(o.id * 7919 + 13), rr = (a, b) => a + Math.floor(r() * (b - a + 1));
+  const st = STORES[o.s], ag = o.ag != null ? agName(AGENTS[o.ag]) : null, ev = []; let t = o.t;
+  ev.push([t, L(`Reçue de ${st.n}`, `وصلت من ${st.n}`), "neutral"]);
+  if (ag){ t += rr(1, 12); ev.push([t, L(`Assignée à ${ag}`, `أُسندت إلى ${ag}`), "neutral"]); }
+  const decided = !CALLING.has(o.st) && o.st !== "deleted";
+  for (let i = 1; i <= o.att; i++){ t += rr(8, 70); if (!(i === o.att && decided)) ev.push([t, L(`Appel ${i} — pas de réponse`, `محاولة ${i} — لم يتم الرد`), "amber"]); }
+  if (o.st === "callback_scheduled") ev.push([t + 3, L(`Rappel prévu ${adOfT(o.cb) === 0 ? "à " + hm(o.cb % 1440) : "le " + whenText(o.cb)}`, `اتصال مجدول ${whenText(o.cb)}`), "violet"]);
+  if (o.st === "rejected"){ t += rr(5, 40); ev.push([t, L(`Rejetée — ${REASONS[o.why].fr}`, `رُفضت — ${REASONS[o.why].ar}`), "red"]); }
+  if (["confirmed","dispatch_scheduled"].includes(o.st) || SHIPPED.has(o.st)){ t += rr(5, 40); ev.push([t, L(`Confirmée par ${ag}`, `أكدتها ${ag}`), "violet"]); }
+  if (o.trk){ t += rr(10, 180); ev.push([t, L(`Envoyée chez Darb · ${o.trk}`, `أُرسلت إلى درب · ${o.trk}`), "teal"]); }
+  if (o.st === "delivered") ev.push([finT(o), L("Livrée au client", "تم التسليم للعميل"), "green"]);
+  if (o.st === "returned") ev.push([finT(o), L("Retournée à l'entrepôt", "أُرجعت إلى المستودع"), "red"]);
+  if (o.st === "cancelled") ev.push([finT(o), L("Annulée par le transporteur", "ألغتها شركة التوصيل"), "red"]);
+  if (o.st === "deleted") ev.push([t + 30, L("Supprimée par Firas", "حذفها فراس"), "neutral"]);
+  return ev.filter(e => e[0] <= NOW_T).sort((a, b) => a[0] - b[0]);
+}
+const STEP = {up:["Envoyée chez Darb","أُرسلت إلى درب"], sc:["Sortie de l'entrepôt (scannée)","خرجت من المستودع"], ac:["Remise au transporteur","تم التسليم للشركة"], it:["En transit","في الطريق"], ofd:["En cours de livraison","خرجت للتوصيل"], dd:["Livraison retardée — client absent","تأجّل التوصيل — العميل غائب"], dl:["Livrée","تم التسليم"], rt:["Retour en cours","قيد الإرجاع"], tbr:["À retourner","للإرجاع"], rd:["Retournée à l'entrepôt","أُرجعت إلى المستودع"], cx:["Annulée par le transporteur","ألغتها شركة التوصيل"]};
+const PATH = {uploaded:["up"], scanned:["up","sc"], at_carrier:["up","sc","ac"], in_transit:["up","sc","ac","it"], out_for_delivery:["up","sc","ac","it","ofd"], delivery_delayed:["up","sc","ac","it","ofd","dd"], delivered:["up","sc","ac","it","ofd","dl"], returning:["up","sc","ac","it","ofd","dd","rt"], to_be_returned:["up","sc","ac","it","ofd","dd","rt","tbr"], returned:["up","sc","ac","it","ofd","dd","rt","tbr","rd"], cancelled:["up","sc","ac","cx"]};
+function messagesOf(o){
+  if (!(o.st === "confirmed" || SHIPPED.has(o.st)) || o.id % 3 === 0) return [];
+  const P = PRODUCTS[o.p], first = o.name.split(" ")[0];
+  const m = [[o.t + 50, "out", `مرحباً ${first}، تم تأكيد طلبك «${P.ar}». التوصيل خلال 2 إلى 4 أيام.`, L("Modèle « confirmation »", "قالب «التأكيد»")]];
+  if (o.trk) m.push([o.t + 1500, "out", `طردك الآن لدى درب. رقم التتبع: ${o.trk}`, L("Modèle « expédition »", "قالب «الشحن»")]);
+  if (o.id % 2 === 0) m.push([o.t + 1620, "in", "شكراً، سأكون موجوداً غداً بعد الظهر.", ""]);
+  return m.filter(x => x[0] < NOW_T);
+}
+function paneHTML(o){
+  const P = PRODUCTS[o.p];
+  if (S.tab === "art"){
+    return `<div class="line">${thumb(P)}<div><b dir="auto">${esc(pName(P))}</b>${o.v != null ? `<small dir="auto">${esc(L(P.v[o.v][0], P.v[o.v][1]))}</small>` : ""}<small>${o.qty} × ${fnum(P.price)} ${CCY()}</small></div><b class="amt">${fnum(o.total)}<small>${CCY()}</small></b></div>
+      ${editable(o) ? `<div class="pane-acts"><button class="btn2" data-toast="${esc(L("Ajouter un produit à la commande", "إضافة منتج إلى الطلب"))}">${ic("plus")}${L("Ajouter un produit", "إضافة منتج")}</button><button class="btn2" data-toast="${esc(L("Fusionner avec une autre commande du même client", "دمج مع طلب آخر لنفس العميل"))}">${ic("merge")}${L("Fusionner avec une autre commande", "دمج مع طلب آخر")}</button></div>` : ""}
+      <div class="tot"><div><span>${L("Sous-total", "المجموع الفرعي")}</span><span>${fnum(o.total)} ${CCY()}</span></div><div><span>${L("Frais de livraison", "رسوم التوصيل")}</span><span>0 ${CCY()}</span></div><div class="big"><span>${L("Total", "المجموع")}</span><span>${fnum(o.total)} ${CCY()}</span></div></div>`;
+  }
+  if (S.tab === "dlv"){
+    if (!o.trk){
+      const reco = o.city == null ? L("Définissez la ville pour voir le meilleur transporteur.", "حدّد المدينة لرؤية أفضل شركة توصيل.")
+        : L(`Meilleur choix pour ${CITIES[o.city][0]} : ${CARRIERS[CITIES[o.city][3] === "e" ? 1 : 0][0]} · 25 LYD`, `الخيار الأفضل لـ${CITIES[o.city][1]}: ${CARRIERS[CITIES[o.city][3] === "e" ? 1 : 0][1]} · 25 د.ل`);
+      return `<div class="reco h-teal"><span class="hold">${ic("truck")}</span><div><b>${L("Pas encore chez le transporteur", "لم يصل بعد إلى شركة التوصيل")}</b><small>${esc(reco)}</small></div></div>`;
+    }
+    const path = PATH[o.st] || ["up"], start = o.t + 160, end = FINAL.has(o.st) ? finT(o) : NOW_T - 40;
+    const steps = path.map((k, i) => [Math.round(start + (end - start) * (path.length === 1 ? 1 : i / (path.length - 1))), k]);
+    const hue = ST[o.st][2];
+    return `<div class="trk h-teal"><span class="hold">${ic("truck")}</span><div><small>${esc(L(CARRIERS[o.car][0], CARRIERS[o.car][1]))} · ${L("n° de suivi", "رقم التتبع")}</small><b>${o.trk}</b></div><button class="mini" data-toast="${esc(L("Numéro de suivi copié", "تم نسخ رقم التتبع"))}">${ic("copy")}</button><button class="btn2" data-toast="${esc(L("Ouvre le suivi chez Darb", "يفتح التتبع لدى درب"))}">${L("Chez Darb", "لدى درب")}${ic("ext", "flip")}</button></div>
+      <ul class="tl">${steps.map(([t, k], i) => `<li class="h-${i === steps.length - 1 ? hue : "neutral"}${i === steps.length - 1 ? " now" : ""}"><time>${whenText(t)}</time>${esc(L(STEP[k][0], STEP[k][1]))}</li>`).join("")}</ul>`;
+  }
+  if (S.tab === "his") return `<ul class="tl">${historyOf(o).map(([t, txt, hue]) => `<li class="h-${hue}"><time>${whenText(t)}</time>${esc(txt)}</li>`).join("")}</ul>`;
+  const msgs = messagesOf(o);
+  return `${msgs.length ? `<div class="thread">${msgs.map(([t, dir, txt, note]) => `<div class="bub ${dir}" dir="auto">${esc(txt)}<small>${whenText(t)}${note ? " · " + esc(note) : ""}</small></div>`).join("")}</div>`
+      : `<div class="thread-empty">${ic("msg")}<span>${L("Aucun message avec ce client.", "لا توجد رسائل مع هذا العميل.")}</span><small>${L("Le premier envoi passe forcément par un modèle approuvé.", "أول رسالة يجب أن تكون قالباً معتمداً.")}</small></div>`}
+    <div class="compose"><input placeholder="${esc(msgs.length ? L("Écrire un message…", "اكتب رسالة…") : L("Choisir un modèle…", "اختر قالباً…"))}"><button class="btn" data-toast="${esc(L("Message envoyé sur WhatsApp", "أُرسلت الرسالة عبر واتساب"))}">${ic("send", "flip")}${L("Envoyer", "إرسال")}</button></div>`;
+}
+function notesOf(o){
+  const n = [];
+  if (PRODUCTS[o.p].oos && CALLING.has(o.st)) n.push(["red", "alert", L("Rupture de stock — ne pas confirmer", "نفد المخزون — لا تؤكد الطلب")]);
+  if (o.city == null && (CALLING.has(o.st) || o.st === "confirmed")) n.push(["amber", "pin", L("Ville non renseignée — à définir avant l'envoi", "المدينة غير محددة — يجب تحديدها قبل الإرسال")]);
+  if (o.dup != null && GROUPS[o.dup].shipped && !SHIPPED.has(o.st)) n.push(["red", "copy", L("Une copie de cette commande est déjà chez le transporteur", "نسخة من هذا الطلب لدى شركة التوصيل بالفعل")]);
+  if (SHIPPED.has(o.st) || FINAL.has(o.st)) n.push(["neutral", "lock", L("Réouvrez la commande pour modifier ses détails.", "أعد فتح الطلب لتعديل تفاصيله.")]);
+  return n;
+}
+function footHTML(o){
+  const more = `<button class="fa io" data-toast="${esc(L("Plus d'actions : annuler, remettre dans le pool, modifier le statut", "خيارات إضافية: إلغاء، إرجاع إلى القائمة، تغيير الحالة"))}" aria-label="${esc(L("Plus d'actions", "خيارات إضافية"))}">${ic("more")}</button>`;
+  if (CALLING.has(o.st)) return `<button class="fa" data-act="noanswer"><span>${L("Pas de réponse", "لم يتم الرد")}</span></button><button class="fa pri" data-act="confirm">${ic("check")}<span>${L("Confirmer", "تأكيد الطلب")}</span></button><button class="fa neg" data-act="reject"><span>${L("Refuser", "رفض الطلب")}</span></button><button class="fa" data-act="callback"><span>${L("Rappeler", "طلب اتصال لاحق")}</span></button>${more}`;
+  if (o.st === "confirmed") return `<button class="fa pri wide" data-act="send">${ic("truck")}<span>${L("Envoyer au transporteur", "إرسال إلى الناقل")}</span></button><button class="fa" data-act="schedule">${ic("cal")}<span>${L("Planifier la livraison", "جدولة التوصيل")}</span></button>${more}`;
+  if (o.st === "dispatch_scheduled") return `<button class="fa pri wide" data-act="send">${ic("truck")}<span>${L("Envoyer maintenant", "إرسال الآن")}</span></button><button class="fa" data-act="unschedule"><span>${L("Annuler la planification", "إلغاء الجدولة")}</span></button>${more}`;
+  if (o.st === "deleted") return `<button class="fa pri wide" data-act="recover">${ic("rotate")}<span>${L("Restaurer la commande", "استعادة الطلب")}</span></button>`;
+  return `<button class="fa wide" data-close>${L("Fermer", "إغلاق")}</button>${more}`;
+}
+function panelHTML(o){
+  const st = STORES[o.s], ag = o.ag == null ? null : AGENTS[o.ag], a = ageInfo(o), msgs = messagesOf(o).length, notes = notesOf(o);
+  const tabs = [["art", L("Articles", "المنتجات"), 0], ["dlv", L("Livraison", "التوصيل"), 0], ["his", L("Historique", "السجل"), 0], ["msg", L("Messages", "الرسائل"), msgs]];
+  return `<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-label="${esc(L("Commande #" + o.ref, "الطلب #" + o.ref))}">
+    <div class="dr-top">${pillHTML(o)}<span class="dr-age">${L("reçue", "وصلت")} ${whenText(o.t)}</span>${a.cls ? `<span class="sla">${ic("clock")}${L(`en retard · délai ${SLA / 60} h`, `متأخر · المهلة ساعتان`)}</span>` : ""}<span class="sp"></span>
+      <button class="ref" data-toast="${esc(L(`Référence #${o.ref} copiée`, `تم نسخ الرقم #${o.ref}`))}">#${o.ref}${ic("copy")}</button><button class="xbtn" data-close aria-label="${esc(L("Fermer", "إغلاق"))}">${ic("x")}</button></div>
+    <div class="dr-body">
+      <div class="pc"><div class="pc-n"><h2 dir="auto">${esc(o.name)}</h2></div>
+        <div class="pc-btns"><button class="btn2" data-toast="${esc(L("Ouvre la conversation WhatsApp", "يفتح محادثة واتساب"))}">${ic("wa")}WhatsApp</button><button class="btn" data-toast="${esc(L("Appel du client…", "جارٍ الاتصال بالعميل…"))}">${ic("phone")}${L("Appeler", "اتصال")}</button></div>
+        <div class="pc-ph"><span class="num">${fmtPhone(o.phone)}</span><button class="mini" data-toast="${esc(L("Numéro copié", "تم نسخ الرقم"))}" aria-label="${esc(L("Copier le numéro", "نسخ الرقم"))}">${ic("copy")}</button>${relChip(o)}</div>
+        <div class="pc-add"><button class="lnk" data-toast="${esc(L("Ajouter un 2e téléphone", "إضافة هاتف ثانٍ"))}">${ic("plus")}${L("Ajouter un 2e téléphone", "إضافة هاتف ثانٍ")}</button></div></div>
+      <dl class="facts">
+        <dt>${L("Ville", "المدينة")}</dt><dd>${o.city == null ? `<span class="miss">${ic("alert")}${L("Non renseignée", "غير محددة")}</span><button class="lnk" data-toast="${esc(L("Choisir la ville dans le catalogue Darb", "اختيار المدينة من قائمة درب"))}">${L("Définir la ville", "تحديد المدينة")}</button>` : esc(cityName(o.city))}</dd>
+        <dt>${L("Adresse", "العنوان")}</dt><dd>${o.addr == null ? `<span class="q">—</span>` : `<span dir="auto">${esc(ADDRS[o.addr])}</span>`}</dd>
+        <dt>${L("Total", "المجموع")}</dt><dd><span>${fnum(o.total)} ${CCY()}</span><span class="q">· ${o.qty} ${S.lang === "ar" ? "قطعة" : pl(o.qty, "article", "articles")}</span></dd>
+        <dt>${L("Agent", "الوكيل")}</dt><dd>${ag ? `<span class="who">${avatar(ag)}<span>${esc(agName(ag))}</span></span>` : `<span class="q">${L("Non assignée", "غير مسندة")}</span><button class="lnk" data-toast="${esc(L("Assigner à un agent", "تعيين إلى وكيل"))}">${L("Assigner", "تعيين")}</button>`}</dd>
+        <dt>${L("Transporteur", "شركة التوصيل")}</dt><dd>${o.car != null ? esc(L(CARRIERS[o.car][0], CARRIERS[o.car][1])) : `<span class="q">${L("pas encore envoyée", "لم تُرسل بعد")}</span>`}</dd>
+        <dt>${L("Boutique", "المتجر")}</dt><dd>${storeTag(o.s, true)}</dd>
+      </dl>
+      <div class="tabwrap"><div class="tabs" role="tablist">${tabs.map(([k, n, c]) => `<button role="tab" aria-selected="${S.tab === k}" class="${S.tab === k ? "on" : ""}" data-tab="${k}">${n}${c ? `<em>${c}</em>` : ""}</button>`).join("")}</div></div>
+      <div class="pane">${paneHTML(o)}</div>
+    </div>
+    ${notes.length ? `<div class="notes">${notes.map(([h, i, txt]) => `<div class="note h-${h}">${ic(i)}<span>${esc(txt)}</span></div>`).join("")}</div>` : ""}
+    <div class="dr-foot">${footHTML(o)}</div></aside>`;
+}
+
+/* ═════════════ 3 · « Nouvelle commande » — the same fields ═════════════ */
+const freshCF = () => ({phone:"", name:"", city:"", addr:"", note:"", s:0, p:0, v:null, qty:1, price:PRODUCTS[0].price, over:false, total:""});
+function createHTML(){
+  const f = S.cf, P = PRODUCTS[f.p], calc = f.qty * (+f.price || 0);
+  const prods = PRODUCTS.map((p, i) => [p, i]).filter(([p]) => p.s === f.s);
+  return `<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-label="${esc(L("Créer une commande", "إنشاء طلب"))}">
+    <div class="dr-top"><span class="dr-title"><b>${L("Créer une commande", "إنشاء طلب")}</b><small>${L("Saisir les informations client et la commande", "أدخل بيانات العميل والطلب")}</small></span><button class="xbtn" data-close aria-label="${esc(L("Fermer", "إغلاق"))}">${ic("x")}</button></div>
+    <div class="dr-body" style="padding-bottom:18px">
+      <section class="fs"><h3><span class="hold h-blue">${ic("user")}</span>${L("Client", "العميل")}</h3>
+        <div class="fld"><label>${L("Téléphone", "الهاتف")}<i>*</i></label><div class="inp-pre"><span>+218</span><input class="inp" data-cf="phone" value="${esc(f.phone)}" placeholder="91 234 5678" inputmode="tel"></div></div>
+        <div class="fld"><label>${L("Nom du client", "اسم العميل")}<i>*</i></label><input class="inp" data-cf="name" value="${esc(f.name)}" placeholder="${esc(L("Nom complet du client", "الاسم الكامل للعميل"))}" dir="auto"></div>
+        <div class="fld"><label>${L("Ville", "المدينة")}<i>*</i></label><input class="inp" data-cf="city" value="${esc(f.city)}" list="cities" placeholder="${esc(L("Rechercher une ville…", "ابحث عن مدينة…"))}"><datalist id="cities">${CITIES.map(c => `<option value="${esc(L(c[0], c[1]))}">`).join("")}</datalist></div>
+        <div class="fld"><label>${L("Adresse", "العنوان")}<i>*</i></label><textarea class="inp" data-cf="addr" placeholder="${esc(L("Saisir l'adresse complète", "أدخل العنوان الكامل"))}" dir="auto">${esc(f.addr)}</textarea></div>
+        <div class="fld"><label>${L("Note", "ملاحظة")}</label><textarea class="inp" data-cf="note" placeholder="${esc(L("Note (optionnelle)", "ملاحظة (اختيارية)"))}" dir="auto">${esc(f.note)}</textarea></div></section>
+      <section class="fs"><h3><span class="hold h-green">${ic("bag")}</span>${L("Commande", "الطلب")}</h3>
+        <div class="fld"><label>${L("Boutique", "المتجر")}<i>*</i></label><select class="inp" data-cfs="s">${STORES.map((st, i) => `<option value="${i}" ${i === f.s ? "selected" : ""}>${esc(st.n)} · ${st.pf}</option>`).join("")}</select></div>
+        <div class="two"><div class="fld"><label>${L("Produit", "المنتج")}<i>*</i></label><select class="inp" data-cfs="p">${prods.map(([p, i]) => `<option value="${i}" ${i === f.p ? "selected" : ""}>${esc(pName(p))}</option>`).join("")}</select></div>
+          <div class="fld"><label>${L("Variante", "المتغير")}</label>${P.v ? `<select class="inp" data-cfs="v">${P.v.map((v, i) => `<option value="${i}" ${i === (f.v ?? 0) ? "selected" : ""}>${esc(L(v[0], v[1]))}</option>`).join("")}</select>` : `<input class="inp" disabled placeholder="${esc(L("Aucune variante", "لا متغيرات"))}">`}</div></div>
+        <div class="two"><div class="fld"><label>${L("Quantité", "الكمية")}<i>*</i></label><div class="step"><button data-qty="-1" aria-label="−">${ic("minus")}</button><span>${f.qty}</span><button data-qty="1" aria-label="+">${ic("plus")}</button></div></div>
+          <div class="fld"><label>${L("Prix unitaire", "سعر الوحدة")}<i>*</i></label><input class="inp" data-cfn="price" value="${esc(f.price)}" inputmode="decimal"></div></div>
+        <div class="calc"><span><small>${L("Total calculé", "المجموع المحسوب")}</small>${f.qty} × ${fnum(+f.price || 0)} ${CCY()}</span><b>${fnum(f.over && f.total !== "" ? +f.total : calc)} ${CCY()}</b></div>
+        ${f.over ? `<div class="fld"><label>${L("Total saisi", "المجموع المُدخل")}</label><input class="inp" data-cfn="total" value="${esc(f.total)}" inputmode="decimal"></div>` : `<button class="lnk" data-over>${L("Modifier le total", "تعديل المجموع")}</button>`}</section>
+    </div>
+    <div class="dr-foot"><button class="fa" data-close>${L("Annuler", "إلغاء")}</button><button class="fa pri wide" data-submit>${ic("check")}<span>${L("Créer la commande", "إنشاء الطلب")}</span></button></div></aside>`;
+}
+
+/* ═════════════ 4 · Archivées — putting finished orders away ═════════════ */
+function archivePage(){
+  const fin = ORDERS.filter(o => o.finAd != null && o.st !== "deleted");
+  const n = {eligible:fin.filter(o => !o.arch && o.finAd >= S.ruleDays).length, archived:fin.filter(o => o.arch).length, recent:fin.filter(o => !o.arch && o.finAd < S.ruleDays).length, deleted:ORDERS.filter(o => o.st === "deleted").length};
+  const rows = rowsNow();
+  const tabs = [["eligible", L("Prêtes à ranger", "جاهزة للترتيب")], ["archived", L("Déjà rangées", "مرتَّبة")], ["recent", L("Encore récentes", "حديثة")], ["deleted", L("Supprimées", "المحذوفة")]];
+  const hint = {eligible:S.rule ? L("rangées automatiquement cette nuit — ou maintenant, en les cochant", "ستُرتَّب تلقائياً الليلة — أو الآن بتحديدها") : L("cochez celles que vous voulez ranger", "حدّد ما تريد ترتيبه"), archived:L("elles comptent toujours dans vos chiffres et dans la recherche", "ما زالت محسوبة في أرقامك وفي البحث"), recent:L(`finies il y a moins de ${S.ruleDays} jours — elles restent dans Commandes`, `انتهت منذ أقل من ${S.ruleDays} يوماً — تبقى في الطلبات`), deleted:L("retirées de Commandes et de tous les chiffres — restaurables à tout moment", "أُزيلت من الطلبات ومن كل الأرقام — يمكن استعادتها في أي وقت")}[S.arch];
+  return `<header class="ph"><div><h1>${L("Archivées", "الأرشيف")}</h1><div class="sub"><span>${L("Libye", "ليبيا")}</span><span class="sep"></span><span>${fnum(fin.length)} ${L("commandes finies", "طلب منتهٍ")}</span><span class="sep"></span><span>${fnum(n.deleted)} ${L("supprimées", "محذوفة")}</span></div></div>
+      <div class="acts"><button class="btn2" data-toast="${esc(L("Téléchargement Excel des commandes affichées", "تحميل Excel للطلبات المعروضة"))}">${ic("download")}${L("Télécharger en Excel", "تحميل بصيغة Excel")}</button></div></header>
+    <div class="rule"><span class="rl"><button class="tog${S.rule ? " on" : ""}" data-rule role="switch" aria-checked="${S.rule}" aria-label="${esc(L("Ranger tout seul", "ترتيب تلقائي"))}"></button><b>${L("Ranger tout seul", "ترتيب تلقائي")}</b><span>${L("au bout de", "بعد")}</span><select id="ruledays">${[15, 30, 60, 90].map(d => `<option value="${d}" ${d === S.ruleDays ? "selected" : ""}>${d}</option>`).join("")}</select><span>${L("jours", "يوم")}</span></span>
+      <span class="rh">${L("Une commande rangée disparaît de la liste Commandes — c'est tout ce que ça change. Le compteur part du jour où elle se termine.", "الطلب المرتَّب يختفي من قائمة الطلبات — هذا كل ما يتغير. يبدأ العد من يوم انتهائه.")}</span>
+      <button class="door" data-toast="${esc(L("Performance › Commandes : ce que ça a donné, pourquoi on perd des commandes, les villes qui renvoient", "الأداء › الطلبات: النتائج، أسباب خسارة الطلبات، المدن الأكثر إرجاعاً"))}">${ic("funnel")}${L("Pourquoi on perd des commandes ? Performance › Commandes", "لماذا نخسر طلبات؟ الأداء › الطلبات")}${ic("ext", "flip")}</button></div>
+    <div class="seg-row"><div class="seg" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${S.arch === k}" class="${S.arch === k ? "on" : ""}" data-arch="${k}">${l}<em>${fnum(n[k])}</em></button>`).join("")}</div><span class="hint">${hint}</span></div>
+    ${tools(L("Rechercher : téléphone · référence · produit · nom…", "بحث: هاتف · رقم · منتج · اسم…"))}
+    ${filterLine(rows.length)}${chipsRow()}
+    ${listBlock(rows, "arch")}`;
+}
+
+/* ═════════════ 5 · Doublons — one card per group ═════════════ */
+function cpHTML(g, o, keep){
+  const shipped = SHIPPED.has(o.st), isKeep = o.id === keep, on = S.dsel.has(o.id), P = PRODUCTS[o.p];
+  const ctl = isKeep ? `<span class="keep">${ic("star")}${L("Garder", "الاحتفاظ")}</span>`
+    : shipped ? `<span class="locked" data-tip="${esc(L("Déjà chez le transporteur — non supprimable", "لدى شركة الشحن بالفعل — لا يمكن حذفه"))}">${ic("lock")}${L("Envoyée", "أُرسلت")}</span>`
+    : `<button class="dk${on ? " on" : ""}" data-dsel="${o.id}" aria-pressed="${on}"><span class="ck${on ? " on" : ""}">${on ? ic("check") : ""}</span>${L("Supprimer", "حذف")}</button>`;
+  return `<div class="cp${isKeep ? " kept" : ""}" data-open="${o.id}">${ctl}<span class="tm">${whenText(o.t)}</span><span class="pr">${thumb(P)}<span dir="auto">${esc(pName(P))}${o.qty > 1 ? ` ×${o.qty}` : ""}</span></span><span>${pillHTML(o)}</span><span class="amt">${fnum(o.total)}<small>${CCY()}</small></span>
+    <span class="who">${o.ag != null ? `${avatar(AGENTS[o.ag])}<span>${esc(agName(AGENTS[o.ag]))}</span>` : ""}</span>${!isKeep && !(g.shipped && !shipped) ? `<button class="mk" data-keep="${g.id}:${o.id}" data-tip="${esc(L("Garder celle-ci à la place", "الاحتفاظ بهذه بدلاً منها"))}">${ic("star")}</button>` : "<span></span>"}</div>`;
+}
+function grpHTML(g){
+  const keep = keepOf(g), first = g.m[0];
+  const diffs = []; if (g.addr) diffs.push(L("Adresses différentes", "عناوين مختلفة")); if (!g.same) diffs.push(L("Produits différents", "منتجات مختلفة"));
+  const dels = g.m.filter(o => o.id !== keep && !SHIPPED.has(o.st) && S.dsel.has(o.id)).length;
+  return `<section class="grp"><header class="gh"><span class="gav">${esc(first.name.slice(0, 1))}</span><div class="gt"><h3><span dir="auto">${esc(first.name)}</span></h3><small><span class="num">${fmtPhone(first.phone)}</span>${first.city != null ? " · " + esc(cityName(first.city)) : ""}</small></div>
+      <span class="conf h-${g.conf === "high" ? "green" : "amber"}">${ic(g.conf === "high" ? "check" : "help")}${g.conf === "high" ? L("Haute confiance", "ثقة عالية") : L("À vérifier", "للمراجعة")}</span>
+      <span class="gmeta">${L(`${g.m.length} commandes · écart ${spanText(g.span)}`, `${g.m.length} طلبات · فارق ${spanText(g.span)}`)}</span>${diffs.map(d => `<span class="diff">${ic("alert")}${d}</span>`).join("")}</header>
+    <div class="cps">${g.m.map(o => cpHTML(g, o, keep)).join("")}</div>
+    <footer class="gf">${!g.same ? `<button class="btn2" data-merge="${g.id}">${ic("merge")}${L("Fusionner en une commande", "دمج في طلب واحد")}</button>` : ""}<button class="btn2 neg" data-gdel="${g.id}" ${dels ? "" : "disabled"}>${ic("trash")}${L(`Supprimer ${dels} copie${dels > 1 ? "s" : ""}`, `حذف ${dels} نسخة`)}</button></footer></section>`;
+}
+/* ═══ Clients récurrents — the same phone, several orders. A « case » is one client: a duplicate group if they
+   sent the same order twice, and/or a past if they came back. One client at a time: the list left, the client right. */
+function cases(){
+  const out = [];
+  CUST.forEach((list, phone) => {
+    const all = list.filter(o => o.st !== "deleted");
+    const g = GROUPS.find(x => x.m.length > 1 && x.m[0].phone === phone) || null;
+    const os = all.filter(o => o.dup == null || GROUPS[o.dup].m.length < 2 || GROUPS[o.dup].m[0] === o);
+    const back = os.length >= 2 && os[os.length - 1].ad <= 7;
+    if (!g && !back) return;
+    const dl = os.filter(o => o.st === "delivered").length, bad = os.filter(o => o.st === "rejected" || o.st === "returned").length;
+    out.push({phone, all, os, g, dl, bad, last:all[all.length - 1], rel:os.length < 2 ? "new" : bad >= 2 && bad > dl ? "risk" : dl && !bad ? "ok" : "mid"});
+  });
+  return out.sort((a, b) => b.last.t - a.last.t);
+}
+const OUTC = o => o.st === "delivered" ? ["green","Livrée","تم التسليم"] : o.st === "rejected" ? ["red","Rejetée","مرفوضة"] : o.st === "returned" ? ["red","Retournée","مرتجعة"] : o.st === "cancelled" ? ["neutral","Annulée","ملغاة"] : SHIPPED.has(o.st) ? ["teal","En route","في الطريق"] : ["violet","En cours","قيد المعالجة"];
+const RELC = c => ({risk:["red","alert",L("À risque","غير موثوق")], ok:["green","check",L("Fiable","موثوق")], mid:["amber","help",L("Moyen","متوسط")], new:["neutral","user",L("Nouveau client","عميل جديد")]}[c.rel]);
+const DUPF = [
+  {k:"all", icon:"team", hue:"neutral", fr:"Tous les clients", ar:"كل العملاء", hint:["même numéro, plusieurs commandes","نفس الرقم، عدة طلبات"], f:() => true},
+  {k:"dup", icon:"copy", hue:"blue", fr:"En double", ar:"طلبات مكررة", hint:["reçue deux fois — à nettoyer","وصل مرتين — للتنظيف"], f:c => !!c.g},
+  {k:"risk", icon:"alert", hue:"red", fr:"À risque", ar:"غير موثوقين", hint:["refus ou retours répétés","رفض أو إرجاع متكرر"], f:c => c.rel === "risk"},
+  {k:"ok", icon:"star", hue:"green", fr:"Fidèles", ar:"أوفياء", hint:["livrés, aucun échec","سبق التسليم، دون فشل"], f:c => c.rel === "ok"}
+];
+function caseRow(c){
+  const f = c.all[0], R = RELC(c), on = S.case === c.phone;
+  const sum = c.g ? L(`${c.g.m.length} commandes en ${spanText(c.g.span)}`, `${c.g.m.length} طلبات خلال ${spanText(c.g.span)}`) : L(`${c.os.length} commandes · ${c.dl} ${pl(c.dl, "livrée", "livrées")}`, `${c.os.length} طلبات · ${c.dl} مسلّمة`);
+  return `<button class="cr${on ? " on" : ""}" data-case="${c.phone}" aria-current="${on}"><span class="gav">${esc(f.name.slice(0, 1))}</span>
+    <span class="cr-t"><b><span dir="auto">${esc(f.name)}</span></b><small>${sum} · ${whenText(c.last.t)}</small><span class="dots">${c.os.map(o => `<i class="h-${OUTC(o)[0]}${FINAL.has(o.st) ? "" : " now"}"></i>`).join("")}</span></span>
+    <span class="cr-b">${c.g ? `<span class="mc h-${c.g.shipped ? "red" : "blue"}">${ic("copy")}×${c.g.m.length}</span>` : ""}${c.rel === "new" ? "" : `<span class="mc h-${R[0]}">${R[2]}</span>`}</span></button>`;
+}
+function caseDetail(c){
+  const f = c.all[0], R = RELC(c), live = c.os.filter(o => !FINAL.has(o.st) && (!c.g || !c.g.m.includes(o)));
+  const trail = c.os.map(o => { const [h, fr, ar] = OUTC(o); return `<button class="stop h-${h}${FINAL.has(o.st) ? "" : " now"}" data-open="${o.id}" data-tip="${esc(`#${o.ref} · ${pName(PRODUCTS[o.p])} · ${fnum(o.total)} ${CCY()} · ${whenText(o.t)}`)}"><i></i><span>${L(fr, ar)} · ${dShort(o.day)}</span></button>`; }).join(`<span class="link"></span>`);
+  let dup = "";
+  if (c.g){ const g = c.g, keep = keepOf(g), dels = g.m.filter(o => o.id !== keep && !SHIPPED.has(o.st) && S.dsel.has(o.id)).length;
+    const diffs = []; if (g.addr) diffs.push(L("Adresses différentes", "عناوين مختلفة")); if (!g.same) diffs.push(L("Produits différents", "منتجات مختلفة"));
+    dup = `<div class="blk dupblk"><div class="sh">${ic("copy")}${L("Commandes en double", "طلبات مكررة")}<span class="conf h-${g.conf === "high" ? "green" : "amber"}">${g.conf === "high" ? L("Haute confiance", "ثقة عالية") : L("À vérifier", "للمراجعة")}</span><span class="shm">${L(`${g.m.length} commandes en ${spanText(g.span)}`, `${g.m.length} طلبات خلال ${spanText(g.span)}`)}</span>${diffs.map(d => `<span class="diff">${ic("alert")}${d}</span>`).join("")}</div>
+      <p class="shh">${g.conf === "high" ? L("Même produit, même quantité, même prix : gardez-en une, supprimez les copies.", "نفس المنتج والكمية والسعر: احتفظ بواحد واحذف النسخ.") : L("Pas tout à fait identiques — vérifiez avant de supprimer, ou fusionnez en une seule livraison.", "ليست متطابقة تماماً — تحقق قبل الحذف، أو ادمجها في توصيل واحد.")}</p>
+      <div class="cps">${g.m.map(o => cpHTML(g, o, keep)).join("")}</div>
+      <footer class="gf">${!g.same ? `<button class="btn2" data-merge="${g.id}">${ic("merge")}${L("Fusionner en une commande", "دمج في طلب واحد")}</button>` : ""}<button class="btn2 neg" data-gdel="${g.id}" ${dels ? "" : "disabled"}>${ic("trash")}${L(`Supprimer ${dels} copie${dels > 1 ? "s" : ""}`, `حذف ${dels} نسخة`)}</button></footer></div>`; }
+  const other = c.os.length - c.dl - c.bad - c.os.filter(o => !FINAL.has(o.st)).length;
+  return `<section class="cd">
+    <header class="cdh"><span class="gav big">${esc(f.name.slice(0, 1))}</span><div class="gt"><h2><span dir="auto">${esc(f.name)}</span></h2><small><span class="num">${fmtPhone(f.phone)}</span>${f.city != null ? " · " + esc(cityName(f.city)) : ""}${f.addr != null ? ` · <span dir="auto">${esc(ADDRS[f.addr])}</span>` : ""}</small></div>
+      <span class="conf h-${R[0]}">${ic(R[1])}${R[2]}</span><span class="sp"></span><button class="btn2" data-custlist="${f.phone}">${ic("search")}${L("Voir dans Commandes", "عرض في الطلبات")}</button></header>
+    ${c.rel === "new" ? `<p class="shh">${L("Première fois chez nous — rien à juger encore, seulement des copies à nettoyer.", "أول مرة لدينا — لا شيء للحكم عليه بعد، فقط نسخ للتنظيف.")}</p>` : `<div class="kpis"><div><b>${c.os.length}</b><span>${L("commandes", "طلبات")}</span></div><div class="g"><b>${c.dl}</b><span>${L(pl(c.dl, "livrée", "livrées"), "مسلّمة")}</span></div><div class="r"><b>${c.bad}</b><span>${L("refusées ou retournées", "مرفوضة أو مرتجعة")}</span></div><div><b>${fnum(c.os.filter(o => o.st === "delivered").reduce((a, o) => a + o.total, 0))}</b><span>${L("LYD payés par ce client", "د.ل دفعها هذا العميل")}</span></div></div>`}
+    ${c.rel === "risk" ? `<div class="note h-red" style="margin:0 18px 6px">${ic("alert")}<span>${L(`${c.bad} commandes non livrées sur ${c.os.length - c.os.filter(o => !FINAL.has(o.st)).length} — confirmez l'adresse et l'intention avant d'envoyer.`, `${c.bad} طلبات لم تُسلَّم — تأكد من العنوان ونية الشراء قبل الإرسال.`)}</span></div>` : ""}
+    ${dup}
+    <div class="blk"><div class="sh">${ic("route")}${L("Son parcours", "مساره")}<span class="shm">${L("de la première commande à la dernière — cliquez pour ouvrir", "من أول طلب إلى آخر طلب — انقر للفتح")}</span></div><div class="trail">${trail}</div></div>
+    ${live.length ? `<div class="blk"><div class="sh">${ic("clock")}${L("En cours", "قيد المعالجة")}</div><div class="cps">${live.map(o => `<div class="cp" data-open="${o.id}"><span class="locked">#${o.ref}</span><span class="tm">${whenText(o.t)}</span><span class="pr">${thumb(PRODUCTS[o.p])}<span dir="auto">${esc(pName(PRODUCTS[o.p]))}${o.qty > 1 ? ` ×${o.qty}` : ""}</span></span><span>${pillHTML(o)}</span><span class="amt">${fnum(o.total)}<small>${CCY()}</small></span><span></span></div>`).join("")}</div></div>` : ""}
+  </section>`;
+}
+function dupPage(){
+  const cs = cases(), F = DUPF.find(x => x.k === S.dupf), shown = cs.filter(F.f);
+  if (!shown.some(c => c.phone === S.case)) S.case = shown.length ? shown[0].phone : null;
+  const sel = shown.find(c => c.phone === S.case);
+  return `<header class="ph"><div><h1>${L("Clients récurrents", "العملاء المتكررون")}</h1><div class="sub"><span>${L("Les clients qui commandent plus d'une fois : les commandes en double à nettoyer, et ceux qui reviennent.", "العملاء الذين يطلبون أكثر من مرة: الطلبات المكررة للتنظيف، والعائدون.")}</span><span class="sep"></span><span>${L("même numéro · 90 derniers jours", "نفس الرقم · آخر 90 يومًا")}</span></div></div></header>
+    <section class="wts">${DUPF.map(T => { const n = cs.filter(T.f).length, on = S.dupf === T.k; return `<button class="wt h-${T.hue}${on ? " on" : ""}${n ? "" : " zero"}" data-dupf="${T.k}" aria-pressed="${on}"><span class="hold">${ic(T.icon)}</span><span class="wt-t"><b>${n}</b><span>${L(T.fr, T.ar)}</span><small>${L(T.hint[0], T.hint[1])}</small></span></button>`; }).join("")}</section>
+    <div class="md"><aside class="mlist"><div class="mlh">${L(`${shown.length} ${pl(shown.length, "client", "clients")} · les plus récents d'abord`, `${shown.length} عميل · الأحدث أولاً`)}</div><div class="mrows">${shown.map(caseRow).join("") || `<div class="empty">${ic("check")}<span>${L("Personne ici.", "لا أحد هنا.")}</span></div>`}</div></aside>
+      ${sel ? caseDetail(sel) : `<section class="cd"><div class="empty">${ic("user")}<span>${L("Choisissez un client à gauche.", "اختر عميلاً من القائمة.")}</span></div></section>`}</div>`;
+}
+
+/* ═════════════ the bulk bar ═════════════ */
+function bulkBar(){
+  if (S.screen === "dup"){
+    if (S.dupf === "risk" || S.dupf === "ok") return "";
+    const n = [...S.dsel].filter(id => GROUPS.some(g => g.m.length > 1 && g.m.some(o => o.id === id) && keepOf(g) !== id)).length;
+    return n ? `<div class="bulk" role="toolbar"><b>${n} ${S.lang === "ar" ? "محدد" : pl(n, "sélectionnée", "sélectionnées")}</b><span class="vsep"></span><button class="btn2 neg" data-dupdel>${ic("trash")}${L("Supprimer la sélection", "حذف المحدد")}</button><button class="lnkb" data-dupclear>${L("Effacer", "مسح")}</button></div>` : "";
+  }
+  const n = S.sel.size; if (!n) return "";
+  const head = `<b>${n} ${S.lang === "ar" ? "محدد" : pl(n, "sélectionnée", "sélectionnées")}</b><span class="vsep"></span>`;
+  if (S.screen === "archive") return `<div class="bulk" role="toolbar">${head}${S.arch === "deleted" ? `<button class="btn2" data-bulk="restore">${ic("rotate")}${L("Restaurer", "استعادة")}</button>` : S.arch === "archived" ? `<button class="btn2" data-bulk="unarchive">${ic("rotate")}${L("Remettre dans Commandes", "إعادة إلى الطلبات")}</button>` : `<button class="btn2" data-bulk="putaway">${ic("archive")}${L("Ranger", "ترتيب")}</button>`}<button class="lnkb" data-bulk="clear">${L("Désélectionner", "إلغاء التحديد")}</button></div>`;
+  return `<div class="bulk" role="toolbar">${head}<div class="fbw up"><button class="btn2" data-menu="assign">${ic("user")}${L("Assigner", "تعيين")}${ic("down")}</button>${S.menu === "assign" ? menuHTML("assign") : ""}</div>
+    <button class="btn2" data-bulk="send">${ic("truck")}${L("Envoyer au transporteur", "إرسال إلى الناقل")}</button><button class="btn2" data-bulk="reopen">${ic("rotate")}${L("Réouvrir", "إعادة فتح")}</button>
+    <button class="btn2 neg" data-bulk="cancel">${ic("trash")}${L("Annuler", "إلغاء")}</button><button class="lnkb" data-bulk="clear">${L("Désélectionner", "إلغاء التحديد")}</button></div>`;
+}
+
+/* ═════════════ the date popover — the one of Accueil and Performance, plus « Toutes les dates » ═════════════ */
+function openDp(){ const [f, t] = range(S.period); let m = addMonths(t.slice(0, 7), -1); if (m < FIRST.slice(0, 7)) m = FIRST.slice(0, 7); S.dp = {s:S.period === "all" ? null : f, e:S.period === "all" ? null : t, m}; }
+function datePop(){
+  const d = S.dp, item = ([k, l, r]) => `<button class="dp-it${S.period === k ? " on" : ""}" data-dpp="${k}"><span>${esc(l)}</span>${r ? `<small>${esc(r)}</small>` : ""}</button>`;
+  const quick = PRESETS.map(([k, fr, ar]) => [k, L(fr, ar), k === "all" ? L(`depuis le ${dShort(FIRST)}`, `منذ ${dShort(FIRST)}`) : dRange(...range(k))]);
+  const months = WHOLE.map(m => ["m:" + m, `${monthName(m)} ${m.slice(0, 4)}`, ""]);
+  const len = d.s && d.e ? daysBetween(d.s, d.e) + 1 : 0;
+  const foot = d.s && d.e ? `<span><b>${dRange(d.s, d.e)}</b> · ${len} ${S.lang === "ar" ? "يوم" : pl(len, "jour", "jours")}<small>${L("Commandes reçues ces jours-là", "الطلبات التي وصلت في هذه الأيام")}</small></span>` : d.s ? `<span>${L("Du", "من")} <b>${dShort(d.s)}</b> …<small>${L("Cliquez le dernier jour", "انقر على اليوم الأخير")}</small></span>` : `<span>${L("Cliquez le premier jour", "انقر على اليوم الأول")}</span>`;
+  return `<div class="dp" role="dialog" aria-label="${esc(L("Choisir les dates", "اختيار التواريخ"))}"><div class="dp-side"><h6>${L("Raccourcis", "اختصارات")}</h6>${quick.map(item).join("")}<h6>${L("Mois entiers", "أشهر كاملة")}</h6>${months.map(item).join("")}</div>
+    <div class="dp-main"><div class="dp-cals">${cal(d.m, -1)}${cal(addMonths(d.m, 1), 1)}</div>
+      <div class="dp-foot">${foot}<span class="dp-btns"><button class="btn2" data-dpcancel>${L("Annuler", "إلغاء")}</button><button class="btn" data-dpapply ${d.s && d.e ? "" : "disabled"}>${L("Appliquer", "تطبيق")}</button></span></div></div></div>`;
+}
+function cal(m, side){
+  const first = m + "-01", last = lastDay(m), lead = (dt(first).getUTCDay() + 6) % 7, d = S.dp;
+  const prevOff = lastDay(addMonths(m, -1)) < FIRST, nextOff = m >= TODAY.slice(0, 7);
+  const W = S.lang === "ar" ? ["ن","ث","ر","خ","ج","س","ح"] : ["L","M","M","J","V","S","D"];
+  let h = `<div class="cal"><div class="cal-h">${side < 0 ? `<button class="cal-nav" data-dpnav="-1" aria-label="${esc(L("Mois précédent", "الشهر السابق"))}" ${prevOff ? "disabled" : ""}>${ic("left", "flip")}</button>` : "<span></span>"}<b>${monthName(m)} ${m.slice(0, 4)}</b>${side > 0 ? `<button class="cal-nav" data-dpnav="1" aria-label="${esc(L("Mois suivant", "الشهر التالي"))}" ${nextOff ? "disabled" : ""}>${ic("right", "flip")}</button>` : "<span></span>"}</div>
+    <div class="cal-g">${W.map(x => `<span class="cal-w">${x}</span>`).join("")}${"<span></span>".repeat(lead)}`;
+  for (let x = first; x <= last; x = addDays(x, 1)){
+    const dis = x < FIRST || x > TODAY;
+    const cls = [dis ? "c-dis" : "", x === TODAY ? "c-today" : "", d.s === x ? "c-st" : "", d.e === x ? "c-en" : "", d.s && d.e && x > d.s && x < d.e ? "c-in" : ""].filter(Boolean).join(" ");
+    h += `<button class="cal-d ${cls}" data-dday="${x}" ${dis ? "disabled" : ""}>${+x.slice(8)}</button>`;
+  }
+  return h + `</div></div>`;
+}
+
+/* ═════════════ « Avant » — the page as it is live today ═════════════ */
+function beforeHTML(){
+  let img = "liste", what = "la liste Commandes";
+  if (S.create){ img = "creation"; what = "la fenêtre « Nouvelle commande »"; }
+  else if (S.open != null){ const o = ORDERS[S.open]; img = SHIPPED.has(o.st) || FINAL.has(o.st) ? "panneau-en-route" : "panneau"; what = "le panneau d'une commande"; }
+  else if (S.screen === "archive"){ img = "archivees"; what = "Archivées"; }
+  else if (S.screen === "dup"){ img = "doublons"; what = "Doublons (aujourd'hui)"; }
+  return `<div class="avant"><div class="cap">${ic("info")}<span><b>Avant</b> — ${what} telle qu'elle est en ligne aujourd'hui, capturée sur la base locale de test (des données de test, aucun vrai client). <kbd>B</kbd> pour revenir à « Après ».</span></div><img src="commandes-v1-avant/${img}.jpg" alt="Capture de la page actuelle : ${what}"></div>`;
+}
+
+/* ═════════════ render ═════════════ */
+function render(){
+  renderBar();
+  const stage = document.getElementById("stage");
+  stage.dir = S.lang === "ar" ? "rtl" : "ltr"; stage.lang = S.lang;
+  stage.classList.toggle("before", S.before);
+  document.documentElement.style.setProperty("--pbh", document.getElementById("pbar").offsetHeight + "px");
+  if (S.before){ document.getElementById("side").innerHTML = ""; document.getElementById("page").innerHTML = beforeHTML(); document.getElementById("over").innerHTML = ""; syncURL(); return; }
+  countTiles(); renderSide();
+  document.getElementById("page").innerHTML = S.screen === "list" ? listPage() : S.screen === "archive" ? archivePage() : dupPage();
+  document.getElementById("over").innerHTML = bulkBar() + (S.create ? createHTML() : S.open != null ? panelHTML(ORDERS[S.open]) : "");
+  syncURL();
+}
+function syncURL(){
+  const q = new URLSearchParams(); if (S.screen !== "list") q.set("screen", S.screen); if (S.lang !== "fr") q.set("lang", S.lang); if (S.before) q.set("before", "1");
+  if (S.open != null) q.set("open", ORDERS[S.open].ref); if (S.create) q.set("create", "1"); if (S.tile) q.set("tile", S.tile); if (S.screen === "dup" && S.dupf !== "all") q.set("f", S.dupf); if (S.screen === "archive" && S.arch !== "eligible") q.set("tab", S.arch);
+  history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : ""));
+}
+function keep(fn, resetDrawer){
+  const y = scrollY, db = document.querySelector(".dr-body"), dy = db && !resetDrawer ? db.scrollTop : 0;
+  const ae = document.activeElement, fid = ae && ae.id, pos = ae && typeof ae.selectionStart === "number" ? ae.selectionStart : null;
+  fn(); render(); scrollTo(0, y);
+  const db2 = document.querySelector(".dr-body"); if (db2) db2.scrollTop = dy;
+  if (fid){ const el = document.getElementById(fid); if (el && el.tagName === "INPUT"){ el.focus(); if (pos != null) try { el.setSelectionRange(pos, pos); } catch (_) {} } }
+}
+
+/* ═════════════ events ═════════════ */
+const tip = document.getElementById("tip"); let toastT;
+function toast(msg){ tip.textContent = "→ " + msg; tip.classList.add("on"); tip.style.left = "50%"; tip.style.top = "64px"; tip.style.transform = "translateX(-50%)"; clearTimeout(toastT); toastT = setTimeout(() => { tip.classList.remove("on"); tip.style.transform = ""; }, 2800); }
+function openOrder(id){ keep(() => { S.open = id; S.create = false; S.tab = ORDERS[id].trk ? "dlv" : "art"; S.menu = null; }, true); }
+function demo(k){
+  if (k === "new"){ keep(() => { S.screen = "list"; S.open = null; S.create = true; S.cf = freshCF(); }, true); return; }
+  const want = {call:o => o.st.startsWith("attempt_") && o.rej, conf:o => o.st === "confirmed", road:o => o.st === "in_transit", done:o => o.st === "delivered" && !o.arch}[k];
+  const o = [...ORDERS].reverse().find(want) || [...ORDERS].reverse().find(x => k === "call" && x.st.startsWith("attempt_"));
+  if (!o) return;
+  if (S.screen !== "list"){ S.screen = "list"; resetFilters(); }
+  openOrder(o.id);
+}
+function switchScreen(k){ keep(() => { S.screen = k; S.open = null; S.create = false; resetFilters(); S.dsel = new Set([...S.dsel]); scrollTo(0, 0); }); scrollTo(0, 0); }
+function act(kind){
+  const o = ORDERS[S.open], now = NOW_T;
+  const say = {noanswer:L("Pas de réponse noté — la commande passe à l'appel suivant", "تم تسجيل عدم الرد — ينتقل الطلب إلى المحاولة التالية"), confirm:L("Commande confirmée", "تم تأكيد الطلب"), reject:L("Choisir le motif du rejet (même liste qu'aujourd'hui)", "اختيار سبب الرفض (نفس القائمة الحالية)"), callback:L("Choisir l'heure du rappel", "اختيار وقت الاتصال"), send:L("Envoyée chez Darb", "أُرسلت إلى درب"), schedule:L("Livraison planifiée", "تمت جدولة التوصيل"), unschedule:L("Planification annulée", "أُلغيت الجدولة"), recover:L("Commande restaurée", "تمت استعادة الطلب")}[kind];
+  keep(() => {
+    if (kind === "noanswer"){ o.att = Math.min(3, o.att + 1); o.st = "attempt_" + o.att; }
+    if (kind === "confirm"){ o.st = "confirmed"; o.att = Math.max(1, o.att); }
+    if (kind === "send"){ o.st = "uploaded"; o.upT = NOW_T; o.trk = "DRB" + (10000000 + o.id * 37 % 89999999); o.car = o.city != null && CITIES[o.city][3] === "e" ? 1 : 0; S.tab = "dlv"; }
+    if (kind === "schedule") o.st = "dispatch_scheduled";
+    if (kind === "unschedule") o.st = "confirmed";
+    if (kind === "recover") o.st = "pending";
+    o.age = now - o.t;
+  });
+  toast(say);
+}
+document.addEventListener("click", e => {
+  const g = s => e.target.closest(s); let t;
+  if ((t = g("[data-screen]"))){ switchScreen(t.dataset.screen); return; }
+  if ((t = g("[data-before]"))){ keep(() => S.before = t.dataset.before === "1"); return; }
+  if ((t = g("[data-lang]"))){ keep(() => S.lang = t.dataset.lang); return; }
+  if ((t = g("[data-demo]"))){ demo(t.dataset.demo); return; }
+  if (g("[data-gotrash]")){ keep(() => { S.screen = "archive"; resetFilters(); S.arch = "deleted"; }); scrollTo(0, 0); return; }
+  /* dates */
+  if ((t = g("[data-dp]"))){ keep(() => { S.menu = null; if (S.dp) S.dp = null; else openDp(); }); return; }
+  if ((t = g("[data-dpp]"))){ const k = t.dataset.dpp; keep(() => { S.period = k; S.from = S.to = null; S.dp = null; S.page = 0; }); return; }
+  if ((t = g("[data-dday]"))){ const x = t.dataset.dday, d = S.dp; keep(() => { if (!d.s || d.e){ d.s = x; d.e = null; } else if (x < d.s){ d.e = d.s; d.s = x; } else d.e = x; }); return; }
+  if ((t = g("[data-dpnav]"))){ keep(() => S.dp.m = addMonths(S.dp.m, +t.dataset.dpnav)); return; }
+  if (g("[data-dpcancel]")){ keep(() => S.dp = null); return; }
+  if (g("[data-dpapply]")){ const d = S.dp; if (d.s && d.e) keep(() => { const k = nameRange(d.s, d.e); S.period = k; S.from = k === "custom" ? d.s : null; S.to = k === "custom" ? d.e : null; S.dp = null; S.page = 0; }); return; }
+  if (g(".dp")) return;
+  if (S.dp){ keep(() => S.dp = null); return; }
+  /* menus */
+  if ((t = g("[data-f]"))){ const kind = t.dataset.f, v = t.dataset.v; keep(() => { S.page = 0; const set = S[kind]; if (set.has(v)) set.delete(v); else set.add(v); }); return; }
+  if ((t = g("[data-assign]"))){ const v = t.dataset.assign, n = S.sel.size; keep(() => { S.sel.forEach(id => { const o = ORDERS[id]; o.ag = v === "none" ? null : +v; }); S.sel.clear(); S.menu = null; }); toast(v === "none" ? L(`${n} commande(s) remise(s) dans le pool`, `أُرجع ${n} طلب إلى القائمة`) : L(`${n} commande(s) assignée(s) à ${AGENTS[+v].n}`, `أُسند ${n} طلب إلى ${AGENTS[+v].ar}`)); return; }
+  if ((t = g("[data-rowact]"))){ const [a, id] = t.dataset.rowact.split(":"); keep(() => S.menu = null); if (a === "open") openOrder(+id); else toast({assignone:L("Choisir l'agent", "اختيار الوكيل"), cancel:L("Annuler la commande — avec une note", "إلغاء الطلب — مع ملاحظة"), reopen:L("Réouvrir la commande", "إعادة فتح الطلب"), recover:L("Commande restaurée", "تمت استعادة الطلب")}[a]); return; }
+  if ((t = g("[data-menu]"))){ const k = t.dataset.menu; keep(() => S.menu = S.menu === k ? null : k); return; }
+  if (g(".menu")) return;
+  if (S.menu){ keep(() => S.menu = null); if (!g("[data-tile],[data-open],[data-sel]")) return; }
+  if ((t = g("[data-toast]"))){ toast(t.dataset.toast); return; }
+  /* list */
+  if ((t = g("[data-tile]"))){ const k = t.dataset.tile; keep(() => { S.tile = S.tile === k ? null : k; S.page = 0; S.sel.clear(); }); return; }
+  if ((t = g("[data-chipx]"))){ const k = t.dataset.chipx; keep(() => { S.page = 0; if (k === "tile") S.tile = null; else if (k === "q") S.q = ""; else if (k === "period") S.period = "all"; else S[k].clear(); }); return; }
+  if (g("[data-clearall]")){ keep(() => { const scr = S.screen; resetFilters(); S.screen = scr; }); return; }
+  if ((t = g("[data-sel]"))){ const id = +t.dataset.sel; keep(() => { if (S.sel.has(id)) S.sel.delete(id); else S.sel.add(id); }); return; }
+  if (g("[data-selall]")){ const rows = rowsNow().slice(S.page * S.size, S.page * S.size + S.size).map(o => o.id), all = rows.every(id => S.sel.has(id)); keep(() => rows.forEach(id => all ? S.sel.delete(id) : S.sel.add(id))); return; }
+  if ((t = g("[data-page]"))){ keep(() => { S.page = Math.max(0, S.page + +t.dataset.page); S.sel.clear(); }); scrollTo(0, 0); return; }
+  if ((t = g("[data-bulk]"))){ const k = t.dataset.bulk, n = S.sel.size;
+    if (k === "clear"){ keep(() => S.sel.clear()); return; }
+    if (k === "restore"){ keep(() => { S.sel.forEach(id => { const o = ORDERS[id]; o.st = o.att ? "attempt_" + Math.min(3, o.att) : "pending"; o.delT = undefined; }); S.sel.clear(); }); toast(L(`${n} commande(s) restaurée(s) — elles reviennent dans Commandes, au même point d'appel`, `استُعيد ${n} طلب — يعود إلى الطلبات في نفس مرحلة الاتصال`)); return; }
+    if (k === "putaway" || k === "unarchive"){ keep(() => { S.sel.forEach(id => ORDERS[id].arch = k === "putaway"); S.sel.clear(); }); toast(k === "putaway" ? L(`${n} commande(s) rangée(s) — elles comptent toujours dans vos chiffres et la recherche`, `تم ترتيب ${n} طلب — ما زالت محسوبة في أرقامك وفي البحث`) : L(`${n} commande(s) remise(s) dans Commandes`, `أُعيد ${n} طلب إلى الطلبات`)); return; }
+    toast({send:L(`Envoi de ${n} commande(s) chez le transporteur — le résultat ligne par ligne`, `إرسال ${n} طلب إلى الناقل — النتيجة لكل طلب`), reopen:L(`Réouvrir ${n} commande(s) téléchargée(s)`, `إعادة فتح ${n} طلب مرفوع`), cancel:L(`Annuler ${n} commande(s) ?`, `إلغاء ${n} طلب؟`)}[k]); return; }
+  /* panel + create */
+  if (g("[data-close]")){ keep(() => { S.open = null; S.create = false; }); return; }
+  if ((t = g("[data-tab]"))){ keep(() => S.tab = t.dataset.tab, true); return; }
+  if ((t = g("[data-act]"))){ act(t.dataset.act); return; }
+  if (g("[data-create]")){ keep(() => { S.create = true; S.open = null; S.cf = freshCF(); }, true); return; }
+  if ((t = g("[data-qty]"))){ keep(() => S.cf.qty = Math.max(1, S.cf.qty + +t.dataset.qty)); return; }
+  if (g("[data-over]")){ keep(() => { S.cf.over = true; S.cf.total = String(S.cf.qty * (+S.cf.price || 0)); }); return; }
+  if (g("[data-submit]")){ const f = S.cf;
+    if (!f.phone.trim() || !f.name.trim() || !f.city.trim() || !f.addr.trim()){ toast(L("Téléphone, nom, ville et adresse sont obligatoires", "الهاتف والاسم والمدينة والعنوان إلزامية")); return; }
+    const ci = CITIES.findIndex(c => c[0] === f.city || c[1] === f.city), P = PRODUCTS[f.p];
+    const o = {t:NOW_T, ad:0, day:TODAY, s:f.s, p:f.p, v:P.v ? (f.v ?? 0) : null, qty:f.qty, total:f.over && f.total !== "" ? +f.total : f.qty * (+f.price || 0), age:0, name:f.name.trim(), phone:"0" + f.phone.replace(/\D/g, "").slice(-9), city:ci >= 0 ? ci : null, addr:0, st:"pending", ag:null, att:0};
+    o.id = ORDERS.length; o.ref = String(41207 + o.id); ORDERS.push(o);
+    keep(() => { S.create = false; S.tile = null; S.page = 0; }); toast(L(`Commande #${o.ref} créée — elle attend un agent`, `تم إنشاء الطلب #${o.ref} — بانتظار وكيل`)); return; }
+  /* archive */
+  if ((t = g("[data-arch]"))){ keep(() => { S.arch = t.dataset.arch; S.page = 0; S.sel.clear(); }); return; }
+  if (g("[data-rule]")){ keep(() => S.rule = !S.rule); return; }
+  /* doublons */
+  if ((t = g("[data-dupf]"))){ keep(() => { S.dupf = t.dataset.dupf; S.case = null; }); return; }
+  if ((t = g("[data-case]"))){ keep(() => S.case = t.dataset.case); return; }
+  if ((t = g("[data-dupv]"))){ keep(() => S.dupv = t.dataset.dupv); return; }
+  if ((t = g("[data-rept]"))){ keep(() => S.rept = t.dataset.rept); return; }
+  if ((t = g("[data-custlist]"))){ const ph = t.dataset.custlist; keep(() => { S.screen = "list"; resetFilters(); S.q = ph; }); scrollTo(0, 0); return; }
+  if ((t = g("[data-dupt]"))){ keep(() => S.dupt = t.dataset.dupt); return; }
+  if ((t = g("[data-dsel]"))){ const id = +t.dataset.dsel; keep(() => { if (S.dsel.has(id)) S.dsel.delete(id); else S.dsel.add(id); }); return; }
+  if ((t = g("[data-keep]"))){ const [gid, id] = t.dataset.keep.split(":").map(Number); keep(() => { S.keep[gid] = id; S.dsel.delete(id); }); return; }
+  if ((t = g("[data-gdel]"))){ const gr = GROUPS[+t.dataset.gdel], kp = keepOf(gr), del = gr.m.filter(o => o.id !== kp && !SHIPPED.has(o.st) && S.dsel.has(o.id));
+    keep(() => { del.forEach(o => { o.st = "deleted"; o.delT = NOW_T; S.dsel.delete(o.id); }); gr.m = gr.m.filter(o => !del.includes(o)); }); toast(L(`${del.length} copie(s) supprimée(s) — consultables et restaurables`, `حُذفت ${del.length} نسخة — يمكن الاطلاع عليها واستعادتها`)); return; }
+  if (g("[data-dupdel]")){ let n = 0; keep(() => { GROUPS.forEach(gr => { const kp = keepOf(gr), del = gr.m.filter(o => o.id !== kp && !SHIPPED.has(o.st) && S.dsel.has(o.id)); del.forEach(o => { o.st = "deleted"; o.delT = NOW_T; S.dsel.delete(o.id); n++; }); gr.m = gr.m.filter(o => !del.includes(o)); }); }); toast(L(`${n} commande(s) supprimée(s) — consultables et restaurables`, `حُذف ${n} طلب — يمكن الاطلاع عليها واستعادتها`)); return; }
+  if (g("[data-dupclear]")){ keep(() => S.dsel.clear()); return; }
+  if ((t = g("[data-merge]"))){ toast(L("Fusionner : une seule livraison, l'adresse choisie explicitement (comme aujourd'hui)", "دمج: توصيل واحد، مع اختيار العنوان صراحةً (كما هو اليوم)")); return; }
+  if ((t = g("[data-open]"))){ openOrder(+t.dataset.open); return; }
+});
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el.id === "q"){ keep(() => { S.q = el.value; S.page = 0; S.sel.clear(); }); return; }
+  if (el.dataset.cf){ S.cf[el.dataset.cf] = el.value; return; }
+  if (el.dataset.cfn){ S.cf[el.dataset.cfn] = el.value.replace(",", "."); const calc = document.querySelector(".calc b"); if (calc) calc.textContent = `${fnum(S.cf.over && S.cf.total !== "" ? +S.cf.total : S.cf.qty * (+S.cf.price || 0))} ${CCY()}`; }
+});
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (el.id === "ps"){ keep(() => { S.size = +el.value; S.page = 0; }); return; }
+  if (el.id === "ruledays"){ keep(() => { S.ruleDays = +el.value; S.page = 0; S.sel.clear(); }); return; }
+  if (el.dataset.cfs){ const k = el.dataset.cfs, v = +el.value; keep(() => { if (k === "s"){ S.cf.s = v; S.cf.p = PRODUCTS.findIndex(p => p.s === v); S.cf.v = null; S.cf.price = PRODUCTS[S.cf.p].price; } if (k === "p"){ S.cf.p = v; S.cf.v = null; S.cf.price = PRODUCTS[v].price; } if (k === "v") S.cf.v = v; }); }
+});
+document.addEventListener("keydown", e => {
+  const typing = e.target.matches && e.target.matches("input,textarea,select");
+  if (e.key === "Escape"){ if (S.menu || S.dp) keep(() => { S.menu = null; S.dp = null; }); else if (S.open != null || S.create) keep(() => { S.open = null; S.create = false; }); return; }
+  if (typing) return;
+  if (e.key === "/"){ const q = document.getElementById("q"); if (q){ e.preventDefault(); q.focus(); } return; }
+  if (e.key === "b" || e.key === "B"){ keep(() => S.before = !S.before); return; }
+  const r = e.target.closest && e.target.closest("[data-open]");
+  if (r && (e.key === "Enter" || e.key === " ") && e.target === r){ e.preventDefault(); openOrder(+r.dataset.open); }
+});
+document.addEventListener("mouseover", e => {
+  if (S.dp && S.dp.s && !S.dp.e){ const dd = e.target.closest && e.target.closest("[data-dday]"), s = S.dp.s;
+    document.querySelectorAll(".cal-d").forEach(b => { const x = b.dataset.dday; b.classList.toggle("c-hv", !!dd && ((x > s && x <= dd.dataset.dday) || (x < s && x >= dd.dataset.dday))); }); }
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  if (!t){ if (!tip.textContent.startsWith("→")) tip.classList.remove("on"); return; }
+  if (tip.textContent.startsWith("→") && tip.classList.contains("on")) return;
+  tip.textContent = t.dataset.tip; tip.classList.add("on");
+});
+document.addEventListener("mousemove", e => {
+  if (!tip.classList.contains("on") || tip.textContent.startsWith("→")) return;
+  const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY - h - 12;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y < 50) y = e.clientY + 18;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+addEventListener("resize", () => document.documentElement.style.setProperty("--pbh", document.getElementById("pbar").offsetHeight + "px"));
+
+/* ═════════════ start ═════════════ */
+generate();
+const q0 = new URLSearchParams(location.search);
+if (["list","archive","dup"].includes(q0.get("screen"))) S.screen = q0.get("screen");
+if (q0.get("lang") === "ar") S.lang = "ar";
+if (["dup","risk","ok"].includes(q0.get("f"))) S.dupf = q0.get("f");
+if (["eligible","archived","recent","deleted"].includes(q0.get("tab"))) S.arch = q0.get("tab");
+if (q0.get("before") === "1") S.before = true;
+if (["un","re","up","to"].includes(q0.get("tile"))) S.tile = q0.get("tile");
+if (q0.get("open")){ const o = ORDERS.find(x => x.ref === q0.get("open")); if (o){ S.open = o.id; S.tab = o.trk ? "dlv" : "art"; } }
+if (q0.get("create") === "1"){ S.create = true; S.cf = freshCF(); }
+render();
+</script>
+</body>
+</html>
