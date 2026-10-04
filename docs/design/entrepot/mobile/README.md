@@ -8,6 +8,11 @@ contexte, d'où deux livraisons « terminées » qui ne correspondaient pas.
 
 > Ne travaillez plus jamais sur cette coque sans avoir rouvert ces quatre PNG.
 
+> **Langage visuel — 4 octobre 2026.** Ordra adopte « Aurore »
+> (`docs/design-system.md`). Pour cette coque, §1.1 et §4.20 s'appliquent : même
+> encre, mêmes rayons et mêmes couleurs, mais **fond et barres opaques** (soleil,
+> liste qui défile sous la barre) et aucun verre ni animation d'entrée sur les lignes.
+
 > **Mise à jour du 8 septembre 2026.** Les quatre PNG restent l'historique de
 > la coque, mais ils ne sont plus la référence de ce qu'elle affiche. La
 > critique `plans/warehouse-agent-ux-critique.md` et le prototype cliquable

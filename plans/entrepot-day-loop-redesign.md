@@ -95,6 +95,8 @@ What the code says (main @ 3ea92c5):
 2. **Look — bold & calm, on Ordra's own tokens.** The warehouse palettes retire. Modern
    comes from type, space and motion, never from decoration (no gradients, no resting
    shadows, colour only for state).
+
+   > **Superseded 2026-10-04** — Ordra's design language is now « Aurore » (`docs/design-system.md` §1–§9: aurora ground, glass cards, resting soft shadow, colour with one meaning). The rule above is history, not guidance.
 3. **Returns — scan + one tap.** Intact → back on the shelf, or Abîmé. « Relivrer » leaves
    the agent's screen and becomes a manager decision.
 4. **Deliverable — plan + HTML prototypes first**, reviewed before any React.

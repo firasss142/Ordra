@@ -18,6 +18,13 @@ section change (Finances → Entrepôt).
 > correspondaient pas. Le fichier est maintenant versionné : ne travaillez plus
 > jamais sur cette section sans l'avoir relu.
 
+> **Langage visuel — mise à jour du 4 octobre 2026.** Ordra adopte « Aurore »
+> (`docs/design-system.md` §1–§9) : fond aurore pastel, cartes en verre dépoli,
+> chiffres en 800. `entrepot-light.html` reste la référence de **structure** (écrans,
+> contenu, anatomie des KPI, sévérités) ; son **habillage** (fond `#F6F7F5`, cartes
+> blanches plates, ombres nulles au repos) cède devant Aurore quand la section sera
+> migrée — §4.20 et §10 de design-system.md. La coque téléphone garde un fond opaque.
+
 ## Ce qui est superseded
 
 `entrepot-spec.md` transcrit les **cinq maquettes sombres** du 19 août. Elles sont

@@ -63,10 +63,14 @@ src/
 - Read .claude/skills/test-driven-development/testing-anti-patterns.md before adding mocks
 
 ## Critical rules
-- **UI/UX & Design**: `docs/design-system.md` governs ALL product UI — Shopify-inspired
-  dark sidebar (#0E1013), light content (#F6F6F7), brand green (#15803D) for chrome,
-  functional colour only on status. The `.claude/skills/design` skill is for MARKETING
-  surfaces only (dark, cinematic) and must never be applied under `src/`.
+- **UI/UX & Design**: `docs/design-system.md` governs ALL product UI — since 2026-10-04 the
+  « Aurore » language (reference: `/team`, from `prototypes/team-v6.html`): aurora ground,
+  frosted-glass cards, 800-weight numbers, colour that means exactly ONE thing (chrome green ·
+  status · identity · severity), dark sidebar and brand green (#15803D) unchanged. Doctrine
+  only so far — existing screens are NOT migrated (§10 of the doc); don't restyle `src/`
+  without the owner's go. Design work starts from the `design` skill (`.claude/skills/design`:
+  one question → HTML prototype → Aurore → self-review). `marketing-design` is for public
+  marketing pages only (dark, cinematic) and must never be applied under `src/`.
 - Market isolation enforced via RLS at data layer — never rely on UI filtering alone
 - Save every Claude-created plan under `/plans`
 - Revenue = orders.total_price ONLY — never other price fields
@@ -225,16 +229,18 @@ link only: /warehouse/preparation (→ /warehouse/out), /warehouse/scan, /wareho
 /confirmation-flow, /profile, /settings/integrations, /settings/statuses. Removing a nav
 entry has not meant deleting its page — check before assuming a route is dead.
 
-## Design system
-- Shopify-inspired: dark sidebar (#0E1013), light content (#F6F6F7), white cards
-- One brand green (#15803D) for chrome: active nav, primary CTA, focus ring
-- System fonts, 14px base, black text on white — maximum contrast
-- Zero gradients, zero shadows at rest, zero decoration
-- Functional color ONLY on status badges — everything else black/white/gray
-- Finance surfaces add measured categorical palettes (`--fin-*`, `--ads-*`) — §4.21
-- Accès (/users) gives one hue per ROLE (`--role-*`, `.tone-*`) — §4.23; never a status
+## Design system — « Aurore » (since 2026-10-04)
+- One question per page, answered by a huge number; a 2–4-word status under every number
+- Soft aurora ground (5 pastel radials over #F6F7FB) painted once by the shell; dark sidebar
+  (#0E1013) stays the only dark surface
+- Frosted-glass cards (white .62, 24px radius, indigo-tinted resting shadow); inner surfaces 16px
+- Plus Jakarta Sans, headings/figures 800 with tight tracking, 14px root (write px, not rem)
+- Colour means ONE thing: brand green = chrome · status/outcome hues · identity (agent, role,
+  carrier account) · severity. Never colour alone; text ≥ 4.5:1 (#667085 is the lightest text)
+- Waffles, rings, pill bars, tooltips on every mark; motion on arrival, off under reduced-motion
+- Showcase vs workbench density (§1.1): no glass or entrance motion on list rows
 - RTL: full layout mirror for Arabic market
-- See docs/design-system.md for full tokens and rules
+- Doctrine only: §10 of docs/design-system.md lists what the code still says
 
 ## References (load on demand — do NOT @-include these)
 - Réglages + Journaux — the Système area rebuilt 2026-10-02 (topics, who edits what, the
@@ -268,7 +274,7 @@ entry has not meant deleting its page — check before assuming a route is dead.
   plans/percentage-distribution-and-agent-readiness.md
 - Order status pipeline: docs/order-pipeline.md
 - Scheduled jobs — all 12 pg_cron jobs + the notifications tick: docs/notifications-cron.md
-- Design system tokens + rules: docs/design-system.md
+- Design system « Aurore » — principles, tokens, components, migration status: docs/design-system.md
 - Accès (/users) — role tiles, the file per person, the role palette, what the old page hid
   (dead Permissions toggle, journal always « Système », the market UUID): plans/acces-redesign.md +
   prototypes/acces-v2.html (structure and rationale in acces-v1.html)
@@ -346,7 +352,8 @@ decision, not a typo.
    exactly 1 of 7 117 customers, and that will grow with every return.
    → docs/delivery-worklist.md §2
 2. **`line-strong` (#DADCE0, Tailwind) ≠ `--border-strong` (#C9CCCF, CSS var)** — same
-   intent, two values. → docs/design-system.md §2
+   intent, two values. The Aurore target settles both on #D0D5DD, at migration.
+   → docs/design-system.md §10
 3. ~~The surfaces the delivery plan marked for deletion are still live.~~ Resolved
    2026-10-03: Relances, Tableau livraison and Suivi transporteur are deleted; their URLs
    redirect to /carriers. → docs/carrier-scorecard.md

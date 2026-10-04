@@ -1,332 +1,638 @@
-# Design System — Ordra Admin Interface
+# Design System — Ordra « Aurore »
 
-> Shopify admin-inspired operational dashboard. Dark sidebar, light content, white cards. Maximum contrast, zero decoration.
+> Since 2026-10-04 Ordra has one house language, « Aurore »: a soft pastel aurora behind
+> everything, frosted-glass cards that float on it, heavy confident numbers, and **colour
+> that always means one thing**. The dark sidebar and the brand green stay exactly as they
+> were. Every screen under `src/` follows this document.
+>
+> **Reference implementation:** Salle de contrôle (`/team`, `src/components/team/room/`,
+> the `.r6` block in `src/app/globals.css`), built line for line from
+> `prototypes/team-v6.html`, which the owner approved after picking « Aurore » from a
+> four-look board (Performance v3). The prototypes are not committed (real agent names,
+> public repo); the live `/team` page is the tracked reference.
+>
+> **Superseded.** Until 2026-10-04 this file opened: *"Shopify admin-inspired operational
+> dashboard. Dark sidebar, light content, white cards. Maximum contrast, zero decoration"*,
+> with "no gradient", "no shadow at rest" and "colour only on status" as its three rules.
+> The owner rejected that look for every surface he reviewed after it ("no colourful, no
+> modern visuals, no elegant components" — Performance v1, 2026-10-04; the grey
+> Transporteurs v1 the day before) and chose Aurore. What the old rules *protected* —
+> contrast, colour that carries meaning, one chrome green, RTL — is kept below; what they
+> *forbade* — gradients, resting shadows, colour beyond status — is now the language.
+>
+> **Status (2026-10-04): the doctrine is adopted; the code is not migrated yet.** Only `/team`
+> (and the agent colours) are built in Aurore. The `--au-*` tokens, the `.au-*` classes and the
+> repointed Tailwind values below are the **target spec** — they do not exist in
+> `globals.css` / `tailwind.config.ts` until the migration is approved and done. §10 lists what
+> the code still says. New screens are designed and prototyped in Aurore now; existing screens
+> move only when the owner says so.
 
 ---
 
-## 1. Philosophy
+## 1. Principles
 
-Three rules govern every decision:
+Ten rules. When two collide, the earlier one wins.
 
-1. **Restraint.** Every element earns its place. No gradient or decorative color. Resting surfaces are flat; **hover and floating surfaces use a calibrated elevation scale** (`shadow-hover-row`, `shadow-panel`, `shadow-floating`) — never as decoration, only to signal interactivity or layering.
-2. **Light content, dark sidebar.** The sidebar (`#0E1013`) is the only dark surface. Content areas are always light (`#F6F6F7`) with white cards.
-3. **Functional color only on status — and one brand accent.** Status badges carry semantic color (success/warning/critical/action). Everything that is not status or chrome is black, white, or gray.
+1. **One question per page, answered by a number.** A page opens on the number it exists
+   for, at display size (34–46px / 800). Under every big number: a status of 2–4 words with
+   a coloured dot or tag — never a sentence. Numbers, not prose.
+2. **Colour always means exactly one thing.** There are four vocabularies and they never
+   borrow from one another (§2.4): **chrome** (brand green — where you are, what you press),
+   **status / outcome** (what an order is or became), **identity** (who — an agent, a role,
+   a carrier account), **severity** (good / warn / bad). Colour is never decoration and never
+   the only signal: the word or the figure is always written beside it.
+3. **Colourful, not loud.** Hues are saturated in marks (bars, rings, squares, dots,
+   avatars) and *washed* in surfaces (tints at 6–15 %). Text stays near-black. A full hue
+   behind white text is reserved for one thing per area (the primary button, an alert's icon
+   holder, an avatar).
+4. **The ground is light and alive; the sidebar is the only dark surface.** Content sits on
+   the aurora (§2.1). Cards float on it as frosted glass. Nothing in the content area is dark
+   except the tooltip.
+5. **One entity, one card.** Overview (3–6 numbers) → one card per entity (agent, carrier,
+   product) → click for the drawer → a separate table for comparison. Never mix entities in
+   one chart.
+6. **Every chart answers a named question** and draws only that: a waffle for "what is today
+   made of", a ring for "how far is she", a pill bar for "where did they go", a heat tile for
+   "which is weak". Every mark has a tooltip with its exact figure. Hovering a legend item
+   highlights its marks and dims the rest.
+7. **Hierarchy by weight and size, never by greying below AA.** Text clears 4.5:1 on white
+   (the quiet grey `#8A94A6` is for icons, axes and disabled only — §2.3).
+8. **Motion explains, once.** Things arrive (cards rise, squares pop, rings sweep, bars grow)
+   in the first second, staggered; hover lifts what you can click. Nothing loops except the
+   live dot. `prefers-reduced-motion` switches all of it off.
+9. **Two densities, one language** (§1.1). Showcase pages (monitoring, analytics) use the
+   full scale; workbench pages (orders, the agent queue, the warehouse bench) keep the same
+   ground, glass, type, radii and colours at working density.
+10. **Everything mirrors.** Logical properties only; Arabic is a first-class reading (§5.6).
 
-   > **Amended (§4.18).** This rule used to end "a single brand accent appears in **exactly two places**: the focused-row inline-start bar and the active-tab underline. Nowhere else." That held while the app had one accent used twice. It now has a brand green used as **chrome** — the active nav item, the primary CTA, the active tab's count badge, the focused-row bar — and the boundary that matters is no longer *how many places* but *which kind of thing*: green marks **where you are and what you press**, status hues mark **what an order is**. The two vocabularies must never borrow from each other, which is why `confirmed` is violet and `delivered` is green regardless of the chrome around them. Violet is now **exclusively** a status hue — it holds no chrome slot at all (§4.17 C).
+### 1.1 Showcase and workbench
+
+| | Showcase | Workbench |
+|---|---|---|
+| Pages | Accueil, Salle de contrôle, Performance, Transporteurs, finances, Produits, Accès, Journaux, investor portal | Commandes, Archivées, the agent queue, Suivi livraison, Entrepôt bench / scan / returns, settings forms |
+| H1 | 32 / 800 | 24 / 800 |
+| Hero figure | 34–46 / 800 | 22–28 / 800 |
+| Body | 14 / 500 | 13–14 / 500 |
+| Entrance motion | rise / pop / sweep / grow | none on rows (a 1 000-row list must not dance); drawers and menus still slide |
+| Glass | every card | the page's containers — **never per row**: rows inside a glass card are plain, separated by `--au-line` hairlines (`backdrop-filter` on hundreds of rows kills scrolling) |
+| Hover | lift −2/−4 px + deeper shadow | row wash `rgba(255,255,255,.55)`, no lift |
+
+The phone warehouse shell (§4.20) is a workbench used in sunlight: it keeps an **opaque**
+ground and bars — glass over a moving list blurs the labels.
 
 ---
 
-## 2. Color Tokens
+## 2. Tokens
 
-All tokens are CSS custom properties defined in `src/app/globals.css`.
+**Target.** The house tokens will be `--au-*` in a `:root` block « Aurore » of
+`src/app/globals.css`, aliased in `tailwind.config.ts` as an `au` colour family. The migration
+plan is to **repoint the older semantic Tailwind tokens** (`surface-*`, `ink-*`, `line-*`,
+`rounded-card`, `shadow-*`) to these values, so every screen built on them moves with one
+change. Until then the values that exist are listed in §10; on `/team` the same values live
+under `.r6` with the prototype's names (`--ink`, `--card`, `--card-sh`…).
 
-### Surfaces
+### 2.1 Ground
+
+| Token | Value | Role |
+|---|---|---|
+| `--au-ground` | `#F6F7FB` | The page colour under the aurora; also the solid fallback (phone bars, print) |
+| `.au-ground` | 5 radial gradients over `--au-ground`, `background-attachment: fixed` | The content area of every shell |
+
+The aurora: indigo `#D3DBFF` top-start, pink `#FAD3EC` top-end, mint `#C6F2DA` bottom-end,
+amber `#FFE6B3` bottom-start, lavender `#EDE7FF` centre, each fading to transparent at
+~72 %. It is painted **once**, by the shell (`DashboardChrome`, the warehouse desk, the
+investor layout) — a page never paints its own opaque background over it.
+
+> **Superseded.** `--bg-page` `#F6F6F7` flat grey, and the scoped warm grounds
+> `--oms-bg` `#FAFAF8` / `--agent-bg` `#FAFAF9`. In the migration those tokens resolve to
+> `--au-ground` (so sticky bars that paint them stay opaque and match), and page roots stop
+> painting `min-h-screen bg-…` over the shell's aurora (~23 roots today, §10).
+
+### 2.2 Surfaces — glass
+
+| Token | Value | Role |
+|---|---|---|
+| `--au-card` | `rgba(255,255,255,.62)` | Top-level card fill |
+| `--au-card-edge` | `rgba(255,255,255,.9)` | Its 1px border — a highlight, not an outline |
+| `--au-glass-in` | `rgba(255,255,255,.66)` | Inner surfaces: tiles, drawer sections, mini-stats |
+| `--au-glass-in-edge` | `rgba(255,255,255,.95)` | Their border |
+| `--au-solid` | `#FFFFFF` | Inputs, dropdown panels, table rows that must not show through |
+| `--au-blur` | `blur(20px) saturate(170%)` | `backdrop-filter` of a card; drawers use 24px |
+| `--au-scrim` | `rgba(15,23,40,.22)` + `blur(3px)` | Behind drawers; modals `.32` + `blur(4px)` |
+
+Planned utilities (component layer of `globals.css`): `.au-card` (fill + edge + blur +
+resting shadow + 24px radius), `.au-glass` (inner, 16px), `.au-float` (drawers/popovers). On
+`/team` today: `.r6-card`, `.r6-tile`, `.r6-sec`, `.r6-drawer`.
+
+### 2.3 Ink — near-black, one ramp
+
+| Token | Hex | On white | Role |
+|---|---|---|---|
+| `--au-ink-1` | `#0F1728` | 17.9:1 | Headings, figures, body |
+| `--au-ink-2` | `#475467` | 7.7:1 | Labels, secondary text, legend |
+| `--au-ink-3` | `#667085` | 5.0:1 | Meta, captions, eyebrows, column heads |
+| `--au-ink-quiet` | `#8A94A6` | 3.1:1 | **Not text.** Icons, axis ticks, placeholder, disabled |
+| `--au-ink-4` | `#C9CED7` | 1.6:1 | Zero values ("0" drawn faint), empty-state dashes |
+| `--au-line` | `rgba(15,23,40,.07)` | — | Hairlines between rows, inside cards |
+| `--au-track` | `rgba(15,23,40,.06)` | — | Empty ring / bar track |
+
+> **Deviation from the reference, deliberate.** `prototypes/team-v6.html` sets meta text in
+> `#8A94A6`, which is 3.1:1 on white and ~2.7:1 on the aurora — below AA for 12px type.
+> The house ramp uses `#667085` (same grey family, 5.0:1). `/team` keeps the prototype
+> value inside `.r6` until the owner re-approves it.
+
+Tailwind: `ink-primary` → `#0F1728`, `ink-secondary` → `#475467`, `ink-muted` → `#667085`.
+
+### 2.4 The four colour vocabularies
+
+**Chrome — brand green (unchanged).**
 
 | Token | Hex | Role |
 |---|---|---|
-| `--bg-page` | `#F6F6F7` | Page background (light gray) |
-| `--bg-card` | `#FFFFFF` | Cards, panels, modals |
-| `--bg-hover` | `#F7F7F7` | Row/item hover state |
-| `--bg-selected` | `#F2F2F2` | Selected/active item background |
-| `--surface-sunken` / `bg-surface-sunken` | `#FAFAFB` | Skeleton blocks, empty-state wells |
+| `--brand` | `#15803D` | Primary button, active nav pill, active segment badge, focus ring, selected row bar. 5.0:1 white-on-fill |
+| `--brand-hover` | `#12692F` | Hover; text on `--brand-bg` (6.1:1) |
+| `--brand-bg` / `--brand-tint` | `#E9F6EE` / `#F1FAF4` | Selected fill / hover wash |
+| `--brand-on-dark` | `#10B981` | **Dark sidebar only** — 2.5:1 on white |
 
-### Charts (neutral, non-status)
+**Severity — good / warn / bad / live** (trend pills, tags, alert surfaces):
 
-| Token | Hex | Role |
+| Token | Ink | Tint | Dot / fill |
+|---|---|---|---|
+| good | `--au-good` `#067647` | `--au-good-bg` `#DCFAE6` | `--au-live` `#12B76A` |
+| warn | `--au-warn` `#B54708` | `--au-warn-bg` `#FFF4E0` | `--au-warn-dot` `#F79009` |
+| bad | `--au-bad` `#C01048` | `--au-bad-bg` `#FFE4E8` | `#E8385A` |
+| flat | `--au-ink-2` | `rgba(15,23,40,.05)` | — |
+
+All ink/tint pairs ≥ 4.98:1.
+
+**Status / outcome.** Order status pills keep their map (`lib/orders/status-presentation`,
+§4.17 F-bis, contrast-tested). Outcome hues for charts are fixed and never borrowed:
+
+| Outcome | Fill | Note |
 |---|---|---|
-| `--chart-line` / `text-chart-line` | `#8C9196` | Sparkline strokes, axis ticks — never a status color |
+| uploaded | `#0E9384` | |
+| rejected | `#E8385A` | |
+| in progress / to call | `#A3AEC2` / `#DDE2EA` | neutral greys |
+| overdue | hatch `#FFD9E1` / `#EF5A78` | hatching, not a fifth hue |
+| delivered | `#079455` | |
+| en route | `#38C0AE` | |
+| returned | `#F79009` | 2.4:1 — the figure is always written next to it |
+| not yet | `#E1E6EE` | |
 
-### Text
+Fills only: an outcome hue never carries text; its number is written in `--au-ink-1` beside it.
 
-| Token | Hex | Role |
-|---|---|---|
-| `--text-primary` | `#1A1A1A` | All headings, body, labels |
-| `--text-secondary` | `#6D7175` | Muted labels, metadata, timestamps |
+**Identity — who.** Each person or account has a hue used *everywhere* that person appears
+(avatar, card halo, selected ring, her bars). Agents: six ramps `--agent-<key>-{0,1,2,5,7,9}`
+(wash · soft · line · identity · deep · ink), keyed by `users.color`, handed to an element as
+`--a0…--a9` by `lib/team/agent-color.ts`. Roles: §4.23. Carrier accounts:
+`carriers.accent_color` (§4.18). An identity hue never marks a status, and a status hue
+never marks a person.
 
-### Borders
+| Key | `-5` identity |
+|---|---|
+| indigo | `#444CE7` |
+| pink | `#DD2590` |
+| cyan | `#088AB2` |
+| gold | `#CA8504` |
+| lime | `#4CA30D` |
+| orange | `#E04F16` |
 
-| Token | Hex | Role |
-|---|---|---|
-| `--line-subtle` / `line-subtle` | `#ECEEF0` | Whisper-thin border for cards and list rows (default for new components) |
-| `--border` / `line.DEFAULT` | `#E1E3E5` | Standard border (legacy, inputs, dividers) |
-| `line-strong` (Tailwind) | `#DADCE0` | Emphasized dividers, hover state on subtle borders |
-| `--border-strong` (CSS var) | `#C9CCCF` | **Not the same value** — see the note below |
+New palettes are validated with the dataviz skill's `validate_palette.js` before they ship
+(lightness band, chroma floor, CVD ΔE between neighbours).
 
-> **Two values, one name.** `line-strong` in `tailwind.config` is `#DADCE0`, but the
-> CSS custom property `--border-strong` in `globals.css` is `#C9CCCF` — a visibly
-> darker grey. A component reaching for `border-line-strong` and one reaching for
-> `var(--border-strong)` therefore do not match. This is drift, not a design decision;
-> it is recorded here rather than silently corrected because deciding which value is
-> right is a visual call. `--oms-border-strong` (`#DCD8D0`) and `--wh-border-strong`
-> (`#CFD3CB`) are separate scoped tokens and are *not* part of this conflict.
-
-### Accent — brand green
-
-One green for all chrome: primary CTA, active nav pill, active KPI tile, funnel
-bars, focus ring, selected row. It is the same green on every surface, which is
-what makes the sidebar and the content read as one product.
-
-| Token | Hex | Role |
-|---|---|---|
-| `--brand` | `#15803D` | Chrome fill and chrome text on light grounds. **5.0:1** white-on-fill |
-| `--brand-hover` | `#12692F` | CTA hover; also the text step on `--brand-bg` (**6.1:1**) |
-| `--brand-bg` | `#E9F6EE` | Active tile fill, selected row band, icon-holder tint |
-| `--brand-tint` | `#F1FAF4` | Hover wash |
-| `--brand-pos` | `#16A34A` | Positive figures and delta pills |
-| `--brand-on-dark` | `#10B981` | **Dark sidebar surface only** |
-
-**Two greens, and the split is load-bearing.** `--brand-on-dark` (`#10B981`)
-measures **2.5:1 on white**. It is legible on `--sidebar-bg` and nowhere else. It
-must never be text on a light ground, and never a fill behind white text. Reaching
-for it because it looks brighter is the mistake
-`src/lib/orders/status-contrast.test.ts` exists to catch — that test asserts
-white-on-`--brand` ≥ 4.5:1 and the focus ring ≥ 3:1 on both grounds.
-
-`--prod-brand*` are aliases of these; the products console needs no separate green.
-
-> **Superseded.** This table used to list `accent.DEFAULT #10B981` as the chrome
-> accent "for the focused-row bar and active segment count badge", and
-> `--agent-primary #006C49` as a second brand green for filled chrome. Two greens
-> for one job met on the same screen — "Nouvelle commande" opened a modal whose
-> submit button was a visibly different shade. `Button`'s `primary` variant now
-> resolves to `--brand`; `.agent-theme [data-agent-cta="primary"]` remains the hook
-> for anything that genuinely needs the agent surface's own tone.
-
-### Elevation
-
-Resting cards remain flat. Three calibrated shadow tokens are available:
+### 2.5 Elevation — soft, blue-tinted, resting
 
 | Token | Value | Use |
 |---|---|---|
-| `shadow-hover-row` | `0 1px 2px rgba(16,24,40,0.04)` | Interactive list rows on hover |
-| `shadow-panel` | `0 4px 16px rgba(16,24,40,0.06)` | Side drawers (e.g. OrderDetailPanel) |
-| `shadow-floating` | `0 8px 24px rgba(16,24,40,0.10)` | Modals, bulk-action bars, dropdowns |
+| `shadow-card` / `--au-sh` | `0 10px 36px rgba(42,52,110,.07)` | **Every card at rest** |
+| `shadow-card-hover` / `--au-sh-hover` | `0 20px 52px rgba(42,52,110,.14)` | Clickable card on hover (with lift) |
+| `shadow-hover-row` | `0 4px 14px rgba(42,52,110,.10)` | Buttons, segments, rows on hover |
+| `shadow-panel` | `0 30px 80px rgba(42,52,110,.24)` | Drawers |
+| `shadow-floating` | `0 20px 52px rgba(42,52,110,.18)` | Popovers, menus, bulk bars, modals |
+| glow | `0 8px 22px color-mix(in srgb, var(--a5) 42%, transparent)` | Under an identity avatar / an alert icon holder, in its own hue |
 
-### Sidebar (dark surface)
+Shadows are tinted indigo (`42,52,110`), never black: on a pastel ground a black shadow reads
+as dirt.
 
-| Token | Hex | Role |
-|---|---|---|
-| `--sidebar-bg` | `#0E1013` | Sidebar background |
-| `--sidebar-bg-elevated` | `#14171C` | Popovers, market pill |
-| `--sidebar-text` | `#E6E8EB` | Sidebar primary text |
-| `--sidebar-text-secondary` | `#B5BAC2` | Role line, market name |
-| `--sidebar-text-muted` | `#7F858F` | Inactive icons, section heads |
-| `--sidebar-hover` | `rgba(255,255,255,.04)` | Nav item hover |
-| `--sidebar-hover-strong` | `rgba(255,255,255,.07)` | Section header hover |
-| `--sidebar-active-fill` | `var(--brand)` | **Active nav item — a filled pill** |
-| `--sidebar-active-text` | `#FFFFFF` | Active label + icon (5.0:1 on the fill) |
+> **Superseded.** "Resting cards remain flat", and the grey `rgba(16,24,40,…)` scale.
 
-> **Superseded.** This table listed `#1A1A1A` / `#2A2A2A` / `#333333` — the palette
-> from before the sidebar refresh — and a `--sidebar-active` token that does not
-> exist (the var is `--sidebar-active-bg`, which is why `NavItem.tsx` referencing
-> it was a silent no-op). The active item is also no longer a grey fill with a
-> 2px white bar: the 10% wash sat ~1.2:1 above the ground, so the bar carried the
-> whole signal and the row itself read as inactive. It is now a filled brand pill.
-
-### Status Colors (badges only — never decorative)
-
-| Token | Hex | Background Token | Role |
-|---|---|---|---|
-| `--action` | `#2C6ECB` | — | Blue — action, info, assigned |
-| `--action-hover` | `#1F5199` | — | Blue hover state |
-| `--success` | `#008060` | `--success-bg: #F1F8F5` | Green — confirmed, delivered |
-| `--warning` | `#B98900` | `--warning-bg: #FFF8E6` | Amber — attempts, callbacks |
-| `--critical` | `#D72C0D` | `--critical-bg: #FFF4F4` | Red — rejected, cancelled |
-| `--neutral` | `#6D7175` | `--neutral-bg: #F6F6F7` | Gray — new, neutral |
-
-### Focus Ring
+### 2.6 Focus ring
 
 ```css
-:focus-visible {
-  outline: 2px solid var(--focus-ring); /* = --brand #15803D */
-  outline-offset: 2px;
-}
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 8px; }
 ```
 
-One ring serves the whole console: **5.0:1** on `--oms-bg`, **3.8:1** on
-`--sidebar-bg`. The 2px offset is what keeps it visible against a brand-green
-button — the ring lands on the page ground, not on the fill.
-
-> **Superseded.** The ring was `#36F4A4` ("Neon Green"). It measured **1.44:1 on
-> white** and failed WCAG 2.4.11, which requires 3:1 for a focus indicator — the
-> one thing on the page that has to be visible to the person who cannot use a
-> mouse was the least visible thing on it. `#36F4A4` is retired entirely.
+`--focus-ring` = `--brand`: 5.0:1 on white, 4.7:1 on the aurora, 3.8:1 on the sidebar. The
+offset lands the ring on the ground, so it stays visible against a green button.
 
 ---
 
 ## 3. Typography
 
-**Font stack:** `var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
+**Faces:** Plus Jakarta Sans (`--font-sans`, 400–800) and IBM Plex Sans Arabic
+(`--font-sans-arabic`, 400–700), loaded with `next/font/google` in
+`src/app/[locale]/layout.tsx`. An Arabic page puts Plex Arabic first (`:root[dir="rtl"]`), so
+figures read in the face around them; Plex Arabic stops at 700, so `800` renders as 700 in RTL.
+Cairo stays where `.agent-theme` names it.
 
-Loaded with `next/font/google` in `src/app/[locale]/layout.tsx`: **Plus Jakarta Sans**
-(`--font-sans`, latin, 400–800), **IBM Plex Sans Arabic** (`--font-sans-arabic`, arabic + latin,
-400–700), **Cairo** (`--font-cairo`, used by `.agent-theme` and the agent queue). There are no
-`@font-face` rules and no local font files.
+**Root font is 14px.** Tailwind rem utilities render at 0.875× — write sizes in px
+(`text-[13px] h-[32px] rounded-[10px]`) when matching a prototype.
 
-**Since 2026-10-03** (owner's pick in the products v6 prototype's live font switcher): Plus Jakarta
-Sans replaced Inter and IBM Plex Sans Arabic replaced Noto Sans Arabic, app-wide. The variable names
-did not change, so every stack that read the old faces reads the new ones. An Arabic page puts the
-Arabic face FIRST (`:root[dir="rtl"]` in globals.css): Plex Arabic carries Latin and digits, so a
-figure reads in the same face as the Arabic around it. Plex Arabic ships 700, so Arabic bold is real
-bold now (Noto stopped at 600). Surfaces that name Cairo keep it.
+| Role | Size / weight / tracking | Colour | Notes |
+|---|---|---|---|
+| Breadcrumb | 12.5 / 600 | ink-3 | `Équipe / Salle de contrôle`, separator in ink-4 |
+| H1 page title | 32 / 800 / −0.03em, lh 1.1 | ink-1 | workbench 24 |
+| H2 section | 22 / 800 / −0.025em | ink-1 | sits on the ground, above its cards |
+| Card title | 17–19 / 800 / −0.015em | ink-1 | |
+| Eyebrow | 10.5 / 800 / +0.1em, UPPERCASE | ink-3 | section labels, column heads (+0.08em); RTL drops caps and tracking |
+| Hero figure | 34–46 / 800 / −0.045em, lh 1 | ink-1 | the page's one number; ring centre 46 |
+| Tile figure | 26–34 / 800 / −0.04em | ink-1 | unit beside it 15 / 700 ink-3 (`/ 6`, `/100`) |
+| Row figure | 15 / 800 | ink-1 | sub-figure 11.5 / 600 ink-3 under it |
+| Body | 14 / 500 | ink-1 | |
+| Label | 12.5–13 / 700 | ink-2 | tile labels, buttons |
+| Meta | 12–13 / 500 | ink-3 | |
+| Chip / tag | 11.5–12.5 / 700–800 | per vocabulary | pills |
 
-> **Superseded.** This line read `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto` —
-> the system stack, from before the `next/font` work landed.
-
-**Base:** `14px` / `400` / `#1A1A1A`
-
-All UI strings use `next-intl useTranslations()` — no hardcoded text in components.
-
-### Size Scale
-
-| Role | Size | Weight | Color | Notes |
-|---|---|---|---|---|
-| Page title | 20px | 600 | `--text-primary` | H1 equivalent |
-| Section heading | 16px | 600 | `--text-primary` | Card/panel headers |
-| Body | 14px | 400 | `--text-primary` | Default |
-| Label | 13px | 500 | `--text-secondary` | Uppercase, 0.05em tracking |
-| Caption | 12px | 500 | `--text-secondary` | Metadata, timestamps |
-| Badge | 13px | 500 | (semantic) | Status badge text |
-| KPI value | 24px | 700 | `--text-primary` | Dashboard stats |
-
-### Number Formatting
-
-Use `font-variant-numeric: tabular-nums` on all numeric data (prices, counts, stats). Proportional figures everywhere else.
+- `tabular-nums` on every number. Zero is drawn faint (`ink-4`, 600) so the eye skips it.
+- Arabic percent is written `56%` with **no space** — with a space Chrome flips the sign
+  even inside `<bdi dir="ltr">`.
+- All strings through `next-intl`; no hardcoded text.
 
 ---
 
-## 4. Component Patterns
+## 4. Components
 
-### Buttons
+Primitives live in `src/components/ui/`. Sizes below are px.
 
-**Primary**
-- Background: `var(--agent-primary)` (brand green) — see §4.18
-- Text: `#FFFFFF`
-- Border-radius: `8px`
-- Padding: `10px 16px`
-- Hover: `background: var(--agent-on-primary-container)`
-- Disabled: `background: #F3F4F6`, `color: #9CA3AF`, `cursor: not-allowed`
+### 4.1 Page header
 
-> Primary was `#1A1A1A` black with a `4px` radius. The agent shell already
-> force-mapped it to emerald through `.agent-theme` overrides in `globals.css`,
-> so the app shipped two different primary buttons depending on which half you
-> were in. Green is now the variant itself and those overrides can go.
+Crumb → H1 → a sub line (market · date, then chips) on the start side; controls (day
+stepper, glass buttons) on the end side, bottom-aligned. A **live chip** (`●` pulsing
+`--au-live` + « En direct · 14:32 ») says the page is current; a past day gets a plain chip.
 
-**Secondary / Outline**
-- Background: `#FFFFFF`
-- Border: `1px solid #D1D5DB`
-- Text: `#1A1A1A`
-- Border-radius: `4px`
-- Hover: `background: #F7F7F7`
+### 4.2 Cards
 
-**Destructive**
-- Background: `#D72C0D`
-- Text: `#FFFFFF`
-- Use only for irreversible actions
+- **Card** (`.au-card`, `Card`): `--au-card` fill, `--au-card-edge` border, 24px radius,
+  `shadow-card`, `--au-blur`. Padding 20–30px.
+- **Inner surface** (`.au-glass`): tiles, drawer sections, mini-stat cells — `--au-glass-in`,
+  16px radius (14 / 11 for smaller cells), no shadow.
+- **Entity card** (an agent, a carrier): the card plus a **halo** — a 280px radial of the
+  identity hue at 30 % behind the top-start corner (`::before`, `z-index:-1`, `isolation:
+  isolate`). The whole card is the button (`role="button"`, `tabIndex=0`, Enter/Space). Hover
+  lifts −4px with `shadow-card-hover`; selected = `0 0 0 2px var(--a5)` ring + glow in its hue.
+- **Alert / problem surface**: a gradient wash `linear-gradient(160deg, <bad-bg> .9, white .62)`
+  with an icon holder **filled** in the full hue, white icon, coloured glow. Good state: the
+  same row with a `--au-good-bg` holder and a check. Problems are tinted surfaces; healthy is
+  calm.
+- **Empty state**: a 1.5px dashed `--au-ink-4` box, 18px radius, ink-3 centred text that says
+  what is empty and why ("Aucune commande ce jour-là").
 
-### Cards
+### 4.3 Buttons
 
-- Background: `#FFFFFF`
-- Border: `1px solid #E1E3E5`
-- Border-radius: `6px` standard, `8px` large panels
-- Padding: `16px`
-- **No shadow at rest.** No box-shadow unless element is floating (modal, dropdown).
-- Hover (interactive cards): `background: #FAFBFB`
+| Variant | Look |
+|---|---|
+| primary | `--brand` fill, white, 10px radius, 700; hover `--brand-hover` |
+| secondary | `rgba(255,255,255,.85)` + `1px rgba(15,23,40,.08)`, ink-1, 10px radius, 700; hover white + `shadow-hover-row` |
+| glass (toolbar) | 40px tall, 13px radius, `rgba(255,255,255,.6)` + glass edge + blur, ink-2 700; hover white, ink-1 |
+| ghost | transparent, ink-2; hover `rgba(255,255,255,.7)` |
+| destructive | `--au-bad` fill, white |
+| icon | square (34–36px), 12px radius, glass |
 
-### Inputs & Forms
+Sizes: `sm` 30–32px / 12.5–13px, `md` 40px / 14px. Disabled: opacity .45, no shadow.
+A WhatsApp / call action is an icon button whose hover turns the icon WhatsApp green.
 
-- Height: `32px`–`36px`
-- Padding: `0 8px`–`0 10px`
-- Background: `#FFFFFF`
-- Border: `1px solid #D1D5DB`
-- Border-radius: `6px`
-- Color: `#1A1A1A`
-- Placeholder: `#6D7175`
-- Focus: neon green outline via global `:focus-visible` rule — do not override
-- Error: border `#D72C0D`
+### 4.4 Chips, tags, trend pills
 
-**Labels:** sit above at `13px`/`500`/`#6D7175`, `margin-bottom: 4px`.
+All pills (`9999px`). **Chip** 26px, `rgba(255,255,255,.7)` + glass edge, 12.5 / 700.
+**Warn tag** 22px, `--au-warn-bg` / `--au-warn`, 11.5 / 700. **Trend pill** 22px, arrow
+icon + delta, good / bad / flat tints, tooltip "30 jours avant : 19". **Medal** for rank 1–3:
+28px circle, gold `#FEF0A6→#F2B10C`, silver `#F4F6F9→#C3C9D3`, bronze `#FBDCC2→#DD8A4E`,
+inset bottom shadow; 4+ is a plain glass circle.
 
-### Status Badges
+### 4.5 Status badges
 
-Two sizes:
-- **Inline dot:** 8×8px SVG colored circle + `13px`/`500` text, `gap: 6px`
-- **Pill badge:** `background: --*-bg`, `color: --*`, `border-radius: 9999px`, `padding: 2px 8px`, `font-size: 13px`/`500`
+Unchanged in substance — hue + icon + weight, one map (§4.17 F-bis), contrast-tested. In
+Aurore they are pills with a 1px edge in their own hue; the rejected badge is red with its
+group's icon (CLAUDE.md, rejection reasons).
 
-Badge colors come exclusively from the status token pairs — see §2 Status Colors.
+### 4.6 Avatars
 
-### Tables
+Circle, initial in white 800, fill `linear-gradient(140deg, var(--a5), var(--a7))`, glow in
+its hue. Sizes 24 (stacks, overlap −6px with a 2px white ring) · 28 (chips) · 36 (rows) ·
+44 (cards) · 48 (drawer head). A **presence dot** sits bottom-end: 13px, 2.5px white ring;
+live = `--au-live` with a pulsing halo, idle / late = `--au-warn-dot`, off = ink-4. A total
+row uses `Σ` on a slate gradient.
 
-- Header `<th>`: `13px`/`500`/`#6D7175`, uppercase, `letter-spacing: 0.05em`, `padding: 12px 16px`, `border-bottom: 1px solid #D1D5DB`
-- Data `<td>`: `14px`/`400`/`#1A1A1A`, `padding: 12px 16px`, `border-bottom: 1px solid #E1E3E5`
-- Row background: `#FFFFFF`; hover: `#F7F7F7`
-- Numeric columns: right-aligned, `font-variant-numeric: tabular-nums`
+### 4.7 Data marks
 
-### Modals / Dialogs
+- **Waffle** — one rounded square per item (radius 28 % of the cell), grouped by outcome in a
+  fixed order, ~340px wide whatever the count; cells pop in staggered 6ms. Legend under it
+  with the count in 800. Hovering a legend item sets `data-hl` and dims the others to .15.
+- **Ring** — segmented donut, 15px stroke, 3.2px gaps between segments, track `--au-track`,
+  the figure in its centre (46 / 800) with an eyebrow label and a one-line sub. Sweeps in.
+- **Pill bar** — a flex row of rounded segments with 2px gaps, 12px tall (7–8px inside a
+  drawer), `min-width: 3px`, width proportional to the row's volume; a caption line under it
+  writes each figure. Grows in from the start edge.
+- **Column bars** — 74 % width, max 20px, `6px 6px 2px 2px` radius, vertical gradient of the
+  hue; a marker dot under a day for an event (a payout).
+- **Timeline lane** — planned shift as a dashed pill in the identity hue at 6 %, worked
+  segments as solid identity pills with glow, breaks dotted, idle dashed amber with a label,
+  the "now" line in ink-1 with a dot, future hatched faint.
+- **Heat tiles** — a ramp of one hue; a red ▼ badge only when the gap is meaningful.
+- **Tooltip** on every mark: `#101828`, white 12.5 / 600, 10px radius, max 320px, follows the
+  pointer, never the only place a figure lives.
+- Legend swatches: 11px, 4px radius.
 
-- Overlay: `rgba(26, 26, 26, 0.5)`
-- Panel: `background: #FFFFFF`, `border-radius: 8px`, `width: 480px`, `max-width: 90vw`
-- Header: `padding: 16px 20px`, `border-bottom: 1px solid #E5E7EB`
-- Body: `padding: 20px`
-- Shadow: `0 8px 32px rgba(0,0,0,0.18)` — **only floating surfaces get shadow**
-- Focus trap required; `Escape` closes
+### 4.8 Tables
 
-### 4.9 Panel variant — side-drawer composition
+A table is a card (`.au-card`, overflow hidden) with a title row (17 / 800 + legend at the
+end). Head: eyebrow style, `--au-line` above and below, `9px 10px` cells. Rows: `13px 10px`
+cells, `--au-line` between, hover `rgba(255,255,255,.55)`, the selected row a start-edge wash
+in its identity hue (`linear-gradient(90deg, a5 12 %, transparent 60 %)`). A total row (Σ)
+sits first on `rgba(255,255,255,.35)`. Numbers right-aligned (`text-end`), figure 15 / 800
+over its percentage 11.5 / 600. A footer line in meta explains the window. Rows that do not
+qualify are dimmed to .55, not hidden.
 
-For long-form right-edge panels (e.g. `OrderDetailPanel`), surfaces follow the same flat-white grammar as cards, but the **hero card** at the top of the panel uses a subtle elevation to anchor the customer's identity:
+### 4.9 Drawers
 
-- Drawer: `fixed top-0 end-0 h-full w-full sm:w-[480px] bg-surface-card border-s border-line-subtle shadow-panel`
-- Sticky header band: `h-[56px] bg-surface-card border-b border-line-subtle px-4`
-- Hero card: `mx-4 mt-3 rounded-card bg-surface-card border border-line-subtle px-4 py-4 shadow-panel-elevated`
-- Body: `flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3` — **12px gap** between cards, no internal dividers
-- Footer: `flex-shrink-0 bg-surface-card border-t border-line-subtle px-4 py-3`
-
-The `shadow-panel-elevated` token (`0 6px 20px rgba(16,24,40,0.08)`) is the **only** rest-state shadow allowed in the system, and it appears **only** on the panel hero card to telegraph identity. Body section cards remain flat (`shadow-none`).
+Floating, not docked: `top/bottom/inset-inline-end: 12px`, 26px radius, width 580 (detail) /
+440 (tools), fill `rgba(250,251,255,.84)`, white edge, `shadow-panel`, `blur(24px)`, a 620px
+halo of the entity's hue behind the head. Slides in 320ms `cubic-bezier(.2,.8,.2,1)`.
+Head: avatar 48 + name 19 / 800 + status line, actions at the end, a 36px glass close button
+that takes focus on open. Body: sections as `.au-glass` (16px radius, `15px 16px`), 12px apart,
+each led by an eyebrow label with a 13px icon and, at the end, its window in meta. The page
+stays visible behind the blurred scrim and the selected entity's card stays lit.
+`role="dialog"`, `aria-modal`, Escape closes the topmost surface (capture phase).
 
 ### 4.10 Section label + icon
 
-Section identity inside a panel is communicated through a tiny uppercase label paired with a single 12px lucide icon — **never** through tinted backgrounds. All section cards are pure white:
+Inside a drawer or a card, a section is named by an **eyebrow** (10.5 / 800, uppercase,
++0.1em, ink-3) led by a 13px lucide icon, with its window or count in meta at the end
+(« 7 jours », « 12 commandes »). Identity of a *kind of content* comes from the label and
+icon, never from tinting the section — every section is the same `.au-glass`. Tints are
+spent on meaning (a problem surface, an identity halo), not on telling sections apart.
 
-- Card: `rounded-card bg-surface-card border border-line-subtle p-4`
-- Label row: `flex items-center gap-1.5 mb-3`
-- Icon: `<Icon size={12} strokeWidth={2} className="text-ink-muted" />`
-- Label: `text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted`
+### 4.11 Tabs and segmented controls
 
-Examples: Customer = `User`, Address = `MapPin`, Order = `ShoppingBag`, Note = `StickyNote`, History = `Clock`, Fulfillment = `Truck`. Never tint a section background to signal "kind of content" — the label + icon does that job.
+- **Segmented control** (the default for switching a view or a period): track
+  `rgba(255,255,255,.55)` + glass edge, 12px radius, 3px padding; segments 30px, 9px radius,
+  12.5 / 700 ink-2; active = white fill, ink-1, `shadow-hover-row`. `role="tablist"` /
+  `aria-selected`.
+- **Underline tabs** (one level of navigation inside a panel): 13px, active 700 ink-1 with a
+  2px `--brand` underline, `--au-line` baseline.
+- **Nested navigation** (the agent queue's bucket → sub-filter → attempt): `SegmentedTabs`,
+  bordered segments with the brand count badge (§4.18).
 
-### 4.11 Tabs (underline)
+### 4.12 Skeletons
 
-The accent green's reserved "active-tab underline" slot is implemented by underline tabs (see `OrdersPresetPills`). Pills-as-tabs are deprecated.
+The shape of the page, never a spinner or "loading…": `--au-track` blocks with the real
+radii (24 card, 16 tile, 99 pill), `animate-pulse`, `aria-hidden`, the group in
+`role="status"`. One skeleton per page, shaped like that page (`PageSkeleton`).
 
-- Container: `role="tablist"`, `flex items-end gap-1`, sits on a row with `border-b border-line` as the shared baseline
-- Tab: `px-3 pt-1.5 pb-2 text-[13px]`, inactive `font-medium text-ink-secondary hover:text-ink-primary`, active `font-semibold text-ink-primary`
-- Active indicator: absolutely-positioned `inset-x-2 bottom-0 h-[2px] bg-accent rounded-pill` — the **only** place the accent underline appears
-- Count badge inside a tab: neutral pill `bg-surface-selected text-ink-secondary text-[11px] tabular-nums`
-- Keep `role="tab"` / `aria-selected`
+### 4.13 Inputs, modals, toasts, popovers
 
-### 4.12 Skeleton loading
-
-Use `src/components/ui/Skeleton.tsx` — `bg-surface-sunken rounded-[6px] animate-pulse`, `aria-hidden`. Size with `h-* w-*` utilities. Wrap a group of skeleton rows in a container with `role="status"`. Never ship text-only "loading…" placeholders in cards or tables.
-
-### 4.13 Slide-over panel (generalized from §4.9)
-
-Right-edge overlay surface for tool panels that aren't order details (e.g. `AlertsPanel`):
-
-- Backdrop: `fixed inset-0` `rgba(26,26,26,0.5)`, click closes
-- Panel: `fixed top-0 end-0 h-full w-full sm:w-[440px] bg-surface-card border-s border-line-subtle shadow-panel` (440px for tool panels; 480px stays for the order drawer)
-- `role="dialog"` + `aria-modal="true"`; Escape closes — register the key handler in the **capture** phase so a drawer underneath doesn't also close (topmost surface wins)
-- Header band `h-[56px] border-b border-line-subtle px-4`; body `flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3`
-- Focus the close button on open
+- **Inputs**: 36–40px, white (`--au-solid`), `1px rgba(15,23,40,.12)`, 10–11px radius,
+  14px / 600. Labels above in 12.5 / 700 ink-2. Error: border `--au-bad`, message under it.
+  Toggle-day buttons 38×32, active = ink-1 fill, white text.
+- **Modal**: scrim `.32` + blur 4, panel 440px, 22px radius, `rgba(255,255,255,.92)` + blur
+  20, `shadow-floating`; header 16 / 800 with a meta sub; actions end-aligned.
+- **Toast**: `#101828`, white 13 / 600, 12px radius, bottom-centre, a 4px start strip in its
+  severity hue.
+- **Popover / menu**: white at 96 %, white edge, 14px radius, `shadow-floating`, blur 20.
+- Tool drawers (alerts, settings) are §4.9 drawers at 440px.
 
 ### 4.14 Bell + count badge (dark surface)
 
-Sidebar-header notification affordance (`AlertsBell`):
-
-- Button: 28×28, `border: 1px solid var(--sidebar-border-strong)`, transparent background, `var(--sidebar-text)` icon
-- Count badge: absolute top-end, `min-width 15px`, `border-radius: 9999px`, `background: var(--critical)`, white 9.5px text, `tabular-nums`, caps at "99+"
-- The badge is a live count, not decoration — it uses the critical status token because it demands action
+Unchanged: 28–30px outlined button on the sidebar, count badge `--critical` with a 2px
+sidebar-coloured ring, caps at 99+.
 
 ---
+
+## 5. Layout
+
+### 5.1 Shell
+
+```
+┌────────────┬──────────────────────────────────────────────┐
+│ Sidebar    │  .au-ground — the aurora, painted once        │
+│ #0E1013    │   ┌ page: max-width 1200, centred ─────────┐  │
+│ 240 / 64   │   │ header (crumb · H1 · sub · controls)    │  │
+│ rail       │   │ ↓ 26px                                  │  │
+│            │   │ overview card (viz + tiles)             │  │
+│            │   │ section: H2 + legend → entity cards     │  │
+│            │   │ section: H2 → table card                │  │
+│            │   └─────────────────────────────────────────┘  │
+└────────────┴──────────────────────────────────────────────┘
+```
+
+- Content padding `30px 40px 80px` desktop, `16px 14px 40px` phone; page `max-width: 1200px`
+  (workbench lists may run full width); sections 26px apart; a section's H2 sits 16px above
+  its cards.
+- Entity cards: a grid of up to 4 equal columns (`repeat(n, minmax(0,1fr))`), 18px gap.
+- Overview card: `grid-template-columns: auto minmax(0,1fr)`, 40px gap, `26px 30px` padding —
+  the visual on the start side, the tiles (3 columns, 12px gap) on the end side; one column
+  under 1180px.
+- Manager / admin pages have no global topbar: bell, user and market live in the sidebar
+  (`docs/sidebar.md`, `prototypes/sidebar-v2.html`). The agent shell keeps its topbar and
+  bottom tabs.
+
+### 5.2 Sidebar
+
+Unchanged and still the only dark surface: `#0E1013`, 240px or a 64px rail, active item a
+filled `--brand` pill, one count chip style, drawn SVG flags. Spec in `docs/sidebar.md`.
+
+### 5.3 Phone
+
+Desktop-first, phone-optimised. Under 640px: cards stack, tiles go 2-up, drawers become
+full-height sheets with 12px inset kept at the top only, text fields are 16px (iOS zoom).
+Phone layer z-order (agent shell): 30 bulk bar · 40 bottom tabs + sticky topbar · 50 order
+panel · 60 action sheets · 70 popovers · 200 toasts. Equal z-index means DOM order decides —
+anything that must cover the tab bar goes above 40. Full-screen layers lock body scroll
+(`useBodyScrollLock`) and pin to `useVisibleViewport`.
+
+### 5.4 RTL
+
+Logical properties only (`ps`/`pe`/`ms`/`me`/`start`/`end`/`text-start`/`border-s`,
+`inset-inline-*`) — never `left`/`right`. Halos, gradients that have a direction, the
+selected-row wash and bars that grow from the start all mirror under `dir="rtl"`. Per-node
+`dir="auto"` on customer names, cities and product names; eyebrows drop caps and tracking in
+Arabic. Libya (the RTL market) is the load-bearing reader of every screen.
+
+---
+
+## 6. Spacing & radius
+
+### Spacing
+
+4 · 6 · 8 · 10 · 12 · 14 · 16 · 18 · 20 · 24 · 26 · 30 · 40 px. Inside a card 12–16px between
+blocks; cards 18px apart in a grid; sections 26px apart.
+
+### Radius — soft and nested
+
+| Value | Use |
+|---|---|
+| 26px | Drawers |
+| 24px | Cards (`rounded-panel`, `.au-card`) |
+| 22px | Modals |
+| 16px | Inner surfaces, tiles, drawer sections (`rounded-card`) |
+| 13–14px | Glass toolbar buttons, stepper, popovers |
+| 10–12px | Buttons, inputs, icon buttons, mini cells |
+| 9px | Segments, small buttons |
+| 4px | Legend swatches |
+| 9999px | Chips, tags, badges, bars, avatars |
+
+Nested radii step down (24 → 16 → 11) so the gap between an inner and an outer corner stays
+even. Sharp corners are forbidden on anything interactive.
+
+> **Superseded.** 4px buttons, 6px cards, 8px modals; `rounded-card` was 10px.
+
+---
+
+## 7. Styling conventions
+
+### Where styles live
+
+- **Tailwind with tokens** for new components: `bg-au-card`, `text-ink-primary`,
+  `rounded-panel`, `shadow-card`… never raw palette classes (`bg-white`, `gray-200`).
+- **`.au-*` component classes** in `globals.css` for what Tailwind cannot say briefly: glass
+  (`backdrop-filter`), the aurora, halos, keyframes.
+- **A prototype ported verbatim** (the `/team` way): the prototype's stylesheet copied rule for
+  rule into a block of `globals.css` under a page prefix (`.r6` / `r6-`), its tokens set on the
+  page root, element resets wrapped in `:where()` so they never outrank a prototype rule. Use it
+  when the owner asked for a prototype to be followed exactly.
+- Inline `style={}` only for runtime values — an identity hue (`--a5`), a bar's width, a
+  stagger index (`--i`, `--n`).
+
+### Never put a `/opacity` modifier on a var-backed token
+
+Tailwind v3 cannot compute alpha for a `var()` colour; `bg-hue-amber-bg/70` or
+`bg-ink-primary/40` is **silently dropped** from the stylesheet. Derive steps in `globals.css`
+with `color-mix()` and alias them. Keep token inputs plain `#RRGGBB`:
+`status-contrast.test.ts` and `role-tones.test.ts` parse `globals.css` and throw on anything
+else.
+
+### Interaction states
+
+CSS `:hover` / `:focus-visible` / `[aria-selected]`, not JS hover state. Clickable card:
+lift + `shadow-card-hover`. Button: white + `shadow-hover-row`. Row: white wash. Never
+override `:focus-visible`.
+
+### Motion
+
+| Name | What | Timing |
+|---|---|---|
+| rise | cards enter from +14px | 600ms `cubic-bezier(.2,.8,.2,1)`, stagger 70ms |
+| pop | squares / dots enter from scale .3 | 550ms `cubic-bezier(.3,1.5,.5,1)`, stagger 6ms |
+| sweep | a ring draws itself | 1.1s, after its card |
+| growx / growy | bars grow from the start / bottom | 800–900ms |
+| slide | drawers enter from the end | 320ms |
+| lift | hover | 200–250ms transform + shadow |
+| pulse | the live dot only | 1.8s loop |
+
+Entrance motion plays once per mount, on showcase pages only (§1.1). Menus keep `menuDrop`.
+`@media (prefers-reduced-motion: reduce)` disables every animation and transition; a ring
+then renders fully drawn.
+
+---
+
+## 8. Do and don't
+
+### Do
+
+- Put the page on the aurora once, in the shell; float glass cards on it.
+- Open on the page's one number, huge; write a 2–4-word status under every number.
+- Give each person or account their identity hue everywhere they appear.
+- Use the fixed outcome hues for outcomes, and write the figure beside every mark.
+- Give every chart mark a tooltip, and let legends highlight.
+- Rest cards on `shadow-card`; lift what you can click.
+- Keep text ≥ 4.5:1 — `#667085` is the lightest text grey.
+- Use brand green for chrome only: active nav, primary button, focus, selected.
+- Use logical properties and px sizes (root font 14px).
+- Validate any new palette with the dataviz checker.
+
+### Don't
+
+- Don't paint an opaque page background over the aurora, or use a dark content surface.
+- Don't let one colour mean two things — identity ≠ status ≠ severity ≠ chrome.
+- Don't use colour alone, or put type in a fill hue below 4.5:1.
+- Don't write sentences where a number and a tag would do.
+- Don't put `backdrop-filter` on list rows, or animate rows on a workbench.
+- Don't use black shadows, sharp corners, or the 2.5:1 sidebar green on light.
+- Don't hardcode strings or use physical CSS properties.
+- Don't put `/opacity` on a var-backed token.
+
+---
+
+## 9. Quick reference
+
+```css
+/* Ground */
+--au-ground: #F6F7FB;              /* + .au-ground: the 5-stop aurora, fixed */
+/* Glass */
+--au-card: rgba(255,255,255,.62);  --au-card-edge: rgba(255,255,255,.9);
+--au-glass-in: rgba(255,255,255,.66); --au-glass-in-edge: rgba(255,255,255,.95);
+--au-blur: blur(20px) saturate(170%);
+/* Ink */
+--au-ink-1: #0F1728; --au-ink-2: #475467; --au-ink-3: #667085;
+--au-ink-quiet: #8A94A6; /* not text */  --au-ink-4: #C9CED7;
+--au-line: rgba(15,23,40,.07);     --au-track: rgba(15,23,40,.06);
+/* Elevation (indigo-tinted) */
+--au-sh: 0 10px 36px rgba(42,52,110,.07);
+--au-sh-hover: 0 20px 52px rgba(42,52,110,.14);
+/* Severity */
+--au-good: #067647; --au-good-bg: #DCFAE6; --au-live: #12B76A;
+--au-warn: #B54708; --au-warn-bg: #FFF4E0; --au-warn-dot: #F79009;
+--au-bad:  #C01048; --au-bad-bg:  #FFE4E8;
+/* Chrome */
+--brand: #15803D; --brand-hover: #12692F; --brand-bg: #E9F6EE;
+--brand-on-dark: #10B981; /* sidebar ONLY */
+/* Radii */ 26 drawer · 24 card · 22 modal · 16 inner · 10–12 control · 9999 pill
+```
+
+**Card:** `<div className="au-card p-[24px]">` · **Inner tile:** `au-glass` ·
+**Eyebrow:** `text-[10.5px] font-[800] uppercase tracking-[0.1em] text-ink-muted` ·
+**Hero figure:** `text-[34px] font-[800] tracking-[-0.045em] leading-none tabular-nums` ·
+**H1:** `text-[32px] font-[800] tracking-[-0.03em] leading-[1.1]`.
+
+---
+
+## 10. Migration status — what the code still says (2026-10-04)
+
+The doctrine above is the target. Nothing outside `/team` has been migrated; the owner
+decides when. This table is the checklist for that migration and must shrink, not grow.
+
+| Area | Code today | Aurore target |
+|---|---|---|
+| Page ground | `--bg-page` `#F6F6F7` flat, set in `DashboardChrome` (inline style); `--oms-bg` `#FAFAF8`, `--agent-bg` `#FAFAF9`, `--wh-bg` / `--wm-ground` `#F6F6F7`, investor `bg-oms-bg` | `.au-ground` painted once on the shell's `<main>` (`SidebarFrame`), the agent shell, the investor shell; phone warehouse stays opaque `#F6F7FB` |
+| Page roots | ~23 roots paint `min-h-screen bg-surface-page / bg-oms-bg / bg-fin-bg / bg-agent-bg` over the ground (carriers, dashboard, P&L, stock, ad spend, investors, messages, integrations, performance, users, réglages, products, queue, leads, purchases…) | no ground on page roots; a test forbids `min-h-screen` + an opaque ground |
+| Ink | Tailwind `ink.primary #1A1A1A`, `secondary #6D7175`, `muted #9CA3AF` (2.5:1 — fails AA as text) | `#0F1728` / `#475467` / `#667085` |
+| Lines | `line.subtle #ECEEF0`, `line #E1E3E5`, `line.strong #DADCE0` ≠ `--border-strong #C9CCCF` (open discrepancy) | one value each; strong = `#D0D5DD` in both |
+| Radius | `rounded-card` 10px (12px under `.agent-theme`) | `rounded-card` 16px inner, new `rounded-panel` 24px, `drawer` 26, `modal` 22 |
+| Elevation | grey `rgba(16,24,40,…)`; resting cards flat | indigo-tinted; `shadow-card` at rest |
+| `Card` | `bg-surface-card border border-line-subtle rounded-card` | `.au-card` |
+| `Button` | `rounded-lg font-semibold`, `h-8` / `h-10` (rem → 28 / 35px at 14px root) | 10 / 12px radius, 700, `h-[32px]` / `h-[40px]`, glass secondary |
+| `Sheet` | docked drawer `bg-surface-card shadow-panel`; scrim `bg-ink-primary/40` | floating glass drawer (12px inset, 26px radius), blurred scrim |
+| `Popover`, `Toast`, `Skeleton` | `rounded-lg` white / `rounded-lg bg-ink-primary` / `rounded-[6px] bg-surface-sunken` | §4.12–4.13 |
+| `Combobox`, `InlineField`, `StepperField` | inline hex (`#D1D5DB` border, radius 4–6, black shadow) | §4.13 inputs, via tokens |
+| Agent topbar | solid `bg-agent-surface` band | glass bar (`--au-card` + blur) |
+| `/team` meta grey | `#8A94A6` (3.1:1) inside `.r6`, as the prototype | `#667085` once the owner re-approves |
+
+Tests that pin the old look and must change with the migration: `Card.test.tsx`,
+`Button.test.tsx`, `Badge.test.tsx`, `InlineField.test.tsx`,
+`HeroTiles.savings.test.tsx` / `HeroTiles.period.test.tsx` (find the card by
+`div.rounded-card`), `DexpressStatusTimeline.test.tsx` (`bg-surface-card`).
+
+---
+
+## Scoped extensions
+
+The sections below predate Aurore and were written as exceptions to the flat system. Since
+2026-10-04 each **inherits Aurore** (ground, glass, radii, type, elevation, motion) and keeps
+only what is specific to it — its own palette, its density, its data rules. Where a section's
+« Still forbidden here » list says *gradients* or *shadows on resting cards*, read it as
+amended: the Aurore ground, glass and resting card shadow are allowed; **decorative**
+gradients (a gradient that carries no meaning and is not the house ground, glass, avatar,
+medal or alert wash) remain forbidden everywhere.
 
 ## 4.15 Investor portal — scoped extension
 
@@ -351,7 +657,7 @@ The one genuine addition. Money has direction, and direction is status:
 | Not yet money | `ink-secondary` `#6D7175` | Estimates, held reserve, anything unsettled |
 
 Colour goes on the **figure**, never on a container. A neutral number — a count, a rate,
-a date — stays `ink-primary`. This is §1 rule 3 ("functional color only on status")
+a date — stays `ink-primary`. This is §1 rule 2 ("functional color only on status")
 extended to a second kind of status, not an exception to it.
 
 ### Product imagery
@@ -368,9 +674,10 @@ convention for every remote image.
 
 ### Elevation on tappable cards
 
-`hover:shadow-hover-row transition-shadow duration-fast` on cards that navigate. This is
-already sanctioned by §2 for interactive rows; it is listed here only to confirm that a
-product card counts as one. **Resting non-interactive cards stay flat** — no change.
+A card that navigates lifts on hover (−2px, `shadow-card-hover`), like every clickable
+Aurore card (§4.2). Resting cards carry the house `shadow-card`.
+
+> **Amended 2026-10-04.** Was: *"Resting non-interactive cards stay flat."*
 
 A tappable card must be a real `<Link>` or `<button>`, never a `<div onClick>`, so it
 receives the global `:focus-visible` ring and works from a keyboard.
@@ -384,9 +691,9 @@ is one.
 
 ### Still forbidden here
 
-Gradients · accent green `#10B981` outside its two reserved slots · colour as decoration ·
-shadows on resting non-interactive cards · hardcoded strings · physical CSS properties.
-The portal is the OMS's only mobile-first *and* RTL-load-bearing surface, so logical
+Decorative gradients (the Aurore ground, glass and avatar gradients are the house look, not
+decoration) · `--brand-on-dark` `#10B981` on a light ground · colour as decoration ·
+hardcoded strings · physical CSS properties. The portal is the OMS's only mobile-first *and* RTL-load-bearing surface, so logical
 properties (`ps`/`pe`/`text-end`/`inset-inline-*`) are not optional.
 
 ---
@@ -431,7 +738,7 @@ status, so it earns colour where a description does not.
 
 ### Reading rhythm
 
-Body sections use `gap-5` (20px) instead of the §4.13 drawer default of `gap-3`, and prose
+Body sections use `gap-5` (20px) instead of the §4.9 drawer default of 12px, and prose
 blocks (description, notes, usage, composition) use `leading-relaxed`. This is a reading
 surface, not a dense form. Everything else — labels, rows, badges — keeps the standard
 tight rhythm.
@@ -451,8 +758,9 @@ tight rhythm.
 ### Still forbidden here
 
 Tinted section backgrounds (§4.10 — identity comes from icon + label; status *alerts* are
-not section backgrounds and remain allowed) · gradients · accent green outside its two
-reserved slots · shadows on resting cards · hardcoded strings · physical CSS properties.
+not section backgrounds and remain allowed) · decorative gradients · `--brand-on-dark`
+on a light ground · hardcoded strings · physical CSS properties. The sheet is a §4.9 drawer:
+glass, resting shadow and radius come from Aurore.
 
 ---
 
@@ -466,10 +774,14 @@ absolute timestamp gave no sense of how long an order had been rotting.
 The console inherits the whole system **except** the allowances below, which apply **only**
 under `src/components/orders/**` and the orders route. Nothing here relaxes the rules elsewhere.
 
-### A. Warm ground
+### A. Warm ground — retired 2026-10-04
 
-The console runs on a warmer, lower-contrast ground than `--bg-page`, so white row bands read
-as objects sitting on a surface rather than as the surface itself.
+> **Superseded.** The console ran on its own warm ground so white row bands read as objects on
+> a surface. Under Aurore the console sits on the house aurora like every page, and
+> `--oms-bg` is to resolve to `--au-ground` (for sticky bars that must stay opaque) — not
+> migrated yet, §10. The row bands
+> stay white (`--oms-surface`) — a workbench list is not glass (§1.1). The warm hairlines and
+> the three-step ink ramp below remain until the console is redrawn.
 
 | Token | Hex | Role |
 |---|---|---|
@@ -523,7 +835,7 @@ status hue.
 > free to do the more valuable job of tying the content to the sidebar.
 >
 > Violet keeps the meaning it actually earns: the confirmation-phase status hue.
-> That is a separate vocabulary from chrome (§1 rule 3), and it is *why* the tile
+> That is a separate vocabulary from chrome (§1 rule 2), and it is *why* the tile
 > could not simply be repointed — `--hue-violet-*` aliases `--oms-accent`, so
 > recolouring the token would have turned `confirmed` green and collided it with
 > `delivered`. The fix was to split the job, not to repaint the token.
@@ -544,9 +856,10 @@ Never colour alone — the glyph carries the signal in greyscale.
 
 ### E. Elevation
 
-Consistent with §1: resting surfaces are flat. Row bands and tiles take `shadow-hover-row`
-**on hover only**. Twenty-five resting shadows in a list is decoration; one under the cursor
-is feedback.
+The console's containers (the KPI strip, the list card) rest on `shadow-card` like every
+Aurore card. **Row bands** still take `shadow-hover-row` on hover only: this is the workbench
+rule of §1.1 — twenty-five resting shadows inside a list is noise; one under the cursor is
+feedback.
 
 ### F. Numerals and bilingual type
 
@@ -773,7 +1086,7 @@ read it, and it is gone. Each account now has a colour in the data (`carriers.ac
 pair `#1F5FBF` / `#C24E17` (CVD ΔE 25.2, white text ≥ 4.7:1); a carrier with one account gets
 no pill.
 
-This is colour carrying something that is **not** status, which §1 rule 3 and §4.15 both
+This is colour carrying something that is **not** status, which §1 rule 2 and §4.15 both
 forbid. It is allowed here, narrowly, because two identical logos are not separable otherwise.
 The condition is unchanged: colour is **never the only signal** — the city is written in the
 band and in the pill. See docs/carrier-scorecard.md.
@@ -795,7 +1108,7 @@ sequence; a tile row is not read at all until one of them is.
 - Icon: 20px lucide, `strokeWidth={2}`, colour = the full hue
 - Hue matches what the tile counts, and comes from the same status map as the pills — a tile
   and the rows it opens must not disagree about what colour that state is
-- The tile stays flat at rest; elevation on hover only (§2)
+- The tile is an Aurore inner surface (`.au-glass`); it lifts on hover (§4.2)
 
 Do not use this holder outside a KPI tile.
 
@@ -810,9 +1123,9 @@ intent, violet risky parcel, orange overdue callback, amber no answer, teal addr
 coverage, indigo delayed, stone stalled, blue promised callback, slate warehouse, grey carrier,
 green delivered. The map is `SIT_TONE` in `src/lib/delivery/presentation.ts`; the classes are
 `TONE[..].chip` in `src/components/delivery/ui.tsx`, written out as literals because Tailwind
-cannot see an interpolated class. **The chip is the one sanctioned gradient in the product UI**
-(a fade from the tint to near-white, mirrored under `dir="rtl"`), asked for by the owner as a
-status signal; it does not license gradients anywhere else.
+cannot see an interpolated class. The chip is a gradient (a fade from the tint to near-white, mirrored under `dir="rtl"`),
+asked for by the owner as a status signal — the same idea as Aurore's alert wash (§4.2).
+*(Until 2026-10-04 it was "the one sanctioned gradient in the product UI".)*
 
 **One parcel, one colour (extended 2026-09-18 to the manager screen).** Everything that
 describes *a single parcel* takes the situation tone: the chip, the row's inline-start edge,
@@ -824,263 +1137,6 @@ per-agent load bar, which is a distribution across buckets and nothing else. The
 exception is the mobile action bar, tinted by `moveTone` (how hard the action pulls), because
 the edge and chip already carry what is wrong. Design notes:
 `plans/delivery-worklist-row-redesign.md`.
-
-## 5. Layout
-
-### Shell Structure
-
-```
-┌──────────────────────────────────────────────┐
-│ Sidebar (240px, #1A1A1A, 100vh, fixed)       │
-│  Logo                                         │
-│  Nav items                                    │
-│  User menu                                    │
-├──────────────────────────────────────────────┤
-│ Content (flex: 1, marginInlineStart: 240px)  │
-│  Topbar (56px, #FFFFFF, border-bottom)        │
-│  Page content (#F6F6F7 background)            │
-└──────────────────────────────────────────────┘
-```
-
-### Sidebar
-
-Spec: `prototypes/sidebar-v2.html`; implementation notes: `docs/sidebar.md`.
-- Widths: `240px`, or a `64px` rail (person's choice, default below 1280px); phone: drawer `min(304px, 86vw)` behind a `52px` top bar
-- Head and foot pinned; only the list scrolls (a hairline appears under the head once scrolled)
-- Head: wordmark + alerts pill (bell + count chip side by side), market card `50px`, « Aller à… ⌘K » `32px`
-- Group label: `28px`, `11px/600` uppercase muted, no icon, chevron; RTL drops caps and tracking
-- Item: `height: 32px`, `padding-inline: 10px / 8px`, icon `16px`, `font-size: 14px`, `border-radius: 8px`
-- Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar
-- One count chip everywhere (`.sb-badge`, 18px, capped at 999+, digits isolated LTR)
-- Flags are drawn SVG (`MarketFlag`), never emoji — Windows renders emoji flags as letters
-
-### Topbar (agent shell only)
-
-Manager/admin pages have **no global topbar** — `DashboardChrome` renders only the sidebar and the content area; the alerts bell and user menu live in the sidebar. The topbar spec below applies to the agent shell (`AgentDashboardShell`) only:
-
-- Height: `56px`
-- Background: `#FFFFFF`
-- Border-bottom: `1px solid #E1E3E5`
-- Padding: `0 24px`
-
-### Page Content Area
-
-- Background: `var(--bg-page)` / `#F6F6F7`
-- Padding: `24px` standard
-- Cards sit on `#F6F6F7` background
-
-### Phone layers (agent shell) — added 2026-09-30
-
-| z | Layer |
-|---|---|
-| 30 | bulk-action bar |
-| 40 | bottom tab bar (`AgentNavTabs`) and the sticky phone topbar |
-| 50 | order panel slide-over (`panelShellClasses`) |
-| 60 | call-result sheet (`PostCallActionSheet`), dispatch modals |
-| 70 | popovers and menus (`Popover`) |
-| 200 | toasts |
-
-- **Equal z-index means DOM order decides**, and the tab bar renders *after* the queue. A sheet at `z-40` painted under it and lost its submit button to the bar — anything that must cover the bar goes above 40, never at it.
-- Full-screen phone layers hold the page with `useBodyScrollLock` (counted, so stacked layers release in any order) and scroll with `overscroll-contain`.
-- Bottom sheets pin to `useVisibleViewport`, so the keyboard lifts them instead of covering the field and its button; decisive buttons sit in a pinned footer, never at the end of a scrolling list.
-- Text fields are 16px on touch screens — iOS zooms the page into anything smaller and stays zoomed. Enforced for `.agent-theme` in `globals.css`.
-
-### RTL Support
-
-Use **logical CSS properties** everywhere — never physical (`left`/`right`):
-
-| Physical | Logical |
-|---|---|
-| `margin-left` | `margin-inline-start` |
-| `padding-right` | `padding-inline-end` |
-| `border-left` | `border-inline-start` |
-| `left: 0` | `inset-inline-start: 0` |
-
-Set `direction: rtl` on the root element for Arabic locale. All layout flips automatically with logical properties.
-
----
-
-## 6. Spacing & Radius
-
-### Spacing (8px base)
-
-| Value | Use |
-|---|---|
-| `4px` | Tight icon gaps, badge padding |
-| `8px` | Base unit — gaps between inline elements |
-| `12px` | Card gaps, compact padding |
-| `16px` | Standard padding — cards, form fields |
-| `20px` | Modal body padding |
-| `24px` | Page padding, section gaps |
-| `32px` | Between major sections |
-| `48px` | Between page-level sections |
-
-### Border Radius
-
-| Value | Use |
-|---|---|
-| `4px` | Buttons, inputs, small controls |
-| `6px` | Cards, dropdowns, standard containers |
-| `8px` | Modals, large panels |
-| `9999px` | Pill badges only |
-
-**Sharp corners (0px) are forbidden on interactive elements.**
-
----
-
-## 7. Styling Conventions
-
-### Tailwind utility classes (default for new components)
-
-New components use **Tailwind utility classes** referencing the semantic tokens defined in `tailwind.config.ts` (`bg-surface-card`, `border-line-subtle`, `text-ink-primary`, `rounded-card`, `shadow-hover-row`, etc.). Inline `style={}` is reserved for **dynamic computed values only** (avatar bg color, sparkline width, focused-bar accent toggle).
-
-```tsx
-// correct — semantic tokens, not raw colors
-<div className="bg-surface-card border border-line-subtle rounded-card p-4 hover:shadow-hover-row transition-shadow duration-fast">
-
-// wrong — raw Tailwind colors bypass the design tokens
-<div className="bg-white border border-gray-200 rounded-md">
-
-// acceptable — inline style for a value that must be computed at runtime
-<div style={{ backgroundColor: getProductAvatarColor(name) }}>
-```
-
-Legacy components (built before this convention) may still use inline `style={{ ... }}` with CSS custom properties — they should be migrated to Tailwind opportunistically when otherwise modified.
-
-### Never put a `/opacity` modifier on a token — it compiles to nothing
-
-Most colour tokens here are `var(--x)` aliases. **Tailwind v3 cannot compute alpha
-for a `var()`-backed colour** — it only does so for its own
-`rgb(… / <alpha-value>)` format. The utility is not approximated and it does not
-error; it is **silently dropped from the stylesheet**.
-
-```tsx
-// wrong — emits NO css. The pill falls back to the preflight grey border.
-<span className="bg-hue-amber-bg/70 border-hue-amber-edge/25" />
-
-// right — an explicit step, derived once in globals.css
-<span className="bg-hue-amber-fill-soft border-hue-amber-edge-soft" />
-```
-
-This shipped: every status pill's weight ladder (`quiet` / `medium` / `loud`) was
-written as opacity modifiers, so the fill and border steps never rendered and the
-whole column wore one flat grey edge instead of its own hue. Weight was visible
-only in the font.
-
-Where a token genuinely needs alpha steps, derive them in `globals.css` with
-`color-mix()` from the base token — one source of truth, and no pair of values
-that can drift — then alias them in `tailwind.config.ts`. See
-`--hue-*-fill-soft` / `--hue-*-edge-soft` / `--hue-*-edge-mid`.
-
-Keep the *inputs* plain `#RRGGBB`: `src/lib/orders/status-contrast.test.ts` reads
-tokens straight out of `globals.css` and throws on anything it cannot parse, which
-is what stops a palette change from quietly dropping a badge below 4.5:1.
-
-### Interaction States
-
-Handle hover/focus via JavaScript event handlers with `useState`:
-
-```tsx
-const [hovered, setHovered] = useState(false);
-
-<button
-  style={{ background: hovered ? '#2A2A2A' : '#1A1A1A' }}
-  onMouseEnter={() => setHovered(true)}
-  onMouseLeave={() => setHovered(false)}
->
-```
-
-Do **not** override `:focus-visible` — the global Neon Green ring from `globals.css` applies automatically.
-
-### Motion
-
-Minimal. Only two transitions are used:
-- Hover state: `transition: background-color 120ms ease, border-color 120ms ease`
-- Drag feedback: `transition: border-color 120ms ease`
-
-No entrance animations, page transitions, or transforms.
-
----
-
-## 8. Do's and Don'ts
-
-### Do
-
-- Keep background of all content areas `#F6F6F7` (page) or `#FFFFFF` (cards)
-- Use `#1A1A1A` for all primary text — near-black, never pure black or gray
-- Use `border-line-subtle` (`#ECEEF0`) for new cards and list rows; reserve `border-line` (`#E1E3E5`) for inputs and legacy surfaces
-- Apply status badge colors only to convey order status — never decoratively
-- Use `shadow-hover-row` on interactive list items on hover; `shadow-floating` on bulk bars and modals
-- Brand green is **chrome only** — active nav item, primary CTA, active segment count badge, focused-row bar (§4.18). Never on a status.
-- Use logical CSS properties (`ps-`, `pe-`, `start-`, `end-`, `margin-inline-start`, `inset-inline-end`) for RTL safety
-- Use `font-variant-numeric: tabular-nums` (Tailwind: `tabular-nums`) for all numeric data
-- Keep the sidebar the **only** dark surface; never add dark backgrounds to content
-- Focus ring is automatic — never manually style `:focus`
-
-### Don't
-
-- Don't add shadows to resting cards — flat surfaces by default; elevation appears only on hover/floating
-- Don't use gradients anywhere
-- Don't add color for decoration — color only where it communicates status
-- Don't let brand green carry a status, or a status hue carry chrome — they are two vocabularies (§1 rule 3)
-- Don't use physical CSS properties (`left`, `right`, `margin-left`) — use logical equivalents
-- Don't use `--brand-on-dark` (`#10B981`) on a light ground — it is 2.5:1 on white. Dark sidebar only
-- Don't hardcode UI strings — all text through `useTranslations()`
-- Don't bypass the semantic Tailwind tokens — use `bg-surface-card`, not `bg-white`; `border-line-subtle`, not `border-gray-200`
-- Don't animate more than background-color, border-color, opacity, transform, and box-shadow
-
----
-
-## 9. Quick Reference
-
-Copy-paste values for common use:
-
-```css
-/* Surfaces */
---bg-page: #F6F6F7;
---bg-card: #FFFFFF;
---bg-hover: #F7F7F7;
---bg-selected: #F2F2F2;
---sidebar-bg: #0E1013;
---sidebar-hover: rgba(255,255,255,.04);
---sidebar-active-fill: var(--brand);
-
-/* Brand green — chrome. Two greens; see §2 Accent. */
---brand: #15803D;         --brand-hover: #12692F;
---brand-bg: #E9F6EE;      --brand-tint: #F1FAF4;
---brand-on-dark: #10B981; /* sidebar surface ONLY — 2.5:1 on white */
-
-/* Text */
---text-primary: #1A1A1A;
---text-secondary: #6D7175;
---sidebar-text: #E6E8EB;
---sidebar-text-muted: #7F858F;
-
-/* Borders */
---border: #E1E3E5;
---border-strong: #C9CCCF;
-
-/* Status (badges only) */
---action: #2C6ECB;
---success: #008060;       --success-bg: #F1F8F5;
---warning: #B98900;       --warning-bg: #FFF8E6;
---critical: #D72C0D;      --critical-bg: #FFF4F4;
---neutral: #6D7175;       --neutral-bg: #F6F6F7;
-
-/* Focus (global, do not override) */
-/* :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; } */
---focus-ring: var(--brand);
-```
-
-### Example Prompts
-
-- *"Create a card on `#F6F6F7` with `background: #FFFFFF`, `border: 1px solid #E1E3E5`, `border-radius: 6px`, `padding: 16px`. Heading `16px/600/#1A1A1A`, body `14px/400/#1A1A1A`, label `13px/500/#6D7175`. No shadow."*
-
-- *"Design a status badge for 'confirmed': `background: #F1F8F5`, `color: #008060`, `border-radius: 9999px`, `padding: 2px 8px`, `font-size: 13px`, `font-weight: 500`."*
-
-- *"Build a sidebar nav item: `height: 34px`, `font-size: 14px`, `color: var(--sidebar-text)`, `border-radius: 8px`. Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar. Hover: `background: var(--sidebar-hover)`."*
-
-- *"Create a data table. `<th>`: `13px/500/#6D7175`, uppercase, `letter-spacing: 0.05em`, `padding: 12px 16px`. `<td>`: `14px/400/#1A1A1A`, `padding: 12px 16px`. Row hover: `background: #F7F7F7`."*
 
 ---
 
@@ -1153,9 +1209,11 @@ refused stays red, late and never-counted stay amber.
 
 ### Palette
 
-Since 2026-10-02 the `--wh-*` and `--wm-*` variables hold **Ordra's values**
-(ground `#F6F6F7`, ink `#1A1A1A`/`#6D7175`, hairline `#E1E3E5`, `ok` = the brand
-green `#15803D`). The names remain so the warehouse's class usages keep working;
+Since 2026-10-02 the `--wh-*` and `--wm-*` variables hold **Ordra's values** (today ground
+`#F6F6F7`, ink `#1A1A1A`/`#6D7175`, `ok` = the brand green `#15803D`); in the Aurore migration
+they follow the house values (ground `#F6F7FB`, ink `#0F1728`/`#475467`). The **desk** console sits on the
+aurora; the **phone** shell keeps an opaque ground (§1.1 — sunlight, a list scrolling under
+the bars). The names remain so the warehouse's class usages keep working;
 retiring them is a later clean-up.
 
 ### The graph-paper ground
@@ -1181,7 +1239,8 @@ one peeks in — the only honest signal that the row scrolls.
 
 ### Still forbidden here
 
-Gradients · colour as the sole channel for a roll colour or a severity ·
+Glass or `backdrop-filter` on the phone shell (opaque, §1.1) · decorative gradients ·
+colour as the sole channel for a roll colour or a severity ·
 inventing a figure the warehouse has not earned (a stock goal nobody set, an
 accuracy nobody measured) · physical CSS properties. Libya is RTL and this is
 the section's only load-bearing RTL surface, so `ps`/`pe`/`ms`/`me`/`text-start`
@@ -1254,7 +1313,7 @@ fourth hue, because it reads as "not yet spent" rather than as another category.
 
 ### Still forbidden here
 
-Gradients · a raw fill hue carrying type · colour as the only channel for a cost
+Decorative gradients · a raw fill hue carrying type · colour as the only channel for a cost
 category or a verdict · a dark ground · inventing a figure the data has not
 earned. A young cohort must read as unfinished (`maturityPct`), never as a
 confident number.
@@ -1265,7 +1324,7 @@ confident number.
 
 `/users` (Équipe › Accès) gives each **role** one hue. Approved by the owner from
 `prototypes/acces-v2.html` ("j'aime le design"); the structure and its rationale are
-in `prototypes/acces-v1.html`. This is colour carrying a **category**, which §1 rule 3
+in `prototypes/acces-v1.html`. This is colour carrying a **category**, which §1 rule 2
 forbids — allowed here, narrowly, like §4.22 and the carrier-account colour, because a
 list of people reads by team first and the hue is what makes the team visible at a glance.
 
@@ -1321,37 +1380,24 @@ itself `#EEF0F4`/`#2F3A4B`.
 **hollow** bar (amber inset line), not merely another colour. Brand green stays chrome:
 the active tab underline, « Problèmes seulement » on, primary buttons.
 
-## 4.25 Équipe « Aurore » — agent colours, gradients, glass (2026-10-04)
+## 4.25 Équipe — the reference implementation (2026-10-04)
 
-The owner chose this look for the team surfaces from a four-look board (Performance v3,
-then Salle de contrôle v6, `prototypes/team-v6.html`). It is a **scoped exception** to
-« zero gradients, zero shadows »: it lives under `.r6` only (the page root of `/team`)
-and must not leak into any other screen.
+Salle de contrôle (`/team`) is where Aurore was first built, and it stays the reference: the
+owner chose the look from a four-look board (Performance v3), then approved
+`prototypes/team-v6.html`. Until 2026-10-04 this section called it *"a scoped exception to
+« zero gradients, zero shadows » … must not leak into any other screen"*; the same day the
+owner made it the house language, and §1–§9 above are its generalisation.
 
-**How it is built.** The prototype's stylesheet is ported rule for rule into
-`globals.css` (« Salle de contrôle v6 »): every class keeps the prototype's name with an
-`r6-` prefix, and the prototype's tokens (`--ink`, `--card`, `--w-*`, `--f-*`…) are set on
-`.r6`, not `:root`. Components write `className="r6-tile"` etc. instead of Tailwind, so
-the page can follow the mockup line for line. Element resets are `:where()` (zero
-specificity) so they never beat a prototype rule.
+**How `/team` is built — the verbatim-port pattern (§7).** The prototype's stylesheet is ported
+rule for rule into `globals.css` (« Salle de contrôle v6 »): every class keeps the prototype's
+name with an `r6-` prefix, the prototype's tokens (`--ink`, `--card`, `--w-*`, `--f-*`…) are set
+on `.r6`, not `:root`, and element resets are `:where()` so they never beat a prototype rule.
+`.r6` keeps the prototype's meta grey `#8A94A6` (3.1:1); the house ramp does not (§2.3).
 
-**Agent colours** — global, because Performance will wear them too:
+**Agent colours** — the identity vocabulary of §2.4, defined globally as
+`--agent-<key>-{0,1,2,5,7,9}`, stored per agent in `users.color` (a trigger gives a new agent
+the least-worn hue of her market, so a colour never moves), handed to an element as
+`--a0…--a9` by `lib/team/agent-color.ts`. Performance (`/team/performance`) wears the same
+colours.
 
-| Key (`users.color`) | Identity (`--agent-<key>-5`) |
-|---|---|
-| indigo | `#444CE7` |
-| pink | `#DD2590` |
-| cyan | `#088AB2` |
-| gold | `#CA8504` |
-| lime | `#4CA30D` |
-| orange | `#E04F16` |
-
-Each has a ramp `-0 -1 -2 -5 -7 -9` (wash, soft, line, identity, deep, ink).
-`lib/team/agent-color.ts` hands it to an element as `--a0…--a9`; a trigger gives a new
-agent the least-worn hue of her market, so a colour never moves. Outcomes keep fixed
-hues and never borrow an agent's: uploaded `#0E9384`, rejected `#E8385A`, delivered
-`#079455`, en route `#38C0AE`, returned `#F79009` (< 3:1 on white → the number is always
-written next to it).
-
-**Still forbidden here:** an agent hue on a status, a status hue on an agent, and the
-look anywhere outside the team pages.
+**Still forbidden here:** an agent hue on a status, a status hue on an agent.
