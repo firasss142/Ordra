@@ -84,6 +84,13 @@ export interface StockProduct {
   /** True when most in-window demand was inferred from created_at. */
   demand_is_inferred: boolean;
 
+  /**
+   * Unités commandées et pas encore arrivées — le manque des bons de commande
+   * OUVERTS. `null` et jamais `0` : « rien en commande » et « on ne sait pas »
+   * ne partagent pas un chiffre. Voir src/lib/purchases/orders.ts.
+   */
+  on_order: number | null;
+
   days_of_cover: number | null;
   stock_out_date: string | null;
   /** stock_out_date − lead_time_days. May be in the PAST; that is the alarm. */

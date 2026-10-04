@@ -130,3 +130,52 @@ describe("rollupSuppliers — ce qu'on doit à chacun", () => {
     expect(out.map((s) => s.supplierId)).not.toContain(null);
   });
 });
+
+
+/**
+ * CE QU'ON RETIENT N'EST PAS DÛ.
+ *
+ * `invoice_total` porte ce que le fournisseur a écrit ; un litige dit ce qu'on
+ * refuse de payer. Sans cette soustraction, l'échéancier réclamerait des unités
+ * arrivées cassées — et pire, il les réclamerait APRÈS que le fournisseur a
+ * émis son avoir.
+ */
+describe("payable — les montants retenus", () => {
+  test("retire le litige du solde", () => {
+    const p = payable(
+      { invoiceTotal: 12920, paid: 0, dueAt: "2026-10-30", withheld: 170 },
+      new Date("2026-10-04T10:00:00Z"),
+    );
+    expect(p.balance).toBe(12750);
+    expect(p.state).toBe("due");
+  });
+
+  test("solde à zéro quand le versement couvre ce qui reste après retenue", () => {
+    // 12 750 payés sur 12 920 facturés, 170 retenus : il ne reste rien, et la
+    // ligne doit QUITTER l'échéancier au lieu de crier 170 pour toujours.
+    const p = payable(
+      { invoiceTotal: 12920, paid: 12750, dueAt: "2026-09-01", withheld: 170 },
+      new Date("2026-10-04T10:00:00Z"),
+    );
+    expect(p.balance).toBe(0);
+    expect(p.state).toBe("paid");
+  });
+
+  test("ne descend jamais sous zéro", () => {
+    const p = payable(
+      { invoiceTotal: 100, paid: 0, dueAt: null, withheld: 500 },
+      new Date("2026-10-04T10:00:00Z"),
+    );
+    expect(p.balance).toBe(0);
+  });
+
+  test("reste inconnu quand la facture n'est pas chiffrée, retenue ou pas", () => {
+    // Retirer 170 de « on ne sait pas » donne « on ne sait pas », jamais −170.
+    const p = payable(
+      { invoiceTotal: null, paid: 0, dueAt: null, withheld: 170 },
+      new Date("2026-10-04T10:00:00Z"),
+    );
+    expect(p.balance).toBeNull();
+    expect(p.state).toBe("unknown");
+  });
+});

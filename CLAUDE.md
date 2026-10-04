@@ -156,13 +156,20 @@ Stock changes via EXACTLY these paths — anything else is a bug:
 3. warehouse_agent / market_manager / super_admin call scan_order_out (−qty) or scan_return_in (+qty or damaged)
 4. record_stock_count (per SITE; the count is what creates a site row) and scan_received_in (+qty)
 5. unscan_order (+qty, reason='scan_reversal') and manual_delete_orders (+qty on a scanned order)
-6. **post_reception** (+qty per line, reason='reception') and reverse_reception
-   (−qty, reason='reception_reversal') — supplier goods, since 2026-09-30. It is the ONLY
-   path besides a physical count that CREATES a `product_site_stock` row: the ventilation
-   trigger does an UPDATE, never an upsert, so a reception into a never-counted
-   (product, variant, site) would move the market total and silently miss the building.
+6. **record_arrival** (+qty, reason='arrival'), **correct_arrival** (the DELTA,
+   reason='arrival_correction') and reverse_reception (−qty, reason='reception_reversal')
+   — supplier goods. `post_reception` is GONE: a reception is no longer created and then
+   validated, it is RECORDED at the dock and SETTLED at the desk. Stock enters the moment
+   the box hits the floor, because that is when it is true; `settle_reception` writes the
+   money and mints the reference, and moves no stock at all.
+   It is the ONLY path besides a physical count that CREATES a `product_site_stock` row:
+   the ventilation trigger does an UPDATE, never an upsert, so an arrival into a
+   never-counted (product, variant, site) would move the market total and silently miss
+   the building.
    Damaged-on-arrival stays on the reception line and never enters stock — it is NOT
    `damaged_return_count`, which means "came back broken from a customer".
+   **A purchase order is NOT a stock path.** `purchase_orders` records an INTENTION; no
+   RPC of that domain touches `inventory_log`.
 Paths 1–5 resolve an order's contents through `order_stock_lines(order_id)` — the single
 definition of "what is in this parcel" (order_items when present, else the denormalised row).
 Path 6 does NOT: a reception has no order, its lines ARE the document, and it names its
@@ -312,16 +319,26 @@ entry has not meant deleting its page — check before assuming a route is dead.
   partagé avec products, les trois niveaux de stock, la règle du « non ventilé », et
   pourquoi DROP+CREATE d'une RPC rouvre l'accès anon: docs/product-variants.md +
   plans/product-variants.md
-- Réception de marchandises — les trois documents du métier, pourquoi la validation crée
-  la ligne de site, pourquoi le coût est capturé mais jamais propagé seul, les quatre
-  actions (déclarer, renvoyer à l'agent, valider, contre-passer), et la limite assumée du
-  modèle de paiement: docs/reception-de-marchandises.md +
-  plans/reception-de-marchandises.md + plans/reception-parite-maquette.md
-  (prototypes `prototypes/reception-marchandises-v3.html` — la maquette est la référence
-  de l'écran et le code en est la copie ; la v3 du 2 octobre 2026 est presque entièrement
-  SOUSTRACTIVE : un seul signal de couleur par ligne, pas de puce « sans objet », cinq
-  colonnes au lieu de huit, un bandeau au lieu de trois, l'avarie derrière un geste, et
-  seuls les coûts qui bougent dans le dialogue de validation)
+- Réception de marchandises — « LE QUAI ET LE BUREAU », depuis le 3 octobre 2026 : le quai
+  enregistre des ARRIVAGES (deux champs, et le stock entre immédiatement), le bureau SOLDE
+  le groupe (bâtiment + jour) une fois la semaine — fournisseur, prix, frais d'approche,
+  rapprochement contre la facture, et c'est là que naît la référence `REC-…`. Statuts
+  `open → settled → reversed` ; `draft`/`submitted`/`posted` et `post_reception` ont
+  disparu, parce que `submitted` était une fenêtre où la marchandise est sur l'étagère et
+  où Ordra dit qu'elle n'existe pas. Comptage À L'AVEUGLE, gardé par la RLS et non par un
+  masque d'écran. Bons de commande nés du réassort (`purchase_orders` +
+  `purchase_order_receipts`, un registre d'allocation signé et en ajout seul) : ils
+  allument « en route », le taux de service et le délai, et `reception_lines.expected_qty`
+  est mort. Réclamations fournisseur (`supplier_claims`) : `invoice_total` garde le
+  chiffre du fournisseur, le litige porte ce qu'on REFUSE de payer, et le solde est
+  `facture − versements − retenu` ; trois états (`open`/`credited`/`conceded`), un
+  avoir exige sa référence, et rien n'est jamais réécrit. Plan et décisions :
+  plans/reception-v4-quai-et-bureau.md
+  (prototypes `prototypes/reception-marchandises-v4.html` — la maquette est la référence
+  de l'écran et le code en est la copie). Historique de la v3 (trois documents, validation
+  en deux temps) : docs/reception-de-marchandises.md + plans/reception-de-marchandises.md
+  + plans/reception-parite-maquette.md — à lire comme de l'archéologie, pas comme l'état
+  du système.
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +

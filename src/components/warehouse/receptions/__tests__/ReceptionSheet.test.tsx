@@ -10,8 +10,8 @@ const mockMutate = vi.fn();
 vi.mock("@/hooks/useReceptions", () => ({
   useReception: (...a: unknown[]) => mockUseReception(...a),
 }));
-vi.mock("@/components/warehouse/receptions/ReceptionPostDialog", () => ({
-  ReceptionPostDialog: () => <div data-testid="post-dialog" />,
+vi.mock("@/components/warehouse/receptions/ReceptionSettleDialog", () => ({
+  ReceptionSettleDialog: () => <div data-testid="settle-dialog" />,
 }));
 vi.mock("@/components/warehouse/receptions/ReceptionCountFlow", () => ({
   ReceptionCountFlow: () => <div data-testid="count-flow" />,
@@ -44,18 +44,23 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
     warehouse_name_ar: "طرابلس",
     supplier_name: "مكتبة الرسالة",
     supplier_ref: "BL-4471",
-    status: "draft",
+    status: "open",
     expected_at: "2026-09-28",
     note: null,
     photo_url: null,
-    submitted_at: null,
-    submitted_by_name: null,
-    posted_at: null,
-    posted_by_name: null,
+    settled_at: null,
+    counted_by_name: null,
+    settled_by_name: null,
     reverses_reception_id: null,
     created_at: "2026-09-27T08:00:00Z",
     is_late: false,
     days_late: null,
+    arrival_date: "2026-09-29",
+    supplier_id: null,
+    supplier: null,
+    invoice_total: null,
+    due_at: null,
+    discrepancy_reason: null,
     lines: [
       {
         id: "l1",
@@ -66,7 +71,7 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
         product_image_url: null,
     product_stock: 943,
         variant_label: null,
-        expected_qty: 150,
+        ordered_qty: 150,
         received_qty: null,
         damaged_qty: 0,
         variance: null,
@@ -78,11 +83,17 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
       },
     ],
     totals: { units: 0, damaged: 0, value: null, lines: 1, expected: 150, countedLines: 0 },
+    fee_basis: "value",
+    costs: [],
+    fees_total: null,
+    fees_blocked: null,
+    landed_value: null,
     payments: [],
     paid_total: 0,
     outstanding: null,
+    claim: null,
     payment_state: "not_applicable",
-    can: { submit: true, post: true, reverse: false, pay: true, sendBack: false },
+    can: { recordArrival: true, settle: true, reverse: false, pay: true },
     ...over,
   };
 }
@@ -107,8 +118,8 @@ describe("ReceptionSheet — la saisie est modifiable sur un brouillon", () => {
   it("verrouille tout une fois la réception validée", () => {
     mockUseReception.mockReturnValue({
       reception: reception({
-        status: "posted",
-        can: { submit: false, post: false, reverse: true, pay: true, sendBack: false },
+        status: "settled",
+        can: { recordArrival: false, settle: false, reverse: true, pay: true },
       }),
       isLoading: false,
       error: undefined,
@@ -126,14 +137,14 @@ describe("ReceptionSheet — la saisie est modifiable sur un brouillon", () => {
  * stock une quantité que personne n'a voulue.
  */
 describe("ReceptionSheet — enregistrer d'abord, agir ensuite", () => {
-  it("remplace les actions par « enregistrer » dès qu'une quantité change", () => {
+  it("remplace les actions par « enregistrer » dès qu'un prix change", () => {
     wrap();
-    expect(screen.getByRole("button", { name: /valider et entrer en stock/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /solder et chiffrer/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/reçu/i), { target: { value: "150" } });
 
-    expect(screen.queryByRole("button", { name: /valider et entrer en stock/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /enregistrer les quantités/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /solder et chiffrer/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /enregistrer les prix/i })).toBeInTheDocument();
     expect(screen.getByText(/non enregistrées/i)).toBeInTheDocument();
   });
 
@@ -141,13 +152,13 @@ describe("ReceptionSheet — enregistrer d'abord, agir ensuite", () => {
     wrap();
     fireEvent.change(screen.getByLabelText(/reçu/i), { target: { value: "150" } });
     fireEvent.click(screen.getByRole("button", { name: /abandonner/i }));
-    expect(screen.getByRole("button", { name: /valider et entrer en stock/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /solder et chiffrer/i })).toBeInTheDocument();
   });
 
-  it("envoie TOUTES les lignes au PATCH, pas seulement les modifiées", async () => {
+  it("envoie les lignes modifiées au PATCH", async () => {
     wrap();
     fireEvent.change(screen.getByLabelText(/reçu/i), { target: { value: "148" } });
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer les quantités/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer les prix/i }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     const [url, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -197,7 +208,8 @@ describe("ReceptionSheet — le coût reste invisible pour l'entrepôt", () => {
             cogs_next: undefined,
           },
         ],
-        payment_state: null,
+        claim: null,
+    payment_state: null,
         paid_total: null,
         outstanding: null,
       }),
@@ -220,58 +232,24 @@ describe("ReceptionSheet — le coût reste invisible pour l'entrepôt", () => {
  * s'en sert. Rien n'a bougé en stock à ce stade, donc il n'y a rien à annuler :
  * la réception redevient simplement un brouillon.
  */
-describe("ReceptionSheet — renvoyer à l'agent", () => {
-  function submitted(role = "market_manager") {
-    mockUseReception.mockReturnValue({
-      reception: reception({
-        status: "submitted",
-        submitted_by_name: "Adel Ben Salah",
-        can: { submit: false, post: true, reverse: false, pay: true, sendBack: true },
-      }),
-      isLoading: false,
-      error: undefined,
-      mutate: mockMutate,
-    });
-    return wrap(role);
-  }
-
-  it("propose « Renvoyer à l'agent » à un manager sur une déclaration", () => {
-    submitted();
-    expect(screen.getByRole("button", { name: /renvoyer à l'agent/i })).toBeInTheDocument();
+/*
+ * « RENVOYER À L'AGENT » A DISPARU AVEC L'ÉTAT QUI LE PORTAIT.
+ *
+ * Il existait parce qu'une déclaration attendait une validation : un manager qui
+ * voyait une erreur devait pouvoir la rendre. Sous le modèle de l'arrivage il
+ * n'y a plus de déclaration — le stock est entré au quai — donc plus rien à
+ * rendre. Une erreur de comptage se corrige par `correct_arrival`, qui écrit le
+ * delta au registre.
+ */
+describe("ReceptionSheet — ce qui a disparu avec la bascule", () => {
+  it("n'offre plus « renvoyer à l'agent »", () => {
+    wrap("market_manager");
+    expect(screen.queryByRole("button", { name: /renvoyer/i })).not.toBeInTheDocument();
   });
 
-  it("ne la propose pas sur un brouillon — il n'y a personne à qui le renvoyer", () => {
-    wrap();
-    expect(screen.queryByRole("button", { name: /renvoyer à l'agent/i })).not.toBeInTheDocument();
-  });
-
-  it("ne la propose pas à l'agent qui a déclaré", () => {
-    mockUseReception.mockReturnValue({
-      reception: reception({
-        status: "submitted",
-        can: { submit: false, post: false, reverse: false, pay: false, sendBack: false },
-      }),
-      isLoading: false,
-      error: undefined,
-      mutate: mockMutate,
-    });
+  it("n'offre plus « déclarer la réception »", () => {
     wrap("warehouse_agent");
-    expect(screen.queryByRole("button", { name: /renvoyer à l'agent/i })).not.toBeInTheDocument();
-  });
-
-  it("appelle la route unsubmit", async () => {
-    submitted();
-    fireEvent.click(screen.getByRole("button", { name: /renvoyer à l'agent/i }));
-    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe(
-      "/api/warehouse/receptions/r1/unsubmit",
-    );
-  });
-
-  it("nomme qui a compté", () => {
-    submitted();
-    expect(screen.getByText(/comptée par/i)).toBeInTheDocument();
-    expect(screen.getByText("Adel Ben Salah")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /déclarer/i })).not.toBeInTheDocument();
   });
 });
 
@@ -285,10 +263,10 @@ describe("ReceptionSheet — contre-passer", () => {
   function posted(role: string, reverse: boolean) {
     mockUseReception.mockReturnValue({
       reception: reception({
-        status: "posted",
-        posted_by_name: "Salma",
+        status: "settled",
+        settled_by_name: "Salma",
         totals: { units: 150, damaged: 0, value: 6000, lines: 1, expected: 150, countedLines: 1 },
-        can: { submit: false, post: false, reverse, pay: true, sendBack: false },
+        can: { recordArrival: false, settle: false, reverse, pay: true },
       }),
       isLoading: false,
       error: undefined,
@@ -325,16 +303,16 @@ describe("ReceptionSheet — hors bon de livraison", () => {
   it("dit « hors bon » quand rien n'était annoncé mais que des unités arrivent", () => {
     mockUseReception.mockReturnValue({
       reception: reception({
-        status: "submitted",
+        status: "open",
         lines: [
           {
             ...reception().lines[0],
-            expected_qty: null,
+            ordered_qty: null,
             received_qty: 8,
             variance: null,
           },
         ],
-        can: { submit: false, post: true, reverse: false, pay: true, sendBack: true },
+        can: { recordArrival: false, settle: true, reverse: false, pay: true },
       }),
       isLoading: false,
       error: undefined,
@@ -347,7 +325,7 @@ describe("ReceptionSheet — hors bon de livraison", () => {
   it("ne dit rien quand rien n'est annoncé ET rien n'est compté", () => {
     mockUseReception.mockReturnValue({
       reception: reception({
-        lines: [{ ...reception().lines[0], expected_qty: null, received_qty: null }],
+        lines: [{ ...reception().lines[0], ordered_qty: null, received_qty: null }],
       }),
       isLoading: false,
       error: undefined,
@@ -370,12 +348,13 @@ describe("ReceptionSheet — enregistrer un paiement", () => {
   function withValue() {
     mockUseReception.mockReturnValue({
       reception: reception({
-        status: "posted",
+        status: "settled",
         totals: { units: 150, damaged: 0, value: 6000, lines: 1, expected: 150, countedLines: 1 },
-        payment_state: "unpaid",
+        claim: null,
+    payment_state: "unpaid",
         paid_total: 0,
         outstanding: 6000,
-        can: { submit: false, post: false, reverse: false, pay: true, sendBack: false },
+        can: { recordArrival: false, settle: false, reverse: false, pay: true },
       }),
       isLoading: false,
       error: undefined,
@@ -430,21 +409,26 @@ describe("ReceptionSheet — enregistrer un paiement", () => {
 describe("ReceptionSheet — une seule action primaire", () => {
   it("n'offre pas « déclarer » à qui peut valider", () => {
     wrap("market_manager");
-    expect(screen.getByRole("button", { name: /valider et entrer en stock/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /solder et chiffrer/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /déclarer la réception/i })).not.toBeInTheDocument();
   });
 
-  it("l'offre à l'agent, qui ne peut pas valider", () => {
+  /*
+   * L'AGENT N'A PLUS D'ACTION PRIMAIRE SUR LA FEUILLE. Il compte au QUAI, où
+   * son geste entre le stock ; chiffrer est un geste de bureau, et lui offrir un
+   * bouton qu'il ne peut pas presser serait une promesse vide.
+   */
+  it("ne propose pas de solder à l'agent du quai", () => {
     mockUseReception.mockReturnValue({
       reception: reception({
-        can: { submit: true, post: false, reverse: false, pay: false, sendBack: false },
+        can: { recordArrival: true, settle: false, reverse: false, pay: false },
       }),
       isLoading: false,
       error: undefined,
       mutate: mockMutate,
     });
     wrap("warehouse_agent");
-    expect(screen.getByRole("button", { name: /déclarer la réception/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /solder et chiffrer/i })).not.toBeInTheDocument();
   });
 });
 
@@ -454,7 +438,7 @@ describe("ReceptionSheet — une seule action primaire", () => {
 describe("ReceptionSheet — la densité de la v3", () => {
   it("met les faits d'en-tête sur une ligne, sans libellés empilés", () => {
     mockUseReception.mockReturnValue({
-      reception: reception({ status: "submitted", submitted_by_name: "Adel Ben Salah" }),
+      reception: reception({ status: "open", counted_by_name: "Adel Ben Salah" }),
       isLoading: false,
       error: undefined,
       mutate: mockMutate,
@@ -462,7 +446,7 @@ describe("ReceptionSheet — la densité de la v3", () => {
     wrap();
     // Les cinq faits sont la LÉGENDE du document : ils restent lisibles…
     expect(screen.getByText("Tripoli")).toBeInTheDocument();
-    expect(screen.getByText("Adel Ben Salah")).toBeInTheDocument();
+    expect(screen.getByText(/comptée par Adel Ben Salah/)).toBeInTheDocument();
     // …mais « Bâtiment » n'est plus un libellé en capitales au-dessus d'une valeur.
     expect(screen.queryByText(/^Bâtiment$/)).not.toBeInTheDocument();
   });
@@ -506,7 +490,7 @@ describe("ReceptionSheet — la densité de la v3", () => {
   it("donne le premier rang à la valeur reçue", () => {
     mockUseReception.mockReturnValue({
       reception: reception({
-        status: "submitted",
+        status: "open",
         totals: { units: 312, damaged: 2, value: 18720, lines: 1, expected: 150, countedLines: 1 },
       }),
       isLoading: false,
@@ -528,15 +512,16 @@ describe("ReceptionSheet — le paiement replié", () => {
   function paid() {
     mockUseReception.mockReturnValue({
       reception: reception({
-        status: "posted",
+        status: "settled",
         totals: { units: 150, damaged: 0, value: 18720, lines: 1, expected: 150, countedLines: 1 },
         payments: [
           { id: "pay1", paid_at: "2026-09-24", amount: 7488, method: "bank_transfer", note: null },
         ],
         paid_total: 7488,
         outstanding: 11232,
-        payment_state: "partial",
-        can: { submit: false, post: false, reverse: false, pay: true, sendBack: false },
+        claim: null,
+    payment_state: "partial",
+        can: { recordArrival: false, settle: false, reverse: false, pay: true },
       }),
       isLoading: false,
       error: undefined,

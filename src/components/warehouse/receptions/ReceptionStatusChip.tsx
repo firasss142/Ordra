@@ -13,24 +13,20 @@ import { WH_TONE, type WhTone } from "@/components/warehouse/console/tokens";
  */
 
 const TONE: Record<string, WhTone> = {
-  draft: "muted",
-  submitted: "warn",
-  posted: "ok",
-  cancelled: "muted",
+  // « À solder » RÉCLAME quelqu'un : c'est le seul état qui attend un geste.
+  open: "warn",
+  settled: "ok",
   reversed: "bad",
 };
 
 /*
- * UN SEUL MOT POUR UN SEUL ÉTAT. `draft` se dit « Attendue », comme le filtre
- * qui le retourne. Il s'est appelé « Brouillon » un temps, à quinze centimètres
- * d'un segment nommé « Attendues » qui ne montrait que lui : deux noms pour le
- * même fait dans le même écran, et personne ne peut deviner qu'ils sont égaux.
+ * UN SEUL MOT POUR UN SEUL ÉTAT, et le même que son segment de filtre. Deux
+ * noms pour le même fait dans le même écran — « Brouillon » sous un segment
+ * « Attendues » — et personne ne peut deviner qu'ils sont égaux.
  */
 const LABEL: Record<string, string> = {
-  draft: "statusExpected",
-  submitted: "statusSubmitted",
-  posted: "statusPosted",
-  cancelled: "statusCancelled",
+  open: "statusOpen",
+  settled: "statusSettled",
   reversed: "statusReversed",
 };
 

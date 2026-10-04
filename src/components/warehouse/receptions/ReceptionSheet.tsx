@@ -14,14 +14,17 @@ import {
 } from "lucide-react";
 import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
-import { canSeeReceptionCosts, canDraftReception } from "@/lib/receptions/permissions";
+import { canSeeReceptionCosts, canRecordArrival } from "@/lib/receptions/permissions";
+import { canManageSuppliers } from "@/lib/purchases/permissions";
 import { lineVariance, receptionTotals, paidPercent } from "@/lib/receptions/derive";
+import { ReceptionFeesBlock } from "./ReceptionFeesBlock";
+import { ReceptionClaimBlock } from "./ReceptionClaimBlock";
 import { ReceptionLineEditor, type LinePatch } from "./ReceptionLineEditor";
 import { WH_CARD, WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
-import { ReceptionPostDialog } from "./ReceptionPostDialog";
+import { ReceptionSettleDialog } from "./ReceptionSettleDialog";
 import { ReceptionReverseDialog } from "./ReceptionReverseDialog";
-import { ReceptionCountFlow } from "./ReceptionCountFlow";
+import { ReceptionDockFlow } from "./ReceptionDockFlow";
 
 /**
  * La feuille d'une réception — plein écran, pas une modale de 480 px.
@@ -86,8 +89,8 @@ export function ReceptionSheet({
     if (typeof window === "undefined" || !window.matchMedia) return;
     const narrow = window.matchMedia("(max-width: 767px)").matches;
     const editableNow =
-      canDraftReception(role) &&
-      (reception.status === "draft" || reception.status === "submitted") &&
+      canRecordArrival(role) &&
+      (reception.status === "open") &&
       reception.lines.length > 0;
     if (narrow && editableNow) {
       autoCounted.current = true;
@@ -165,7 +168,7 @@ export function ReceptionSheet({
             return {
               product_id: l.product_id,
               variant_id: l.variant_id,
-              expected_qty: l.expected_qty,
+              ordered_qty: l.ordered_qty,
               received_qty: patch ? patch.received_qty : l.received_qty,
               damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
               unit_cost: patch ? patch.unit_cost : (l.unit_cost ?? null),
@@ -210,7 +213,7 @@ export function ReceptionSheet({
   // Un brouillon ou une déclaration se modifie ; une réception validée est
   // définitive, et le déclencheur en base le refuse de toute façon.
   const editable =
-    canDraftReception(role) && (r.status === "draft" || r.status === "submitted");
+    canRecordArrival(role) && (r.status === "open");
   const dirty = Object.keys(edits).length > 0;
 
   /*
@@ -223,7 +226,7 @@ export function ReceptionSheet({
         r.lines.map((l) => {
           const patch = edits[l.id];
           return {
-            expected_qty: l.expected_qty,
+            ordered_qty: l.ordered_qty,
             received_qty: patch ? patch.received_qty : l.received_qty,
             damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
             unit_cost: withCosts ? (patch ? patch.unit_cost : (l.unit_cost ?? null)) : null,
@@ -281,12 +284,11 @@ export function ReceptionSheet({
                 <span>
                   {locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
                 </span>
-                {r.submitted_by_name ? (
+                {r.counted_by_name ? (
                   <>
                     <Sep />
                     <span>
-                      {t("countedBy").toLocaleLowerCase(locale)}{" "}
-                      <span className="font-semibold text-wh-ink-1">{r.submitted_by_name}</span>
+                      {t("countedBy", { name: r.counted_by_name })}
                       {/*
                        * La maquette appelle cette date « Arrivée ». C'est en
                        * vérité la date de la DÉCLARATION, et les deux ne
@@ -294,19 +296,17 @@ export function ReceptionSheet({
                        * rien ne nous autorise à affirmer un jour d'arrivée que
                        * personne n'a saisi.
                        */}
-                      {r.submitted_at ? ` · ${df(r.submitted_at.slice(0, 10))}` : ""}
+                      {r.arrival_date ? ` · ${df(r.arrival_date)}` : ""}
                     </span>
                   </>
                 ) : null}
-                {r.expected_at && !r.submitted_at ? (
+                {r.settled_by_name ? (
                   <>
                     <Sep />
-                    <span>
-                      {t("fieldExpectedAt").toLocaleLowerCase(locale)} {df(r.expected_at)}
-                    </span>
+                    <span>{t("settledBy", { name: r.settled_by_name })}</span>
                   </>
                 ) : null}
-                {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
+                {(r.status === "open") && r.lines.length > 0 ? (
                   <>
                     <Sep />
                     <span className="font-semibold text-wh-ok">
@@ -352,7 +352,7 @@ export function ReceptionSheet({
            * légende ci-dessus ; il ne reste ici que ce qui a besoin d'être
            * continu pour être lu d'un coup d'œil : la longueur.
            */}
-          {(r.status === "draft" || r.status === "submitted") && r.lines.length > 0 ? (
+          {(r.status === "open") && r.lines.length > 0 ? (
             <div
               data-testid="reception-progress-rail"
               className="h-[3px] w-full bg-wh-sunken"
@@ -394,7 +394,7 @@ export function ReceptionSheet({
                     damaged_qty: draft.damaged_qty,
                     unit_cost: draft.unit_cost,
                     variance: lineVariance({
-                      expected: l.expected_qty,
+                      expected: l.ordered_qty,
                       received: draft.received_qty,
                     }),
                     line_value:
@@ -426,6 +426,39 @@ export function ReceptionSheet({
             })}
           </ul>
 
+          {/*
+            * LES FRAIS D'APPROCHE, entre les lignes et les totaux — parce que
+            * c'est exactement là qu'ils entrent dans le calcul. Réservés à qui
+            * voit l'argent, et figés dès que la réception est validée : le coût
+            * de revient est alors écrit dans le registre.
+            */}
+          {withCosts ? (
+            <ReceptionFeesBlock
+              reception={r}
+              currency={currency}
+              editable={r.status === "open"}
+              onChanged={mutate}
+            />
+          ) : null}
+
+          {/*
+           * LE LITIGE, SUR LE DOCUMENT QUI L'A FAIT NAÎTRE. Achats dit COMBIEN
+           * est en litige, parce que c'est une question de trésorerie ;
+           * trancher demande le contexte — quelles unités, à quel prix, sur
+           * quelle facture — et ce contexte est cette feuille. Un écran de
+           * litiges séparé obligerait à revenir ici pour décider.
+           */}
+          {r.claim ? (
+            <div className="px-4 pb-3 md:px-5">
+              <ReceptionClaimBlock
+                claim={r.claim}
+                currency={currency}
+                editable={canManageSuppliers(role)}
+                onChanged={mutate}
+              />
+            </div>
+          ) : null}
+
           {/* ── totaux + action ── */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-wh-border bg-wh-sunken px-4 py-3.5 md:px-5">
             {/*
@@ -434,17 +467,35 @@ export function ReceptionSheet({
              * corps obligeaient à lire les quatre libellés pour trouver le bon.
              */}
             <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+              {/*
+                * LE CHIFFRE DE TÊTE EST LE COÛT DE REVIENT, pas le prix du
+                * fournisseur : c'est lui qui devient le COGS. Tant qu'aucun
+                * frais n'est saisi les deux sont égaux, et on n'affiche que
+                * « valeur reçue » pour ne pas inventer une distinction.
+                */}
               {withCosts ? (
-                <Total label={t("totalValue")} lead>
+                <Total
+                  label={(r.fees_total ?? 0) > 0 ? t("landedTotal") : t("totalValue")}
+                  lead
+                >
                   {liveTotals.value === null ? (
                     <span className="text-wh-ink-3">—</span>
                   ) : (
                     <>
-                      {nf.format(liveTotals.value)}
+                      {nf.format(liveTotals.value + (r.fees_total ?? 0))}
                       <span className="ms-1.5 font-sans text-[11.5px] font-semibold text-wh-ink-2">
                         {currency}
                       </span>
                     </>
+                  )}
+                </Total>
+              ) : null}
+              {withCosts && (r.fees_total ?? 0) > 0 ? (
+                <Total label={t("totalValue")}>
+                  {liveTotals.value === null ? (
+                    <span className="text-wh-ink-3">—</span>
+                  ) : (
+                    nf.format(liveTotals.value)
                   )}
                 </Total>
               ) : null}
@@ -483,7 +534,7 @@ export function ReceptionSheet({
                     onClick={() => void saveLines()}
                   >
                     <Check size={17} strokeWidth={2.2} />
-                    {t("saveLines")}
+                    {t("savePrices")}
                   </button>
                 </>
               ) : (
@@ -496,35 +547,15 @@ export function ReceptionSheet({
                    * voulait juste entrer sa marchandise. L'API, elle, reste
                    * honnête : `can.submit` dit que la route l'accepterait.
                    */}
-                  {r.can.submit && !r.can.post ? (
-                    <button
-                      type="button"
-                      className={WH_BTN_PRIMARY}
-                      disabled={busy}
-                      onClick={() => void act("/submit")}
-                    >
-                      <Check size={17} strokeWidth={2.2} />
-                      {t("submit")}
-                    </button>
-                  ) : null}
+
                   {/*
                    * LA TROISIÈME ISSUE. Sans « renvoyer », un manager qui voit
                    * une erreur n'a que deux choix : valider ce qui est faux, ou
                    * laisser la réception bloquée dans sa file pour toujours.
                    * Rien n'a bougé en stock, donc il n'y a rien à annuler.
                    */}
-                  {r.can.sendBack ? (
-                    <button
-                      type="button"
-                      className={WH_BTN}
-                      disabled={busy}
-                      onClick={() => void act("/unsubmit")}
-                    >
-                      <Undo2 size={16} className="rtl:-scale-x-100" />
-                      {t("sendBack")}
-                    </button>
-                  ) : null}
-                  {r.can.post ? (
+
+                  {r.can.settle ? (
                     <button
                       type="button"
                       className={WH_BTN_PRIMARY}
@@ -532,7 +563,7 @@ export function ReceptionSheet({
                       onClick={() => setPosting(true)}
                     >
                       <Check size={17} strokeWidth={2.2} />
-                      {t("post")}
+                      {t("settle")}
                     </button>
                   ) : null}
                   {/*
@@ -583,11 +614,11 @@ export function ReceptionSheet({
       </div>
 
       {posting ? (
-        <ReceptionPostDialog
+        <ReceptionSettleDialog
           reception={r}
           currency={currency}
           onClose={() => setPosting(false)}
-          onPosted={() => {
+          onSettled={() => {
             setPosting(false);
             void mutate();
             onChanged();
@@ -608,29 +639,15 @@ export function ReceptionSheet({
       ) : null}
 
       {counting ? (
-        <ReceptionCountFlow
+        <ReceptionDockFlow
           reception={r}
-          locale={locale}
-          edits={edits}
-          onPatch={(lineId, patch) => setEdits((prev) => ({ ...prev, [lineId]: patch }))}
+          warehouseId={r.warehouse_id}
+          marketId={r.market_id}
+          warehouseName={locale === "ar" ? (r.warehouse_name_ar ?? r.warehouse_name) : r.warehouse_name}
           onClose={() => setCounting(false)}
-          /*
-           * ENREGISTRER D'ABORD, DÉCLARER ENSUITE — la même règle que le pied de
-           * la feuille, et elle ne vit qu'ici. Déclarer sans enregistrer porterait
-           * sur les chiffres du SERVEUR et non sur ceux que l'agent vient de
-           * compter : c'est la façon la plus sûre de faire valider une quantité
-           * que personne n'a voulue. Si l'enregistrement échoue, on reste sur le
-           * récapitulatif avec le message, et rien n'est déclaré.
-           */
-          onDeclare={async () => {
-            if (dirty && !(await saveLines())) return;
-            // Déjà déclarée : il n'y a plus rien à déclarer, seulement à
-            // enregistrer. `POST …/submit` refuserait avec NOT_DRAFT.
-            if (!r.can.submit) {
-              setCounting(false);
-              return;
-            }
-            if (await act("/submit")) setCounting(false);
+          onChanged={async () => {
+            await mutate();
+            onChanged();
           }}
         />
       ) : null}

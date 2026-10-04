@@ -28,6 +28,8 @@ interface PayableRow {
   invoiceTotal: number | null;
   paid: number;
   balance: number | null;
+  /** Ce qu'un litige retire de cette facture. `0` = rien de retenu. */
+  withheld: number;
   dueAt: string | null;
   state: "due" | "overdue";
   daysLate: number | null;
@@ -42,8 +44,17 @@ interface SupplierRow {
   spend90d: number;
   owed: number;
   overdue: number;
+  /** `null` et jamais 0 : « rien en litige » n'est pas « on a vérifié ». */
+  disputed: number | null;
+  openClaims: number;
   fillRate: number | null;
   leadTimeDays: number | null;
+  /** Combien de commandes terminées nourrissent la note — « 94 % » sur une
+   *  commande et sur trente ne se lisent pas pareil. */
+  closedOrders: number;
+  openOrders: number;
+  /** Unités commandées et pas encore arrivées. `null`, jamais 0. */
+  onOrderUnits: number | null;
   lastDeliveryAt: string | null;
 }
 
@@ -54,6 +65,8 @@ interface Payload {
     overdueSuppliers: number;
     unpriced: number;
     worstDaysLate: number | null;
+    /** En jeu mais pas dû : ni dans `owed`, ni oublié. */
+    disputed: number;
     purchases30d: number;
     windowDays: number;
   };
@@ -159,6 +172,14 @@ export function PurchasesClient({
           <div className="mt-1 text-[11.5px] text-ink-muted">
             {s ? t("owedSub", { count: data!.payables.length }) : ""}
           </div>
+          {/* UNE CLAUSE, PAS UNE QUATRIÈME CARTE. L'argent en litige n'est pas
+              dû — il est retiré du chiffre au-dessus — mais il est en jeu, et
+              le taire ferait lire « on ne doit que ça » sans nuance. */}
+          {s && s.disputed > 0 ? (
+            <div className="mt-0.5 text-[11.5px] font-semibold text-[#92600A]">
+              {t("disputedSub", { amount: money(s.disputed) })}
+            </div>
+          ) : null}
         </div>
 
         <div className="bg-surface-card p-4">
@@ -243,6 +264,14 @@ export function PurchasesClient({
                       {t("deposit", { amount: money(row.paid) })}
                     </div>
                   )}
+                  {/* POURQUOI LE SOLDE EST SOUS LA FACTURE. Sans cette ligne, un
+                      solde de 11 062 sur une facture de 18 720 moins 7 488
+                      versés ne tombe pas juste, et le lecteur conclut à un bug. */}
+                  {row.withheld > 0 && (
+                    <div className={`${NUM} mt-0.5 text-[11.5px] font-semibold text-[#92600A]`}>
+                      {t("withheldOnRow", { amount: money(row.withheld) })}
+                    </div>
+                  )}
                 </div>
                 <div>{when(row)}</div>
               </div>
@@ -285,6 +314,8 @@ export function PurchasesClient({
                     {[sup.category, sup.city].filter(Boolean).join(" · ")}
                     {sup.receptions > 0 && ` · ${t("nReceptions", { count: sup.receptions })}`}
                     {sup.spend90d > 0 && ` · ${t("spend90", { amount: money(sup.spend90d) })}`}
+                    {sup.onOrderUnits !== null &&
+                      ` · ${t("onOrder", { units: sup.onOrderUnits })}`}
                   </div>
                 </div>
 
@@ -300,6 +331,11 @@ export function PurchasesClient({
                   >
                     {sup.owed > 0 ? money(sup.owed) : "—"}
                   </div>
+                  {sup.disputed !== null && (
+                    <div className={`${NUM} mt-0.5 text-[11.5px] font-semibold text-[#92600A]`}>
+                      {t("disputedOnSupplier", { amount: money(sup.disputed) })}
+                    </div>
+                  )}
                 </div>
 
                 {/* LE TAUX DE SERVICE VAUT « — » TANT QUE RIEN N'A ÉTÉ ANNONCÉ.
@@ -312,6 +348,12 @@ export function PurchasesClient({
                     <>
                       <div className={`${NUM} text-[13px] font-semibold text-ink-primary`}>
                         {sup.fillRate} %
+                      </div>
+                      {/* L'ÉCHANTILLON EST DIT. Un taux sans son assise se lit
+                          comme une certitude ; « 94 % · 1 commande terminée »
+                          se lit comme ce que c'est. */}
+                      <div className="mt-0.5 text-[10.5px] text-ink-muted">
+                        {t("fromClosedOrders", { count: sup.closedOrders })}
                       </div>
                       <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-line-subtle">
                         <i

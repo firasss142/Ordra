@@ -1,10 +1,12 @@
 import type { Role } from "@/types";
+import { claimEffect } from "@/lib/purchases/claims";
 import {
-  canPostReception,
+  canSettleReception,
   canReverseReception,
-  canDraftReception,
+  canRecordArrival,
   canSeeReceptionCosts,
 } from "./permissions";
+import { allocateFees, feesTotal, type FeeBasis } from "./landed";
 import {
   lineVariance,
   paymentState,
@@ -30,14 +32,39 @@ import {
  * l'agent ; savoir qu'elles valaient 85 dinars ne l'est pas.
  */
 
+export interface RawReceptionClaim {
+  id: string;
+  kind: "damaged" | "shortage" | "overbilled";
+  amount: number;
+  units: number | null;
+  status: "open" | "credited" | "conceded";
+  opened_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  credit_ref: string | null;
+}
+
 export interface RawReceptionLine {
   id: string;
   product_id: string;
   variant_id: string | null;
-  expected_qty: number | null;
+  /**
+   * CE QUI ÉTAIT COMMANDÉ, injecté par la route depuis les bons de commande
+   * auxquels ce comptage est rattaché — PAS une colonne de `reception_lines`.
+   *
+   * `reception_lines.expected_qty` existe encore en base et vaut NULL partout :
+   * personne n'écrit un attendu dans un formulaire vide, et c'est la raison
+   * d'être des bons de commande. L'écart se mesure donc contre NOTRE PLAN.
+   *
+   * Absent pour un agent d'entrepôt, et pas par politesse : la RLS de
+   * `purchase_order_receipts` lui est fermée, donc la route ne peut rien lui
+   * injecter. Le comptage à l'aveugle se garde en base.
+   */
+  ordered_qty?: number | null;
   received_qty: number | null;
   damaged_qty: number | null;
   unit_cost: number | null;
+  landed_unit_cost?: number | null;
   note: string | null;
   product: {
     name: string;
@@ -60,16 +87,36 @@ export interface RawReception {
   expected_at: string | null;
   note: string | null;
   photo_url: string | null;
-  submitted_at: string | null;
-  submitted_by: string | null;
-  posted_at: string | null;
-  posted_by: string | null;
+  arrival_date: string | null;
+  settled_at: string | null;
+  settled_by: string | null;
+  supplier_id: string | null;
+  invoice_total: number | null;
+  due_at: string | null;
+  discrepancy_reason: string | null;
+  /**
+   * LE LITIGE NÉ DE CE SOLDAGE, injecté par la route depuis `supplier_claims`.
+   *
+   * Pas une colonne de `receptions` : un litige a sa propre vie, sa propre
+   * résolution et sa propre pièce justificative. Absent pour un agent
+   * d'entrepôt — la RLS de `supplier_claims` lui est fermée, donc la route ne
+   * peut rien lui injecter, et c'est la même frontière que les coûts.
+   */
+  claim?: RawReceptionClaim | null;
   reverses_reception_id: string | null;
   created_at: string;
   warehouse: { code: string; name_fr: string; name_ar: string } | null;
-  submitted_by_user: { full_name: string } | null;
-  posted_by_user: { full_name: string } | null;
+  counted_by_user: { full_name: string } | null;
+  settled_by_user: { full_name: string } | null;
+  supplier: { id: string; name: string } | null;
   reception_lines: RawReceptionLine[];
+  fee_basis?: string | null;
+  reception_costs?: {
+    id: string;
+    kind: string;
+    label: string | null;
+    amount: number;
+  }[] | null;
   reception_payments: {
     id: string;
     paid_at: string;
@@ -94,7 +141,8 @@ export interface ProjectedLine {
    */
   product_stock: number | null;
   variant_label: string | null;
-  expected_qty: number | null;
+  /** Ce qui était commandé. `null` quand aucune commande ne couvre ce carton. */
+  ordered_qty: number | null;
   received_qty: number | null;
   damaged_qty: number;
   /** `null` dès qu'un des deux nombres manque — « non annoncé », pas 0. */
@@ -102,6 +150,13 @@ export interface ProjectedLine {
   note: string | null;
   /** Absents pour un agent d'entrepôt. */
   unit_cost?: number | null;
+  /**
+   * La part des frais d'approche portée par cette ligne, et le coût de revient
+   * qui en résulte. Calculés à la volée tant que la réception n'est pas validée
+   * (l'écran montre ce qui va être écrit) ; relus de la base ensuite.
+   */
+  fee_share?: number | null;
+  landed_unit_cost?: number | null;
   line_value?: number | null;
   cogs_current?: number | null;
   cogs_next?: number | null;
@@ -120,10 +175,18 @@ export interface ProjectedReception {
   expected_at: string | null;
   note: string | null;
   photo_url: string | null;
-  submitted_at: string | null;
-  submitted_by_name: string | null;
-  posted_at: string | null;
-  posted_by_name: string | null;
+  /** Le jour où la marchandise est arrivée — la clé de regroupement du quai. */
+  arrival_date: string | null;
+  /** Qui a compté. Sur un groupe, c'est l'auteur du premier arrivage. */
+  counted_by_name: string | null;
+  settled_at: string | null;
+  settled_by_name: string | null;
+  supplier_id: string | null;
+  supplier: { id: string; name: string } | null;
+  invoice_total: number | null;
+  due_at: string | null;
+  /** Ce qui justifie un écart accepté contre la facture. */
+  discrepancy_reason: string | null;
   reverses_reception_id: string | null;
   created_at: string;
   is_late: boolean;
@@ -134,24 +197,56 @@ export interface ProjectedReception {
     damaged: number;
     value: number | null;
     lines: number;
-    /** `null` quand rien n'est annoncé — « non annoncé », pas « zéro attendu ». */
+    /** Σ des quantités COMMANDÉES. `null` quand aucune commande ne couvre ce
+     *  document — « rien de commandé », pas « zéro attendu ». */
     expected: number | null;
     /** Lignes portant un nombre reçu, zéro compris. */
     countedLines: number;
   };
+  /** Le critère de répartition des frais : par valeur, ou par unité. */
+  fee_basis: FeeBasis;
+  /** Vides pour qui n'a pas le droit de voir l'argent. */
+  costs: { id: string; kind: string; label: string | null; amount: number }[];
+  /** Total des frais d'approche. `null` sans droit sur l'argent. */
+  fees_total: number | null;
+  /**
+   * Pourquoi les frais n'ont pas pu être répartis — par valeur sans aucun prix,
+   * ou par unité sans rien de compté. On ne retombe PAS silencieusement sur
+   * l'autre critère : un repli muet est ce qui fabrique un coût faux sans rien
+   * signaler. L'écran demande de choisir, ou de saisir les prix.
+   */
+  fees_blocked: "no_value" | "no_units" | null;
+  /**
+   * Marchandises + frais : CE chiffre est le coût de revient de la réception, et
+   * c'est lui qui alimente `unit_cogs`. `totals.value` reste le prix fournisseur
+   * seul, qui est ce qu'on DOIT, pas ce que ça COÛTE.
+   */
+  landed_value: number | null;
   /** `null` pour qui n'a pas le droit de voir l'argent. */
   payments: { id: string; paid_at: string; amount: number; method: string | null; note: string | null }[];
   paid_total: number | null;
   outstanding: number | null;
   payment_state: PaymentState | null;
+  /**
+   * Le litige ouvert ou résolu sur cette réception. `null` quand il n'y en a
+   * pas — et `null` aussi pour un agent, qui ne voit pas les montants.
+   */
+  claim: ProjectedClaim | null;
   can: {
-    submit: boolean;
-    post: boolean;
+    /** Ajouter ou corriger un arrivage : tant que le groupe est ouvert. */
+    recordArrival: boolean;
+    /** Solder : fournisseur, prix, frais, rapprochement, référence. */
+    settle: boolean;
     reverse: boolean;
     pay: boolean;
-    /** Rendre une déclaration à son agent. Rien n'a bougé : c'est un retour en brouillon. */
-    sendBack: boolean;
   };
+}
+
+export interface ProjectedClaim extends RawReceptionClaim {
+  /** Ce que le litige retire de la facture : on ne le paiera pas. */
+  withheld: number;
+  /** Ce qui est ENCORE contesté. Zéro dès qu'il est résolu, dans un sens ou l'autre. */
+  disputed: number;
 }
 
 export function projectReception(
@@ -160,7 +255,7 @@ export function projectReception(
   now: Date = new Date(),
 ): ProjectedReception {
   const withCosts = canSeeReceptionCosts(role);
-  const isDraftish = raw.status === "draft" || raw.status === "submitted";
+  const isOpen = raw.status === "open";
 
   const lines: ProjectedLine[] = raw.reception_lines.map((line) => {
     const base: ProjectedLine = {
@@ -172,10 +267,10 @@ export function projectReception(
       product_image_url: line.product?.image_url ?? null,
       product_stock: line.product?.current_stock ?? null,
       variant_label: line.variant?.label ?? null,
-      expected_qty: line.expected_qty,
+      ordered_qty: line.ordered_qty ?? null,
       received_qty: line.received_qty,
       damaged_qty: line.damaged_qty ?? 0,
-      variance: lineVariance({ expected: line.expected_qty, received: line.received_qty }),
+      variance: lineVariance({ expected: line.ordered_qty ?? null, received: line.received_qty }),
       note: line.note,
     };
 
@@ -188,20 +283,18 @@ export function projectReception(
       unit_cost: line.unit_cost,
       line_value: line.unit_cost !== null ? line.unit_cost * received : null,
       cogs_current: cogsCurrent,
-      // Ce que `p_adopt_costs` écrirait. Montrer l'arithmétique AVANT de
-      // l'appliquer est ce qui rend la case à cocher honnête.
-      cogs_next: weightedAverageCost({
-        stockBefore: line.product?.current_stock ?? 0,
-        cogsBefore: cogsCurrent ?? 0,
-        qty: received,
-        unitCost: line.unit_cost,
-      }),
+      // Provisoire : recalculé plus bas sur le COÛT DE REVIENT, une fois les
+      // frais d'approche répartis. Le prix fournisseur seul donnerait un COGS
+      // systématiquement trop bas.
+      cogs_next: null,
     };
   });
 
   const totals = receptionTotals(
     raw.reception_lines.map((l) => ({
-      expected_qty: l.expected_qty,
+      // `receptionTotals` parle d'« attendu » au sens générique : ce qu'on
+      // attendait. Depuis les bons de commande, c'est ce qu'on a COMMANDÉ.
+      expected_qty: l.ordered_qty ?? null,
       received_qty: l.received_qty,
       damaged_qty: l.damaged_qty,
       // Sans droit sur les coûts, la valeur ne peut pas être calculée : elle
@@ -214,6 +307,62 @@ export function projectReception(
     ? raw.reception_payments.reduce((sum, p) => sum + Number(p.amount), 0)
     : null;
 
+  /*
+   * LES FRAIS D'APPROCHE, RÉPARTIS POUR L'ÉCRAN.
+   *
+   * La base refait le même calcul au moment de valider (`allocate_reception_fees`,
+   * même méthode du plus grand reste) : l'écran montre donc exactement ce qui
+   * sera écrit. Si l'un des deux change, l'autre doit changer avec lui.
+   */
+  const rawCosts = raw.reception_costs ?? [];
+  const fees = withCosts ? feesTotal(rawCosts) : null;
+  const basis: FeeBasis = raw.fee_basis === "units" ? "units" : "value";
+  const allocation = withCosts
+    ? allocateFees(
+        raw.reception_lines.map((l) => ({
+          id: l.id,
+          receivedQty: l.received_qty,
+          unitCost: l.unit_cost,
+        })),
+        fees ?? 0,
+        basis,
+      )
+    : null;
+  const shareByLine = new Map(
+    (allocation?.allocations ?? []).map((a) => [a.lineId, a]),
+  );
+
+  if (withCosts) {
+    const storedByLine = new Map(raw.reception_lines.map((l) => [l.id, l.landed_unit_cost]));
+    for (const line of lines) {
+      const share = shareByLine.get(line.id);
+      line.fee_share = share?.share ?? 0;
+      /*
+       * Une réception VALIDÉE porte son coût de revient figé en base : c'est ce
+       * qui a réellement nourri `unit_cogs`, et le recalculer à l'affichage
+       * pourrait montrer autre chose que ce qui a été écrit. Avant la
+       * validation, on montre au contraire ce qui SERA écrit.
+       */
+      const stored = storedByLine.get(line.id);
+      line.landed_unit_cost =
+        stored !== null && stored !== undefined ? Number(stored) : (share?.landedUnitCost ?? null);
+
+      /*
+       * CE QUE LA VALIDATION ÉCRIRA DANS `unit_cogs` — à partir du coût de
+       * revient, jamais du seul prix fournisseur. Montrer l'arithmétique avant
+       * de l'appliquer est ce qui rend la politique de coût lisible ; la
+       * calculer sur `unit_cost` la rendrait lisible ET fausse.
+       */
+      const src = raw.reception_lines.find((r) => r.id === line.id);
+      line.cogs_next = weightedAverageCost({
+        stockBefore: src?.product?.current_stock ?? 0,
+        cogsBefore: line.cogs_current ?? 0,
+        qty: line.received_qty ?? 0,
+        unitCost: line.landed_unit_cost,
+      });
+    }
+  }
+
   return {
     id: raw.id,
     reference: raw.reference,
@@ -221,16 +370,21 @@ export function projectReception(
     warehouse_id: raw.warehouse_id,
     warehouse_name: raw.warehouse?.name_fr ?? null,
     warehouse_name_ar: raw.warehouse?.name_ar ?? null,
-    supplier_name: raw.supplier_name,
+    supplier_name: raw.supplier?.name ?? raw.supplier_name,
     supplier_ref: raw.supplier_ref,
     status: raw.status,
     expected_at: raw.expected_at,
     note: raw.note,
     photo_url: raw.photo_url,
-    submitted_at: raw.submitted_at,
-    submitted_by_name: raw.submitted_by_user?.full_name ?? null,
-    posted_at: raw.posted_at,
-    posted_by_name: raw.posted_by_user?.full_name ?? null,
+    arrival_date: raw.arrival_date,
+    counted_by_name: raw.counted_by_user?.full_name ?? null,
+    settled_at: raw.settled_at,
+    settled_by_name: raw.settled_by_user?.full_name ?? null,
+    supplier_id: raw.supplier_id,
+    supplier: raw.supplier,
+    invoice_total: raw.invoice_total === null ? null : Number(raw.invoice_total),
+    due_at: raw.due_at,
+    discrepancy_reason: raw.discrepancy_reason,
     reverses_reception_id: raw.reverses_reception_id,
     created_at: raw.created_at,
     is_late: isLate({ expected_at: raw.expected_at, status: raw.status }, now),
@@ -244,23 +398,25 @@ export function projectReception(
       expected: totals.expected,
       countedLines: totals.countedLines,
     },
+    fee_basis: basis,
+    costs: withCosts ? rawCosts : [],
+    fees_total: fees,
+    fees_blocked: allocation?.blocked ?? null,
+    landed_value:
+      withCosts && totals.value !== null ? Number((totals.value + (fees ?? 0)).toFixed(3)) : null,
     payments: withCosts ? raw.reception_payments : [],
     paid_total: paid,
     outstanding:
       withCosts && totals.value !== null ? Math.max(totals.value - (paid ?? 0), 0) : null,
     payment_state: withCosts ? paymentState({ value: totals.value, paid: paid ?? 0 }) : null,
+    claim: withCosts && raw.claim ? projectClaim(raw.claim) : null,
     can: {
-      submit: canDraftReception(role) && raw.status === "draft",
-      post: canPostReception(role) && isDraftish,
-      reverse: canReverseReception(role) && raw.status === "posted",
+      /* Compter encore sur ce groupe : tant qu'il est ouvert. */
+      recordArrival: canRecordArrival(role) && isOpen,
+      /* Chiffrer et clore — geste de bureau. */
+      settle: canSettleReception(role) && isOpen,
+      reverse: canReverseReception(role) && raw.status === "settled",
       pay: canSeeReceptionCosts(role) && raw.status !== "reversed",
-      /*
-       * Renvoyer est le geste de celui qui VALIDE, pas de celui qui déclare :
-       * sans lui, un manager qui voit une erreur n'a que deux issues, valider
-       * ce qui est faux ou ne rien faire. Et sur un brouillon il n'y a personne
-       * à qui le rendre.
-       */
-      sendBack: canPostReception(role) && raw.status === "submitted",
     },
   };
 }
@@ -271,4 +427,25 @@ export function projectReceptionList(
   now: Date = new Date(),
 ): ProjectedReception[] {
   return rows.map((row) => projectReception(row, role, now));
+}
+
+/**
+ * Un litige, avec ses deux conséquences chiffrées.
+ *
+ * La règle vit dans `src/lib/purchases/claims.ts` et n'est pas recopiée ici :
+ * deux définitions de « retenu » finiraient par ne plus se répondre, et c'est
+ * de l'argent.
+ */
+function projectClaim(raw: RawReceptionClaim): ProjectedClaim {
+  const e = claimEffect({
+    id: raw.id,
+    supplierId: "",
+    receptionId: null,
+    kind: raw.kind,
+    amount: Number(raw.amount),
+    units: raw.units,
+    status: raw.status,
+    openedAt: raw.opened_at,
+  });
+  return { ...raw, amount: Number(raw.amount), withheld: e.withheld, disputed: e.disputed };
 }

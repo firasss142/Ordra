@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { marketIdToCode } from "@/lib/markets";
-import { incomingByProduct } from "@/lib/receptions/incoming";
+import { outstandingByProduct, type PurchaseOrderRow } from "@/lib/purchases/orders";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
@@ -57,13 +57,21 @@ export interface WarehouseStockRow {
    */
   unallocated: number;
   /**
-   * Units on order that have not reached the shelf — announced or declared
-   * receptions, minus what has already been counted on them.
+   * Units ORDERED that have not reached the shelf — the outstanding quantity on
+   * open purchase orders for this market.
+   *
+   * Under the arrival model stock enters the moment the box hits the floor, so
+   * nothing is in transit between the dock and the shelf: what is genuinely on
+   * the way is what has been ordered and not yet arrived. See
+   * src/lib/purchases/orders.ts.
    *
    * NULL, never 0, when nothing is on the way: "nothing ordered" and "we do not
    * know" must not share a number, and a reassuring zero is the worse of the
-   * two. See src/lib/receptions/incoming.ts for why a stale draft stops
-   * counting — otherwise this figure would never come back down.
+   * two.
+   *
+   * ALWAYS NULL FOR A `warehouse_agent`. Purchase orders are closed to them at
+   * the RLS level — that is blind receiving, enforced where it holds — so this
+   * route does not hand them a figure the database would refuse them.
    */
   incoming: number | null;
 }
@@ -253,32 +261,66 @@ async function handleGET(req: NextRequest) {
   }
 
   /*
-   * Ce qui est en route. Une seule requête, filtrée sur les deux seuls statuts
-   * qui peuvent compter — la règle de péremption d'un brouillon est appliquée
-   * en TypeScript, testée, plutôt que dupliquée en SQL.
+   * CE QUI EST EN ROUTE = CE QUI EST COMMANDÉ ET PAS ENCORE ARRIVÉ.
+   *
+   * Une seule requête sur les commandes OUVERTES. La règle (« une ligne servie
+   * disparaît », « une commande clôturée ne compte plus ») vit en TypeScript,
+   * testée, plutôt que dupliquée en SQL.
+   *
+   * L'agent du quai n'interroge même pas : la RLS lui refuserait ces lignes, et
+   * demander pour recevoir un tableau vide ferait croire à « rien en route ».
    */
-  let incomingQuery = supabase
-    .from("receptions")
-    .select("status, expected_at, reception_lines(product_id, expected_qty, received_qty)")
-    .in("status", ["draft", "submitted"]);
-  if (scopeMarket) incomingQuery = incomingQuery.eq("market_id", scopeMarket);
-  const { data: incomingRows } = await incomingQuery;
+  const incomingBy =
+    actor.role === "warehouse_agent"
+      ? new Map<string, number>()
+      : await (async () => {
+          let q = supabase
+            .from("purchase_orders")
+            .select("id, reference, market_id, warehouse_id, supplier_id, status, wanted_by, ordered_at, closed_at")
+            .eq("status", "open");
+          if (scopeMarket) q = q.eq("market_id", scopeMarket);
+          const { data: poRows } = await q;
+          const ids = (poRows ?? []).map((o) => o.id);
+          if (ids.length === 0) return new Map<string, number>();
 
-  const incomingBy = incomingByProduct(
-    ((incomingRows ?? []) as unknown as Array<{
-      status: string;
-      expected_at: string | null;
-      reception_lines: Array<{
-        product_id: string;
-        expected_qty: number | null;
-        received_qty: number | null;
-      }> | null;
-    }>).map((r) => ({
-      status: r.status,
-      expected_at: r.expected_at,
-      lines: r.reception_lines ?? [],
-    })),
-  );
+          /*
+           * DEUX REQUÊTES, PAS UNE IMBRICATION. `purchase_order_line_progress`
+           * est une VUE : PostgREST ne garantit pas de déduire la relation vers
+           * `purchase_orders`, et un `select` imbriqué qui échoue renverrait un
+           * tableau vide — soit « rien en route », le mensonge le plus cher de
+           * tout cet écran. Un `in` explicite ne dépend d'aucune inférence.
+           */
+          const { data: lineRows } = await supabase
+            .from("purchase_order_line_progress")
+            .select(
+              "id, purchase_order_id, product_id, variant_id, ordered_qty, unit_cost, received_qty, first_received_at",
+            )
+            .in("purchase_order_id", ids);
+
+          const linesBy = new Map<string, PurchaseOrderRow["lines"]>();
+          for (const l of (lineRows ?? []) as unknown as Array<
+            Record<string, unknown> & { purchase_order_id: string }
+          >) {
+            const bucket = linesBy.get(l.purchase_order_id) ?? [];
+            bucket.push({ ...l, product_name: "", variant_label: null } as unknown as
+              PurchaseOrderRow["lines"][number]);
+            linesBy.set(l.purchase_order_id, bucket);
+          }
+
+          const orders = (poRows ?? []).map(
+            (o) =>
+              ({
+                ...o,
+                warehouse_name: null,
+                supplier_name: null,
+                ordered_by_name: null,
+                close_reason: null,
+                note: null,
+                lines: linesBy.get(o.id) ?? [],
+              }) as unknown as PurchaseOrderRow,
+          );
+          return outstandingByProduct(orders, new Date());
+        })();
 
   const accuracyBy = new Map<string, number | null>();
   for (const a of ((accuracyData as { products?: Array<{ product_id: string; accuracy: number | null }> } | null)

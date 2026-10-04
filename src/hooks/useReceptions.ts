@@ -22,9 +22,9 @@ const NO_RECEPTIONS: ProjectedReception[] = [];
 
 export interface ReceptionCounts {
   all: number;
-  draft: number;
-  submitted: number;
-  posted: number;
+  /** Groupes du quai pas encore chiffrés — le seul compteur qui réclame. */
+  open: number;
+  settled: number;
   /** Déduit de somme(paiements) contre la valeur reçue, pas un statut en base. */
   unpaid: number;
   late: number;
@@ -32,9 +32,8 @@ export interface ReceptionCounts {
 
 const NO_COUNTS: ReceptionCounts = {
   all: 0,
-  draft: 0,
-  submitted: 0,
-  posted: 0,
+  open: 0,
+  settled: 0,
   unpaid: 0,
   late: 0,
 };

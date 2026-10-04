@@ -2,24 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
-import { canViewReceptions, canDraftReception } from "@/lib/receptions/permissions";
+import { canViewReceptions, canSettleReception } from "@/lib/receptions/permissions";
 import { projectReception, type RawReception } from "@/lib/receptions/project";
+import { orderedByReceptionLine } from "@/lib/receptions/ordered";
+import type { RawReceptionClaim } from "@/lib/receptions/project";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 const RECEPTION_SELECT = `
   id, market_id, warehouse_id, reference, supplier_name, supplier_ref, status,
-  expected_at, note, photo_url, submitted_at, submitted_by, posted_at, posted_by,
-  reverses_reception_id, created_at,
+  expected_at, note, photo_url, arrival_date, settled_at, settled_by,
+  supplier_id, invoice_total, due_at, discrepancy_reason,
+  reverses_reception_id, created_at, fee_basis,
   warehouse:warehouses ( code, name_fr, name_ar ),
-  submitted_by_user:users!receptions_submitted_by_fkey ( full_name ),
-  posted_by_user:users!receptions_posted_by_fkey ( full_name ),
+  counted_by_user:users!receptions_created_by_fkey ( full_name ),
+  settled_by_user:users!receptions_settled_by_fkey ( full_name ),
+  supplier:suppliers ( id, name ),
   reception_lines (
-    id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, note,
+    id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, landed_unit_cost, note,
     product:products ( name, sku, image_url, current_stock, unit_cogs ),
     variant:product_variants ( label, sku )
   ),
+  reception_costs ( id, kind, label, amount ),
   reception_payments ( id, paid_at, amount, method, note )
 `;
 
@@ -58,7 +63,53 @@ async function handleGET(req: NextRequest, { params }: { params: Promise<{ id: s
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ reception: projectReception(raw, actor.role) });
+  return NextResponse.json({ reception: projectReception(await withOrdered(supabase, raw), actor.role) });
+}
+
+/**
+ * Injecte le COMMANDÉ sur chaque ligne, depuis les bons de commande auxquels le
+ * quai l'a rattachée. Voir src/lib/receptions/ordered.ts — et noter que le
+ * comptage à l'aveugle est gardé par la RLS, pas par un filtre de rôle ici.
+ */
+async function withOrdered(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  raw: RawReception,
+): Promise<RawReception> {
+  const [ordered, claim] = await Promise.all([
+    orderedByReceptionLine(
+      supabase,
+      raw.reception_lines.map((l) => l.id),
+    ),
+    /*
+     * LE LITIGE NÉ DE CE SOLDAGE. Requête séparée parce qu'un litige a sa
+     * propre vie : sa résolution et sa pièce justificative ne sont pas des
+     * champs de la réception.
+     *
+     * La RLS de `supplier_claims` est fermée au `warehouse_agent` : sa requête
+     * rend `null`, sa feuille n'affiche aucun montant, et aucun filtrage par
+     * rôle n'est écrit ici — il serait le deuxième endroit où la règle vit.
+     *
+     * `maybeSingle` et non `single` : l'absence de litige est le cas NORMAL.
+     */
+    supabase
+      .from("supplier_claims")
+      .select(
+        "id, kind, amount, units, status, opened_at, resolved_at, resolution_note, credit_ref",
+      )
+      .eq("reception_id", raw.id)
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    ...raw,
+    claim: (claim.data as RawReceptionClaim | null) ?? null,
+    reception_lines: raw.reception_lines.map((l) => ({
+      ...l,
+      ordered_qty: ordered.get(l.id) ?? null,
+    })),
+  };
 }
 
 /**
@@ -75,7 +126,13 @@ async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id:
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  if (!canDraftReception(actor.role)) {
+  /*
+   * CHIFFRER EST UN GESTE DE BUREAU. Les QUANTITÉS appartiennent au quai et ne
+   * passent plus par ici : elles s'écrivent par `record_arrival` et se corrigent
+   * par `correct_arrival`, qui écrit le delta au registre. Ce qui reste ici,
+   * c'est le PRIX — et le prix n'est pas une information de quai.
+   */
+  if (!canSettleReception(actor.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -85,12 +142,9 @@ async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id:
     expected_at?: string | null;
     note?: string | null;
     lines?: {
-      product_id?: string;
-      variant_id?: string | null;
-      expected_qty?: number | null;
-      received_qty?: number | null;
-      damaged_qty?: number | null;
+      id?: string;
       unit_cost?: number | null;
+      note?: string | null;
     }[];
   };
   try {
@@ -109,7 +163,7 @@ async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id:
   if (loadError) return NextResponse.json({ error: loadError.message }, { status: 500 });
   if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (current.status !== "draft" && current.status !== "submitted") {
+  if (current.status !== "open") {
     return NextResponse.json(
       { error: "Cette réception est définitive", error_code: "RECEPTION_IMMUTABLE" },
       { status: 409 },
@@ -132,37 +186,58 @@ async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id:
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  /*
+   * ON NE REMPLACE PLUS LA LISTE DES LIGNES.
+   *
+   * L'ancienne version supprimait toutes les lignes et les réinsérait : sous le
+   * modèle de l'arrivage, cela effacerait des lignes dont le stock est DÉJÀ
+   * entré, et le registre ne saurait plus à quoi rattacher ses mouvements. Les
+   * lignes naissent au quai et meurent avec leur document.
+   *
+   * Seul le PRIX se modifie ici, ligne par ligne, et uniquement sur des lignes
+   * de CETTE réception.
+   */
   if (Array.isArray(body.lines)) {
-    const { error: delError } = await supabase
-      .from("reception_lines")
-      .delete()
-      .eq("reception_id", id);
-    if (delError) return NextResponse.json({ error: delError.message }, { status: 400 });
+    for (const l of body.lines) {
+      if (!l.id) continue;
+      const patch: Record<string, unknown> = {};
+      if ("unit_cost" in l) patch.unit_cost = l.unit_cost ?? null;
+      if ("note" in l) patch.note = l.note?.trim() || null;
+      if (Object.keys(patch).length === 0) continue;
 
-    const lines = body.lines.filter((l) => l.product_id);
-    if (lines.length > 0) {
-      const { error: insError } = await supabase.from("reception_lines").insert(
-        lines.map((l) => ({
-          reception_id: id,
-          product_id: l.product_id!,
-          variant_id: l.variant_id ?? null,
-          expected_qty: l.expected_qty ?? null,
-          received_qty: l.received_qty ?? null,
-          damaged_qty: l.damaged_qty ?? 0,
-          unit_cost: actor.role === "warehouse_agent" ? null : (l.unit_cost ?? null),
-        })),
-      );
-      if (insError) return NextResponse.json({ error: insError.message }, { status: 400 });
+      const { error } = await supabase
+        .from("reception_lines")
+        .update(patch)
+        .eq("id", l.id)
+        .eq("reception_id", id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     }
   }
 
   const { data: fresh } = await load(supabase, id);
   return NextResponse.json({
-    reception: projectReception(fresh as unknown as RawReception, actor.role),
+    reception: projectReception(
+      await withOrdered(supabase, fresh as unknown as RawReception),
+      actor.role,
+    ),
   });
 }
 
-/** Supprimer un brouillon. Une réception validée se contre-passe, ne se supprime pas. */
+/**
+ * Supprimer un groupe VIDE. Une réception soldée se contre-passe.
+ *
+ * UN ARRIVAGE NE SE DÉ-ARRIVE PAS EN SUPPRIMANT LE DOCUMENT. Depuis la bascule
+ * du quai, les unités d'un groupe ouvert sont DÉJÀ dans
+ * `products.current_stock` — le stock entre quand le carton touche le sol.
+ * Supprimer le document laisserait le stock en place sans rien qui l'explique,
+ * et les lignes de registre `arrival` pointeraient sur une réception disparue.
+ * La bonne réponse est `correct_arrival(ligne, 0)`, qui écrit le DELTA au
+ * registre, parce que le registre est en ajout seul.
+ *
+ * (En v3 la suppression était sans danger : un brouillon n'avait rien bougé.
+ * L'inversion a rendu ce chemin dangereux, et c'est le genre de conséquence
+ * qu'une inversion de modèle laisse derrière elle sans prévenir.)
+ */
 async function handleDELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
@@ -174,6 +249,24 @@ async function handleDELETE(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const supabase = await createClient();
+
+  // On COMPTE les lignes, on ne les lit pas : seul leur nombre décide.
+  const { count } = await supabase
+    .from("reception_lines")
+    .select("id", { count: "exact", head: true })
+    .eq("reception_id", id);
+  if ((count ?? 0) > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Ce groupe a déjà des arrivages comptés : le stock est entré. " +
+          "Corrigez les comptages à zéro plutôt que de supprimer le document.",
+        error_code: "ARRIVALS_RECORDED",
+      },
+      { status: 409 },
+    );
+  }
+
   const { error } = await supabase.from("receptions").delete().eq("id", id);
   if (error) {
     // Le trigger d'immutabilité parle en 42501.

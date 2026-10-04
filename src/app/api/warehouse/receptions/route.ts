@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
-import { canViewReceptions, canDraftReception } from "@/lib/receptions/permissions";
+import { canViewReceptions } from "@/lib/receptions/permissions";
 import { projectReceptionList } from "@/lib/receptions/project";
 import type { RawReception } from "@/lib/receptions/project";
 import { withRouteErrors } from "@/lib/journal/route-errors";
@@ -24,19 +24,22 @@ export const dynamic = "force-dynamic";
  */
 
 const LINE_SELECT = `
-  id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, note,
+  id, product_id, variant_id, expected_qty, received_qty, damaged_qty, unit_cost, landed_unit_cost, note,
   product:products ( name, sku, image_url, current_stock, unit_cogs ),
   variant:product_variants ( label, sku )
 `;
 
 const RECEPTION_SELECT = `
   id, market_id, warehouse_id, reference, supplier_name, supplier_ref, status,
-  expected_at, note, photo_url, submitted_at, submitted_by, posted_at, posted_by,
-  reverses_reception_id, created_at,
+  expected_at, note, photo_url, arrival_date, settled_at, settled_by,
+  supplier_id, invoice_total, due_at, discrepancy_reason,
+  reverses_reception_id, created_at, fee_basis,
   warehouse:warehouses ( code, name_fr, name_ar ),
-  submitted_by_user:users!receptions_submitted_by_fkey ( full_name ),
-  posted_by_user:users!receptions_posted_by_fkey ( full_name ),
+  counted_by_user:users!receptions_created_by_fkey ( full_name ),
+  settled_by_user:users!receptions_settled_by_fkey ( full_name ),
+  supplier:suppliers ( id, name ),
   reception_lines ( ${LINE_SELECT} ),
+  reception_costs ( id, kind, label, amount ),
   reception_payments ( id, paid_at, amount, method, note )
 `;
 
@@ -98,9 +101,8 @@ async function handleGET(req: NextRequest) {
 
   const counts = {
     all: all.length,
-    draft: all.filter((r) => r.status === "draft").length,
-    submitted: all.filter((r) => r.status === "submitted").length,
-    posted: all.filter((r) => r.status === "posted").length,
+    open: all.filter((r) => r.status === "open").length,
+    settled: all.filter((r) => r.status === "settled").length,
     unpaid: all.filter((r) => r.payment_state === "unpaid" || r.payment_state === "partial").length,
     late: all.filter((r) => r.is_late).length,
   };
@@ -121,128 +123,14 @@ async function handleGET(req: NextRequest) {
   });
 }
 
-/**
- * Créer un brouillon. Rien n'entre en stock ici — c'est `POST .../[id]/post`
- * qui le fait, et lui seul.
+/*
+ * IL N'Y A PLUS DE « CRÉER UNE RÉCEPTION » ICI.
+ *
+ * Le document naît au QUAI, au premier arrivage : `POST /api/warehouse/arrivals`
+ * le trouve ou le crée pour (bâtiment, jour). Un formulaire de bureau qui
+ * réclamait bâtiment, fournisseur, numéro de bon et date avant d'accepter une
+ * seule unité demandait la paperasse AVANT la marchandise — et c'est exactement
+ * là que la seule réception jamais créée en production s'est arrêtée, à zéro
+ * ligne.
  */
-async function handlePOST(req: NextRequest) {
-  const actorResult = await getActor(req);
-  if ("response" in actorResult) return actorResult.response;
-  const { actor } = actorResult;
-
-  if (!canDraftReception(actor.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  let body: {
-    warehouse_id?: string;
-    supplier_name?: string;
-    supplier_ref?: string;
-    expected_at?: string | null;
-    note?: string;
-    lines?: {
-      product_id?: string;
-      variant_id?: string | null;
-      expected_qty?: number | null;
-      received_qty?: number | null;
-      damaged_qty?: number | null;
-      unit_cost?: number | null;
-    }[];
-  };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const supabase = await createClient();
-  const scope = resolveWarehouseScope(req, actor);
-  const site = await resolveSiteFilter(supabase, {
-    actor,
-    requested: body.warehouse_id ?? null,
-  });
-
-  if (site.unassigned) {
-    return NextResponse.json(
-      { error: "no_site_assigned", error_code: "NO_SITE_ASSIGNED" },
-      { status: 409 },
-    );
-  }
-
-  const warehouseId = site.warehouseId ?? body.warehouse_id ?? null;
-  if (!warehouseId) {
-    return NextResponse.json(
-      { error: "A reception happens in one building — warehouse_id is required" },
-      { status: 400 },
-    );
-  }
-
-  // Le marché vient du bâtiment, jamais du corps de la requête : c'est le
-  // bâtiment qui est physique, et un client ne choisit pas son marché.
-  const { data: warehouse, error: whError } = await supabase
-    .from("warehouses")
-    .select("id, market_id")
-    .eq("id", warehouseId)
-    .maybeSingle<{ id: string; market_id: string }>();
-
-  if (whError) return NextResponse.json({ error: whError.message }, { status: 500 });
-  if (!warehouse) return NextResponse.json({ error: "Unknown warehouse" }, { status: 404 });
-
-  if (actor.role !== "super_admin" && warehouse.market_id !== actor.market_id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  if (actor.role === "super_admin" && scope.marketId && warehouse.market_id !== scope.marketId) {
-    return NextResponse.json(
-      { error: "Ce bâtiment n'appartient pas au marché sélectionné" },
-      { status: 400 },
-    );
-  }
-
-  const { data: reference, error: refError } = await supabase.rpc("next_reception_reference", {
-    p_market_id: warehouse.market_id,
-  });
-  if (refError) return NextResponse.json({ error: refError.message }, { status: 500 });
-
-  const { data: created, error: insertError } = await supabase
-    .from("receptions")
-    .insert({
-      market_id: warehouse.market_id,
-      warehouse_id: warehouseId,
-      reference,
-      supplier_name: body.supplier_name?.trim() || null,
-      supplier_ref: body.supplier_ref?.trim() || null,
-      expected_at: body.expected_at || null,
-      note: body.note?.trim() || null,
-      status: "draft",
-      created_by: actor.id,
-    })
-    .select("id, reference")
-    .single<{ id: string; reference: string }>();
-
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
-
-  const lines = (body.lines ?? []).filter((l) => l.product_id);
-  if (lines.length > 0) {
-    const { error: linesError } = await supabase.from("reception_lines").insert(
-      lines.map((l) => ({
-        reception_id: created.id,
-        product_id: l.product_id!,
-        variant_id: l.variant_id ?? null,
-        expected_qty: l.expected_qty ?? null,
-        received_qty: l.received_qty ?? null,
-        damaged_qty: l.damaged_qty ?? 0,
-        // Un agent d'entrepôt ne saisit pas de prix : même s'il en envoyait un,
-        // il est ignoré côté serveur.
-        unit_cost: actor.role === "warehouse_agent" ? null : (l.unit_cost ?? null),
-      })),
-    );
-    if (linesError) {
-      return NextResponse.json({ error: linesError.message }, { status: 400 });
-    }
-  }
-
-  return NextResponse.json({ id: created.id, reference: created.reference }, { status: 201 });
-}
-
 export const GET = withRouteErrors("/api/warehouse/receptions", "GET", handleGET);
-export const POST = withRouteErrors("/api/warehouse/receptions", "POST", handlePOST);

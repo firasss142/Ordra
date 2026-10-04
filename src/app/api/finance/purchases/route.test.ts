@@ -70,6 +70,58 @@ beforeEach(() => {
     error: null,
   };
 
+  /*
+   * LES BONS DE COMMANDE. Deux chez الرسالة : une clôturée à 141 sur 150, une
+   * encore ouverte — qui ne doit PAS peser sur sa note, parce que son camion
+   * roule encore. Aucun chez Biovera : sa colonne reste « — ».
+   */
+  tables.purchase_orders = {
+    data: [
+      {
+        id: "po-1", reference: "BC-LY-2026-0001", market_id: "m-ly", warehouse_id: "w-tripoli",
+        supplier_id: "s-risala", status: "closed", wanted_by: "2026-09-20",
+        ordered_at: "2026-09-11T08:00:00Z", closed_at: "2026-09-22T10:00:00Z",
+        close_reason: null, note: null,
+      },
+      {
+        id: "po-2", reference: "BC-LY-2026-0002", market_id: "m-ly", warehouse_id: "w-tripoli",
+        supplier_id: "s-risala", status: "open", wanted_by: "2026-10-20",
+        ordered_at: "2026-10-01T08:00:00Z", closed_at: null, close_reason: null, note: null,
+      },
+    ],
+    error: null,
+  };
+  tables.purchase_order_line_progress = {
+    data: [
+      {
+        id: "pol-1", purchase_order_id: "po-1", product_id: "p-1", variant_id: null,
+        ordered_qty: 150, unit_cost: 40, received_qty: 141,
+        first_received_at: "2026-09-22T08:00:00Z",
+      },
+      {
+        id: "pol-2", purchase_order_id: "po-2", product_id: "p-1", variant_id: null,
+        ordered_qty: 200, unit_cost: 40, received_qty: 0, first_received_at: null,
+      },
+    ],
+    error: null,
+  };
+
+  /*
+   * UN LITIGE OUVERT sur r-14 : le fournisseur a facturé 18 720 et 170 sont
+   * contestés (2 unités arrivées cassées × 85). On a déjà versé 7 488.
+   */
+  tables.supplier_claims = {
+    data: [
+      {
+        id: "cl-1", market_id: "m-ly", supplier_id: "s-risala", reception_id: "r-14",
+        kind: "damaged", amount: 170, units: 2, status: "open",
+        opened_at: "2026-09-22T11:00:00Z", resolved_at: null,
+        resolution_note: null, credit_ref: null,
+      },
+    ],
+    error: null,
+  };
+
   mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
 });
 
@@ -104,8 +156,8 @@ describe("GET /api/finance/purchases — le garde", () => {
 describe("GET /api/finance/purchases — les trois indicateurs", () => {
   test("le dû est la somme des soldes, acompte déduit", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
-    // 18 720 − 7 488 versés = 11 232, plus 6 200 impayés.
-    expect(body.summary.owed).toBe(17432);
+    // 18 720 − 7 488 versés − 170 retenus = 11 062, plus 6 200 impayés.
+    expect(body.summary.owed).toBe(17262);
   });
 
   test("le retard ne compte que l'échu impayé, et nomme son pire jour", async () => {
@@ -119,7 +171,7 @@ describe("GET /api/finance/purchases — les trois indicateurs", () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
     expect(body.summary.unpriced).toBe(1);
     // Elle ne gonfle pas le dû : on ignore le montant, on ne l'invente pas.
-    expect(body.summary.owed).toBe(17432);
+    expect(body.summary.owed).toBe(17262);
   });
 });
 
@@ -143,7 +195,9 @@ describe("GET /api/finance/purchases — l'échéancier", () => {
   test("porte le solde ET ce qui a déjà été versé", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
     const r14 = body.payables.find((p: { receptionId: string }) => p.receptionId === "r-14");
-    expect(r14).toMatchObject({ balance: 11232, paid: 7488, invoiceTotal: 18720 });
+    // `invoiceTotal` reste le chiffre du FOURNISSEUR ; le solde en retire les
+    // 170 contestés. Les deux sont visibles, donc l'écart est explicable.
+    expect(r14).toMatchObject({ balance: 11062, paid: 7488, invoiceTotal: 18720 });
   });
 });
 
@@ -151,21 +205,118 @@ describe("GET /api/finance/purchases — les fournisseurs", () => {
   test("chaque fournisseur porte ce qu'on lui doit", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
     const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
-    expect(risala).toMatchObject({ name: "مكتبة الرسالة", owed: 11232, overdue: 0 });
+    expect(risala).toMatchObject({ name: "مكتبة الرسالة", owed: 11062, overdue: 0 });
   });
 
-  test("le taux de service se calcule quand l'attendu existe, et vaut null sinon", async () => {
+  test("le taux de service se mesure sur les commandes TERMINÉES", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
     const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
     const biovera = body.suppliers.find((s: { id: string }) => s.id === "s-biovera");
-    // 141 reçues sur 150 annoncées.
+    /*
+     * 141 reçues sur 150 commandées = 94 %. Les 200 unités de la commande
+     * ENCORE OUVERTE n'entrent pas : tant que le camion roule, le reste peut
+     * arriver, et la compter donnerait 40 % — une note imméritée qui
+     * condamnerait tout fournisseur en cours de livraison.
+     */
     expect(risala.fillRate).toBe(94);
-    // Rien n'a jamais été annoncé chez lui : « — », pas « 0 % » ni « 100 % ».
+    // Aucune commande chez lui : « — », pas « 0 % » ni « 100 % ».
     expect(biovera.fillRate).toBeNull();
   });
 
-  test("le délai moyen est null : il demande un bon de commande, qui n'existe pas encore", async () => {
+  test("le délai se mesure de la commande au premier carton", async () => {
     const body = await (await GET(req("?market_id=m-ly"))).json();
-    for (const s of body.suppliers) expect(s.leadTimeDays).toBeNull();
+    const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
+    // Commandé le 11, premier carton le 22 : onze jours.
+    expect(risala.leadTimeDays).toBe(11);
+  });
+
+  test("le délai reste null sans aucune commande servie", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const biovera = body.suppliers.find((s: { id: string }) => s.id === "s-biovera");
+    expect(biovera.leadTimeDays).toBeNull();
+  });
+
+  test("compte les commandes en cours et ce qu'elles engagent", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
+    expect(risala.openOrders).toBe(1);
+    expect(risala.onOrderUnits).toBe(200);
+  });
+});
+
+
+/**
+ * CE QU'ON RETIENT N'EST PAS DÛ.
+ *
+ * `invoice_total` porte ce que le fournisseur a écrit ; le litige dit ce qu'on
+ * refuse de payer. Sans la soustraction, l'échéancier réclamerait des unités
+ * arrivées cassées — et continuerait de les réclamer après l'avoir.
+ */
+describe("GET /api/finance/purchases — les litiges", () => {
+  test("retire le montant contesté du solde de la réception", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const r14 = body.payables.find((p: { receptionId: string }) => p.receptionId === "r-14");
+    // 18 720 facturés − 7 488 versés − 170 retenus.
+    expect(r14.balance).toBe(11062);
+    expect(r14.withheld).toBe(170);
+  });
+
+  test("dit ce qui est contesté sur l'ardoise du fournisseur", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const risala = body.suppliers.find((s: { id: string }) => s.id === "s-risala");
+    expect(risala.disputed).toBe(170);
+    expect(risala.openClaims).toBe(1);
+    expect(risala.owed).toBe(11062);
+  });
+
+  test("ne met rien sur un fournisseur sans litige", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const biovera = body.suppliers.find((s: { id: string }) => s.id === "s-biovera");
+    // `null` et jamais 0 : « rien en litige » ne doit pas se lire comme un
+    // contrôle effectué.
+    expect(biovera.disputed).toBeNull();
+    expect(biovera.openClaims).toBe(0);
+  });
+
+  test("totalise ce qui est en litige sur le marché", async () => {
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    expect(body.summary.disputed).toBe(170);
+  });
+
+  test("un litige crédité cesse d'être contesté mais reste retenu", async () => {
+    // L'avoir est arrivé : on ne le paiera jamais, et il n'y a plus de bataille.
+    tables.supplier_claims = {
+      data: [
+        {
+          id: "cl-1", market_id: "m-ly", supplier_id: "s-risala", reception_id: "r-14",
+          kind: "damaged", amount: 170, units: 2, status: "credited",
+          opened_at: "2026-09-22T11:00:00Z", resolved_at: "2026-09-30T09:00:00Z",
+          resolution_note: null, credit_ref: "AV-4471",
+        },
+      ],
+      error: null,
+    };
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const r14 = body.payables.find((p: { receptionId: string }) => p.receptionId === "r-14");
+    expect(r14.balance).toBe(11062);
+    expect(body.summary.disputed).toBe(0);
+  });
+
+  test("un litige concédé rejoint ce qu'on doit", async () => {
+    tables.supplier_claims = {
+      data: [
+        {
+          id: "cl-1", market_id: "m-ly", supplier_id: "s-risala", reception_id: "r-14",
+          kind: "damaged", amount: 170, units: 2, status: "conceded",
+          opened_at: "2026-09-22T11:00:00Z", resolved_at: "2026-09-30T09:00:00Z",
+          resolution_note: "trop petit pour se battre", credit_ref: null,
+        },
+      ],
+      error: null,
+    };
+    const body = await (await GET(req("?market_id=m-ly"))).json();
+    const r14 = body.payables.find((p: { receptionId: string }) => p.receptionId === "r-14");
+    // Plus rien n'est retenu : 18 720 − 7 488.
+    expect(r14.balance).toBe(11232);
   });
 });

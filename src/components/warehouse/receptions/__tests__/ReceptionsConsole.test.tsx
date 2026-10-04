@@ -38,25 +38,36 @@ function reception(over: Partial<ProjectedReception> = {}): ProjectedReception {
     warehouse_name_ar: "طرابلس",
     supplier_name: "مكتبة الرسالة",
     supplier_ref: "BL-4471",
-    status: "submitted",
+    status: "open",
     expected_at: "2026-09-28",
     note: null,
     photo_url: null,
-    submitted_at: "2026-09-28T09:00:00Z",
-    submitted_by_name: "Adel",
-    posted_at: null,
-    posted_by_name: null,
+    settled_at: "2026-09-28T09:00:00Z",
+    counted_by_name: "Adel",
+    settled_by_name: null,
     reverses_reception_id: null,
     created_at: "2026-09-27T08:00:00Z",
     is_late: false,
     days_late: null,
+    arrival_date: "2026-09-29",
+    supplier_id: null,
+    supplier: null,
+    invoice_total: null,
+    due_at: null,
+    discrepancy_reason: null,
     lines: [],
     totals: { units: 312, damaged: 2, value: 18720, lines: 4, expected: 310, countedLines: 4 },
+    fee_basis: "value",
+    costs: [],
+    fees_total: null,
+    fees_blocked: null,
+    landed_value: null,
     payments: [],
     paid_total: 7488,
     outstanding: 11232,
+    claim: null,
     payment_state: "partial",
-    can: { submit: false, post: true, reverse: false, pay: true, sendBack: false },
+    can: { recordArrival: false, settle: true, reverse: false, pay: true },
     ...over,
   };
 }
@@ -65,7 +76,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockUseReceptions.mockReturnValue({
     receptions: [reception()],
-    counts: { all: 1, draft: 0, submitted: 1, posted: 0, unpaid: 1, late: 0 },
+    counts: { all: 1, open: 1, settled: 0, unpaid: 1, late: 0 },
     currency: "LYD",
     unassigned: false,
     isLoading: false,
@@ -95,12 +106,13 @@ describe("ReceptionsConsole", () => {
       receptions: [
         reception({
           totals: { units: 312, damaged: 2, value: null, lines: 4, expected: 310, countedLines: 4 },
-          payment_state: null,
+          claim: null,
+    payment_state: null,
           outstanding: null,
           paid_total: null,
         }),
       ],
-      counts: { all: 1, draft: 0, submitted: 1, posted: 0, unpaid: 1, late: 0 },
+      counts: { all: 1, open: 1, settled: 0, unpaid: 1, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -119,8 +131,8 @@ describe("ReceptionsConsole", () => {
 
   it("dit « en retard de 4 j » plutôt que de le taire", () => {
     mockUseReceptions.mockReturnValue({
-      receptions: [reception({ is_late: true, days_late: 4, status: "draft" })],
-      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 1 },
+      receptions: [reception({ is_late: true, days_late: 4, status: "open" })],
+      counts: { all: 1, open: 1, settled: 0, unpaid: 0, late: 1 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -139,7 +151,7 @@ describe("ReceptionsConsole", () => {
   it("distingue « pas de bâtiment » d'un entrepôt calme", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [],
-      counts: { all: 0, draft: 0, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 0, open: 0, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: true,
       isLoading: false,
@@ -154,7 +166,7 @@ describe("ReceptionsConsole", () => {
   it("affiche l'état vide quand il n'y a simplement rien", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [],
-      counts: { all: 0, draft: 0, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 0, open: 0, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -165,9 +177,16 @@ describe("ReceptionsConsole", () => {
     expect(screen.getByText(/aucune réception/i)).toBeInTheDocument();
   });
 
-  it("propose « nouvelle réception » à qui peut en créer", () => {
+  /*
+   * PLUS DE « NOUVELLE RÉCEPTION » SUR LE BUREAU. Le document naît au QUAI, au
+   * premier arrivage : un formulaire qui réclamait bâtiment, fournisseur, numéro
+   * de bon et date avant d'accepter une seule unité demandait la paperasse avant
+   * la marchandise — et c'est exactement là que la seule réception jamais créée
+   * en production s'est arrêtée, à zéro ligne.
+   */
+  it("n'offre plus de créer une réception depuis le bureau", () => {
     wrap(<ReceptionsConsole locale="fr" role="warehouse_agent" />);
-    expect(screen.getByRole("button", { name: /nouvelle réception/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /nouvelle réception/i })).not.toBeInTheDocument();
   });
 
   /*
@@ -176,10 +195,10 @@ describe("ReceptionsConsole", () => {
    * nom accessible coexistent, ce qui est ambigu pour un lecteur d'écran autant
    * que pour ce test.
    */
-  it("porte un compteur sur le filtre « à valider » — la file du manager", () => {
+  it("porte un compteur sur le filtre « à solder » — la file du bureau", () => {
     wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
     const group = screen.getByRole("group", { name: /filtre/i });
-    const seg = within(group).getByRole("button", { name: /à valider/i });
+    const seg = within(group).getByRole("button", { name: /à solder/i });
     expect(seg).toHaveAttribute("aria-pressed", "false");
     expect(seg).toHaveTextContent("1");
   });
@@ -199,19 +218,21 @@ describe("ReceptionsConsole — les segments", () => {
       reception({
         id: "r-draft",
         reference: "REC-LY-2026-0043",
-        status: "draft",
+        status: "open",
         totals: { units: 0, damaged: 0, value: null, lines: 2, expected: 480, countedLines: 0 },
-        payment_state: "not_applicable",
+        claim: null,
+    payment_state: "not_applicable",
         outstanding: null,
         paid_total: 0,
       }),
-      reception({ id: "r-sub", reference: "REC-LY-2026-0042", status: "submitted" }),
+      reception({ id: "r-sub", reference: "REC-LY-2026-0042", status: "open" }),
       reception({
         id: "r-posted",
         reference: "REC-LY-2026-0039",
-        status: "posted",
+        status: "settled",
         totals: { units: 602, damaged: 3, value: 45150, lines: 14, expected: 600, countedLines: 14 },
-        payment_state: "paid",
+        claim: null,
+    payment_state: "paid",
         outstanding: 0,
         paid_total: 45150,
       }),
@@ -221,7 +242,7 @@ describe("ReceptionsConsole — les segments", () => {
   beforeEach(() => {
     mockUseReceptions.mockReturnValue({
       receptions: threeReceptions(),
-      counts: { all: 3, draft: 1, submitted: 1, posted: 1, unpaid: 2, late: 0 },
+      counts: { all: 3, open: 2, settled: 1, unpaid: 2, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -230,10 +251,10 @@ describe("ReceptionsConsole — les segments", () => {
     });
   });
 
-  it("porte les cinq filtres de la maquette, « Impayées » comprise", () => {
+  it("porte les quatre filtres : toutes, à solder, soldées, impayées", () => {
     wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
     const group = screen.getByRole("group", { name: /filtre/i });
-    for (const label of [/toutes/i, /attendues/i, /à valider/i, /validées/i, /impayées/i]) {
+    for (const label of [/toutes/i, /à solder/i, /soldées/i, /impayées/i]) {
       expect(within(group).getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
@@ -244,14 +265,14 @@ describe("ReceptionsConsole — les segments", () => {
     wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
     const group = screen.getByRole("group", { name: /filtre/i });
 
-    await user.click(within(group).getByRole("button", { name: /attendues/i }));
+    await user.click(within(group).getByRole("button", { name: /à solder/i }));
 
     // La liste s'est réduite…
     expect(screen.getByText("REC-LY-2026-0043")).toBeInTheDocument();
     expect(screen.queryByText("REC-LY-2026-0039")).not.toBeInTheDocument();
     // …mais les compteurs parlent toujours de l'ensemble.
-    expect(within(group).getByRole("button", { name: /à valider/i })).toHaveTextContent("1");
-    expect(within(group).getByRole("button", { name: /validées/i })).toHaveTextContent("1");
+    expect(within(group).getByRole("button", { name: /à solder/i })).toHaveTextContent("2");
+    expect(within(group).getByRole("button", { name: /soldées/i })).toHaveTextContent("1");
     expect(within(group).getByRole("button", { name: /impayées/i })).toHaveTextContent("2");
   });
 
@@ -283,11 +304,11 @@ describe("ReceptionsConsole — le chiffre et son mot", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [
         reception({
-          status: "draft",
+          status: "open",
           totals: { units: 0, damaged: 0, value: null, lines: 3, expected: 300, countedLines: 0 },
         }),
       ],
-      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 1, open: 1, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -317,7 +338,7 @@ describe("ReceptionsConsole — le chiffre et son mot", () => {
           totals: { units: 80, damaged: 0, value: 3200, lines: 1, expected: 80, countedLines: 1 },
         }),
       ],
-      counts: { all: 1, draft: 0, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 1, open: 0, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -332,20 +353,21 @@ describe("ReceptionsConsole — le chiffre et son mot", () => {
 });
 
 /**
- * UN SEUL MOT POUR UN SEUL ÉTAT. Le filtre s'appelle « Attendues » et la
- * pastille disait « Brouillon » sur les lignes qu'il retournait : deux noms pour
- * le même fait, dans le même écran, à quinze centimètres l'un de l'autre.
+ * UN SEUL MOT POUR UN SEUL ÉTAT. Le filtre s'appelle « À solder » et la pastille
+ * doit dire la même chose sur les lignes qu'il retourne : deux noms pour le même
+ * fait, dans le même écran, à quinze centimètres l'un de l'autre, et personne ne
+ * peut deviner qu'ils sont égaux.
  */
 describe("ReceptionsConsole — le vocabulaire", () => {
-  it("appelle un brouillon « Attendue », comme son filtre", () => {
+  it("appelle un groupe ouvert « À solder », comme son filtre", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [
         reception({
-          status: "draft",
+          status: "open",
           totals: { units: 0, damaged: 0, value: null, lines: 1, expected: 300, countedLines: 0 },
         }),
       ],
-      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 1, open: 1, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -354,8 +376,9 @@ describe("ReceptionsConsole — le vocabulaire", () => {
     });
     wrap(<ReceptionsConsole locale="fr" role="market_manager" />);
     const row = screen.getByRole("button", { name: /REC-LY-2026-0042/ });
-    expect(row).toHaveTextContent(/Attendue/);
-    expect(row).not.toHaveTextContent(/Brouillon/);
+    expect(row).toHaveTextContent(/À solder/);
+    // Le vocabulaire d'avant la bascule ne doit plus apparaître nulle part.
+    expect(row).not.toHaveTextContent(/Brouillon|Attendue|À valider/);
   });
 
   it("dit « acompte 40 % » sur une réception partiellement payée", () => {
@@ -378,12 +401,13 @@ describe("ReceptionsConsole — les deux vides", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [
         reception({
-          status: "posted",
-          payment_state: "paid",
+          status: "settled",
+          claim: null,
+    payment_state: "paid",
           totals: { units: 10, damaged: 0, value: 100, lines: 1, expected: 10, countedLines: 1 },
         }),
       ],
-      counts: { all: 1, draft: 0, submitted: 0, posted: 1, unpaid: 0, late: 0 },
+      counts: { all: 1, open: 0, settled: 1, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -401,7 +425,7 @@ describe("ReceptionsConsole — les deux vides", () => {
   it("dit « aucune réception » quand il n'y en a vraiment aucune", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [],
-      counts: { all: 0, draft: 0, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 0, open: 0, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -433,8 +457,8 @@ describe("ReceptionsConsole — la densité de la v3", () => {
    */
   it("ne teinte plus le fond de la ligne — le liseré porte le signal seul", () => {
     mockUseReceptions.mockReturnValue({
-      receptions: [reception({ is_late: true, days_late: 4, status: "draft" })],
-      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 1 },
+      receptions: [reception({ is_late: true, days_late: 4, status: "open" })],
+      counts: { all: 1, open: 1, settled: 0, unpaid: 0, late: 1 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
@@ -456,14 +480,15 @@ describe("ReceptionsConsole — la densité de la v3", () => {
     mockUseReceptions.mockReturnValue({
       receptions: [
         reception({
-          status: "draft",
-          payment_state: "not_applicable",
+          status: "open",
+          claim: null,
+    payment_state: "not_applicable",
           outstanding: null,
           paid_total: 0,
           totals: { units: 0, damaged: 0, value: null, lines: 2, expected: 300, countedLines: 0 },
         }),
       ],
-      counts: { all: 1, draft: 1, submitted: 0, posted: 0, unpaid: 0, late: 0 },
+      counts: { all: 1, open: 1, settled: 0, unpaid: 0, late: 0 },
       currency: "LYD",
       unassigned: false,
       isLoading: false,
