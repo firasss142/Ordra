@@ -1,8 +1,15 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockRpc = vi.fn();
+const mockLogos = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn().mockResolvedValue({ rpc: (...args: unknown[]) => mockRpc(...args) }),
+  createClient: vi.fn().mockResolvedValue({
+    rpc: (...args: unknown[]) => mockRpc(...args),
+    from: (table: string) => {
+      if (table !== "carriers") throw new Error(`unexpected table ${table}`);
+      return { select: () => ({ eq: (_c: string, v: string) => mockLogos(v) }) };
+    },
+  }),
 }));
 vi.mock("@/lib/auth/actor", () => ({ getActor: vi.fn() }));
 
@@ -19,6 +26,7 @@ const as = (role: string, market_id: string | null = LY) =>
 beforeEach(() => {
   vi.clearAllMocks();
   mockRpc.mockResolvedValue({ data: { market_id: LY, days: 30, carriers: [], dormant: [] }, error: null });
+  mockLogos.mockResolvedValue({ data: [], error: null });
 });
 
 describe("GET /api/carriers/scorecard", () => {
@@ -57,5 +65,29 @@ describe("GET /api/carriers/scorecard", () => {
     as("market_manager", LY);
     mockRpc.mockResolvedValue({ data: null, error: { message: "x" } });
     expect((await GET(req())).status).toBe(500);
+  });
+});
+
+describe("GET /api/carriers/scorecard — logos", () => {
+  test("each carrier, active or dormant, carries its uploaded logo (null when none)", async () => {
+    as("market_manager", LY);
+    mockRpc.mockResolvedValue({
+      data: { market_id: LY, days: 30, carriers: [{ id: "c1", code: "darb_assabil" }, { id: "c2", code: "darb_assabil" }], dormant: [{ id: "c4", code: "dexpress" }] },
+      error: null,
+    });
+    mockLogos.mockResolvedValue({ data: [{ id: "c2", logo_url: "https://cdn/c2.png" }, { id: "c4", logo_url: "https://cdn/c4.png" }], error: null });
+    const body = await (await GET(req())).json();
+    expect(mockLogos).toHaveBeenCalledWith(LY);
+    expect(body.data.carriers.map((c: { logo_url: unknown }) => c.logo_url)).toEqual([null, "https://cdn/c2.png"]);
+    expect(body.data.dormant[0].logo_url).toBe("https://cdn/c4.png");
+  });
+
+  test("a failed logo read does not break the page — the brand files stand in", async () => {
+    as("market_manager", LY);
+    mockRpc.mockResolvedValue({ data: { market_id: LY, days: 30, carriers: [{ id: "c1", code: "darb_assabil" }], dormant: [] }, error: null });
+    mockLogos.mockResolvedValue({ data: null, error: { message: "column does not exist" } });
+    const res = await GET(req());
+    expect(res.status).toBe(200);
+    expect((await res.json()).data.carriers[0].logo_url).toBeNull();
   });
 });

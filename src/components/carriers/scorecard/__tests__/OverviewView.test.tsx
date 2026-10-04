@@ -107,3 +107,17 @@ describe("OverviewView — the market, then one card per carrier", () => {
     expect(t).toContain("منها 3 عالقة");
   });
 });
+
+describe("OverviewView — logos", () => {
+  it("a Darb account with its own uploaded logo wears it; the other keeps the brand file", () => {
+    const sc = libyaScorecard();
+    sc.carriers = sc.carriers.map((c) => (c.id === BEN ? { ...c, logo_url: "https://cdn/ben.png" } : c));
+    const { container } = render(
+      <NextIntlClientProvider locale="fr" messages={fr}>
+        <OverviewView scorecard={sc} locale="fr" marketCode="ly" period={30} now={NOW} onPeriodChange={vi.fn()} onOpenDormant={vi.fn()} carrierHref={(id) => `/fr/carriers/${id}`} compareHref="/fr/carriers/compare" />
+      </NextIntlClientProvider>,
+    );
+    expect(container.querySelectorAll('img[src="https://cdn/ben.png"]')).toHaveLength(1);
+    expect(container.querySelectorAll('img[src="/darb-assabil-logo.png"]').length).toBeGreaterThan(0);
+  });
+});

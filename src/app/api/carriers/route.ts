@@ -70,7 +70,7 @@ async function handleGET(req: NextRequest) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("carriers")
-    .select("id, market_id, name, code, api_endpoint, api_credentials, delivery_fee, return_fee, is_active, warehouse_id, created_at, updated_at")
+    .select("id, market_id, name, code, api_endpoint, api_credentials, delivery_fee, return_fee, is_active, warehouse_id, logo_url, created_at, updated_at")
     .eq("market_id", marketId);
 
   if (error) {

@@ -196,6 +196,7 @@ async function handleGET(_req: NextRequest) {
     code: string | null;
     name: string | null;
     accent_color?: string | null;
+    logo_url?: string | null;
     warehouse?: WarehouseJoin | WarehouseJoin[] | null;
   };
   type ProductJoin = { image_url: string | null; name?: string | null };
@@ -221,6 +222,7 @@ async function handleGET(_req: NextRequest) {
     carrier_code: string | null;
     carrier_name: string | null;
     carrier_accent_color: string | null;
+    carrier_logo_url: string | null;
     carrier_account_label: { fr: string; ar: string | null } | null;
   };
   // Only the embeds need stripping now — raw_payload and the ~21 other unread
@@ -238,6 +240,7 @@ async function handleGET(_req: NextRequest) {
         carrier_code: c?.code ?? null,
         carrier_name: c?.name ?? null,
         carrier_accent_color: c?.accent_color ?? null,
+        carrier_logo_url: c?.logo_url ?? null,
         // The city names the ACCOUNT only when one carrier runs several (Darb
         // Tripoli / Benghazi share one logo); for any other carrier it is noise.
         carrier_account_label: (() => {

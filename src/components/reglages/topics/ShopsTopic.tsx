@@ -135,7 +135,7 @@ export function ShopsTopic({ user, marketId, marketCode }: TopicProps) {
                         }}
                         className="flex items-center gap-[10px] text-start"
                       >
-                        <PlatformMark platform={s.platform} />
+                        <PlatformMark platform={s.platform} logoUrl={s.logo_url} />
                         <span>
                           <b className="block font-semibold">{s.name}</b>
                           <span className="text-[12.5px] text-ink-secondary">{platformOf(s.platform).label}</span>
@@ -173,6 +173,7 @@ export function ShopsTopic({ user, marketId, marketCode }: TopicProps) {
             await Promise.all([mutate(), mutateActivity()]);
             setOpen(null);
           }}
+          onLogoChanged={() => mutate()}
         />
       )}
       {adding && (

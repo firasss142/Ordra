@@ -142,6 +142,17 @@ describe("OrderCard", () => {
     expect(screen.getByAltText("Navex")).toBeDefined();
   });
 
+  it("renders the account's own uploaded logo over the brand file", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, carrier_code: "navex", carrier_name: "Navex", carrier_logo_url: "https://cdn/navex-tn.png", status: "uploaded", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByAltText("Navex")).toHaveAttribute("src", "https://cdn/navex-tn.png");
+  });
+
   it("renders a neutral fallback chip for a carrier without a logo asset", () => {
     render(
       <OrderCard

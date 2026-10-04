@@ -364,6 +364,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
   job_runs, the 11 problem rules of journal_detect, the read functions, retention, how to
   add an audited table or an explicit event): docs/journal.md + plans/journaux-redesign.md
   (prototype `prototypes/journaux-v2.html`)
+- Photos et logos — la photo de chaque utilisateur (Accès, Mon profil, Réglages entrepôt,
+  Compte investisseur), le logo de chaque boutique et compte transporteur (bucket `logos`),
+  et pourquoi la migration passe AVANT le déploiement: docs/photos-and-logos.md
 - Commandes (prototype v4, built 2026-10-04) — the four work shortcuts and why a count is the
   list it opens, multi-select facets, Archivées (Supprimées, rule 0 = off), Commandes répétées
   (cases, the cleanup, « Pas un doublon »), the new panel for everyone: docs/commandes.md +

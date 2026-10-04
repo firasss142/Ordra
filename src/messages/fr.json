@@ -9789,5 +9789,22 @@
       },
       "error": "Les commandes répétées n'ont pas pu être chargées."
     }
+  },
+  "photo": {
+    "logoTitle": "Logo",
+    "profileTitle": "Photo de profil",
+    "add": "Ajouter une photo",
+    "change": "Changer la photo",
+    "remove": "Retirer",
+    "saving": "Enregistrement…",
+    "hint": "JPG, PNG ou WebP · 5 Mo max",
+    "addLogo": "Ajouter un logo",
+    "changeLogo": "Changer le logo",
+    "errors": {
+      "not-image": "Fichier image requis",
+      "too-large": "Image trop volumineuse (max 5 Mo)",
+      "decode-failed": "Impossible de lire l'image",
+      "failed": "La photo n'a pas pu être enregistrée"
+    }
   }
 }

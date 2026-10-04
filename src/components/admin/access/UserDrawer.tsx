@@ -12,6 +12,7 @@ import { useWarehouseSites } from "@/hooks/useWarehouseSites";
 import type { Role, UserAuditEvent, UserWithStats } from "@/types";
 import { AccessAvatar, ActivityLabel, buttonClass, dateLocale, Dot, presenceOf, RoleChip, TONE } from "./parts";
 import { CloseButton, SidePanel } from "./layers";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 
 export type DrawerAction = "reset" | "deactivate" | "reactivate" | "delete";
 
@@ -44,6 +45,7 @@ export function UserDrawer({
   onClose,
   onAction,
   onSetWarehouse,
+  onSetPhoto,
 }: {
   user: UserWithStats;
   actorRole: Role;
@@ -54,6 +56,8 @@ export function UserDrawer({
   onClose: () => void;
   onAction: (action: DrawerAction) => void;
   onSetWarehouse: (warehouseId: string | null) => Promise<void>;
+  /** A downscaled data URL, or null to go back to the initials. Throws on failure. */
+  onSetPhoto: (dataUrl: string | null) => Promise<void>;
 }) {
   const t = useTranslations("users");
   const tp = useTranslations("permissions");
@@ -88,7 +92,9 @@ export function UserDrawer({
     <SidePanel labelledBy={titleId} onClose={onClose}>
       <div className={`${TONE[user.role]} relative border-b border-tone-edge bg-tone-bg px-[22px] pb-[18px] pt-[22px]`}>
         <CloseButton label={t("drawer.close")} onClick={onClose} className="absolute end-[14px] top-[14px] bg-white shadow-[inset_0_0_0_1px_var(--tone-edge)]" />
-        <AccessAvatar user={user} size="xl" presence={presenceOf(user.last_seen_at, active, now)} muted={status === "disabled"} />
+        <PhotoPicker hasPhoto={!!user.avatar_url} onChange={onSetPhoto}>
+          <AccessAvatar user={user} size="xl" presence={presenceOf(user.last_seen_at, active, now)} muted={status === "disabled"} />
+        </PhotoPicker>
         <h2 id={titleId} className="m-0 mt-[12px] text-[19px] font-bold tracking-[-.01em] text-[#15171A]">
           <bdi>{user.full_name}</bdi>
           {isSelf && <span className="ms-[6px] rounded-full bg-white px-[7px] py-[1px] align-[2px] text-[11px] font-semibold text-[#4F555B]">{t("you")}</span>}

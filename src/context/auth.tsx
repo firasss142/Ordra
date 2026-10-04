@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -17,11 +18,18 @@ interface AuthContextValue {
   user: AuthUser | null;
   /** True while the initial session check is in flight */
   loading: boolean;
+  /**
+   * Applies a change the user just made to themselves (their photo) without a
+   * reload. The provider keeps its own copy, so `router.refresh()` alone would
+   * leave every `useAuth()` reader on the old value.
+   */
+  patchUser: (patch: Partial<Pick<AuthUser, "avatar_url" | "full_name">>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
+  patchUser: () => {},
 });
 
 export function AuthProvider({
@@ -101,8 +109,13 @@ export function AuthProvider({
     return () => subscription.unsubscribe();
   }, []);
 
+  const patchUser = useCallback<AuthContextValue["patchUser"]>(
+    (patch) => setUser((u) => (u ? { ...u, ...patch } : u)),
+    [],
+  );
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, patchUser }}>
       {children}
     </AuthContext.Provider>
   );

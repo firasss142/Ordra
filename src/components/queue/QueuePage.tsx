@@ -88,6 +88,7 @@ export function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     carrier_code: (raw.carrier_code as string | null) ?? null,
     carrier_name: (raw.carrier_name as string | null) ?? null,
     carrier_accent_color: (raw.carrier_accent_color as string | null) ?? null,
+    carrier_logo_url: (raw.carrier_logo_url as string | null) ?? null,
     carrier_account_label: (raw.carrier_account_label as QueueOrder["carrier_account_label"]) ?? null,
     total_price: (raw.total_price as number) ?? 0,
     currency: (raw.currency as string) ?? "TND",

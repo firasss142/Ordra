@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
+import { KeyRound, CheckCircle2, AlertTriangle, Truck } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
-import { Drawer, DrawerSection, Field, SwitchRow, inputClass, StateBadge, ReadOnlyLine, th, td, trPlain } from "../../kit/parts";
+import { Drawer, DrawerSection, Field, Mark, SwitchRow, inputClass, StateBadge, ReadOnlyLine, th, td, trPlain } from "../../kit/parts";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
+import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
 import { NumberField } from "../../kit/NumberField";
 import { Switch } from "../../kit/Switch";
 import { RgButton } from "../../kit/RgButton";
@@ -24,6 +26,7 @@ export function CarrierDrawer({
   adapter,
   onClose,
   onSaved,
+  onLogoChanged,
 }: {
   carrier: CarrierRow;
   siteName: string;
@@ -32,8 +35,12 @@ export function CarrierDrawer({
   adapter: AdapterDescriptor | undefined;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  /** Refreshes the list without closing the drawer. */
+  onLogoChanged: () => Promise<unknown>;
 }) {
   const t = useTranslations("reglages");
+  const tp = useTranslations("photo");
+  const [logoUrl, setLogoUrl] = useState(carrier.logo_url ?? null);
   const toast = useToast();
   const { data: detail } = useSWR<{ data: { credentials?: Record<string, string> } }>(editable ? `/api/carriers/${carrier.id}` : null);
   const { data: prefsData } = useSWR<{ data: Preferences; fulfilmentModes: { home: boolean; carrier: boolean } }>(`/api/carriers/${carrier.id}/order-preferences`);
@@ -50,6 +57,18 @@ export function CarrierDrawer({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const isDarb = carrier.code === "darb_assabil";
+
+  const setLogo = async (dataUrl: string | null) => {
+    const res = await fetch(`/api/carriers/${carrier.id}/logo`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logo: dataUrl }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { logo_url?: string | null };
+    if (!res.ok) throw new Error("logo not saved");
+    setLogoUrl(body.logo_url ?? null);
+    await onLogoChanged();
+  };
 
   useEffect(() => {
     if (detail?.data?.credentials) setCreds(detail.data.credentials);
@@ -144,6 +163,14 @@ export function CarrierDrawer({
         )
       }
     >
+      <DrawerSection title={tp("logoTitle")}>
+        <PhotoPicker kind="logo" shape="tile" hasPhoto={!!logoUrl} onChange={setLogo} readOnly={!editable}>
+          <Mark size={56} src={getCarrierLogo(carrier.code, logoUrl)}>
+            <Truck aria-hidden />
+          </Mark>
+        </PhotoPicker>
+      </DrawerSection>
+
       <DrawerSection title={t("delivery.drawer.carrier")} end={editable ? undefined : <ReadOnlyLine />}>
         {editable && (
           <Field label={t("delivery.drawer.name")} htmlFor="rg-c-name">
