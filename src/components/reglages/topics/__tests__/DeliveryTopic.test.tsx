@@ -17,6 +17,11 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ show: toast }) }));
 const swr = vi.hoisted(() => ({ byKey: {} as Record<string, unknown>, mutate: vi.fn() }));
 vi.mock("swr", () => ({ default: (key: string | null) => ({ data: key ? swr.byKey[key] : undefined, isLoading: false, mutate: swr.mutate }) }));
 
+vi.mock("@/lib/client/image", async (orig) => ({
+  ...(await orig<typeof import("@/lib/client/image")>()),
+  decodeImageFile: async () => ({ ok: true, dataUrl: "data:image/png;base64,AAA" }),
+}));
+
 import { ReglagesFormProvider } from "../../form-context";
 import { SaveBar } from "../../kit/SaveBar";
 import { DeliveryTopic } from "../DeliveryTopic";
@@ -34,7 +39,7 @@ beforeEach(() => {
     [`/api/carriers?market_id=${LY}`]: {
       data: [
         { id: "c1", market_id: LY, name: "Darb Assabil - Tripoli", code: "darb_assabil", delivery_fee: 10, return_fee: 5, is_active: true, warehouse_id: "w1" },
-        { id: "c2", market_id: LY, name: "Darb Assabil — Benghazi", code: "darb_assabil", delivery_fee: 10, return_fee: 5, is_active: false, warehouse_id: "w2" },
+        { id: "c2", market_id: LY, name: "Darb Assabil — Benghazi", code: "darb_assabil", delivery_fee: 10, return_fee: 5, is_active: false, warehouse_id: "w2", logo_url: "https://cdn/logos/carriers/c2/logo.png?v=1" },
         { id: "c3", market_id: LY, name: "Essai", code: "darb_assabil", delivery_fee: 0, return_fee: 0, is_active: true, warehouse_id: null },
         { id: "c4", market_id: LY, name: "Dexpress", code: "dexpress", delivery_fee: 6, return_fee: 4, is_active: false, warehouse_id: "w1" },
         { id: "c5", market_id: LY, name: "Sans tarif", code: "dexpress", delivery_fee: 0, return_fee: 0, is_active: false, warehouse_id: null },
@@ -165,5 +170,31 @@ describe("Réglages › Livraison", () => {
       market_id: LY, name: "Darb Assabil - Misrata", code: "darb_assabil", api_endpoint: "https://v2.sabil.ly",
       credentials: { api_key: "secret-key", account_id: "acc-1" }, delivery_fee: 0, return_fee: 0, warehouse_id: "w2",
     });
+  });
+});
+
+describe("Réglages › Livraison — the carrier's logo", () => {
+  it("each account wears its own uploaded logo, else the brand's", () => {
+    const { container } = mount(admin);
+    expect(container.querySelector('img[src="https://cdn/logos/carriers/c2/logo.png?v=1"]')).not.toBeNull();
+    expect(container.querySelectorAll('img[src="/darb-assabil-logo.png"]').length).toBe(2);
+  });
+
+  it("is uploaded from the carrier's drawer", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ logo_url: "https://cdn/c1.png?v=2" }), { status: 200 }));
+    mount(admin);
+    await userEvent.click(within(carriersCard()).getByRole("button", { name: "Ouvrir Darb Assabil - Tripoli" }));
+    const panel = screen.getByRole("dialog");
+    await userEvent.upload(within(panel).getByTestId("photo-input"), new File(["x"], "l.png", { type: "image/png" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/carriers/c1/logo", expect.objectContaining({ method: "PUT", body: JSON.stringify({ logo: "data:image/png;base64,AAA" }) })),
+    );
+    await waitFor(() => expect(panel.querySelector('img[src="https://cdn/c1.png?v=2"]')).not.toBeNull());
+  });
+
+  it("a manager cannot change it", async () => {
+    mount(manager);
+    await userEvent.click(within(carriersCard()).getByRole("button", { name: "Ouvrir Darb Assabil - Tripoli" }));
+    expect(within(screen.getByRole("dialog")).queryByTestId("photo-input")).toBeNull();
   });
 });

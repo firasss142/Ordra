@@ -9470,5 +9470,22 @@
       "summary": "Comment lire cette page",
       "body": "<b>Base</b> : les commandes <b>reçues</b> pendant la période, suivies jusqu’à aujourd’hui — les mêmes que Performance › Commandes et Produits & marges. <b>Livrées sur 100</b> : pour 100 commandes reçues par la boutique, combien sont arrivées chez le client. <b>Confirmées</b> : uploadées ÷ (uploadées + rejetées). Une boutique est jugée à partir de <b>30 commandes</b> ; avant, « trop tôt pour juger ». Les <b>flèches</b> comparent à la période d’avant <b>au même âge</b> : telle qu’elle était il y a 30 jours (pour 30 jours), jamais des colis encore en route contre des colis arrivés. <b>Payé</b> : ce que les clients ont payé pour les commandes livrées (orders.total_price). Le <b>profit</b> n’existe qu’à l’échelle du marché tant que la pub n’est pas rattachée à une boutique. Une <b>boutique</b> = un sous-compte (sous-domaine) d’une plateforme ; la plateforme n’est qu’une étiquette."
     }
+  },
+  "photo": {
+    "logoTitle": "Logo",
+    "profileTitle": "Photo de profil",
+    "add": "Ajouter une photo",
+    "change": "Changer la photo",
+    "remove": "Retirer",
+    "saving": "Enregistrement…",
+    "hint": "JPG, PNG ou WebP · 5 Mo max",
+    "addLogo": "Ajouter un logo",
+    "changeLogo": "Changer le logo",
+    "errors": {
+      "not-image": "Fichier image requis",
+      "too-large": "Image trop volumineuse (max 5 Mo)",
+      "decode-failed": "Impossible de lire l'image",
+      "failed": "La photo n'a pas pu être enregistrée"
+    }
   }
 }

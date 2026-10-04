@@ -97,6 +97,10 @@ export function installFakeApi(users: UserWithStats[], audit: Record<string, Use
         if (action === "deactivate") Object.assign(u, { is_active: false, deactivation_reason: body?.reason });
         if (action === "reactivate") Object.assign(u, { is_active: true, deactivation_reason: null });
         if (action === "set_warehouse") Object.assign(u, { warehouse_id: body?.warehouse_id ?? null });
+        if (action === "update_avatar") {
+          Object.assign(u, { avatar_url: body?.avatar ? "https://cdn/avatars/" + id + ".png?v=1" : null });
+          return json({ success: true, avatar_url: u.avatar_url });
+        }
         return json({ ok: true, ordersReturned: action === "deactivate" ? 3 : 0 });
       }
       return json({ error: `unhandled ${method} ${url}` }, 404);

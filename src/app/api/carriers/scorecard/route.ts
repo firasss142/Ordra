@@ -34,7 +34,17 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ data: (data ?? {}) as Scorecard });
+  const card = (data ?? {}) as Scorecard;
+
+  // Uploaded logos ride beside the RPC rather than inside it, so the RPC needs
+  // no migration. A failed read only costs the uploads: the brand files stand in.
+  const { data: logos, error: logoError } = await supabase.from("carriers").select("id, logo_url").eq("market_id", scope.marketId);
+  if (logoError) console.error("[api/carriers/scorecard] logo read failed", logoError);
+  const logoOf = new Map((logos ?? []).map((l: { id: string; logo_url: string | null }) => [l.id, l.logo_url]));
+  if (Array.isArray(card.carriers)) card.carriers = card.carriers.map((c) => ({ ...c, logo_url: logoOf.get(c.id) ?? null }));
+  if (Array.isArray(card.dormant)) card.dormant = card.dormant.map((c) => ({ ...c, logo_url: logoOf.get(c.id) ?? null }));
+
+  return NextResponse.json({ data: card });
 }
 
 export const GET = withRouteErrors("/api/carriers/scorecard", "GET", handleGET);

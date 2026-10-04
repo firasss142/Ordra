@@ -9,6 +9,8 @@ import type { AuthUser } from "@/types";
 import { jsonFetcher } from "@/lib/fetchers";
 import { readScannerPrefs, writeScannerPrefs, type ScannerPrefs } from "@/lib/warehouse/scanner-prefs";
 import { WmCard, WmTitle } from "./primitives";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
+import { useMyPhoto } from "@/hooks/useMyPhoto";
 
 /**
  * Réglages — the screen that exists because the mockups have no header.
@@ -36,6 +38,7 @@ export function AgentSettings({
   const t = useTranslations("warehouse.settings");
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const setMyPhoto = useMyPhoto();
   const [prefs, setPrefs] = useState<ScannerPrefs>(() => readScannerPrefs());
 
   const { data: op } = useSWR<{ orders_scanned_today?: number }>("/api/warehouse/operator-stats", jsonFetcher);
@@ -71,18 +74,20 @@ export function AgentSettings({
 
       <WmCard className="mt-4 p-4">
         <div className="flex items-center gap-3.5">
-          <span
-            data-testid="wm-avatar"
-            className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-wm-accent-soft text-[20px] font-bold text-wm-accent"
-          >
-            {user.avatar_url ? (
-              // Raw <img>: the project configures no images.remotePatterns.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              initial
-            )}
-          </span>
+          <PhotoPicker hasPhoto={!!user.avatar_url} onChange={setMyPhoto} compact>
+            <span
+              data-testid="wm-avatar"
+              className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-wm-accent-soft text-[20px] font-bold text-wm-accent"
+            >
+              {user.avatar_url ? (
+                // Raw <img>: the project configures no images.remotePatterns.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                initial
+              )}
+            </span>
+          </PhotoPicker>
           <div className="min-w-0">
             <p className="truncate text-[17px] font-bold text-wm-ink">
               <bdi>{user.full_name}</bdi>

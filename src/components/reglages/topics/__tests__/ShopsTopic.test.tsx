@@ -16,6 +16,10 @@ const toast = vi.fn();
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ show: toast }) }));
 const swr = vi.hoisted(() => ({ byKey: {} as Record<string, unknown>, mutate: vi.fn() }));
 vi.mock("swr", () => ({ default: (key: string | null) => ({ data: key ? swr.byKey[key] : undefined, isLoading: false, mutate: swr.mutate }) }));
+vi.mock("@/lib/client/image", async (orig) => ({
+  ...(await orig<typeof import("@/lib/client/image")>()),
+  decodeImageFile: async () => ({ ok: true, dataUrl: "data:image/png;base64,AAA" }),
+}));
 vi.mock("@/lib/storefronts/secret-gen", () => ({ generateSecret: () => "a".repeat(48) }));
 
 import { ShopsTopic } from "../ShopsTopic";
@@ -36,7 +40,7 @@ beforeEach(() => {
       data: [
         shop("s1", "Converty Libya (Sheets)", "google_sheets"),
         shop("s3", "EasyOrdersLY - Quran", "easy_orders"),
-        shop("s5", "bard", "shopify"),
+        { ...shop("s5", "bard", "shopify"), logo_url: "https://cdn/logos/storefronts/s5/logo.png?v=1" },
         shop("s8", "Easy Orders LY", "easy_orders", false),
       ],
     },
@@ -223,5 +227,33 @@ describe("Réglages › Boutiques", () => {
     await userEvent.click(within(panel).getByRole("button", { name: "Associer" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/mappings/products", expect.objectContaining({ method: "POST" })));
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ storefront_id: "s1", external_variant_id: "4471", external_product_id: "p9", product_id: "prod-1" });
+  });
+});
+
+describe("Réglages › Boutiques — the shop's logo", () => {
+  it("shows an uploaded logo in place of the platform letters", () => {
+    const { container } = mount(admin);
+    expect(container.querySelector('img[src="https://cdn/logos/storefronts/s5/logo.png?v=1"]')).not.toBeNull();
+  });
+
+  it("is uploaded from the shop's drawer and the list refreshes", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ logo_url: "https://cdn/l.png?v=2" }), { status: 200 }));
+    mount(admin);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ouvrir EasyOrdersLY - Quran" }));
+    const panel = screen.getByRole("dialog");
+    await userEvent.upload(within(panel).getByTestId("photo-input"), new File(["x"], "l.png", { type: "image/png" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/storefronts/s3/logo", expect.objectContaining({ method: "PUT", body: JSON.stringify({ logo: "data:image/png;base64,AAA" }) })),
+    );
+    await waitFor(() => expect(panel.querySelector('img[src="https://cdn/l.png?v=2"]')).not.toBeNull());
+    expect(swr.mutate).toHaveBeenCalled();
+  });
+
+  it("a manager sees the logo but cannot change it", async () => {
+    mount(manager);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ouvrir bard" }));
+    const panel = screen.getByRole("dialog");
+    expect(within(panel).queryByTestId("photo-input")).toBeNull();
+    expect(panel.querySelector('img[src="https://cdn/logos/storefronts/s5/logo.png?v=1"]')).not.toBeNull();
   });
 });

@@ -11,6 +11,12 @@ vi.mock("focus-trap-react", () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// jsdom has no createImageBitmap: the downscale is PhotoPicker's own test.
+vi.mock("@/lib/client/image", async (orig) => ({
+  ...(await orig<typeof import("@/lib/client/image")>()),
+  decodeImageFile: async () => ({ ok: true, dataUrl: "data:image/png;base64,AAA" }),
+}));
+
 import { UsersPageClient } from "../UsersPageClient";
 
 const ADMIN: AuthUser = { id: "u-super.admin", email: "admin@oms.tn", full_name: "Super Admin", avatar_url: null, role: "super_admin", market_id: null, locale: "fr", direction: "ltr" };
@@ -210,5 +216,26 @@ describe("Accès — a warehouse agent's building", () => {
     const file = screen.getByRole("dialog", { name: "tarek" });
     await userEvent.click(await within(file).findByRole("radio", { name: "Benghazi" }));
     await waitFor(() => expect(api.calls).toContainEqual({ method: "PATCH", url: "/api/agents/u-tarek", body: { action: "set_warehouse", warehouse_id: BENGHAZI } }));
+  });
+});
+
+describe("Accès — the person's photo", () => {
+  it("is set from the file, and shows at once", async () => {
+    const api = installFakeApi(USERS);
+    const { container } = renderAccess(<UsersPageClient user={ADMIN} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Ouvrir la fiche de roqaya" }));
+    const file = screen.getByRole("dialog", { name: "roqaya" });
+    await userEvent.upload(within(file).getByTestId("photo-input"), new File(["x"], "r.png", { type: "image/png" }));
+    await waitFor(() => expect(api.calls).toContainEqual({ method: "PATCH", url: "/api/agents/u-roqaya", body: { action: "update_avatar", avatar: "data:image/png;base64,AAA" } }));
+    await waitFor(() => expect(container.ownerDocument.querySelector('img[src="https://cdn/avatars/u-roqaya.png?v=1"]')).not.toBeNull());
+    expect(await within(file).findByRole("button", { name: "Retirer" })).toBeInTheDocument();
+  });
+
+  it("is removed with « Retirer », which sends null", async () => {
+    const api = installFakeApi([accessUser({ full_name: "roqaya", avatar_url: "https://cdn/x.png" }), adel]);
+    renderAccess(<UsersPageClient user={MANAGER} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Ouvrir la fiche de roqaya" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "roqaya" })).getByRole("button", { name: "Retirer" }));
+    await waitFor(() => expect(api.calls).toContainEqual({ method: "PATCH", url: "/api/agents/u-roqaya", body: { action: "update_avatar", avatar: null } }));
   });
 });

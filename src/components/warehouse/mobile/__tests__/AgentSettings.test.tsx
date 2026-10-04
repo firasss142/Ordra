@@ -12,6 +12,10 @@ vi.mock("swr", () => ({
     isLoading: false,
   }),
 }));
+vi.mock("@/lib/client/image", async (orig) => ({
+  ...(await orig<typeof import("@/lib/client/image")>()),
+  decodeImageFile: async () => ({ ok: true, dataUrl: "data:image/png;base64,AAA" }),
+}));
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
@@ -124,5 +128,14 @@ describe("AgentSettings — the agent's own day and scanner", () => {
     fireEvent.click(vibrate);
     expect(vibrate).toHaveAttribute("aria-checked", "false");
     expect(JSON.parse(localStorage.getItem("wh.scanner")!)).toMatchObject({ vibrate: false });
+  });
+
+  it("lets the agent change their own photo by tapping it", async () => {
+    render(<AgentSettings user={user()} marketName="Libye" />);
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter une photo" }));
+    fireEvent.change(screen.getByTestId("photo-input"), { target: { files: [new File(["x"], "a.png", { type: "image/png" })] } });
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith("/api/me/avatar", expect.objectContaining({ method: "PUT", body: JSON.stringify({ avatar: "data:image/png;base64,AAA" }) })),
+    );
   });
 });

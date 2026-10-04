@@ -364,6 +364,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
   job_runs, the 11 problem rules of journal_detect, the read functions, retention, how to
   add an audited table or an explicit event): docs/journal.md + plans/journaux-redesign.md
   (prototype `prototypes/journaux-v2.html`)
+- Photos et logos — la photo de chaque utilisateur (Accès, Mon profil, Réglages entrepôt,
+  Compte investisseur), le logo de chaque boutique et compte transporteur (bucket `logos`),
+  et pourquoi la migration passe AVANT le déploiement: docs/photos-and-logos.md
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:

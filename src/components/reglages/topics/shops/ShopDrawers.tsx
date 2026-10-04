@@ -13,6 +13,7 @@ import { OptionCards } from "../../kit/OptionCards";
 import { Switch } from "../../kit/Switch";
 import { RgButton } from "../../kit/RgButton";
 import { CopyBox, CREATABLE_PLATFORMS, linkOnly, platformOf, receptionUrl, type ShopActivity, type ShopRow } from "./common";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 
 /** One shop: name and state, how its orders reach Ordra, its activity. */
 export function ShopDrawer({
@@ -24,6 +25,7 @@ export function ShopDrawer({
   formatDate,
   onClose,
   onSaved,
+  onLogoChanged,
 }: {
   shop: ShopRow;
   activity: ShopActivity | undefined;
@@ -33,8 +35,12 @@ export function ShopDrawer({
   formatDate: (iso: string) => string;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  /** Refreshes the list without closing the drawer. */
+  onLogoChanged: () => Promise<unknown>;
 }) {
   const t = useTranslations("reglages");
+  const tp = useTranslations("photo");
+  const [logoUrl, setLogoUrl] = useState(shop.logo_url ?? null);
   const locale = useLocale();
   const toast = useToast();
   const [name, setName] = useState(shop.name);
@@ -59,6 +65,18 @@ export function ShopDrawer({
       return;
     }
     setNewSecret(secret);
+  };
+
+  const setLogo = async (dataUrl: string | null) => {
+    const res = await fetch(`/api/storefronts/${shop.id}/logo`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logo: dataUrl }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { logo_url?: string | null };
+    if (!res.ok) throw new Error("logo not saved");
+    setLogoUrl(body.logo_url ?? null);
+    await onLogoChanged();
   };
 
   const save = async () => {
@@ -116,6 +134,12 @@ export function ShopDrawer({
         )
       }
     >
+      <DrawerSection title={tp("logoTitle")}>
+        <PhotoPicker kind="logo" shape="tile" hasPhoto={!!logoUrl} onChange={setLogo} readOnly={!editable}>
+          <PlatformMark platform={shop.platform} logoUrl={logoUrl} size={56} />
+        </PhotoPicker>
+      </DrawerSection>
+
       <DrawerSection title={t("shops.drawer.shop")} end={editable ? undefined : <ReadOnlyLine />}>
         {editable ? (
           <Field label={t("shops.drawer.name")} htmlFor="rg-shop-name">
@@ -503,7 +527,11 @@ export function AddShopDrawer({ marketId, onClose, onCreated }: { marketId: stri
   );
 }
 
-export function PlatformMark({ platform }: { platform: string }) {
+export function PlatformMark({ platform, logoUrl, size }: { platform: string; logoUrl?: string | null; size?: number }) {
   const p = platformOf(platform);
-  return <Mark>{p.mark}</Mark>;
+  return (
+    <Mark src={logoUrl} size={size}>
+      {p.mark}
+    </Mark>
+  );
 }

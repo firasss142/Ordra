@@ -430,10 +430,10 @@ export const OrderCard = memo(function OrderCard({
                 className="inline-flex shrink-0 items-center"
                 title={order.carrier_name ?? order.carrier_code}
               >
-                {getCarrierLogo(order.carrier_code) ? (
+                {getCarrierLogo(order.carrier_code, order.carrier_logo_url) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={getCarrierLogo(order.carrier_code)!}
+                    src={getCarrierLogo(order.carrier_code, order.carrier_logo_url)!}
                     alt={order.carrier_name ?? order.carrier_code}
                     width={18}
                     height={18}

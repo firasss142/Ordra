@@ -8,6 +8,8 @@ export interface CarrierRow {
   delivery_fee: number;
   return_fee: number;
   is_active: boolean;
+  /** Uploaded logo (public URL); null = the brand file, else the truck. */
+  logo_url?: string | null;
   warehouse_id: string | null;
 }
 

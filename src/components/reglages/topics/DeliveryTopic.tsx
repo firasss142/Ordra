@@ -1,5 +1,6 @@
 "use client";
 
+import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
 import { useState } from "react";
 import useSWR from "swr";
 import { useLocale, useTranslations } from "next-intl";
@@ -112,7 +113,7 @@ export function DeliveryTopic({ user, marketId, marketCode }: TopicProps) {
                         }}
                         className="flex items-center gap-[10px] text-start"
                       >
-                        <Mark>
+                        <Mark src={getCarrierLogo(c.code, c.logo_url)}>
                           <Truck aria-hidden />
                         </Mark>
                         <span>
@@ -195,6 +196,7 @@ export function DeliveryTopic({ user, marketId, marketCode }: TopicProps) {
             await mutate();
             setOpen(null);
           }}
+          onLogoChanged={() => mutate()}
         />
       )}
       {adding && (

@@ -73,7 +73,8 @@ export function useUsersWorkspace() {
     return { ordersReturned: body.ordersReturned ?? 0 };
   }
 
-  async function updateAvatar(id: string, dataUrl: string): Promise<string | null> {
+  /** `null` removes the photo; the row falls back to the initials. */
+  async function updateAvatar(id: string, dataUrl: string | null): Promise<string | null> {
     const res = await fetch(`/api/agents/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

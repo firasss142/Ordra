@@ -52,7 +52,7 @@ export function CarrierView(props: CarrierViewProps) {
 
       <section aria-labelledby="carrier-title" style={{ "--c": color } as CSSProperties}
         className="flex flex-wrap items-center gap-[16px] rounded-[14px] bg-[var(--c)] px-[24px] py-[22px] text-white">
-        <CarrierLogo code={card.code} name={title} size={58} radius={15} />
+        <CarrierLogo logoUrl={card.logo_url} code={card.code} name={title} size={58} radius={15} />
         <div>
           <h1 id="carrier-title" className="text-[28px] font-bold leading-[1.15] tracking-[-.02em]">{title}</h1>
           <div className="mt-[3px] text-[13px] opacity-90">
