@@ -13,6 +13,7 @@ import {
   type ConfigRow,
 } from "@/lib/whatsapp/config";
 import { marketIdToCode } from "@/lib/markets";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * The WhatsApp Cloud API credential per market, and the card that shows it.
@@ -37,7 +38,7 @@ function pick(body: Record<string, unknown>, key: string): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -105,7 +106,7 @@ async function loadAutomationSummary(admin: ReturnType<typeof createAdminClient>
   return out;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") {
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actorResult.actor.id });
   const { data, error } = await admin
     .from("whatsapp_configs")
     .upsert(
@@ -211,3 +212,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data: toPublicConfig(data as ConfigRow) }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/config", "GET", handleGET);
+export const POST = withRouteErrors("/api/whatsapp/config", "POST", handlePOST);

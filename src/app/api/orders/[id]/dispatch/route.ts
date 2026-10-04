@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { performDispatch } from "@/lib/carriers/perform-dispatch";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -146,3 +147,5 @@ export async function POST(
     },
   });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/dispatch", "POST", handlePOST);

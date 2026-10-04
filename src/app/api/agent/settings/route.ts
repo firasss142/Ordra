@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getMarketSetting } from "@/lib/settings/getMarketSetting";
 import { getActor } from "@/lib/auth/actor";
 import { DEFAULT_SLA_MINUTES } from "@/types/settings";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -37,3 +38,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ max_call_attempts, sla_minutes });
 }
+
+export const GET = withRouteErrors("/api/agent/settings", "GET", handleGET);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { sendMessage, SendError, type SendRequest } from "@/lib/whatsapp/send";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/whatsapp/send — an agent or manager sends one message from the
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_ROLES = new Set(["agent", "market_manager", "super_admin"]);
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -43,3 +44,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const POST = withRouteErrors("/api/whatsapp/send", "POST", handlePOST);

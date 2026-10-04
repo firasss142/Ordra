@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminReader, ISO_DATE, NO_STORE } from "@/lib/investors/admin-route";
 import { previewSettlements } from "@/lib/investors/settlement-preview";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Body: { period_end } → the FINAL statement draft (period_end may exceed end_date to let in-flight cohort orders finish). */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   let b: { period_end?: unknown };
@@ -20,3 +21,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!drafts.length) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ data: drafts[0] }, { headers: NO_STORE });
 }
+
+export const POST = withRouteErrors("/api/admin/investments/deals/[id]/close/preview", "POST", handlePOST);

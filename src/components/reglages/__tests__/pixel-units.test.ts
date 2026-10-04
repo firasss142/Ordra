@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
  * gap-3, rounded-lg, text-sm…) renders 12.5 % smaller than the prototype it copies.
  * prototypes/reglages-v2.html is written in pixels, so Réglages and Journaux are too.
  */
-const ROOTS = [join(__dirname, ".."), join(__dirname, "..", "..", "journaux")];
+const ROOTS = [join(__dirname, ".."), join(__dirname, "..", "..", "journal")];
 const SIZED = "(?:p|px|py|pt|pb|ps|pe|pl|pr|m|mx|my|mt|mb|ms|me|ml|mr|gap|gap-x|gap-y|h|w|min-h|min-w|max-h|max-w|size|top|bottom|left|right|start|end|inset|space-x|space-y)";
 const REM_SPACING = new RegExp(`(?:^|[\\s"'\`:])-?${SIZED}-(?:\\d+(?:\\.5)?)(?=[\\s"'\`])`, "g");
 const REM_RADIUS = /(?:^|[\s"'`:])rounded(?:-[setblr]{1,2})?(?:-(?:sm|md|lg|xl|2xl|3xl))?(?=[\s"'`])/g;

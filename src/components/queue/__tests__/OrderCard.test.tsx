@@ -38,6 +38,8 @@ const mockOrder: QueueOrder = {
   carrier_id: null,
   carrier_code: null,
   carrier_name: null,
+  carrier_accent_color: null,
+  carrier_account_label: null,
   total_price: 89.9,
   currency: "TND",
   market_id: "00000000-0000-0000-0000-000000000001",
@@ -153,36 +155,46 @@ describe("OrderCard", () => {
     expect(screen.getByLabelText("Cosmos")).toBeDefined();
   });
 
-  it("distinguishes two accounts of the same carrier", () => {
+  it("names each account of the same carrier with a solid pill in its colour", () => {
     // Libya runs two Darb Assabil accounts under one code, so both resolve to
-    // the same logo file. Without a per-account mark an agent cannot tell a
-    // Tripoli shipment from a Benghazi one while scanning.
+    // the same logo file. A thin ring around it was not readable (owner,
+    // 2026-10-03): the account now carries its city, in its own colour.
     const base = { ...mockOrder, carrier_code: "darb_assabil", status: "uploaded", customer_note: null };
-    const { container: tripoli } = render(
+    render(
       <OrderCard
-        order={{ ...base, carrier_id: "4f1271c8-b1f2-4836-9293-8ab3d0b18e69", carrier_name: "Darb Assabil - Tripoli" }}
+        order={{ ...base, carrier_id: "4f1271c8-b1f2-4836-9293-8ab3d0b18e69", carrier_name: "Darb Assabil - Tripoli",
+          carrier_accent_color: "#1F5FBF", carrier_account_label: { fr: "Tripoli", ar: "طرابلس" } }}
         onOpenDetail={() => {}}
         onCallTerminated={() => {}}
       />,
     );
-    const { container: benghazi } = render(
+    render(
       <OrderCard
-        order={{ ...base, carrier_id: "43077d36-3d61-40d6-ae35-59ed15cec8f7", carrier_name: "Darb Assabil — Benghazi" }}
+        order={{ ...base, carrier_id: "43077d36-3d61-40d6-ae35-59ed15cec8f7", carrier_name: "Darb Assabil — Benghazi",
+          carrier_accent_color: "#C24E17", carrier_account_label: { fr: "Benghazi", ar: "بنغازي" } }}
         onOpenDetail={() => {}}
         onCallTerminated={() => {}}
       />,
     );
-    const ringOf = (c: HTMLElement) =>
-      (c.querySelector("[data-carrier-account]") as HTMLElement | null)?.style.getPropertyValue(
-        "--tw-ring-color",
-      );
-    expect(ringOf(tripoli)).toBeTruthy();
-    expect(ringOf(benghazi)).toBeTruthy();
-    expect(ringOf(tripoli)).not.toBe(ringOf(benghazi));
+    expect(screen.getByText("Tripoli")).toHaveStyle({ backgroundColor: "#1F5FBF" });
+    expect(screen.getByText("Benghazi")).toHaveStyle({ backgroundColor: "#C24E17" });
   });
 
-  it("keeps the account readable without colour", () => {
-    // Colour is never the only signal (§4.18) — the account name stays in alt.
+  it("writes the account's city in the agent's language", () => {
+    intlMockState.locale = "ar";
+    render(
+      <OrderCard
+        order={{ ...mockOrder, carrier_code: "darb_assabil", carrier_id: "4f1271c8-b1f2-4836-9293-8ab3d0b18e69",
+          carrier_name: "Darb Assabil - Tripoli", carrier_accent_color: "#1F5FBF", carrier_account_label: { fr: "Tripoli", ar: "طرابلس" },
+          status: "uploaded", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByText("طرابلس")).toBeDefined();
+  });
+
+  it("keeps the brand logo and the account name readable without colour", () => {
     render(
       <OrderCard
         order={{
@@ -190,6 +202,8 @@ describe("OrderCard", () => {
           carrier_code: "darb_assabil",
           carrier_id: "43077d36-3d61-40d6-ae35-59ed15cec8f7",
           carrier_name: "Darb Assabil — Benghazi",
+          carrier_accent_color: "#C24E17",
+          carrier_account_label: { fr: "Benghazi", ar: "بنغازي" },
           status: "uploaded",
           customer_note: null,
         }}
@@ -198,17 +212,19 @@ describe("OrderCard", () => {
       />,
     );
     expect(screen.getByAltText("Darb Assabil — Benghazi")).toBeDefined();
+    expect(screen.getByText("Benghazi")).toBeDefined();
   });
 
-  it("gives no account ring to a carrier that runs a single account", () => {
-    const { container } = render(
+  it("gives no city pill to a carrier that runs a single account", () => {
+    render(
       <OrderCard
-        order={{ ...mockOrder, carrier_code: "navex", carrier_id: "n-1", carrier_name: "Navex", status: "uploaded", customer_note: null }}
+        order={{ ...mockOrder, carrier_code: "navex", carrier_id: "n-1", carrier_name: "Navex", status: "uploaded", customer_note: null,
+          carrier_accent_color: "#1F5FBF", carrier_account_label: null }}
         onOpenDetail={() => {}}
         onCallTerminated={() => {}}
       />,
     );
-    expect(container.querySelector("[data-carrier-account]")).toBeNull();
+    expect(screen.queryByTestId("carrier-account-pill")).toBeNull();
   });
 
   it("renders no carrier mark when no carrier is assigned", () => {

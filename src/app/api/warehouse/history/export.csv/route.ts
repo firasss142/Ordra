@@ -5,6 +5,8 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { warehouseHistoryQuerySchema } from "@/lib/warehouse/list-filters";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
+import { withRouteErrors } from "@/lib/journal/route-errors";
+import { recordJournalEvent } from "@/lib/journal/record-event";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +41,7 @@ function rowToCsv(row: WarehouseHistoryRow): string {
     .join(",");
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -84,6 +86,15 @@ export async function GET(req: NextRequest) {
   const body = allRows.map(rowToCsv).join("\n");
   const csv = header + body;
 
+  // Journaux: who exported how many rows, as the signed-in user (export.* is
+  // allowed through the session). Never fails or holds the download.
+  await recordJournalEvent(supabase, {
+    action: "export.history",
+    entityType: "warehouse_history",
+    marketId: scopeMarket ?? null,
+    context: { rows: allRows.length, format: "csv" },
+  });
+
   const date = new Date().toISOString().slice(0, 10);
   return new NextResponse(csv, {
     status: 200,
@@ -94,3 +105,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/warehouse/history/export.csv", "GET", handleGET);

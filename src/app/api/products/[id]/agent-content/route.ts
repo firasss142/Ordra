@@ -7,6 +7,7 @@ import {
   AGENT_NOTES_MAX,
   VARIANT_NOTE_MAX,
 } from "@/lib/products/agent-content-limits";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ function textOrNull(v: unknown, max: number): string | null | "invalid" {
   return trimmed;
 }
 
-export async function PUT(
+async function handlePUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -161,3 +162,5 @@ export async function PUT(
 
   return NextResponse.json({ success: true });
 }
+
+export const PUT = withRouteErrors("/api/products/[id]/agent-content", "PUT", handlePUT);

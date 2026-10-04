@@ -21,9 +21,8 @@ what**. Landed 2026-09-12 in five migrations.
 > (`prototypes/suivi-livraison-v4.html`: age column, trace line, number in the button, tags) was
 > parked by the owner — the plan is `plans/delivery-worklist-row-redesign.md`.
 >
-> **Relances (/follow-ups) and Tableau livraison (/in-delivery) are still live.** The agent
-> tab now points at /delivery and the manager board replaces what /in-delivery showed, but
-> the old pages were not deleted. Deleting them is the deletion phase, not a side effect.
+> **Relances and Tableau livraison are gone** (2026-10-03, with Suivi transporteur). Carrier
+> performance now lives on Transporteurs (/carriers) — docs/carrier-scorecard.md.
 
 ---
 

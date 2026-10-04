@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageInvestments, canViewInvestorAdmin } from "@/lib/investor-permissions";
 import { loadInvestorMoneySummaries } from "@/lib/investors/admin-summary";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ const PAYOUT_METHODS = ["bank_transfer", "cash", "wallet"] as const;
  * The list deliberately starts from USERS, not from investors, so a
  * half-configured account is visible instead of silently absent.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
 }
 
 /** Create the profile row for an existing investor user. */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   const { data: user } = await admin
     .from("users")
@@ -166,3 +167,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/investors", "GET", handleGET);
+export const POST = withRouteErrors("/api/admin/investments/investors", "POST", handlePOST);

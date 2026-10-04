@@ -2,12 +2,16 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockFrom = vi.fn();
 const mockRpc = vi.fn();
+const mockAdminRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     from: (...args: unknown[]) => mockFrom(...args),
     rpc: (...args: unknown[]) => mockRpc(...args),
   }),
+  createAdminClient: vi.fn(() => ({
+    rpc: (...args: unknown[]) => mockAdminRpc(...args),
+  })),
 }));
 
 vi.mock("@/lib/auth/actor", () => ({
@@ -16,6 +20,7 @@ vi.mock("@/lib/auth/actor", () => ({
 
 import { POST } from "./route";
 import { getActor } from "@/lib/auth/actor";
+import { createAdminClient } from "@/lib/supabase/server";
 import { NextRequest } from "next/server";
 
 const TN = "00000000-0000-0000-0000-000000000001";
@@ -41,6 +46,7 @@ const params = { params: Promise.resolve({ id: "c1" }) };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockAdminRpc.mockResolvedValue({ data: "e-1", error: null });
 });
 
 describe("POST /api/leads/campaigns/[id]/run", () => {
@@ -135,5 +141,53 @@ describe("POST /api/leads/campaigns/[id]/run", () => {
 
     const res = await POST(req(), params);
     expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/leads/campaigns/[id]/run — the run is journaled", () => {
+  function asManagerRunning(result: { data: unknown; error: unknown }) {
+    vi.mocked(getActor).mockResolvedValue({
+      actor: { id: "mgr-1", role: "market_manager", market_id: TN },
+    });
+    mockFrom.mockReturnValue(singleChain({ id: "c1", market_id: TN, name: "upsell" }));
+    mockRpc.mockResolvedValue(result);
+  }
+
+  test("records whatsapp.campaign_sent with the prospects created, in the runner's name", async () => {
+    asManagerRunning({ data: { campaign_id: "c1", inserted: 12, skipped: 3 }, error: null });
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+    expect(createAdminClient).toHaveBeenCalledWith({ actorId: "mgr-1" });
+    expect(mockAdminRpc).toHaveBeenCalledWith("journal_record", expect.objectContaining({
+      p_action: "whatsapp.campaign_sent",
+      p_entity_type: "campaign",
+      p_entity_id: "c1",
+      p_entity_label: "upsell",
+      p_market_id: TN,
+      p_context: { recipients: 12 },
+    }));
+  });
+
+  test("a journal that fails changes nothing: the run still answers 200", async () => {
+    asManagerRunning({ data: { campaign_id: "c1", inserted: 12, skipped: 3 }, error: null });
+    mockAdminRpc.mockRejectedValue(new Error("journal down"));
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+    expect((await res.json()).data.inserted).toBe(12);
+  });
+
+  test("an admin client that cannot be created changes nothing", async () => {
+    asManagerRunning({ data: { campaign_id: "c1", inserted: 12, skipped: 3 }, error: null });
+    vi.mocked(createAdminClient).mockImplementationOnce(() => {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY missing");
+    });
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+  });
+
+  test("a run that failed records nothing", async () => {
+    asManagerRunning({ data: null, error: { message: "No initial prospect status configured for market" } });
+    await POST(req(), params);
+    expect(mockAdminRpc).not.toHaveBeenCalled();
   });
 });

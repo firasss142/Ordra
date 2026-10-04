@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { decrypt } from "@/lib/crypto";
 import { handleWebhook } from "@/lib/orders/webhook-handler";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * super_admin replay for a failed webhook delivery.
@@ -20,7 +21,7 @@ import { handleWebhook } from "@/lib/orders/webhook-handler";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -85,3 +86,5 @@ export async function POST(
     { status: result.status === 200 ? 200 : result.status },
   );
 }
+
+export const POST = withRouteErrors("/api/admin/webhook-logs/[id]/replay", "POST", handlePOST);

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageStorefronts } from "@/lib/settings-permissions";
 import { decrypt } from "@/lib/crypto";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -189,7 +190,7 @@ function buildTestRequest(platform: string, secret: string): TestRequest {
   return { rawBody, headers: new Headers() };
 }
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -288,3 +289,5 @@ export async function POST(
     return NextResponse.json(result, { status: 200 });
   }
 }
+
+export const POST = withRouteErrors("/api/storefronts/[id]/test", "POST", handlePOST);

@@ -6,6 +6,7 @@ import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { canViewReceptions } from "@/lib/receptions/permissions";
 import { projectReceptionList } from "@/lib/receptions/project";
 import type { RawReception } from "@/lib/receptions/project";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ const RECEPTION_SELECT = `
   reception_payments ( id, paid_at, amount, method, note )
 `;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -132,3 +133,4 @@ export async function GET(req: NextRequest) {
  * là que la seule réception jamais créée en production s'est arrêtée, à zéro
  * ligne.
  */
+export const GET = withRouteErrors("/api/warehouse/receptions", "GET", handleGET);

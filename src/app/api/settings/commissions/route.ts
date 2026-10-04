@@ -4,11 +4,12 @@ import { getActor } from "@/lib/auth/actor";
 import { canSetCommissionRates } from "@/lib/role-permissions";
 import { ISO_DAY, rpcErrorResponse } from "@/lib/commissions/api";
 import type { CommissionSettings } from "@/lib/commissions/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/settings/commissions?market_id=… — Paramètres › Général › Commissions (super_admin). */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canSetCommissionRates(actorResult.actor.role)) {
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
  * One call for a rate change AND for the on/off switch: it closes the open row
  * for (market, agent-or-null) at effective_from and inserts the new one.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (!canSetCommissionRates(actorResult.actor.role)) {
@@ -63,3 +64,6 @@ export async function POST(req: NextRequest) {
   if (error) return rpcErrorResponse("api/settings/commissions", error);
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/settings/commissions", "GET", handleGET);
+export const POST = withRouteErrors("/api/settings/commissions", "POST", handlePOST);

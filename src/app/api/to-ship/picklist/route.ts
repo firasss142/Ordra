@@ -6,6 +6,7 @@ import { getActor } from "@/lib/auth/actor";
 import { createClient } from "@/lib/supabase/server";
 import { PicklistPdf } from "@/lib/to-ship/PicklistPdf";
 import type { PicklistGroup, PicklistLine } from "@/lib/to-ship/PicklistPdf";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ const STATUS_LABELS: Record<string, string> = {
   scanned: "Scannée",
 };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -322,3 +323,5 @@ function buildGroups(
     lines: e.lines,
   }));
 }
+
+export const POST = withRouteErrors("/api/to-ship/picklist", "POST", handlePOST);

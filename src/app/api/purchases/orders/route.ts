@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewPurchaseOrders, canPlacePurchaseOrder } from "@/lib/purchases/permissions";
 import { rpcErrorResponse } from "@/lib/receptions/rpc-errors";
 import { projectPurchaseOrder, type PurchaseOrderRow } from "@/lib/purchases/orders";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ interface IncomingLine {
   unit_cost?: number | null;
 }
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
+async function handleGET(req: NextRequest): Promise<NextResponse> {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -128,7 +129,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ orders });
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+async function handlePOST(req: NextRequest): Promise<NextResponse> {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -205,3 +206,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (error) return rpcErrorResponse(error);
   return NextResponse.json(data);
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const GET = withRouteErrors("/api/purchases/orders", "GET", handleGET);
+export const POST = withRouteErrors("/api/purchases/orders", "POST", handlePOST);

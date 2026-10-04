@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { marketDayBounds, todayInMarket } from "@/lib/dates/market-day";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ interface RateWindows {
   prev_total: number;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -202,3 +203,5 @@ export async function GET(req: NextRequest) {
     { headers: { "Cache-Control": "no-store" } },
   );
 }
+
+export const GET = withRouteErrors("/api/orders/status-counts", "GET", handleGET);

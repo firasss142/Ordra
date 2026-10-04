@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runDarbRateHarvestCycle } from "@/lib/carriers/darb-rate-harvest-cycle";
 import { handleRateHarvestCronRequest } from "./handler";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Cells per run. 556 covers the whole catalogue for both accounts. */
 const DEFAULT_LIMIT = 600;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const limitParam = Number(req.nextUrl.searchParams.get("limit"));
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : DEFAULT_LIMIT;
 
@@ -21,3 +22,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(result.body, { status: result.status });
 }
+
+export const POST = withRouteErrors("/api/cron/darb-rates-harvest", "POST", handlePOST);

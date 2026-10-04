@@ -33,7 +33,10 @@ export type AlertType =
   | "upload_stalled"
   | "price_changed"
   | "order_reopened"
-  | "sheet_sync_stalled";
+  | "sheet_sync_stalled"
+  | "intake_silent"
+  | "agent_uncalled"
+  | "agent_idle";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -161,6 +164,39 @@ export const ALERT_RULES: Record<AlertType, AlertRule> = {
     escalate: [{ afterMinutes: 2 * HOUR, to: "critical" }],
     expireAfterMinutes: null,
   },
+
+  // ── Salle de contrôle (prototypes/team-v5.html) ─────────────────────────
+  /**
+   * No order has reached the market for six hours, whatever the import says.
+   *
+   * `sheet_sync_stalled` watches the import failing; this watches it succeeding
+   * at nothing. On 2026-09-29 the Libya sheet stopped receiving rows: 316 runs
+   * reported success with one row fetched, and only the agents' empty queues
+   * said anything was wrong. Emitted from six hours of silence (get_team_alerts),
+   * so it starts loud. Expires after a month: a market that quiet is dormant,
+   * and a permanent red row would teach the bell to be ignored.
+   */
+  intake_silent: {
+    base: "high",
+    escalate: [{ afterMinutes: 12 * HOUR, to: "critical" }],
+    expireAfterMinutes: 30 * DAY,
+  },
+  /**
+   * An agent holds orders she has not called N hours after they were assigned
+   * to her (N = team_call_delay_hours, default 2). One row per agent, anchored
+   * on her oldest such order. A condition, re-derived on every poll.
+   */
+  agent_uncalled: {
+    base: "high",
+    escalate: [{ afterMinutes: 6 * HOUR, to: "critical" }],
+    expireAfterMinutes: null,
+  },
+  /** Online by heartbeat, worked today, no call for team_idle_minutes. */
+  agent_idle: {
+    base: "medium",
+    escalate: [{ afterMinutes: 90, to: "high" }],
+    expireAfterMinutes: null,
+  },
 };
 
 export const ALERT_TYPES = Object.keys(ALERT_RULES) as AlertType[];
@@ -195,6 +231,11 @@ const FAMILIES: Record<AlertType, AlertFamily> = {
   stock_unreconciled: "stock",
   // Not "progress": no order is stuck, the orders are not in the system at all.
   sheet_sync_stalled: "oversight",
+  intake_silent: "oversight",
+  // Her orders are not moving…
+  agent_uncalled: "progress",
+  // …and she is not calling: a fact about the agent, kept on its own row.
+  agent_idle: "oversight",
 };
 
 export function familyOf(type: AlertType): AlertFamily {

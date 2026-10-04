@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewLeads } from "@/lib/lead-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { findPhoneDuplicates } from "@/lib/leads/duplicates";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -43,3 +44,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ data: duplicates });
 }
+
+export const GET = withRouteErrors("/api/leads/duplicates", "GET", handleGET);

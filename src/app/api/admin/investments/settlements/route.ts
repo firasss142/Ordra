@@ -3,12 +3,13 @@ import { adminReader, adminWriter, ISO_DATE, NO_STORE, rpcError } from "@/lib/in
 import { previewSettlements } from "@/lib/investors/settlement-preview";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { runInvestorRollup } from "@/lib/investors/rollup-run";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /** Settled statements (manager: own market). ?deal_id= | ?investor_id= */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   const sp = req.nextUrl.searchParams;
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
  * Every draft is RECOMPUTED here; a hash mismatch → 409 PREVIEW_STALE (facts
  * moved since the preview — re-preview). Then one atomic RPC across deals.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   let b: { drafts?: unknown };
@@ -52,3 +53,6 @@ export async function POST(req: NextRequest) {
   await runInvestorRollup(g.admin, { trigger: "manual", mode: "incremental" });
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/settlements", "GET", handleGET);
+export const POST = withRouteErrors("/api/admin/investments/settlements", "POST", handlePOST);

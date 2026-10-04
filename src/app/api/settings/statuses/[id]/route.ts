@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ const MUTABLE_FIELDS = new Set([
   "allowed_transitions",
 ]);
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -111,7 +112,7 @@ export async function PATCH(
   return NextResponse.json({ data });
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -182,3 +183,6 @@ export async function DELETE(
   }
   return NextResponse.json({ data: { id } });
 }
+
+export const PATCH = withRouteErrors("/api/settings/statuses/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/settings/statuses/[id]", "DELETE", handleDELETE);

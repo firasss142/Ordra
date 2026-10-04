@@ -4,6 +4,7 @@ import { canUpdateFulfillment } from "@/lib/fulfillment-permissions";
 import { applyFulfillmentTransition } from "@/lib/orders/fulfillment";
 import type { OrderStatus } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const FULFILLMENT_STATUSES = new Set<string>([
   "returned",
 ]);
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -96,3 +97,5 @@ export async function POST(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/fulfillment", "POST", handlePOST);

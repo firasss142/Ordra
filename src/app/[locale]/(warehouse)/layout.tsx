@@ -1,9 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState, useCallback } from "react";
-import { Menu } from "lucide-react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarFrame } from "@/components/layout/SidebarFrame";
 import { WarehouseMobileShell } from "@/components/warehouse/shell/WarehouseMobileShell";
 import { useAuth } from "@/context/auth";
 import { AlertsPanelProvider } from "@/context/alerts-panel";
@@ -52,7 +50,6 @@ export default function WarehouseLayout({
 function WarehouseManagerShell({
   user,
   pathname,
-  direction,
   children,
 }: {
   user: ReturnType<typeof useAuth>["user"];
@@ -60,54 +57,22 @@ function WarehouseManagerShell({
   direction: "ltr" | "rtl";
   children: React.ReactNode;
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const handleClose = useCallback(() => setMobileOpen(false), []);
-  const handleOpen = useCallback(() => setMobileOpen(true), []);
   if (!user) return null;
   return (
     // The sidebar's alerts bell opens this provider's panel. Without it the bell
     // fell back to an empty default and did nothing on every Entrepôt page.
+    // The tab band used to give the page title its breathing room; the frame's
+    // --sb-main-pt carries that space now on desktop.
     <AlertsPanelProvider user={user}>
-    <div className="wh-console flex min-h-screen bg-wh-bg" style={{ direction }}>
-      <Sidebar
+      <SidebarFrame
         user={user}
         currentPath={pathname}
-        mobileOpen={mobileOpen}
-        onMobileClose={handleClose}
-      />
-      <button
-        type="button"
-        onClick={handleOpen}
-        aria-label="Menu"
-        className="inline-flex md:!hidden items-center justify-center"
-        style={{
-          position: "fixed",
-          top: 12,
-          insetInlineStart: 12,
-          zIndex: 40,
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          border: "1px solid var(--border)",
-          background: "var(--bg-card)",
-          color: "var(--text-primary)",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          cursor: "pointer",
-        }}
-      >
-        <Menu size={20} aria-hidden="true" />
-      </button>
-      <main
-        id="main-content"
-        // The tab band used to sit above the page and gave the title its
-        // breathing room. Without it the heading would start flush against
-        // the viewport edge, so the shell carries that space now.
-        className="flex-1 md:ms-[240px] min-h-screen bg-wh-bg pt-14 md:pt-3"
-        style={{ minWidth: 0 }}
+        className="wh-console bg-wh-bg"
+        mainClassName="bg-wh-bg"
+        style={{ "--sb-main-pt": "12px" } as React.CSSProperties}
       >
         {children}
-      </main>
-    </div>
+      </SidebarFrame>
     </AlertsPanelProvider>
   );
 }

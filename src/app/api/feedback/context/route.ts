@@ -5,6 +5,7 @@ import { canCaptureFeedback } from "@/lib/role-permissions";
 import { isUuid } from "@/lib/feedback/api";
 import { momentOf } from "@/lib/feedback/moment";
 import type { FeedbackContext } from "@/types/feedback";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ const HISTORY_CAP = 200;
  * Reads under the caller's RLS: an agent sees the order only if it is theirs, and every
  * entry of their market (customer_feedback is readable market-wide by design).
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   if (!canCaptureFeedback(result.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -83,3 +84,5 @@ export async function GET(req: NextRequest) {
   };
   return NextResponse.json({ data });
 }
+
+export const GET = withRouteErrors("/api/feedback/context", "GET", handleGET);

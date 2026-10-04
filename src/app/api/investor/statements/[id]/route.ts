@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 /** Full statement incl. the day rows in `snapshot`. */
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   const { data, error } = await g.admin
@@ -17,3 +18,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ data }, { headers: INVESTOR_CACHE });
 }
+
+export const GET = withRouteErrors("/api/investor/statements/[id]", "GET", handleGET);

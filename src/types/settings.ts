@@ -186,6 +186,10 @@ export interface MarketSettings {
   zone_low_delivery_rate_pct?: number;
   /** Minimum finished orders before a zone's rate is trusted at all. */
   zone_min_sample?: number;
+  /** Transporteurs: delivery rate (%) a carrier must reach to be « on target ». */
+  carrier_delivery_target_pct?: number;
+  /** Transporteurs: days on the road after pickup before a parcel counts as late. */
+  carrier_late_days?: number;
   /** Prior returns + rejections that make a customer a repeat risk. */
   risk_min_prior_failures?: number;
   /** Hours a proactive call task stays open before it expires unanswered. */
@@ -204,6 +208,17 @@ export interface MarketSettings {
   goal_min_rate?: number;
   goal_conf_per_hour?: number;
   goal_team_weekly_conf?: number;
+
+  // ── Salle de contrôle (prototypes/team-v5.html) — super_admin only ──
+  // The team planning itself is `shift_config` (start, end, days).
+  /** An order not called by its holder this many hours after assignment counts as « non appelée ». */
+  team_call_delay_hours?: number;
+  /** An agent online but silent this many minutes reads « sans appel » and rings the bell. */
+  team_idle_minutes?: number;
+  /** A first call later than the planned start + this many minutes reads « en retard ». */
+  team_late_minutes?: number;
+  /** Agents whose hours differ from the team's: agent id → { start, end } ("HH:MM"). */
+  team_shift_overrides?: Record<string, { start: string; end: string }>;
 
   // ── WhatsApp — automatic lifecycle notifications ──
   // Read by the `whatsapp_enqueue_lifecycle` trigger (SQL) and the outbox
@@ -299,6 +314,8 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   high_value_threshold: 0,
   zone_low_delivery_rate_pct: 60,
   zone_min_sample: 20,
+  carrier_delivery_target_pct: 60,
+  carrier_late_days: 3,
   risk_min_prior_failures: 1,
   proactive_call_window_hours: 4,
   delivery_done_window_hours: 24,
@@ -307,6 +324,10 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   goal_min_rate: 40,
   goal_conf_per_hour: 3,
   goal_team_weekly_conf: 150,
+  // Salle de contrôle — the defaults the owner agreed on (2026-10-03).
+  team_call_delay_hours: 2,
+  team_idle_minutes: 30,
+  team_late_minutes: 15,
   // WhatsApp: everything off until a manager decides otherwise.
   whatsapp_lifecycle_enabled: false,
   whatsapp_event_could_not_reach: false,
@@ -365,6 +386,8 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "high_value_threshold",
   "zone_low_delivery_rate_pct",
   "zone_min_sample",
+  "carrier_delivery_target_pct",
+  "carrier_late_days",
   "risk_min_prior_failures",
   "proactive_call_window_hours",
   "delivery_done_window_hours",
@@ -373,6 +396,10 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "goal_min_rate",
   "goal_conf_per_hour",
   "goal_team_weekly_conf",
+  "team_call_delay_hours",
+  "team_idle_minutes",
+  "team_late_minutes",
+  "team_shift_overrides",
   "whatsapp_lifecycle_enabled",
   "whatsapp_event_could_not_reach",
   "whatsapp_event_shipped",
@@ -579,6 +606,8 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   // A zone needs a real sample before its rate may condemn it: 1 would let a
   // single failed delivery mark a whole destination as weak.
   if (!isValidOptionalInt(s.zone_min_sample, 1, 100_000)) return false;
+  if (!isValidOptionalInt(s.carrier_delivery_target_pct, 1, 100)) return false;
+  if (!isValidOptionalInt(s.carrier_late_days, 1, 30)) return false;
   if (!isValidOptionalInt(s.risk_min_prior_failures, 1, 100)) return false;
   if (!isValidOptionalInt(s.proactive_call_window_hours, 1, 72)) return false;
   if (!isValidOptionalInt(s.delivery_done_window_hours, 1, 168)) return false;
@@ -591,6 +620,12 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (!isValidOptionalNumber(s.goal_min_rate, 0, 100)) return false;
   if (!isValidOptionalNumber(s.goal_conf_per_hour, 0, 10_000)) return false;
   if (!isValidOptionalInt(s.goal_team_weekly_conf, 0, 1_000_000)) return false;
+
+  // Salle de contrôle
+  if (!isValidOptionalInt(s.team_call_delay_hours, 1, 72)) return false;
+  if (!isValidOptionalInt(s.team_idle_minutes, 5, 240)) return false;
+  if (!isValidOptionalInt(s.team_late_minutes, 0, 120)) return false;
+  if (s.team_shift_overrides !== undefined && !isValidShiftOverrides(s.team_shift_overrides)) return false;
 
   // WhatsApp
   for (const key of [
@@ -606,6 +641,21 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (s.whatsapp_default_language !== undefined && s.whatsapp_default_language !== "ar" && s.whatsapp_default_language !== "fr") return false;
   if (!isValidSendWindow(s.whatsapp_send_window)) return false;
 
+  return true;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const HHMM_RE = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
+
+/** agent id → { start, end }, each "HH:MM", start before end. */
+export function isValidShiftOverrides(obj: unknown): obj is Record<string, { start: string; end: string }> {
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return false;
+  for (const [agentId, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (!UUID_RE.test(agentId) || v === null || typeof v !== "object") return false;
+    const { start, end } = v as Record<string, unknown>;
+    if (typeof start !== "string" || typeof end !== "string" || !HHMM_RE.test(start) || !HHMM_RE.test(end)) return false;
+    if (start >= end) return false;
+  }
   return true;
 }
 

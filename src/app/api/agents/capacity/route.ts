@@ -4,13 +4,14 @@ import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { fetchAgentCapacity } from "@/lib/orders/agent-capacity";
 import { isReadyForOrders } from "@/lib/orders/agent-readiness";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
 const USER_COLS =
   "id, full_name, avatar_url, is_active, last_seen_at, market_id, is_available, available_since";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -151,3 +152,5 @@ export async function GET(req: NextRequest) {
     { headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=60" } }
   );
 }
+
+export const GET = withRouteErrors("/api/agents/capacity", "GET", handleGET);

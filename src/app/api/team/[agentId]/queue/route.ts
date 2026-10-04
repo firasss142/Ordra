@@ -5,10 +5,11 @@ import { resolveProductDisplayName } from "@/lib/orders/display-name";
 import type { OrderNameSource } from "@/lib/orders/display-name";
 import { TERMINAL_STATUSES } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
@@ -77,3 +78,5 @@ export async function GET(
   );
   return NextResponse.json({ data: sortAgentQueue(ordersWithCurrency) });
 }
+
+export const GET = withRouteErrors("/api/team/[agentId]/queue", "GET", handleGET);

@@ -4,10 +4,11 @@ import { canTargetLeadStatusForRole } from "@/lib/lead-permissions";
 import { transitionLeadStatus } from "@/lib/leads/transition";
 import type { LeadStatus, LeadLostReason, LeadActorType } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -116,3 +117,5 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status });
   }
 }
+
+export const POST = withRouteErrors("/api/leads/[id]/transition", "POST", handlePOST);

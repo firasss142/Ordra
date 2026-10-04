@@ -6,6 +6,7 @@ import { canViewReceptions, canSettleReception } from "@/lib/receptions/permissi
 import { projectReception, type RawReception } from "@/lib/receptions/project";
 import { orderedByReceptionLine } from "@/lib/receptions/ordered";
 import type { RawReceptionClaim } from "@/lib/receptions/project";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ async function load(supabase: Awaited<ReturnType<typeof createClient>>, id: stri
   return supabase.from("receptions").select(RECEPTION_SELECT).eq("id", id).maybeSingle();
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleGET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -119,7 +120,7 @@ async function withOrdered(
  * ligne fantôme derrière lui. Le trigger d'immutabilité refuse tout cela dès
  * que la réception est validée — la garde n'est pas ici, elle est en base.
  */
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -237,7 +238,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
  * L'inversion a rendu ce chemin dangereux, et c'est le genre de conséquence
  * qu'une inversion de modèle laisse derrière elle sans prévenir.)
  */
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -277,3 +278,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
   return NextResponse.json({ ok: true });
 }
+
+export const GET = withRouteErrors("/api/warehouse/receptions/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/warehouse/receptions/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/warehouse/receptions/[id]", "DELETE", handleDELETE);

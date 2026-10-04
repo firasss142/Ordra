@@ -7,6 +7,7 @@ import { isValidScope, marketIdToCode, scopeToMarketId } from "@/lib/markets";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { fetchDayLoopRows, marketToday } from "@/lib/warehouse/day-loop-server";
 import { assembleDayLoop, type DayLoopPayload } from "@/lib/warehouse/day-loop-assemble";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export type TodayResponse =
  * Replaces the agent shell's 60-second poll of /api/warehouse/summary, which
  * computed a leaderboard, a trend, low stock and more to draw one badge.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -69,3 +70,5 @@ export async function GET(req: NextRequest) {
     { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" } },
   );
 }
+
+export const GET = withRouteErrors("/api/warehouse/today", "GET", handleGET);

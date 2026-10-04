@@ -6,6 +6,7 @@ import { UUID_RE } from "@/lib/investors/admin-route";
 import { parseActionBody } from "@/lib/delivery/actions";
 import { isFeedbackCategory, offersFeedback } from "@/lib/feedback/taxonomy";
 import { isUuid } from "@/lib/feedback/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * record_delivery_action, which re-checks ownership, market and scope and
  * refuses any actor other than the session's own user. Never writes `orders`.
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -80,3 +81,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/delivery/orders/[id]/actions", "POST", handlePOST);

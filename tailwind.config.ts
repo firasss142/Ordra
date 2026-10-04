@@ -101,6 +101,32 @@ const config: Config = {
           "info-ink": "var(--oms-info-ink)",
           "info-bg": "var(--oms-info-bg)",
         },
+        // Transporteurs — scoped extension, the approved prototype's palette
+        // (prototypes/transporteurs-v2.html). Values live in globals.css. The
+        // carrier ACCOUNT colour is not here: it is data (carriers.accent_color)
+        // and reaches the page as the CSS variable --c.
+        tr: {
+          "ink-1": "var(--tr-ink-1)",
+          "ink-2": "var(--tr-ink-2)",
+          "ink-3": "var(--tr-ink-3)",
+          "ink-4": "var(--tr-ink-4)",
+          line: "var(--tr-line)",
+          "line-2": "var(--tr-line-2)",
+          "line-strong": "var(--tr-line-strong)",
+          well: "var(--tr-well)",
+          seg: "var(--tr-seg)",
+          sunken: "var(--tr-sunken)",
+          hover: "var(--tr-hover)",
+          ok: "var(--tr-ok)",
+          "ok-ink": "var(--tr-ok-ink)",
+          warn: "var(--tr-warn)",
+          "warn-ink": "var(--tr-warn-ink)",
+          bad: "var(--tr-bad)",
+          "bad-ink": "var(--tr-bad-ink)",
+          "bad-bg": "var(--tr-bad-bg)",
+          bar: "var(--tr-bar)",
+          "bar-dark": "var(--tr-bar-dark)",
+        },
         // Products console — scoped extension. Aliases only; the values live in
         // globals.css. Seven tokens, because red/amber/blue reuse status.* and
         // only the grass green was genuinely missing (status.success is a teal,
@@ -136,6 +162,34 @@ const config: Config = {
         // in globals.css. Status pair (green above the floor, red below) plus
         // the six validated cost-stack hues. See the contrast note there
         // before putting type on a raw hue.
+        // Salle de contrôle — scoped extension; values live in globals.css.
+        room: {
+          hover: "var(--room-hover)",
+          "line-faint": "var(--room-line-faint)",
+          "ink-2": "var(--room-ink-2)",
+          "ink-3": "var(--room-ink-3)",
+          "ink-4": "var(--room-ink-4)",
+          teal: "var(--room-teal)",
+          "teal-soft": "var(--room-teal-soft)",
+          "teal-bg": "var(--room-teal-bg)",
+          green: "var(--room-green)",
+          "green-bg": "var(--room-green-bg)",
+          red: "var(--room-red)",
+          "red-bg": "var(--room-red-bg)",
+          "red-soft": "var(--room-red-soft)",
+          "red-edge": "var(--room-red-edge)",
+          amber: "var(--room-amber)",
+          "amber-ink": "var(--room-amber-ink)",
+          "amber-bg": "var(--room-amber-bg)",
+          "amber-dot": "var(--room-amber-dot)",
+          prog: "var(--room-prog)",
+          todo: "var(--room-todo)",
+          live: "var(--room-live)",
+          tick: "var(--room-tick)",
+          session: "var(--room-session)",
+          plan: "var(--room-plan)",
+          bar: "var(--room-bar)",
+        },
         wh: {
           bg: "var(--wh-bg)",
           surface: "var(--wh-surface)",

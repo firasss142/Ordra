@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { whereUnassigned } from "@/lib/orders/unassigned";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
     const actorResult = await getActor(req);
@@ -39,3 +40,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ count: count ?? 0 });
 }
+
+export const GET = withRouteErrors("/api/orders/unassigned/count", "GET", handleGET);

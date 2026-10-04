@@ -3,12 +3,14 @@ import { NextRequest } from "next/server";
 
 const mockFrom = vi.fn();
 const mockGetUser = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ from: mockFrom, auth: { getUser: mockGetUser } }),
+  createClient: async () => ({ from: mockFrom, rpc: mockRpc, auth: { getUser: mockGetUser } }),
 }));
 
 import { GET } from "./route";
+import { computeBreakEven } from "@/lib/ad-spend/break-even";
 
 /**
  * The route's job is to turn a cohort of orders into a per-product floor. The
@@ -50,14 +52,20 @@ function chain(rows: unknown[], opts: ChainOptions = {}) {
   return c;
 }
 
-const DARB = { delivery_fee: 10, return_fee: 5 };
+/**
+ * What Darb charges, per order (order_delivery_cost): the invoice of a delivered
+ * parcel — 25 here, Darb's real 10–50 by city averages ~23.6 — and NOTHING for a
+ * failed one (owner, 2026-10-03). The flat 10 / 5 on the carrier row is no
+ * longer read.
+ */
+const INVOICE = 25;
 
 /**
  * 425 leads, 81 confirmed, 44 delivered, 29 returned — the medium boxing doll.
  * Spread across three consecutive days so the sparkline has something to say.
  */
 function boxingDollOrders() {
-  const out: unknown[] = [];
+  const out: Record<string, unknown>[] = [];
   const DAYS = ["2026-06-01", "2026-06-02", "2026-06-03"];
   const at = () => `${DAYS[out.length % 3]}T09:00:00+00:00`;
 
@@ -71,7 +79,6 @@ function boxingDollOrders() {
       created_at: at(),
       total_price: 182.61,
       quantity: i === 0 ? 2 : 1,
-      carriers: DARB,
     });
   for (let i = 0; i < 29; i++)
     out.push({
@@ -80,7 +87,6 @@ function boxingDollOrders() {
       created_at: at(),
       total_price: 0,
       quantity: 1,
-      carriers: DARB,
     });
   // 81 confirmed-phase total: 44 delivered + 29 returned + 8 still in flight
   for (let i = 0; i < 8; i++)
@@ -90,7 +96,6 @@ function boxingDollOrders() {
       created_at: at(),
       total_price: 0,
       quantity: 1,
-      carriers: DARB,
     });
   for (let i = 0; i < 344; i++)
     out.push({
@@ -99,9 +104,20 @@ function boxingDollOrders() {
       created_at: at(),
       total_price: 0,
       quantity: 1,
-      carriers: null,
     });
-  return out;
+  return out.map((o, i) => ({ id: `o${i}`, ...o }));
+}
+
+/** order_delivery_cost for a set of orders: the invoice when delivered, 0 when it failed. */
+function costsFor(orders: Record<string, unknown>[], override: Record<string, number | null> = {}) {
+  return orders
+    .filter((o) => o.status === "delivered" || o.status === "returned")
+    .map((o) => ({
+      order_id: o.id,
+      invoiced: true,
+      delivery_cost: o.id && Object.prototype.hasOwnProperty.call(override, String(o.id)) ? override[String(o.id)] : INVOICE,
+      return_cost: 0,
+    }));
 }
 
 const PRODUCTS = [
@@ -112,11 +128,29 @@ function request(qs = "market_id=m-1&from_date=2026-06-01&to_date=2026-07-08") {
   return new NextRequest(new URL(`http://localhost:3000/api/ad-spend/economics?${qs}`));
 }
 
-/** Wire the three tables the route reads, with `spend` under the caller's control. */
-function wire(spendRows: unknown[] = [], spendOpts: ChainOptions = {}) {
+/** The boxing doll's break-even CPL on Darb's invoices (rates per lead, as the route takes them). */
+function floorOnInvoices(): number {
+  return computeBreakEven({
+    aov: 182.61,
+    unitCogs: 20.002,
+    unitsPerDelivered: 45 / 44,
+    deliveryFee: INVOICE,
+    returnFee: 0,
+    packingCost: 0,
+    processingCost: 0,
+    deliveryRate: 44 / 425,
+    confirmRate: 81 / 425,
+    returnRate: 29 / 425,
+  }).cplFloor;
+}
+
+/** Wire the tables the route reads, with `spend` under the caller's control. */
+function wire(spendRows: unknown[] = [], spendOpts: ChainOptions = {}, costOverride: Record<string, number | null> = {}) {
+  const orders = boxingDollOrders();
   mockFrom.mockImplementation((table: string) => {
     if (table === "users") return chain([]);
-    if (table === "orders") return chain(boxingDollOrders());
+    if (table === "orders") return chain(orders);
+    if (table === "order_delivery_cost") return chain(costsFor(orders, costOverride));
     if (table === "products") return chain(PRODUCTS);
     return chain(spendRows, spendOpts);
   });
@@ -125,6 +159,8 @@ function wire(spendRows: unknown[] = [], spendOpts: ChainOptions = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+  // market_avg_delivery_cost: Darb's average invoice over the last 30 days.
+  mockRpc.mockResolvedValue({ data: 22.8, error: null });
 });
 
 describe("GET /api/ad-spend/economics", () => {
@@ -140,8 +176,23 @@ describe("GET /api/ad-spend/economics", () => {
     expect(p.confirmed).toBe(81);
     expect(p.delivered).toBe(44);
     expect(p.returned).toBe(29);
-    // The figure the whole page turns on.
-    expect(p.break_even_cpl).toBeCloseTo(15.41, 2);
+    // The figure the whole page turns on — on Darb's invoices, a failed parcel free.
+    expect(p.break_even_cpl).toBeCloseTo(floorOnInvoices(), 6);
+  });
+
+  test("prices a delivery at Darb's invoice and a failed parcel at nothing, never the flat fee", async () => {
+    wire();
+    const p = (await (await GET(request())).json()).data[0];
+    expect(p.cost_delivery).toBeCloseTo(44 * INVOICE, 6);
+    expect(p.cost_returns).toBe(0);
+    expect(mockFrom).toHaveBeenCalledWith("order_delivery_cost");
+  });
+
+  test("a delivered parcel with neither invoice nor quote is priced at the market's average invoice", async () => {
+    wire([], {}, { o0: null });
+    const p = (await (await GET(request())).json()).data[0];
+    expect(p.cost_delivery).toBeCloseTo(43 * INVOICE + 22.8, 6);
+    expect(mockRpc).toHaveBeenCalledWith("market_avg_delivery_cost", { p_market_id: "m-1" });
   });
 
   test("reports a floor even with zero ad spend recorded", async () => {
@@ -165,7 +216,9 @@ describe("GET /api/ad-spend/economics", () => {
     const body = await (await GET(request())).json();
     const p = body.data[0];
     expect(p.cpl).toBeCloseTo(17.2, 2);
-    expect(p.margin_per_lead).toBeCloseTo(-1.79, 2);
+    // At 10 / 5 flat this was −1.79; at Darb's invoice (25) with free failures it is
+    // the invoice floor minus what a lead costs.
+    expect(p.margin_per_lead).toBeCloseTo(floorOnInvoices() - 7310 / 425, 6);
     expect(p.profit).toBeLessThan(0);
   });
 
@@ -177,8 +230,9 @@ describe("GET /api/ad-spend/economics", () => {
 
     // COGS is charged per UNIT — 45 units across 44 delivered orders.
     expect(p.cost_cogs).toBeCloseTo(45 * 20.002, 2);
-    expect(p.cost_delivery).toBeCloseTo(44 * 10, 2);
-    expect(p.cost_returns).toBeCloseTo(29 * 5, 2);
+    expect(p.cost_delivery).toBeCloseTo(44 * INVOICE, 2);
+    // A failed Darb parcel costs nothing (the flat 5 used to make this 145).
+    expect(p.cost_returns).toBe(0);
     expect(p.cost_packing).toBe(0);
 
     // The stack's whole claim is that the segments account for the revenue.
@@ -208,8 +262,8 @@ describe("GET /api/ad-spend/economics", () => {
     const { data } = await (await GET(request())).json();
     const p = data[0];
     expect(p.margin_per_lead).toBeLessThan(0);
-    // (17.20 + 29/425 x 5) / (182.61 - 45/44 x 20.002 - 10)
-    expect(p.break_even_delivery_rate).toBeCloseTo(0.1153, 4);
+    // (17.20 + 29/425 x 0) / (182.61 - 45/44 x 20.002 - 25) — the invoice, a free failure
+    expect(p.break_even_delivery_rate).toBeCloseTo(0.1254, 4);
     // It has to be a lift on today's rate, or it is not a target.
     expect(p.break_even_delivery_rate).toBeGreaterThan(p.delivery_rate);
   });
@@ -345,19 +399,20 @@ describe("GET /api/ad-spend/economics", () => {
     // as the best performer. It has to sort below anything measured.
     const withSecondProduct = [
       ...boxingDollOrders(),
-      ...Array.from({ length: 60 }, () => ({
+      ...Array.from({ length: 60 }, (_, i) => ({
+        id: `p2-${i}`,
         product_id: "p2",
         status: "delivered",
         created_at: "2026-06-04T09:00:00+00:00",
         total_price: 200,
         quantity: 1,
-        carriers: DARB,
       })),
     ];
 
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return chain([]);
       if (table === "orders") return chain(withSecondProduct);
+      if (table === "order_delivery_cost") return chain(costsFor(withSecondProduct));
       if (table === "products")
         return chain([
           ...PRODUCTS,

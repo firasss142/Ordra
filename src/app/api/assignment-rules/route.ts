@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { AssignmentAlgorithm } from "@/types/settings";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ function resolveMarketId(req: NextRequest, actorRole: string, actorMarketId: str
   return actorMarketId;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: rule });
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -113,3 +114,6 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({ data: ruleData });
 }
+
+export const GET = withRouteErrors("/api/assignment-rules", "GET", handleGET);
+export const PUT = withRouteErrors("/api/assignment-rules", "PUT", handlePUT);

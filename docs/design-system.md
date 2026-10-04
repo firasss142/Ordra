@@ -158,9 +158,17 @@ button — the ring lands on the page ground, not on the fill.
 
 **Font stack:** `var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
 
-Loaded with `next/font/google` in `src/app/[locale]/layout.tsx`: **Inter** (`--font-sans`,
-latin), **Noto Sans Arabic** (`--font-sans-arabic`), **Cairo** (`--font-cairo`, used by
-`.agent-theme` and the agent queue). There are no `@font-face` rules and no local font files.
+Loaded with `next/font/google` in `src/app/[locale]/layout.tsx`: **Plus Jakarta Sans**
+(`--font-sans`, latin, 400–800), **IBM Plex Sans Arabic** (`--font-sans-arabic`, arabic + latin,
+400–700), **Cairo** (`--font-cairo`, used by `.agent-theme` and the agent queue). There are no
+`@font-face` rules and no local font files.
+
+**Since 2026-10-03** (owner's pick in the products v6 prototype's live font switcher): Plus Jakarta
+Sans replaced Inter and IBM Plex Sans Arabic replaced Noto Sans Arabic, app-wide. The variable names
+did not change, so every stack that read the old faces reads the new ones. An Arabic page puts the
+Arabic face FIRST (`:root[dir="rtl"]` in globals.css): Plex Arabic carries Latin and digits, so a
+figure reads in the same face as the Arabic around it. Plex Arabic ships 700, so Arabic bold is real
+bold now (Noto stopped at 600). Surfaces that name Cairo keep it.
 
 > **Superseded.** This line read `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto` —
 > the system stack, from before the `next/font` work landed.
@@ -755,16 +763,20 @@ the **active segment's count badge**.
 One shared primitive, `components/ui/SegmentedTabs`, serves all of them. §4.11 remains in force
 for any surface with a single level of navigation.
 
-### The carrier-account ring — a named exception
+### The carrier-account colour — a named exception
 
 Libya runs two Darb Assabil accounts as two `carriers` rows sharing one `code`, so they resolve
-to the same logo file. They are distinguished by a `ring-1` tinted per account.
+to the same logo file. Until 2026-10-03 a thin tinted ring told them apart; the owner could not
+read it, and it is gone. Each account now has a colour in the data (`carriers.accent_color`,
+`#RRGGBB`) and is **named by its warehouse city in that colour**: a full band on Transporteurs
+(`/carriers`), a solid city pill beside the logo in the agent queue. Defaults are the validated
+pair `#1F5FBF` / `#C24E17` (CVD ΔE 25.2, white text ≥ 4.7:1); a carrier with one account gets
+no pill.
 
 This is colour carrying something that is **not** status, which §1 rule 3 and §4.15 both
-forbid. It is allowed here, narrowly, because the alternative — two near-identical wordmarks at
-20px — is not separable at a glance either. The condition is that colour is **never the only
-signal**: the account name stays in `title` and the city in `aria-label`, so the distinction
-survives greyscale and a screen reader. Do not extend this to any other carrier.
+forbid. It is allowed here, narrowly, because two identical logos are not separable otherwise.
+The condition is unchanged: colour is **never the only signal** — the city is written in the
+band and in the pill. See docs/carrier-scorecard.md.
 
 ---
 
@@ -832,13 +844,15 @@ the edge and chip already carry what is wrong. Design notes:
 
 ### Sidebar
 
-- Width: `240px`, fixed
-- Background: `var(--sidebar-bg)` `#0E1013`
-- Brand row: `60px`, monogram (28px `rounded-[8px]` on `--brand`) + wordmark + market switcher + bell
-- Sub-nav item: `height: 34px`, `padding-inline: 30px / 12px`, `font-size: 14px`, `border-radius: 8px`
+Spec: `prototypes/sidebar-v2.html`; implementation notes: `docs/sidebar.md`.
+- Widths: `240px`, or a `64px` rail (person's choice, default below 1280px); phone: drawer `min(304px, 86vw)` behind a `52px` top bar
+- Head and foot pinned; only the list scrolls (a hairline appears under the head once scrolled)
+- Head: wordmark + alerts pill (bell + count chip side by side), market card `50px`, « Aller à… ⌘K » `32px`
+- Group label: `28px`, `11px/600` uppercase muted, no icon, chevron; RTL drops caps and tracking
+- Item: `height: 32px`, `padding-inline: 10px / 8px`, icon `16px`, `font-size: 14px`, `border-radius: 8px`
 - Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar
-- Hover (inactive): `background: var(--sidebar-hover)`
-- User menu at bottom: `padding: 8px 10px`, opens upward on `--sidebar-bg-elevated`
+- One count chip everywhere (`.sb-badge`, 18px, capped at 999+, digits isolated LTR)
+- Flags are drawn SVG (`MarketFlag`), never emoji — Windows renders emoji flags as letters
 
 ### Topbar (agent shell only)
 
@@ -1252,7 +1266,7 @@ confident number.
 `/users` (Équipe › Accès) gives each **role** one hue. Approved by the owner from
 `prototypes/acces-v2.html` ("j'aime le design"); the structure and its rationale are
 in `prototypes/acces-v1.html`. This is colour carrying a **category**, which §1 rule 3
-forbids — allowed here, narrowly, like §4.22 and the carrier-account ring, because a
+forbids — allowed here, narrowly, like §4.22 and the carrier-account colour, because a
 list of people reads by team first and the hue is what makes the team visible at a glance.
 
 | Role | Hue (fill, dot, icon) | Ink (text) | Tint (fill) | Edge | Ink / tint | Hue / tint |
@@ -1281,3 +1295,63 @@ its tint), avatars (initials or photo on the role tint, with a green or amber pr
 beat), the role chip in each row, the warehouse pill (always `tone-warehouse`), the
 creation cards, and the band at the top of a person's file. Brand green keeps the
 chrome: the primary button, the « Tous » tile, focus, the selected row.
+
+## 4.24 Journaux — severity only (2026-10-03)
+
+Système › Journaux (`prototypes/journaux-v2.html`, approved by the owner for its
+simplicity after v1 felt too dense). The page is calm on purpose: **success carries no
+colour**. Only a failure (red) and a « to check » (amber) do, and both are always paired
+with a word (« Échec », « À vérifier ») and a shape (the dot, the flag, the hollow bar).
+
+| Token | Fill | Ink (text) | Tint | Line |
+|---|---|---|---|---|
+| `--jx-ok` | `#008060` (dots, 48 h bars) | `#006E52` | `#EEF7F3` | — |
+| `--jx-warn` | `#B98900` | `#7A5A00` | `#FFF6DF` | `#EBCB7A` |
+| `--jx-fail` | `#D72C0D` | `#B42309` | `#FFF1EE` | `#F3C2B6` (hover `#FFE9E4`) |
+| `--jx-mute` | `#C5CBD3` | `--ink-secondary` | `#F1F2F3` | — |
+
+**Family tints** — the 34 px icon holder of a system tile or a feed row (§4.19), never
+text, never a severity: intake `#EEEDFC`/`#3F37C9`, carrier `#E3F3F1`/`#0B5C56`, ads
+`#FDEFE6`/`#B4500F`, messaging `#E3F4FC`/`#0369A1`, jobs `#F0F1F3`/`#4B5563`, Ordra
+itself `#EEF0F4`/`#2F3A4B`.
+
+**Rules.** Sizes are px (root font is 14 px — `pixel-units.test.ts` scans
+`components/journal`). A failed feed row is tinted `--jx-fail-bg`; a warning row
+`--jx-warn-bg`; everything else is white. The 48 h bars draw « expected, absent » as a
+**hollow** bar (amber inset line), not merely another colour. Brand green stays chrome:
+the active tab underline, « Problèmes seulement » on, primary buttons.
+
+## 4.25 Équipe « Aurore » — agent colours, gradients, glass (2026-10-04)
+
+The owner chose this look for the team surfaces from a four-look board (Performance v3,
+then Salle de contrôle v6, `prototypes/team-v6.html`). It is a **scoped exception** to
+« zero gradients, zero shadows »: it lives under `.r6` only (the page root of `/team`)
+and must not leak into any other screen.
+
+**How it is built.** The prototype's stylesheet is ported rule for rule into
+`globals.css` (« Salle de contrôle v6 »): every class keeps the prototype's name with an
+`r6-` prefix, and the prototype's tokens (`--ink`, `--card`, `--w-*`, `--f-*`…) are set on
+`.r6`, not `:root`. Components write `className="r6-tile"` etc. instead of Tailwind, so
+the page can follow the mockup line for line. Element resets are `:where()` (zero
+specificity) so they never beat a prototype rule.
+
+**Agent colours** — global, because Performance will wear them too:
+
+| Key (`users.color`) | Identity (`--agent-<key>-5`) |
+|---|---|
+| indigo | `#444CE7` |
+| pink | `#DD2590` |
+| cyan | `#088AB2` |
+| gold | `#CA8504` |
+| lime | `#4CA30D` |
+| orange | `#E04F16` |
+
+Each has a ramp `-0 -1 -2 -5 -7 -9` (wash, soft, line, identity, deep, ink).
+`lib/team/agent-color.ts` hands it to an element as `--a0…--a9`; a trigger gives a new
+agent the least-worn hue of her market, so a colour never moves. Outcomes keep fixed
+hues and never borrow an agent's: uploaded `#0E9384`, rejected `#E8385A`, delivered
+`#079455`, en route `#38C0AE`, returned `#F79009` (< 3:1 on white → the number is always
+written next to it).
+
+**Still forbidden here:** an agent hue on a status, a status hue on an agent, and the
+look anywhere outside the team pages.

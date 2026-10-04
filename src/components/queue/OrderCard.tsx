@@ -18,7 +18,6 @@ import { ageGaugePercent, GAUGE_TONE, GAUGE_PILL_TONE } from "@/lib/queue/age-ga
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
-import { carrierAccountRing } from "@/lib/carriers/carrier-account-mark";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
@@ -203,8 +202,12 @@ export const OrderCard = memo(function OrderCard({
     nowMs,
   });
 
-  // Non-null only for carriers that run more than one account.
-  const accountRing = carrierAccountRing(order.carrier_code, order.carrier_id);
+  // A carrier that runs several accounts (Darb Tripoli / Benghazi) shares one
+  // logo; the account is named by its city, in its own colour (owner,
+  // 2026-10-03 — the thin ring it replaces could not be read).
+  const accountLabel = order.carrier_account_label
+    ? (locale === "ar" ? order.carrier_account_label.ar : null) ?? order.carrier_account_label.fr
+    : null;
 
   const showBadges =
     order.status !== "deleted" &&
@@ -428,11 +431,6 @@ export const OrderCard = memo(function OrderCard({
                 title={order.carrier_name ?? order.carrier_code}
               >
                 {getCarrierLogo(order.carrier_code) ? (
-                  // Two Darb Assabil accounts share one code and therefore one
-                  // logo file. The ring is the only thing separating a Tripoli
-                  // shipment from a Benghazi one at 18px — and because colour
-                  // must never be the sole signal, the account name stays in
-                  // `title` and in `alt` (§4.18, named exception).
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={getCarrierLogo(order.carrier_code)!}
@@ -441,13 +439,7 @@ export const OrderCard = memo(function OrderCard({
                     height={18}
                     loading="lazy"
                     decoding="async"
-                    data-carrier-account={accountRing ? order.carrier_id : undefined}
-                    className={
-                      accountRing
-                        ? "h-[18px] w-auto rounded-full object-contain ring-2 ring-offset-1 ring-offset-agent-surface"
-                        : "h-[18px] w-auto object-contain"
-                    }
-                    style={accountRing ? { ["--tw-ring-color" as string]: accountRing } : undefined}
+                    className="h-[18px] w-auto object-contain"
                   />
                 ) : (
                   <span
@@ -457,6 +449,15 @@ export const OrderCard = memo(function OrderCard({
                     {(order.carrier_name ?? order.carrier_code).slice(0, 3)}
                   </span>
                 )}
+                {accountLabel && order.carrier_accent_color ? (
+                  <span
+                    data-testid="carrier-account-pill"
+                    className="ms-1 inline-flex h-[18px] items-center rounded-full px-[7px] text-[10.5px] font-semibold leading-none text-white"
+                    style={{ backgroundColor: order.carrier_accent_color }}
+                  >
+                    {accountLabel}
+                  </span>
+                ) : null}
               </span>
             )}
           </span>

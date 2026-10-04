@@ -5,6 +5,7 @@ import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
 import { computeOrderTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/
   return newTotal;
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
@@ -163,7 +164,7 @@ export async function PATCH(
   return NextResponse.json({ data: updatedItem }, { status: 200 });
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
@@ -213,3 +214,6 @@ export async function DELETE(
 
   return new NextResponse(null, { status: 204 });
 }
+
+export const PATCH = withRouteErrors("/api/orders/[id]/items/[itemId]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/orders/[id]/items/[itemId]", "DELETE", handleDELETE);

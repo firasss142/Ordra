@@ -10,6 +10,7 @@ import { isFeedbackCategory, isLateComplaint, type FeedbackCategory } from "@/li
 import { marketTimezone } from "@/lib/markets";
 import { todayInMarket } from "@/lib/dates/market-day";
 import type { FeedbackOverviewResponse, FeedbackTopic } from "@/types/feedback";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
  * The counting is SQL (feedback_cube, under RLS); the arithmetic is computeOverview, which is
  * tested against the prototype's rules. Dates are market days (Africa/Tripoli for Libya).
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -139,3 +140,5 @@ export async function GET(req: NextRequest) {
   };
   return NextResponse.json({ data: body });
 }
+
+export const GET = withRouteErrors("/api/feedback/overview", "GET", handleGET);

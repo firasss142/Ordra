@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageReceptionPayments } from "@/lib/receptions/permissions";
 import type { Role } from "@/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ async function guard(req: NextRequest, id: string): Promise<Guard> {
   return { actor, supabase };
 }
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
@@ -123,7 +124,7 @@ export async function POST(
  * la même façon : « par valeur » est le choix courant, « par unité » existe pour
  * le fret au volume. C'est un choix, jamais un défaut silencieux.
  */
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
@@ -151,7 +152,7 @@ export async function PATCH(
   return NextResponse.json({ ok: true, fee_basis: body.fee_basis });
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
@@ -173,3 +174,12 @@ export async function DELETE(
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const POST = withRouteErrors("/api/warehouse/receptions/[id]/costs", "POST", handlePOST);
+export const PATCH = withRouteErrors("/api/warehouse/receptions/[id]/costs", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/warehouse/receptions/[id]/costs", "DELETE", handleDELETE);

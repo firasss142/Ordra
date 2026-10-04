@@ -134,4 +134,38 @@ describe("Réglages › Équipe", () => {
     expect(url).toBe("/api/settings/commissions");
     expect(JSON.parse(init.body)).toEqual({ market_id: LY, agent_id: null, amount: 10, enabled: true, effective_from: "2026-10-02" });
   });
+
+  describe("Salle de contrôle — the administrator's thresholds (prototypes/team-v5.html)", () => {
+    const ROQAYA = "11111111-1111-4111-8111-111111111111";
+    beforeEach(() => {
+      swr.byKey[`/api/agents?market_id=${LY}`] = { data: [{ id: ROQAYA, full_name: "roqaya", role: "agent" }] };
+    });
+
+    it("a manager reads them and cannot change them", () => {
+      mount(manager);
+      const card = screen.getByRole("heading", { name: "Salle de contrôle" }).closest("section") as HTMLElement;
+      expect(within(card).getByText("Réglé par l'administrateur")).toBeInTheDocument();
+      expect(within(card).queryByRole("spinbutton")).not.toBeInTheDocument();
+      expect(within(card).getAllByRole("button", { pressed: true }).every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    });
+
+    it("an administrator moves the call delay and gives one agent her own hours, through the save bar", async () => {
+      mount(admin);
+      const card = screen.getByRole("heading", { name: "Salle de contrôle" }).closest("section") as HTMLElement;
+      const delay = within(card).getByRole("spinbutton", { name: "Commande «\u00a0non appelée\u00a0» après" });
+      expect(delay).toHaveValue(2);
+      await userEvent.clear(delay);
+      await userEvent.type(delay, "3");
+      await userEvent.selectOptions(within(card).getByRole("combobox", { name: "Choisir un agent" }), ROQAYA);
+      await userEvent.click(within(card).getByRole("button", { name: "Ajouter" }));
+      await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe(`/api/settings/${LY}`);
+      expect(JSON.parse(init.body)).toEqual({
+        team_call_delay_hours: 3,
+        team_shift_overrides: { [ROQAYA]: { start: "08:00", end: "18:00" } },
+      });
+    });
+  });
 });

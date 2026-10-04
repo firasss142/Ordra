@@ -12,6 +12,7 @@ import {
 } from "@/types/settings";
 import { assembleMarketSettings } from "@/lib/settings/assembleMarketSettings";
 import { MANAGER_EDITABLE_SETTING_KEYS } from "@/lib/reglages/topics";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ function storedScalar(raw: unknown): unknown {
   return raw;
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> }
 ) {
@@ -58,7 +59,7 @@ export async function GET(
   return NextResponse.json({ data });
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> }
 ) {
@@ -204,3 +205,6 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
+
+export const GET = withRouteErrors("/api/settings/[marketId]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/settings/[marketId]", "PATCH", handlePATCH);

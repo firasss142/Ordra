@@ -4,6 +4,7 @@ import { sortAgentLeadQueue } from "@/lib/leads/queue-sort";
 import { TERMINAL_LEAD_STATUSES } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const ACTIVE_QUEUE_STATUSES = [
 
 const CLOSED_WINDOW_DAYS = 7;
 
-export async function GET(_req: NextRequest) {
+async function handleGET(_req: NextRequest) {
   const supabase = await createClient();
 
     const actorResult = await getActor(_req);
@@ -127,3 +128,5 @@ export async function GET(_req: NextRequest) {
     buckets,
   });
 }
+
+export const GET = withRouteErrors("/api/agent/leads/queue", "GET", handleGET);

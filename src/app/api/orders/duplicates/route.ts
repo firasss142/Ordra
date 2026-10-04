@@ -13,6 +13,7 @@ import {
   type DuplicateGroup,
   type DuplicateGroupMember,
 } from "@/lib/duplicate-orders/groups";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ interface RpcRow {
  * existing per-sibling gate — nothing here decides what may be removed, it only
  * says what the confidence is and which members are even eligible.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -90,3 +91,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/orders/duplicates", "GET", handleGET);

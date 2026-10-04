@@ -587,6 +587,24 @@ describe("delivery worklist settings", () => {
     }
   });
 
+  // Transporteurs (plans/transporteurs.md): the target a carrier is judged
+  // against, and the days on the road after which a parcel is late.
+  it("carrier_delivery_target_pct accepts 1..100 and carrier_late_days 1..30", () => {
+    expect(isValidMarketSettings({ ...valid, carrier_delivery_target_pct: 60 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, carrier_delivery_target_pct: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, carrier_delivery_target_pct: 101 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, carrier_late_days: 3 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, carrier_late_days: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, carrier_late_days: 2.5 })).toBe(false);
+  });
+
+  it("declares the Transporteurs thresholds, with the prototype's defaults", () => {
+    expect(MARKET_SETTINGS_KEYS).toContain("carrier_delivery_target_pct");
+    expect(MARKET_SETTINGS_KEYS).toContain("carrier_late_days");
+    expect(DEFAULT_MARKET_SETTINGS.carrier_delivery_target_pct).toBe(60);
+    expect(DEFAULT_MARKET_SETTINGS.carrier_late_days).toBe(3);
+  });
+
   it("ships defaults for the keys the page cannot run without", () => {
     expect(DEFAULT_MARKET_SETTINGS.zone_low_delivery_rate_pct).toBe(60);
     expect(DEFAULT_MARKET_SETTINGS.zone_min_sample).toBe(20);
@@ -618,5 +636,37 @@ describe("CarrierConfig type", () => {
     expect(config.delivery_fee).toBeGreaterThan(0);
     expect(config.return_fee).toBeGreaterThan(0);
     expect(typeof config.active).toBe("boolean");
+  });
+});
+
+describe("isValidMarketSettings — Salle de contrôle keys", () => {
+  const base = DEFAULT_MARKET_SETTINGS;
+  const AGENT = "11111111-1111-4111-8111-111111111111";
+
+  it("defaults to the values the owner agreed on: 2 h, 30 min, 15 min", () => {
+    expect(base.team_call_delay_hours).toBe(2);
+    expect(base.team_idle_minutes).toBe(30);
+    expect(base.team_late_minutes).toBe(15);
+    for (const k of ["team_call_delay_hours", "team_idle_minutes", "team_late_minutes", "team_shift_overrides"]) {
+      expect(MARKET_SETTINGS_KEYS).toContain(k);
+    }
+  });
+
+  it("accepts sensible thresholds and rejects the rest", () => {
+    expect(isValidMarketSettings({ ...base, team_call_delay_hours: 4 })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_call_delay_hours: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_call_delay_hours: 1.5 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_idle_minutes: 4 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_late_minutes: 0 })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_late_minutes: 121 })).toBe(false);
+  });
+
+  it("per-agent hours: an agent id → a start before an end", () => {
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: {} })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "13:00", end: "16:00" } } })).toBe(true);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "16:00", end: "13:00" } } })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { roqaya: { start: "13:00", end: "16:00" } } })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: { [AGENT]: { start: "1pm", end: "16:00" } } })).toBe(false);
+    expect(isValidMarketSettings({ ...base, team_shift_overrides: [] })).toBe(false);
   });
 });

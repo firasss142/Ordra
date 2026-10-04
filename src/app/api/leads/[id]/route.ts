@@ -5,6 +5,7 @@ import { transitionLeadStatus } from "@/lib/leads/transition";
 import type { LeadStatus } from "@/types/lead";
 import { isTerminalLeadStatus } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const PATCHABLE_FIELDS = [
   "notes",
 ] as const;
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -83,7 +84,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -168,7 +169,7 @@ export async function PATCH(
 }
 
 // DELETE = archive (not hard delete). Managers + super_admin only.
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -221,3 +222,7 @@ export async function DELETE(
     );
   }
 }
+
+export const GET = withRouteErrors("/api/leads/[id]", "GET", handleGET);
+export const PATCH = withRouteErrors("/api/leads/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/leads/[id]", "DELETE", handleDELETE);

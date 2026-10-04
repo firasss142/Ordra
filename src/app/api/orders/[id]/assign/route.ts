@@ -4,10 +4,11 @@ import { canAssignOrders } from "@/lib/order-permissions";
 import { assignOrder, unassignOrder } from "@/lib/orders/assignment";
 import { getActor } from "@/lib/auth/actor";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -87,7 +88,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -120,3 +121,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/assign", "POST", handlePOST);
+export const DELETE = withRouteErrors("/api/orders/[id]/assign", "DELETE", handleDELETE);

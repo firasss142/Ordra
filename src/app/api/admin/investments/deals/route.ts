@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminReader, adminWriter, ISO_DATE, NO_STORE, rpcError, UUID_RE } from "@/lib/investors/admin-route";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { runInvestorRollup } from "@/lib/investors/rollup-run";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /** All deals (manager: own market) with current terms, snapshot summary and settled totals. */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await adminReader(req);
   if ("response" in g) return g.response;
   const sp = req.nextUrl.searchParams;
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
  * share_pct, capital_amount, payout_cadence?, label?, note? }.
  * Kicks a full rollup for the product if it has no facts yet.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   let b: Record<string, unknown>;
@@ -91,3 +92,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data: { id: data, rollup } }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/admin/investments/deals", "GET", handleGET);
+export const POST = withRouteErrors("/api/admin/investments/deals", "POST", handlePOST);

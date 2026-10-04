@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canConvertLead } from "@/lib/lead-permissions";
 import { convertLeadToOrder } from "@/lib/leads/conversion";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -95,3 +96,5 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status });
   }
 }
+
+export const POST = withRouteErrors("/api/leads/[id]/convert", "POST", handlePOST);

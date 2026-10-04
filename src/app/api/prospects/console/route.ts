@@ -5,6 +5,7 @@ import { canUseProspectConsole } from "@/lib/role-permissions";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import { marketTimezone } from "@/lib/markets";
 import { agentLoad, type AgentLoad, type CampaignResult, type ConsoleMetrics, type Funnel, type LossByReason } from "@/lib/prospects/console";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ const EMPTY_FUNNEL: Funnel = {
  *
  * Design: prototypes/prospects-v3.html (manager view).
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -94,3 +95,5 @@ export async function GET(req: NextRequest) {
     generated_at: new Date().toISOString(),
   });
 }
+
+export const GET = withRouteErrors("/api/prospects/console", "GET", handleGET);

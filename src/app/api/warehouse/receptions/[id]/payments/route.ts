@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageReceptionPayments } from "@/lib/receptions/permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ const METHODS = ["cash", "bank_transfer", "cheque", "other"] as const;
  * Un agent d'entrepôt n'entre pas ici : un paiement est une information
  * d'argent, et la RLS de `reception_payments` le refuse aussi.
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 /** Supprimer un versement saisi par erreur. */
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -112,3 +113,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withRouteErrors("/api/warehouse/receptions/[id]/payments", "POST", handlePOST);
+export const DELETE = withRouteErrors("/api/warehouse/receptions/[id]/payments", "DELETE", handleDELETE);

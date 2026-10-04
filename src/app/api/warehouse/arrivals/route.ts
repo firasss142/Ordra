@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canRecordArrival } from "@/lib/receptions/permissions";
 import { rpcErrorResponse } from "@/lib/receptions/rpc-errors";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
  * ventilé, crée la ligne de site et écrit le registre. La route ne fait que
  * traduire les codes.
  */
-export async function POST(req: NextRequest): Promise<NextResponse> {
+async function handlePOST(req: NextRequest): Promise<NextResponse> {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -83,3 +84,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (error) return rpcErrorResponse(error);
   return NextResponse.json(data, { status: 201 });
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const POST = withRouteErrors("/api/warehouse/arrivals", "POST", handlePOST);

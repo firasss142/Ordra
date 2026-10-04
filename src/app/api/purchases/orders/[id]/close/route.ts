@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canPlacePurchaseOrder } from "@/lib/purchases/permissions";
 import { rpcErrorResponse } from "@/lib/receptions/rpc-errors";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
  * commande dont rien n'est arrivé est annulée et ne pèse pas sur le taux de
  * service du fournisseur, parce qu'elle ne dit rien sur sa capacité à servir.
  */
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
@@ -48,3 +49,10 @@ export async function POST(
   if (error) return rpcErrorResponse(error);
   return NextResponse.json(data);
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const POST = withRouteErrors("/api/purchases/orders/[id]/close", "POST", handlePOST);

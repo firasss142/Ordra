@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeBreakEven, marginPerLead } from "@/lib/ad-spend/break-even";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * Per-product acquisition economics for a cohort.
@@ -52,12 +53,26 @@ const SPEND_COLUMNS_RICH =
 const SPEND_COLUMNS_BASE = "id, product_id, amount, period_start, period_end, note";
 
 interface OrderRow {
+  id: string;
   product_id: string | null;
   status: string;
   created_at: string | null;
   total_price: number | string | null;
   quantity: number | null;
-  carriers: { delivery_fee: number | string; return_fee: number | string } | null;
+}
+
+/**
+ * What the carrier charged for one order (order_delivery_cost): Darb's invoice of
+ * the delivered parcel, else the quote recorded at upload, else null; a failed
+ * Darb parcel costs 0. Tunisia's carriers keep their flat fees until they send
+ * invoices. The flat carriers.delivery_fee / return_fee are no longer read here
+ * (owner, 2026-10-03: "use the invoices", every Darb figure).
+ */
+interface CostRow {
+  order_id: string;
+  invoiced: boolean | null;
+  delivery_cost: number | string | null;
+  return_cost: number | string | null;
 }
 
 interface ProductRow {
@@ -136,7 +151,7 @@ function toEntry(s: SpendRow): SpendEntry {
   };
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -182,13 +197,11 @@ export async function GET(req: NextRequest) {
     return await fetchAllRows<SpendRow>(spendQuery(SPEND_COLUMNS_BASE));
   };
 
-  const [orders, products, spend] = await Promise.all([
+  const [orders, products, spend, costs, avgInvoice] = await Promise.all([
     fetchAllRows<OrderRow>(
       supabase
         .from("orders")
-        .select(
-          "product_id, status, created_at, total_price, quantity, carriers!orders_carrier_id_fkey(delivery_fee, return_fee)",
-        )
+        .select("id, product_id, status, created_at, total_price, quantity")
         .eq("market_id", marketId)
         .gte("created_at", fromDate)
         .lte("created_at", `${toDate}T23:59:59`)
@@ -202,9 +215,29 @@ export async function GET(req: NextRequest) {
         .order("id", { ascending: true }),
     ),
     loadSpend(),
+    fetchAllRows<CostRow>(
+      supabase
+        .from("order_delivery_cost")
+        .select("order_id, invoiced, delivery_cost, return_cost")
+        .eq("market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", `${toDate}T23:59:59`)
+        .order("order_id", { ascending: true }),
+    ),
+    // The fallback for a delivered Darb parcel with neither invoice nor quote.
+    supabase.rpc("market_avg_delivery_cost", { p_market_id: marketId }),
   ]);
 
   const productById = new Map(products.map((p) => [p.id, p]));
+  const costByOrder = new Map(costs.map((c) => [c.order_id, c]));
+  const averageInvoice = Number((avgInvoice as { data: unknown }).data) || 0;
+  const deliveryCostOf = (orderId: string): number => {
+    const c = costByOrder.get(orderId);
+    if (!c) return 0;
+    if (c.delivery_cost !== null && c.delivery_cost !== undefined) return Number(c.delivery_cost) || 0;
+    return c.invoiced ? averageInvoice : 0;
+  };
+  const returnCostOf = (orderId: string): number => Number(costByOrder.get(orderId)?.return_cost) || 0;
 
   interface Bucket {
     leads: number;
@@ -252,13 +285,13 @@ export async function GET(req: NextRequest) {
         t.delivered += 1;
         t.revenue += Number(o.total_price) || 0;
         t.units += Number(o.quantity) || 1;
-        // Blended, not assumed: carriers differ per order and an inactive one
-        // still priced the orders it carried.
-        t.deliveryFeeTotal += Number(o.carriers?.delivery_fee) || 0;
+        // What the carrier charged THIS order: Darb's invoice, never a flat fee.
+        t.deliveryFeeTotal += deliveryCostOf(o.id);
       }
       if (o.status === "returned") {
         t.returned += 1;
-        t.returnFeeTotal += Number(o.carriers?.return_fee) || 0;
+        // A failed Darb parcel costs nothing; Tunisia's flat return fee stays.
+        t.returnFeeTotal += returnCostOf(o.id);
       }
     };
     bump(b);
@@ -382,7 +415,7 @@ export async function GET(req: NextRequest) {
         aov,
         unitCogs,
         unitsPerDelivered,
-        // Effective blended fees, derived from what the carriers actually charged.
+        // Effective fees, from what the carriers actually charged per order.
         deliveryFee,
         returnFee,
         packingCost,
@@ -500,3 +533,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withRouteErrors("/api/ad-spend/economics", "GET", handleGET);

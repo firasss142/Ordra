@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
 import { canRequestWithdrawal } from "@/lib/investor-permissions";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   try {
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 /** Body: { amount: number, note?: string }. The RPC enforces available − open claims. */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   if (!canRequestWithdrawal(g.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,3 +46,6 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ data: { id: data } }, { status: 201 });
 }
+
+export const GET = withRouteErrors("/api/investor/withdrawals", "GET", handleGET);
+export const POST = withRouteErrors("/api/investor/withdrawals", "POST", handlePOST);

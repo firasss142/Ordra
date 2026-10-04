@@ -13,6 +13,9 @@ import {
   type AlertType,
 } from "@/lib/alerts/catalogue";
 import type { Alert, AlertsSummary } from "@/lib/alerts/types";
+import { teamAlertInputs } from "@/lib/team/room/alerts";
+import type { TeamAlerts } from "@/lib/team/room/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -150,7 +153,7 @@ function isReopen(note: string | null): boolean {
   return !!note && /^Reouvert/i.test(note.normalize("NFC").replace(/[éÉ]/g, "e"));
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -338,6 +341,14 @@ export async function GET(req: NextRequest) {
     p_rate_from: stockWindow.from_date,
   });
 
+  /**
+   * The control room's three (prototypes/team-v5.html): orders stopped arriving,
+   * orders not called N h after assignment, an agent online but not calling.
+   * Thresholds are the market's Réglages, applied inside the RPC so the bell and
+   * /team agree. NULL market = every market (super_admin).
+   */
+  const qTeam = supabase.rpc("get_team_alerts", { p_market_id: marketId || null });
+
   const [
     overdueRes,
     unassignedRes,
@@ -353,6 +364,7 @@ export async function GET(req: NextRequest) {
     syncRunsRes,
     sheetSourcesRes,
     stockPositionRes,
+    teamRes,
   ] = await Promise.all([
     qOverdueCallback,
     qUnassigned,
@@ -368,6 +380,7 @@ export async function GET(req: NextRequest) {
     qSyncRuns,
     qSheetSources,
     qStockPosition,
+    qTeam,
   ]);
 
   const failed = Object.entries({
@@ -585,6 +598,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // A failed team read loses three rules, not the whole bell.
+  if (teamRes.error) console.error("[alerts/summary] get_team_alerts failed", teamRes.error);
+  for (const a of teamAlertInputs(teamRes.error ? null : (teamRes.data as TeamAlerts | null), now)) {
+    push(a);
+  }
+
   for (const h of (oversightRes.data ?? []) as unknown as HistoryRow[]) {
     // Both oversight rules watch agent behaviour specifically: a manager
     // correcting a price is not the thing being reviewed, and system rows
@@ -646,3 +665,5 @@ export async function GET(req: NextRequest) {
   const body: AlertsSummary = { total: alerts.length, by_severity, by_type, alerts };
   return NextResponse.json(body);
 }
+
+export const GET = withRouteErrors("/api/alerts/summary", "GET", handleGET);

@@ -6,6 +6,7 @@ import { uploadAvatarDataUrl } from "@/lib/avatars";
 import { returnToPool } from "@/lib/orders";
 import { isValidDeactivationReason } from "@/lib/agent-deactivation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ async function writeAuditLog(
   });
 }
 
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -70,7 +71,7 @@ export async function PATCH(
     warehouse_id?: string | null;
   };
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   // Status and deletion are written with the service client, like avatar and
   // building below: since 20260919230419_users_update_column_grant.sql a
@@ -244,7 +245,7 @@ export async function PATCH(
 // Soft-delete: removes the auth user (blocks login) and stamps users.deleted_at
 // so historical FKs (order_history, audit log, …) stay intact.
 // super_admin only.
-export async function DELETE(
+async function handleDELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -268,7 +269,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Already deleted" }, { status: 409 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
 
   const { data: openOrders } = await supabase
     .from("orders")
@@ -317,3 +318,6 @@ export async function DELETE(
 
   return NextResponse.json({ success: true, ordersReturned: returned });
 }
+
+export const PATCH = withRouteErrors("/api/agents/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/agents/[id]", "DELETE", handleDELETE);

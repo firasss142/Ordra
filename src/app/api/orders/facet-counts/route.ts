@@ -6,6 +6,7 @@ import { listQuerySchema } from "@/lib/orders/list-filters";
 import { searchToLegs } from "@/lib/orders/search-query";
 import { marketDayBounds } from "@/lib/dates/market-day";
 import { marketTimezone } from "@/lib/markets";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ const EMPTY: FacetCounts = {
   carriers: {},
 };
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -111,3 +112,5 @@ export async function GET(req: NextRequest) {
     { headers: { "Cache-Control": "no-store" } },
   );
 }
+
+export const GET = withRouteErrors("/api/orders/facet-counts", "GET", handleGET);

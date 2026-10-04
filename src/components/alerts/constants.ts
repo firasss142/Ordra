@@ -1,10 +1,12 @@
 import {
+  AlarmClock,
   CalendarX,
   CheckCircle2,
   CircleAlert,
   Clock,
   CloudOff,
   Coins,
+  Headset,
   Hourglass,
   Inbox,
   Lock,
@@ -126,6 +128,9 @@ export const TYPE_TONE: Record<AlertType, Tone> = {
   order_reopened: NEUTRAL,
   // Red: this is the only rule that says orders are missing rather than late.
   sheet_sync_stalled: RED,
+  intake_silent: RED,
+  agent_uncalled: RED,
+  agent_idle: AMBER,
 };
 
 /** The mark on the row — which kind of problem this is. */
@@ -143,6 +148,9 @@ export const TYPE_ICONS: Record<AlertType, LucideIcon> = {
   upload_stalled: CloudOff,
   price_changed: Coins,
   order_reopened: RotateCcw,
+  intake_silent: Inbox,
+  agent_uncalled: AlarmClock,
+  agent_idle: Headset,
 };
 
 /**
@@ -161,6 +169,9 @@ export const META_ICONS: Partial<Record<AlertType, LucideIcon>> = {
   attempts_stalled: PhoneOff,
   price_changed: Coins,
   order_reopened: RotateCcw,
+  intake_silent: Clock,
+  agent_uncalled: Clock,
+  agent_idle: Clock,
 };
 
 export interface AlertsAgent {

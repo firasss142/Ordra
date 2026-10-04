@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canRecordArrival } from "@/lib/receptions/permissions";
 import { rpcErrorResponse } from "@/lib/receptions/rpc-errors";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  * La porte se ferme au soldage : à ce moment-là le coût de revient est écrit et
  * a pu nourrir `unit_cogs`, donc rouvrir le comptage ferait mentir le registre.
  */
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ lineId: string }> },
 ): Promise<NextResponse> {
@@ -57,3 +58,10 @@ export async function PATCH(
   if (error) return rpcErrorResponse(error);
   return NextResponse.json(data);
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const PATCH = withRouteErrors("/api/warehouse/arrivals/[lineId]", "PATCH", handlePATCH);

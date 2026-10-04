@@ -6,10 +6,11 @@ import {
   previewMaxAttemptsChange,
   type PreviewOrder,
 } from "@/lib/calculations/settings-preview";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> },
 ) {
@@ -84,3 +85,5 @@ export async function GET(
 
   return NextResponse.json({ current, next, ...preview });
 }
+
+export const GET = withRouteErrors("/api/settings/[marketId]/preview", "GET", handleGET);

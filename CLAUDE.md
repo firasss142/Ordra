@@ -89,6 +89,10 @@ src/
   the WORST of all lines — one unrecognised line must reach the review queue. `lines` is
   optional: a single-line source omits it and the old path applies unchanged.
 - Supabase service role → server only (webhooks, admin user creation) — never in browser client
+- **Journaux records itself — keep it that way.** Every `app/api/**/route.ts` handler is exported
+  through `withRouteErrors()` (a test fails otherwise), and a route that writes an audited table
+  through the service role passes `createAdminClient({ actorId: user.id })` so the audit names
+  the person. See docs/journal.md
 - A `settings.value` is bare (`30`) OR wrapped (`{"value": 30}`). SQL reads a scalar through `public.setting_scalar(value)`, never `(value #>> '{}')::int`; that cast stopped nightly archiving for six weeks. See docs/reglages.md
 
 ## OMS status model — two phases
@@ -212,13 +216,14 @@ Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 3. pending (untouched, owned by agent) sorted oldest created_at first
 4. confirmed (awaiting upload to carrier) shows the "Upload" affordance until uploaded
 
-## Navigation (as coded in components/layout/Sidebar.tsx → NAV_SECTIONS)
-Accueil → Dashboard · Commandes → Commandes, Archivées · Entrepôt (id `logistique`) →
-Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
-(canViewFinances) → P&L global, Produits & marges, Stock & inventaire, Dépenses pub,
-Investisseurs · Clients → Prospects, Relances · Équipe → Salle de contrôle, Performance,
-Accès · Système → Réglages (super_admin + market_manager; one page by topic, see
-docs/reglages.md), Journaux (super_admin, /system/logs).
+## Navigation (as coded in lib/navigation/sidebar-nav.ts → TOP_ITEMS + NAV_GROUPS)
+Dashboard (no group) · Commandes → Commandes, Archivées, Doublons · Entrepôt (id
+`logistique`) → Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison,
+Transporteurs · Finances (canViewFinances) → P&L global, Produits & marges, Stock &
+inventaire, Achats, Dépenses pub, Investisseurs · Clients → Prospects, Voix du client,
+Messages · Équipe → Salle de contrôle, Performance, Accès · Système → Réglages (super_admin +
+market_manager), Journaux (super_admin). Head/foot pinned, 64 px rail, ⌘K « Aller à… », market
+card with per-market counts — see docs/sidebar.md.
 
 Several live pages are NOT reachable from the sidebar and are reached by URL or deep
 link only: /warehouse/preparation (→ /warehouse/out), /warehouse/scan, /warehouse/count,
@@ -250,12 +255,18 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Delivery follow-up — customers, delivery_actions, zones, worklist, the /delivery screen
   (agent page + manager board shipped; `lost` status and the commission rule are not):
   docs/delivery-worklist.md + plans/suivi-livraison.md
+- Transporteurs (/carriers) — is each carrier doing its job; `carrier_parcel_outcome`, the ONE
+  failed-parcel definition (shared with Produits v6), the account colour, what replaced Suivi
+  transporteur and Tableau livraison: docs/carrier-scorecard.md + plans/transporteurs.md
 - Ad spend + Meta sync (break-even math, cost stack, cohort basis): docs/ad-spend.md +
   plans/ad-spend-meta-sync-redesign.md (NOT ad-spend-campaign-redesign.md — superseded)
 - Ad spend mapping — per ad set, several products per campaign, dated history; meta
   rows of ad_spend are a projection rewritten whole; two-step rollout (cutover
   migration AFTER deploy): docs/ad-spend-mapping.md + plans/ad-spend-adset-mapping.md
 - CRM prospects/leads + Équipe (control room, performance, presence): docs/crm-and-team.md
+- Salle de contrôle v6 (/team, « Aurore » look + agent colours, §4.25) — the day, the period table, the agent panel, the four RPCs,
+  the control-room settings and the bell's three alerts: docs/team-control-room.md +
+  plans/team-control-room-v5.md (spec `prototypes/team-v6.html`, untracked)
 - Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
   trigger, the columns that do not exist): docs/prospects-worklist.md
 - Distribution des commandes — l'algorithme par pourcentages, la disponibilité
@@ -270,6 +281,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   prototypes/acces-v2.html (structure and rationale in acces-v1.html)
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
+- Produits v6 — the cohort (orders received in the period, followed to today), the shared parcel
+  outcome, the money (Encaissé, Darb invoices, packaging per parcel that leaves), the pipe and the
+  screens: docs/products-cohort.md + plans/products-redesign-v6.md
+- Darb at its real price app-wide (order_delivery_cost) and the « cancelled » sync fix + gated
+  history backfill: docs/darb-assabil-sync.md §6
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Libya destinations (Darb city/zone catalogue, refresh script, the one picker, phone guard): docs/darb-destinations.md
@@ -328,6 +344,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
   docs/agent-market-search.md + plans/agent-market-search.md
 - Voix du client — feedback by category and moment, the F key, courier/import feeds, the
   manager page: docs/customer-voice.md + plans/voix-du-client.md
+- Journaux — the journal system (audit_events + its trigger, integration_calls, app_errors,
+  job_runs, the 11 problem rules of journal_detect, the read functions, retention, how to
+  add an audited table or an explicit event): docs/journal.md + plans/journaux-redesign.md
+  (prototype `prototypes/journaux-v2.html`)
 - WhatsApp Business Cloud API — credentials per market, the send gate, the
   lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
   the inbox, campaigns from the business number, Meta checklist and warm-up:
@@ -344,10 +364,9 @@ decision, not a typo.
    → docs/delivery-worklist.md §2
 2. **`line-strong` (#DADCE0, Tailwind) ≠ `--border-strong` (#C9CCCF, CSS var)** — same
    intent, two values. → docs/design-system.md §2
-3. **The delivery worklist and the manager board are both live at /delivery, but the surfaces
-   its plan marks for deletion (Relances, Tableau livraison) are still live.** The board now
-   covers what /in-delivery showed; deleting the old pages is the plan's deletion phase.
-   → docs/delivery-worklist.md
+3. ~~The surfaces the delivery plan marked for deletion are still live.~~ Resolved
+   2026-10-03: Relances, Tableau livraison and Suivi transporteur are deleted; their URLs
+   redirect to /carriers. → docs/carrier-scorecard.md
 4. **The reassign sheet on /delivery says the delivery commission follows the new owner; the
    ledger does not do that yet.** Decision 38 changed the rule to "assigned_to at delivered",
    but `agent_commission_ledger` still attributes to the agent of the last confirmed

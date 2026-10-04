@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { runSyncForMarket } from "@/lib/google-sheets/run-sync";
 import type { SyncResult } from "@/lib/google-sheets/sync-engine";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -82,5 +83,5 @@ async function run(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ ok: true, results: allResults });
 }
 
-export const GET = run;
-export const POST = run;
+export const GET = withRouteErrors("/api/cron/google-sheets-sync", "GET", run);
+export const POST = withRouteErrors("/api/cron/google-sheets-sync", "POST", run);

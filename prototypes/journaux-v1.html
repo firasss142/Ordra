@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ordra — Journaux (v1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v1 — JOURNAUX : la refonte complète de Système › Journaux (super_admin).
+  Construit 2026-10-03. Plan : plans/journaux-redesign.md (rien dans src/ avant validation).
+  Console claire de docs/design-system.md + l'extension « --lg-* » proposée (§4.23 du plan).
+
+  Trois questions, trois onglets :
+    Vue d'ensemble     — est-ce que tout marche ? sinon, quoi, depuis quand, combien ça coûte ?
+    Échanges externes  — ce qu'Ordra a reçu, envoyé et synchronisé avec les boutiques,
+                         transporteurs, Meta et WhatsApp — les répétitions regroupées.
+    Activité interne   — qui a fait quoi : les personnes et les automatismes d'Ordra.
+  Plus une recherche qui ouvre la TRACE d'une commande à travers tous les systèmes.
+
+  Données : lues en production le 2026-10-03 vers 16 h 40 (heure de Tripoli). Clients masqués.
+  Ce qui est illustratif (ce que le futur journal enregistrera et qu'Ordra n'enregistre pas
+  aujourd'hui) est en pointillés et dit « Nouveau ».
+
+  URL : ?screen=overview|external|internal &state=today|fixed &mk=all|ly|tn
+        &drawer=p:archive|p:navex-paid|p:benghazi|e:navex-poll|a:sa-reopen|trace
+-->
+<style>
+:root{
+  --page:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F7; --sunken:#FAFAFB; --selected:#F2F2F2;
+  --text:#1A1A1A; --text2:#6D7175; --text3:#8C9196;
+  --line:#ECEEF0; --border:#E1E3E5; --input:#D2D5D9;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+  --sb:#0E1013; --sb-el:#161A20; --sb-text:#E6E8EB; --sb-text2:#B5BAC2; --sb-muted:#7F858F; --sb-active:#10B981;
+
+  /* ── Journaux · severity (status vocabulary, never decoration) ── */
+  --lg-ok:#008060;   --lg-ok-ink:#006E52;   --lg-ok-bg:#F1F8F5;   --lg-ok-bar:#4FA886;
+  --lg-warn:#B98900; --lg-warn-ink:#8A6500; --lg-warn-bg:#FFF8E6; --lg-warn-bar:#D9A520; --lg-warn-line:#F0DCA4;
+  --lg-fail:#D72C0D; --lg-fail-ink:#B42309; --lg-fail-bg:#FFF4F4; --lg-fail-bar:#D72C0D; --lg-fail-line:#F5C6BC; --lg-fail-band:#FFFAF9;
+  --lg-info:#2C6ECB; --lg-info-bg:#EAF1FB;
+  --lg-mute:#6D7175; --lg-mute-bg:#F1F2F3; --lg-idle-bar:#C5CBD3; --lg-none-bar:#ECEEF0;
+
+  /* ── Journaux · families (fills + tints for system tiles and the volume strip only; ink carries text) ── */
+  --fam-intake:#4F46E5;  --fam-intake-bg:#EEEDFC;  --fam-intake-ink:#3F37C9;
+  --fam-carrier:#0F766E; --fam-carrier-bg:#E3F3F1; --fam-carrier-ink:#0B5C56;
+  --fam-ads:#EA6A1F;     --fam-ads-bg:#FDEFE6;     --fam-ads-ink:#B4500F;
+  --fam-msg:#0EA5E9;     --fam-msg-bg:#E3F4FC;     --fam-msg-ink:#0369A1;
+  --fam-auto:#A1A8B3;    --fam-auto-bg:#F0F1F3;    --fam-auto-ink:#4B5563;
+
+  --studio:#E9EBEE;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic","Geeza Pro",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--studio);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;direction:ltr;unicode-bidi:isolate}
+.ar{font-family:"Noto Sans Arabic","Geeza Pro",var(--font)}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* ── studio (always LTR) ─────────────────────────────── */
+.studio{padding:16px 20px 40px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;max-width:1440px;margin:0 auto 10px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:#6B7280;font-weight:500}
+.bar .grp{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B7280}
+.seg{display:inline-flex;flex-wrap:wrap;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:5px 10px;border-radius:7px;font-size:12.5px;font-weight:500;color:#6B7280;border:0;background:none}
+.seg button[aria-pressed=true]{background:#111;color:#fff}
+.bar select{padding:6px 8px;border-radius:8px;border:1px solid #E5E7EB;background:#fff;font-size:12.5px}
+.note{max-width:1440px;margin:0 auto 12px;font-size:12.5px;color:#4B5563;line-height:1.6;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 14px}
+.note b{color:#111827}
+.note code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#F3F4F6;padding:1px 4px;border-radius:4px}
+.stagewrap{max-width:1440px;margin:0 auto;overflow-x:auto}
+
+/* ── frame + sidebar ─────────────────────────────────── */
+.frame{width:1440px;height:1010px;border:1px solid #C9CDD3;border-radius:12px;overflow:hidden;background:var(--page);display:flex;position:relative}
+.sb{width:232px;flex:0 0 auto;background:var(--sb);color:var(--sb-text);padding:14px 12px;display:flex;flex-direction:column;gap:1px;font-size:13.5px}
+.sb .logo{font-weight:700;padding:4px 10px 12px;color:#fff;font-size:17px;letter-spacing:-.01em}
+.sb .mk{margin:0 2px 12px;padding:8px 10px;border-radius:8px;background:var(--sb-el);color:var(--sb-text2);font-size:12.5px;display:flex;align-items:center;gap:8px}
+.sb .mk b{color:#fff;font-weight:600}
+.sb .mk svg{margin-inline-start:auto;width:14px;height:14px}
+.sb .sh{display:flex;align-items:center;gap:9px;padding:8px 10px;color:var(--sb-text2);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:7px}
+.sb .sh svg{width:15px;height:15px;color:var(--sb-muted)}
+.sb .sh .chev{margin-inline-start:auto;width:14px;height:14px}
+.sb .sh .adm{margin-inline-start:auto;font-size:10px;letter-spacing:.06em;padding:1px 6px;border-radius:4px;background:#232830;color:var(--sb-text2)}
+.sb .sh .adm + .chev{margin-inline-start:6px}
+.sb .si{display:flex;align-items:center;gap:9px;padding:7px 10px 7px 30px;border-radius:7px;color:var(--sb-text);font-size:13.5px}
+.sb .si svg{width:15px;height:15px;color:var(--sb-muted)}
+.sb .si[aria-current=page]{background:var(--brand);color:#fff;font-weight:600}
+.sb .si[aria-current=page] svg{color:#fff}
+.sb .si .dot{margin-inline-start:auto;min-width:18px;height:18px;border-radius:999px;background:#E5484D;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px}
+.sb .si[aria-current=page] .dot{background:#fff;color:var(--lg-fail-ink)}
+.sb .me{margin-top:auto;padding:10px;border-radius:8px;background:var(--sb-el);display:flex;gap:10px;align-items:center;font-size:12.5px}
+.sb .me .av{width:28px;height:28px;border-radius:50%;background:#2A3038;display:grid;place-items:center;font-weight:700;font-size:11.5px;color:#fff}
+.sb .me small{display:block;color:var(--sb-muted);font-size:11.5px}
+
+.main{flex:1 1 auto;min-width:0;position:relative;display:flex;flex-direction:column}
+.body{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 28px 56px}
+
+/* ── page head ───────────────────────────────────────── */
+.ph{display:flex;align-items:flex-end;gap:16px;margin-bottom:14px}
+.ph .crumb{font-size:12.5px;color:var(--text2);margin-bottom:2px}
+.ph h1{margin:0;font-size:22px;font-weight:650;letter-spacing:-.015em}
+.ph p{margin:3px 0 0;color:var(--text2);font-size:14px}
+.ph .end{margin-inline-start:auto;display:flex;align-items:center;gap:10px}
+.live{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);white-space:nowrap;padding:0 4px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 3px var(--brand-bg);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--brand-bg)}50%{box-shadow:0 0 0 6px rgba(21,128,61,.08)}}
+.pills{display:inline-flex;padding:3px;border-radius:9px;background:#E9EAEC;gap:2px}
+.pills button{border:0;background:none;padding:5px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--text2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pills button[aria-pressed=true]{background:#fff;color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--border)}
+.pills .code{font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--text3)}
+.pills button[aria-pressed=true] .code{color:var(--brand)}
+
+.find{display:flex;align-items:center;gap:10px;height:42px;padding:0 14px;border:1px solid var(--input);border-radius:10px;background:#fff;margin-bottom:6px;cursor:text;color:var(--text3)}
+.find:hover{border-color:#B9BEC4}
+.find svg{color:var(--text2)}
+.find span{flex:1;font-size:14px}
+.find kbd{font-family:var(--font);font-size:11.5px;color:var(--text2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;background:var(--sunken)}
+
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--border);margin:14px 0 18px}
+.tabs button{border:0;background:none;padding:10px 0 11px;font-size:14px;font-weight:500;color:var(--text2);display:inline-flex;align-items:center;gap:8px;position:relative}
+.tabs button[aria-selected=true]{color:var(--text);font-weight:600}
+.tabs button[aria-selected=true]::after{content:"";position:absolute;inset-inline:0;bottom:-1px;height:2px;border-radius:2px;background:var(--brand)}
+.tabs .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:999px;font-size:11.5px;font-weight:700;display:inline-grid;place-items:center;background:var(--lg-mute-bg);color:var(--text2)}
+.tabs .cnt[data-s=fail]{background:var(--lg-fail-bg);color:var(--lg-fail-ink)}
+.tabs small{font-size:12px;color:var(--text3);font-weight:400}
+
+/* ── cards ───────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
+.ch{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.ch h3{margin:0;font-size:15.5px;font-weight:620;display:flex;align-items:center;gap:8px}
+.ch p{margin:2px 0 0;font-size:12.5px;color:var(--text2)}
+.ch .end{margin-inline-start:auto;display:flex;gap:10px;align-items:center}
+.cf{padding:10px 18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--text2);display:flex;gap:8px;align-items:center;background:var(--sunken);border-radius:0 0 12px 12px}
+.cf svg{width:14px;height:14px}
+
+/* ── verdict ─────────────────────────────────────────── */
+.verdict{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:16px;align-items:center;padding:18px 20px;border-radius:12px;background:#fff;border:1px solid var(--line);margin-bottom:16px;position:relative;overflow:hidden}
+.verdict::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--lg-fail)}
+.verdict[data-s=ok]::before{background:var(--lg-ok)}
+.verdict .vi{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--lg-fail-bg);color:var(--lg-fail)}
+.verdict[data-s=ok] .vi{background:var(--lg-ok-bg);color:var(--lg-ok)}
+.verdict .vi svg{width:22px;height:22px;stroke-width:2}
+.verdict h2{margin:0;font-size:18px;font-weight:650;letter-spacing:-.01em}
+.verdict p{margin:3px 0 0;color:var(--text2);font-size:13.5px;max-width:78ch}
+.verdict p b{color:var(--text);font-weight:600}
+.vstats{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.vstats div{padding:8px 16px;min-width:108px;border-inline-start:1px solid var(--line)}
+.vstats div:first-child{border-inline-start:0}
+.vstats b{display:block;font-size:20px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.vstats span{font-size:12px;color:var(--text2);white-space:nowrap}
+.vstats [data-s=fail] b{color:var(--lg-fail-ink)}
+.vstats [data-s=warn] b{color:var(--lg-warn-ink)}
+
+/* ── problems ────────────────────────────────────────── */
+.pb{display:grid;grid-template-columns:36px minmax(0,1fr) 190px auto;gap:14px;align-items:center;padding:14px 18px 14px 20px;border-bottom:1px solid var(--line);position:relative;cursor:pointer}
+.pb:last-child{border-bottom:0}
+.pb:hover{background:var(--hover)}
+.pb::before{content:"";position:absolute;inset-block:10px;inset-inline-start:0;width:3px;border-radius:0 3px 3px 0;background:var(--lg-fail)}
+.pb[data-s=warn]::before,.pb[data-s=silent]::before{background:var(--lg-warn-bar)}
+.pb[data-s=done]::before{background:var(--lg-ok-bar)}
+.sev{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
+.sev svg{width:18px;height:18px;stroke-width:2}
+.sev[data-s=fail]{background:var(--lg-fail-bg);color:var(--lg-fail)}
+.sev[data-s=warn]{background:var(--lg-warn-bg);color:var(--lg-warn)}
+.sev[data-s=silent]{background:#fff;color:var(--lg-warn);border:1.5px dashed var(--lg-warn-bar)}
+.sev[data-s=ok],.sev[data-s=done]{background:var(--lg-ok-bg);color:var(--lg-ok)}
+.sev[data-s=mute]{background:var(--lg-mute-bg);color:var(--text2)}
+.pb h4{margin:0;font-size:14.5px;font-weight:620;line-height:1.35}
+.pb .meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:5px;font-size:12.5px;color:var(--text2)}
+.pb .meta .sep{width:3px;height:3px;border-radius:50%;background:#B6BBC1}
+.imp{text-align:end}
+.imp b{display:block;font-size:19px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.2}
+.imp span{font-size:12px;color:var(--text2);line-height:1.3;display:block}
+.pb[data-s=fail] .imp b{color:var(--lg-fail-ink)}
+.chev{color:var(--text3)}
+.pb:hover .chev{color:var(--text)}
+
+/* system chip (family tile + name) */
+.sys{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text);font-weight:500;white-space:nowrap}
+.tile{width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex:0 0 auto}
+.tile svg{width:13px;height:13px;stroke-width:2}
+.tile.lg{width:34px;height:34px;border-radius:9px}
+.tile.lg svg{width:17px;height:17px}
+.tile[data-f=intake]{background:var(--fam-intake-bg);color:var(--fam-intake-ink)}
+.tile[data-f=carrier]{background:var(--fam-carrier-bg);color:var(--fam-carrier-ink)}
+.tile[data-f=ads]{background:var(--fam-ads-bg);color:var(--fam-ads-ink)}
+.tile[data-f=msg]{background:var(--fam-msg-bg);color:var(--fam-msg-ink)}
+.tile[data-f=auto]{background:var(--fam-auto-bg);color:var(--fam-auto-ink)}
+.tile[data-f=people]{background:#fff;color:var(--text2);border:1px solid var(--border)}
+.sysc{display:flex;align-items:center;gap:6px;min-width:0}
+.tb2{display:flex;align-items:center;gap:18px;padding:8px 18px;border-bottom:1px solid var(--line);background:var(--sunken);font-size:12.5px;color:var(--text2)}
+.tb2 .sp{flex:1}
+.tb2 svg{width:13px;height:13px;vertical-align:-2px}
+.mkc{display:inline-grid;place-items:center;min-width:24px;height:18px;padding:0 5px;border-radius:5px;background:var(--lg-mute-bg);color:var(--text2);font-size:10.5px;font-weight:700;letter-spacing:.04em}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;line-height:1.6}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.badge i.ring{background:none;border:1.5px solid currentColor;width:7px;height:7px}
+.badge[data-s=ok]{background:var(--lg-ok-bg);color:var(--lg-ok-ink)}
+.badge[data-s=warn],.badge[data-s=silent]{background:var(--lg-warn-bg);color:var(--lg-warn-ink)}
+.badge[data-s=fail]{background:var(--lg-fail-bg);color:var(--lg-fail-ink)}
+.badge[data-s=info]{background:var(--lg-info-bg);color:var(--lg-info)}
+.badge[data-s=mute],.badge[data-s=idle],.badge[data-s=off]{background:var(--lg-mute-bg);color:var(--text2)}
+.badge[data-s=unknown]{background:#fff;color:var(--text2);border:1px dashed var(--input);padding:1px 8px}
+.badge[data-s=new]{background:#fff;color:var(--lg-info);border:1px dashed #9DBAE6;padding:1px 8px}
+.rep{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text2);background:var(--lg-mute-bg);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.rep svg{width:12px;height:12px}
+
+/* ── connections ─────────────────────────────────────── */
+.legend{display:flex;gap:12px;font-size:12px;color:var(--text2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:8px;height:14px;border-radius:2px;display:inline-block}
+.fam{display:flex;align-items:center;gap:10px;padding:12px 18px 6px;font-size:12px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--text2)}
+.fam .n{font-weight:500;letter-spacing:0;text-transform:none;color:var(--text3)}
+.cx{display:grid;grid-template-columns:34px minmax(0,1.25fr) 128px 290px 150px 20px;gap:14px;align-items:center;padding:10px 18px;cursor:pointer}
+.cx + .cx{border-top:1px solid var(--line)}
+.cx:hover{background:var(--hover)}
+.cx b{font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px}
+.cx small{display:block;font-size:12.5px;color:var(--text2);margin-top:1px}
+.cx .ls{font-size:12.5px;color:var(--text2);text-align:end;line-height:1.35}
+.cx .ls b{display:block;color:var(--text);font-size:13px;font-weight:600;justify-content:flex-end}
+.ub{display:flex;gap:2px;align-items:flex-end;height:26px}
+.ub i{width:4px;height:22px;border-radius:2px;background:var(--lg-none-bar);display:block}
+.ub i[data-s=ok]{background:var(--lg-ok-bar)}
+.ub i[data-s=idle]{background:var(--lg-idle-bar)}
+.ub i[data-s=warn]{background:var(--lg-warn-bar)}
+.ub i[data-s=fail]{background:var(--lg-fail-bar)}
+.ub i[data-s=miss]{background:#fff;box-shadow:inset 0 0 0 1px var(--lg-warn-bar)}
+.ub i:hover{transform:scaleY(1.14);transform-origin:bottom}
+.ubx{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:3px;width:286px}
+.famsep{border-top:1px solid var(--line);margin-top:6px}
+.more{padding:9px 18px 12px 66px;font-size:12.5px;color:var(--text2)}
+.more button{border:0;background:none;color:var(--lg-info);font-weight:500;padding:0;font-size:12.5px}
+
+/* explained silences */
+.ex{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 18px}
+.ex + .ex{border-top:1px solid var(--line)}
+.ex b{font-weight:600}
+.ex p{margin:2px 0 0;font-size:12.5px;color:var(--text2)}
+
+/* ── automations ─────────────────────────────────────── */
+table.t{width:100%;border-collapse:collapse}
+.t th{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);text-align:start;padding:9px 14px;background:var(--sunken);border-bottom:1px solid var(--line);white-space:nowrap}
+.t th:first-child,.t td:first-child{padding-inline-start:18px}
+.t th:last-child,.t td:last-child{padding-inline-end:18px}
+.t td{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+.t tbody tr:last-child td{border-bottom:0}
+.t tr.grp td{background:#fff;font-size:12px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding-top:14px;padding-bottom:6px;border-bottom:0}
+.t td b{font-weight:600}
+.t td small{display:block;font-size:12.5px;color:var(--text2)}
+.t .end{text-align:end}
+.t td.w0{width:1%;white-space:nowrap}
+.t tbody tr[data-a]{cursor:pointer}
+.t tbody tr[data-a]:hover td{background:var(--hover)}
+.rs{display:flex;gap:2px}
+.rs i{width:9px;height:9px;border-radius:2px;background:var(--lg-ok-bar);display:block}
+.rs i[data-s=fail]{background:var(--lg-fail-bar)}
+.rs i[data-s=idle]{background:var(--lg-idle-bar)}
+.rs i[data-s=warn]{background:var(--lg-warn-bar)}
+.rs i[data-s=unknown]{background:#fff;box-shadow:inset 0 0 0 1px #B6BBC1}
+.res{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;white-space:nowrap}
+.res i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.res[data-s=ok] i{background:var(--lg-ok)} .res[data-s=fail]{color:var(--lg-fail-ink);font-weight:600} .res[data-s=fail] i{background:var(--lg-fail)}
+.res[data-s=idle] i{background:var(--lg-idle-bar)} .res[data-s=idle]{color:var(--text2)}
+.res[data-s=unknown] i{background:#fff;box-shadow:inset 0 0 0 1.5px #9CA3AF} .res[data-s=unknown]{color:var(--text2)}
+
+/* ── stream (external) ───────────────────────────────── */
+.tb{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.chip{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--input);background:#fff;font-size:13px;font-weight:500;color:var(--text2)}
+.chip[aria-pressed=true]{border-color:var(--text);color:var(--text);background:#fff;box-shadow:inset 0 0 0 1px var(--text);font-weight:600}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip b{font-weight:600;font-size:12px;color:var(--text3)}
+.tg{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);border:0;background:none;padding:0}
+.tg i{width:30px;height:18px;border-radius:999px;background:#C9CDD2;position:relative;display:inline-block}
+.tg i::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+.tg[aria-checked=true] i{background:var(--brand)}
+.tg[aria-checked=true] i::after{transform:translateX(12px)}
+.vr{width:1px;height:22px;background:var(--border)}
+.day{display:flex;align-items:center;gap:10px;padding:14px 18px 6px;font-size:12px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--text2)}
+.day::after{content:"";flex:1;height:1px;background:var(--line)}
+.ev{display:grid;grid-template-columns:52px 176px 22px minmax(0,1fr) 150px 112px 20px;gap:12px;align-items:center;padding:9px 18px;cursor:pointer;position:relative}
+.ev:hover{background:var(--hover)}
+.ev .tm{font-size:13px;color:var(--text2);font-variant-numeric:tabular-nums}
+.ev .dir{color:var(--text3);display:grid;place-items:center}
+.ev .dir svg{width:15px;height:15px}
+.ev .wh{font-size:13.5px;line-height:1.4}
+.ev .wh small{display:block;font-size:12.5px;color:var(--text2)}
+.ev .ref{font-size:12.5px;color:var(--text2)}
+.ev .ref b{color:var(--text);font-weight:500}
+.ev[data-s=fail]{background:var(--lg-fail-band)}
+.ev[data-s=fail]:hover{background:#FFF4F2}
+.ev.ghost{background:repeating-linear-gradient(-45deg,#fff,#fff 6px,#FAFBFC 6px,#FAFBFC 12px);border-block:1px dashed #D5D9DE}
+.ev.gone{cursor:default;color:var(--text2)}
+.hid{padding:8px 18px 10px 262px;font-size:12.5px;color:var(--text3)}
+.hid button{border:0;background:none;padding:0;color:var(--lg-info);font-size:12.5px;font-weight:500}
+
+/* ── internal activity ───────────────────────────────── */
+.ac{display:grid;grid-template-columns:52px 30px minmax(0,1fr) 120px 56px 20px;gap:12px;align-items:center;padding:9px 18px;cursor:pointer}
+.ac:hover{background:var(--hover)}
+.ac .tm{font-size:13px;color:var(--text2);font-variant-numeric:tabular-nums}
+.av{width:30px;height:30px;border-radius:50%;background:var(--lg-mute-bg);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--text2);flex:0 0 auto}
+.av[data-k=sa]{background:#1F2328;color:#fff}
+.av[data-k=sys]{background:var(--fam-auto-bg);color:var(--fam-auto-ink)}
+.av[data-k=sys] svg{width:15px;height:15px}
+.av[data-k=unknown]{background:#fff;border:1.5px dashed #B6BBC1;color:var(--text3)}
+.ac .wh{font-size:13.5px;line-height:1.45}
+.ac .wh b{font-weight:600}
+.ac .wh small{display:block;font-size:12.5px;color:var(--text2)}
+.ac .wh q{quotes:"« " " »"}
+.dom{font-size:12px;color:var(--text2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.dom svg{width:13px;height:13px}
+.ac.ghost{background:repeating-linear-gradient(-45deg,#fff,#fff 6px,#FAFBFC 6px,#FAFBFC 12px);border-block:1px dashed #D5D9DE}
+.ac[data-s=fail] .wh b:first-child{color:var(--lg-fail-ink)}
+.ill{text-decoration:underline dotted #9DBAE6;text-underline-offset:3px}
+.gap{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--lg-warn-ink);background:var(--lg-warn-bg);border-radius:6px;padding:1px 7px;margin-top:3px}
+.gap svg{width:12px;height:12px}
+
+/* ── drawers ─────────────────────────────────────────── */
+.dw{position:absolute;inset:0;background:rgba(17,24,39,.30);z-index:50;display:flex;justify-content:flex-end}
+.dp{width:560px;height:100%;background:#fff;border-inline-start:1px solid var(--border);display:flex;flex-direction:column;box-shadow:-8px 0 32px rgba(15,23,42,.10)}
+.dp.wide{width:780px}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+.dh h3{margin:0;font-size:17px;font-weight:650;letter-spacing:-.005em;line-height:1.3}
+.dh .sub{margin-top:6px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--text2)}
+.dh .x{margin-inline-start:auto;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--border);background:#fff;flex:0 0 auto}
+.db{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.ds{padding:16px 22px;border-bottom:1px solid var(--line)}
+.ds:last-child{border-bottom:0}
+.ds h4{margin:0 0 10px;font-size:13px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
+.ds h4 .end{margin-inline-start:auto;text-transform:none;letter-spacing:0;font-weight:500}
+.ds p{margin:0 0 8px;font-size:13.5px;line-height:1.55}
+.ds p:last-child{margin-bottom:0}
+.df{display:flex;gap:8px;padding:12px 22px;border-top:1px solid var(--line);background:var(--sunken);align-items:center}
+.df .sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:8px;border:1px solid var(--input);background:#fff;font-weight:500;font-size:13.5px;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn[data-primary]{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+.btn[data-primary]:hover{background:var(--brand-hover)}
+.btn[data-quiet]{border-color:transparent;background:transparent;color:var(--text2)}
+.btn.sm{height:30px;padding:0 10px;font-size:12.5px}
+.btn svg{width:15px;height:15px}
+.kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px 14px;margin:0;font-size:13.5px}
+.kv dt{color:var(--text2)}
+.kv dd{margin:0;font-weight:500}
+.figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fig{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.fig b{display:block;font-size:20px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.fig span{font-size:12px;color:var(--text2)}
+.fig[data-s=fail] b{color:var(--lg-fail-ink)}
+.nights{display:grid;grid-template-columns:repeat(43,1fr);gap:2px;margin:6px 0 4px}
+.nights i{height:20px;border-radius:2px;background:var(--lg-fail-bar);display:block}
+.nights i.ok{background:var(--lg-ok-bar)}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--text3)}
+.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{position:relative;padding:0 0 10px 30px;font-size:13.5px;line-height:1.5;counter-increment:s}
+.steps li::before{content:counter(s);position:absolute;inset-inline-start:0;top:0;width:20px;height:20px;border-radius:50%;background:var(--lg-mute-bg);color:var(--text2);font-size:11.5px;font-weight:700;display:grid;place-items:center}
+.code{background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;color:#374151;white-space:pre-wrap;word-break:break-word;direction:ltr;text-align:left}
+.json .k{color:var(--fam-intake-ink)} .json .s{color:var(--fam-carrier-ink)} .json .n{color:var(--fam-ads-ink)} .json .p{color:var(--text3)}
+.mini{width:100%;border-collapse:collapse;font-size:13px}
+.mini th{font-size:11.5px;font-weight:600;color:var(--text2);text-align:start;padding:6px 8px;border-bottom:1px solid var(--line);letter-spacing:.03em;text-transform:uppercase}
+.mini td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.mini tr:last-child td{border-bottom:0}
+.mini .end{text-align:end}
+.callout{display:flex;gap:10px;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.5;background:var(--lg-info-bg);color:#1F4F96}
+.callout svg{margin-top:2px;flex:0 0 auto}
+.callout[data-s=warn]{background:var(--lg-warn-bg);color:#6B5000}
+
+/* trace timeline */
+.tsum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tsum div{padding:10px 12px;border-inline-start:1px solid var(--line)}
+.tsum div:first-child{border-inline-start:0}
+.tsum b{display:block;font-size:13.5px;font-weight:650}
+.tsum span{display:block;font-size:12px;color:var(--text2)}
+.tsum em{font-style:normal;font-size:11.5px;color:var(--text3)}
+.phase{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:12px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--text2)}
+.phase .gapt{margin-inline-start:auto;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text3)}
+.tl{position:relative;margin:0;padding:0;list-style:none}
+.tl li{display:grid;grid-template-columns:96px 26px minmax(0,1fr);gap:10px;align-items:start;padding:6px 0;position:relative}
+.tl li::before{content:"";position:absolute;inset-inline-start:108px;top:30px;bottom:-6px;width:1px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .tt{font-size:12.5px;color:var(--text2);font-variant-numeric:tabular-nums;padding-top:4px;text-align:end}
+.tl .who{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;background:var(--lg-mute-bg);color:var(--text2);position:relative;z-index:1}
+.tl .who.t{border-radius:7px}
+.tl .who svg{width:13px;height:13px;stroke-width:2}
+.tl .what{font-size:13.5px;line-height:1.45;padding-top:3px}
+.tl .what small{display:block;font-size:12.5px;color:var(--text2)}
+.tl .what .st{display:inline-flex;align-items:center;gap:6px}
+.st-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--lg-mute-bg);color:var(--text2)}
+.st-chip[data-o=confirmed]{background:#F1EEFD;color:#5B3FD1}
+.st-chip[data-o=delivered]{background:var(--lg-ok-bg);color:var(--lg-ok-ink)}
+.st-chip[data-o=attempt]{background:var(--lg-warn-bg);color:var(--lg-warn-ink)}
+.st-chip[data-o=uploaded]{background:var(--lg-info-bg);color:var(--lg-info)}
+.st-chip[data-o=transit]{background:#E8F4F8;color:#0E6F8E}
+.st-chip[data-o=delayed]{background:#EEF0FB;color:#4446B8}
+.st-chip[data-o=rejected]{background:var(--lg-fail-bg);color:var(--lg-fail-ink)}
+
+.toast{position:absolute;bottom:22px;inset-inline-start:50%;transform:translateX(-50%);background:#1A1A1A;color:#fff;padding:10px 16px;border-radius:10px;font-size:13.5px;display:flex;gap:8px;align-items:center;z-index:80}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="bar" id="bar"></div>
+  <div class="note" id="note"></div>
+  <div class="stagewrap"><div id="stage"></div></div>
+</div>
+
+<script>
+/* ═════════════ icons (lucide) ═════════════ */
+const ICON = {
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  box:'<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/>',
+  gear:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  scroll:'<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>', chevd:'<path d="m6 9 6 6 6-6"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  xc:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  checkc:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  unplug:'<path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/>',
+  pause:'<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  megaphone:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  msg:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  down:'<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  up:'<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+  sync:'<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+  repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+  key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+  sliders:'<path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/>',
+  plug:'<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  file:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+  layers:'<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+};
+const ic = (n, c='') => `<svg viewBox="0 0 24 24" class="${c}" aria-hidden="true">${ICON[n]||''}</svg>`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nb = s => String(s).replace(/« /g,'« ').replace(/ ([»:;?!])/g,' $1');
+
+/* ═════════════ state ═════════════ */
+const q = new URLSearchParams(location.search);
+const S = {
+  screen: ['overview','external','internal'].includes(q.get('screen')) ? q.get('screen') : 'overview',
+  state: q.get('state') === 'fixed' ? 'fixed' : 'today',
+  mk: ['all','ly','tn'].includes(q.get('mk')) ? q.get('mk') : 'all',
+  period: '24h',
+  drawer: q.get('drawer') || '',
+  extFam: 'all', extRes: 'all', group: true, hideIdle: true,
+  intDom: 'all', series: true,
+  toast: '',
+};
+const FIXED = () => S.state === 'fixed';
+
+/* ═════════════ families & systems ═════════════ */
+const FAM = {
+  intake:['inbox','Réception des commandes'], carrier:['truck','Transporteurs'], ads:['megaphone','Publicité'],
+  msg:['msg','Messagerie'], auto:['clock','Automatismes'], people:['user','Personnes'],
+};
+const tile = (f, lg) => `<span class="tile${lg?' lg':''}" data-f="${f}">${ic(FAM[f][0])}</span>`;
+const sys = (f, name) => `<span class="sys">${tile(f)}${esc(name)}</span>`;
+const mkc = m => m === 'all' ? '<span class="mkc">LY · TN</span>' : `<span class="mkc">${m.toUpperCase()}</span>`;
+const badge = (s, t, ring) => `<span class="badge" data-s="${s}"><i${ring?' class="ring"':''}></i>${nb(t)}</span>`;
+
+/* ═════════════ real data — production, 2026-10-03 ~16:40 Tripoli ═════════════ */
+// Problems, by what they cost.
+const PROBLEMS = [
+  { id:'archive', s:'fail', f:'auto', sysn:'Archivage nocturne', mk:'all', title:'L’archivage automatique échoue chaque nuit depuis le 22 août',
+    meta:['chaque nuit à 05:00','depuis le 22 août','43 nuits d’affilée'], imp:['921','commandes terminées encore dans les listes'],
+    tag:['info','Correctif prêt · PR #58'] },
+  { id:'navex-paid', s:'fail', f:'carrier', sysn:'Navex', mk:'tn', title:'Navex : 91 colis livrés et payés ne passent jamais en « Livrée »',
+    meta:['Statut « Livrer Payé » inconnu d’Ordra','colis d’avril','13 013 fois en 24 h'], imp:['5 479 TND','jamais comptés comme livrés'] },
+  { id:'navex-returns', s:'fail', f:'carrier', sysn:'Navex', mk:'tn', title:'Navex : 48 retours refusés par la règle de statut',
+    meta:['« Retour reçu » refusé hors « À retourner »','colis d’avril','6 864 fois en 24 h'], imp:['2 732 TND','stock jamais réintégré'] },
+  { id:'benghazi', s:'silent', f:'carrier', sysn:'Darb Benghazi', mk:'ly', title:'Darb Benghazi ne se synchronise plus',
+    meta:['Muet depuis le 1 oct. 18:23','compte désactivé à 18:26','par qui ? non journalisé'], imp:['63','commandes en cours · 15\u00a0347\u00a0LYD'] },
+  { id:'sheet-rows', s:'warn', f:'intake', sysn:'Converty (Sheets)', mk:'ly', title:'Import Converty : 66 lignes refusées, jamais retraitées',
+    meta:['« Missing customer name »','depuis le 31 août','aucune relance'], imp:['66','commandes jamais importées'] },
+];
+const RESOLVED = [
+  { s:'done', f:'carrier', mk:'ly', title:'Darb Tripoli : une synchronisation interrompue (délai de la base dépassé)', meta:['27 sept. 18:13','rétablie au passage suivant, 18:23','résolu automatiquement'] },
+];
+const EXPLAINED = [
+  { icon:'pause', title:'Réception Libye : aucune commande depuis le 29 sept. 17:30', text:'La dépense Meta est à 0 depuis le 30 sept. : la publicité est en pause. L’import tourne normalement (ligne 5 421), il n’y a simplement rien de nouveau.', tag:['mute','En pause'] },
+  { icon:'moon', title:'Tunisie : aucune commande depuis le 7 juil.', text:'Marché en sommeil. Seuls les colis Navex d’avril sont encore suivis — voir les deux problèmes Navex.', tag:['mute','En sommeil'] },
+];
+// 48 hourly bars, oldest first. ok · idle (ran, nothing new) · warn · fail · none (nothing ran).
+const bars = (spec) => spec.flatMap(([s,n]) => Array(n).fill(s));
+const CONNECTIONS = [
+  { f:'intake', rows:[
+    { id:'converty', name:'Converty Libya', sub:'Google Sheets · toutes les 15 min', mk:'ly', st:['mute','En pause'], bars:bars([['idle',48]]), last:['29 sept. 17:30','dernière commande'], fixed:['mute','En pause'] },
+    { id:'easy', name:'EasyOrdersLY – Quran', sub:'EasyOrders · webhook — reçoit quand la boutique envoie', mk:'ly', st:['mute','Calme'], bars:null, quiet:'Rien reçu en 48 h — pas de rythme attendu', last:['7 sept.','dernière commande'] },
+  ], more:'+ 10 boutiques sans aucune commande depuis 30 jours (dont 7 de test)' },
+  { f:'carrier', rows:[
+    { id:'darbT', name:'Darb Assabil — Tripoli', sub:'Synchronisation toutes les 10 min · 1 180 colis', mk:'ly', st:['ok','En service'], bars:bars([['ok',48]]), last:['il y a 7 min','144 / 144 en 24 h'] },
+    { id:'darbB', name:'Darb Assabil — Benghazi', sub:'Compte désactivé le 1 oct. 18:26', mk:'ly', st:['silent','Muet · 2 j'], bars:bars([['ok',2],['miss',46]]), last:['1 oct. 18:23','63 commandes en cours'], fixed:['ok','En service'], fixedBars:bars([['ok',48]]), fixedLast:['il y a 4 min','suivi des colis en cours'] },
+    { id:'navex', name:'Navex', sub:'Sondage toutes les 10 min · 139 colis', mk:'tn', st:['fail','En panne'], bars:bars([['fail',48]]), last:['il y a 10 min','0 statut appliqué'], fixed:['ok','En service'], fixedBars:bars([['ok',48]]), fixedLast:['il y a 10 min','139 colis soldés'] },
+  ]},
+  { f:'ads', rows:[
+    { id:'meta', name:'Meta · Totella AdAccount 5', sub:'Dépense publicitaire · chaque heure', mk:'ly', st:['ok','En service'], bars:bars([['ok',48]]), last:['il y a 33 min','339 lignes · dépense à 0'] },
+  ]},
+  { f:'msg', rows:[
+    { id:'wa', name:'WhatsApp Business', sub:'Aucun numéro relié', mk:'all', st:['off','Non connecté'], bars:null, quiet:'Pas encore de trafic', last:['—','Réglages › WhatsApp'] },
+  ]},
+];
+const JOBS = [
+  { g:'Avec l’extérieur' },
+  { name:'Synchronisation Darb', d:'Relit les colis des comptes Darb actifs', freq:'Toutes les 10 min', last:'16:33', res:['ok','1 180 colis relus'], runs:'o'.repeat(24) },
+  { name:'Import Google Sheets', d:'Lit les nouvelles lignes Converty', freq:'Toutes les 15 min', last:'16:30', res:['idle','Rien de nouveau'], runs:'i'.repeat(24) },
+  { name:'Suivi des colis Navex', d:'Interroge Navex pour chaque colis en route', freq:'Toutes les 10 min', last:'16:30', res:['fail','0 statut appliqué sur 139'], runs:'f'.repeat(24), pb:'navex-paid', fixedRes:['ok','139 colis soldés'], fixedRuns:'o'.repeat(24) },
+  { name:'Synchronisation Meta', d:'Récupère la dépense publicitaire', freq:'Chaque heure · :07', last:'16:07', res:['ok','339 lignes'], runs:'o'.repeat(24) },
+  { name:'Envois programmés', d:'Envoie au transporteur les commandes planifiées', freq:'Toutes les 5 min', last:'16:35', res:['unknown','Résultat non conservé'], runs:'u'.repeat(24), fixedRes:['idle','Rien à envoyer'], fixedRuns:'i'.repeat(24) },
+  { name:'Tarifs Darb', d:'Met à jour les tarifs par destination', freq:'Chaque nuit · 04:17', last:'3 oct. 04:17', res:['ok','304 / 304'], runs:'o'.repeat(24) },
+  { name:'File WhatsApp', d:'Envoie les messages en attente', freq:'Chaque minute', last:'16:40', res:['idle','Rien à envoyer'], runs:'i'.repeat(24) },
+  { g:'Calculs internes' },
+  { name:'Archivage des commandes terminées', d:'Range dans « Archivées » ce qui est fini depuis 30 jours', freq:'Chaque nuit · 05:00', last:'3 oct. 05:00', res:['fail','Échec — réglage illisible'], runs:'f'.repeat(24), pb:'archive', fixedRes:['ok','921 archivées'], fixedRuns:'f'.repeat(23)+'o' },
+  { name:'Commissions des agents', d:'Crédite les commissions des commandes livrées', freq:'Toutes les 15 min', last:'16:23', res:['ok','Réussi'], runs:'o'.repeat(24) },
+  { name:'Investisseurs · suivi', d:'Met à jour les faits des investisseurs', freq:'Toutes les 15 min', last:'16:34', res:['ok','620 commandes relues'], runs:'o'.repeat(24) },
+  { name:'Investisseurs · recalcul', d:'Recalcule chaque produit sous contrat', freq:'Chaque nuit · 04:41', last:'3 oct. 04:41', res:['ok','Réussi'], runs:'o'.repeat(24) },
+  { name:'Statistiques des zones', d:'Taux de livraison par zone, 90 jours', freq:'Chaque nuit · 04:17', last:'3 oct. 04:17', res:['ok','Réussi'], runs:'o'.repeat(24) },
+  { name:'Disponibilité des agents', d:'Remise à zéro à minuit, heure du marché', freq:'Chaque heure · :22', last:'16:22', res:['ok','Réussi'], runs:'o'.repeat(24) },
+  { name:'Rappels et notifications', d:'Prévient les agents des rappels dus', freq:'Chaque minute', last:'16:40', res:['ok','Réussi'], runs:'o'.repeat(24) },
+];
+
+// External exchanges — Tripoli time. dir: in · out · sync. res: ok (réussi/appliqué) · idle · fail · warn
+const EXT = [
+  { day:'Aujourd’hui · 3 oct.' },
+  { t:'16:30', f:'carrier', sysn:'Navex', mk:'tn', dir:'sync', what:'Sondage — 139 colis interrogés, aucun statut appliqué', sub:'91 « Livrer Payé » inconnus · 48 retours refusés', ref:'139 colis', res:['fail','Échec'], rep:'×100 depuis minuit', dr:'e:navex-poll' },
+  { t:'16:33', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'sync', what:'Synchronisation — 1 180 colis relus, aucun changement', ref:'—', res:['ok','Réussi'], dur:'47 s' },
+  { t:'16:30', f:'intake', sysn:'Converty (Sheets)', mk:'ly', dir:'in', what:'Import — rien de nouveau (ligne 5 421)', ref:'—', res:['idle','Sans effet'], idle:true },
+  { t:'16:23', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'in', what:'Livré chez Darb → commande « Livrée »', sub:'Tripoli · 199 LYD', ref:'2059056', res:['ok','Appliqué'] },
+  { t:'16:23', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'in', what:'Annulé par Darb → commande « Annulée »', sub:'Gharyan · 249 LYD · après « Retardé »', ref:'1542368', res:['ok','Appliqué'] },
+  { t:'16:23', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'sync', what:'Synchronisation — 1 180 colis relus, 2 statuts appliqués', ref:'—', res:['ok','Réussi'], dur:'50 s' },
+  { t:'16:15', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'in', what:'Annulé par Darb → commande « Annulée »', sub:'Al Jufra · 249 LYD', ref:'1356196', res:['ok','Appliqué'] },
+  { t:'16:15', f:'intake', sysn:'Converty (Sheets)', mk:'ly', dir:'in', what:'Import — rien de nouveau (ligne 5 421)', ref:'—', res:['idle','Sans effet'], idle:true },
+  { t:'16:07', f:'ads', sysn:'Meta', mk:'ly', dir:'sync', what:'Dépense — 24 ensembles relus, 339 lignes écrites', sub:'dépense du jour : 0 USD', ref:'—', res:['ok','Réussi'], dur:'5 s' },
+  { t:'16:03', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'in', what:'Livré chez Darb → commande « Livrée »', sub:'Al Khums · 199 LYD', ref:'2259125', res:['ok','Appliqué'] },
+  { t:'15:40', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'in', what:'Annulé par Darb → commande « Annulée »', sub:'Sebha · 249 LYD', ref:'11867602', res:['ok','Appliqué'] },
+  { t:'15:23', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'in', what:'Annulé par Darb → commande « Annulée »', sub:'Syrte · 249 LYD', ref:'2262752', res:['ok','Appliqué'] },
+  { t:'04:17', f:'carrier', sysn:'Darb · tarifs', mk:'ly', dir:'out', what:'Tarifs — 304 / 304 destinations mises à jour', ref:'—', res:['ok','Réussi'], dur:'86 s' },
+  { day:'Hier · 2 oct.' },
+  { t:'17:27', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'out', what:'Colis créé chez Darb (envoi)', sub:'13 s après la confirmation par Super Admin', ref:'—', res:['ok','Réussi'] },
+  { ghost:true, t:'—', f:'carrier', sysn:'Darb · envoi', mk:'ly', dir:'out', what:'Un envoi qui échoue n’est écrit nulle part aujourd’hui', sub:'Le futur journal le garde : code d’erreur Darb (DARB_VALIDATION, DARB_TRANSIENT…), durée, tentative n°, commande', ref:'—', res:['new','Nouveau'] },
+  { day:'1 oct.' },
+  { t:'18:23', f:'carrier', sysn:'Darb Benghazi', mk:'ly', dir:'sync', what:'Dernière synchronisation de Darb Benghazi', sub:'plus rien depuis : le compte a été désactivé à 18:26', ref:'—', res:['ok','Réussi'], dur:'38 s' },
+  { day:'29 sept.' },
+  { t:'17:30', f:'intake', sysn:'Converty (Sheets)', mk:'ly', dir:'in', what:'Dernière commande reçue (ligne 5 421)', sub:'36 commandes ce jour-là', ref:'—', res:['ok','Créée'] },
+  { day:'27 sept.' },
+  { t:'18:13', f:'carrier', sysn:'Darb Tripoli', mk:'ly', dir:'sync', what:'Synchronisation interrompue — délai de la base dépassé', sub:'upsertShipments : statement timeout · rétablie à 18:23', ref:'—', res:['fail','Échec'], dur:'55 s' },
+];
+
+// Internal activity — people and Ordra's own automations. Tripoli time.
+const INT = [
+  { day:'Aujourd’hui · 3 oct.' },
+  { t:'16:20', who:'tasnim', k:'ag', dom:'delivery', mk:'ly', html:'<b>tasnim</b> a écrit au client sur WhatsApp', sub:'Suivi livraison · commande 2058…' },
+  { t:'16:08', who:'Ordra', k:'sys', dom:'money', mk:'ly', html:'<b>Ordra</b> a crédité <b class="num">9,000 LYD</b> de commission à roqaya', sub:'commande livrée · automatique, toutes les 15 min' },
+  { t:'14:43', who:'tasnim', k:'ag', dom:'orders', mk:'ly', html:'<b>tasnim</b> — tentative 3, pas de réponse', sub:'puis s’est déclarée disponible' },
+  { t:'14:23', who:'Ordra', k:'sys', dom:'money', mk:'ly', html:'<b>Ordra</b> a crédité <b class="num">9,000 LYD</b> de commission à roqaya', sub:'commande livrée' },
+  { t:'13:40', who:'roqaya', k:'ag', dom:'delivery', mk:'ly', html:'<b>roqaya</b> a appelé l’agence Darb — nouvelle tentative promise', sub:'4 actions de suivi entre 13:31 et 13:40 · <span class="ar" dir="rtl">«توا توصلت معاه وبعتله رقن لحساب»</span>', series:4 },
+  { t:'13:24', who:'roqaya', k:'ag', dom:'team', mk:'ly', html:'<b>roqaya</b> s’est déclarée disponible' },
+  { t:'12:23', who:'Ordra', k:'sys', dom:'money', mk:'ly', html:'<b>Ordra</b> a crédité <b class="num">10,000 LYD</b> de commission à tasnim', sub:'commande livrée' },
+  { t:'05:00', who:'Ordra', k:'sys', dom:'auto', mk:'all', s:'fail', html:'<b>Archivage automatique — échec</b>', sub:'invalid input syntax for type integer : « {"value": 30} » · 43<sup>e</sup> nuit', dr:'p:archive' },
+  { day:'Hier · 2 oct.' },
+  { t:'22:27', who:'Super Admin', k:'sa', dom:'orders', mk:'ly', html:'<b>Super Admin</b> a rouvert une commande envoyée, l’a reprise à tasnim, puis l’a <b>rejetée</b>', sub:'« code-barres annulé chez le transporteur » · 3 étapes en 15 s', series:3 },
+  { t:'17:37', who:'tasnim', k:'ag', dom:'team', mk:'ly', html:'<b>tasnim</b> a basculé sa disponibilité 4 fois en 6 s', sub:'disponible → indisponible → … → indisponible', series:4 },
+  { t:'17:27', who:'Super Admin', k:'sa', dom:'orders', mk:'ly', html:'<b>Super Admin</b> a rouvert une commande rejetée, l’a reprise à tasnim et l’a <b>confirmée</b>', sub:'puis Darb a créé le colis 13 s plus tard', series:3, dr:'a:sa-reopen' },
+  { t:'12:52', who:'hamidaly', k:'mm', dom:'orders', mk:'ly', html:'<b>hamidaly</b> a réattribué <b>7 commandes</b> en tentative 3', sub:'à <span class="ill">roqaya (4) et salima (3)</span>', gap:'À qui ? Ordra ne l’enregistre pas aujourd’hui — le futur journal garde l’avant et l’après', series:7 },
+  { day:'1 oct.' },
+  { t:'19:16', who:'salima', k:'ag', dom:'orders', mk:'ly', html:'<b>salima</b> a confirmé <b>2 commandes</b> après rappel', sub:'puis envoyées chez Darb', series:2 },
+  { t:'18:45', who:'tasnim', k:'ag', dom:'orders', mk:'ly', html:'<b>tasnim</b> — tentatives 7 et 8, pas de réponse', series:2 },
+  { ghost:true, t:'18:26', who:'?', k:'unknown', dom:'connections', mk:'ly', html:'<b>Darb Assabil — Benghazi</b> a été désactivé', sub:'Par qui ? Ordra ne journalise aucun changement de transporteur, boutique, compte Meta, motif ou part de distribution.', gap:'Avec le futur journal : « Super Admin a désactivé Darb Benghazi · actif → inactif · 63 commandes en cours »' },
+  { t:'16:59', who:'adel', k:'wh', dom:'stock', mk:'ly', html:'<b>adel</b> a scanné 2 colis — <span class="ar" dir="rtl">مصحف التهجد و قيام الليل</span>', sub:'stock −2 · entrepôt Tripoli', series:2 },
+  { day:'21 août' },
+  { t:'16:47', who:'Admin', k:'sa', dom:'settings', mk:'tn', html:'<b>Admin</b> a enregistré <b>28 réglages</b> de la Tunisie en une fois', sub:'dont « Archiver après » : — → <span class="mono">{"value": 30}</span> · 22 réglages écrits pour la première fois', gap:'Cause de l’échec d’archivage depuis le lendemain — le futur journal relie la modification au problème', series:28, dr:'p:archive' },
+];
+const INITIALS = { 'Super Admin':'SA', Admin:'A', salima:'SL', tasnim:'TA', roqaya:'RO', hamidaly:'HA', adel:'AD' };
+const DOM = { orders:['bag','Commandes'], delivery:['truck','Livraison'], stock:['box','Stock'], team:['users','Équipe'], settings:['sliders','Réglages'], connections:['plug','Connexions'], money:['coins','Argent'], auto:['clock','Automatismes'] };
+
+/* ═════════════ shell ═════════════ */
+function sidebar(){
+  const sec = (icon, t) => `<div class="sh">${ic(icon)}<span>${t}</span>${ic('chev','chev')}</div>`;
+  const open = FIXED() ? 0 : PROBLEMS.filter(p=>p.s==='fail').length;
+  return `<nav class="sb">
+    <div class="logo">Ordra</div>
+    <div class="mk">Marché <b>${S.mk==='all'?'Tous les marchés':S.mk==='ly'?'Libye':'Tunisie'}</b>${ic('chevd')}</div>
+    ${sec('home','Accueil')}${sec('bag','Commandes')}${sec('box','Entrepôt')}${sec('truck','Livraison')}${sec('chart','Finances')}${sec('users','Clients')}${sec('gauge','Équipe')}
+    <div class="sh">${ic('server')}<span>Système</span><b class="adm">ADMIN</b>${ic('chevd','chev')}</div>
+    <a class="si">${ic('gear')}Réglages</a>
+    <a class="si" aria-current="page">${ic('scroll')}Journaux${open?`<span class="dot" title="${open} problèmes critiques ouverts">${open}</span>`:''}</a>
+    <div class="me"><span class="av">AD</span><div>Admin<small>Administrateur</small></div></div>
+  </nav>`;
+}
+function head(){
+  const mk = [['all','Tous'],['ly','Libye'],['tn','Tunisie']].map(([v,l])=>`<button aria-pressed="${S.mk===v}" data-a="mk:${v}">${l}</button>`).join('');
+  const pr = [['24h','24 h'],['7d','7 j'],['30d','30 j']].map(([v,l])=>`<button aria-pressed="${S.period===v}" data-a="period:${v}">${l}</button>`).join('');
+  const open = FIXED() ? 0 : visibleProblems().length;
+  return `<div class="ph">
+      <div><div class="crumb">Système</div><h1>Journaux</h1><p>${nb('Ce qui entre et sort d’Ordra, et ce que chacun y fait — dans les deux marchés.')}</p></div>
+      <div class="end"><span class="live"><i></i>À jour · il y a 12 s</span><div class="pills" role="group" aria-label="Marché">${mk}</div><div class="pills" role="group" aria-label="Période">${pr}</div></div>
+    </div>
+    <div class="find" data-a="drawer:trace" role="button" tabindex="0">${ic('search')}<span>${nb('Retrouver une commande : numéro, colis, téléphone… — sa trace à travers tous les systèmes')}</span><kbd>/</kbd></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="${S.screen==='overview'}" data-a="screen:overview">Vue d’ensemble${open?` <span class="cnt" data-s="fail">${open}</span>`:''}</button>
+      <button role="tab" aria-selected="${S.screen==='external'}" data-a="screen:external">Échanges externes <small>boutiques, transporteurs, Meta, WhatsApp</small></button>
+      <button role="tab" aria-selected="${S.screen==='internal'}" data-a="screen:internal">Activité interne <small>personnes et automatismes</small></button>
+    </nav>`;
+}
+const inMk = m => S.mk === 'all' || m === 'all' || m === S.mk;
+const visibleProblems = () => PROBLEMS.filter(p => inMk(p.mk));
+
+/* ═════════════ overview ═════════════ */
+function overview(){
+  const probs = visibleProblems();
+  const fails = probs.filter(p=>p.s==='fail').length, warns = probs.length - fails;
+  const conns = CONNECTIONS.flatMap(g=>g.rows).filter(r=>inMk(r.mk) && r.st[0]!=='off');
+  const okConns = conns.filter(r => !['fail','silent'].includes((FIXED() && r.fixed ? r.fixed : r.st)[0])).length;
+  const verdict = FIXED() || !probs.length
+    ? `<section class="verdict" data-s="ok"><div class="vi">${ic('checkc')}</div><div><h2>Tout fonctionne</h2><p>${nb('Aucun problème ouvert. Dernier résolu : <b>l’archivage automatique</b>, ce matin à 05:00 — 921 commandes rangées.')}</p></div>
+        <div class="vstats"><div><b class="num">0</b><span>problème ouvert</span></div><div><b class="num">${conns.length}/${conns.length}</b><span>connexions saines</span></div><div><b class="num">14/14</b><span>automatismes à jour</span></div></div></section>`
+    : `<section class="verdict" data-s="fail"><div class="vi">${ic('xc')}</div><div><h2>${probs.length} problème${probs.length>1?'s':''} demande${probs.length>1?'nt':''} une action</h2><p>${nb(probs[0].id==='archive' ? 'Le plus urgent : <b>l’archivage automatique échoue depuis 43 nuits</b> — 921 commandes terminées restent dans les listes. Le correctif est prêt.' : `Le plus urgent : <b>${probs[0].title}</b>.`)}</p></div>
+        <div class="vstats"><div data-s="fail"><b class="num">${fails}</b><span>critique${fails>1?'s':''}</span></div><div data-s="warn"><b class="num">${warns}</b><span>à surveiller</span></div><div><b class="num">${okConns}/${conns.length}</b><span>connexions saines</span></div></div></section>`;
+
+  const pRow = p => {
+    const sevIcon = p.s==='fail' ? 'xc' : p.s==='silent' ? 'unplug' : p.s==='done' ? 'checkc' : 'alert';
+    return `<div class="pb" data-s="${p.s}" ${p.id?`data-a="drawer:p:${p.id}"`:''}>
+      <span class="sev" data-s="${p.s}">${ic(sevIcon)}</span>
+      <div><h4>${nb(p.title)}${p.tag?` ${badge(p.tag[0],p.tag[1])}`:''}</h4><div class="meta">${p.sysn?sys(p.f,p.sysn):sys(p.f,FAM[p.f][1])}${mkc(p.mk)}${p.meta.map(m=>`<span class="sep"></span><span>${nb(m)}</span>`).join('')}</div></div>
+      ${p.imp?`<div class="imp"><b>${p.imp[0]}</b><span>${nb(p.imp[1])}</span></div>`:'<div></div>'}
+      ${p.id?ic('chev','chev'):'<span></span>'}
+    </div>`;
+  };
+  const problems = FIXED()
+    ? `<div class="card"><div class="ch"><h3>Problèmes</h3><div class="end"><div class="pills"><button aria-pressed="false">Ouverts 0</button><button aria-pressed="true">Résolus · 7 j  6</button></div></div></div>
+        ${[...PROBLEMS.map(p=>({...p, s:'done', tag:['ok','Résolu'], meta:[p.meta[1] || '', 'résolu le 3 oct.']})), ...RESOLVED].filter(p=>inMk(p.mk)).map(p=>pRow({...p, id:''})).join('')}</div>`
+    : `<div class="card"><div class="ch"><div><h3>Problèmes ouverts</h3><p>${nb('Regroupés : une même cause est un seul problème, avec le nombre de fois où elle s’est produite. Triés par ce qu’ils coûtent.')}</p></div><div class="end"><div class="pills"><button aria-pressed="true">Ouverts ${probs.length}</button><button aria-pressed="false">Résolus · 7 j  ${RESOLVED.length}</button></div></div></div>
+        ${probs.map(pRow).join('')}</div>`;
+
+  const explained = FIXED() ? '' : `<div class="card"><div class="ch"><div><h3>Silences expliqués</h3><p>${nb('Ce qui est calme pour une bonne raison — Ordra ne le compte pas comme une panne.')}</p></div></div>
+      ${EXPLAINED.filter((e,i)=> i===0 ? inMk('ly') : inMk('tn')).map(e=>`<div class="ex"><span class="sev" data-s="mute">${ic(e.icon)}</span><div><b>${nb(e.title)}</b><p>${nb(e.text)}</p></div>${badge(e.tag[0],e.tag[1])}</div>`).join('')}</div>`;
+
+  const conn = `<div class="card"><div class="ch"><div><h3>Connexions</h3><p>Chaque barre = une heure, des 48 dernières à maintenant.</p></div>
+      <div class="end legend"><span><i style="background:var(--lg-ok-bar)"></i>en service</span><span><i style="background:var(--lg-idle-bar)"></i>rien de nouveau</span><span><i style="background:var(--lg-fail-bar)"></i>en échec</span><span><i style="background:#fff;box-shadow:inset 0 0 0 1px var(--lg-warn-bar)"></i>attendu, absent</span></div></div>
+    ${CONNECTIONS.map((g,gi)=>{
+      const rows = g.rows.filter(r=>inMk(r.mk));
+      if (!rows.length) return '';
+      return `${gi?'<div class="famsep"></div>':''}<div class="fam">${FAM[g.f][1]}<span class="n">· ${rows.length}</span></div>
+      ${rows.map(r=>{
+        const st = FIXED() && r.fixed ? r.fixed : r.st, b = FIXED() && r.fixedBars ? r.fixedBars : r.bars, last = FIXED() && r.fixedLast ? r.fixedLast : r.last;
+        const ring = st[0]==='silent';
+        return `<div class="cx">${tile(g.f,true)}
+          <div><b>${esc(r.name)} ${mkc(r.mk)}</b><small>${nb(r.sub)}</small></div>
+          <div>${badge(st[0], st[1], ring)}</div>
+          <div>${b ? `<div class="ub">${b.map((s,i)=>`<i data-s="${s}" title="il y a ${48-i} h"></i>`).join('')}</div><div class="ubx"><span>il y a 48 h</span><span>maintenant</span></div>` : `<span style="font-size:12.5px;color:var(--text3)">${nb(r.quiet||'')}</span>`}</div>
+          <div class="ls"><b>${nb(last[0])}</b>${nb(last[1])}</div>${ic('chev','chev')}
+        </div>`;}).join('')}
+      ${g.more && (S.mk!=='tn') ? `<div class="more">${nb(g.more)} · <button>afficher</button></div>` : ''}`;
+    }).join('')}</div>`;
+
+  const jobs = `<div class="card"><div class="ch"><div><h3>Automatismes</h3><p>${nb('Les 14 tâches planifiées d’Ordra. « Lancé » ne suffit pas : on affiche ce que la tâche a réellement fait.')}</p></div><div class="end legend"><span><i style="background:var(--lg-ok-bar);height:9px;width:9px"></i>réussi</span><span><i style="background:var(--lg-idle-bar);height:9px;width:9px"></i>rien à faire</span><span><i style="background:var(--lg-fail-bar);height:9px;width:9px"></i>échec</span><span><i style="background:#fff;box-shadow:inset 0 0 0 1px #B6BBC1;height:9px;width:9px"></i>non conservé</span></div></div>
+    <table class="t"><thead><tr><th>Tâche</th><th>Fréquence</th><th>Dernier passage</th><th>Résultat</th><th>24 derniers passages</th></tr></thead><tbody>
+    ${JOBS.map(j=> j.g ? `<tr class="grp"><td colspan="5">${nb(j.g)}</td></tr>` : (()=>{
+      const res = FIXED() && j.fixedRes ? j.fixedRes : j.res, runs = FIXED() && j.fixedRuns ? j.fixedRuns : j.runs;
+      return `<tr ${j.pb && !FIXED() ? `data-a="drawer:p:${j.pb}"` : ''}><td><b>${nb(j.name)}</b><small>${nb(j.d)}</small></td><td class="w0">${nb(j.freq)}</td><td class="w0 num">${j.last}</td>
+      <td class="w0"><span class="res" data-s="${res[0]}"><i></i>${nb(res[1])}</span></td>
+      <td class="w0"><div class="rs">${[...runs].map(c=>`<i data-s="${({o:'ok',f:'fail',i:'idle',u:'unknown',w:'warn'})[c]}"></i>`).join('')}</div></td></tr>`;})()).join('')}
+    </tbody></table>
+    <div class="cf">${ic('info')}${nb('Heures de Tripoli. Pour les tâches qui appellent Ordra par internet, « réussi » vient de leur propre registre de passages — pas du simple lancement.')}</div></div>`;
+
+  return verdict + problems + explained + conn + jobs;
+}
+
+/* ═════════════ external ═════════════ */
+function external(){
+  const fams = [['all','Tout'],['intake','Réception'],['carrier','Transporteurs'],['ads','Publicité'],['msg','Messagerie']];
+  const famChip = ([v,l]) => `<button class="chip" aria-pressed="${S.extFam===v}" data-a="extFam:${v}">${v!=='all'?`<span class="dot" style="background:var(--fam-${v})"></span>`:''}${l}</button>`;
+  const res = [['all','Tous'],['fail','Échecs'],['ok','Réussis']];
+  let hiddenIdle = 0;
+  const rows = [];
+  let pendingDay = null;
+  for (const e of EXT){
+    if (e.day){ pendingDay = e.day; continue; }
+    if (!inMk(e.mk)) continue;
+    if (S.extFam !== 'all' && e.f !== S.extFam) continue;
+    if (S.extRes === 'fail' && e.res[0] !== 'fail') continue;
+    if (S.extRes === 'ok' && e.res[0] !== 'ok') continue;
+    if (S.hideIdle && e.idle){ hiddenIdle++; continue; }
+    if (FIXED() && e.sysn === 'Navex') continue;
+    if (pendingDay){ rows.push(`<div class="day">${pendingDay}</div>`); pendingDay = null; }
+    const dirIcon = e.dir==='in' ? 'down' : e.dir==='out' ? 'up' : 'sync';
+    const dirTitle = e.dir==='in' ? 'Reçu' : e.dir==='out' ? 'Envoyé' : 'Synchronisation';
+    rows.push(`<div class="ev${e.ghost?' ghost':''}" data-s="${e.res[0]}" ${e.dr?`data-a="drawer:${e.dr}"`:''}>
+      <span class="tm">${e.t}</span>
+      <span class="sysc">${sys(e.f, e.sysn)}${mkc(e.mk)}</span>
+      <span class="dir" title="${dirTitle}">${ic(dirIcon)}</span>
+      <div class="wh">${nb(e.what)}${e.sub?`<small>${nb(e.sub)}</small>`:''}</div>
+      <span class="ref">${e.ref==='—' ? (e.dur?`<span style="color:var(--text3)">${e.dur}</span>`:'') : `<b class="num">${e.ref}</b>${e.dur?` <span style="color:var(--text3)">· ${e.dur}</span>`:''}`}</span>
+      <span>${badge(e.res[0], e.res[1])}${e.rep && S.group?`<div style="margin-top:4px"><span class="rep">${ic('repeat')}${e.rep}</span></div>`:''}</span>
+      ${e.dr?ic('chev','chev'):'<span></span>'}
+    </div>`);
+    if (e.rep && !S.group){ for (let i=1;i<=3;i++) rows.push(`<div class="ev" data-s="fail"><span class="tm">${['16:20','16:10','16:00'][i-1]}</span><span>${sys(e.f,e.sysn)} ${mkc(e.mk)}</span><span class="dir">${ic('sync')}</span><div class="wh">${nb(e.what)}</div><span class="ref"><b class="num">139 colis</b></span><span>${badge('fail','Échec')}</span><span></span></div>`); rows.push(`<div class="hid">… et 96 autres sondages identiques aujourd’hui</div>`); }
+  }
+  return `<div class="card">
+    <div class="tb">${fams.map(famChip).join('')}<span style="flex:1"></span>
+      <div class="pills">${res.map(([v,l])=>`<button aria-pressed="${S.extRes===v}" data-a="extRes:${v}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="tb2"><button class="tg" role="switch" aria-checked="${S.group}" data-a="group"><i></i>Regrouper les répétitions</button>
+      <button class="tg" role="switch" aria-checked="${S.hideIdle}" data-a="hideIdle"><i></i>${nb('Masquer « rien de nouveau »')}</button><span class="sp"></span><span>Heures de Tripoli</span></div>
+    ${rows.join('') || `<div style="padding:40px;text-align:center;color:var(--text2)">Aucun échange pour ce filtre.</div>`}
+    ${S.hideIdle && hiddenIdle ? `<div class="cf">${ic('layers')}${nb(`66 imports « rien de nouveau » masqués aujourd’hui — ils prouvent que l’import tourne, pas qu’il se passe quelque chose.`)} <button class="btn sm" data-quiet data-a="hideIdle">Afficher</button></div>` : ''}
+  </div>`;
+}
+
+/* ═════════════ internal ═════════════ */
+function internal(){
+  const doms = [['all','Tout'],['orders','Commandes'],['delivery','Livraison'],['stock','Stock'],['team','Équipe'],['settings','Réglages'],['connections','Connexions'],['money','Argent'],['auto','Automatismes']];
+  const rows = []; let pendingDay = null;
+  for (const a of INT){
+    if (a.day){ pendingDay = a.day; continue; }
+    if (!inMk(a.mk)) continue;
+    if (S.intDom !== 'all' && a.dom !== S.intDom) continue;
+    if (FIXED() && a.s === 'fail') continue;
+    if (pendingDay){ rows.push(`<div class="day">${pendingDay}</div>`); pendingDay = null; }
+    const av = a.k==='sys' ? `<span class="av" data-k="sys">${ic('gear')}</span>` : a.k==='unknown' ? `<span class="av" data-k="unknown">?</span>` : `<span class="av" data-k="${a.k}">${INITIALS[a.who] || a.who.slice(0,2).toUpperCase()}</span>`;
+    rows.push(`<div class="ac${a.ghost?' ghost':''}" data-s="${a.s||''}" ${a.dr?`data-a="drawer:${a.dr}"`:''}>
+      <span class="tm">${a.t}</span>${av}
+      <div class="wh">${nb(a.html)}${a.series && S.series ? ` <span class="rep" title="${a.series} actions regroupées">×${a.series}</span>` : ''}${a.sub?`<small>${nb(a.sub)}</small>`:''}${a.gap?`<div class="gap">${ic('alert')}${nb(a.gap)}</div>`:''}</div>
+      <span class="dom">${ic(DOM[a.dom][0])}${DOM[a.dom][1]}</span>
+      <span>${mkc(a.mk)}</span>
+      ${a.dr?ic('chev','chev'):'<span></span>'}
+    </div>`);
+  }
+  return `<div class="card">
+    <div class="tb">${doms.map(([v,l])=>`<button class="chip" aria-pressed="${S.intDom===v}" data-a="intDom:${v}">${v!=='all'?ic(DOM[v][0]):''}${l}</button>`).join('')}</div>
+    <div class="tb2"><button class="tg" role="switch" aria-checked="${S.series}" data-a="series"><i></i>Regrouper les séries</button><span>Personne : <b style="color:var(--text);font-weight:600">toutes</b> ${ic('chevd')}</span><span class="sp"></span><span>Heures de Tripoli</span></div>
+    ${rows.join('') || `<div style="padding:40px;text-align:center;color:var(--text2)">Aucune action pour ce filtre.</div>`}
+    <div class="cf">${ic('info')}${nb('Une action en série (réattribuer 7 commandes, basculer 4 fois) est une seule ligne. Les lignes en pointillés montrent ce qu’Ordra n’enregistre pas aujourd’hui et que le futur journal gardera.')}<span style="flex:1"></span><button class="btn sm">${ic('download')}Exporter</button></div>
+  </div>`;
+}
+
+/* ═════════════ drawers ═════════════ */
+function drawer(){
+  const d = S.drawer;
+  const shell = (title, sub, body, foot, wide) => `<div class="dw" data-a="close"><aside class="dp${wide?' wide':''}" data-stop>
+    <div class="dh"><div><h3>${nb(title)}</h3><div class="sub">${sub}</div></div><button class="x" data-a="close" aria-label="Fermer">${ic('x')}</button></div>
+    <div class="db">${body}</div>${foot?`<div class="df">${foot}</div>`:''}</aside></div>`;
+  const sec = (t, html, end) => `<div class="ds"><h4>${nb(t)}${end?`<span class="end">${end}</span>`:''}</h4>${html}</div>`;
+
+  if (d === 'p:archive') return shell('L’archivage automatique échoue chaque nuit',
+    `${badge('fail','Critique')}${sys('auto','Archivage des commandes terminées')}${mkc('all')}<span>ouvert automatiquement le 22 août à 05:00</span>`,
+    sec('Ce qui se passe', `<p>${nb('Chaque nuit à 05:00, Ordra range dans « Archivées » les commandes terminées depuis 30 jours. <b>Depuis le 22 août, la tâche s’arrête dès la Tunisie</b> — et comme l’erreur interrompt tout, la Libye n’est plus archivée non plus.')}</p>
+       <div class="figs"><div class="fig" data-s="fail"><b class="num">43</b><span>nuits d’échec d’affilée</span></div><div class="fig"><b class="num">918</b><span>commandes Libye en attente</span></div><div class="fig"><b class="num">3</b><span>commandes Tunisie en attente</span></div></div>`) +
+    sec('Les 43 dernières nuits', `<div class="nights">${Array(43).fill('<i></i>').join('')}</div><div class="axis"><span>22 août</span><span>12 sept.</span><span>3 oct.</span></div><p style="margin-top:10px;font-size:12.5px;color:var(--text2)">${nb('Avant le 22 août : réussie chaque nuit. Le 21 août à 16:47, le réglage « Archiver après » de la Tunisie a été enregistré depuis l’écran.')}</p>`) +
+    sec('Cause', `<p>${nb('Le réglage est enregistré sous la forme <code class="mono">{"value": 30}</code> ; la tâche attend <code class="mono">30</code>. Les deux formes existent dans la base — la Libye a encore <code class="mono">30</code>.')}</p>
+       <div class="code">ERROR:  invalid input syntax for type integer: "{"value": 30}"
+CONTEXT:  SQL statement "SELECT NULLIF(value #>> '{}', '')::int …"
+          archive_finished_orders()</div>
+       <div class="callout" style="margin-top:10px">${ic('info')}<span>${nb('Même lecture fragile dans la Salle de contrôle, Performance et la journée d’un agent : le premier objectif libyen enregistré depuis Réglages les aurait cassées. Le correctif les couvre toutes (PR #58).')}</span></div>`) +
+    sec('Que faire', `<ol class="steps"><li>${nb('Fusionner la PR #58 et coller la migration <code class="mono">20261003120000</code> dans Supabase.')}</li><li>${nb('Relancer l’archivage maintenant (ou attendre 05:00) : 921 commandes passent dans « Archivées ».')}</li><li>${nb('Le problème se ferme tout seul au premier passage réussi.')}</li></ol>`),
+    `<button class="btn" data-quiet data-a="toast">Ignorer 7 jours</button><span class="sp"></span><button class="btn" data-a="toast">${ic('ext')}Ouvrir la PR #58</button><button class="btn" data-primary data-a="toast">${ic('play')}Relancer l’archivage</button>`);
+
+  if (d === 'p:navex-paid') return shell('Navex : 91 colis livrés et payés ne passent jamais en « Livrée »',
+    `${badge('fail','Critique')}${sys('carrier','Navex')}${mkc('tn')}<span>13 013 occurrences en 24 h · même cause</span>`,
+    sec('Ce qui se passe', `<p>${nb('Navex a livré ces colis et encaissé le client (« Livrer Payé »). Ordra ne connaît pas ce statut : il l’ignore, et les commandes restent « en route » depuis avril. Le revenu n’est jamais réalisé, les commissions et les faits investisseurs non plus.')}</p>
+      <div class="figs"><div class="fig" data-s="fail"><b class="num">5 479 TND</b><span>de revenu non compté</span></div><div class="fig"><b class="num">91</b><span>colis du 16 au 27 avr.</span></div><div class="fig"><b class="num">144×</b><span>re-signalés chaque jour</span></div></div>`) +
+    sec('Où sont ces commandes dans Ordra', `<table class="mini"><thead><tr><th>Statut Ordra</th><th class="end">Colis</th><th class="end">Valeur</th></tr></thead><tbody>
+      <tr><td>Expédiée</td><td class="end num">41</td><td class="end num">2 489 TND</td></tr><tr><td>Au dépôt</td><td class="end num">40</td><td class="end num">2 380 TND</td></tr><tr><td>En transit</td><td class="end num">9</td><td class="end num">561 TND</td></tr><tr><td>Non vérifiée</td><td class="end num">1</td><td class="end num">49 TND</td></tr></tbody></table>`) +
+    sec('Ce que Navex renvoie (exemple)', `<div class="code json">${jsonHtml({etat:'Livrer Paye', motif:'', status:1, pre_etat:'En cours', livreur:'Navex …', livreur_tel:'•••• •••', status_message:'••••••'})}</div>`) +
+    sec('Que faire', `<ol class="steps"><li>${nb('Associer « Livrer Payé » à <b>Livrée</b> dans la table des statuts Navex.')}</li><li>${nb('Ordra appliquera les 91 au prochain sondage ; le problème se ferme seul.')}</li><li>${nb('Le journal n’écrira plus une ligne par colis toutes les 10 min, seulement quand un statut change.')}</li></ol>`),
+    `<button class="btn" data-quiet data-a="toast">Ignorer 7 jours</button><span class="sp"></span><button class="btn" data-a="toast">Voir les 91 colis</button>`);
+
+  if (d === 'p:benghazi') return shell('Darb Benghazi ne se synchronise plus',
+    `${badge('silent','Muet · 2 j',true)}${sys('carrier','Darb Assabil — Benghazi')}${mkc('ly')}`,
+    sec('Ce qui se passe', `<p>${nb('Le compte Darb de Benghazi a été <b>désactivé le 1 oct. à 18:26</b>, trois minutes après sa dernière synchronisation. Désactiver un compte arrête aussi le suivi des colis déjà partis : plus de fil Darb, plus de remarques du livreur, plus de rapprochement des étiquettes.')}</p>
+      <div class="figs"><div class="fig"><b class="num">63</b><span>commandes en cours</span></div><div class="fig"><b class="num">15 347 LYD</b><span>de valeur</span></div><div class="fig" data-s="fail"><b class="num">15</b><span>sans aucune nouvelle depuis</span></div></div>
+      <p style="margin-top:10px;font-size:12.5px;color:var(--text2)">${nb('Les 48 autres ne sont rafraîchies que lorsqu’un agent ouvre sa file — par un chemin qui n’écrit aucun passage.')}</p>`) +
+    sec('Qui l’a désactivé', `<div class="callout" data-s="warn">${ic('alert')}<span>${nb('Inconnu : aucun changement de transporteur n’est journalisé aujourd’hui. Le futur journal répondra : nom, heure, actif → inactif.')}</span></div>`) +
+    sec('Que faire', `<ol class="steps"><li>${nb('Si c’était voulu : continuer à suivre les colis en cours d’un compte désactivé (proposition du plan).')}</li><li>${nb('Sinon : réactiver le compte dans Réglages › Livraison.')}</li></ol>`),
+    `<span class="sp"></span><button class="btn" data-a="toast">Voir les 63 commandes</button><button class="btn" data-primary data-a="toast">Ouvrir le transporteur</button>`);
+
+  if (d === 'p:navex-returns' || d === 'p:sheet-rows') return shell(PROBLEMS.find(p=>'p:'+p.id===d).title, `${badge('fail','Critique')}`, sec('Détail', '<p>Même gabarit que les autres problèmes : ce qui se passe, combien, cause, que faire.</p>'), '');
+
+  if (d === 'e:navex-poll') return shell('Sondage Navex — 16:30', `${badge('fail','Échec')}${sys('carrier','Navex')}${mkc('tn')}<span class="rep">${ic('repeat')}identique aux 99 précédents depuis minuit</span>`,
+    sec('En bref', `<div class="figs"><div class="fig"><b class="num">139</b><span>colis interrogés</span></div><div class="fig" data-s="fail"><b class="num">0</b><span>statut appliqué</span></div><div class="fig"><b class="num">19 880</b><span>lignes écrites en 24 h</span></div></div>
+      <p style="margin-top:10px">${nb('Navex répond bien : la connexion marche. C’est Ordra qui refuse ce qu’il reçoit.')}</p>`) +
+    sec('Pourquoi rien n’est appliqué', `<table class="mini"><thead><tr><th>Raison</th><th class="end">Colis</th><th>Problème</th></tr></thead><tbody>
+      <tr><td>${nb('« Livrer Payé » — statut inconnu d’Ordra')}</td><td class="end num">91</td><td style="white-space:nowrap"><a href="#" data-a="drawer:p:navex-paid" style="color:var(--lg-info)">Ouvert · 5 479 TND</a></td></tr>
+      <tr><td>${nb('« Retour reçu » — refusé : retour accepté seulement depuis « À retourner »')}</td><td class="end num">48</td><td style="white-space:nowrap"><a href="#" style="color:var(--lg-info)">Ouvert · 2 732 TND</a></td></tr></tbody></table>`) +
+    sec('Ce que le journal garde', `<p>${nb('Aujourd’hui : <b>une ligne par colis et par sondage</b> — 19 880 lignes par jour pour les mêmes 139 colis, 921 017 lignes et 540 Mo depuis le 20 mai.')}</p><p>${nb('Demain : <b>une ligne quand un statut change</b>, et un compteur « vu 144 fois, dernière fois à 16:30 » sur la ligne existante.')}</p>`) +
+    sec('Données reçues (exemple, numéros masqués)', `<div class="code json">${jsonHtml({etat:'Retour recu', motif:'Annulé par expéditeur', status:1, pre_etat:'En cours', livreur:'Navex vérification Ben Arous', livreur_tel:'•••••• / ••••••', status_message:'••••••'})}</div>`),
+    `<span class="sp"></span><button class="btn" data-a="toast">Voir les 139 colis</button>`);
+
+  if (d === 'a:sa-reopen') return shell('Super Admin a rouvert et confirmé une commande', `${badge('ok','3 étapes · 13 s')}${mkc('ly')}<span>2 oct. 17:27 · commande de Libye</span>`,
+    sec('Les étapes', `<ul class="tl">
+      ${tlRow('17:27:20','SA','sa','<span class="st"><span class="st-chip" data-o="rejected">Rejetée · motif effacé</span> → <span class="st-chip">En attente</span></span><small>« Réouvert par manager »</small>')}
+      ${tlRow('17:27:25','SA','sa','Reprise à tasnim<small>attribuée : tasnim → Super Admin</small>')}
+      ${tlRow('17:27:25','SA','sa','<span class="st"><span class="st-chip">En attente</span> → <span class="st-chip" data-o="confirmed">Confirmée</span></span><small>« Confirmé par le manager »</small>')}
+      ${tlRow('17:27:38','','sys-carrier','<span class="st"><span class="st-chip" data-o="confirmed">Confirmée</span> → <span class="st-chip" data-o="uploaded">Envoyée</span></span><small>Darb Tripoli a créé le colis — 13 s plus tard</small>')}
+    </ul>`) +
+    sec('Ce qui manque aujourd’hui', `<div class="callout" data-s="warn">${ic('alert')}<span>${nb('La réouverture a effacé le motif du rejet de la commande : ni l’historique ni le journal ne le gardent. Le futur journal garde l’avant et l’après de chaque champ modifié.')}</span></div>`),
+    `<span class="sp"></span><button class="btn" data-a="drawer:trace">Voir la trace de la commande</button>`);
+
+  if (d === 'trace') return traceDrawer(shell, sec);
+  return '';
+}
+function jsonHtml(o){
+  const parts = Object.entries(o).map(([k,v])=>`  <span class="k">"${esc(k)}"</span><span class="p">:</span> ${typeof v==='number'?`<span class="n">${v}</span>`:`<span class="s">"${esc(v)}"</span>`}`);
+  return `<span class="p">{</span>\n${parts.join('<span class="p">,</span>\n')}\n<span class="p">}</span>`;
+}
+function tlRow(t, initials, kind, html){
+  const famStyle = f => `background:var(--fam-${f}-bg);color:var(--fam-${f}-ink)`;
+  const who = kind==='sa' ? `<span class="who" style="background:#1F2328;color:#fff">${initials}</span>`
+    : kind.startsWith('sys-') ? `<span class="who t" style="${famStyle(kind.slice(4))}">${ic(FAM[kind.slice(4)][0])}</span>`
+    : kind==='sys' ? `<span class="who t" style="${famStyle('auto')}">${ic('gear')}</span>`
+    : `<span class="who">${initials}</span>`;
+  return `<li><span class="tt">${t}</span>${who}<div class="what">${nb(html)}</div></li>`;
+}
+function traceDrawer(shell, sec){
+  const ph = (t, gapTxt) => `<div class="phase">${t}${gapTxt?`<span class="gapt">${gapTxt}</span>`:''}</div>`;
+  const body = sec('Le parcours', `<div class="tsum">
+      <div><b>Reçue</b><span>17 sept. 01:45</span><em>Converty (Sheets)</em></div>
+      <div><b>Confirmée</b><span>20 sept. 18:19</span><em>3 j 16 h · 6 tentatives</em></div>
+      <div><b>Envoyée</b><span>20 sept. 18:20</span><em>5 s plus tard</em></div>
+      <div><b>Scannée</b><span>21 sept. 18:37</span><em>stock 140 → 139</em></div>
+      <div><b>Livrée</b><span>22 sept. 16:00</span><em>Ordra le sait à 16:03</em></div></div>`) +
+    `<div class="ds">
+      ${ph('Réception','')}
+      <ul class="tl">
+        ${tlRow('17 sept. 01:45','','sys-intake','Reçue de <b>Converty</b> par l’import Google Sheets<small>199,000 LYD · ville « n/a » → à associer</small>')}
+      </ul>
+      ${ph('Confirmation','3 j 16 h · 3 agentes · 5 réattributions')}
+      <ul class="tl">
+        ${tlRow('17 sept. 14:21','SA','sa','<b>Super Admin</b> l’attribue à <b>salima</b>')}
+        ${tlRow('17 sept. 16:35','SL','ag','<b>salima</b> corrige le téléphone<small>09•• ••• 058</small>')}
+        ${tlRow('17 sept. 16:46','SL','ag','<span class="st"><span class="st-chip" data-o="attempt">Tentative 1</span></span> pas de réponse<small>« <span class="ar" dir="rtl">مقفل</span> »</small>')}
+        ${tlRow('18 sept.','RO','ag','Super Admin la réattribue à <b>roqaya</b> — <span class="st"><span class="st-chip" data-o="attempt">Tentatives 2 et 3</span></span> pas de réponse')}
+        ${tlRow('19 sept.','TA','ag','Super Admin la réattribue à <b>tasnim</b> — <span class="st"><span class="st-chip" data-o="attempt">Tentative 4</span></span>')}
+        ${tlRow('20 sept.','RO','ag','Super Admin la réattribue à <b>roqaya</b> — <span class="st"><span class="st-chip" data-o="attempt">Tentatives 5 et 6</span></span>')}
+        ${tlRow('20 sept. 18:17','TA','ag','Super Admin la réattribue à <b>tasnim</b> — 2<sup>e</sup> téléphone ajouté, ville → <span class="ar" dir="rtl">بنغازي</span>')}
+        ${tlRow('20 sept. 18:19','TA','ag','<span class="st"><span class="st-chip" data-o="confirmed">Confirmée</span></span> par <b>tasnim</b><small>« <span class="ar" dir="rtl">دفع نقدياً</span> »</small>')}
+      </ul>
+      ${ph('Transporteur et entrepôt','')}
+      <ul class="tl">
+        ${tlRow('20 sept. 18:20','','sys-carrier','<b>Darb</b> a créé le colis <span class="mono">SH2236328</span><small>envoi réussi, 5 s après la confirmation</small>')}
+        ${tlRow('21 sept. 18:37','AD','ag','<b>adel</b> a scanné le colis — étiquette <span class="mono">2165688</span><small>stock 140 → 139 · entrepôt Tripoli</small>')}
+        ${tlRow('21 sept. 19:14','','sys-carrier','Pris en charge par Darb, transféré vers Benghazi<small>Ordra : <span class="st-chip" data-o="transit">Chez le transporteur</span> (synchro +9 min)</small>')}
+        ${tlRow('21 sept. 21:05','','sys-carrier','<span class="st"><span class="st-chip" data-o="delayed">Retardé</span></span> — « <span class="ar" dir="rtl">الطلبيه نقل السلماني</span> »<small>puis un 2<sup>e</sup> retard à 21:17</small>')}
+        ${tlRow('22 sept. 16:00','','sys-carrier','Darb : « <span class="ar" dir="rtl">تم إكمال طلبك!</span> »<small>Ordra : <span class="st-chip" data-o="delivered">Livrée</span> à 16:03 (synchro +3 min)</small>')}
+      </ul>
+      ${ph('Argent','')}
+      <ul class="tl">
+        ${tlRow('22 sept. 16:08','','sys','Commission <b class="num">9,000 LYD</b> créditée à <b>tasnim</b><small>automatique · 5 min après la livraison</small>')}
+      </ul>
+    </div>`;
+  return shell('Commande 2165688 — la trace complète', `${badge('ok','Livrée')}${mkc('ly')}<span>Converty · 199,000 LYD · Benghazi · ${'<span class="ar" dir="rtl">كتاب الداء والدواء</span>'}</span>`,
+    body, `<span style="font-size:12.5px;color:var(--text2)">${nb('6 sources réunies : import, historique, Darb, entrepôt, stock, commissions.')}</span><span class="sp"></span><button class="btn">Ouvrir la commande</button>`, true);
+}
+
+/* ═════════════ frame, studio, events ═════════════ */
+function frame(){
+  const body = S.screen==='overview' ? overview() : S.screen==='external' ? external() : internal();
+  return `<div class="frame">${sidebar()}<main class="main"><div class="body" id="scroll"><div class="wrap">${head()}${body}</div></div>${S.drawer?drawer():''}${S.toast?`<div class="toast">${ic('checkc')}${S.toast}</div>`:''}</main></div>`;
+}
+const NOTES = {
+  overview:`<b>Vue d’ensemble</b> — répond à « est-ce que tout marche ? ». <b>Tout est réel</b> (production, 3 oct. vers 16 h 40, heures de Tripoli) : l’archivage qui échoue depuis 43 nuits, les 139 colis Navex d’avril bloqués (5 479 + 2 732 TND), Darb Benghazi muet depuis la désactivation du compte, les 66 lignes Sheets refusées. Les <b>silences expliqués</b> évitent les fausses alertes (Libye : pub à 0 depuis le 30 sept.). « Connexions » = barres d’une heure sur 48 h ; « Automatismes » = les 14 tâches pg_cron, avec ce qu’elles ont <i>fait</i>, pas seulement « lancé ». État <code>Après correctifs</code> : ce que l’écran montre quand tout est réglé.`,
+  external:`<b>Échanges externes</b> — ce qu’Ordra reçoit, envoie et synchronise. Les répétitions sont regroupées (le sondage Navex : 1 ligne « ×100 », au lieu de 13 900 lignes aujourd’hui) et les imports « rien de nouveau » masqués par défaut. Ligne en pointillés : un <b>échec d’envoi au transporteur n’est écrit nulle part aujourd’hui</b> — le futur journal le garde. Cliquez le sondage Navex pour le détail.`,
+  internal:`<b>Activité interne</b> — qui a fait quoi : les personnes et les automatismes. Les séries sont une ligne (hamidaly réattribue 7 commandes à 12:52:27). Les <b>pointillés</b> montrent les trous d’aujourd’hui : on ne sait pas qui a désactivé Darb Benghazi, ni à qui hamidaly a donné les commandes (valeurs <span style="text-decoration:underline dotted">soulignées</span> = illustratives). Clic sur la ligne Super Admin 17:27 pour l’avant → après.`,
+};
+function studio(){
+  const seg = (name, items, cur) => `<div class="seg">${items.map(([v,l])=>`<button data-s="${name}:${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
+  const drs = [['','—'],['p:archive','Problème : archivage'],['p:navex-paid','Problème : Navex livrés'],['p:benghazi','Problème : Darb Benghazi'],['e:navex-poll','Échange : sondage Navex'],['a:sa-reopen','Action : Super Admin'],['trace','Trace : commande 2165688']];
+  document.getElementById('bar').innerHTML = `<h1>Ordra — Journaux <span>· prototype v1 · données réelles du 2026-10-03</span></h1>
+    ${seg('screen',[['overview','Vue d’ensemble'],['external','Échanges externes'],['internal','Activité interne']],S.screen)}
+    ${seg('state',[['today','Aujourd’hui (réel)'],['fixed','Après correctifs']],S.state)}
+    <span class="grp">Tiroir <select id="drsel">${drs.map(([v,l])=>`<option value="${v}" ${S.drawer===v?'selected':''}>${l}</option>`).join('')}</select></span>`;
+  document.getElementById('note').innerHTML = NOTES[S.screen];
+}
+function syncURL(){
+  const p = new URLSearchParams(); p.set('screen', S.screen);
+  if (S.state!=='today') p.set('state', S.state); if (S.mk!=='all') p.set('mk', S.mk); if (S.drawer) p.set('drawer', S.drawer);
+  history.replaceState(null, '', '?' + p.toString());
+}
+let keep = false;
+function render(){
+  const sc = document.getElementById('scroll'); const top = sc ? sc.scrollTop : 0;
+  studio();
+  document.getElementById('stage').innerHTML = frame();
+  const ns = document.getElementById('scroll'); if (ns && keep) ns.scrollTop = top; keep = false;
+  const sel = document.getElementById('drsel'); if (sel) sel.onchange = e => { S.drawer = e.target.value; keep = true; render(); };
+  syncURL();
+}
+let tt;
+function toast(m){ S.toast = m; keep = true; render(); clearTimeout(tt); tt = setTimeout(()=>{ S.toast=''; keep = true; render(); }, 1600); }
+document.addEventListener('click', e => {
+  const sb = e.target.closest('#bar [data-s]');
+  if (sb){ const [k,v] = sb.dataset.s.split(':'); S[k] = v; if (k==='screen') S.drawer=''; render(); return; }
+  const el = e.target.closest('[data-a]');
+  if (!el || !document.getElementById('stage').contains(el)) return;
+  if (el.classList.contains('dw') && e.target.closest('[data-stop]') && !e.target.closest('[data-a]:not(.dw)')) return;
+  e.preventDefault();
+  const a = el.dataset.a, i = a.indexOf(':'), cmd = i<0 ? a : a.slice(0,i), arg = i<0 ? '' : a.slice(i+1);
+  if (cmd==='screen'){ S.screen = arg; S.drawer=''; render(); return; }
+  if (cmd==='mk'){ S.mk = arg; keep = true; render(); return; }
+  if (cmd==='period'){ S.period = arg; keep = true; render(); return; }
+  if (cmd==='drawer'){ S.drawer = arg; keep = true; render(); return; }
+  if (cmd==='close'){ S.drawer = ''; keep = true; render(); return; }
+  if (cmd==='extFam' || cmd==='extRes' || cmd==='intDom'){ S[cmd] = arg; keep = true; render(); return; }
+  if (cmd==='group' || cmd==='hideIdle' || cmd==='series'){ S[cmd] = !S[cmd]; keep = true; render(); return; }
+  if (cmd==='toast'){ toast('Action de démonstration'); return; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.drawer){ S.drawer=''; keep = true; render(); } if (e.key === '/' && !S.drawer){ e.preventDefault(); S.drawer='trace'; render(); } });
+render();
+</script>
+</body>
+</html>

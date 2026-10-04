@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { toNationalDigits } from "@/lib/orders/search-query";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export interface CustomerLookup {
 /** Below this a lookup matches half the market and means nothing. */
 const MIN_DIGITS = 6;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -109,3 +110,5 @@ export async function GET(req: NextRequest) {
     { headers: { "Cache-Control": "private, max-age=10" } },
   );
 }
+
+export const GET = withRouteErrors("/api/customers/lookup", "GET", handleGET);

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canCaptureFeedback } from "@/lib/role-permissions";
 import { resolveFeedbackMarket } from "@/lib/feedback/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * customer id, and `customers.phone_normalized` is the same key normalizePhone() builds.
  * Complaints are few (tens), so this is one small read for the whole queue.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -42,3 +43,5 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ data: byPhone });
 }
+
+export const GET = withRouteErrors("/api/feedback/open-complaints", "GET", handleGET);

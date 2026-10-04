@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminWriter, ISO_DATE, rpcError } from "@/lib/investors/admin-route";
 import { previewSettlements } from "@/lib/investors/settlement-preview";
 import { runInvestorRollup } from "@/lib/investors/rollup-run";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -11,7 +12,7 @@ export const maxDuration = 300;
  *  - exit_date only  → phase (i): stop the cohort, status matured
  *  - period_end+hash → phase (ii): final statement + principal_return + closed
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePOST(req: NextRequest, { params }: { params: { id: string } }) {
   const g = await adminWriter(req);
   if ("response" in g) return g.response;
   let b: { reason?: unknown; exit_date?: unknown; period_end?: unknown; preview_hash?: unknown };
@@ -48,3 +49,5 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   await runInvestorRollup(g.admin, { trigger: "manual", mode: "incremental" });
   return NextResponse.json({ data });
 }
+
+export const POST = withRouteErrors("/api/admin/investments/deals/[id]/close", "POST", handlePOST);

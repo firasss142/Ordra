@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canCaptureFeedback } from "@/lib/role-permissions";
 import type { MyFeedbackRow } from "@/types/feedback";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const LIMIT = 1000;
  * with the read-only status of their complaints. Imported « Autre » notes are theirs too (the
  * import credits the agent who rejected), so they show here from day one.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -45,3 +46,5 @@ export async function GET(req: NextRequest) {
   }));
   return NextResponse.json({ data: rows });
 }
+
+export const GET = withRouteErrors("/api/feedback/mine", "GET", handleGET);

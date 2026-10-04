@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canReverseReception } from "@/lib/receptions/permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * parties — réécrire l'histoire n'est pas la réponse quand la marchandise est
  * chez le client ; un comptage l'est.
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -55,3 +56,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json(data);
 }
+
+export const POST = withRouteErrors("/api/warehouse/receptions/[id]/reverse", "POST", handlePOST);

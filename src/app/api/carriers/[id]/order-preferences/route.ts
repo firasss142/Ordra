@@ -10,6 +10,7 @@ import {
   type CarrierOrderPreferenceRow,
   type OrderOptionKey,
 } from "@/lib/carriers/order-preferences";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ async function loadCarrier(id: string) {
   return data as { id: string; market_id: string } | null;
 }
 
-export async function GET(
+async function handleGET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -70,7 +71,7 @@ export async function GET(
   });
 }
 
-export async function PUT(
+async function handlePUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -199,3 +200,6 @@ export async function PUT(
 
   return NextResponse.json({ data: { updated: allRows.length } });
 }
+
+export const GET = withRouteErrors("/api/carriers/[id]/order-preferences", "GET", handleGET);
+export const PUT = withRouteErrors("/api/carriers/[id]/order-preferences", "PUT", handlePUT);

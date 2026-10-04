@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/auth/actor";
 import { createAdminClient } from "@/lib/supabase/server";
 import { MARKET_SEARCH_MIN, searchMarketOrders } from "@/lib/agent-search/market";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * reads past the agent's RLS, so the market comes from the session and nothing
  * else; see lib/agent-search/market for what is returned and why it is narrow.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   const { actor } = result;
@@ -43,3 +44,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Search failed" }, { status: 500, headers: NO_STORE });
   }
 }
+
+export const GET = withRouteErrors("/api/agent/search", "GET", handleGET);

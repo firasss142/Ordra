@@ -17,6 +17,7 @@ import { applySearch } from "@/lib/orders/search-query";
 import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ const LIST_SELECT =
   "created_at, updated_at, terminal_at, archived_at, archived_by, " +
   "product:products!orders_product_id_fkey(image_url, name)";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -287,3 +288,5 @@ export async function GET(req: NextRequest) {
     },
   );
 }
+
+export const GET = withRouteErrors("/api/orders/list", "GET", handleGET);

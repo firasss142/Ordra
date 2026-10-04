@@ -7,7 +7,8 @@ import {
   type AlertType,
 } from "./catalogue";
 
-const HOUR = 60;
+const MIN = 1;
+const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
 describe("severityFor — age is part of the severity, not just the type", () => {
@@ -121,6 +122,34 @@ describe("stock_unreconciled — the registered stock disagrees with the order f
   });
 });
 
+describe("the control room's alerts", () => {
+  test("orders that stopped arriving are loud at once and critical by half a day", () => {
+    expect(severityFor("intake_silent", 6 * HOUR)).toBe("high");
+    expect(severityFor("intake_silent", 12 * HOUR)).toBe("critical");
+  });
+
+  test("a quiet market stops shouting after a month — it is dormant, not broken", () => {
+    expect(isExpired("intake_silent", 29 * DAY)).toBe(false);
+    expect(isExpired("intake_silent", 30 * DAY)).toBe(true);
+  });
+
+  test("orders not called climb as the oldest one waits; an idle agent is a nudge", () => {
+    expect(severityFor("agent_uncalled", 2 * HOUR)).toBe("high");
+    expect(severityFor("agent_uncalled", 6 * HOUR)).toBe("critical");
+    expect(severityFor("agent_idle", 30 * MIN)).toBe("medium");
+    expect(severityFor("agent_idle", 90 * MIN)).toBe("high");
+  });
+
+  test("both agent alerts are re-derived every poll, so they never expire", () => {
+    expect(isExpired("agent_uncalled", 30 * DAY)).toBe(false);
+    expect(isExpired("agent_idle", 30 * DAY)).toBe(false);
+  });
+
+  test("an agent can be both late on calls and idle: two families, two rows", () => {
+    expect(familyOf("agent_uncalled")).not.toBe(familyOf("agent_idle"));
+  });
+});
+
 describe("the catalogue itself", () => {
   test("no longer carries the three types the operator retired", () => {
     const retired = ["agent_inactive", "low_stock", "return_bottleneck"];
@@ -139,6 +168,12 @@ describe("the catalogue itself", () => {
       "order_reopened",
     ];
     for (const type of added) expect(ALERT_TYPES).toContain(type);
+  });
+
+  test("carries the control room's three (prototypes/team-v5.html)", () => {
+    for (const type of ["intake_silent", "agent_uncalled", "agent_idle"] as AlertType[]) {
+      expect(ALERT_TYPES).toContain(type);
+    }
   });
 
   test("every type resolves to a real severity and a defined expiry", () => {

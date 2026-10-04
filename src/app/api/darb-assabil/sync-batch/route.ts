@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
 import { fetchDarbShipment } from "@/lib/carriers/darb-assabil-tracking";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * POST /api/darb-assabil/sync-batch
@@ -9,10 +10,10 @@ import { fetchDarbShipment } from "@/lib/carriers/darb-assabil-tracking";
  * Refreshes Darb Assabil status for up to 25 orders in one call. Reads the
  * authoritative by-`_id` shipment (status + real reference) and writes via the
  * promote_darb_status RPC, which: refreshes carrier_status_slug, repairs
- * tracking_number to the real reference, and — for the 3 TERMINAL Darb states —
- * promotes orders.status (completed→delivered, returned→returned,
- * cancelled→cancelled) with an append-only order_history row. In-flight states
- * leave orders.status untouched (the "like Dexpress" model). No stock/cost
+ * tracking_number to the real reference, and promotes orders.status along
+ * Darb's journey with an append-only order_history row (see
+ * 20261004100300: a Darb `cancelled` after pickup is `returning`, not terminal,
+ * and a `released` behind a cancel is `to_be_returned`). No stock/cost
  * side-effects (Libya).
  *
  * Auth via the cookie-scoped Supabase client → RLS enforces market isolation.
@@ -43,7 +44,7 @@ type PerOrderResult =
   | { ok: true; slug: string | null }
   | { ok: false; reason: string };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const {
@@ -241,3 +242,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ results }, { status: 200 });
 }
+
+export const POST = withRouteErrors("/api/darb-assabil/sync-batch", "POST", handlePOST);

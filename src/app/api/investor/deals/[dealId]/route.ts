@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
 import { buildDealCard, loadInvestorDeals } from "@/lib/investors/portfolio-summary";
 import { addDaysISO } from "@/lib/investors/facts/ad-spend-daily";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ function rangeStart(range: Range, today: string, dealStart: string, lastStatemen
 }
 
 /** One deal: card + terms + statements + full waterfall + range-filtered series. */
-export async function GET(req: NextRequest, { params }: { params: { dealId: string } }) {
+async function handleGET(req: NextRequest, { params }: { params: { dealId: string } }) {
   const g = await investorActor(req);
   if ("response" in g) return g.response;
   const rangeParam = (req.nextUrl.searchParams.get("range") ?? "all") as Range;
@@ -51,3 +52,5 @@ export async function GET(req: NextRequest, { params }: { params: { dealId: stri
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export const GET = withRouteErrors("/api/investor/deals/[dealId]", "GET", handleGET);

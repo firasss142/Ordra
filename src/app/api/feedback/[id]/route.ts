@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canCaptureFeedback, canManageFeedback } from "@/lib/role-permissions";
 import { isComplaintStatus } from "@/lib/feedback/taxonomy";
 import { isUuid, rpcErrorResponse } from "@/lib/feedback/api";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  * résolue » (resolved), « Rouvrir » (open). Managers and super_admin; the RPC re-checks the
  * market and that the row is a validated réclamation.
  */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   if (!canManageFeedback(result.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
  * DELETE /api/feedback/[id] — the toast's « Annuler ». The author only, within ten minutes
  * (delete_customer_feedback); a soft delete that keeps the row and its journal.
  */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleDELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const result = await getActor(req);
   if ("response" in result) return result.response;
   if (!canCaptureFeedback(result.actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -47,3 +48,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (error) return rpcErrorResponse(error, "delete");
   return NextResponse.json({ data: { id: params.id } });
 }
+
+export const PATCH = withRouteErrors("/api/feedback/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/feedback/[id]", "DELETE", handleDELETE);

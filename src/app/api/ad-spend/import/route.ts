@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { isLockedForActor } from "@/lib/ad-spend/enforce-lock";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ interface AdSpendInsert {
   source: string;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
@@ -133,3 +134,5 @@ export async function POST(req: NextRequest) {
     },
   }, { status: 201 });
 }
+
+export const POST = withRouteErrors("/api/ad-spend/import", "POST", handlePOST);

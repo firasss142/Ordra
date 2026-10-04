@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { payable, summarise, rollupSuppliers, type PayableRow } from "@/lib/purchases/derive";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 import {
   projectPurchaseOrder,
   supplierReliability,
@@ -76,7 +77,7 @@ function sumPaid(r: RawReception): number {
   return (r.reception_payments ?? []).reduce((a, p) => a + Number(p.amount ?? 0), 0);
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -359,3 +360,10 @@ export async function GET(req: NextRequest) {
     suppliers: supplierRows,
   });
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const GET = withRouteErrors("/api/finance/purchases", "GET", handleGET);

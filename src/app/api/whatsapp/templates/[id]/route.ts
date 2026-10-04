@@ -7,6 +7,7 @@ import { catalogueEntry } from "@/lib/whatsapp/catalogue";
 import { placeholderCount } from "@/lib/whatsapp/templates";
 import { isLifecycleEventKey, type TemplateVariable } from "@/lib/whatsapp/types";
 import { resolveMarketForManage } from "@/lib/whatsapp/authz";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /**
  * One registry row: map or unmap its lifecycle event (manager), or delete it
@@ -31,7 +32,7 @@ interface Row {
   body_text: string | null;
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+async function handlePATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -42,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data, error } = await admin
     .from("whatsapp_templates")
     .select("id, market_id, name, language, status, event_key, variables, body_text")
@@ -105,12 +106,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ data: { id: row.id, event_key: eventKey } });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleDELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   if (actorResult.actor.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actorResult.actor.id });
   const { data, error } = await admin.from("whatsapp_templates").select("id, market_id, name, language").eq("id", params.id).maybeSingle();
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -130,3 +131,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (delError) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   return NextResponse.json({ data: { deleted: true } });
 }
+
+export const PATCH = withRouteErrors("/api/whatsapp/templates/[id]", "PATCH", handlePATCH);
+export const DELETE = withRouteErrors("/api/whatsapp/templates/[id]", "DELETE", handleDELETE);

@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { canManageProducts } from "@/lib/product-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { uploadProductImageDataUrl } from "@/lib/product-images";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ interface Body {
   data_url?: string;
 }
 
-export async function PUT(
+async function handlePUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -54,7 +55,7 @@ export async function PUT(
     return NextResponse.json({ error: upload.error }, { status: upload.status });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ actorId: actor.id });
   const { data: updated, error: updateError } = await admin
     .from("products")
     .update({ image_url: upload.url })
@@ -68,3 +69,5 @@ export async function PUT(
 
   return NextResponse.json({ image_url: updated.image_url });
 }
+
+export const PUT = withRouteErrors("/api/products/[id]/image", "PUT", handlePUT);

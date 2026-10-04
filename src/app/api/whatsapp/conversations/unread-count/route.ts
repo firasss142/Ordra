@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 /** GET /api/whatsapp/conversations/unread-count?market_id= — the sidebar badge. */
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -17,3 +18,5 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ count: 0 });
   return NextResponse.json({ count: Number(data ?? 0) });
 }
+
+export const GET = withRouteErrors("/api/whatsapp/conversations/unread-count", "GET", handleGET);

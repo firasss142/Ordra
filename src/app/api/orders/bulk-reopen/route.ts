@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/auth/actor";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCarrierAdapter, buildConfig } from "@/lib/carriers";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ type SkipReason = "order_not_found" | "wrong_market" | "not_uploaded" | "carrier
  * shipment — the manager cancels at the carrier and retries with
  * `confirm_manual_cancel`. Managers/super_admin only.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -186,3 +187,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ succeeded, failed, skipped, void_failed: voidFailed });
 }
+
+export const POST = withRouteErrors("/api/orders/bulk-reopen", "POST", handlePOST);

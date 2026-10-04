@@ -7,6 +7,7 @@ import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { getMarketSetting } from "@/lib/settings/getMarketSetting";
 import { bucketOf, HOT_WINDOW_MINUTES, sortWorklist } from "@/lib/prospects/worklist";
 import type { ProspectRow } from "@/lib/prospects/types";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ interface UserEmbed { full_name: string | null }
  * only a status, a source, a callback time and a campaign. bucketOf() is the
  * Design: prototypes/prospects-v3.html.
  */
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -286,3 +287,5 @@ export async function GET(req: NextRequest) {
     generated_at: new Date().toISOString(),
   });
 }
+
+export const GET = withRouteErrors("/api/prospects/worklist", "GET", handleGET);

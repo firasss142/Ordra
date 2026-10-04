@@ -5,6 +5,7 @@ import { lockedResponse } from "@/lib/orders/order-lock-response";
 import { asOrderLockedError } from "@/lib/orders/order-lock";
 import { getMergeWindowHours } from "@/lib/orders/merge-window";
 import { resolveMergeAddress, type AddressChoice } from "@/lib/orders/merge";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  * the caller has not chosen, this refuses — a default would silently redirect
  * someone's parcel.
  */
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -149,3 +150,5 @@ export async function POST(
 
   return NextResponse.json({ data });
 }
+
+export const POST = withRouteErrors("/api/orders/[id]/merge", "POST", handlePOST);

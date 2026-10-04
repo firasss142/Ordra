@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewSuppliers, canManageSuppliers } from "@/lib/purchases/permissions";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ function resolveMarket(req: NextRequest, role: string, actorMarket: string | nul
   return role === "super_admin" ? req.nextUrl.searchParams.get("market_id") : actorMarket;
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ suppliers: data ?? [] });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -106,3 +107,11 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ supplier: data }, { status: 201 });
 }
+
+/*
+ * Chaque gestionnaire passe par `withRouteErrors`, sinon ses 500 n'arrivent
+ * jamais dans Journaux › « Ordra — erreurs et sécurité ». Un test du dépôt
+ * (`routes-are-wrapped`) refuse toute route qui exporte un gestionnaire nu.
+ */
+export const GET = withRouteErrors("/api/suppliers", "GET", handleGET);
+export const POST = withRouteErrors("/api/suppliers", "POST", handlePOST);

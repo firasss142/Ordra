@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignLeads } from "@/lib/lead-permissions";
 import { assignLead, unassignLead } from "@/lib/leads/assignment";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -61,3 +62,5 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status });
   }
 }
+
+export const POST = withRouteErrors("/api/leads/[id]/assign", "POST", handlePOST);

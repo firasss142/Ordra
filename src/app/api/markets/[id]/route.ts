@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const SENDER_FIELDS = ["sender_name", "sender_address", "sender_phone"] as const
  * A market is edit-only (no create/delete) because both are constrained by
  * the `code IN ('tn','ly')` CHECK and would need a migration.
  */
-export async function PATCH(
+async function handlePATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -85,3 +86,5 @@ export async function PATCH(
   revalidateTag("markets");
   return NextResponse.json({ data });
 }
+
+export const PATCH = withRouteErrors("/api/markets/[id]", "PATCH", handlePATCH);
