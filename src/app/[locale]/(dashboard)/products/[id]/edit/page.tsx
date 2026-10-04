@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ProductEditV6 } from "@/components/products/v6/ProductEditV6";
+import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 
 const TABS = ["general", "prix", "var", "stock", "fiche"] as const;
 type Tab = (typeof TABS)[number];
@@ -86,9 +87,8 @@ export default async function EditProductPage({
 
   const tab = TABS.find((t) => t === searchParams.tab) as Tab | undefined;
 
-  // Padding is the prototype's <main> (24px 28px 120px; 16px on a phone).
   return (
-    <div className="min-h-screen bg-surface-page px-[16px] pb-[120px] pt-[16px] md:px-[28px] md:pt-[24px]">
+    <ProductsFrame>
       <ProductEditV6
         locale={params.locale}
         role={profile.role}
@@ -138,6 +138,6 @@ export default async function EditProductPage({
           damaged_return_count: Number(product.damaged_return_count ?? 0),
         }}
       />
-    </div>
+    </ProductsFrame>
   );
 }

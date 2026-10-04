@@ -140,6 +140,25 @@ afterEach(() => {
 });
 
 describe("ProductsListV6 — the approved list", () => {
+  test("first load paints the list's own skeleton, never « Chargement… », then fills it in", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        await gate;
+        return new Response(JSON.stringify(overview()), { status: 200, headers: { "Content-Type": "application/json" } });
+      }),
+    );
+    const { container } = renderList();
+    expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+    expect(container.querySelector(".empty-q")).toBeNull();
+    expect(container.querySelectorAll(".tbl .tr")).toHaveLength(8);
+    release();
+    expect(await screen.findByText(norm(QR.name))).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   test("asks for the market's last 30 days and lights « 30 jours », never « Aujourd’hui »", async () => {
     renderList();
     await screen.findByText("القرآن تدبر وعمل");

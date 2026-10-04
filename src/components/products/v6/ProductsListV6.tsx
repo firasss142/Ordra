@@ -41,6 +41,7 @@ import { PeriodSeg } from "./PeriodSeg";
 import { ProductRowV6 } from "./ProductRowV6";
 import { useProductActions } from "./useProductActions";
 import type { MenuAction } from "./ActionMenu";
+import { ProductsListSkeleton } from "./skeletons";
 import "./products-v6.css";
 
 type Filter = "active" | "inactive" | "all";
@@ -114,7 +115,7 @@ export function ProductsListV6({
   );
 
   const enabled = Boolean(marketId);
-  const { data, error, isLoading, mutate } = useProductsOverview(marketId, period, enabled);
+  const { data, error, mutate } = useProductsOverview(marketId, period, enabled);
   const actions = useProductActions(() => mutate());
 
   const canAdd = canManageProducts(role, marketId ?? "", marketId ?? "");
@@ -243,6 +244,8 @@ export function ProductsListV6({
       </div>
     );
   }
+  // First load only (SWR keeps the previous figures while a new period loads).
+  if (!data && !error) return <ProductsListSkeleton />;
 
   const tot = data?.totals;
   const market = data?.market;
@@ -420,9 +423,7 @@ export function ProductsListV6({
               <div />
             </div>
             <div>
-              {isLoading && !data ? (
-                <div className="empty-q">{t("loading")}</div>
-              ) : visible.length === 0 ? (
+              {visible.length === 0 ? (
                 <div className="empty-q">{t("empty_q")}</div>
               ) : (
                 visible.map((r) => (
