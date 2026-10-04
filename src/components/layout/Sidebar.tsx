@@ -1,1082 +1,482 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
-import { fetcher } from "@/lib/swr-config";
+import { ChevronDown, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import { useOrphanUnreadCount } from "@/hooks/useOrphanConversations";
-import {
-  MessageCircle,
-  BarChart3,
-  Boxes,
-  ChevronRight,
-  ChevronsUpDown,
-  CopyCheck,
-  DollarSign,
-  FileClock,
-  Gauge,
-  Home,
-  LayoutDashboard,
-  LineChart,
-  Megaphone,
-  HandCoins,
-  ReceiptText,
-  PackageCheck,
-  PackageOpen,
-  PackageSearch,
-  Percent,
-  PhoneCall,
-  Send,
-  Server,
-  Settings,
-  ScrollText,
-  ShoppingBag,
-  Sun,
-  Target,
-  Truck,
-  UserPlus,
-  Users,
-  Warehouse,
-  type LucideIcon,
-  MessageSquareQuote,
-} from "lucide-react";
-import { prefetchForRoute } from "./prefetch";
-import { Avatar } from "@/components/ui/Avatar";
-import { AlertsBell } from "@/components/alerts/AlertsBell";
-import { MarketScopeSwitcher } from "@/components/layout/MarketScopeSwitcher";
+import { useMediaQuery, PHONE_QUERY } from "@/hooks/useMediaQuery";
+import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
-import { getPermissionsForRole } from "@/lib/user-permissions";
-import { marketFlag } from "@/lib/markets";
+import { AlertsBell } from "@/components/alerts/AlertsBell";
+import {
+  BADGE_TONE,
+  findActiveGroupId,
+  flattenNav,
+  groupBadgeSource,
+  isNavItemActive,
+  visibleNav,
+  type BadgeCounts,
+  type BadgeSource,
+  type NavGroupDef,
+  type NavGroupId,
+  type NavItemDef,
+} from "@/lib/navigation/sidebar-nav";
+import { readCollapsedGroups, writeCollapsedGroups } from "@/lib/navigation/sidebar-prefs";
+import type { MarketScope } from "@/lib/markets";
 import type { AuthUser } from "@/types";
+import { prefetchForRoute } from "./prefetch";
+import { NavBadge } from "./sidebar/NavBadge";
+import { MarketFlag } from "./sidebar/MarketFlag";
+import { MarketSwitcher } from "./sidebar/MarketSwitcher";
+import { GoToPalette, type PaletteEntry } from "./sidebar/GoToPalette";
+import { SidebarUserMenu } from "./sidebar/SidebarUserMenu";
+
+/*
+ * The manager / super_admin sidebar (prototypes/sidebar-v2.html).
+ *
+ * Head and foot are pinned; only the list scrolls — the old bar scrolled as one
+ * block, so the market, the bell and the profile left the screen. Dashboard
+ * stands alone; group labels are quiet, fold, and stay folded per person; the
+ * group of the current page always opens. Three widths: 240 px, a 64 px rail
+ * the person chooses (DashboardFrame defaults it below 1280 px), and a drawer
+ * behind a top bar on phones.
+ */
 
 interface SidebarProps {
   user: AuthUser;
   /** Optional override; normally resolved from usePathname() */
   currentPath?: string;
   unassignedCount?: number;
-  /** When true on mobile (<768px), the drawer is open; otherwise it slides off-canvas. Desktop ignores this. */
+  /** Desktop 64 px rail. Ignored on a phone, where the drawer is always full. */
+  rail?: boolean;
+  onToggleRail?: () => void;
+  /** Phone drawer state, owned by the frame. */
   mobileOpen?: boolean;
-  /** Called when user dismisses the drawer (backdrop click, Escape, or nav click on mobile). */
+  onMobileOpen?: () => void;
   onMobileClose?: () => void;
 }
 
-type NavSectionId =
-  | "accueil"
-  | "commandes"
-  | "logistique"
-  | "livraison"
-  | "finances"
-  | "clients"
-  | "equipe"
-  | "systeme";
+const MARKETS: readonly MarketScope[] = ["tn", "ly", "all"];
 
-type BadgeTone = "neutral" | "warning" | "critical" | "success";
-
-interface NavItemDef {
-  /** i18n key under `nav.items.*` */
-  key: string;
-  /** Full href relative to `/{locale}/`, may include query string */
-  href: string;
-  icon: LucideIcon;
-  /** Prefetch hint — usually matches the base route segment */
-  prefetchRoute?: string;
-  showBadge?: boolean;
-  /**
-   * A second live count: unread orphan WhatsApp conversations (green), or the
-   * Journaux problems still open (red, super_admin only).
-   */
-  badgeSource?: "whatsapp" | "journal";
-  /** Visible only to super_admin, even when its section is shown to others. */
-  superAdminOnly?: boolean;
-  /**
-   * Sub-pages that keep this item highlighted (relative to `/{locale}/`):
-   * Clients › Messages stays active on its Modèles page.
-   */
-  activeOn?: string[];
-  /**
-   * Permission key from user-permissions; the ITEM is hidden when the role
-   * lacks it, even though its section stays visible. Needed since Stock &
-   * inventaire moved into Entrepôt: the group is open to every role, but the
-   * page behind this one link is still super-admin only, and a link that
-   * bounces you back to the dashboard is worse than no link.
-   */
-  requiresPermission?: "canViewFinances";
+function isTyping(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    !!target.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']")
+  );
 }
 
-interface NavSection {
-  id: NavSectionId;
-  icon: LucideIcon;
-  items: NavItemDef[];
-  /** Visible only to super_admin */
-  superAdminOnly?: boolean;
-  /**
-   * The admin block (Système): a divider before it and the « Admin » chip for
-   * super_admin; any other role that sees it reads it — the section carries
-   * the read-only note under its items.
-   */
-  admin?: boolean;
-  /** Expanded by default on first mount */
-  defaultExpanded?: boolean;
-  /** Permission key from user-permissions; section hidden when role lacks it */
-  requiresPermission?: "canViewFinances";
-}
-
-const NAV_SECTIONS: readonly NavSection[] = [
-  {
-    id: "accueil",
-    icon: Home,
-    defaultExpanded: true,
-    items: [
-      { key: "pulse", href: "dashboard", icon: LayoutDashboard, prefetchRoute: "dashboard" },
-    ],
-  },
-  {
-    id: "commandes",
-    icon: ShoppingBag,
-    items: [
-      {
-        key: "orders",
-        href: "orders",
-        icon: Send,
-        prefetchRoute: "orders",
-        showBadge: true,
-      },
-      {
-        key: "archived",
-        href: "orders/archive",
-        icon: FileClock,
-        prefetchRoute: "orders",
-      },
-      {
-        key: "duplicates",
-        href: "orders/duplicates",
-        icon: CopyCheck,
-        prefetchRoute: "orders",
-      },
-    ],
-  },
-  {
-    /*
-     * The warehouse day (2026-10-02, plans/entrepot-day-loop-redesign.md).
-     *
-     * Aujourd'hui is the four jobs — Sortir, Rentrer, Recevoir, Compter — each
-     * a link carrying its backlog. It is not the « Aujourd'hui » removed on
-     * 2026-09-08, which repeated other screens' figures and could not be
-     * clicked. Sortir and Rentrer are where the floor works; Recevoir and
-     * Compter live in Stock, which also holds the Journal.
-     */
-    id: "logistique",
-    icon: Warehouse,
-    items: [
-      { key: "warehouseToday", href: "warehouse", icon: Sun, prefetchRoute: "warehouse" },
-      { key: "warehouseOut", href: "warehouse/out", icon: PackageSearch, prefetchRoute: "warehouse", activeOn: ["warehouse/scan"] },
-      { key: "warehouseReturns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
-      {
-        key: "warehouseStock",
-        href: "warehouse/stock",
-        icon: Boxes,
-        prefetchRoute: "warehouse",
-        activeOn: ["warehouse/stock", "warehouse/count"],
-      },
-    ],
-  },
-  {
-    /*
-     * Post-handover tracking. Split out of Entrepôt because the warehouse can
-     * take no action on a parcel that has already left the building — keeping
-     * these two here made the section list eight items across three different
-     * audiences, and nothing in it read as primary.
-     */
-    id: "livraison",
-    icon: Truck,
-    items: [
-      { key: "deliveryWorklist", href: "delivery", icon: PackageCheck, prefetchRoute: "delivery" },
-      { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
-      { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },
-    ],
-  },
-  {
-    id: "finances",
-    icon: LineChart,
-    defaultExpanded: true,
-    requiresPermission: "canViewFinances",
-    items: [
-      { key: "pnl", href: "dashboard/pnl", icon: DollarSign, prefetchRoute: "dashboard" },
-      { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
-      { key: "stockInventory", href: "dashboard/stock", icon: Boxes, prefetchRoute: "dashboard" },
-      // Achats — ce qu'on doit aux fournisseurs et à qui on peut se fier.
-      // Juste après le stock : c'est l'autre bout du même mouvement.
-      { key: "purchases", href: "finance/purchases", icon: ReceiptText },
-      { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
-      { key: "investors", href: "finance/investors", icon: HandCoins },
-    ],
-  },
-  {
-    id: "clients",
-    icon: Users,
-    items: [
-      { key: "activeProspects", href: "leads", icon: Target, prefetchRoute: "leads" },
-      // « Voix du client » — complaints, objections, suggestions (plans/voix-du-client.md).
-      { key: "customerVoice", href: "feedback", icon: MessageSquareQuote, prefetchRoute: "feedback" },
-      // WhatsApp replies nobody has claimed yet (managers + super_admin).
-      // Its Modèles page lives under it and keeps it highlighted.
-      { key: "messages", href: "messages", icon: MessageCircle, badgeSource: "whatsapp", activeOn: ["messages/templates"] },
-    ],
-  },
-  {
-    id: "equipe",
-    icon: Gauge,
-    defaultExpanded: true,
-    items: [
-      {
-        key: "controlRoom",
-        href: "team",
-        icon: PhoneCall,
-        prefetchRoute: "team",
-      },
-      { key: "performanceLive", href: "team/performance", icon: BarChart3, prefetchRoute: "team" },
-      { key: "access", href: "users", icon: UserPlus, prefetchRoute: "users" },
-    ],
-  },
-  {
-    id: "systeme",
-    icon: Server,
-    admin: true,
-    // Two entries (plans/reglages-redesign.md, 2026-10-02). Réglages is one
-    // page organised by topic — Marchés, Boutiques, Commandes, Motifs de rejet,
-    // Équipe, Entrepôts, Livraison, WhatsApp, Publicité — with its own menu; a
-    // market_manager edits the day-to-day rules of their market there. The old
-    // Marchés / Connexions / Paramètres routes redirect to their topic.
-    // Journaux stays super_admin only.
-    items: [
-      { key: "reglages", href: "system/settings", icon: Settings, prefetchRoute: "settings", activeOn: ["system/settings"] },
-      { key: "logs", href: "system/logs", icon: ScrollText, prefetchRoute: "admin", superAdminOnly: true, badgeSource: "journal" },
-    ],
-  },
-];
-
-const LY_MARKET_ID = "00000000-0000-0000-0000-000000000002";
-
-function resolveMarketKey(marketId: string | null): "tn" | "ly" | "all" {
-  if (marketId === LY_MARKET_ID) return "ly";
-  if (marketId) return "tn";
-  return "all";
-}
-
-function splitHref(href: string): { path: string; search: string } {
-  const [path, search = ""] = href.split("?");
-  return { path, search };
-}
-
-/**
- * A sub-tab is active when the URL's path matches the item's path AND every
- * query param the item declares is present (subset match). Extra filters in
- * the URL (e.g. ?q=text on top of ?preset=unassigned) leave the tab active.
- * A plain-path item (no query) matches on exact path regardless of query, so
- * /orders?preset=unassigned or /orders?open=<id> keep Commandes active.
- * Path-distinct siblings (/dashboard vs /dashboard/alerts) never double-activate.
- */
-/** Exact item match, or one of its declared sub-pages (`activeOn`). */
-function isNavItemActive(item: NavItemDef, locale: string, activePath: string, activeSearch: string): boolean {
-  if (isItemActive(`/${locale}/${item.href}`, activePath, activeSearch)) return true;
-  return (item.activeOn ?? []).some((p) => {
-    const path = `/${locale}/${p}`;
-    return activePath === path || activePath.startsWith(`${path}/`);
-  });
-}
-
-function isItemActive(itemHref: string, activePath: string, activeSearch: string): boolean {
-  const { path: itemPath, search: itemSearch } = splitHref(itemHref);
-  if (activePath !== itemPath) return false;
-  if (!itemSearch) return true;
-  const itemParams = new URLSearchParams(itemSearch);
-  const activeParams = new URLSearchParams(activeSearch);
-  for (const [key, value] of itemParams.entries()) {
-    if (activeParams.get(key) !== value) return false;
-  }
-  return true;
-}
-
-/**
- * Identify the one section that should be considered "primarily active" for the
- * current URL. Prefer an exact item match (including query subset match); only
- * fall back to the longest-prefix item path when no section has a direct match.
- * This prevents /dashboard/pnl from auto-expanding ACCUEIL (whose Dashboard item is
- * /dashboard) when FINANCES has a more specific item at /dashboard/pnl.
- */
-function findActiveSectionId(
-  sections: readonly NavSection[],
-  activePath: string,
-  activeSearch: string,
-  locale: string,
-): NavSectionId | null {
-  for (const section of sections) {
-    if (section.items.some((item) => isNavItemActive(item, locale, activePath, activeSearch))) {
-      return section.id;
-    }
-  }
-  let bestId: NavSectionId | null = null;
-  let bestLen = -1;
-  for (const section of sections) {
-    for (const item of section.items) {
-      const { path: itemPath } = splitHref(`/${locale}/${item.href}`);
-      if (activePath === itemPath || activePath.startsWith(itemPath + "/")) {
-        if (itemPath.length > bestLen) {
-          bestLen = itemPath.length;
-          bestId = section.id;
-        }
-      }
-    }
-  }
-  return bestId;
-}
-
-export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({
+  user,
+  currentPath,
+  unassignedCount,
+  rail = false,
+  onToggleRail,
+  mobileOpen = false,
+  onMobileOpen,
+  onMobileClose,
+}: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const rawSearchParams = useSearchParams();
-  const searchString = rawSearchParams?.toString() ?? "";
+  const searchParams = useSearchParams();
+  const t = useTranslations("nav");
+  const searchString = searchParams?.toString() ?? "";
   const activePath = currentPath ?? pathname ?? "";
   const activeSearch = searchString ? `?${searchString}` : "";
-  const t = useTranslations("nav");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [userHovered, setUserHovered] = useState(false);
-  const [logoutHovered, setLogoutHovered] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const locale = user.locale;
+  const isAdmin = user.role === "super_admin";
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const railActive = rail && !isPhone;
 
-  const visibleSections = useMemo(() => {
-    const perms = new Map(getPermissionsForRole(user.role).map((p) => [p.key, p.allowed]));
-    return NAV_SECTIONS.filter((s) => {
-      if (s.superAdminOnly && user.role !== "super_admin") return false;
-      if (s.requiresPermission && !perms.get(s.requiresPermission)) return false;
-      return true;
-    })
-      .map((s) => {
-        const items = s.items.filter(
-          (i) =>
-            (!i.requiresPermission || perms.get(i.requiresPermission)) &&
-            (!i.superAdminOnly || user.role === "super_admin"),
-        );
-        return items.length === s.items.length ? s : { ...s, items };
-      })
-      .filter((s) => s.items.length > 0);
-  }, [user.role]);
+  const nav = useMemo(() => visibleNav(user.role), [user.role]);
+  const hasSidebar = nav.groups.length > 0 || nav.top.length > 0;
+  const activeGroupId = findActiveGroupId(nav, locale, activePath, activeSearch);
 
-  const activeSectionId = useMemo(
-    () => findActiveSectionId(visibleSections, activePath, activeSearch, user.locale),
-    [visibleSections, activePath, activeSearch, user.locale],
-  );
-
-  const [expandedSections, setExpandedSections] = useState<Set<NavSectionId>>(() => {
-    const initial = new Set<NavSectionId>();
-    for (const section of NAV_SECTIONS) {
-      if (section.defaultExpanded) initial.add(section.id);
-    }
-    if (activeSectionId) initial.add(activeSectionId);
-    return initial;
-  });
-
-  useEffect(() => {
-    if (!activeSectionId) return;
-    setExpandedSections((prev) => {
-      if (prev.has(activeSectionId)) return prev;
-      const next = new Set(prev);
-      next.add(activeSectionId);
-      return next;
-    });
-  }, [activeSectionId]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!mobileOpen || !onMobileClose) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onMobileClose();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [mobileOpen, onMobileClose]);
-
-  const isRtl = user.direction === "rtl";
-  const marketParam = user.market_id ? `?market_id=${user.market_id}` : "";
-
-  // SWR hooks MUST be called unconditionally before any early return
-  const shouldFetch = unassignedCount === undefined;
-  const countKey = shouldFetch ? `/api/orders/unassigned/count${marketParam}` : null;
-  const { data: countData } = useSWR<{ count: number }>(countKey, {
-    refreshInterval: 60000,
-    revalidateOnFocus: false,
-  });
-  // The WhatsApp badge follows the market chosen in the switcher for a
-  // super_admin (null = every market), and the manager's own market otherwise.
-  const { marketId: scopeMarketId } = useMarketScope();
-  const whatsappUnread = useOrphanUnreadCount(
-    user.role === "super_admin" ? scopeMarketId : user.market_id,
-    user.role === "super_admin" || user.role === "market_manager",
-  );
-  // Open Journaux problems — the only alert the journal raises (plan §7, decision 4).
-  const { data: journalCounts } = useSWR<{ open: number; critical: number }>(
-    user.role === "super_admin" ? "/api/admin/journal/counts" : null,
+  // ── live counts ────────────────────────────────────────────────────────
+  const { marketId: scopeMarketId, scope, setScope } = useMarketScope();
+  const countMarketId = isAdmin ? scopeMarketId : user.market_id;
+  const { data: countData } = useSWR<{ count: number }>(
+    hasSidebar && unassignedCount === undefined
+      ? `/api/orders/unassigned/count${countMarketId ? `?market_id=${countMarketId}` : ""}`
+      : null,
     fetcher,
     { refreshInterval: 60000, revalidateOnFocus: false },
   );
-  const journalOpen = journalCounts?.open ?? 0;
-
-  if (user.role === "agent" || user.role === "warehouse_agent") {
-    return null;
-  }
-
-  const liveCount = unassignedCount !== undefined ? unassignedCount : countData?.count;
-
-  const marketKey = resolveMarketKey(user.market_id);
-  const marketName = t(`markets.${marketKey}`);
-  const roleLabel = t(`roles.${user.role}`);
-
-  const handleLogout = async () => {
-    if (signingOut) return;
-    setSigningOut(true);
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // network failure — still attempt to redirect to clear stale UI
-    }
-    router.replace(`/${user.locale}/login`);
+  const whatsapp = useOrphanUnreadCount(countMarketId, hasSidebar);
+  const { data: journalCounts } = useSWR<{ open: number; critical: number }>(
+    isAdmin ? "/api/admin/journal/counts" : null,
+    fetcher,
+    { refreshInterval: 60000, revalidateOnFocus: false },
+  );
+  const counts: BadgeCounts = {
+    unassigned: unassignedCount ?? countData?.count ?? 0,
+    whatsapp,
+    journal: journalCounts?.open ?? 0,
   };
 
-  const toggleSection = (id: NavSectionId) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  // ── folding, remembered per browser ───────────────────────────────────
+  const [collapsed, setCollapsed] = useState<ReadonlySet<NavGroupId>>(() => new Set());
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    setCollapsed(new Set(readCollapsedGroups()));
+    setRestored(true);
+  }, []);
+  useEffect(() => {
+    if (!restored || !activeGroupId || !collapsed.has(activeGroupId)) return;
+    const next = new Set(collapsed);
+    next.delete(activeGroupId);
+    writeCollapsedGroups([...next]);
+    setCollapsed(next);
+  }, [restored, activeGroupId, collapsed]);
+  const toggleGroup = (id: NavGroupId) => {
+    const next = new Set(collapsed);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    writeCollapsedGroups([...next]);
+    setCollapsed(next);
+  };
+
+  // ── « Aller à… » ──────────────────────────────────────────────────────
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    if (isPhone && mobileOpen) onMobileClose?.();
+  }, [isPhone, mobileOpen, onMobileClose]);
+
+  const paletteEntries = useMemo<PaletteEntry[]>(() => {
+    const pages = flattenNav(nav).map(({ item, groupId }) => {
+      const Icon = item.icon;
+      return {
+        id: item.key,
+        label: t(`items.${item.key}`),
+        group: groupId ? t(`sections.${groupId}`) : undefined,
+        icon: <Icon size={16} strokeWidth={1.75} aria-hidden="true" />,
+        onSelect: () => {
+          closeDrawer();
+          router.push(`/${locale}/${item.href}`);
+        },
+      };
     });
+    if (!isAdmin) return pages;
+    const markets = MARKETS.filter((m) => m !== scope).map((m) => ({
+      id: `mk:${m}`,
+      label: t("switchTo", { market: t(`markets.${m}`) }),
+      group: t("markets.label"),
+      icon: <MarketFlag scope={m} size={16} radius={4} />,
+      onSelect: () => setScope(m),
+    }));
+    return [...pages, ...markets];
+  }, [nav, t, locale, router, isAdmin, scope, setScope, closeDrawer]);
+
+  // ── rail fly-outs and tips ────────────────────────────────────────────
+  const [fly, setFly] = useState<{ id: NavGroupId; top: number; pinned: boolean } | null>(null);
+  const [tip, setTip] = useState<{ label: string; top: number } | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flyRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setFly((f) => (f?.pinned ? f : null)), 160);
+  };
+  const openFly = (id: NavGroupId, el: HTMLElement, pinned: boolean) => {
+    cancelClose();
+    setTip(null);
+    const r = el.getBoundingClientRect();
+    setFly({ id, top: Math.max(8, r.top - 6), pinned });
+  };
+  const showTip = (label: string) => (e: { currentTarget: HTMLElement }) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ label, top: r.top + r.height / 2 });
+  };
+  const hideTip = () => setTip(null);
+  useEffect(() => () => cancelClose(), []);
+  useEffect(() => {
+    if (!railActive) setFly(null);
+  }, [railActive]);
+  useEffect(() => {
+    if (!fly) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (flyRef.current?.contains(target) || navRef.current?.contains(target)) return;
+      setFly(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [fly]);
+
+  // ── keyboard ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!hasSidebar) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+        return;
+      }
+      if (e.key === "Escape") {
+        if (fly) {
+          const trigger = navRef.current?.querySelector<HTMLElement>(`[data-group-trigger="${fly.id}"]`);
+          setFly(null);
+          trigger?.focus();
+        } else if (isPhone && mobileOpen) {
+          onMobileClose?.();
+        }
+        return;
+      }
+      if (e.key === "[" && !e.metaKey && !e.ctrlKey && !e.altKey && !isPhone && !isTyping(e.target)) {
+        onToggleRail?.();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hasSidebar, fly, isPhone, mobileOpen, onMobileClose, onToggleRail]);
+
+  const [scrolled, setScrolled] = useState(false);
+
+  if (!hasSidebar) return null;
+
+  const isRtl = user.direction === "rtl";
+  const dir = isRtl ? "rtl" : "ltr";
+  const badge = (src: BadgeSource | undefined) =>
+    src ? <NavBadge count={counts[src]} tone={BADGE_TONE[src]} label={t(`counts.${src}`)} /> : null;
+  const itemActive = (item: NavItemDef) => isNavItemActive(item, locale, activePath, activeSearch);
+
+  const link = (item: NavItemDef) => (
+    <li key={item.key}>
+      <NavLink
+        href={`/${locale}/${item.href}`}
+        item={item}
+        user={user}
+        active={itemActive(item)}
+        label={t(`items.${item.key}`)}
+        badge={badge(item.badge)}
+        onNavigate={() => {
+          setFly(null);
+          closeDrawer();
+        }}
+      />
+    </li>
+  );
+
+  const group = (g: NavGroupDef) => {
+    const open = !collapsed.has(g.id);
+    const lifted = open ? null : groupBadgeSource(g, counts);
+    return (
+      <div key={g.id} className="sb-group">
+        {g.admin && <div className="sb-divider" role="separator" />}
+        <button
+          type="button"
+          className="sb-glabel"
+          aria-expanded={open}
+          aria-controls={`sb-g-${g.id}`}
+          onClick={() => toggleGroup(g.id)}
+        >
+          <span className="sb-glabel-text">{t(`sections.${g.id}`)}</span>
+          {lifted && badge(lifted)}
+          <ChevronDown size={14} strokeWidth={2} aria-hidden="true" className="sb-chev" />
+        </button>
+        {open && <ul id={`sb-g-${g.id}`}>{g.items.map(link)}</ul>}
+      </div>
+    );
   };
 
-  return (
+  const kbd = <kbd className="sb-kbd">{isMac ? "⌘K" : "Ctrl K"}</kbd>;
+
+  const fullContent = (
     <>
-      {mobileOpen && (
-        <div
-          className="sidebar-mobile-backdrop"
-          aria-hidden="true"
-          onClick={onMobileClose}
-        />
-      )}
-      <nav
-      className="sidebar-scroll sidebar-mobile-drawer"
-      data-mobile-open={mobileOpen ? "true" : "false"}
-      style={{
-        width: "240px",
-        minWidth: "240px",
-        height: "100vh",
-        backgroundColor: "var(--sidebar-bg)",
-        display: "flex",
-        flexDirection: "column",
-        position: "fixed",
-        top: 0,
-        ...(isRtl ? { right: 0 } : { left: 0 }),
-        overflowY: "auto",
-        direction: isRtl ? "rtl" : "ltr",
-        borderInlineEnd: "1px solid var(--sidebar-border)",
-        fontFamily:
-          "var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      }}
-    >
-      {/* Brand area */}
-      <div
-        style={{
-          height: "60px",
-          display: "flex",
-          alignItems: "center",
-          // 10 again: dropping the 28px monogram gave the rail back the room it
-          // needed for the market control and the bell.
-          gap: "10px",
-          paddingInline: "14px",
-          borderBlockEnd: "1px solid var(--sidebar-border-strong)",
-          flexShrink: 0,
-        }}
-      >
-        {/* Wordmark only. The monogram said the same word in one letter, and on
-            a 240px rail that also carries the market control and the bell it was
-            the least informative thing competing for the width. */}
-        <span
-          role="presentation"
-          style={{
-            fontSize: "16px",
-            fontWeight: 600,
-            color: "var(--sidebar-text-strong)",
-            letterSpacing: "-0.01em",
-            lineHeight: "20px",
-          }}
-        >
-          {t("brand")}
-        </span>
-        {user.role === "super_admin" ? (
-          <MarketScopeSwitcher user={user} />
-        ) : (
-          <span
-            data-testid="sidebar-market-pill"
-            aria-label={t("markets.ariaLabel", { market: marketName })}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "12px",
-              fontWeight: 500,
-              color: "var(--sidebar-text-secondary)",
-              paddingBlock: "3px",
-              paddingInline: "8px",
-              borderRadius: "9999px",
-              border: "1px solid var(--sidebar-border-strong)",
-              backgroundColor: "var(--sidebar-bg-elevated)",
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {/* The flag, not a colour: the super_admin switcher two pixels away
-                already named these same markets that way, and a dot in an
-                unlearned colour named nothing. */}
-            <span
-              aria-hidden="true"
-              style={{
-                fontSize: "13px",
-                lineHeight: 1,
-                flexShrink: 0,
-                fontFamily:
-                  '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif',
-              }}
-            >
-              {marketFlag(marketKey)}
-            </span>
-            {marketName}
-          </span>
-        )}
-        <span style={{ marginInlineStart: "auto", display: "inline-flex" }}>
-          <AlertsBell user={user} />
-        </span>
+      <div className="sb-head">
+        <div className="sb-row1">
+          <span className="sb-word">{t("brand")}</span>
+          <span className="sb-grow" />
+          {isPhone ? (
+            <button type="button" className="sb-ib" aria-label={t("closeMenu")} onClick={() => onMobileClose?.()}>
+              <X size={18} strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          ) : (
+            <AlertsBell user={user} />
+          )}
+        </div>
+        <MarketSwitcher user={user} variant="card" />
+        <button type="button" className="sb-search" onClick={() => setPaletteOpen(true)}>
+          <Search size={15} strokeWidth={1.75} aria-hidden="true" />
+          <span className="sb-grow">{t("goTo")}</span>
+          {kbd}
+        </button>
       </div>
+      <div
+        className="sb-scroll"
+        data-scrolled={scrolled ? "true" : undefined}
+        onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 2)}
+      >
+        <ul>{nav.top.map(link)}</ul>
+        {nav.groups.map(group)}
+      </div>
+      <div className="sb-foot">
+        <SidebarUserMenu user={user} variant="full" />
+        {!isPhone && (
+          <button type="button" className="sb-ib" aria-label={t("collapse")} title={`${t("collapse")}  [`} onClick={() => onToggleRail?.()}>
+            <PanelLeftClose size={17} strokeWidth={1.75} aria-hidden="true" className="sb-flip" />
+          </button>
+        )}
+      </div>
+    </>
+  );
 
-      {/* Nav sections */}
-      <div style={{ flex: 1, paddingBlock: "10px", paddingInline: "8px" }}>
-        {visibleSections.map((section, idx) => {
-          const expanded = expandedSections.has(section.id);
-          const active = activeSectionId === section.id;
-          const showDividerBefore = (section.superAdminOnly || section.admin) && idx > 0;
-          const sectionUnassignedBadge =
-            section.items.some((i) => i.showBadge) && liveCount !== undefined
-              ? liveCount
-              : 0;
-          const sectionWhatsAppBadge = section.items.some((i) => i.badgeSource === "whatsapp") ? whatsappUnread : 0;
-          const sectionJournalBadge = section.items.some((i) => i.badgeSource === "journal") ? journalOpen : 0;
-          const sectionBadge =
-            sectionUnassignedBadge > 0
-              ? sectionUnassignedBadge
-              : sectionWhatsAppBadge > 0
-                ? sectionWhatsAppBadge
-                : sectionJournalBadge > 0
-                  ? sectionJournalBadge
-                  : undefined;
-          const sectionBadgeTone: BadgeTone =
-            sectionUnassignedBadge > 0
-              ? "warning"
-              : sectionWhatsAppBadge > 0
-                ? "success"
-                : sectionJournalBadge > 0
-                  ? "critical"
-                  : "neutral";
+  const flyGroup = fly ? nav.groups.find((g) => g.id === fly.id) : undefined;
 
+  const railContent = (
+    <>
+      <div className="sb-rail-head">
+        <MarketSwitcher user={user} variant="rail" />
+        <button type="button" className="sb-rbtn" aria-label={t("goTo")} onClick={() => setPaletteOpen(true)}
+          onMouseEnter={showTip(t("goTo"))} onMouseLeave={hideTip} onFocus={showTip(t("goTo"))} onBlur={hideTip}>
+          <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+        <AlertsBell user={user} variant="rail" />
+      </div>
+      <div className="sb-rail-sep" role="separator" />
+      <div className="sb-rail-nav">
+        {nav.top.map((item) => {
+          const Icon = item.icon;
+          const label = t(`items.${item.key}`);
+          const active = itemActive(item);
           return (
-            <div key={section.id}>
-              {showDividerBefore && (
-                <div
-                  aria-hidden="true"
-                  style={{
-                    height: "1px",
-                    backgroundColor: "var(--sidebar-border-strong)",
-                    marginBlock: "12px",
-                    marginInline: "6px",
-                  }}
-                />
-              )}
-              <SectionHeader
-                section={section}
-                label={t(`sections.${section.id}`)}
-                expanded={expanded}
-                active={active}
-                isRtl={isRtl}
-                badge={sectionBadge}
-                badgeTone={sectionBadgeTone}
-                adminLabel={
-                  section.superAdminOnly || (section.admin && user.role === "super_admin")
-                    ? t("adminOnly")
-                    : undefined
-                }
-                ariaLabel={
-                  expanded
-                    ? t("a11y.collapseSection", { section: t(`sections.${section.id}`) })
-                    : t("a11y.expandSection", { section: t(`sections.${section.id}`) })
-                }
-                onToggle={() => toggleSection(section.id)}
-              />
-              {expanded && (
-                <ul
-                  role="list"
-                  style={{
-                    listStyle: "none",
-                    margin: 0,
-                    padding: 0,
-                    paddingBlockStart: "2px",
-                    paddingBlockEnd: "8px",
-                  }}
-                >
-                  {section.items.map((item) => {
-                    const fullHref = `/${user.locale}/${item.href}`;
-                    const itemBadgeCount = item.showBadge
-                      ? liveCount
-                      : item.badgeSource === "whatsapp" && whatsappUnread > 0
-                        ? whatsappUnread
-                        : item.badgeSource === "journal" && journalOpen > 0
-                          ? journalOpen
-                          : undefined;
-                    const itemBadgeTone: BadgeTone = item.showBadge
-                      ? "warning"
-                      : item.badgeSource === "whatsapp"
-                        ? "success"
-                        : item.badgeSource === "journal"
-                          ? "critical"
-                          : "neutral";
-                    return (
-                      <li key={item.key}>
-                        <SubNavItem
-                          href={fullHref}
-                          label={t(`items.${item.key}`)}
-                          icon={item.icon}
-                          isActive={isNavItemActive(item, user.locale, activePath, activeSearch)}
-                          badge={itemBadgeCount}
-                          badgeTone={itemBadgeTone}
-                          onPrefetch={() =>
-                            item.prefetchRoute
-                              ? prefetchForRoute(item.prefetchRoute, user)
-                              : undefined
-                          }
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+            <Link key={item.key} href={`/${locale}/${item.href}`} className="sb-rbtn" aria-label={label}
+              aria-current={active ? "page" : undefined} data-current={active ? "true" : undefined}
+              onMouseEnter={showTip(label)} onMouseLeave={hideTip} onFocus={showTip(label)} onBlur={hideTip}>
+              <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+            </Link>
+          );
+        })}
+        {nav.groups.map((g) => {
+          const Icon = g.icon;
+          const src = groupBadgeSource(g, counts);
+          const current = g.items.some(itemActive);
+          return (
+            <div key={g.id} className="sb-rail-item">
+              {g.admin && <div className="sb-rail-sep" role="separator" />}
+              <button
+                type="button"
+                className="sb-rbtn"
+                data-group-trigger={g.id}
+                data-current={current ? "true" : undefined}
+                data-hot={fly?.id === g.id ? "true" : undefined}
+                aria-label={t(`sections.${g.id}`)}
+                aria-haspopup="true"
+                aria-expanded={fly?.id === g.id}
+                onMouseEnter={(e) => openFly(g.id, e.currentTarget, false)}
+                onMouseLeave={scheduleClose}
+                onClick={(e) => {
+                  if (fly?.id === g.id && fly.pinned) setFly(null);
+                  else openFly(g.id, e.currentTarget, true);
+                }}
+              >
+                <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                {src && <span className={`sb-rdot sb-rdot-${BADGE_TONE[src]}`} aria-hidden="true" />}
+              </button>
             </div>
           );
         })}
       </div>
-
-      {/* User block */}
-      <div
-        ref={menuRef}
-        style={{
-          padding: "10px 12px",
-          borderBlockStart: "1px solid var(--sidebar-border-strong)",
-          position: "relative",
-          flexShrink: 0,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          onMouseEnter={() => setUserHovered(true)}
-          onMouseLeave={() => setUserHovered(false)}
-          onFocus={() => setUserHovered(true)}
-          onBlur={() => setUserHovered(false)}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          style={{
-            all: "unset",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            width: "100%",
-            padding: "8px 10px",
-            borderRadius: "8px",
-            cursor: "pointer",
-            textAlign: isRtl ? "right" : "left",
-            backgroundColor: userHovered || menuOpen ? "var(--sidebar-hover)" : "transparent",
-            transition: "background-color 160ms ease",
-            boxSizing: "border-box",
-          }}
-        >
-          <Avatar user={user} size={34} />
-          <span style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-            <span
-              style={{
-                fontSize: "14px",
-                fontWeight: 500,
-                color: "var(--sidebar-text)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                lineHeight: "18px",
-              }}
-            >
-              {user.full_name}
-            </span>
-            <span
-              style={{
-                fontSize: "12px",
-                fontWeight: 500,
-                color: "var(--sidebar-text-secondary)",
-                letterSpacing: "0.02em",
-                textTransform: "capitalize",
-                marginBlockStart: "2px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                lineHeight: "15px",
-              }}
-            >
-              {roleLabel}
-            </span>
-          </span>
-          <ChevronsUpDown
-            size={15}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            style={{
-              color: "var(--sidebar-text-muted)",
-              flexShrink: 0,
-              opacity: userHovered || menuOpen ? 1 : 0,
-              transition: "opacity 160ms ease",
-            }}
-          />
+      <div className="sb-rail-foot">
+        <SidebarUserMenu user={user} variant="rail" />
+        <button type="button" className="sb-rbtn" aria-label={t("expand")} onClick={() => onToggleRail?.()}
+          onMouseEnter={showTip(`${t("expand")}  [`)} onMouseLeave={hideTip}>
+          <PanelLeftOpen size={18} strokeWidth={1.75} aria-hidden="true" className="sb-flip" />
         </button>
-
-        {menuOpen && (
-          <div
-            role="menu"
-            className="sidebar-menu-enter"
-            style={{
-              position: "absolute",
-              bottom: "calc(100% + 6px)",
-              insetInlineStart: "12px",
-              insetInlineEnd: "12px",
-              backgroundColor: "var(--sidebar-bg-elevated)",
-              border: "1px solid var(--sidebar-border-strong)",
-              borderRadius: "8px",
-              padding: "6px 0",
-              zIndex: 10,
-              boxShadow: "0 6px 24px rgba(0, 0, 0, 0.4)",
-            }}
-          >
-            <div
-              style={{
-                padding: "6px 12px 8px",
-                color: "var(--sidebar-text-muted)",
-                fontSize: "13px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {user.email}
-            </div>
-            <div
-              aria-hidden="true"
-              style={{
-                height: "1px",
-                backgroundColor: "var(--sidebar-border-strong)",
-                margin: "2px 0",
-              }}
-            />
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleLogout}
-              onMouseEnter={() => setLogoutHovered(true)}
-              onMouseLeave={() => setLogoutHovered(false)}
-              disabled={signingOut}
-              style={{
-                all: "unset",
-                display: "block",
-                width: "100%",
-                padding: "8px 12px",
-                cursor: signingOut ? "not-allowed" : "pointer",
-                color: "var(--sidebar-text)",
-                fontSize: "14px",
-                fontWeight: 500,
-                boxSizing: "border-box",
-                textAlign: isRtl ? "right" : "left",
-                backgroundColor: logoutHovered ? "var(--sidebar-hover-strong)" : "transparent",
-                transition: "background-color 160ms ease",
-              }}
-            >
-              {t("logout")}
-            </button>
-          </div>
-        )}
       </div>
-    </nav>
+      {flyGroup && fly && (
+        <div ref={flyRef} className="sb-menu sb-fly" style={{ top: fly.top }} role="group"
+          aria-label={t(`sections.${flyGroup.id}`)} onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+          <div className="sb-menu-title">{t(`sections.${flyGroup.id}`)}</div>
+          <ul>{flyGroup.items.map(link)}</ul>
+        </div>
+      )}
+      {tip && !fly && (
+        <div className="sb-tip" role="tooltip" style={{ top: tip.top }}>
+          {tip.label}
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {isPhone && (
+        <header className="sb-phonebar" dir={dir}>
+          <button type="button" className="sb-ib sb-burger" aria-label={t("openMenu")} aria-expanded={mobileOpen}
+            onClick={() => onMobileOpen?.()}>
+            <Menu size={20} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <span className="sb-word">{t("brand")}</span>
+          <span className="sb-grow" />
+          <MarketSwitcher user={user} variant="chip" />
+          <AlertsBell user={user} />
+        </header>
+      )}
+      {isPhone && mobileOpen && <div className="sb-backdrop" aria-hidden="true" onClick={() => onMobileClose?.()} />}
+      <nav
+        ref={navRef}
+        className="sb-nav"
+        dir={dir}
+        aria-label={t("label")}
+        data-rail={railActive ? "true" : undefined}
+        data-mobile-open={mobileOpen ? "true" : "false"}
+      >
+        {railActive ? railContent : fullContent}
+      </nav>
+      <GoToPalette open={paletteOpen} entries={paletteEntries} onClose={() => setPaletteOpen(false)} />
     </>
   );
 }
 
-function badgeColors(tone: BadgeTone): { bg: string; fg: string } {
-  if (tone === "critical") return { bg: "var(--badge-critical-bg)", fg: "var(--badge-critical-fg)" };
-  if (tone === "success") return { bg: "var(--badge-success-bg)", fg: "var(--badge-success-fg)" };
-  if (tone === "warning") return { bg: "var(--badge-warning-bg)", fg: "var(--badge-warning-fg)" };
-  return { bg: "var(--badge-neutral-bg)", fg: "var(--badge-neutral-fg)" };
-}
-
-function BadgePill({ count, tone = "neutral" }: { count: number; tone?: BadgeTone }) {
-  const { bg, fg } = badgeColors(tone);
-  return (
-    <span
-      style={{
-        backgroundColor: bg,
-        color: fg,
-        fontSize: "12px",
-        fontWeight: 500,
-        padding: "1px 7px",
-        borderRadius: "9999px",
-        minWidth: "20px",
-        textAlign: "center",
-        flexShrink: 0,
-        fontVariantNumeric: "tabular-nums",
-        lineHeight: "18px",
-      }}
-    >
-      {count}
-    </span>
-  );
-}
-
-interface SectionHeaderProps {
-  section: NavSection;
-  label: string;
-  expanded: boolean;
-  active: boolean;
-  isRtl: boolean;
-  badge?: number;
-  badgeTone?: BadgeTone;
-  adminLabel?: string;
-  ariaLabel: string;
-  onToggle: () => void;
-}
-
-function SectionHeader({
-  section,
-  label,
-  expanded,
-  active,
-  badge,
-  badgeTone,
-  adminLabel,
-  ariaLabel,
-  onToggle,
-}: SectionHeaderProps) {
-  const [hovered, setHovered] = useState(false);
-  const Icon = section.icon;
-  const textColor =
-    active || hovered ? "var(--sidebar-text-strong)" : "var(--sidebar-text)";
-  const iconColor = active
-    ? "var(--sidebar-active-icon)"
-    : hovered
-      ? "var(--sidebar-text)"
-      : "var(--sidebar-text-muted)";
-  const chevronColor = hovered
-    ? "var(--sidebar-text)"
-    : "var(--sidebar-text-muted)";
-  const background = hovered ? "var(--sidebar-hover-strong)" : "transparent";
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      aria-expanded={expanded}
-      aria-label={ariaLabel}
-      data-section-id={section.id}
-      style={{
-        all: "unset",
-        boxSizing: "border-box",
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        width: "100%",
-        height: "36px",
-        paddingInlineStart: "10px",
-        paddingInlineEnd: "10px",
-        fontSize: "12px",
-        fontWeight: 600,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: textColor,
-        backgroundColor: background,
-        cursor: "pointer",
-        borderRadius: "6px",
-        transition: "background-color 160ms ease, color 160ms ease",
-      }}
-    >
-      <Icon
-        size={17}
-        strokeWidth={1.75}
-        aria-hidden="true"
-        style={{ color: iconColor, flexShrink: 0, transition: "color 160ms ease" }}
-      />
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </span>
-      {adminLabel && (
-        <span
-          style={{
-            fontSize: "10px",
-            fontWeight: 500,
-            letterSpacing: "0.08em",
-            color: "var(--sidebar-text-secondary)",
-            padding: "1px 6px",
-            border: "1px solid var(--sidebar-border-strong)",
-            borderRadius: "4px",
-            backgroundColor: "var(--sidebar-bg-elevated)",
-          }}
-        >
-          {adminLabel}
-        </span>
-      )}
-      {!expanded && badge !== undefined && <BadgePill count={badge} tone={badgeTone} />}
-      <ChevronRight
-        size={15}
-        strokeWidth={2}
-        aria-hidden="true"
-        className="sidebar-chevron"
-        data-expanded={expanded ? "true" : "false"}
-        style={{ color: chevronColor, flexShrink: 0 }}
-      />
-    </button>
-  );
-}
-
-interface SubNavItemProps {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  isActive: boolean;
-  badge?: number;
-  badgeTone?: BadgeTone;
-  onPrefetch?: () => void;
-}
-
-function SubNavItem({
+function NavLink({
   href,
+  item,
+  user,
+  active,
   label,
-  icon: Icon,
-  isActive,
   badge,
-  badgeTone,
-  onPrefetch,
-}: SubNavItemProps) {
-  const [hovered, setHovered] = useState(false);
+  onNavigate,
+}: {
+  href: string;
+  item: NavItemDef;
+  user: AuthUser;
+  active: boolean;
+  label: string;
+  badge: React.ReactNode;
+  onNavigate: () => void;
+}) {
   const router = useRouter();
-  const prefetchedRef = useRef(false);
-
-  const handleMouseEnter = () => {
-    setHovered(true);
-    if (!prefetchedRef.current) {
-      prefetchedRef.current = true;
-      router.prefetch(href);
-      onPrefetch?.();
-    }
+  const prefetched = useRef(false);
+  const warm = () => {
+    if (prefetched.current) return;
+    prefetched.current = true;
+    router.prefetch(href);
+    if (item.prefetchRoute) prefetchForRoute(item.prefetchRoute, user);
   };
-
-  // The active item is a filled brand pill, not a 10% wash behind a 2px bar.
-  // The wash sat only ~1.2:1 above the sidebar ground, so at a glance the bar
-  // was doing all the work and the row itself read as inactive. A filled pill
-  // states it once, loudly, and puts the label at 5.0:1 on --brand.
-  // On the fill, not on the ground — so the icon takes the same white as the
-  // label. --sidebar-active-icon stays green for section headers, which never fill.
-  const iconColor = isActive
-    ? "var(--sidebar-active-text)"
-    : hovered
-      ? "var(--brand-on-dark)"
-      : "var(--sidebar-text-muted)";
-  const background = isActive
-    ? "var(--sidebar-active-fill)"
-    : hovered
-      ? "var(--sidebar-hover)"
-      : "transparent";
-  const textColor = isActive
-    ? "var(--sidebar-active-text)"
-    : "var(--sidebar-text)";
-
+  const Icon = item.icon;
   return (
     <Link
       href={href}
-      aria-current={isActive ? "page" : undefined}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={handleMouseEnter}
-      className="sidebar-subitem"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        height: "34px",
-        paddingInlineStart: "30px",
-        paddingInlineEnd: "12px",
-        marginInline: "2px",
-        marginBlock: "1px",
-        fontSize: "14px",
-        fontWeight: isActive ? 600 : 400,
-        color: textColor,
-        textDecoration: "none",
-        backgroundColor: background,
-        borderRadius: "8px",
-        transition: "background-color 160ms ease, color 160ms ease",
-      }}
+      className="sb-item"
+      aria-current={active ? "page" : undefined}
+      onMouseEnter={warm}
+      onFocus={warm}
+      onClick={onNavigate}
     >
-      <Icon
-        size={15}
-        strokeWidth={1.75}
-        aria-hidden="true"
-        className="sidebar-subitem-icon"
-        style={{ color: iconColor, flexShrink: 0 }}
-      />
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </span>
-      {badge !== undefined && <BadgePill count={badge} tone={badgeTone} />}
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+      <span className="sb-item-label">{label}</span>
+      {badge}
     </Link>
   );
 }

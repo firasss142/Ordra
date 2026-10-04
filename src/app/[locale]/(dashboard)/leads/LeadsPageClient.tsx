@@ -58,7 +58,7 @@ export function LeadsPageClient({
   const isSuperAdmin = role === "super_admin";
   const { scope, marketId: scopeMarketId } = useMarketScope();
 
-  // Sidebar MarketScopeSwitcher is the single source of truth for super_admin.
+  // The sidebar's market card (MarketSwitcher) is the single source of truth for super_admin.
   // scope === "all" → null marketId → metrics across all markets.
   const effectiveMarketId = isSuperAdmin
     ? scope === "all"

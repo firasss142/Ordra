@@ -209,19 +209,20 @@ Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 3. pending (untouched, owned by agent) sorted oldest created_at first
 4. confirmed (awaiting upload to carrier) shows the "Upload" affordance until uploaded
 
-## Navigation (as coded in components/layout/Sidebar.tsx → NAV_SECTIONS)
-Accueil → Dashboard · Commandes → Commandes, Archivées · Entrepôt (id `logistique`) →
-Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
-(canViewFinances) → P&L global, Produits & marges, Stock & inventaire, Dépenses pub,
-Investisseurs · Clients → Prospects, Relances · Équipe → Salle de contrôle, Performance,
-Accès · Système → Réglages (super_admin + market_manager; one page by topic, see
-docs/reglages.md), Journaux (super_admin, /system/logs).
+## Navigation (as coded in lib/navigation/sidebar-nav.ts → TOP_ITEMS + NAV_GROUPS)
+Dashboard (no group) · Commandes → Commandes, Archivées, Doublons · Entrepôt (id
+`logistique`) → Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison, Suivi
+transporteur · Finances (canViewFinances) → P&L global, Produits & marges, Stock &
+inventaire, Achats, Dépenses pub, Investisseurs · Clients → Prospects, Voix du client,
+Messages · Équipe → Salle de contrôle, Performance, Accès · Système → Réglages (super_admin +
+market_manager), Journaux (super_admin). Head/foot pinned, 64 px rail, ⌘K « Aller à… », market
+card with per-market counts — see docs/sidebar.md.
 
 Several live pages are NOT reachable from the sidebar and are reached by URL or deep
 link only: /warehouse/preparation (→ /warehouse/out), /warehouse/scan, /warehouse/count,
 /warehouse/stock/[productId], /warehouse/dispatch,
 /warehouse/history, /warehouse/settings, /dashboard/alerts, /assign, /unassigned,
-/confirmation-flow, /profile, /settings/integrations, /settings/statuses. Removing a nav
+/confirmation-flow, /in-delivery (Tableau livraison, left the bar 2026-10-03), /settings/integrations, /settings/statuses. Removing a nav
 entry has not meant deleting its page — check before assuming a route is dead.
 
 ## Design system
