@@ -104,7 +104,6 @@ export function TodayHome({
         return [
           t("receiveSub", { n: job.count }),
           counts.receptionsLate > 0 ? t("receiveLate", { n: counts.receptionsLate }) : null,
-          counts.receptionsEmpty > 0 ? t("receiveEmpty", { n: counts.receptionsEmpty }) : null,
         ]
           .filter(Boolean)
           .join(" · ");

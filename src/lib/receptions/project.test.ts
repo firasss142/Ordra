@@ -188,15 +188,18 @@ describe("projectReception — l'honnêteté des chiffres", () => {
     expect(projectReception(surprise, "market_manager").lines[0].variance).toBeNull();
   });
 
-  it("marque « en retard » sur une réception attendue dont la date est passée", () => {
-    const late = { ...RAW, status: "open" as const, expected_at: "2026-09-01" };
+  it("marque « en retard » un groupe ouvert depuis la veille", () => {
+    // « En retard » ne se mesure plus contre une date ANNONCÉE — personne
+    // n'annonce une réception — mais contre le jour de l'arrivage : de la
+    // marchandise vendable dont la marge reste inconnue.
+    const late = { ...RAW, status: "open" as const, arrival_date: "2026-09-01" };
     const out = projectReception(late, "market_manager", new Date("2026-09-30T10:00:00Z"));
     expect(out.is_late).toBe(true);
     expect(out.days_late).toBe(29);
   });
 
-  it("ne marque jamais « en retard » une réception validée", () => {
-    const posted = { ...RAW, status: "settled" as const, expected_at: "2026-09-01" };
+  it("ne marque jamais « en retard » une réception soldée", () => {
+    const posted = { ...RAW, status: "settled" as const, arrival_date: "2026-09-01" };
     const out = projectReception(posted, "market_manager", new Date("2026-09-30T10:00:00Z"));
     expect(out.is_late).toBe(false);
     expect(out.days_late).toBeNull();

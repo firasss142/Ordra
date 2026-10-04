@@ -33,12 +33,14 @@ export interface DayCounts {
   returnsAtCarrier: number;
   /** `returning`: on its way, not receivable yet (strict-returns rule). */
   returnsOnTheWay: number;
-  /** Receptions announced or declared, not yet posted. */
-  receptionsExpected: number;
-  /** …of which past their expected date. */
+  /**
+   * Open arrival groups: counted on the dock, not yet settled by the office.
+   * Stock is already on the shelf; its margin is not known yet. That is the
+   * accepted price of the 3 October inversion, and it must stay visible.
+   */
+  receptionsOpen: number;
+  /** …of which opened before today — unpriced stock that is ageing. */
   receptionsLate: number;
-  /** …of which have no line at all — nothing to count when the truck comes. */
-  receptionsEmpty: number;
   /** Active products of the market. */
   products: number;
   /** …that no physical count has ever covered (for this building, or anywhere). */
@@ -87,7 +89,7 @@ export function buildDayLoop(input: {
     jobs: [
       job("out", counts.toPrepare),
       job("returns", counts.returnsAtCarrier),
-      job("receive", counts.receptionsExpected),
+      job("receive", counts.receptionsOpen),
       count,
     ],
     progress: { done: scannedToday, target, pct, hasGoal },
@@ -112,9 +114,8 @@ export function sumSiteCounts(
     setAside: 0,
     returnsAtCarrier: 0,
     returnsOnTheWay: 0,
-    receptionsExpected: 0,
+    receptionsOpen: 0,
     receptionsLate: 0,
-    receptionsEmpty: 0,
     products: market.products,
     neverCounted: market.neverCounted,
   };
@@ -124,9 +125,8 @@ export function sumSiteCounts(
     total.setAside += s.setAside;
     total.returnsAtCarrier += s.returnsAtCarrier;
     total.returnsOnTheWay += s.returnsOnTheWay;
-    total.receptionsExpected += s.receptionsExpected;
+    total.receptionsOpen += s.receptionsOpen;
     total.receptionsLate += s.receptionsLate;
-    total.receptionsEmpty += s.receptionsEmpty;
   }
   return total;
 }
@@ -135,7 +135,6 @@ export type DecisionKey =
   | "setAside"
   | "returns"
   | "receptionsLate"
-  | "receptionsEmpty"
   | "neverCounted";
 
 /** Where the decision is acted on: a warehouse screen, never a dead end. */
@@ -161,12 +160,12 @@ export function buildDecisions(c: DayCounts): Decision[] {
   if (c.returnsAtCarrier > 0) {
     out.push({ key: "returns", count: c.returnsAtCarrier, severity: "warning", target: "returns" });
   }
+  // UN SEUL MOTIF D'ALERTE SUR LES RÉCEPTIONS. « Sans ligne » a disparu avec
+  // les brouillons : `record_arrival` crée le groupe AVEC son premier comptage,
+  // donc un groupe vide n'existe plus. Une carte qui ne peut jamais s'allumer
+  // est du bruit qu'on finit par ne plus lire.
   if (c.receptionsLate > 0) {
     out.push({ key: "receptionsLate", count: c.receptionsLate, severity: "warning", target: "receptions" });
-  } else if (c.receptionsEmpty > 0) {
-    // A late reception is reported once, as late; an empty one that is not yet
-    // late still needs its lines before the truck comes.
-    out.push({ key: "receptionsEmpty", count: c.receptionsEmpty, severity: "warning", target: "receptions" });
   }
   if (c.neverCounted > 0) {
     out.push({ key: "neverCounted", count: c.neverCounted, severity: "warning", target: "count" });

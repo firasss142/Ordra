@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetActor = vi.fn();
 const state = {
-  status: "draft" as string | null,
+  status: "open" as string | null,
   inserted: null as Record<string, unknown> | null,
   updated: null as Record<string, unknown> | null,
   deletedId: null as string | null,
@@ -72,7 +72,7 @@ function del(qs: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  state.status = "draft";
+  state.status = "open";
   state.inserted = null;
   state.updated = null;
   state.deletedId = null;
@@ -124,8 +124,8 @@ describe("POST …/costs — ce qu'on refuse", () => {
    * dans `landed_unit_cost` et a pu nourrir `unit_cogs` : rouvrir les frais
    * après coup ferait mentir le registre.
    */
-  test("une réception déjà validée", async () => {
-    state.status = "posted";
+  test("une réception déjà soldée", async () => {
+    state.status = "settled";
     const res = await POST(body({ amount: 900 }), { params });
     expect(res.status).toBe(409);
     expect((await res.json()).error_code).toBe("ALREADY_POSTED");
@@ -171,5 +171,34 @@ describe("DELETE …/costs", () => {
 
   test("exige l'identifiant du frais", async () => {
     expect((await DELETE(del(""), { params })).status).toBe(400);
+  });
+});
+
+
+/**
+ * LE GARDE PARLAIT ENCORE DES ÉTATS SUPPRIMÉS.
+ *
+ * Il exigeait `draft` ou `submitted`, disparus le 3 octobre : AUCUNE réception
+ * ne satisfaisait plus la condition, donc on ne pouvait plus ajouter une seule
+ * ligne de frais d'approche. L'étape 4 entière — frais, `landed_unit_cost`,
+ * coût de revient — était inatteignable, et le bug était en production.
+ */
+describe("POST …/costs — l'état qui autorise la saisie", () => {
+  test("accepte un groupe OUVERT, qui est le seul état modifiable", async () => {
+    state.status = "open";
+    const res = await POST(body({ amount: 900, kind: "freight" }), { params });
+    expect(res.status).toBe(201);
+    expect(state.inserted).toMatchObject({ amount: 900 });
+  });
+
+  test("refuse les anciens états, qui ne devraient plus exister en base", async () => {
+    // Si une ligne `draft` survit à la migration, elle n'est pas modifiable :
+    // mieux vaut un 409 lisible qu'une écriture sur un document incohérent.
+    for (const dead of ["draft", "submitted", "posted", "cancelled"]) {
+      state.status = dead;
+      state.inserted = null;
+      expect((await POST(body({ amount: 900 }), { params })).status).toBe(409);
+      expect(state.inserted).toBeNull();
+    }
   });
 });

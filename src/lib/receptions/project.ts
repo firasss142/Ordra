@@ -387,8 +387,8 @@ export function projectReception(
     discrepancy_reason: raw.discrepancy_reason,
     reverses_reception_id: raw.reverses_reception_id,
     created_at: raw.created_at,
-    is_late: isLate({ expected_at: raw.expected_at, status: raw.status }, now),
-    days_late: daysLate({ expected_at: raw.expected_at, status: raw.status }, now),
+    is_late: isLate({ arrival_date: raw.arrival_date, status: raw.status }, now),
+    days_late: daysLate({ arrival_date: raw.arrival_date, status: raw.status }, now),
     lines,
     totals: {
       units: totals.units,

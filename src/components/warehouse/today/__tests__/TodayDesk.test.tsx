@@ -30,7 +30,7 @@ function rows(over: Partial<DayLoopRows> = {}): DayLoopRows {
     },
     marketQueue: { to_prepare: 47, oldest_prepare_hours: 70, returns_inbox: 2, set_aside: 393 },
     returning: [{ warehouse_id: "B" }],
-    receptions: [{ warehouse_id: "T", status: "draft", expected_at: "2026-10-01", line_count: 0 }],
+    receptions: [{ warehouse_id: "T", status: "open", arrival_date: "2026-10-01" }],
     productIds: ["p1", "p2", "p3", "p4", "p5", "p6", "p7"],
     countRows: [],
     agents: [

@@ -4,6 +4,7 @@ import {
   lineVariance,
   receptionTotals,
   isLate,
+  daysLate,
   weightedAverageCost,
   headlineQuantity,
   paidPercent,
@@ -115,26 +116,44 @@ describe("receptionTotals", () => {
   });
 });
 
+/**
+ * « EN RETARD » A CHANGÉ DE SENS AVEC L'INVERSION.
+ *
+ * Il se mesurait contre `expected_at`, la date ANNONCÉE — et personne n'annonce
+ * plus une réception : le quai compte, le bureau solde. Rien n'écrit cette
+ * colonne, donc `isLate` répondait `false` pour l'éternité et le liseré rouge de
+ * la liste ne pouvait plus s'allumer. Un signal mort est pire qu'absent : on
+ * croit qu'il n'y a rien à voir.
+ *
+ * Ce qui mérite d'être signalé maintenant, c'est un groupe OUVERT DEPUIS LA
+ * VEILLE : de la marchandise vendable dont la marge reste inconnue. C'est le
+ * coût assumé de l'inversion, et il ne doit pas s'éterniser.
+ */
 describe("isLate", () => {
-  const today = new Date("2026-09-30T10:00:00Z");
+  const today = new Date("2026-10-04T10:00:00Z");
 
-  it("est en retard quand la date prévue est passée et rien n'est validé", () => {
-    expect(isLate({ expected_at: "2026-09-26", status: "open" }, today)).toBe(true);
-    expect(isLate({ expected_at: "2026-09-26", status: "open" }, today)).toBe(true);
+  it("signale un groupe ouvert depuis la veille", () => {
+    expect(isLate({ arrival_date: "2026-10-03", status: "open" }, today)).toBe(true);
+    expect(isLate({ arrival_date: "2026-09-26", status: "open" }, today)).toBe(true);
   });
 
-  it("n'est jamais en retard une fois validée", () => {
-    expect(isLate({ expected_at: "2026-09-26", status: "settled" }, today)).toBe(false);
-    expect(isLate({ expected_at: "2026-09-26", status: "reversed" }, today)).toBe(false);
-    expect(isLate({ expected_at: "2026-09-26", status: "reversed" }, today)).toBe(false);
+  it("ne signale pas le groupe du jour — c'est le fonctionnement normal", () => {
+    expect(isLate({ arrival_date: "2026-10-04", status: "open" }, today)).toBe(false);
   });
 
-  it("n'est pas en retard le jour même", () => {
-    expect(isLate({ expected_at: "2026-09-30", status: "open" }, today)).toBe(false);
+  it("ne signale jamais un groupe soldé ou contre-passé", () => {
+    // Le soldage EST la réponse : une fois chiffrée, la marchandise n'attend plus.
+    expect(isLate({ arrival_date: "2026-09-26", status: "settled" }, today)).toBe(false);
+    expect(isLate({ arrival_date: "2026-09-26", status: "reversed" }, today)).toBe(false);
   });
 
-  it("n'est pas en retard sans date prévue — on n'invente pas une échéance", () => {
-    expect(isLate({ expected_at: null, status: "open" }, today)).toBe(false);
+  it("ne signale jamais un groupe sans date d'arrivage", () => {
+    expect(isLate({ arrival_date: null, status: "open" }, today)).toBe(false);
+  });
+
+  it("dit de combien de jours", () => {
+    expect(daysLate({ arrival_date: "2026-10-01", status: "open" }, today)).toBe(3);
+    expect(daysLate({ arrival_date: "2026-10-04", status: "open" }, today)).toBeNull();
   });
 });
 
