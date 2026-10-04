@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { getSyncState } from "@/lib/google-sheets/sync-state";
 import { canManageStorefronts } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
 import { getActor } from "@/lib/auth/actor";
@@ -127,7 +128,7 @@ async function handlePATCH(
   // Verify market ownership before mutating
   const { data: existing } = await supabase
     .from("storefronts")
-    .select("id, market_id")
+    .select("id, market_id, platform")
     .eq("id", id)
     .single();
 
@@ -146,10 +147,26 @@ async function handlePATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // A Sheets shop is created with its cursor already written (0 for "import
+  // everything"). One without a cursor is a creation that broke halfway, and
+  // switching it on would read the sheet from row 1: every order the account
+  // ever took would land in the queue as new.
+  if (body.is_active === true && existing.platform === "google_sheets") {
+    const state = await getSyncState(createAdminClient(), existing.market_id);
+    if (!state[id]) {
+      return NextResponse.json(
+        { error: "This sheet shop has no starting row; add it again instead", code: "cursor_missing" },
+        { status: 409 },
+      );
+    }
+  }
+
   const patch: Record<string, unknown> = {};
+  // `platform` and `config` are fixed at creation. A new platform would run the
+  // shop's orders through another adapter, and a new sheet would be read from
+  // the old sheet's cursor — skipping or re-reading rows. Archive and add a new
+  // shop instead; that is one click and keeps the history attributable.
   if (body.name !== undefined) patch.name = body.name;
-  if (body.platform !== undefined) patch.platform = body.platform;
-  if (body.config !== undefined) patch.config = body.config;
   if (body.is_active !== undefined) patch.is_active = body.is_active;
   if (body.webhook_secret !== undefined)
     patch.webhook_secret = encrypt(String(body.webhook_secret));

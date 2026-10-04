@@ -41,6 +41,8 @@ function makePayload(overrides: Record<string, unknown> = {}) {
 function makeWdlSelectChain(row: unknown): Record<string, unknown> {
   const chain: Record<string, unknown> = {};
   chain.eq = vi.fn().mockReturnValue(chain);
+  chain.in = vi.fn().mockReturnValue(chain);
+  chain.limit = vi.fn().mockReturnValue(chain);
   chain.maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
   return chain;
 }
@@ -53,6 +55,7 @@ function createQueryChain(resolveWith: { data: unknown; error: unknown }): Recor
   chain.eq = vi.fn().mockReturnValue(chain);
   chain.ilike = vi.fn().mockReturnValue(chain);
   chain.limit = vi.fn().mockReturnValue(chain);
+  chain.in = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockResolvedValue(resolveWith);
   chain.maybeSingle = vi.fn().mockResolvedValue(resolveWith);
   chain.insert = vi.fn().mockReturnValue(chain);
@@ -90,9 +93,21 @@ function mockAdminClient(overrides: {
 
   // webhook_delivery_log SELECT chain: returns self on .eq() so we accept any
   // number of equality predicates (legacy 2-eq path and new 3-eq delivery_id path).
-  const wdlMaybeSingle = vi.fn().mockResolvedValue({ data: existingDeliveryLog, error: null });
+  // Honours an `.in("status", [...])` filter so a prior row the handler asks to
+  // exclude (an errored delivery) is really excluded, as Postgres would.
+  let wdlStatusFilter: string[] | null = null;
+  const wdlMaybeSingle = vi.fn().mockImplementation(async () => {
+    const row = existingDeliveryLog as { status?: string } | null;
+    const visible = row && (!wdlStatusFilter || wdlStatusFilter.includes(row.status ?? ""));
+    return { data: visible ? row : null, error: null };
+  });
   const wdlSelectChain: Record<string, unknown> = {};
   wdlSelectChain.eq = vi.fn().mockReturnValue(wdlSelectChain);
+  wdlSelectChain.in = vi.fn().mockImplementation((_col: string, values: string[]) => {
+    wdlStatusFilter = values;
+    return wdlSelectChain;
+  });
+  wdlSelectChain.limit = vi.fn().mockReturnValue(wdlSelectChain);
   wdlSelectChain.maybeSingle = wdlMaybeSingle;
 
   const wdlInsertChain = createQueryChain({ data: { id: "log-uuid-1" }, error: logInsertError });
@@ -325,6 +340,73 @@ describe("handleWebhook", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.error).toBeDefined();
+  });
+
+  test("order.updated keeps the canonical Darb city instead of the storefront's raw spelling", async () => {
+    // Intake snapshots Darb's canonical city; an update used to overwrite it with
+    // the raw string, so the dispatch picker stopped recognising the order.
+    const lyShop = { ...SHOPIFY_STOREFRONT, market_id: LY_MARKET_ID };
+    const admin = mockAdminClient({ storefrontData: lyShop });
+    const updateFn = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) });
+    const ordersChain = createQueryChain({ data: { id: "existing-order-1", status: "pending" }, error: null });
+    ordersChain.update = updateFn;
+    admin.from.mockImplementation((table: string) => {
+      if (table === "orders") return ordersChain;
+      return mockAdminClient({ storefrontData: lyShop }).from(table);
+    });
+
+    const payload = shopifyPayload();
+    (payload.shipping_address as Record<string, unknown>).city = "مصراته";
+    const body = JSON.stringify(payload);
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: shopifyHeaders(body, { topic: "orders/updated" }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(updateFn.mock.calls[0][0].customer_city).toBe("مصراتة");
+  });
+
+  async function runLyUpdate(existingCity: string | null, payloadCity: string) {
+    const lyShop = { ...SHOPIFY_STOREFRONT, market_id: LY_MARKET_ID };
+    const admin = mockAdminClient({ storefrontData: lyShop });
+    const updateFn = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) });
+    const ordersChain = createQueryChain({
+      data: { id: "existing-order-1", status: "pending", customer_city: existingCity },
+      error: null,
+    });
+    ordersChain.update = updateFn;
+    admin.from.mockImplementation((table: string) => {
+      if (table === "orders") return ordersChain;
+      return mockAdminClient({ storefrontData: lyShop }).from(table);
+    });
+    const payload = shopifyPayload();
+    (payload.shipping_address as Record<string, unknown>).city = payloadCity;
+    const body = JSON.stringify(payload);
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: shopifyHeaders(body, { topic: "orders/updated" }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+    return updateFn.mock.calls[0][0] as Record<string, unknown>;
+  }
+
+  test("order.updated moving the customer to another city moves the destination with it", async () => {
+    const patch = await runLyUpdate("طرابلس", "مصراته");
+    expect(patch.customer_city).toBe("مصراتة");
+    expect(patch).toHaveProperty("darb_destination_id");
+    expect(patch).toHaveProperty("city_id");
+  });
+
+  test("order.updated with the same city leaves the destination an agent may have refined", async () => {
+    const patch = await runLyUpdate("مصراتة", "مصراته");
+    expect(patch).not.toHaveProperty("darb_destination_id");
+    expect(patch).not.toHaveProperty("city_id");
   });
 
   test("order.updated only updates customer fields, not product or financial fields", async () => {
@@ -767,6 +849,46 @@ describe("handleWebhook", () => {
     );
   });
 
+  test("an errored prior delivery does not swallow the retry — the order is created", async () => {
+    // The first attempt failed (e.g. "Failed to create order"). Treating that log
+    // row as "already handled" answered every retry with duplicate:true and the
+    // sale was never created.
+    const { tryAutoAssign } = await import("./auto-assignment-orchestrator");
+    vi.mocked(tryAutoAssign).mockClear();
+    const admin = mockAdminClient({
+      existingDeliveryLog: { id: "prior-log-id", status: "error", order_id: null },
+    });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: JSON.stringify(makePayload()),
+      headers: new Headers({ secret: SECRET }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.body.duplicate).toBeUndefined();
+    expect(result.body.order_id).toBe("order-uuid-1");
+  });
+
+  test("the dedupe lookup tolerates several prior log rows (limit 1, not a bare maybeSingle)", async () => {
+    const admin = mockAdminClient({
+      existingDeliveryLog: { id: "prior-log-id", status: "processed", order_id: "order-uuid-prior" },
+    });
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: JSON.stringify(makePayload()),
+      headers: new Headers({ secret: SECRET }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+    const wdl = admin.from.mock.results[
+      admin.from.mock.calls.findIndex((c: unknown[]) => c[0] === "webhook_delivery_log")
+    ].value as { select: ReturnType<typeof vi.fn> };
+    const selectChain = wdl.select.mock.results[0].value as { limit: ReturnType<typeof vi.fn> };
+    expect(selectChain.limit).toHaveBeenCalledWith(1);
+  });
+
   test("stores storefront_id and external_id in log on successful order.created", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
@@ -957,6 +1079,55 @@ describe("handleWebhook", () => {
     expect(result.status).toBe(200);
     expect(result.body.duplicate).toBe(true);
     expect(tryAutoAssign).not.toHaveBeenCalled();
+  });
+
+  test("Shopify: a retry that succeeds after an error rewrites the error log row instead of failing on the unique delivery id", async () => {
+    // (storefront_id, delivery_id) is UNIQUE. The failed first attempt owns it,
+    // so a fresh insert for the successful retry is refused and the log would
+    // say "error" forever about an order that exists.
+    const updates: Array<{ patch: unknown; filters: Array<[string, unknown]> }> = [];
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
+    const base = admin.from.getMockImplementation()!;
+    admin.from.mockImplementation((table: string) => {
+      if (table === "webhook_delivery_log") {
+        return {
+          select: vi.fn().mockReturnValue(makeWdlSelectChain(null)),
+          insert: vi.fn().mockResolvedValue({ data: null, error: { code: "23505", message: "duplicate key" } }),
+          update: vi.fn((patch: unknown) => {
+            const entry = { patch, filters: [] as Array<[string, unknown]> };
+            updates.push(entry);
+            const chain: Record<string, unknown> = {};
+            chain.eq = vi.fn((col: string, val: unknown) => {
+              entry.filters.push([col, val]);
+              return chain;
+            });
+            chain.then = (r: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(r);
+            return chain;
+          }),
+        };
+      }
+      return base(table);
+    });
+
+    const body = JSON.stringify(shopifyPayload());
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: shopifyHeaders(body, { topic: "orders/create", webhookId: "wh-retry" }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.body.order_id).toBe("order-uuid-1");
+    expect(updates).toHaveLength(1);
+    expect(updates[0].patch).toMatchObject({ status: "processed", order_id: "order-uuid-1", error_message: null });
+    // Only an ERROR row is taken over: a duplicate retry logging "ignored" must
+    // never overwrite the row that says the order was processed.
+    expect(updates[0].filters).toEqual([
+      ["storefront_id", STOREFRONT_ID],
+      ["delivery_id", "wh-retry"],
+      ["status", "error"],
+    ]);
   });
 
   test("Shopify: two legitimate orders/updated with different webhook IDs are both processed", async () => {
@@ -1280,6 +1451,8 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     const from = vi.fn((table: string) => {
       const chain: Record<string, unknown> = {};
       chain.select = vi.fn(() => chain);
+      chain.in = vi.fn(() => chain);
+      chain.limit = vi.fn(() => chain);
       chain.ilike = vi.fn(() => {
         (chain as { __usedIlike?: boolean }).__usedIlike = true;
         return chain;
@@ -1531,6 +1704,8 @@ describe("handleWebhook — toutes les lignes du panier arrivent", () => {
 
     const wdlSelect: Record<string, unknown> = {};
     wdlSelect.eq = vi.fn(() => wdlSelect);
+    wdlSelect.in = vi.fn(() => wdlSelect);
+    wdlSelect.limit = vi.fn(() => wdlSelect);
     wdlSelect.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 
     return {

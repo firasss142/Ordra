@@ -8,6 +8,12 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
   }),
+  createAdminClient: vi.fn(() => ({})),
+}));
+
+const mockSyncState = vi.fn();
+vi.mock("@/lib/google-sheets/sync-state", () => ({
+  getSyncState: (...a: unknown[]) => mockSyncState(...a),
 }));
 
 vi.mock("@/lib/crypto", () => ({
@@ -85,6 +91,68 @@ describe("PATCH /api/storefronts/[id] — market isolation", () => {
       return singleChain(SF_TN);
     });
     const res = await PATCH(req(), { params: Promise.resolve({ id: "sf-1" }) });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("PATCH /api/storefronts/[id] — what a live shop cannot change", () => {
+  test("ignores platform and config: a new adapter or a new sheet under an old cursor corrupts intake", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    let updateChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null });
+      if (call === 2) return singleChain(SF_TN);
+      updateChain = singleChain(SF_TN);
+      return updateChain;
+    });
+    const res = await PATCH(
+      req({ name: "Renamed", platform: "shopify", config: { spreadsheet_id: "other" } }),
+      { params: Promise.resolve({ id: "sf-1" }) },
+    );
+    expect(res.status).toBe(200);
+    expect((updateChain as unknown as { update: ReturnType<typeof vi.fn> }).update).toHaveBeenCalledWith({ name: "Renamed" });
+  });
+});
+
+describe("PATCH /api/storefronts/[id] — switching a sheet shop on", () => {
+  const SHEET = { ...SF_TN, platform: "google_sheets", market_id: "m-ly" };
+  function arrange() {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    let updateChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null });
+      if (call === 2) return singleChain(SHEET);
+      updateChain = singleChain(SHEET);
+      return updateChain;
+    });
+    return () => updateChain as unknown as { update: ReturnType<typeof vi.fn> } | null;
+  }
+
+  test("refuses a sheet shop with no starting row — it would import the account's whole history", async () => {
+    mockSyncState.mockResolvedValue({});
+    const chain = arrange();
+    const res = await PATCH(req({ is_active: true }), { params: Promise.resolve({ id: "sf-1" }) });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("cursor_missing");
+    expect(chain()).toBeNull();
+  });
+
+  test("switches it on when its cursor exists", async () => {
+    mockSyncState.mockResolvedValue({ "sf-1": { last_row: 5422 } });
+    const chain = arrange();
+    const res = await PATCH(req({ is_active: true }), { params: Promise.resolve({ id: "sf-1" }) });
+    expect(res.status).toBe(200);
+    expect(chain()?.update).toHaveBeenCalledWith({ is_active: true });
+  });
+
+  test("archiving never needs a cursor", async () => {
+    mockSyncState.mockResolvedValue({});
+    arrange();
+    const res = await PATCH(req({ is_active: false }), { params: Promise.resolve({ id: "sf-1" }) });
     expect(res.status).toBe(200);
   });
 });

@@ -29,7 +29,16 @@ export function isRangeBeyondSheet(err: unknown): boolean {
   return status === 400 && /exceeds grid limits/i.test(message);
 }
 
-function getAuthClient() {
+/**
+ * A1 range on a named tab. The tab is single-quoted and an apostrophe inside it
+ * doubled — unescaped, a tab like « Bachir's orders » made every read fail as if
+ * the tab did not exist.
+ */
+export function sheetRange(sheetName: string, cells: string): string {
+  return `'${sheetName.replace(/'/g, "''")}'!${cells}`;
+}
+
+export function getAuthClient() {
   const json = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!json) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is not set");
 
@@ -85,7 +94,7 @@ export async function fetchSheetRows(options: FetchRowsOptions): Promise<SheetRo
   try {
     response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId,
-      ranges: [`'${sheetName}'!A1:Z1`, `'${sheetName}'!A${firstSheetRow}:Z`],
+      ranges: [sheetRange(sheetName, "A1:Z1"), sheetRange(sheetName, `A${firstSheetRow}:Z`)],
     });
   } catch (err) {
     // "Range exceeds grid limits" means the cursor has walked past the last row

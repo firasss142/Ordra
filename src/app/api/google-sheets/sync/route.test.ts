@@ -18,7 +18,8 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-vi.mock("@/lib/google-sheets/sources-config", () => ({
+vi.mock("@/lib/google-sheets/sources-config", async (orig) => ({
+  ...(await orig<typeof import("@/lib/google-sheets/sources-config")>()),
   getSheetsSources: vi.fn().mockResolvedValue([]),
 }));
 

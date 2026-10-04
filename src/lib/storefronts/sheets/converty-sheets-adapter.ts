@@ -38,6 +38,7 @@ const SKIPPED_STATUSES = new Set(["deleted"]);
 
 export class ConvertySheetsAdapter implements SheetsRowAdapter {
   readonly platform = "converty";
+  readonly requiredHeaders = ["QR Code", "Phone", "Total Price", "Products"] as const;
 
   /**
    * Converty's Status column is `pending` | `abandoned` | `deleted`. Only

@@ -16,6 +16,7 @@ import type { Alert, AlertsSummary } from "@/lib/alerts/types";
 import { teamAlertInputs } from "@/lib/team/room/alerts";
 import type { TeamAlerts } from "@/lib/team/room/types";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { mergeSheetSources, type LegacySheetSource, type SheetStorefrontRow } from "@/lib/google-sheets/sources-config";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ const OPEN_CONFIRMATION_STATUSES = ["pending", "assigned", "attempt_1"];
 
 interface SheetSourceSetting {
   market_id: string;
-  value: Array<{ storefront_id?: string; is_active?: boolean }> | null;
+  value: LegacySheetSource[] | null;
 }
 
 /** The subset of `get_stock_position` this route reads. */
@@ -321,6 +322,14 @@ async function handleGET(req: NextRequest) {
     .eq("key", "google_sheets_sources");
   if (marketId) qSheetSources = qSheetSources.eq("market_id", marketId);
 
+  // The sheet shops themselves: one per connected account. The settings list
+  // above is only a legacy override of their sheet, never a source of its own.
+  let qSheetShops = supabase
+    .from("storefronts")
+    .select("id, market_id, name, platform, is_active, config")
+    .eq("platform", "google_sheets");
+  if (marketId) qSheetShops = qSheetShops.eq("market_id", marketId);
+
   /**
    * Reconciliation state, straight from the stock console's own RPC.
    *
@@ -363,6 +372,7 @@ async function handleGET(req: NextRequest) {
     acksRes,
     syncRunsRes,
     sheetSourcesRes,
+    sheetShopsRes,
     stockPositionRes,
     teamRes,
   ] = await Promise.all([
@@ -379,6 +389,7 @@ async function handleGET(req: NextRequest) {
     qAcks,
     qSyncRuns,
     qSheetSources,
+    qSheetShops,
     qStockPosition,
     qTeam,
   ]);
@@ -561,41 +572,49 @@ async function handleGET(req: NextRequest) {
     runsBySource.set(r.storefront_id, list);
   }
 
-  for (const setting of (sheetSourcesRes.data ?? []) as SheetSourceSetting[]) {
-    const configured = Array.isArray(setting.value) ? setting.value : [];
+  const sheetSources = mergeSheetSources(
+    (sheetShopsRes.data ?? []) as SheetStorefrontRow[],
+    ((sheetSourcesRes.data ?? []) as SheetSourceSetting[]).flatMap((setting) =>
+      Array.isArray(setting.value) ? setting.value : [],
+    ),
+  );
 
-    for (const source of configured) {
-      if (!source?.storefront_id || source.is_active === false) continue;
+  // With several accounts, "Import Google Sheets" alone does not say which one.
+  const sheetShopName = new Map(
+    ((sheetShopsRes.data ?? []) as Array<{ id: string; name?: string | null }>).map((s) => [s.id, s.name ?? null]),
+  );
 
-      // Ordered newest-first by the query; absent entirely when nothing ran.
-      const runs = runsBySource.get(source.storefront_id) ?? [];
-      const lastSettled = runs.find((r) => r.status !== "running");
-      const lastGood = runs.find((r) => r.status === "succeeded" || r.status === "partial");
+  for (const source of sheetSources) {
+    // Ordered newest-first by the query; absent entirely when nothing ran.
+    const runs = runsBySource.get(source.storefront_id) ?? [];
+    const lastSettled = runs.find((r) => r.status !== "running");
+    const lastGood = runs.find((r) => r.status === "succeeded" || r.status === "partial");
 
-      const stale =
-        !lastGood ||
-        minutesBetween(lastGood.finished_at ?? lastGood.started_at, now) > SYNC_STALE_MINUTES;
-      const failing = lastSettled?.status === "failed";
-      if (!stale && !failing) continue;
+    const stale =
+      !lastGood ||
+      minutesBetween(lastGood.finished_at ?? lastGood.started_at, now) > SYNC_STALE_MINUTES;
+    const failing = lastSettled?.status === "failed";
+    if (!stale && !failing) continue;
 
-      push({
-        type: "sheet_sync_stalled",
-        entityId: source.storefront_id,
-        entityKind: "storefront",
-        href: "/system/settings/shops",
-        primary: SYNC_ALERT_LABEL,
-        secondary: lastSettled?.error ?? (lastGood ? null : SYNC_NEVER_LABEL),
-        // Anchored to the last time orders actually landed, so the age reads as
-        // "how long we have not been receiving orders". With no successful run
-        // in the window it falls back to the oldest attempt we can see, and
-        // then to now — a source that has never run once is alerted at its base
-        // severity rather than being scored as infinitely overdue.
-        anchor:
-          lastGood?.finished_at ?? runs[runs.length - 1]?.started_at ?? nowIso,
-        meta: { rows_errored: lastSettled?.rows_errored ?? 0 },
-        marketId: setting.market_id,
-      });
-    }
+    push({
+      type: "sheet_sync_stalled",
+      entityId: source.storefront_id,
+      entityKind: "storefront",
+      href: "/system/settings/shops",
+      primary: sheetShopName.get(source.storefront_id)
+        ? `${SYNC_ALERT_LABEL} · ${sheetShopName.get(source.storefront_id)}`
+        : SYNC_ALERT_LABEL,
+      secondary: lastSettled?.error ?? (lastGood ? null : SYNC_NEVER_LABEL),
+      // Anchored to the last time orders actually landed, so the age reads as
+      // "how long we have not been receiving orders". With no successful run
+      // in the window it falls back to the oldest attempt we can see, and
+      // then to now — a source that has never run once is alerted at its base
+      // severity rather than being scored as infinitely overdue.
+      anchor:
+        lastGood?.finished_at ?? runs[runs.length - 1]?.started_at ?? nowIso,
+      meta: { rows_errored: lastSettled?.rows_errored ?? 0 },
+      marketId: source.market_id,
+    });
   }
 
   // A failed team read loses three rules, not the whole bell.
