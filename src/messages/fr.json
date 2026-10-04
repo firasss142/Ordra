@@ -102,7 +102,6 @@
   "nav": {
     "brand": "Ordra",
     "logout": "Déconnexion",
-    "adminOnly": "Admin",
     "orders": "Commandes",
     "sections": {
       "accueil": "Accueil",
@@ -144,16 +143,20 @@
       "reglages": "Réglages",
       "carriers": "Transporteurs"
     },
-    "a11y": {
-      "expandSection": "Déplier la section {section}",
-      "collapseSection": "Replier la section {section}"
-    },
     "markets": {
       "label": "Marchés",
       "tn": "Tunisie",
       "ly": "Libye",
       "all": "Tous les marchés",
-      "ariaLabel": "Marché actuel : {market}"
+      "ariaLabel": "Marché actuel : {market}",
+      "short": {
+        "tn": "Tunisie",
+        "ly": "Libye",
+        "all": "Tous"
+      },
+      "toAssign": "à assigner",
+      "hint": "1 · 2 · 3 pour choisir · Échap pour fermer",
+      "switched": "Marché : {market}"
     },
     "roles": {
       "super_admin": "Super admin",
@@ -163,7 +166,27 @@
       "investor": "Investisseur"
     },
     "myCommissions": "Mes commissions",
-    "delivery": "Livraison"
+    "delivery": "Livraison",
+    "label": "Navigation principale",
+    "goTo": "Aller à…",
+    "goToPlaceholder": "Aller à une page ou un marché…",
+    "goToEmpty": "Aucune page ne correspond",
+    "goToHints": {
+      "choose": "↑↓ choisir",
+      "open": "↵ ouvrir",
+      "close": "Échap fermer"
+    },
+    "switchTo": "Passer à {market}",
+    "collapse": "Réduire la barre",
+    "expand": "Agrandir la barre",
+    "profile": "Mon profil",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "counts": {
+      "unassigned": "commandes non assignées",
+      "whatsapp": "conversations non lues",
+      "journal": "problèmes ouverts"
+    }
   },
   "inventory": {
     "title": "Stock & inventaire",

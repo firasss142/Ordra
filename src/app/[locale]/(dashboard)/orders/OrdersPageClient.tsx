@@ -122,7 +122,7 @@ export function OrdersPageClient({
   const { filters: rawFilters, setFilters, update } = useOrdersFiltersUrl();
   const { scope, marketId: scopeMarketId } = useMarketScope();
 
-  // Sidebar MarketScopeSwitcher is the single source of truth for super_admin.
+  // The sidebar's market card (MarketSwitcher) is the single source of truth for super_admin.
   // scope === "all" → marketId is null → query returns all markets.
   // Non-super_admin is locked to their own market.
   const filters: OrderListFilters = useMemo(() => {

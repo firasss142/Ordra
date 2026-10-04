@@ -1,0 +1,1074 @@
+<!doctype html>
+<!--
+  Barre latérale (manager + super admin) — prototype v2. Construit le 2026-10-03.
+
+  v2 = la v1 + LE CHANGEMENT DE MARCHÉ repensé, après la revue : « trouve une façon plus moderne et
+  plus belle de changer de marché ». Trois variantes comparables (« Marché » dans la barre du haut) :
+  A · Carte (recommandée), B · Segments glissants, C · Pastilles drapeaux. Drapeaux dessinés en SVG
+  (Windows n'affiche pas les émojis de drapeau). La v1 reste dans prototypes/sidebar-v1.html.
+
+  Demande : « agis en expert UI/UX, améliore la barre latérale — structure, expérience,
+  responsive, cohérence, rien qui se chevauche ».
+
+  « Avant » reproduit src/components/layout/Sidebar.tsx tel qu'il est sur origin/main (bc4036b) :
+  mêmes tailles, mêmes jetons de globals.css, même structure. C'est ce qui permet de montrer les
+  défauts au lieu de les décrire. Rien dans src/ n'a changé.
+
+  Idée centrale : LA BARRE EST UN OUTIL DE TRAVAIL, PAS UN PLAN DU SITE.
+  - le haut et le bas sont épinglés, seule la liste défile ;
+  - le marché est un contrôle visible (un clic), pas un menu caché ;
+  - les titres de groupe se taisent, les liens parlent ;
+  - une icône par destination, zéro doublon ;
+  - trois largeurs : 240 px (≥ 1280), rail 64 px (au choix, par défaut en dessous), tiroir sur téléphone.
+
+  Compteurs : 117 commandes non assignées (capture du 3 oct.) ; alertes 143, WhatsApp 4,
+  Journaux 3 sont illustratifs. Personnes et e-mails fictifs (le dépôt est public).
+
+  URL : ?v=after|before|compare &as=admin|manager &mode=full|rail|phone &lang=fr|ar &h=860|720
+        &data=normal|edge &active=pill|wash &mk=tn|ly|all &ms=card|seg|pills &page=<clé>
+        &screen=palette|menu|drawer|market
+  Clavier (Après) : ⌘K / Ctrl K « Aller à… » · [ réduire / agrandir · Échap ferme.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Barre latérale — prototype v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F6F7; --card:#FFFFFF; --fill:#F3F4F6; --fill-2:#F7F8F9;
+    --line:#E3E5E8; --line-subtle:#ECEEF0; --line-faint:#F2F3F5;
+    --ink-1:#15171A; --ink-2:#4F555B; --ink-3:#656B72; --ink-4:#9AA0A6;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+    /* sidebar — globals.css, unchanged */
+    --sb:#0E1013; --sb-el:#14171C; --sb-line:rgba(255,255,255,.06); --sb-line-2:rgba(255,255,255,.10);
+    --sb-ink:#E6E8EB; --sb-ink-2:#B5BAC2; --sb-ink-3:#7F858F; --sb-ink-4:#5A616B;
+    --sb-hover:rgba(255,255,255,.04); --sb-hover-2:rgba(255,255,255,.07);
+    --on-dark:#10B981;
+    --b-warn-bg:rgba(245,158,11,.15); --b-warn:#FCD34D;
+    --b-crit-bg:rgba(239,68,68,.18);  --b-crit:#FCA5A5;
+    --b-ok-bg:rgba(16,185,129,.15);   --b-ok:#6EE7B7;
+    /* new, one each */
+    --sb-sel:rgba(255,255,255,.09);   /* « lavis » active variant + selected market segment */
+    --sb-seg-on:#262A31;              /* selected market segment, opaque so the flag reads */
+    --f:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --f-ar:"Noto Sans Arabic","Inter",system-ui,sans-serif;
+    --emoji:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+    --h:860px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#E7E8EA;font-family:var(--f);color:var(--ink-1);-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:inherit}
+  a{color:inherit}
+  ul{list-style:none;margin:0;padding:0}
+  svg.i{display:block;flex-shrink:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .grow{flex:1;min-width:0}
+  .flag{font-family:var(--emoji);line-height:1;flex-shrink:0}
+
+  /* ── studio bar (same as prototypes/acces-v2.html) ───────────────────────── */
+  .pbar{position:sticky;top:0;z-index:300;background:#1F2328;color:#E6E8EB;padding:9px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--brand)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff;margin:0}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+  .pbar .warn{font-size:11px;color:#E0A43A}
+
+  .wrap{padding:22px 24px 10px;display:flex;justify-content:center;gap:28px;align-items:flex-start}
+  .cap{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7A8088;margin:0 0 8px}
+
+  /* ── frame ─────────────────────────────────────────────────────────────── */
+  .frame{position:relative;width:100%;max-width:1360px;height:var(--h);background:var(--bg);border:1px solid #D5D8DC;border-radius:10px;overflow:hidden;font-family:var(--f)}
+  .frame[lang=ar]{font-family:var(--f-ar)}
+  .frame.phone{width:390px;max-width:390px;height:min(var(--h),800px);border-radius:30px;border:9px solid #1F2328}
+  .frame.mini{width:auto;overflow:visible;border-radius:0;border:0;background:transparent}
+  .flyhost{position:absolute;inset:0;pointer-events:none;z-index:70}
+  .flyhost > *{pointer-events:auto}
+
+  /* ── content mock (light, untouched by this work) ─────────────────────── */
+  .main{position:absolute;top:0;bottom:0;inset-inline-end:0;inset-inline-start:var(--sbw);overflow:auto;transition:inset-inline-start 200ms cubic-bezier(.2,0,0,1)}
+  .frame.phone .main{inset-inline-start:0;padding-top:52px}
+  .frame.phone.before .main{padding-top:56px}
+  .pg{padding:24px 28px 40px;position:relative}
+  .frame.phone .pg{padding:16px}
+  .pg-h{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .crumb{font-size:12px;color:var(--ink-3);margin-bottom:4px}
+  .pg-h h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+  .card{background:#fff;border:1px solid var(--line-subtle);border-radius:10px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:14px}
+  .kpi{padding:14px 16px;display:grid;gap:10px}
+  .sk{display:block;height:10px;border-radius:5px;background:#ECEEF0}
+  .sk.big{height:20px;background:#E3E5E8}
+  .sk.b{width:120px;height:34px;border-radius:8px;background:#E3E5E8}
+  .rows .r{display:flex;gap:28px;align-items:center;padding:15px 18px;border-top:1px solid var(--line-faint)}
+  .rows .r:first-child{border-top:0}
+  .ruler{position:absolute;top:10px;inset-inline-end:12px;font:600 11px/1 var(--f);color:#7A5B12;background:#FFF6E0;border:1px dashed #E0B85A;border-radius:6px;padding:5px 8px;unicode-bidi:isolate}
+  .pg-h{padding-top:14px}
+  .frame.phone .ruler{display:none}
+
+  /* ════════════════ AVANT — copy of origin/main Sidebar.tsx ════════════════ */
+  .b-nav{position:absolute;top:0;bottom:0;inset-inline-start:0;width:240px;min-width:240px;background:var(--sb);display:flex;flex-direction:column;overflow-y:auto;border-inline-end:1px solid var(--sb-line);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.08) transparent;z-index:20}
+  .b-brand{height:60px;display:flex;align-items:center;gap:10px;padding-inline:14px;border-bottom:1px solid var(--sb-line-2);flex-shrink:0}
+  .b-word{font-size:16px;font-weight:600;color:#fff;letter-spacing:-.01em;line-height:20px}
+  .b-switch{display:inline-flex;align-items:center;gap:8px;height:28px;padding-inline:10px 8px;border-radius:9999px;border:1px solid var(--sb-line-2);background:var(--sb-el);color:#fff;font-size:12px;font-weight:500;line-height:1;white-space:nowrap}
+  .b-switch .i{color:var(--sb-ink-3)}
+  .b-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--sb-ink-2);padding:3px 8px;border-radius:9999px;border:1px solid var(--sb-line-2);background:var(--sb-el);line-height:1;white-space:nowrap}
+  .b-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--sb-line-2);color:var(--sb-ink);flex-shrink:0}
+  .b-bb{position:absolute;top:-5px;inset-inline-end:-5px;min-width:15px;height:15px;padding:0 4px;border-radius:9999px;background:#D72C0D;color:#fff;font-size:9.5px;font-weight:600;line-height:15px;text-align:center;font-variant-numeric:tabular-nums}
+  .b-secs{flex:1;padding:10px 8px}
+  .b-sh{display:flex;align-items:center;gap:10px;width:100%;height:36px;padding-inline:10px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sb-ink);border-radius:6px;transition:background-color 160ms,color 160ms}
+  .b-sh > .i:first-child{color:var(--sb-ink-3)}
+  .b-sh.act{color:#fff}
+  .b-sh.act > .i:first-child{color:var(--on-dark)}
+  .b-sh:hover{background:var(--sb-hover-2);color:#fff}
+  .b-sh .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:start}
+  .b-sh .chev{color:var(--sb-ink-3);transition:transform 180ms}
+  .b-sh[aria-expanded=true] .chev{transform:rotate(90deg)}
+  [dir=rtl] .b-sh .chev{transform:rotate(180deg)}
+  [dir=rtl] .b-sh[aria-expanded=true] .chev{transform:rotate(90deg)}
+  .b-chip{font-size:10px;font-weight:500;letter-spacing:.08em;color:var(--sb-ink-2);padding:1px 6px;border:1px solid var(--sb-line-2);border-radius:4px;background:var(--sb-el)}
+  .b-items{padding:2px 0 8px}
+  .b-it{display:flex;align-items:center;gap:10px;height:34px;padding-inline:30px 12px;margin:1px 2px;font-size:14px;color:var(--sb-ink);text-decoration:none;border-radius:8px;transition:background-color 160ms}
+  .b-it .i{color:var(--sb-ink-3);transition:color 160ms,transform 160ms}
+  .b-it:hover{background:var(--sb-hover)}
+  .b-it:hover .i{color:var(--on-dark);transform:translateX(2px)}
+  [dir=rtl] .b-it:hover .i{transform:translateX(-2px)}
+  .b-it .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .b-it[aria-current=page]{background:var(--brand);color:#fff;font-weight:600}
+  .b-it[aria-current=page] .i{color:#fff}
+  .b-bp{font-size:12px;font-weight:500;padding:1px 7px;border-radius:9999px;min-width:20px;text-align:center;line-height:18px;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .b-div{height:1px;background:var(--sb-line-2);margin:12px 6px}
+  .b-user{padding:10px 12px;border-top:1px solid var(--sb-line-2);flex-shrink:0}
+  .b-ub{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;text-align:start}
+  .b-ub:hover{background:var(--sb-hover)}
+  .b-ub .nm{display:block;font-size:14px;font-weight:500;color:var(--sb-ink);line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .b-ub .rl{display:block;font-size:12px;font-weight:500;color:var(--sb-ink-2);letter-spacing:.02em;margin-top:2px;line-height:15px}
+  .b-ub .cud{color:var(--sb-ink-3);opacity:0;transition:opacity 160ms}
+  .b-ub:hover .cud{opacity:1}
+  .b-burger{position:absolute;top:12px;inset-inline-start:12px;z-index:30;width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-1);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+
+  .av{border-radius:50%;background:#E1E3E5;color:#1A1A1A;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--f)}
+
+  /* ═════════════════════════════ APRÈS ═════════════════════════════ */
+  .s-nav{position:absolute;top:0;bottom:0;inset-inline-start:0;width:240px;background:var(--sb);display:flex;flex-direction:column;border-inline-end:1px solid var(--sb-line);z-index:20;color:var(--sb-ink)}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+  .s-head{flex-shrink:0;padding:12px 12px 10px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+  .s-row1{display:flex;align-items:center;gap:8px;height:32px;min-width:0}
+  .s-word{font-size:16px;font-weight:600;color:#fff;letter-spacing:-.01em;padding-inline-start:4px;font-family:var(--f)}
+  .s-mtag{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;border:1px solid var(--sb-line-2);background:var(--sb-el);font-size:12px;font-weight:500;color:var(--sb-ink-2);white-space:nowrap;min-width:0;overflow:hidden}
+  .s-alert{display:inline-flex;align-items:center;gap:6px;height:30px;padding-inline:8px 6px;border-radius:8px;border:1px solid var(--sb-line-2);color:var(--sb-ink);flex-shrink:0;transition:background-color 140ms}
+  .s-alert:hover{background:var(--sb-hover-2)}
+  .s-alert.zero{width:30px;padding:0;justify-content:center}
+  .s-seg{display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--sb-el);border:1px solid var(--sb-line)}
+  .s-seg button{flex:1 1 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:5px;height:26px;padding:0 6px;border-radius:6px;font-size:12px;font-weight:500;color:var(--sb-ink-2);white-space:nowrap;transition:background-color 140ms,color 140ms}
+  .s-seg button span:not(.flag){min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .s-seg button:hover{color:#fff;background:var(--sb-hover-2)}
+  .s-seg button[aria-checked=true]{background:var(--sb-seg-on);color:#fff;font-weight:600;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+  .s-seg .i{color:var(--sb-ink-2)}
+  .s-search{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding-inline:10px 6px;border-radius:8px;background:var(--sb-el);border:1px solid var(--sb-line);color:var(--sb-ink-3);font-size:13px;transition:border-color 140ms,color 140ms}
+  .s-search:hover{border-color:var(--sb-line-2);color:var(--sb-ink-2)}
+  .s-search .grow{text-align:start}
+  kbd{font-family:var(--f);font-size:11px;font-weight:500;color:var(--sb-ink-3);border:1px solid var(--sb-line-2);border-radius:5px;padding:0 5px;line-height:18px;direction:ltr}
+  .s-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:6px 8px 14px;border-top:1px solid transparent;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.10) transparent;transition:border-color 160ms}
+  .s-scroll.scrolled{border-top-color:var(--sb-line-2)}
+  .s-item{display:flex;align-items:center;gap:10px;height:32px;padding-inline:10px 8px;margin-top:1px;border-radius:8px;font-size:14px;color:var(--sb-ink);text-decoration:none;transition:background-color 120ms,color 120ms}
+  .s-item .i{color:var(--sb-ink-3);transition:color 120ms}
+  .s-item:hover{background:var(--sb-hover-2)}
+  .s-item:hover .i{color:var(--sb-ink)}
+  .s-item .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  [data-active=pill] .s-item[aria-current=page]{background:var(--brand);color:#fff;font-weight:600}
+  [data-active=pill] .s-item[aria-current=page] .i{color:#fff}
+  [data-active=pill] .s-item[aria-current=page] .badge{background:rgba(255,255,255,.2);color:#fff}
+  [data-active=wash] .s-item[aria-current=page]{background:var(--sb-sel);color:#fff;font-weight:600}
+  [data-active=wash] .s-item[aria-current=page] .i{color:var(--on-dark)}
+  .s-group{margin-top:14px}
+  .s-glabel{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding-inline:10px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--sb-ink-3);transition:color 120ms,background-color 120ms}
+  [lang=ar] .s-glabel{font-size:12px;letter-spacing:0}
+  .s-glabel:hover{color:var(--sb-ink-2);background:var(--sb-hover)}
+  .s-glabel .lbl{flex:1;min-width:0;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .s-glabel .chev{color:var(--sb-ink-4);transition:transform 180ms,color 120ms}
+  .s-glabel:hover .chev{color:var(--sb-ink-2)}
+  .s-glabel[aria-expanded=false] .chev{transform:rotate(-90deg)}
+  [dir=rtl] .s-glabel[aria-expanded=false] .chev{transform:rotate(90deg)}
+  .s-div{height:1px;background:var(--sb-line-2);margin:16px 10px 0}
+  .badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:20px;padding:0 6px;border-radius:9px;font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;flex-shrink:0;letter-spacing:0;font-family:var(--f);direction:ltr;unicode-bidi:isolate}
+  .badge.warn,.b-bp.warn{background:var(--b-warn-bg);color:var(--b-warn)}
+  .badge.ok,.b-bp.ok{background:var(--b-ok-bg);color:var(--b-ok)}
+  .badge.crit,.b-bp.crit{background:var(--b-crit-bg);color:var(--b-crit)}
+  .s-foot{flex-shrink:0;border-top:1px solid var(--sb-line-2);padding:8px;display:flex;align-items:center;gap:4px;position:relative}
+  .s-me{flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:44px;padding:0 8px;border-radius:8px;text-align:start;transition:background-color 120ms}
+  .s-me:hover,.s-me[aria-expanded=true]{background:var(--sb-hover-2)}
+  .s-me .who{flex:1;min-width:0;display:grid}
+  .s-me .nm{font-size:13.5px;font-weight:500;color:var(--sb-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:18px}
+  .s-me .rl{font-size:12px;color:var(--sb-ink-3);line-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .s-me .i{color:var(--sb-ink-4)}
+  .ib{width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--sb-ink-3);flex-shrink:0;transition:background-color 120ms,color 120ms}
+  .ib:hover{background:var(--sb-hover-2);color:var(--sb-ink)}
+  [dir=rtl] .flip{transform:scaleX(-1)}
+  .menu{background:var(--sb-el);border:1px solid var(--sb-line-2);border-radius:10px;padding:6px;box-shadow:0 12px 32px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.25);color:var(--sb-ink);animation:pop 140ms cubic-bezier(.16,1,.3,1)}
+  .s-foot > .menu{position:absolute;bottom:calc(100% + 6px);inset-inline:8px;z-index:30}
+  .menu .mh{padding:8px 10px 10px;border-bottom:1px solid var(--sb-line-2);margin-bottom:4px}
+  .menu .mh b{display:block;font-size:13.5px;font-weight:600;color:#fff}
+  .menu .mh span{display:block;font-size:12px;color:var(--sb-ink-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:start}
+  [dir=rtl] .menu .mh span{text-align:end}
+  .menu .mi{display:flex;align-items:center;gap:10px;width:100%;height:34px;padding:0 10px;border-radius:7px;font-size:13.5px;color:var(--sb-ink);text-decoration:none}
+  .menu .mi .i{color:var(--sb-ink-3)}
+  .menu .mi:hover{background:var(--sb-hover-2)}
+  .menu .mt{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-ink-3);padding:6px 10px 6px}
+  .menu .mi[aria-checked=true]{color:#fff;font-weight:600}
+  .menu .mi .ck{margin-inline-start:auto;color:var(--on-dark)}
+  @keyframes pop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* rail — 64 px */
+  .s-nav.rail{width:64px}
+  .r-head{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0 10px}
+  .r-btn{position:relative;width:40px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--sb-ink-3);flex-shrink:0;text-decoration:none;transition:background-color 120ms,color 120ms}
+  .r-btn:hover,.r-btn.hot{background:var(--sb-hover-2);color:var(--sb-ink)}
+  .r-btn.mk{border:1px solid var(--sb-line-2);background:var(--sb-el);height:36px;margin-bottom:4px}
+  [data-active=pill] .r-btn.on{background:var(--brand);color:#fff}
+  [data-active=wash] .r-btn.on{background:var(--sb-sel);color:var(--on-dark)}
+  .r-dot{position:absolute;top:4px;inset-inline-end:4px;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 2px var(--sb)}
+  .r-btn.on .r-dot,.r-btn:hover .r-dot{box-shadow:0 0 0 2px transparent}
+  .r-dot.warn{background:#F59E0B}.r-dot.ok{background:#10B981}.r-dot.crit{background:#EF4444}
+  .r-sep{width:28px;height:1px;background:var(--sb-line-2);margin:6px auto;flex-shrink:0}
+  .r-nav{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0 10px;scrollbar-width:none}
+  .r-foot{flex-shrink:0;border-top:1px solid var(--sb-line-2);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0}
+  .fly{position:absolute;min-width:208px;max-width:240px;background:var(--sb-el);border:1px solid var(--sb-line-2);border-radius:10px;padding:6px;box-shadow:0 12px 32px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.25);color:var(--sb-ink);animation:pop 120ms cubic-bezier(.16,1,.3,1)}
+  .fly.tip{min-width:0;padding:6px 10px;font-size:12.5px;font-weight:500;white-space:nowrap;display:flex;gap:8px;align-items:center}
+  .fly .ft{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--sb-ink-3);padding:6px 10px 6px}
+  [lang=ar] .fly .ft{font-size:12px;letter-spacing:0}
+
+  /* phone */
+  .p-top{position:absolute;top:0;inset-inline:0;height:52px;background:var(--sb);display:flex;align-items:center;gap:6px;padding-inline:6px 10px;z-index:15;color:var(--sb-ink)}
+  .p-burger{width:40px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--sb-ink)}
+  .p-burger:hover{background:var(--sb-hover-2)}
+  .frame.phone .s-nav,.frame.phone .b-nav{width:min(304px,86%);transform:translateX(-100%);transition:transform 220ms cubic-bezier(.2,0,0,1);z-index:40}
+  .frame.phone.before .b-nav{width:240px}
+  .frame.phone[dir=rtl] .s-nav,.frame.phone[dir=rtl] .b-nav{transform:translateX(100%)}
+  .frame.phone.open .s-nav,.frame.phone.open .b-nav{transform:none}
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:35;display:none}
+  .frame.phone.open .scrim{display:block}
+
+  /* « Aller à… » — a light overlay on the content, like every other dialog */
+  .pal-wrap{position:absolute;inset:0;background:rgba(15,17,20,.32);z-index:80;display:flex;justify-content:center;align-items:flex-start;padding:84px 16px 16px}
+  .pal{width:min(560px,100%);background:#fff;border-radius:12px;box-shadow:0 24px 64px rgba(16,24,40,.25),0 0 0 1px rgba(16,24,40,.06);overflow:hidden;color:var(--ink-1);animation:pop 140ms cubic-bezier(.16,1,.3,1)}
+  .pal-in{position:relative;border-bottom:1px solid var(--line-subtle)}
+  .pal-in .i{position:absolute;top:17px;inset-inline-start:16px;color:var(--ink-4)}
+  .pal input{width:100%;height:52px;border:0;padding-inline:44px 16px;font:inherit;font-size:15px;outline:none;background:transparent;color:var(--ink-1)}
+  .pal-res{max-height:340px;overflow:auto;padding:6px}
+  .pal-row{display:flex;align-items:center;gap:12px;width:100%;height:40px;padding:0 10px;border-radius:8px;font-size:14px;color:var(--ink-1)}
+  .pal-row .i{color:var(--ink-3)}
+  .pal-row .g{margin-inline-start:auto;color:var(--ink-4);font-size:12.5px}
+  .pal-row[aria-selected=true]{background:var(--brand-bg)}
+  .pal-row[aria-selected=true] .i{color:var(--brand)}
+  .pal-empty{padding:22px 12px;font-size:13.5px;color:var(--ink-3);text-align:center}
+  .pal-foot{border-top:1px solid var(--line-subtle);padding:9px 14px;font-size:12px;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap}
+  .pal-foot kbd{color:var(--ink-2);border-color:var(--line);background:var(--fill-2)}
+
+  .toast{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:#1F2328;color:#fff;font-size:12.5px;padding:9px 14px;border-radius:8px;z-index:90;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+
+  /* ═════════ v2 — market switching ═════════ */
+  .ft{position:relative;display:inline-block;flex-shrink:0;overflow:hidden;background:var(--sb);box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+  .ft svg{display:block;width:100%;height:100%}
+  .ft.all > span{position:absolute;inset:0}
+  .ft.all > span:first-child{clip-path:polygon(0 0,94% 0,0 94%)}
+  .ft.all > span:last-child{clip-path:polygon(100% 6%,100% 100%,6% 100%)}
+  .mtxt{flex:1;min-width:0;display:grid;text-align:start}
+  .mn{font-size:13.5px;font-weight:600;color:#fff;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ms{font-size:11.5px;color:var(--sb-ink-3);line-height:15px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* A · card */
+  .mwrap{position:relative}
+  .mcard{display:flex;align-items:center;gap:10px;width:100%;height:50px;padding-inline:8px 10px;border-radius:10px;background:var(--sb-el);border:1px solid var(--sb-line-2);transition:background-color 140ms,border-color 140ms}
+  button.mcard:hover,button.mcard[aria-expanded=true]{background:#1A1E24;border-color:rgba(255,255,255,.18)}
+  .mcard > .i{color:var(--sb-ink-3)}
+  .mcard.anim .ft{animation:flagIn 320ms cubic-bezier(.2,0,0,1)}
+  @keyframes flagIn{from{transform:scale(.6) rotate(-8deg);opacity:0}}
+  .mpop{position:absolute;top:calc(100% + 6px);inset-inline-start:0;width:284px;z-index:60}
+  .mrow{display:flex;align-items:center;gap:10px;width:100%;height:50px;padding:0 8px;border-radius:8px;transition:background-color 120ms}
+  .mrow:hover{background:var(--sb-hover-2)}
+  .mrow[aria-selected=true]{background:rgba(255,255,255,.05)}
+  .mrow .ck{color:var(--on-dark);flex-shrink:0}
+  .mrow kbd{flex-shrink:0;width:20px;text-align:center;padding:0}
+  .msep{height:1px;background:var(--sb-line-2);margin:4px 6px}
+  .mfoot{font-size:11px;color:var(--sb-ink-3);padding:8px 10px 4px;border-top:1px solid var(--sb-line-2);margin-top:4px}
+  /* B · sliding segments (v1 + a thumb) */
+  .s-seg{position:relative}
+  .s-seg button{position:relative;z-index:1}
+  .s-seg button[aria-checked=true]{background:transparent;box-shadow:none}
+  .seg-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:0;border-radius:6px;background:var(--sb-seg-on);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);transition:left 240ms cubic-bezier(.2,0,0,1),width 240ms cubic-bezier(.2,0,0,1)}
+  /* C · flag pills */
+  .mpills{display:flex;gap:6px;align-items:center}
+  .mpill{position:relative;display:inline-flex;align-items:center;height:36px;padding:0 7px;border-radius:999px;border:1px solid var(--sb-line-2);background:var(--sb-el);transition:background-color 180ms,border-color 180ms}
+  .mpill:hover{border-color:rgba(255,255,255,.22)}
+  .mpill .mpl{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;font-size:13px;font-weight:600;color:#fff}
+  .mpill[aria-checked=true]{background:var(--sb-seg-on);border-color:rgba(255,255,255,.18);padding-inline:7px 13px}
+  .mpill[aria-checked=true] .mpl{max-width:140px;opacity:1;margin-inline-start:8px}
+  .mpills.anim .mpill[aria-checked=true] .mpl{animation:mplIn 300ms cubic-bezier(.2,0,0,1)}
+  @keyframes mplIn{from{max-width:0;opacity:0;margin-inline-start:0}}
+  .mpill .r-dot{top:0;inset-inline-end:0}
+  /* phone: market chip in the top bar + bottom sheet */
+  .p-mk{display:inline-flex;align-items:center;gap:7px;height:32px;padding-inline:5px 9px;border-radius:999px;border:1px solid var(--sb-line-2);background:var(--sb-el);font-size:12.5px;font-weight:600;color:#fff;white-space:nowrap}
+  .p-mk .i{color:var(--sb-ink-3)}
+  .sheet-wrap{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:85;display:flex;align-items:flex-end}
+  .sheet{width:100%;background:var(--sb-el);border-radius:16px 16px 0 0;padding:6px 10px 20px;color:var(--sb-ink);animation:sheetIn 240ms cubic-bezier(.2,0,0,1)}
+  .sheet .grab{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.22);margin:4px auto 6px}
+  .sheet .mrow{height:58px}
+  @keyframes sheetIn{from{transform:translateY(100%)}}
+
+  /* ── review notes ─────────────────────────────────────────────────────── */
+  .notes{max-width:1080px;margin:0 auto;padding:16px 30px 100px}
+  .notes h2{font-size:18px;margin:26px 0 10px;font-weight:650}
+  .notes .lead{font-size:14px;line-height:1.6;color:var(--ink-2);margin:0 0 12px}
+  .notes .n{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 15px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .notes .n.q{border-inline-start-color:#E0A43A}
+  .notes .n.g{border-inline-start-color:var(--brand)}
+  .notes .n.r{border-inline-start-color:#C0362C}
+  .notes .n b{font-weight:650}
+  .notes ol,.notes ul{margin:6px 0 0;padding-inline-start:22px}
+  .notes li{margin:4px 0}
+  .notes code{font-size:12.5px;background:var(--fill-2);border:1px solid var(--line-subtle);border-radius:4px;padding:0 4px}
+  .notes table{border-collapse:collapse;width:100%;margin-top:8px;font-size:13px}
+  .notes th,.notes td{border-top:1px solid var(--line-subtle);padding:7px 8px;text-align:start;vertical-align:top}
+  .notes th{font-size:12px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-top:0}
+  .notes a.go{color:var(--brand);font-weight:600;text-decoration:none}
+  .sev{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:1px 6px;margin-inline-end:6px;vertical-align:1px}
+  .sev.hi{background:#FDECEA;color:#B42318}.sev.md{background:#FFF6E5;color:#B45309}.sev.lo{background:#EEF1F5;color:#475569}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <h1>Barre latérale · v2</h1>
+  <span class="pctl">Vue <button data-set="v:before">Avant</button><button data-set="v:after">Après</button><button data-set="v:compare">Côte à côte</button></span>
+  <span class="pctl">Rôle <button data-set="as:admin">Super admin</button><button data-set="as:manager">Manager Libye</button></span>
+  <span class="pctl">Marché <button data-set="ms:card">A · Carte</button><button data-set="ms:seg">B · Segments</button><button data-set="ms:pills">C · Pastilles</button></span>
+  <span class="pctl">Largeur <button data-set="mode:full">Bureau</button><button data-set="mode:rail">Réduite</button><button data-set="mode:phone">Téléphone</button></span>
+  <span class="pctl">Langue <button data-set="lang:fr">FR</button><button data-set="lang:ar">AR</button></span>
+  <span class="pctl">Écran <button data-set="h:860">860 px</button><button data-set="h:720">720 px</button></span>
+  <span class="pctl">Données <button data-set="data:normal">Normales</button><button data-set="data:edge">Limites</button></span>
+  <span class="pctl">Actif <button data-set="active:pill">Pastille verte</button><button data-set="active:wash">Lavis</button></span>
+  <span class="warn" id="warn" hidden></span>
+  <a href="#notes">Notes de revue ↓</a>
+</div>
+
+<div class="wrap" id="stage"></div>
+
+<section class="notes" id="notes">
+  <h2>v2 — changer de marché</h2>
+  <p class="lead">Le marché est le réglage le plus lourd de conséquences de l'app : il change chaque chiffre de chaque page. L'erreur à éviter n'est pas « deux clics au lieu d'un », c'est « je croyais regarder la Libye ». Il faut donc qu'on ne puisse pas se tromper de marché, que le marché soit toujours visible, et que changer soit rapide. Comparez les trois avec « Marché » dans la barre du haut.</p>
+  <div class="n g"><b>A · Carte — recommandée.</b> Une carte pleine largeur sous Ordra : grand drapeau, nom du marché, devise et <b>heure locale</b>. Un clic ouvre la liste : chaque marché avec son drapeau, sa devise, son heure, et <b>le nombre de commandes qui attendent d'être assignées</b> — on voit où est le travail <i>avant</i> de changer. Touches 1 · 2 · 3, Échap. Le manager voit la même carte, sans flèche : un seul marché, même repère. Tient pour 2 marchés comme pour 10.
+    <a class="go" href="?ms=card&screen=market">Voir la liste ouverte →</a></div>
+  <div class="n"><b>B · Segments glissants.</b> La v1, avec une pastille qui glisse d'un marché à l'autre. Un clic, tout est visible ; mais trois cases de ~70 px ne tiennent plus au troisième marché, et rien ne dit où est le travail. <a class="go" href="?ms=seg">Voir →</a></div>
+  <div class="n"><b>C · Pastilles drapeaux.</b> Trois ronds ; celui qui est choisi s'allonge et dit son nom ; un point ambre signale l'autre marché quand il a des commandes à assigner. Le plus compact et le plus « bijou », mais un drapeau seul se lit moins vite qu'un nom. <a class="go" href="?ms=pills">Voir →</a></div>
+  <table>
+    <thead><tr><th></th><th>Clics pour changer</th><th>Ce qui reste visible</th><th>Montre où est le travail</th><th>À 5 marchés</th><th>Hauteur</th></tr></thead>
+    <tbody>
+      <tr><td><b>A · Carte</b></td><td>2 (ou ⌘K)</td><td>drapeau, nom, devise, heure</td><td>oui, en chiffres</td><td>oui</td><td>50 px</td></tr>
+      <tr><td><b>B · Segments</b></td><td>1</td><td>les 3 noms</td><td>non</td><td>non</td><td>32 px</td></tr>
+      <tr><td><b>C · Pastilles</b></td><td>1</td><td>3 drapeaux, 1 nom</td><td>un point</td><td>juste</td><td>36 px</td></tr>
+    </tbody>
+  </table>
+  <div class="n q"><b>Dans les trois : des drapeaux dessinés, plus des émojis.</b> L'app affiche aujourd'hui les drapeaux en émoji (sélecteur, pastille du manager). Windows n'en a pas : sur un PC Windows on lit « LY » et « TN » en lettres à la place. Ici ils sont dessinés (SVG) ; « Tous les marchés » est les deux drapeaux coupés en diagonale.</div>
+  <div class="n"><b>Aussi, dans les trois :</b><ul>
+    <li>Changer de marché affiche une confirmation brève (« Marché : Libye »), et le drapeau de la carte entre avec un petit mouvement : on <i>voit</i> que le décor a changé.</li>
+    <li>⌘K propose « Passer à Tunisie / Libye / Tous les marchés ».</li>
+    <li>Le compteur de Commandes suit le marché choisi. Aujourd'hui, pour le super admin, il compte tous les marchés quel que soit le choix — alors que celui de WhatsApp suit déjà le choix. Les comptes par marché viennent de la route existante <code>/api/orders/unassigned/count?market_id=</code>.</li>
+    <li>Réduite (rail) : le bouton drapeau ouvre la même liste sur le côté. Téléphone : la pastille de la barre du haut ouvre la liste en feuille par le bas.</li>
+  </ul></div>
+
+  <h2>Ce que la barre fait mal aujourd'hui</h2>
+  <p class="lead">Chaque point est reproduit dans « Avant » — le lien ouvre le bon réglage. Mesures prises sur la copie fidèle de <code>Sidebar.tsx</code> (origin/main, bc4036b).</p>
+
+  <div class="n r"><span class="sev hi">Chevauchement</span><b>Avec « Tous les marchés », l'en-tête déborde de la barre.</b>
+    Ordra + sélecteur + cloche + marges = <b id="m-overflow">283</b> px dans 240. Aucun élément ne peut rétrécir (pas de <code>min-width:0</code>, texte en <code>nowrap</code>) : la cloche est poussée 29 px hors de la barre — invisible, atteignable seulement en faisant défiler la barre de côté.
+    <a class="go" href="?v=before&as=admin&mk=all">Voir →</a></div>
+
+  <div class="n r"><span class="sev hi">Structure</span><b>Tout défile, même l'en-tête et le profil.</b>
+    La barre entière est un seul bloc qui défile. Sur un écran de 720 px, avec les seuls groupes ouverts par défaut, le profil commence à 776 px : déjà sous le bord. Pour l'atteindre on fait défiler, et le marché et la cloche partent par le haut.
+    <a class="go" href="?v=before&as=admin&h=720">Voir →</a></div>
+
+  <div class="n r"><span class="sev hi">Hiérarchie</span><b>Les titres crient plus fort que les liens.</b>
+    8 titres en MAJUSCULES, gras, blancs, avec icône et chevron, contre 25 liens en 14 px normal. Or on clique sur les liens, jamais sur les titres. L'œil va au mauvais endroit.</div>
+
+  <div class="n q"><span class="sev md">Bruit</span><b>33 icônes pour 25 destinations, dont 3 doublons et un symbole faux.</b>
+    Camion ×2 (Livraison, Suivi transporteur), jauge ×2 (Équipe, Tableau livraison), cartons ×2 (Stock, Stock &amp; inventaire), et un <b>$</b> pour le P&amp;L d'une entreprise qui compte en TND et LYD. « Commandes » est un avion en papier.</div>
+
+  <div class="n r"><span class="sev hi">Chevauchement</span><b>« SYSTÈME » devient « SYSTÈ… » dès que Journaux a un problème ouvert.</b> Le badge ADMIN et le compteur rouge prennent la place du mot. Sur la capture du 3 oct. il n'y avait pas de compteur, d'où « SYSTÈME » entier. <a class="go" href="?v=before&as=admin">Voir →</a></div>
+
+  <div class="n q"><span class="sev md">Structure</span><b>« Accueil » est un groupe pliable qui contient un seul lien.</b> Deux lignes et un pli pour atteindre « Dashboard ».</div>
+
+  <div class="n q"><span class="sev md">Priorités</span><b>Le pliage par défaut est à l'envers, et il s'oublie.</b>
+    Commandes (117 en attente) arrive plié, Finances (6 liens qu'on ouvre une fois par jour) arrive déplié. Chaque rechargement remet tout comme au départ.</div>
+
+  <div class="n q"><span class="sev md">Alignement</span><b>Presque aligné.</b> Les icônes des liens commencent à 40 px du bord, le texte des titres à 45 px : 5 px d'écart, assez pour se voir, trop peu pour être voulu. Titres (36 px) et liens (34 px) ont la même hauteur, donc aucun rythme.</div>
+
+  <div class="n q"><span class="sev md">Cible</span><b>La cloche fait 28 px et son chiffre 9,5 px.</b> « 99+ » posé à cheval sur le bord, en rouge plein — illisible, et le seul rouge vif de la barre.</div>
+
+  <div class="n q"><span class="sev md">Responsive</span><b>Trois largeurs d'écran, une seule barre.</b>
+    Entre 768 et 1 279 px la barre garde 240 px fixes : la table des commandes perd la place qu'il lui faut. Sur téléphone, un bouton ☰ blanc flotte sur le contenu, sans barre ; le marché et la cloche n'existent plus tant que le tiroir est fermé. Hauteur en <code>100vh</code> : la barre d'adresse de Safari coupe le profil.
+    <a class="go" href="?v=before&mode=phone">Voir →</a></div>
+
+  <div class="n"><span class="sev lo">Détails</span><ul>
+    <li>Le badge « ADMIN » sur Système dit au super admin ce qu'il sait déjà.</li>
+    <li>Le menu du profil ne contient que Déconnexion ; <code>/profile</code> n'est atteignable par aucun lien. Le chevron du profil n'apparaît qu'au survol.</li>
+    <li>Le sélecteur de marché demande deux clics pour trois choix, et cache les deux autres.</li>
+    <li>Accessibilité : l'<code>aria-label</code> du titre (« Déplier la section Commandes ») remplace son texte — le « 117 » n'est jamais annoncé.</li>
+    <li>En arabe, la cloche affiche « +99 » : le « + » change de côté parce que le chiffre hérite du sens de lecture. <a class="go" href="?v=before&as=manager&lang=ar">Voir →</a></li>
+    <li>Les icônes glissent de 2 px au survol : du mouvement pour rien.</li>
+    <li><code>components/layout/NavItem.tsx</code> n'est importé nulle part (code mort).</li>
+  </ul></div>
+
+  <h2>Ce qui change</h2>
+  <table>
+    <thead><tr><th style="width:24%">Zone</th><th>Après</th></tr></thead>
+    <tbody>
+      <tr><td><b>En-tête (épinglé)</b></td><td>Ordra + <b>Alertes</b> en pastille (icône + nombre côte à côte, rien à cheval). Le marché devient une <b>carte</b> (v2, ci-dessus) — c'est le réglage qui change tous les chiffres de toutes les pages. Puis <b>Aller à… ⌘K</b>.</td></tr>
+      <tr><td><b>Liste (seule à défiler)</b></td><td>Dashboard en tête, sans groupe. Les groupes deviennent des <b>étiquettes discrètes</b> (11 px, gris, sans icône) ; les liens font 32 px, icône 16 px. Un seul axe vertical : icônes des liens et texte des étiquettes à 18 px du bord, tous les deux. Un trait apparaît sous l'en-tête dès qu'on défile.</td></tr>
+      <tr><td><b>Pliage</b></td><td>Tout ouvert au premier passage. Chaque pli est <b>mémorisé par personne</b> ; le groupe de la page courante s'ouvre toujours ; un groupe plié remonte son compteur sur son étiquette.</td></tr>
+      <tr><td><b>Icônes</b></td><td>Une par destination, zéro doublon. Changées : Commandes (boîte de réception), Archivées (archive), Suivi transporteur (itinéraire), Tableau livraison (kanban), P&amp;L (tendance), Stock &amp; inventaire (couches), Accès (utilisateur + réglage), Réglages (curseurs). Icônes de groupe (rail seulement) : Finances = portefeuille, Équipe = casque, Système = engrenage.</td></tr>
+      <tr><td><b>Compteurs</b></td><td>Un seul composant pour tous (18 px, 11,5 px, teinte sur fond sombre) — la cloche aussi. Même règle de plafond partout : 999+.</td></tr>
+      <tr><td><b>Pied (épinglé)</b></td><td>Profil toujours lisible + menu (Mon profil, Déconnexion) ; bouton <b>Réduire</b> (raccourci <kbd style="color:var(--ink-2);border-color:var(--line)">[</kbd>).</td></tr>
+      <tr><td><b>Rail 64 px</b></td><td>8 icônes (Dashboard + 7 groupes). Survol ou clic = le groupe s'ouvre en volet à côté ; un point de couleur remplace le nombre (le nombre est dans le volet). Choix mémorisé ; par défaut sous 1 280 px. Rend <b>176 px</b> à la page.</td></tr>
+      <tr><td><b>Téléphone</b></td><td>Vraie barre de 52 px (☰ · Ordra · marché · alertes). Tiroir de 304 px max, se ferme au clic sur un lien, sur le fond, ou avec Échap. Hauteur en <code>100dvh</code>.</td></tr>
+      <tr><td><b>Arabe</b></td><td>Miroir complet : barre à droite, volets et tiroir côté gauche, chevrons et icône « réduire » retournés. Étiquettes de groupe sans majuscules ni interlettrage (n'existent pas en arabe).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Ce qui ne change pas</h2>
+  <div class="n g"><ul>
+    <li>Les 25 destinations, leurs libellés, leur ordre et leurs droits par rôle (agents et entrepôt gardent leurs propres coques, sans barre).</li>
+    <li>Le fond #0E1013, la pastille verte de l'élément actif (§5 du design system), les trois couleurs de compteur.</li>
+    <li>La logique « quel lien est actif » (<code>isNavItemActive</code>, <code>activeOn</code>) et le préchargement au survol.</li>
+  </ul></div>
+
+  <h2>Décisions prises en expert</h2>
+  <div class="n g"><ul>
+    <li>Étiquettes de groupe en petites capitales grises plutôt qu'en phrase : elles se lisent comme des repères, pas comme des boutons.</li>
+    <li>Tout ouvert au premier passage plutôt qu'un dépliage « intelligent » : on découvre tout une fois, puis chacun range sa barre.</li>
+    <li>Aller à… cherche dans la navigation seulement (les 25 pages). Chercher une commande par téléphone ou référence est une autre fonctionnalité.</li>
+    <li>Le menu Alertes reste le panneau existant ; seul le bouton change.</li>
+    <li>Pas de favoris épinglables : 25 liens ne le justifient pas.</li>
+  </ul></div>
+
+  <h2>Signalé, pas tranché ici</h2>
+  <div class="n q"><ul>
+    <li><b>Trois pages « livraison »</b> — Suivi livraison, Suivi transporteur, Tableau livraison. CLAUDE.md note que le tableau de /delivery couvre déjà /in-delivery, dont la suppression est prévue. Retirer « Tableau livraison » de la barre ferait passer Livraison de 3 à 2 liens.</li>
+    <li><b>Deux pages « Stock »</b> — Entrepôt › Stock (les quantités) et Finances › Stock &amp; inventaire (la valeur). Les icônes les séparent maintenant ; le libellé « Valeur du stock » les séparerait aussi par le nom.</li>
+  </ul></div>
+</section>
+
+<script>
+const ICONS={"home":"<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>","shopping-bag":"<path d=\"M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z\"/><path d=\"M3 6h18\"/><path d=\"M16 10a4 4 0 0 1-8 0\"/>","warehouse":"<path d=\"M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z\"/><path d=\"M6 18h12\"/><path d=\"M6 14h12\"/><rect width=\"12\" height=\"12\" x=\"6\" y=\"10\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","line-chart":"<path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"m19 9-5 5-4-4-3 3\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","gauge":"<path d=\"m12 14 4-4\"/><path d=\"M3.34 19a10 10 0 1 1 17.32 0\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\" ry=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\" ry=\"2\"/><line x1=\"6\" x2=\"6.01\" y1=\"6\" y2=\"6\"/><line x1=\"6\" x2=\"6.01\" y1=\"18\" y2=\"18\"/>","layout-dashboard":"<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/>","send":"<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"/><path d=\"m21.854 2.147-10.94 10.939\"/>","file-clock":"<path d=\"M16 22h2a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><circle cx=\"8\" cy=\"16\" r=\"6\"/><path d=\"M9.5 17.5 8 16.25V14\"/>","copy-check":"<path d=\"m12 15 2 2 4-4\"/><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.93 4.93 1.41 1.41\"/><path d=\"m17.66 17.66 1.41 1.41\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.34 17.66-1.41 1.41\"/><path d=\"m19.07 4.93-1.41 1.41\"/>","package-search":"<path d=\"M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14\"/><path d=\"m7.5 4.27 9 5.15\"/><polyline points=\"3.29 7 12 12 20.71 7\"/><line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"12\"/><circle cx=\"18.5\" cy=\"15.5\" r=\"2.5\"/><path d=\"M20.27 17.27 22 19\"/>","package-open":"<path d=\"M12 22v-9\"/><path d=\"M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z\"/><path d=\"M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13\"/><path d=\"M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z\"/>","boxes":"<path d=\"M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z\"/><path d=\"m7 16.5-4.74-2.85\"/><path d=\"m7 16.5 5-3\"/><path d=\"M7 16.5v5.17\"/><path d=\"M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z\"/><path d=\"m17 16.5-5-3\"/><path d=\"m17 16.5 4.74-2.85\"/><path d=\"M17 16.5v5.17\"/><path d=\"M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z\"/><path d=\"M12 8 7.26 5.15\"/><path d=\"m12 8 4.74-2.85\"/><path d=\"M12 13.5V8\"/>","package-check":"<path d=\"m16 16 2 2 4-4\"/><path d=\"M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14\"/><path d=\"m7.5 4.27 9 5.15\"/><polyline points=\"3.29 7 12 12 20.71 7\"/><line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"12\"/>","dollar-sign":"<line x1=\"12\" x2=\"12\" y1=\"2\" y2=\"22\"/><path d=\"M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/>","percent":"<line x1=\"19\" x2=\"5\" y1=\"5\" y2=\"19\"/><circle cx=\"6.5\" cy=\"6.5\" r=\"2.5\"/><circle cx=\"17.5\" cy=\"17.5\" r=\"2.5\"/>","receipt-text":"<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M14 8H8\"/><path d=\"M16 12H8\"/><path d=\"M13 16H8\"/>","megaphone":"<path d=\"m3 11 18-5v12L3 14v-3z\"/><path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\"/>","hand-coins":"<path d=\"M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17\"/><path d=\"m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9\"/><path d=\"m2 16 6 6\"/><circle cx=\"16\" cy=\"9\" r=\"2.9\"/><circle cx=\"6\" cy=\"5\" r=\"3\"/>","target":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/>","message-square-quote":"<path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/><path d=\"M8 12a2 2 0 0 0 2-2V8H8\"/><path d=\"M14 12a2 2 0 0 0 2-2V8h-2\"/>","message-circle":"<path d=\"M7.9 20A9 9 0 1 0 4 16.1L2 22Z\"/>","phone-call":"<path d=\"M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z\"/><path d=\"M14.05 2a9 9 0 0 1 8 7.94\"/><path d=\"M14.05 6A5 5 0 0 1 18 10\"/>","bar-chart-3":"<path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"M18 17V9\"/><path d=\"M13 17V5\"/><path d=\"M8 17v-3\"/>","user-plus":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><line x1=\"19\" x2=\"19\" y1=\"8\" y2=\"14\"/><line x1=\"22\" x2=\"16\" y1=\"11\" y2=\"11\"/>","settings":"<path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","scroll-text":"<path d=\"M15 12h-5\"/><path d=\"M15 8h-5\"/><path d=\"M19 17V5a2 2 0 0 0-2-2H4\"/><path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\"/>","bell":"<path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"/>","chevron-right":"<path d=\"m9 18 6-6-6-6\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","chevrons-up-down":"<path d=\"m7 15 5 5 5-5\"/><path d=\"m7 9 5-5 5 5\"/>","globe-2":"<path d=\"M21.54 15H17a2 2 0 0 0-2 2v4.54\"/><path d=\"M7 3.34V5a3 3 0 0 0 3 3a2 2 0 0 1 2 2c0 1.1.9 2 2 2a2 2 0 0 0 2-2c0-1.1.9-2 2-2h3.17\"/><path d=\"M11 21.95V18a2 2 0 0 0-2-2a2 2 0 0 1-2-2v-1a2 2 0 0 0-2-2H2.05\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/>","headset":"<path d=\"M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z\"/><path d=\"M21 16v2a4 4 0 0 1-4 4h-5\"/>","route":"<circle cx=\"6\" cy=\"19\" r=\"3\"/><path d=\"M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15\"/><circle cx=\"18\" cy=\"5\" r=\"3\"/>","square-kanban":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M8 7v7\"/><path d=\"M12 7v4\"/><path d=\"M16 7v9\"/>","activity":"<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/>","user-cog":"<circle cx=\"18\" cy=\"15\" r=\"3\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M10 15H6a4 4 0 0 0-4 4v2\"/><path d=\"m21.7 16.4-.9-.3\"/><path d=\"m15.2 13.9-.9-.3\"/><path d=\"m16.6 18.7.3-.9\"/><path d=\"m19.1 12.2.3-.9\"/><path d=\"m19.6 18.7-.4-1\"/><path d=\"m16.8 12.3-.4-1\"/><path d=\"m14.3 16.6 1-.4\"/><path d=\"m20.7 13.8 1-.4\"/>","sliders-horizontal":"<line x1=\"21\" x2=\"14\" y1=\"4\" y2=\"4\"/><line x1=\"10\" x2=\"3\" y1=\"4\" y2=\"4\"/><line x1=\"21\" x2=\"12\" y1=\"12\" y2=\"12\"/><line x1=\"8\" x2=\"3\" y1=\"12\" y2=\"12\"/><line x1=\"21\" x2=\"16\" y1=\"20\" y2=\"20\"/><line x1=\"12\" x2=\"3\" y1=\"20\" y2=\"20\"/><line x1=\"14\" x2=\"14\" y1=\"2\" y2=\"6\"/><line x1=\"8\" x2=\"8\" y1=\"10\" y2=\"14\"/><line x1=\"16\" x2=\"16\" y1=\"18\" y2=\"22\"/>","layers":"<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"/><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"/><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"/>","wallet":"<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\"/><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\"/>","inbox":"<polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/>","archive":"<rect width=\"20\" height=\"5\" x=\"2\" y=\"3\" rx=\"1\"/><path d=\"M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8\"/><path d=\"M10 12h4\"/>","package-minus":"<path d=\"M16 16h6\"/><path d=\"M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14\"/><path d=\"m7.5 4.27 9 5.15\"/><polyline points=\"3.29 7 12 12 20.71 7\"/><line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"12\"/>","package-plus":"<path d=\"M16 16h6\"/><path d=\"M19 13v6\"/><path d=\"M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14\"/><path d=\"m7.5 4.27 9 5.15\"/><polyline points=\"3.29 7 12 12 20.71 7\"/><line x1=\"12\" x2=\"12\" y1=\"22\" y2=\"12\"/>","trending-up":"<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>","panel-left-close":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M9 3v18\"/><path d=\"m16 15-3-3 3-3\"/>","panel-left-open":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M9 3v18\"/><path d=\"m14 9 3 3-3 3\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","log-out":"<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><polyline points=\"16 17 21 12 16 7\"/><line x1=\"21\" x2=\"9\" y1=\"12\" y2=\"12\"/>","user-round":"<circle cx=\"12\" cy=\"8\" r=\"5\"/><path d=\"M20 21a8 8 0 0 0-16 0\"/>","menu":"<line x1=\"4\" x2=\"20\" y1=\"12\" y2=\"12\"/><line x1=\"4\" x2=\"20\" y1=\"6\" y2=\"6\"/><line x1=\"4\" x2=\"20\" y1=\"18\" y2=\"18\"/>","x":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","check":"<path d=\"M20 6 9 17l-5-5\"/>","corner-down-left":"<polyline points=\"9 10 4 15 9 20\"/><path d=\"M20 4v7a4 4 0 0 1-4 4H4\"/>","arrow-up":"<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>","arrow-down":"<path d=\"M12 5v14\"/><path d=\"m19 12-7 7-7-7\"/>"};
+
+/* ── data ───────────────────────────────────────────────────────────────── */
+const T = {
+  fr:{
+    sections:{accueil:"Accueil",commandes:"Commandes",logistique:"Entrepôt",livraison:"Livraison",finances:"Finances",clients:"Clients",equipe:"Équipe",systeme:"Système"},
+    items:{pulse:"Dashboard",orders:"Commandes",archived:"Archivées",duplicates:"Doublons",warehouseToday:"Aujourd'hui",warehouseOut:"Sortir",warehouseReturns:"Rentrer",warehouseStock:"Stock",deliveryWorklist:"Suivi livraison",carrierTracking:"Suivi transporteur",inDeliveryBoard:"Tableau livraison",pnl:"P&L global",productsMargins:"Produits & marges",stockInventory:"Stock & inventaire",purchases:"Achats",adSpend:"Dépenses pub",investors:"Investisseurs",activeProspects:"Prospects",customerVoice:"Voix du client",messages:"Messages",controlRoom:"Salle de contrôle",performanceLive:"Performance",access:"Accès",reglages:"Réglages",logs:"Journaux",profile:"Mon profil"},
+    markets:{tn:"Tunisie",ly:"Libye",all:"Tous les marchés",label:"Marchés"},
+    short:{tn:"Tunisie",ly:"Libye",all:"Tous"},
+    roles:{super_admin:"Super admin",market_manager:"Market manager"},
+    adminOnly:"Admin", logout:"Déconnexion", goto:"Aller à…", collapse:"Réduire la barre", expand:"Agrandir la barre",
+    alerts:"Alertes", menu:"Menu", close:"Fermer", nav:"Navigation principale", market:"Marché",
+    noResult:"Aucune page ne correspond", palHint:["↑↓ choisir","↵ ouvrir","Échap fermer"],
+    sr:{un:"commandes non assignées",wa:"conversations non lues",jr:"problèmes ouverts",al:"alertes"},
+    toastAlerts:"Ouvre le panneau Alertes (inchangé)", switched:"Marché : ", toAssign:"à assigner", switchTo:"Passer à", allSub:"TND · LYD", mkHint:"1 · 2 · 3 pour choisir · Échap pour fermer", toastProfile:"Ouvre /profile — atteignable par un lien, enfin", toastLogout:"Déconnexion",
+  },
+  ar:{
+    sections:{accueil:"الرئيسية",commandes:"الطلبات",logistique:"المستودع",livraison:"التوصيل",finances:"المالية",clients:"العملاء",equipe:"الفريق",systeme:"النظام"},
+    items:{pulse:"لوحة القيادة",orders:"الطلبات",archived:"المؤرشفة",duplicates:"المكررة",warehouseToday:"اليوم",warehouseOut:"إخراج",warehouseReturns:"إرجاع",warehouseStock:"المخزون",deliveryWorklist:"متابعة التوصيل",carrierTracking:"تتبع الناقل",inDeliveryBoard:"لوحة التسليم",pnl:"الأرباح والخسائر",productsMargins:"المنتجات والهوامش",stockInventory:"المخزون والجرد",purchases:"المشتريات",adSpend:"مصاريف الإعلانات",investors:"المستثمرون",activeProspects:"العملاء المحتملون",customerVoice:"صوت العميل",messages:"الرسائل",controlRoom:"غرفة التحكم",performanceLive:"أداء الفريق",access:"الوصول",reglages:"الإعدادات",logs:"السجلات",profile:"ملفي الشخصي"},
+    markets:{tn:"تونس",ly:"ليبيا",all:"كل الأسواق",label:"الأسواق"},
+    short:{tn:"تونس",ly:"ليبيا",all:"الكل"},
+    roles:{super_admin:"مدير عام",market_manager:"مدير سوق"},
+    adminOnly:"مدير عام", logout:"تسجيل خروج", goto:"انتقل إلى…", collapse:"طيّ القائمة", expand:"توسيع القائمة",
+    alerts:"التنبيهات", menu:"القائمة", close:"إغلاق", nav:"التنقل الرئيسي", market:"السوق",
+    noResult:"لا توجد صفحة مطابقة", palHint:["↑↓ اختيار","↵ فتح","Esc إغلاق"],
+    sr:{un:"طلبات غير مسندة",wa:"محادثات غير مقروءة",jr:"مشاكل مفتوحة",al:"تنبيهات"},
+    toastAlerts:"يفتح لوحة التنبيهات", switched:"السوق: ", toAssign:"للإسناد", switchTo:"الانتقال إلى", allSub:"TND · LYD", mkHint:"1 · 2 · 3 للاختيار · Esc للإغلاق", toastProfile:"يفتح الملف الشخصي", toastLogout:"تسجيل خروج",
+  },
+};
+
+/* Avant: origin/main NAV_SECTIONS, icons as coded. */
+const NAV_BEFORE = [
+  {id:"accueil",ic:"home",def:true,items:[{k:"pulse",ic:"layout-dashboard"}]},
+  {id:"commandes",ic:"shopping-bag",items:[{k:"orders",ic:"send",b:"un"},{k:"archived",ic:"file-clock"},{k:"duplicates",ic:"copy-check"}]},
+  {id:"logistique",ic:"warehouse",items:[{k:"warehouseToday",ic:"sun"},{k:"warehouseOut",ic:"package-search"},{k:"warehouseReturns",ic:"package-open"},{k:"warehouseStock",ic:"boxes"}]},
+  {id:"livraison",ic:"truck",items:[{k:"deliveryWorklist",ic:"package-check"},{k:"carrierTracking",ic:"truck"},{k:"inDeliveryBoard",ic:"gauge"}]},
+  {id:"finances",ic:"line-chart",def:true,fin:true,items:[{k:"pnl",ic:"dollar-sign"},{k:"productsMargins",ic:"percent"},{k:"stockInventory",ic:"boxes"},{k:"purchases",ic:"receipt-text"},{k:"adSpend",ic:"megaphone"},{k:"investors",ic:"hand-coins"}]},
+  {id:"clients",ic:"users",items:[{k:"activeProspects",ic:"target"},{k:"customerVoice",ic:"message-square-quote"},{k:"messages",ic:"message-circle",b:"wa"}]},
+  {id:"equipe",ic:"gauge",def:true,items:[{k:"controlRoom",ic:"phone-call"},{k:"performanceLive",ic:"bar-chart-3"},{k:"access",ic:"user-plus"}]},
+  {id:"systeme",ic:"server",admin:true,items:[{k:"reglages",ic:"settings"},{k:"logs",ic:"scroll-text",sa:true,b:"jr"}]},
+];
+/* Après: same destinations, same order, same rights. Dashboard leaves its one-item group. */
+const TOP_AFTER = [{k:"pulse",ic:"layout-dashboard"}];
+const NAV_AFTER = [
+  {id:"commandes",ic:"shopping-bag",items:[{k:"orders",ic:"inbox",b:"un"},{k:"archived",ic:"archive"},{k:"duplicates",ic:"copy-check"}]},
+  {id:"logistique",ic:"warehouse",items:[{k:"warehouseToday",ic:"sun"},{k:"warehouseOut",ic:"package-search"},{k:"warehouseReturns",ic:"package-open"},{k:"warehouseStock",ic:"boxes"}]},
+  {id:"livraison",ic:"truck",items:[{k:"deliveryWorklist",ic:"package-check"},{k:"carrierTracking",ic:"route"},{k:"inDeliveryBoard",ic:"square-kanban"}]},
+  {id:"finances",ic:"wallet",fin:true,items:[{k:"pnl",ic:"trending-up"},{k:"productsMargins",ic:"percent"},{k:"stockInventory",ic:"layers"},{k:"purchases",ic:"receipt-text"},{k:"adSpend",ic:"megaphone"},{k:"investors",ic:"hand-coins"}]},
+  {id:"clients",ic:"users",items:[{k:"activeProspects",ic:"target"},{k:"customerVoice",ic:"message-square-quote"},{k:"messages",ic:"message-circle",b:"wa"}]},
+  {id:"equipe",ic:"headset",items:[{k:"controlRoom",ic:"phone-call"},{k:"performanceLive",ic:"bar-chart-3"},{k:"access",ic:"user-cog"}]},
+  {id:"systeme",ic:"settings",admin:true,items:[{k:"reglages",ic:"sliders-horizontal"},{k:"logs",ic:"scroll-text",sa:true,b:"jr"}]},
+];
+const TONE = {un:"warn",wa:"ok",jr:"crit",al:"crit"};
+const COUNTS = {normal:{al:143,wa:4,jr:3,byMk:{tn:12,ly:117}}, edge:{al:2310,wa:37,jr:12,byMk:{tn:342,ly:1284}}};
+const MK = {tn:{cur:"TND",tz:"Africa/Tunis"}, ly:{cur:"LYD",tz:"Africa/Tripoli"}};
+const USERS = {
+  admin:{normal:{name:"Super Admin",email:"admin@ordra.test"},edge:{name:"Mohamed-Amine Ben Abdallah Trabelsi",email:"mohamed-amine.benabdallah@ordra.test"},role:"super_admin"},
+  manager:{normal:{name:"Salma Ben Ali",email:"manager.ly@ordra.test"},edge:{name:"Abdelrahman Al-Mahmoudi El-Zawi",email:"abdelrahman.almahmoudi@ordra.test"},role:"market_manager",mk:"ly"},
+};
+const FLAGS = {tn:"🇹🇳",ly:"🇱🇾"};
+
+/* ── state ──────────────────────────────────────────────────────────────── */
+const Q = new URLSearchParams(location.search);
+const S = {
+  v:Q.get("v")||"after", as:Q.get("as")||"admin", mode:Q.get("mode")||"full", lang:Q.get("lang")||"fr",
+  h:+(Q.get("h")||860), data:Q.get("data")||"normal", active:Q.get("active")||"pill",
+  mk:Q.get("mk")||"ly", page:Q.get("page")||"performanceLive", ms:Q.get("ms")||"card",
+};
+const U = {drawer:Q.get("screen")==="drawer", palette:Q.get("screen")==="palette", menu:Q.get("screen")==="menu",
+           palQ:"", palSel:0, mpop:Q.get("screen")==="market", sheet:false, mkAnim:false, thumb:null, bOpen:null, openAll:Q.get("open")==="all", scroll:{}, fly:null, flyPinned:false};
+const LS = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+};
+let collapsed = new Set(LS.get("ordra-sb-v1-collapsed") || []);
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+/* ── helpers ────────────────────────────────────────────────────────────── */
+const L = () => T[S.lang];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ic = (n, size=16, sw=1.75, cls="") =>
+  `<svg class="i ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||""}</svg>`;
+const isAdmin = () => S.as === "admin";
+const user = () => ({...USERS[S.as][S.data], role:USERS[S.as].role});
+const marketKey = () => isAdmin() ? S.mk : USERS[S.as].mk;
+const counts = () => {
+  const c = {...COUNTS[S.data]};
+  if (!isAdmin()) c.jr = 0;            // Journaux is super_admin only
+  // v2: the Commandes count follows the chosen market, as the WhatsApp count already does
+  const m = marketKey();
+  c.un = m === "all" ? c.byMk.tn + c.byMk.ly : c.byMk[m];
+  return c;
+};
+const fmt = (n) => n > 999 ? "999+" : n.toLocaleString("fr-FR").replace(/ |\s/g, " ");
+const initials = (name) => name.split(/[\s-]+/).filter(Boolean).slice(0,2).map((w)=>w[0].toUpperCase()).join("");
+const glyph = (mk, size) => FLAGS[mk] ? `<span class="flag" style="font-size:${size}px" aria-hidden="true">${FLAGS[mk]}</span>` : ic("globe-2", size, 1.75);
+const visibleGroups = (nav) => nav
+  .filter((g) => !(g.fin && !isAdmin()))
+  .map((g) => ({...g, items:g.items.filter((i) => !(i.sa && !isAdmin()))}))
+  .filter((g) => g.items.length);
+const itemLabel = (k) => L().items[k];
+const groupOf = (k) => NAV_AFTER.find((g) => g.items.some((i) => i.k === k));
+function badgeOf(src, cls="badge"){
+  if (!src) return "";
+  const n = counts()[src];
+  if (!n) return "";
+  return `<span class="${cls} ${TONE[src]}">${fmt(n)}<span class="sr"> ${esc(L().sr[src])}</span></span>`;
+}
+function groupBadgeSrc(g){
+  // Same precedence as the live sidebar: unassigned → whatsapp → journal
+  for (const s of ["un","wa","jr"]) if (g.items.some((i) => i.b === s) && counts()[s]) return s;
+  return null;
+}
+
+/* ── v2: drawn flags (emoji flags do not render on Windows) ─────────────── */
+function star(cx, cy, R, r, rot){
+  const p = [];
+  for (let i = 0; i < 10; i++) { const a = (rot + i * 36) * Math.PI / 180, rr = i % 2 ? r : R; p.push((cx + rr * Math.cos(a)).toFixed(2) + "," + (cy + rr * Math.sin(a)).toFixed(2)); }
+  return p.join(" ");
+}
+const FLAG_SVG = {
+  tn:`<svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" fill="#E70013"/><circle cx="15" cy="15" r="7.4" fill="#fff"/><circle cx="14.3" cy="15" r="5.6" fill="#E70013"/><circle cx="15.8" cy="15" r="4.6" fill="#fff"/><polygon points="${star(16.7,15,2.9,1.15,180)}" fill="#E70013"/></svg>`,
+  ly:`<svg viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" fill="#000"/><rect width="30" height="7.5" fill="#E70013"/><rect y="22.5" width="30" height="7.5" fill="#239E46"/><circle cx="13.6" cy="15" r="4.6" fill="#fff"/><circle cx="14.9" cy="15" r="3.8" fill="#000"/><polygon points="${star(18.5,15,2.3,0.92,180)}" fill="#fff"/></svg>`,
+};
+function tile(mk, size=20, rad=5){
+  const st = `width:${size}px;height:${size}px;border-radius:${rad}px`;
+  if (mk === "all") return `<span class="ft all" style="${st}" aria-hidden="true"><span>${FLAG_SVG.tn}</span><span>${FLAG_SVG.ly}</span></span>`;
+  return `<span class="ft" style="${st}" aria-hidden="true">${FLAG_SVG[mk]}</span>`;
+}
+function mkTime(m){
+  try { return new Intl.DateTimeFormat("fr-FR", {hour:"2-digit", minute:"2-digit", timeZone:MK[m].tz}).format(new Date()); }
+  catch (e) { return ""; }
+}
+const mkSub = (m) => m === "all" ? L().allSub : `${MK[m].cur} · ${mkTime(m)}`;
+function mRow(m, n){
+  const on = S.mk === m, b = COUNTS[S.data].byMk;
+  const cnt = m === "all" ? b.tn + b.ly : b[m];
+  return `<button type="button" class="mrow" role="option" aria-selected="${on}" data-mk="${m}">${tile(m,30,8)}
+    <span class="mtxt"><span class="mn">${esc(L().markets[m])}</span><span class="ms">${esc(mkSub(m))}</span></span>
+    ${cnt ? `<span class="badge warn" title="${esc(L().toAssign)}">${fmt(cnt)}<span class="sr"> ${esc(L().toAssign)}</span></span>` : ""}
+    ${on ? ic("check",15,2,"ck") : `<kbd>${n}</kbd>`}</button>`;
+}
+const mRows = () => mRow("tn",1) + mRow("ly",2) + `<div class="msep" role="separator"></div>` + mRow("all",3);
+const mpopHTML = (cls="mpop") => `<div class="${cls} menu" role="listbox" aria-label="${esc(L().market)}"><div class="mt">${esc(L().market)}</div>${mRows()}<div class="mfoot">${esc(L().mkHint)}</div></div>`;
+function cardHTML(){
+  const mk = marketKey();
+  const inner = `${tile(mk,32,8)}<span class="mtxt"><span class="mn">${esc(L().markets[mk])}</span><span class="ms">${esc(mkSub(mk))}</span></span>`;
+  if (!isAdmin()) return `<div class="mcard" aria-label="${esc(L().market)} : ${esc(L().markets[mk])}">${inner}</div>`;
+  return `<div class="mwrap"><button type="button" class="mcard ${U.mkAnim?"anim":""}" data-act="mpop" aria-haspopup="listbox" aria-expanded="${U.mpop}" aria-label="${esc(L().market)} : ${esc(L().markets[mk])}">${inner}${ic("chevrons-up-down",15)}</button>${U.mpop ? mpopHTML() : ""}</div>`;
+}
+function pillsHTML(){
+  const b = COUNTS[S.data].byMk;
+  return `<div class="mpills ${U.mkAnim?"anim":""}" role="radiogroup" aria-label="${esc(L().market)}">${["tn","ly","all"].map((m) => {
+    const on = S.mk === m, waiting = m !== "all" && !on && b[m];
+    return `<button type="button" class="mpill" role="radio" aria-checked="${on}" data-mk="${m}" title="${esc(L().markets[m])}">${tile(m,22,11)}<span class="mpl">${esc(L().short[m])}</span>${waiting ? `<span class="r-dot warn"></span><span class="sr">${fmt(b[m])} ${esc(L().toAssign)}</span>` : ""}</button>`;
+  }).join("")}</div>`;
+}
+function marketBlock(){
+  if (S.ms === "card") return cardHTML();
+  if (!isAdmin()) return "";
+  return S.ms === "pills" ? pillsHTML() : segHTML();
+}
+function selectMk(m){
+  S.mk = m; U.mpop = false; U.sheet = false; U.palette = false; U.mkAnim = true;
+  closeFly(); render(); U.mkAnim = false;
+  toast(document.querySelector(".frame"), L().switched + L().markets[m]);
+}
+
+/* ════════════════ AVANT ════════════════ */
+function beforeNav(phone){
+  const secs = visibleGroups(NAV_BEFORE);
+  const activeSec = secs.find((s) => s.items.some((i) => i.k === S.page));
+  if (!U.bOpen) U.bOpen = new Set(U.openAll ? secs.map((s)=>s.id) : secs.filter((s) => s.def).map((s) => s.id));
+  if (activeSec) U.bOpen.add(activeSec.id);
+  const u = user(), c = counts(), mk = marketKey();
+  const brand = isAdmin()
+    ? `<div style="position:relative"><button class="b-switch" type="button">${glyph(mk,14)}<span style="letter-spacing:.01em">${esc(L().markets[mk])}</span>${ic("chevron-down",12,2)}</button></div>`
+    : `<span class="b-pill"><span class="flag" style="font-size:13px">${FLAGS[mk]}</span>${esc(L().markets[mk])}</span>`;
+  const secsHTML = secs.map((s, idx) => {
+    const open = U.bOpen.has(s.id);
+    const src = groupBadgeSrc(s);
+    const chip = s.admin && isAdmin() ? `<span class="b-chip">${esc(L().adminOnly)}</span>` : "";
+    return `${s.admin && idx > 0 ? `<div class="b-div" aria-hidden="true"></div>` : ""}
+      <div><button type="button" class="b-sh ${activeSec && activeSec.id===s.id ? "act":""}" data-btg="${s.id}" aria-expanded="${open}">
+        ${ic(s.ic,17)}<span class="lbl">${esc(L().sections[s.id])}</span>${chip}${!open && src ? badgeOf(src,"b-bp") : ""}${ic("chevron-right",15,2,"chev")}
+      </button>
+      ${open ? `<ul class="b-items">${s.items.map((i) => `<li><a href="#" class="b-it" data-go="${i.k}" ${S.page===i.k?'aria-current="page"':""}>${ic(i.ic,15)}<span class="lbl">${esc(itemLabel(i.k))}</span>${badgeOf(i.b,"b-bp")}</a></li>`).join("")}</ul>` : ""}
+      </div>`;
+  }).join("");
+  return `<nav class="b-nav" id="bnav" aria-label="${esc(L().nav)}">
+    <div class="b-brand">
+      <span class="b-word">Ordra</span>${brand}
+      <span style="margin-inline-start:auto;display:inline-flex"><button type="button" class="b-bell" data-act="alerts">${ic("bell",14)}${c.al ? `<span class="b-bb">${c.al > 99 ? "99+" : c.al}</span>` : ""}</button></span>
+    </div>
+    <div class="b-secs">${secsHTML}</div>
+    <div class="b-user"><button type="button" class="b-ub"><span class="av" style="width:34px;height:34px;font-size:13px">${esc(initials(u.name))}</span>
+      <span style="display:flex;flex-direction:column;flex:1;min-width:0"><span class="nm">${esc(u.name)}</span><span class="rl">${esc(L().roles[u.role])}</span></span>${ic("chevrons-up-down",15,1.75,"cud")}</button></div>
+  </nav>`;
+}
+
+/* ════════════════ APRÈS ════════════════ */
+function alertsBtn(){
+  const n = counts().al;
+  const label = `${L().alerts}${n ? ` · ${fmt(n)}` : ""}`;
+  return n
+    ? `<button type="button" class="s-alert" data-act="alerts" aria-label="${esc(label)}" title="${esc(L().alerts)}">${ic("bell",15)}<span class="badge crit">${fmt(n)}</span></button>`
+    : `<button type="button" class="s-alert zero" data-act="alerts" aria-label="${esc(label)}" title="${esc(L().alerts)}">${ic("bell",15)}</button>`;
+}
+function segHTML(){
+  return `<div class="s-seg" role="radiogroup" aria-label="${esc(L().market)}"><span class="seg-thumb" aria-hidden="true"></span>${["tn","ly","all"].map((m) =>
+    `<button type="button" role="radio" aria-checked="${S.mk===m}" data-mk="${m}" title="${esc(L().markets[m])}">${tile(m,15,4)}<span>${esc(L().short[m])}</span></button>`).join("")}</div>`;
+}
+function mtag(){
+  const mk = marketKey();
+  return `<span class="s-mtag" aria-label="${esc(L().market)} : ${esc(L().markets[mk])}">${tile(mk,14,7)}${esc(isAdmin() ? L().short[mk] : L().markets[mk])}</span>`;
+}
+function itemHTML(i){
+  return `<li><a href="#" class="s-item" data-go="${i.k}" ${S.page===i.k?'aria-current="page"':""}>${ic(i.ic,16)}<span class="lbl">${esc(itemLabel(i.k))}</span>${badgeOf(i.b)}</a></li>`;
+}
+function menuHTML(){
+  const u = user();
+  return `<div class="menu" role="menu">
+    <div class="mh"><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div>
+    <button type="button" class="mi" role="menuitem" data-act="profile">${ic("user-round",16)}${esc(L().items.profile)}</button>
+    <button type="button" class="mi" role="menuitem" data-act="logout">${ic("log-out",16,1.75,"flip")}${esc(L().logout)}</button>
+  </div>`;
+}
+function afterNav(phone){
+  const u = user();
+  const groups = visibleGroups(NAV_AFTER);
+  const gHTML = groups.map((g) => {
+    const open = !collapsed.has(g.id);
+    const src = !open ? groupBadgeSrc(g) : null;
+    return `${g.admin ? `<div class="s-div" role="separator"></div>` : ""}
+      <div class="s-group">
+        <button type="button" class="s-glabel" data-tg="${g.id}" aria-expanded="${open}" aria-controls="g-${g.id}">
+          <span class="lbl">${esc(L().sections[g.id])}</span>${src ? badgeOf(src) : ""}${ic("chevron-down",14,2,"chev")}
+        </button>
+        ${open ? `<ul id="g-${g.id}">${g.items.map(itemHTML).join("")}</ul>` : ""}
+      </div>`;
+  }).join("");
+  return `<nav class="s-nav" id="snav" aria-label="${esc(L().nav)}">
+    <div class="s-head">
+      <div class="s-row1">
+        <span class="s-word">Ordra</span>
+        ${!isAdmin() && !phone && S.ms !== "card" ? mtag() : ""}
+        <span class="grow"></span>
+        ${phone ? `<button type="button" class="ib" data-act="drawer-close" aria-label="${esc(L().close)}">${ic("x",18)}</button>` : alertsBtn()}
+      </div>
+      ${marketBlock()}
+      <button type="button" class="s-search" data-act="palette">${ic("search",15)}<span class="grow">${esc(L().goto)}</span><kbd>${isMac ? "⌘K" : "Ctrl K"}</kbd></button>
+    </div>
+    <div class="s-scroll" id="sscroll">
+      <ul>${TOP_AFTER.map(itemHTML).join("")}</ul>
+      ${gHTML}
+    </div>
+    <div class="s-foot">
+      <button type="button" class="s-me" data-act="menu" aria-haspopup="menu" aria-expanded="${U.menu}">
+        <span class="av" style="width:30px;height:30px;font-size:11.5px">${esc(initials(u.name))}</span>
+        <span class="who"><span class="nm">${esc(u.name)}</span><span class="rl">${esc(L().roles[u.role])}</span></span>
+        ${ic("chevrons-up-down",14)}
+      </button>
+      ${phone ? "" : `<button type="button" class="ib" data-act="rail" aria-label="${esc(L().collapse)}" title="${esc(L().collapse)}  [">${ic("panel-left-close",17,1.75,"flip")}</button>`}
+      ${U.menu ? menuHTML() : ""}
+    </div>
+  </nav>`;
+}
+function railNav(){
+  const groups = visibleGroups(NAV_AFTER);
+  const mk = marketKey();
+  const c = counts();
+  const gBtns = groups.map((g) => {
+    const on = g.items.some((i) => i.k === S.page);
+    const src = groupBadgeSrc(g);
+    return `${g.admin ? `<div class="r-sep" role="separator"></div>` : ""}<button type="button" class="r-btn ${on?"on":""}" data-fly="g:${g.id}" aria-haspopup="menu" aria-label="${esc(L().sections[g.id])}">${ic(g.ic,18)}${src ? `<span class="r-dot ${TONE[src]}"></span>` : ""}</button>`;
+  }).join("");
+  const u = user();
+  return `<nav class="s-nav rail" id="snav" aria-label="${esc(L().nav)}">
+    <div class="r-head">
+      <button type="button" class="r-btn mk" data-fly="mk" aria-haspopup="${isAdmin()}" aria-label="${esc(L().market)} : ${esc(L().markets[mk])}">${tile(mk,22,6)}</button>
+      <button type="button" class="r-btn" data-act="palette" data-fly="tip:goto" aria-label="${esc(L().goto)}">${ic("search",18)}</button>
+      <button type="button" class="r-btn" data-act="alerts" data-fly="tip:alerts" aria-label="${esc(L().alerts)} ${fmt(c.al)}">${ic("bell",18)}${c.al ? `<span class="r-dot crit"></span>` : ""}</button>
+    </div>
+    <div class="r-sep"></div>
+    <div class="r-nav" id="rnav">
+      <a href="#" class="r-btn ${S.page==="pulse"?"on":""}" data-go="pulse" data-fly="tip:pulse" aria-label="${esc(itemLabel("pulse"))}" ${S.page==="pulse"?'aria-current="page"':""}>${ic("layout-dashboard",18)}</a>
+      ${gBtns}
+    </div>
+    <div class="r-foot">
+      <button type="button" class="r-btn" data-fly="me" aria-haspopup="menu" aria-label="${esc(u.name)}"><span class="av" style="width:30px;height:30px;font-size:11.5px">${esc(initials(u.name))}</span></button>
+      <button type="button" class="r-btn" data-act="full" data-fly="tip:expand" aria-label="${esc(L().expand)}">${ic("panel-left-open",18,1.75,"flip")}</button>
+    </div>
+  </nav>`;
+}
+function flyHTML(kind){
+  if (kind.startsWith("tip:")) {
+    const k = kind.slice(4);
+    const txt = k === "goto" ? `${L().goto} <kbd>${isMac?"⌘K":"Ctrl K"}</kbd>` : k === "alerts" ? `${esc(L().alerts)}${counts().al ? ` <span class="badge crit">${fmt(counts().al)}</span>` : ""}` : k === "expand" ? `${esc(L().expand)} <kbd>[</kbd>` : esc(itemLabel(k));
+    return `<div class="fly tip" role="tooltip">${txt}</div>`;
+  }
+  if (kind === "me") return `<div class="fly" style="padding:0;border:0;background:none;box-shadow:none">${menuHTML()}</div>`;
+  if (kind === "mk") {
+    if (!isAdmin()) return `<div class="fly tip" role="tooltip">${tile(marketKey(),14,4)} ${esc(L().markets[marketKey()])}</div>`;
+    return mpopHTML("fly").replace('class="fly menu"', 'class="fly menu" style="width:284px;max-width:none"');
+  }
+  const g = visibleGroups(NAV_AFTER).find((x) => "g:"+x.id === kind);
+  return `<div class="fly" role="menu"><div class="ft">${esc(L().sections[g.id])}</div><ul>${g.items.map(itemHTML).join("")}</ul></div>`;
+}
+
+/* ── phone chrome ───────────────────────────────────────────────────────── */
+function phoneTop(){
+  return `<header class="p-top">
+    <button type="button" class="p-burger" data-act="drawer" aria-label="${esc(L().menu)}" aria-expanded="${U.drawer}">${ic("menu",20)}</button>
+    <span class="s-word" style="padding:0">Ordra</span><span class="grow"></span>${phoneMk()}${alertsBtn()}
+  </header>`;
+}
+
+function phoneMk(){
+  const mk = marketKey();
+  if (!isAdmin()) return `<span class="p-mk">${tile(mk,20,10)}${esc(L().markets[mk])}</span>`;
+  return `<button type="button" class="p-mk" data-act="sheet" aria-haspopup="dialog">${tile(mk,20,10)}${esc(L().short[mk])}${ic("chevron-down",14,2)}</button>`;
+}
+const sheetHTML = () => `<div class="sheet-wrap" data-act="sheet-close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(L().market)}"><div class="grab"></div><div class="mt" style="font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-ink-3);padding:6px 10px">${esc(L().market)}</div>${mRows()}</div></div>`;
+
+/* ── page mock ──────────────────────────────────────────────────────────── */
+function pageHTML(){
+  const g = groupOf(S.page);
+  const w = [28,22,30,18,26,24,20,32,25];
+  return `<div class="pg"><span class="ruler" id="ruler"></span>
+    <div class="pg-h"><div><div class="crumb">${g ? esc(L().sections[g.id]) : "&nbsp;"}</div><h1>${esc(itemLabel(S.page))}</h1></div><span class="sk b"></span></div>
+    <div class="kpis">${[0,1,2,3].map(() => `<div class="card kpi"><span class="sk" style="width:55%"></span><span class="sk big" style="width:40%"></span><span class="sk" style="width:70%"></span></div>`).join("")}</div>
+    <div class="card rows">${w.map((x) => `<div class="r"><span class="sk" style="width:${x}%"></span><span class="sk" style="width:12%"></span><span class="sk" style="width:9%"></span><span class="sk" style="width:14%"></span></div>`).join("")}</div>
+  </div>`;
+}
+
+/* ── palette ────────────────────────────────────────────────────────────── */
+function palList(){
+  const all = [...TOP_AFTER.map((i) => ({...i, g:null})), ...visibleGroups(NAV_AFTER).flatMap((g) => g.items.map((i) => ({...i, g:g.id})))];
+  if (isAdmin()) for (const m of ["tn","ly","all"]) if (m !== S.mk) all.push({k:"mk:"+m, mk:m});
+  const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const q = norm(U.palQ.trim());
+  return all.filter((i) => !q || norm(palLabel(i)).includes(q) || norm(palGroup(i)).includes(q));
+}
+const palLabel = (i) => i.mk ? `${L().switchTo} ${L().markets[i.mk]}` : itemLabel(i.k);
+const palGroup = (i) => i.mk ? L().market : i.g ? L().sections[i.g] : "";
+function palRows(){
+  const list = palList();
+  if (U.palSel >= list.length) U.palSel = Math.max(0, list.length - 1);
+  if (!list.length) return `<div class="pal-empty">${esc(L().noResult)}</div>`;
+  return list.map((i, n) => `<button type="button" class="pal-row" role="option" aria-selected="${n===U.palSel}" data-go="${i.k}" data-n="${n}">${i.mk ? tile(i.mk,16,4) : ic(i.ic,16)}<span>${esc(palLabel(i))}</span>${palGroup(i) ? `<span class="g">${esc(palGroup(i))}</span>` : ""}</button>`).join("");
+}
+function paletteHTML(){
+  return `<div class="pal-wrap" data-act="pal-close"><div class="pal" role="dialog" aria-modal="true" aria-label="${esc(L().goto)}">
+    <div class="pal-in">${ic("search",17)}<input id="palq" placeholder="${esc(L().goto)}" autocomplete="off" value="${esc(U.palQ)}" role="combobox" aria-controls="palres" aria-expanded="true"></div>
+    <div class="pal-res" id="palres" role="listbox">${palRows()}</div>
+    <div class="pal-foot">${L().palHint.map((h) => `<span>${esc(h)}</span>`).join("")}</div>
+  </div></div>`;
+}
+
+/* ── frame ──────────────────────────────────────────────────────────────── */
+function frameHTML(v, mode, extraCls=""){
+  const rtl = S.lang === "ar";
+  const phone = mode === "phone";
+  const rail = v === "after" && mode === "rail";
+  const sbw = phone ? 0 : rail ? 64 : 240;
+  const cls = ["frame", phone?"phone":"", v==="before"?"before":"", phone && U.drawer ? "open" : "", extraCls].join(" ");
+  const mini = extraCls.includes("mini");
+  const nav = v === "before" ? beforeNav(phone) : rail ? railNav() : afterNav(phone);
+  return `<div class="${cls}" dir="${rtl?"rtl":"ltr"}" lang="${S.lang}" data-active="${S.active}" data-v="${v}" style="--sbw:${sbw}px;${mini?`width:${sbw}px;height:var(--h)`:""}">
+    ${nav}
+    ${phone ? (v === "before" ? `<button type="button" class="b-burger" data-act="drawer" aria-label="Menu">${ic("menu",20)}</button>` : phoneTop()) : ""}
+    ${phone ? `<div class="scrim" data-act="drawer-close"></div>` : ""}
+    ${mini ? "" : `<main class="main" id="main">${pageHTML()}</main>`}
+    ${!mini && U.palette && v === "after" ? paletteHTML() : ""}
+    ${phone && U.sheet && v === "after" ? sheetHTML() : ""}
+    <div class="flyhost"></div>
+    <div class="toast" hidden></div>
+  </div>`;
+}
+
+function render(){
+  saveScroll();
+  document.documentElement.style.setProperty("--h", S.h + "px");
+  syncURL();
+  document.querySelectorAll("[data-set]").forEach((b) => {
+    const [k, v] = b.dataset.set.split(":");
+    b.classList.toggle("on", String(S[k]) === v);
+  });
+  const warn = document.getElementById("warn");
+  const msgs = [];
+  if (S.as === "admin" && S.lang === "ar") msgs.push("Un super admin est toujours servi en français dans l'app.");
+  if (S.v === "before" && S.mode === "rail") msgs.push("Le mode réduit n'existe pas aujourd'hui — « Avant » montre la barre de 240 px.");
+  warn.hidden = !msgs.length; warn.textContent = msgs.join(" ");
+  const stage = document.getElementById("stage");
+  if (S.v === "compare") {
+    const m = S.mode === "phone" ? "full" : S.mode;
+    stage.innerHTML =
+      `<div><p class="cap">Avant</p>${frameHTML("before","full","mini")}</div>` +
+      `<div><p class="cap">Après</p>${frameHTML("after","full","mini")}</div>` +
+      `<div><p class="cap">Après · réduite</p>${frameHTML("after","rail","mini")}</div>`;
+  } else {
+    stage.innerHTML = frameHTML(S.v, S.v === "before" && S.mode === "rail" ? "full" : S.mode);
+  }
+  afterMount();
+}
+function saveScroll(){
+  document.querySelectorAll(".frame").forEach((f, n) => {
+    const s = f.querySelector("#sscroll, #bnav, #rnav");
+    if (s) U.scroll[f.dataset.v + n + (s.id)] = s.scrollTop;
+  });
+}
+function afterMount(){
+  document.querySelectorAll(".frame").forEach((f, n) => {
+    const s = f.querySelector("#sscroll, #bnav, #rnav");
+    if (s) {
+      const key = f.dataset.v + n + s.id;
+      if (U.scroll[key]) s.scrollTop = U.scroll[key];
+      if (s.id === "sscroll") {
+        const upd = () => s.classList.toggle("scrolled", s.scrollTop > 2);
+        upd(); s.addEventListener("scroll", upd, {passive:true});
+      }
+    }
+  });
+  document.querySelectorAll(".s-seg").forEach((seg) => {
+    const th = seg.querySelector(".seg-thumb"), on = seg.querySelector('[aria-checked="true"]');
+    if (!th || !on) return;
+    const to = {l:on.offsetLeft, w:on.offsetWidth}, from = (U.mkAnim && U.thumb) || to;
+    th.style.transition = "none"; th.style.left = from.l + "px"; th.style.width = from.w + "px";
+    th.getBoundingClientRect(); th.style.transition = "";
+    th.style.left = to.l + "px"; th.style.width = to.w + "px"; U.thumb = to;
+  });
+  measure();
+  const q = document.getElementById("palq");
+  if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  U.fly = null;
+}
+function measure(){
+  const m = document.getElementById("main"), r = document.getElementById("ruler");
+  if (m && r) r.innerHTML = `<span dir="ltr">Largeur utile : ${m.clientWidth.toLocaleString("fr-FR")} px</span>`;
+  const b = document.querySelector('.frame[data-v="before"] .b-brand');
+  if (b) {
+    const need = [...b.children].reduce((a, el) => a + el.getBoundingClientRect().width, 0) + 10 * (b.children.length - 1) + 28;
+    const el = document.getElementById("m-overflow");
+    if (el && S.mk === "all" && isAdmin()) el.textContent = Math.round(need);
+  }
+}
+function syncURL(){
+  const p = new URLSearchParams();
+  const D = {v:"after",as:"admin",mode:"full",lang:"fr",h:860,data:"normal",active:"pill",mk:"ly",page:"performanceLive",ms:"card"};
+  for (const k of Object.keys(D)) if (String(S[k]) !== String(D[k])) p.set(k, S[k]);
+  const qs = p.toString();
+  history.replaceState(null, "", qs ? "?" + qs : location.pathname);
+}
+function toast(frame, msg){
+  const t = frame && frame.querySelector(".toast");
+  if (!t) return;
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
+/* ── rail flyouts ───────────────────────────────────────────────────────── */
+let flyTimer = null;
+function openFly(anchor, pinned){
+  const frame = anchor.closest(".frame");
+  const host = frame.querySelector(".flyhost");
+  const kind = anchor.dataset.fly;
+  clearTimeout(flyTimer);
+  if (U.fly && U.fly.kind === kind && U.fly.frame === frame) { if (pinned) U.flyPinned = true; return; }
+  frame.querySelectorAll(".r-btn.hot").forEach((b) => b.classList.remove("hot"));
+  anchor.classList.add("hot");
+  host.innerHTML = flyHTML(kind);
+  const el = host.firstElementChild;
+  const fr = frame.getBoundingClientRect(), r = anchor.getBoundingClientRect(), nav = frame.querySelector(".s-nav").getBoundingClientRect();
+  const isTip = kind.startsWith("tip:") || (kind === "mk" && !isAdmin());
+  let top = r.top - fr.top + (isTip ? (r.height - el.offsetHeight) / 2 : -6);
+  top = Math.max(8, Math.min(top, fr.height - el.offsetHeight - 8));
+  el.style.top = top + "px";
+  if (S.lang === "ar") el.style.right = (fr.right - nav.left + 8) + "px"; else el.style.left = (nav.right - fr.left + 8) + "px";
+  U.fly = {kind, frame, anchor}; U.flyPinned = !!pinned;
+}
+function closeFly(){
+  if (!U.fly) return;
+  U.fly.frame.querySelector(".flyhost").innerHTML = "";
+  U.fly.anchor.classList.remove("hot");
+  U.fly = null; U.flyPinned = false;
+}
+function scheduleClose(){ clearTimeout(flyTimer); flyTimer = setTimeout(() => { if (!U.flyPinned) closeFly(); }, 160); }
+
+/* ── events ─────────────────────────────────────────────────────────────── */
+function go(k){
+  if (k.startsWith("mk:")) return selectMk(k.slice(3));
+  S.page = k;
+  const g = groupOf(k);
+  if (g && collapsed.has(g.id)) { collapsed.delete(g.id); LS.set("ordra-sb-v1-collapsed", [...collapsed]); }
+  U.drawer = false; U.palette = false; U.menu = false; U.mpop = false; U.palQ = ""; U.palSel = 0;
+  closeFly();
+  render();
+}
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  const set = t.closest("[data-set]");
+  if (set) {
+    const [k, v] = set.dataset.set.split(":");
+    S[k] = k === "h" ? +v : v;
+    if (k === "as") S.lang = v === "manager" ? "ar" : "fr";
+    if (k === "data" && v === "edge" && isAdmin()) S.mk = "all";
+    if (k === "v" || k === "as") U.bOpen = null;
+    U.menu = false; U.palette = false; U.mpop = false; U.sheet = false;
+    render(); return;
+  }
+  const frame = t.closest(".frame");
+  if (!frame) return;
+  let closed = false;
+  if (U.mpop && !t.closest(".mwrap")) { U.mpop = false; closed = true; }
+  const goEl = t.closest("[data-go]");
+  if (goEl) { e.preventDefault(); go(goEl.dataset.go); return; }
+  const tg = t.closest("[data-tg]");
+  if (tg) {
+    const id = tg.dataset.tg;
+    collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+    LS.set("ordra-sb-v1-collapsed", [...collapsed]);
+    render(); return;
+  }
+  const btg = t.closest("[data-btg]");
+  if (btg) { const id = btg.dataset.btg; U.bOpen.has(id) ? U.bOpen.delete(id) : U.bOpen.add(id); render(); return; }
+  const mk = t.closest("[data-mk]");
+  if (mk) { selectMk(mk.dataset.mk); return; }
+  const fly = t.closest("[data-fly]");
+  if (fly && !fly.dataset.act) {
+    if (U.fly && U.fly.anchor === fly && U.flyPinned) closeFly(); else openFly(fly, true);
+    return;
+  }
+  const act = t.closest("[data-act]");
+  if (act) {
+    const a = act.dataset.act;
+    if ((a === "pal-close" || a === "sheet-close") && t !== act) { if (closed) render(); return; }   // clicks inside the dialog
+    if (a === "mpop") { U.mpop = !U.mpop; render(); return; }
+    if (a === "sheet") { U.sheet = true; render(); return; }
+    if (a === "sheet-close") { U.sheet = false; render(); return; }
+    closeFly();
+    if (a === "alerts") return toast(frame, L().toastAlerts);
+    if (a === "profile") { U.menu = false; render(); return toast(document.querySelector(".frame"), L().toastProfile); }
+    if (a === "logout") { U.menu = false; render(); return toast(document.querySelector(".frame"), L().toastLogout); }
+    if (a === "menu") U.menu = !U.menu;
+    if (a === "rail") S.mode = "rail";
+    if (a === "full") S.mode = "full";
+    if (a === "drawer") U.drawer = true;
+    if (a === "drawer-close") U.drawer = false;
+    if (a === "palette") { if (S.v === "compare") return; U.palette = true; U.palQ = ""; U.palSel = 0; }
+    if (a === "pal-close") U.palette = false;
+    render(); return;
+  }
+  if (U.menu && !t.closest(".s-foot")) { U.menu = false; render(); return; }
+  if (closed) { render(); return; }
+  if (U.fly && !t.closest(".fly")) closeFly();
+});
+document.addEventListener("mouseover", (e) => {
+  const a = e.target.closest(".s-nav.rail [data-fly]");
+  if (a) { if (!U.flyPinned || U.fly?.anchor === a) openFly(a, false); return; }
+  if (e.target.closest(".fly")) clearTimeout(flyTimer);
+});
+document.addEventListener("mouseout", (e) => {
+  if (e.target.closest(".s-nav.rail [data-fly]") || e.target.closest(".fly")) scheduleClose();
+});
+document.addEventListener("focusin", (e) => {
+  const a = e.target.closest(".s-nav.rail [data-fly]");
+  if (a && e.target.matches(":focus-visible")) openFly(a, false);
+});
+document.addEventListener("input", (e) => {
+  if (e.target.id !== "palq") return;
+  U.palQ = e.target.value; U.palSel = 0;
+  document.getElementById("palres").innerHTML = palRows();
+});
+document.addEventListener("keydown", (e) => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName || "");
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    if (S.v === "after") { e.preventDefault(); U.palette = !U.palette; U.palQ = ""; U.palSel = 0; render(); }
+    return;
+  }
+  const mkOpen = U.mpop || U.sheet || (U.fly && U.fly.kind === "mk" && isAdmin());
+  if (mkOpen && !typing && ["1","2","3"].includes(e.key)) { selectMk(["tn","ly","all"][+e.key - 1]); return; }
+  if (e.key === "Escape" && (U.mpop || U.sheet)) { U.mpop = false; U.sheet = false; render(); document.querySelector(".mcard")?.focus(); return; }
+  if (U.palette && typing) {
+    const list = palList();
+    if (e.key === "ArrowDown") { e.preventDefault(); U.palSel = Math.min(list.length - 1, U.palSel + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); U.palSel = Math.max(0, U.palSel - 1); }
+    else if (e.key === "Enter") { e.preventDefault(); if (list[U.palSel]) go(list[U.palSel].k); return; }
+    else if (e.key === "Escape") { U.palette = false; render(); return; }
+    else return;
+    document.getElementById("palres").innerHTML = palRows();
+    document.querySelector('.pal-row[aria-selected="true"]')?.scrollIntoView({block:"nearest"});
+    return;
+  }
+  if (e.key === "Escape") {
+    if (U.fly) { const a = U.fly.anchor; closeFly(); a.focus(); return; }
+    if (U.menu || U.drawer) { U.menu = false; U.drawer = false; render(); }
+    return;
+  }
+  if (!typing && e.key === "[" && S.v === "after" && S.mode !== "phone") {
+    S.mode = S.mode === "rail" ? "full" : "rail"; render();
+  }
+});
+window.addEventListener("resize", measure);
+render();
+</script>
+</body>
+</html>

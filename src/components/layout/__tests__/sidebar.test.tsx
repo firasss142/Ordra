@@ -3,30 +3,26 @@ import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-li
 import { SWRConfig } from "swr";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MarketScopeProvider } from "@/context/market-scope";
+import { LY_MARKET_ID, TN_MARKET_ID } from "@/lib/markets";
+
+/*
+ * The manager / super_admin sidebar, rebuilt from prototypes/sidebar-v2.html:
+ * pinned head (Ordra, alerts, market card, « Aller à… ») and foot (profile,
+ * collapse), only the list scrolls, Dashboard on its own, quiet group labels
+ * that remember being folded, a 64 px rail, and a top bar + drawer on phones.
+ */
 
 vi.mock("swr", async () => {
   const actual = await vi.importActual<typeof import("swr")>("swr");
-  return {
-    ...actual,
-    useSWRConfig: () => ({ mutate: vi.fn() }),
-  };
+  return { ...actual, useSWRConfig: () => ({ mutate: vi.fn() }) };
 });
 
-function renderSidebar(ui: React.ReactElement) {
-  return render(
-    <MarketScopeProvider initialScope="tn">{ui}</MarketScopeProvider>,
-  );
-}
-
 const replaceMock = vi.fn();
+const pushMock = vi.fn();
 let pathnameMock = "/fr/dashboard";
 let searchParamsMock = new URLSearchParams("");
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: replaceMock,
-    push: vi.fn(),
-    prefetch: vi.fn(),
-  }),
+  useRouter: () => ({ replace: replaceMock, push: pushMock, prefetch: vi.fn(), refresh: vi.fn() }),
   usePathname: () => pathnameMock,
   useSearchParams: () => searchParamsMock,
 }));
@@ -43,10 +39,25 @@ vi.mock("next-intl", async () => {
   };
 });
 
+vi.mock("@/context/alerts-panel", () => ({ useAlertsPanel: () => ({ openPanel: vi.fn() }) }));
+
+const originalMatchMedia = window.matchMedia;
+function asPhone() {
+  window.matchMedia = vi.fn().mockImplementation((q: string) => ({
+    matches: q.includes("max-width: 767px"),
+    media: q,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })) as unknown as typeof window.matchMedia;
+}
+
 beforeEach(() => {
   replaceMock.mockReset();
+  pushMock.mockReset();
   pathnameMock = "/fr/dashboard";
   searchParamsMock = new URLSearchParams("");
+  localStorage.clear();
+  document.cookie = "oms_scope_market=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   global.fetch = vi
     .fn()
     .mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
@@ -54,6 +65,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.matchMedia = originalMatchMedia;
 });
 
 const managerUser = {
@@ -62,12 +74,11 @@ const managerUser = {
   full_name: "Sarah Ben Ali",
   avatar_url: null,
   role: "market_manager" as const,
-  market_id: "00000000-0000-0000-0000-000000000001",
+  market_id: TN_MARKET_ID,
   locale: "fr" as const,
   direction: "ltr" as const,
 };
-
-const superAdminAllMarkets = {
+const superAdmin = {
   ...managerUser,
   id: "user-3",
   email: "admin@oms.local",
@@ -75,52 +86,48 @@ const superAdminAllMarkets = {
   role: "super_admin" as const,
   market_id: null,
 };
+const agentUser = { ...managerUser, id: "user-2", role: "agent" as const };
 
-const agentUser = {
-  id: "user-2",
-  email: "agent@oms.tn",
-  full_name: "Ali Trabelsi",
-  avatar_url: null,
-  role: "agent" as const,
-  market_id: "00000000-0000-0000-0000-000000000001",
-  locale: "fr" as const,
-  direction: "ltr" as const,
+type Props = React.ComponentProps<typeof Sidebar>;
+function renderSidebar(props: Partial<Props> & { user: Props["user"] }, scope: "tn" | "ly" | "all" = "tn") {
+  const path = props.currentPath ?? pathnameMock;
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <MarketScopeProvider initialScope={scope}>
+        <Sidebar currentPath={path} unassignedCount={0} {...props} />
+      </MarketScopeProvider>
+    </SWRConfig>,
+  );
+}
+const at = (path: string, search = "") => {
+  pathnameMock = path;
+  searchParamsMock = new URLSearchParams(search);
 };
+const groupLinks = (linkName: RegExp) =>
+  Array.from(screen.getByRole("link", { name: linkName }).closest("ul")?.querySelectorAll("a") ?? []).map((a) =>
+    a.getAttribute("href"),
+  );
 
-describe("Sidebar — sections", () => {
-  it("renders the 5 permitted non-admin sections for market_manager", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByRole("button", { name: /Accueil/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Commandes/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entrepôt/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Clients/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Équipe/ })).toBeInTheDocument();
+describe("Sidebar — what each role sees", () => {
+  it("gives a market_manager Dashboard on its own, then six groups", () => {
+    renderSidebar({ user: managerUser });
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/fr/dashboard");
+    for (const g of ["Commandes", "Entrepôt", "Livraison", "Clients", "Équipe", "Système"]) {
+      expect(screen.getByRole("button", { name: new RegExp(`^${g}`) })).toHaveAttribute("aria-expanded", "true");
+    }
+    expect(screen.queryByRole("button", { name: /Accueil/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Finances/ })).not.toBeInTheDocument();
   });
 
-  it("hides FINANCES section from market_manager (no canViewFinances)", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("button", { name: /Finances/ })).not.toBeInTheDocument();
-  });
-
-  it("shows FINANCES section for super_admin", () => {
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByRole("button", { name: /Finances/ })).toBeInTheDocument();
+  it("adds Finances for a super_admin", () => {
+    renderSidebar({ user: superAdmin });
+    expect(screen.getByRole("button", { name: /^Finances/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "P&L global" })).toHaveAttribute("href", "/fr/dashboard/pnl");
   });
 
   it("keeps ENTREPÔT to the day: Aujourd'hui, then the jobs in their order", () => {
-    // Aujourd'hui is the four jobs and their backlog — every row a link, no KPI
-    // tile (the dashboard deleted on 2026-09-08 had neither). Sortir and Rentrer
-    // are where the floor works; Recevoir and Compter live inside Stock, which
-    // also holds the Journal, the evidence behind its figures.
-    renderSidebar(
-      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const group = screen.getByRole("link", { name: /^Aujourd'hui$/ }).closest("div");
-    const hrefs = Array.from(group?.querySelectorAll("a") ?? []).map((a) =>
-      a.getAttribute("href"),
-    );
-    expect(hrefs).toEqual([
+    renderSidebar({ user: superAdmin });
+    expect(groupLinks(/^Aujourd'hui$/)).toEqual([
       "/fr/warehouse",
       "/fr/warehouse/out",
       "/fr/warehouse/returns",
@@ -129,457 +136,315 @@ describe("Sidebar — sections", () => {
   });
 
   it("LIVRAISON is the worklist, then Transporteurs — the two old boards are gone", () => {
-    // Owner, 2026-10-03: Suivi transporteur and Tableau livraison are outdated;
-    // Transporteurs (carrier performance) replaces both.
-    renderSidebar(
-      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Livraison/ }));
-    expect(screen.getByRole("link", { name: /Suivi livraison/ })).toHaveAttribute("href", "/fr/delivery");
-    expect(screen.getByRole("link", { name: /^Transporteurs$/ })).toHaveAttribute("href", "/fr/carriers");
+    renderSidebar({ user: superAdmin });
+    expect(groupLinks(/^Suivi livraison$/)).toEqual(["/fr/delivery", "/fr/carriers"]);
+    expect(screen.getByRole("link", { name: /^Transporteurs$/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Suivi transporteur/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Tableau livraison/ })).not.toBeInTheDocument();
   });
 
-  it("no longer offers Expédition, which is carrier upload rather than floor work", () => {
-    renderSidebar(
-      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    expect(screen.queryByRole("link", { name: /^Expédition$/ })).not.toBeInTheDocument();
-  });
-
-  it("opens ENTREPÔT on Aujourd'hui, the door to every job", () => {
-    renderSidebar(
-      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const today = screen.getByRole("link", { name: /^Aujourd'hui$/ });
-    expect(today).toHaveAttribute("href", "/fr/warehouse");
-
-    const group = today.closest("div");
-    const hrefs = Array.from(group?.querySelectorAll("a") ?? []).map((a) =>
-      a.getAttribute("href"),
-    );
-    expect(hrefs[0]).toBe("/fr/warehouse");
-  });
-
-  it("separates the floor's stock screen from the capital one", () => {
-    // Entrepôt gets units the agent can act on; Finances keeps the money view,
-    // which is costed at COGS and stays super-admin.
-    renderSidebar(
-      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute(
-      "href",
-      "/fr/warehouse/stock",
-    );
-    expect(screen.getByRole("link", { name: /Stock & inventaire/ })).toHaveAttribute(
-      "href",
-      "/fr/dashboard/stock",
-    );
-  });
-
-  it("shows the floor's stock screen to a market_manager", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
+  it("separates the floor's stock screen from the capital one, and hides the latter from a manager", () => {
+    renderSidebar({ user: superAdmin });
+    expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute("href", "/fr/warehouse/stock");
+    expect(screen.getByRole("link", { name: /Stock & inventaire/ })).toHaveAttribute("href", "/fr/dashboard/stock");
+    cleanup();
+    renderSidebar({ user: managerUser });
     expect(screen.getByRole("link", { name: /^Stock$/ })).toBeInTheDocument();
-    // ...but not the capital view, which lives behind canViewFinances.
     expect(screen.queryByRole("link", { name: /Stock & inventaire/ })).not.toBeInTheDocument();
   });
 
-  it("shows SYSTÈME to market_manager with Réglages only — no Journaux, no read-only note", () => {
-    // Réglages (plans/reglages-redesign.md): one page by topic. A manager edits
-    // the day-to-day rules of their market there; Journaux stays super_admin.
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    fireEvent.click(screen.getByRole("button", { name: /Système/ }));
+  it("gives a manager Réglages only under SYSTÈME; a super_admin also gets Journaux", () => {
+    renderSidebar({ user: managerUser });
     expect(screen.getByRole("link", { name: /^Réglages$/ })).toHaveAttribute("href", "/fr/system/settings");
     expect(screen.queryByRole("link", { name: /Journaux/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Lecture seule/)).not.toBeInTheDocument();
-  });
-
-  it("gives super_admin no read-only note", () => {
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    fireEvent.click(screen.getByRole("button", { name: /Système/ }));
-    expect(screen.queryByText(/Lecture seule/)).not.toBeInTheDocument();
-  });
-
-  it("shows SYSTÈME section for super_admin", () => {
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByRole("button", { name: /Système/ })).toBeInTheDocument();
-  });
-
-  it("expanding SYSTÈME shows the two entries: Réglages and Journaux", () => {
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    fireEvent.click(screen.getByRole("button", { name: /Système/ }));
-    expect(screen.getByRole("link", { name: /^Réglages$/ })).toHaveAttribute("href", "/fr/system/settings");
+    cleanup();
+    renderSidebar({ user: superAdmin });
     expect(screen.getByRole("link", { name: /Journaux/ })).toHaveAttribute("href", "/fr/system/logs");
-    expect(screen.queryByRole("link", { name: /^Marchés$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Connexions$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Paramètres$/ })).not.toBeInTheDocument();
   });
 
-  it("keeps Réglages active on every topic page", () => {
-    pathnameMock = "/fr/system/settings/delivery";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/settings/delivery" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /^Réglages$/ })).toHaveAttribute("aria-current", "page");
+  it("drops the ADMIN chip — it told the super admin what they already knew, and cut « SYSTÈME » short", () => {
+    renderSidebar({ user: superAdmin });
+    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
   });
 
-  it("activates Journaux on /fr/system/logs", async () => {
-    pathnameMock = "/fr/system/logs";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/logs" unassignedCount={0} />);
-    const link = await screen.findByRole("link", { name: /Journaux/ });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-});
-
-describe("Sidebar — default expanded sections", () => {
-  it("expands ACCUEIL by default (shows Dashboard sub-tab)", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /Dashboard/ })).toBeInTheDocument();
-  });
-
-  it("expands FINANCES by default for super_admin (shows P&L global sub-tab)", () => {
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /P&L global/ })).toBeInTheDocument();
-  });
-
-  it("expands ÉQUIPE by default (shows Performance sub-tab)", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /^Performance$/ })).toBeInTheDocument();
-  });
-
-  it("renders En confirmation under ÉQUIPE (visible by default, not inside collapsed COMMANDES)", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    // ÉQUIPE is expanded by default while COMMANDES is collapsed — the
-    // relocated analytics item is therefore immediately visible.
-    expect(screen.getByRole("link", { name: /En confirmation/ })).toBeInTheDocument();
-  });
-
-  it("keeps COMMANDES collapsed by default (no Archivées sub-tab visible)", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("link", { name: /Archivées/ })).not.toBeInTheDocument();
-  });
-});
-
-describe("Sidebar — accordion toggle", () => {
-  it("expands COMMANDES when its header is clicked", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("link", { name: /Archivées/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Commandes/ }));
-    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
-  });
-
-  it("collapses ACCUEIL when its header is clicked (while on a non-accueil route)", () => {
-    pathnameMock = "/fr/orders";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    const accueilHeader = screen.getByRole("button", { name: /Accueil/ });
-    // ACCUEIL is expanded by default; Dashboard sub-tab is visible
-    expect(accueilHeader).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("link", { name: /Dashboard/ })).toBeInTheDocument();
-    fireEvent.click(accueilHeader);
-    expect(accueilHeader).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("link", { name: /Dashboard/ })).not.toBeInTheDocument();
-  });
-});
-
-describe("Sidebar — active route auto-expand", () => {
-  it("auto-expands ENTREPÔT when on /fr/warehouse", () => {
-    pathnameMock = "/fr/warehouse";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /^Aujourd'hui$/ })).toBeInTheDocument();
-  });
-
-  it("marks Aujourd'hui active on /fr/warehouse, and only there", () => {
-    pathnameMock = "/fr/warehouse";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /^Aujourd'hui$/ })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /^Sortir$/ })).not.toHaveAttribute("aria-current");
-  });
-
-  it("marks Rentrer active on /fr/warehouse/returns", () => {
-    pathnameMock = "/fr/warehouse/returns";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/returns" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /^Rentrer$/ });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-
-  it("keeps Sortir active during a scan run", () => {
-    pathnameMock = "/fr/warehouse/scan";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/scan" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /^Sortir$/ })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("keeps Stock active on a product page and on the count run", () => {
-    for (const path of ["/fr/warehouse/stock/p1", "/fr/warehouse/count"]) {
-      pathnameMock = path;
-      searchParamsMock = new URLSearchParams("");
-      renderSidebar(<Sidebar user={managerUser} currentPath={path} unassignedCount={0} />);
-      expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute("aria-current", "page");
-      cleanup();
-    }
-  });
-
-  // The sidebar, the tab band and the page's own <h1> all say "Journal": the
-  // section had three names for one screen.
-  it("no longer offers the Journal as its own destination", () => {
-    // It is a tab inside Stock: the evidence behind the figures, not a peer of
-    // the two screens people work in all day.
-    pathnameMock = "/fr/warehouse/stock";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/stock" unassignedCount={0} />);
-    expect(screen.queryByRole("link", { name: /^Journal$/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("activates FINANCES (not ACCUEIL) on /fr/dashboard/pnl for super_admin", () => {
-    pathnameMock = "/fr/dashboard/pnl";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard/pnl" unassignedCount={0} />);
-    const pnlLink = screen.getByRole("link", { name: /P&L global/ });
-    expect(pnlLink).toHaveAttribute("aria-current", "page");
-    const pulseLink = screen.getByRole("link", { name: /Dashboard/ });
-    expect(pulseLink).not.toHaveAttribute("aria-current", "page");
-  });
-
-  it("auto-expands COMMANDES when on /fr/orders?preset=unassigned", () => {
-    pathnameMock = "/fr/orders";
-    searchParamsMock = new URLSearchParams("preset=unassigned");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
-  });
-
-  it("auto-expands COMMANDES when on /fr/orders with no filter", () => {
-    pathnameMock = "/fr/orders";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    // Section expanded via path-prefix match — sub-items are rendered
-    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
-  });
-
-  it("marks Commandes active on /fr/orders?preset=unassigned (query ignored for plain-path items)", () => {
-    pathnameMock = "/fr/orders";
-    searchParamsMock = new URLSearchParams("preset=unassigned");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Commandes/ });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-
-  it("marks Commandes active on bare /fr/orders", () => {
-    pathnameMock = "/fr/orders";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Commandes/ });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-});
-
-describe("Sidebar — badge on unassigned", () => {
-  it("shows the badge count on the Commandes sub-tab when COMMANDES is expanded", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={12} />);
-    fireEvent.click(screen.getByRole("button", { name: /Commandes/ }));
-    const link = screen.getByRole("link", { name: /Commandes/ });
-    expect(within(link).getByText("12")).toBeInTheDocument();
-  });
-
-  it("shows the badge on the COMMANDES section header when collapsed", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={7} />);
-    const header = screen.getByRole("button", { name: /Commandes/ });
-    expect(within(header).getByText("7")).toBeInTheDocument();
-  });
-});
-
-describe("Sidebar — agent role", () => {
-  it("returns null for agent role", () => {
-    // Mounted like the app mounts it: inside the [locale] layout's
-    // MarketScopeProvider (the WhatsApp badge reads the scope).
-    const { container } = renderSidebar(
-      <Sidebar user={agentUser} currentPath="/fr/queue" unassignedCount={0} />,
-    );
+  it("returns null for an agent", () => {
+    const { container } = renderSidebar({ user: agentUser });
     expect(container.firstChild).toBeNull();
   });
 });
 
-describe("Sidebar — active sub-tab", () => {
-  it("marks Dashboard as active when currentPath is /fr/dashboard with no query", () => {
-    pathnameMock = "/fr/dashboard";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Dashboard/ });
-    expect(link).toHaveAttribute("aria-current", "page");
+describe("Sidebar — folding", () => {
+  it("opens every group on the first visit", () => {
+    renderSidebar({ user: managerUser });
+    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Performance$/ })).toBeInTheDocument();
   });
 
-  it("does not mark Dashboard as active when on /fr/dashboard/stock", () => {
-    pathnameMock = "/fr/dashboard/stock";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard/stock" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Dashboard/ });
-    expect(link).not.toHaveAttribute("aria-current", "page");
+  it("folds a group from its label, and remembers it on the next visit", () => {
+    renderSidebar({ user: managerUser });
+    const label = screen.getByRole("button", { name: /^Commandes/ });
+    fireEvent.click(label);
+    expect(label).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: /Archivées/ })).not.toBeInTheDocument();
+    cleanup();
+    renderSidebar({ user: managerUser });
+    expect(screen.getByRole("button", { name: /^Commandes/ })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("always opens the group of the current page, even one the person folded", async () => {
+    localStorage.setItem("ordra.sidebar.collapsed", JSON.stringify(["commandes"]));
+    at("/fr/orders", "preset=unassigned");
+    renderSidebar({ user: managerUser, currentPath: "/fr/orders" });
+    expect(await screen.findByRole("link", { name: /Archivées/ })).toBeInTheDocument();
+  });
+
+  it("lifts a folded group's count onto its label", async () => {
+    renderSidebar({ user: managerUser, unassignedCount: 7 });
+    const label = screen.getByRole("button", { name: /^Commandes/ });
+    fireEvent.click(label);
+    expect(within(label).getByText("7")).toBeInTheDocument();
+    expect(label).toHaveAccessibleName(/7 commandes non assignées/);
   });
 });
 
-describe("Sidebar — alerts bell", () => {
-  it("renders the alerts bell in the brand area (no Alertes nav item)", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+describe("Sidebar — the current page", () => {
+  it("marks Dashboard on /fr/dashboard and nowhere below it", () => {
+    renderSidebar({ user: managerUser, currentPath: "/fr/dashboard" });
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    cleanup();
+    at("/fr/dashboard/stock");
+    renderSidebar({ user: managerUser, currentPath: "/fr/dashboard/stock" });
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks P&L, not Dashboard, on /fr/dashboard/pnl", () => {
+    at("/fr/dashboard/pnl");
+    renderSidebar({ user: superAdmin, currentPath: "/fr/dashboard/pnl" });
+    expect(screen.getByRole("link", { name: "P&L global" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+  });
+
+  it.each([
+    ["/fr/warehouse", "", /^Aujourd'hui$/],
+    ["/fr/warehouse/returns", "", /^Rentrer$/],
+    ["/fr/warehouse/scan", "", /^Sortir$/],
+    ["/fr/warehouse/stock/p1", "", /^Stock$/],
+    ["/fr/warehouse/count", "", /^Stock$/],
+    ["/fr/orders", "preset=unassigned", /^Commandes/],
+    ["/fr/messages/templates", "", /^Messages/],
+    ["/fr/system/settings/delivery", "", /^Réglages$/],
+  ])("marks the right link on %s?%s", (path, search, name) => {
+    at(path, search);
+    renderSidebar({ user: managerUser, currentPath: path });
+    expect(screen.getByRole("link", { name })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks only Aujourd'hui on /fr/warehouse", () => {
+    at("/fr/warehouse");
+    renderSidebar({ user: managerUser, currentPath: "/fr/warehouse" });
+    expect(screen.getByRole("link", { name: /^Sortir$/ })).not.toHaveAttribute("aria-current");
+  });
+
+  it("activates Journaux on /fr/system/logs", () => {
+    at("/fr/system/logs");
+    renderSidebar({ user: superAdmin, currentPath: "/fr/system/logs" });
+    expect(screen.getByRole("link", { name: /Journaux/ })).toHaveAttribute("aria-current", "page");
+  });
+});
+
+describe("Sidebar — counts", () => {
+  it("counts unassigned orders on Commandes", () => {
+    renderSidebar({ user: managerUser, unassignedCount: 12 });
+    expect(within(screen.getByRole("link", { name: /^Commandes/ })).getByText("12")).toBeInTheDocument();
+  });
+
+  it("counts the super_admin's chosen market, as the WhatsApp count already did", async () => {
+    renderSidebar({ user: superAdmin, unassignedCount: undefined }, "ly");
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(`/api/orders/unassigned/count?market_id=${LY_MARKET_ID}`),
+    );
+  });
+
+  it("counts a manager's own market", async () => {
+    renderSidebar({ user: managerUser, unassignedCount: undefined });
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(`/api/orders/unassigned/count?market_id=${TN_MARKET_ID}`),
+    );
+  });
+
+  function mockUrls(map: Record<string, unknown>) {
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const hit = Object.keys(map).find((k) => url.startsWith(k));
+      return { ok: true, json: async () => (hit ? map[hit] : {}) } as Response;
+    }) as unknown as typeof fetch;
+  }
+
+  it("counts unread WhatsApp orphans in green, on Messages and on a folded CLIENTS", async () => {
+    mockUrls({ "/api/whatsapp/conversations/unread-count": { count: 3 } });
+    renderSidebar({ user: managerUser });
+    const link = screen.getByRole("link", { name: /^Messages/ });
+    expect(await within(link).findByText("3")).toHaveStyle({ backgroundColor: "var(--badge-success-bg)" });
+    const label = screen.getByRole("button", { name: /^Clients/ });
+    fireEvent.click(label);
+    expect(within(label).getByText("3")).toHaveStyle({ color: "var(--badge-success-fg)" });
+  });
+
+  it("scopes the WhatsApp count to the super_admin's market", async () => {
+    mockUrls({});
+    renderSidebar({ user: superAdmin }, "ly");
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(`/api/whatsapp/conversations/unread-count?market_id=${LY_MARKET_ID}`),
+    );
+  });
+
+  it("counts open Journaux problems in red; a manager never asks", async () => {
+    mockUrls({ "/api/admin/journal/counts": { open: 5, critical: 5 } });
+    renderSidebar({ user: superAdmin }, "all");
+    const link = screen.getByRole("link", { name: /Journaux/ });
+    expect(await within(link).findByText("5")).toHaveStyle({ backgroundColor: "var(--badge-critical-bg)" });
+    cleanup();
+    mockUrls({ "/api/admin/journal/counts": { open: 5, critical: 5 } });
+    renderSidebar({ user: managerUser });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(global.fetch).not.toHaveBeenCalledWith("/api/admin/journal/counts", expect.anything());
+    expect(global.fetch).not.toHaveBeenCalledWith("/api/admin/journal/counts");
+  });
+});
+
+describe("Sidebar — head", () => {
+  it("carries the wordmark and the alerts button, not an Alertes link", () => {
+    renderSidebar({ user: managerUser });
+    expect(screen.getByText("Ordra")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Alertes/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Alertes/ })).not.toBeInTheDocument();
   });
+
+  it("names the manager's market on a read-only card, with a drawn flag rather than an emoji", () => {
+    renderSidebar({ user: managerUser });
+    const card = screen.getByLabelText("Marché actuel : Tunisie");
+    expect(card.querySelector("svg")).not.toBeNull();
+    expect(card).not.toHaveTextContent("🇹🇳");
+  });
+
+  it("gives the super_admin the market card as a control", () => {
+    renderSidebar({ user: superAdmin });
+    expect(screen.getByRole("button", { name: /Marché actuel/ })).toHaveTextContent(/Tunisie/);
+  });
 });
 
-describe("Sidebar — user menu and logout", () => {
-  it("opens the user menu when the user block is clicked", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("menuitem", { name: "Déconnexion" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Sarah Ben Ali/i }));
-    expect(screen.getByRole("menuitem", { name: "Déconnexion" })).toBeInTheDocument();
+describe("Sidebar — Aller à…", () => {
+  it("opens from its button and from ⌘K / Ctrl K, and goes where it is told", () => {
+    renderSidebar({ user: managerUser });
+    fireEvent.click(screen.getByRole("button", { name: /Aller à/ }));
+    expect(screen.getByRole("dialog", { name: /Aller à/ })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: /Aller à/ })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "salle" } });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    expect(pushMock).toHaveBeenCalledWith("/fr/team");
   });
 
-  it("calls /api/auth/logout and redirects to /fr/login when Déconnexion clicked", async () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    fireEvent.click(screen.getByRole("button", { name: /Sarah Ben Ali/i }));
+  it("offers the market switch to a super_admin, never to a manager", () => {
+    renderSidebar({ user: superAdmin });
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByRole("option", { name: /Passer à Libye/ }));
+    expect(document.cookie).toContain("oms_scope_market=ly");
+    cleanup();
+    renderSidebar({ user: managerUser });
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(screen.queryByRole("option", { name: /Passer à/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("Sidebar — foot", () => {
+  it("opens the profile menu: Mon profil, finally linked, and Déconnexion", async () => {
+    renderSidebar({ user: managerUser });
+    fireEvent.click(screen.getByRole("button", { name: /Sarah Ben Ali/ }));
+    expect(screen.getByRole("menuitem", { name: "Mon profil" })).toHaveAttribute("href", "/fr/profile");
     fireEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/auth/logout",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
-    await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/fr/login");
-    });
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith("/api/auth/logout", expect.objectContaining({ method: "POST" })),
+    );
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/fr/login"));
   });
 
-  it("renders the role label on the user block", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+  it("shows the role under the name", () => {
+    renderSidebar({ user: managerUser });
     expect(screen.getByText(/market manager/i)).toBeInTheDocument();
   });
-});
 
-describe("Sidebar — brand area", () => {
-  it("shows Tunisie market pill for tn manager", () => {
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText(/Tunisie/)).toBeInTheDocument();
-  });
-
-  it("no longer carries the brand monogram beside the wordmark", () => {
-    // The rail is 240px and has to hold the market control and the bell. The
-    // 28px mark was the least informative thing competing for that width, and
-    // it only ever said the same word the wordmark says in full.
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    // The monogram was the brand's first letter, alone in its own element.
-    expect(screen.queryByText("O")).not.toBeInTheDocument();
-    expect(screen.getByText("Ordra")).toBeInTheDocument();
-  });
-
-  it("names the manager's market with its flag rather than a colour", () => {
-    // The pill drew a dot in a colour nobody has learned, while the super_admin
-    // switcher two pixels away already used flags for the same markets.
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    const pill = screen.getByTestId("sidebar-market-pill");
-    expect(pill).toHaveTextContent("🇹🇳");
-    expect(pill).toHaveTextContent(/Tunisie/);
-  });
-
-  it("shows the market scope switcher for super_admin (defaults to TN per provider)", () => {
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    // The brand area renders the scope switcher trigger, which reflects the active scope label.
-    // Provider initial scope is "tn" in tests, so the trigger shows the Tunisia label.
-    expect(screen.getByRole("button", { name: /Marché/ })).toHaveTextContent(/Tunisie/);
+  it("collapses to the rail from its button and from the [ key — not while typing", () => {
+    const onToggleRail = vi.fn();
+    renderSidebar({ user: managerUser, onToggleRail });
+    fireEvent.click(screen.getByRole("button", { name: "Réduire la barre" }));
+    expect(onToggleRail).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: "[" });
+    expect(onToggleRail).toHaveBeenCalledTimes(2);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: "[" });
+    expect(onToggleRail).toHaveBeenCalledTimes(2);
+    input.remove();
   });
 });
 
-describe("Sidebar — Clients › Messages (WhatsApp)", () => {
-  const LY = "00000000-0000-0000-0000-000000000002";
-
-  function mockUnread(count: number) {
-    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/whatsapp/conversations/unread-count")) {
-        return { ok: true, json: async () => ({ count }) } as Response;
-      }
-      return { ok: true, json: async () => ({}) } as Response;
-    }) as unknown as typeof fetch;
-  }
-
-  function renderFresh(ui: React.ReactElement, scope: "tn" | "ly" | "all" = "tn") {
-    return render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <MarketScopeProvider initialScope={scope}>{ui}</MarketScopeProvider>
-      </SWRConfig>,
-    );
-  }
-
-  it("counts unread orphans in green, on the item and on the collapsed CLIENTS header", async () => {
-    mockUnread(3);
-    renderFresh(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    const header = screen.getByRole("button", { name: /Clients/ });
-    const pill = await within(header).findByText("3");
-    expect(pill).toHaveStyle({ backgroundColor: "var(--badge-success-bg)", color: "var(--badge-success-fg)" });
-    fireEvent.click(header);
-    const link = screen.getByRole("link", { name: /Messages/ });
-    expect(within(link).getByText("3")).toHaveStyle({ backgroundColor: "var(--badge-success-bg)" });
+describe("Sidebar — the 64 px rail", () => {
+  it("shows one button per group and opens its links beside the rail", () => {
+    renderSidebar({ user: managerUser, rail: true });
+    expect(screen.queryByText("Archivées")).not.toBeInTheDocument();
+    const commandes = screen.getByRole("button", { name: "Commandes" });
+    fireEvent.click(commandes);
+    expect(commandes).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: /Archivées/ })).toHaveAttribute("href", "/fr/orders/archive");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("link", { name: /Archivées/ })).not.toBeInTheDocument();
   });
 
-  it("scopes the count to the market chosen in the sidebar for a super_admin", async () => {
-    mockUnread(2);
-    renderFresh(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />, "ly");
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(`/api/whatsapp/conversations/unread-count?market_id=${LY}`),
-    );
+  it("keeps Dashboard one click away and grows back from its button", () => {
+    const onToggleRail = vi.fn();
+    renderSidebar({ user: managerUser, rail: true, onToggleRail });
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Agrandir la barre" }));
+    expect(onToggleRail).toHaveBeenCalled();
   });
 
-  it("keeps Messages active on its Modèles page", () => {
-    pathnameMock = "/fr/messages/templates";
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/messages/templates" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /Messages/ })).toHaveAttribute("aria-current", "page");
+  it("marks the group of the current page", () => {
+    at("/fr/team/performance");
+    renderSidebar({ user: managerUser, rail: true, currentPath: "/fr/team/performance" });
+    expect(screen.getByRole("button", { name: "Équipe" })).toHaveAttribute("data-current", "true");
   });
 });
 
-
-describe("Sidebar — Système › Journaux (open problems)", () => {
-  function mockCounts(open: number) {
-    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === "/api/admin/journal/counts") return { ok: true, json: async () => ({ open, critical: open }) } as Response;
-      return { ok: true, json: async () => ({ count: 0 }) } as Response;
-    }) as unknown as typeof fetch;
-  }
-  const renderFresh = (ui: React.ReactElement) =>
-    render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <MarketScopeProvider initialScope="all">{ui}</MarketScopeProvider>
-      </SWRConfig>,
-    );
-
-  it("counts open problems in red, on the collapsed SYSTÈME header and on Journaux", async () => {
-    mockCounts(5);
-    renderFresh(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    const header = screen.getByRole("button", { name: /Système/ });
-    const pill = await within(header).findByText("5");
-    expect(pill).toHaveStyle({ backgroundColor: "var(--badge-critical-bg)", color: "var(--badge-critical-fg)" });
-    fireEvent.click(header);
-    expect(within(screen.getByRole("link", { name: /Journaux/ })).getByText("5")).toBeInTheDocument();
+describe("Sidebar — phone", () => {
+  it("puts a top bar over the page — menu, Ordra, market, alerts — instead of a floating button", () => {
+    asPhone();
+    const onMobileOpen = vi.fn();
+    renderSidebar({ user: managerUser, onMobileOpen });
+    const bar = screen.getByRole("banner");
+    expect(within(bar).getByText("Ordra")).toBeInTheDocument();
+    expect(within(bar).getByLabelText("Marché actuel : Tunisie")).toBeInTheDocument();
+    expect(within(bar).getByRole("button", { name: /Alertes/ })).toBeInTheDocument();
+    fireEvent.click(within(bar).getByRole("button", { name: "Ouvrir le menu" }));
+    expect(onMobileOpen).toHaveBeenCalled();
   });
 
-  it("no problem, no badge", async () => {
-    mockCounts(0);
-    renderFresh(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/admin/journal/counts"));
-    expect(within(screen.getByRole("button", { name: /Système/ })).queryByText("0")).not.toBeInTheDocument();
+  it("closes the drawer from its button, Escape, and any link", () => {
+    asPhone();
+    const onMobileClose = vi.fn();
+    renderSidebar({ user: managerUser, mobileOpen: true, onMobileClose });
+    fireEvent.click(screen.getByRole("button", { name: "Fermer le menu" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole("link", { name: /Archivées/ }));
+    expect(onMobileClose).toHaveBeenCalledTimes(3);
   });
 
-  it("a market manager never asks", async () => {
-    mockCounts(5);
-    renderFresh(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    await new Promise((r) => setTimeout(r, 20));
-    expect(global.fetch).not.toHaveBeenCalledWith("/api/admin/journal/counts");
+  it("never shows the rail on a phone, even when chosen on the desktop", () => {
+    asPhone();
+    renderSidebar({ user: managerUser, rail: true, mobileOpen: true });
+    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Réduire la barre" })).not.toBeInTheDocument();
   });
 });

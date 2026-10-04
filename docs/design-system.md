@@ -844,13 +844,15 @@ the edge and chip already carry what is wrong. Design notes:
 
 ### Sidebar
 
-- Width: `240px`, fixed
-- Background: `var(--sidebar-bg)` `#0E1013`
-- Brand row: `60px`, monogram (28px `rounded-[8px]` on `--brand`) + wordmark + market switcher + bell
-- Sub-nav item: `height: 34px`, `padding-inline: 30px / 12px`, `font-size: 14px`, `border-radius: 8px`
+Spec: `prototypes/sidebar-v2.html`; implementation notes: `docs/sidebar.md`.
+- Widths: `240px`, or a `64px` rail (person's choice, default below 1280px); phone: drawer `min(304px, 86vw)` behind a `52px` top bar
+- Head and foot pinned; only the list scrolls (a hairline appears under the head once scrolled)
+- Head: wordmark + alerts pill (bell + count chip side by side), market card `50px`, « Aller à… ⌘K » `32px`
+- Group label: `28px`, `11px/600` uppercase muted, no icon, chevron; RTL drops caps and tracking
+- Item: `height: 32px`, `padding-inline: 10px / 8px`, icon `16px`, `font-size: 14px`, `border-radius: 8px`
 - Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar
-- Hover (inactive): `background: var(--sidebar-hover)`
-- User menu at bottom: `padding: 8px 10px`, opens upward on `--sidebar-bg-elevated`
+- One count chip everywhere (`.sb-badge`, 18px, capped at 999+, digits isolated LTR)
+- Flags are drawn SVG (`MarketFlag`), never emoji — Windows renders emoji flags as letters
 
 ### Topbar (agent shell only)
 

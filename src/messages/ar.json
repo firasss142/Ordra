@@ -102,7 +102,6 @@
   "nav": {
     "brand": "Ordra",
     "logout": "تسجيل خروج",
-    "adminOnly": "مدير عام",
     "orders": "الطلبات",
     "sections": {
       "accueil": "الرئيسية",
@@ -144,16 +143,20 @@
       "reglages": "الإعدادات",
       "carriers": "شركات التوصيل"
     },
-    "a11y": {
-      "expandSection": "توسيع قسم {section}",
-      "collapseSection": "طي قسم {section}"
-    },
     "markets": {
       "label": "الأسواق",
       "tn": "تونس",
       "ly": "ليبيا",
       "all": "كل الأسواق",
-      "ariaLabel": "السوق الحالي: {market}"
+      "ariaLabel": "السوق الحالي: {market}",
+      "short": {
+        "tn": "تونس",
+        "ly": "ليبيا",
+        "all": "الكل"
+      },
+      "toAssign": "للإسناد",
+      "hint": "1 · 2 · 3 للاختيار · Esc للإغلاق",
+      "switched": "السوق: {market}"
     },
     "roles": {
       "super_admin": "مدير عام",
@@ -163,7 +166,27 @@
       "investor": "مستثمر"
     },
     "myCommissions": "عمولاتي",
-    "delivery": "التوصيل"
+    "delivery": "التوصيل",
+    "label": "التنقل الرئيسي",
+    "goTo": "انتقل إلى…",
+    "goToPlaceholder": "انتقل إلى صفحة أو سوق…",
+    "goToEmpty": "لا توجد صفحة مطابقة",
+    "goToHints": {
+      "choose": "↑↓ اختيار",
+      "open": "↵ فتح",
+      "close": "Esc إغلاق"
+    },
+    "switchTo": "الانتقال إلى {market}",
+    "collapse": "طيّ القائمة",
+    "expand": "توسيع القائمة",
+    "profile": "ملفي الشخصي",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة",
+    "counts": {
+      "unassigned": "طلبات غير مسندة",
+      "whatsapp": "محادثات غير مقروءة",
+      "journal": "مشاكل مفتوحة"
+    }
   },
   "inventory": {
     "title": "المخزون والجرد",
