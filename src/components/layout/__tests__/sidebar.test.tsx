@@ -111,7 +111,7 @@ const groupLinks = (linkName: RegExp) =>
 describe("Sidebar — what each role sees", () => {
   it("gives a market_manager Dashboard on its own, then six groups", () => {
     renderSidebar({ user: managerUser });
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/fr/dashboard");
+    expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute("href", "/fr/dashboard");
     for (const g of ["Commandes", "Entrepôt", "Livraison", "Clients", "Équipe", "Système"]) {
       expect(screen.getByRole("button", { name: new RegExp(`^${g}`) })).toHaveAttribute("aria-expanded", "true");
     }
@@ -216,18 +216,18 @@ describe("Sidebar — folding", () => {
 describe("Sidebar — the current page", () => {
   it("marks Dashboard on /fr/dashboard and nowhere below it", () => {
     renderSidebar({ user: managerUser, currentPath: "/fr/dashboard" });
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute("aria-current", "page");
     cleanup();
     at("/fr/dashboard/stock");
     renderSidebar({ user: managerUser, currentPath: "/fr/dashboard/stock" });
-    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Accueil" })).not.toHaveAttribute("aria-current");
   });
 
   it("marks P&L, not Dashboard, on /fr/dashboard/pnl", () => {
     at("/fr/dashboard/pnl");
     renderSidebar({ user: superAdmin, currentPath: "/fr/dashboard/pnl" });
     expect(screen.getByRole("link", { name: "P&L global" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Accueil" })).not.toHaveAttribute("aria-current");
   });
 
   it.each([
@@ -420,7 +420,7 @@ describe("Sidebar — the 64 px rail", () => {
   it("keeps Dashboard one click away and grows back from its button", () => {
     const onToggleRail = vi.fn();
     renderSidebar({ user: managerUser, rail: true, onToggleRail });
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute("aria-current", "page");
     fireEvent.click(screen.getByRole("button", { name: "Agrandir la barre" }));
     expect(onToggleRail).toHaveBeenCalled();
   });

@@ -205,6 +205,15 @@ export function PerformanceOrders({ marketId, marketName, locale, tz }: { market
               <div className="sub">
                 <span>
                   {marketName} ·{" "}
+                  {v.store && (
+                    <>
+                      <b data-tip={t("head.storeTip")}>{v.store.name}</b>{" "}
+                      <button type="button" className="chipb" onClick={() => setState({ ...state, store: null })}>
+                        {t("head.storeClear")}
+                      </button>{" "}
+                      ·{" "}
+                    </>
+                  )}
                   {hasSel && (
                     <>
                       <b>{ctx.fullName(state.sel, state.ag)}</b> ·{" "}

@@ -61,6 +61,8 @@ export interface BuildInput {
   catalogue: CatalogueProduct[];
   agents: AgentInfo[];
   subLabels: Record<string, SubLabel>;
+  /** The store the page is narrowed to (?boutique=), already applied to A, P and Bd. */
+  store?: { id: string; name: string } | null;
 }
 
 interface Ctx {
@@ -367,6 +369,7 @@ export function buildView(inp: BuildInput): PerfView {
     products: inp.catalogue.filter((p) => used.has(p.id)),
     agents: inp.agents.filter((a) => agentsUsed.has(a.id)),
     subLabels: inp.subLabels,
+    store: inp.store ?? null,
     A,
     P,
     comparable: comparability(A, P, inp.window, inp.first),

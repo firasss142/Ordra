@@ -82,6 +82,8 @@ export interface PerfOrder {
   /** orders.total_price — the only revenue field. Read by lib/calculations only. */
   price: number;
   city: string | null;
+  /** orders.storefront_id — the store it came from. */
+  store?: string | null;
   lines: PerfLine[];
 }
 
@@ -131,6 +133,7 @@ export function normalizeOrders(payload: unknown, tz: string): PerfOrder[] {
       cause: str(raw.failure_cause),
       price: Number(raw.total_price ?? 0) || 0,
       city: str(raw.city),
+      store: str(raw.storefront_id),
       lines: byOrder.get(id) ?? [],
     });
   }

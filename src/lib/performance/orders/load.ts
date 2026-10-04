@@ -46,7 +46,7 @@ export async function loadPerformance(
     if (from <= to) bRange = { from, to };
   }
 
-  const [aRes, pRes, bRes, marketRes, catRes, sizeRes, subRes] = await Promise.all([
+  const [aRes, pRes, bRes, marketRes, catRes, sizeRes, subRes, storeRes] = await Promise.all([
     rpc(w0.from, w0.to),
     rpc(w0.pf, w0.pt),
     bRange ? rpc(bRange.from, bRange.to) : Promise.resolve({ data: null, error: null }),
@@ -57,6 +57,9 @@ export async function loadPerformance(
       .from("rejection_reason_configs")
       .select("key, label_fr, label_ar, short_fr, short_ar")
       .eq("market_id", marketId),
+    state.store
+      ? supabase.from("storefronts").select("id, name").eq("id", state.store).eq("market_id", marketId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   const err = aRes.error ?? pRes.error ?? bRes.error ?? catRes.error;
   if (err) throw new LoadError(String((err as { message?: string }).message ?? err));
@@ -66,10 +69,13 @@ export async function loadPerformance(
   const first = firstAt ? localDay(firstAt, tz) : today;
   const window = resolveWindow(state.period, state.from, state.to, today, first);
 
-  const inWindow = (o: PerfOrder) => o.day >= window.from && o.day <= window.to;
+  // ?boutique= narrows every list to one store (the card clicked on Accueil).
+  const store = (storeRes.data as { id: string; name: string } | null) ?? null;
+  const inStore = (o: PerfOrder) => !state.store || o.store === state.store;
+  const inWindow = (o: PerfOrder) => o.day >= window.from && o.day <= window.to && inStore(o);
   const A = normalizeOrders(aRes.data, tz).filter(inWindow);
-  const P = normalizeOrders(pRes.data, tz);
-  const Bd = bRange ? normalizeOrders(bRes.data, tz) : null;
+  const P = normalizeOrders(pRes.data, tz).filter(inStore);
+  const Bd = bRange ? normalizeOrders(bRes.data, tz).filter(inStore) : null;
 
   const ads: Record<string, number> = {};
   for (const p of [a, pRes.data as Payload | null]) {
@@ -115,5 +121,6 @@ export async function loadPerformance(
     catalogue,
     agents: [...users.values()].sort((x, y) => x.name.localeCompare(y.name)),
     subLabels,
+    store: store ? { id: store.id, name: store.name } : null,
   };
 }
