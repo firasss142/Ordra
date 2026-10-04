@@ -92,9 +92,10 @@ A head whose person is typing shows a three-dot bubble in the corner, in place
 of the static live dot. `TypingDots` is shared by both surfaces so the manager's
 list and the agent's queue cannot drift.
 
-**This is a deliberate exception to design-system §7** ("no entrance animations,
+**This was a deliberate exception to design-system §7** ("no entrance animations,
 page transitions, or transforms"), recorded here so the next reader knows it was
-a decision:
+a decision. *(Since 2026-10-04 §7 — « Aurore » — allows motion that explains; the
+typing dots fit that rule and are no longer an exception. The reasoning below stands.)*
 
 - §7 targets *decorative* motion. A static mark cannot distinguish "is editing
   right now" from "edited at some point" — motion is the only honest rendering.

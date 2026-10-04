@@ -156,6 +156,8 @@ Replace Shopify marketing copy with actual OMS design system:
 - Focus: `border: 2px solid #1A1A1A`, no shadow
 - Do's/Don'ts aligned with CLAUDE.md
 
+> **Superseded 2026-10-04** — Ordra's design language is now « Aurore » (`docs/design-system.md` §1–§9: aurora ground, glass cards, resting soft shadow, colour with one meaning). The rule above is history, not guidance.
+
 ### 5b. Update CLAUDE.md
 
 - Verify all file paths still exist

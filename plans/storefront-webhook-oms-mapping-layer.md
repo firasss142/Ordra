@@ -201,7 +201,7 @@ Market mismatch on step 1 → `needs_review` (keep raw, don't accept the wrong-m
 
 ## Phase 5 — Admin UI
 
-Run the `design` skill first (dark sidebar / light content / zero decoration).
+Read `docs/design-system.md` first (« Aurore », since 2026-10-04). *(Was: "Run the `design` skill first (dark sidebar / light content / zero decoration)" — wrong even then: that skill is for marketing pages only.)*
 
 - New route group `src/app/[locale]/(dashboard)/mappings/` with two tabs:
   - **Products** — list `storefront_product_mappings` + an "unmatched / needs-review orders"

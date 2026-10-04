@@ -1,507 +1,131 @@
 ---
-name: shopify-design-system
+name: design
 description: >
-  MARKETING AND PUBLIC-FACING SURFACES ONLY — a dark-first, cinematic system for landing pages, pitch decks and public marketing sites. It does NOT govern Ordra's product UI. Anything under src/ (the Ordra console — orders, warehouse, finances, team, agent queue, investor portal) is a LIGHT admin interface governed by docs/design-system.md; read that instead, and do not apply this skill's dark palette, 96px display type or theatrical spacing to it. Use this skill only when building a marketing page, landing page, public pitch surface or standalone promotional artifact. Trigger words that belong to this skill: "landing page", "marketing site", "hero section", "pricing page", "public site", "promo page". For product UI work — a component, page, table, modal, form, dashboard or any screen inside Ordra — read docs/design-system.md instead of this skill. When unsure which surface you are building, ask; picking wrong ships a page that looks like a different product.
+  Ordra's product UI design skill — the « Aurore » language (soft pastel aurora ground, frosted-glass
+  cards, huge 800-weight numbers, colour that always means one thing, waffles/rings/pill bars, the
+  dark sidebar and brand green #15803D unchanged). Use it for ANY screen, page, component, drawer,
+  modal, table, dashboard, chart, KPI tile, prototype or redesign inside Ordra (everything under
+  src/ — orders, agent queue, delivery, warehouse/Entrepôt, finances, products, team, Accès,
+  settings, investor portal), and before writing a prototypes/*.html mockup. Triggers: "design",
+  "redesign", "prototype", "mockup", "make it look", "UI", "UX", "screen", "page", "layout",
+  "colours", "modern", "card", "chart", "dashboard". Not for landing pages or public marketing
+  sites — that is the marketing-design skill.
 ---
 
-# Shopify-Inspired Design System (Refined)
+# Ordra design — « Aurore »
 
-Dark-first, cinematic design for premium digital experiences.
+Since 2026-10-04 every Ordra screen speaks one language, « Aurore ». The full reference — tokens,
+components, type ladder, scoped extensions — is **`docs/design-system.md`**. This skill is the
+*working method*: how to design a screen here so the owner says yes on the first round.
+
+**Reference implementation:** Salle de contrôle (`/team`, `src/components/team/room/`, the `.r6`
+block in `src/app/globals.css`), built line for line from `prototypes/team-v6.html` (untracked —
+real names, public repo). When in doubt about how something should look, look at `/team`.
+
+**State of the code:** the doctrine is adopted, the app is **not migrated** — only `/team` is in
+Aurore. `docs/design-system.md` §10 lists what the code still says. Do not restyle existing
+screens, tokens, `globals.css` or `tailwind.config.ts` unless the owner explicitly asks for that
+migration. New prototypes and new screens are designed in Aurore.
 
 ---
 
-## ⚠ Scope — read this first
+## 1. The method — five steps, in order
 
-**This skill does not govern Ordra's product UI.** Almost all UI work in this repository
-is Ordra work, so the default answer is: **close this skill and read
-`docs/design-system.md`.**
+1. **Ask the one question.** What single question does this page answer, who reads it, how often,
+   on what device? (One or two AskUserQuestion rounds, ≤ 4 questions, recommended option first —
+   the owner usually takes the recommendation.) The answer decides the hero number.
+2. **Read the data before drawing.** Real figures, from the live DB read-only when reachable. A
+   design on invented numbers hides the empty states, the zeros and the outliers that decide it.
+   Mask customer data — the repo is public.
+3. **Prototype in HTML first** — `prototypes/<screen>-v1.html`, one self-contained file, no React.
+   Real data, FR desktop first, then Arabic (RTL) and phone (390 px) once the owner likes it. For a
+   *visual* decision, render 3–4 looks of the same content in one file (switch with keys 1–4) —
+   the owner picks from what he sees, not from descriptions.
+4. **Get a yes, then build.** The approved prototype is the spec: copy it exactly (px values —
+   the root font is 14 px, so Tailwind rem classes render 12.5 % small). For a pixel-faithful
+   page, port the prototype's CSS verbatim under a page prefix, as `/team` did with `.r6` (§7 of
+   the doc).
+5. **Self-review with §4 below**, then screenshot prototype and app side by side.
 
-Ordra — the application under `src/` — is a **light admin console**: `#F6F6F7` page,
-white cards, one dark sidebar (`#0E1013`), black text, a single brand green (`#15803D`)
-for chrome, and functional colour only on status badges. `docs/design-system.md` is the
-authority for every screen an Ordra user sees, and it is what `CLAUDE.md` points to.
+After a vague complaint ("I don't like it", "not modern"), rebuild **one** screen and show it
+before touching the rest.
 
-This skill describes a *different* surface — dark, cinematic, marketing-scale (96px
-display type, 96–128px section gaps, void backgrounds, neon-green accent). Those rules
-are right for a landing page and actively wrong for a 2 500-row orders table: "no bright
-backgrounds" contradicts the console outright, and theatrical section spacing destroys
-the density a dispatcher needs.
+---
 
-**Which to use:**
+## 2. The ten principles (doc §1)
 
-| Building | Read |
+1. **One question, one huge number** (34–46 px / 800, tracking −0.045em). Under every number a
+   2–4-word status with a coloured dot or tag — never a sentence.
+2. **Colour means exactly one thing.** Four vocabularies that never borrow from each other:
+   **chrome** (brand green `#15803D` — where you are, what you press) · **status / outcome** ·
+   **identity** (an agent's own colour, a role, a carrier account) · **severity**
+   (good / warn / bad). Never colour alone: the word or figure is always written beside it.
+3. **Colourful, not loud.** Saturated hues in *marks* (bars, ring segments, squares, avatars),
+   washed tints (6–15 %) in *surfaces*, near-black text.
+4. **Light, living ground; the sidebar is the only dark surface.** The aurora is painted once by
+   the shell; cards float on it as frosted glass.
+5. **One entity, one card.** Overview (3–6 numbers) → one card per agent / carrier / product →
+   drawer for detail → a table to compare. Never mix entities in one chart.
+6. **Every chart answers a named question** — waffle (what is today made of), ring (how far is
+   she), pill bar (where did they go), heat tile (which is weak). Tooltip on every mark; legend
+   hover highlights its marks and dims the rest.
+7. **Hierarchy by weight and size, never by greying below AA.** Lightest *text* grey `#667085`
+   (5.0:1); `#8A94A6` is for icons, axes, disabled only.
+8. **Motion explains, once** — cards rise, squares pop, rings sweep, bars grow, staggered, in the
+   first second; hover lifts what you can click; the live dot is the only loop; all off under
+   `prefers-reduced-motion`.
+9. **Two densities** (§1.1): *showcase* pages (monitoring, analytics, finance, products, team) use
+   the full scale; *workbench* pages (orders, agent queue, delivery, warehouse bench, settings
+   forms) keep ground, glass, type, radii and colours but put **no glass and no entrance motion on
+   list rows**. The phone warehouse shell keeps an opaque ground (sunlight).
+10. **Everything mirrors** — logical properties only; Arabic is a first-class reading.
+
+---
+
+## 3. The kit at a glance
+
+| Thing | Aurore |
 |---|---|
-| Anything under `src/app` or `src/components` — i.e. Ordra itself | `docs/design-system.md` |
-| Orders console | `docs/design-system.md` §4.17 |
-| Agent queue / product sheet | `docs/design-system.md` §4.16 |
-| Investor portal | `docs/design-system.md` §4.15 |
-| Entrepôt desk console | `docs/design/entrepot/README.md` |
-| Entrepôt mobile (warehouse agent) | `docs/design-system.md` §4.20 + `docs/design/entrepot/mobile/README.md` |
-| Finances → Dépenses pub | `docs/design-system.md` §4.21 (the `ads.*` tokens) |
-| A marketing site, landing page, or public pitch surface | this skill |
+| Ground | `#F6F7FB` + five pastel radials (indigo top-start, pink top-end, mint bottom-end, amber bottom-start, lavender centre), fixed |
+| Card | white .62, 1px white .9 edge, **24 px** radius, `0 10px 36px rgba(42,52,110,.07)`, `blur(20px) saturate(170%)` |
+| Inner tile / drawer section | white .66, 16 px radius, no shadow |
+| Drawer | floating, 12 px from the edges, 26 px radius, white-blue .84 glass, a halo of the entity's colour |
+| Ink | `#0F1728` / `#475467` / `#667085`; zero values faint `#C9CED7` |
+| Type | Plus Jakarta Sans · H1 32/800 · section 22/800 · card title 17–19/800 · eyebrow 10.5/800 caps +0.1em |
+| Pills | chips, tags, trend pills (↑ 4 on green tint), medals for rank 1–3 |
+| Avatar | circle in the person's colour gradient, glow in her hue, live dot (pulsing green / amber / grey) |
+| Outcomes | uploaded `#0E9384` · rejected `#E8385A` · delivered `#079455` · en route `#38C0AE` · returned `#F79009` · not yet `#E1E6EE` · overdue = hatching |
+| Agent colours | indigo `#444CE7` · pink `#DD2590` · cyan `#088AB2` · gold `#CA8504` · lime `#4CA30D` · orange `#E04F16` (ramps -0…-9, `users.color`) |
+| Problems | rose gradient wash + a filled red icon holder; healthy = calm, a green check |
+| Empty | dashed 1.5 px box that says what is empty and why |
 
-If the two ever conflict for Ordra work, `docs/design-system.md` wins. When unsure which
-surface you are building, ask rather than guess — picking wrong means shipping a page
-that looks like a different product.
-
----
-
-## 0. Three Governing Principles
-
-1. **Restraint is the loudest voice.** Every element earns its place. Remove first; add only if removal hurts clarity.
-2. **Darkness is a stage, not a style.** The near-black canvas exists to spotlight one idea per section — not to look moody.
-3. **Type carries the brand.** Color, shadow, and motion support typography — never compete with it.
+Exact values, components and the scoped palettes (orders §4.17, finance §4.21, roles §4.23,
+journals §4.24, delivery §4.22, warehouse §4.20): `docs/design-system.md`.
 
 ---
 
-## 1. Color Palette
+## 4. Self-review before showing anything
 
-### Surfaces (Void → Forest, barely perceptible steps)
-| Name | Hex | Use |
-|---|---|---|
-| Void | `#000000` | Root page background |
-| Deep Teal | `#02090A` | Card surfaces, content containers |
-| Dark Forest | `#061A1C` | Section backgrounds |
-| Forest | `#102620` | Elevated surfaces, sticky nav on scroll |
-
-### Text
-| Name | Hex | Use |
-|---|---|---|
-| White | `#FFFFFF` | Primary text, headings, buttons |
-| Muted | `#A1A1AA` | Secondary text, descriptions |
-| Shade-50 | `#71717A` | Tertiary text, placeholders |
-| Shade-60 | `#52525B` | Disabled |
-| Shade-70 | `#3F3F46` | Dividers, input borders |
-
-### Accent (precious — use sparingly)
-| Name | Hex | Use |
-|---|---|---|
-| Neon Green | `#36F4A4` | Focus rings, active indicators, critical accent ONLY |
-| Neon Green Glow | `rgba(54,244,164,0.15)` | Focus ring outer halo |
-| Aloe | `#C1FBD4` | Rare decorative green wash |
-| Pistachio | `#D4F9E0` | Subtle surface tints |
-
-### Semantic (desaturated — never neon, never warm-brand)
-| Name | Hex | Use |
-|---|---|---|
-| Success | `#36F4A4` | Confirmations (reuses Neon Green) |
-| Warning | `#F5C563` | Muted amber |
-| Danger | `#F47272` | Muted coral |
-| Info | `#7FB8F5` | Cool azure |
-
-Each pairs with a 10% alpha background (e.g. `rgba(244,114,114,0.1)`).
-
-### Borders
-- Dark surfaces: `#1E2C31`
-- Light surfaces (rare): `#E4E4E7`
+- [ ] I can say the page's one question, and the biggest number on screen answers it.
+- [ ] Every number has a short status under it; no paragraph explains a number.
+- [ ] Each hue on the page belongs to exactly one vocabulary; no agent colour on a status, no status hue on a person, no green that isn't chrome.
+- [ ] Every coloured mark has its figure or word written next to it.
+- [ ] All text ≥ 4.5:1 (no `#8A94A6` text); every new palette passed `validate_palette.js` (dataviz skill).
+- [ ] One entity per card / per chart; detail lives in the drawer.
+- [ ] Every chart mark has a tooltip; legends highlight.
+- [ ] Cards are glass on the aurora; nothing paints an opaque page background; no black shadows; no sharp corners.
+- [ ] Workbench lists: no glass and no entrance animation on rows.
+- [ ] Motion stops under `prefers-reduced-motion`.
+- [ ] Logical properties only; checked in Arabic (`56%` with no space; eyebrows without caps in RTL) and at 390 px.
+- [ ] All strings through next-intl; sizes in px.
+- [ ] Empty, zero, loading (page-shaped skeleton) and error states are designed, not left to chance.
 
 ---
 
-## 2. Typography
-
-### Fonts
-- **Display/Headings**: `NeueHaasGrotesk` → fallback Helvetica, Arial
-  - Always: `font-feature-settings: 'ss03'`
-  - Weights: 330–750 (use 330–400 almost always)
-- **Body/UI**: `Inter Variable` → fallback Helvetica, Arial
-  - Always: `font-feature-settings: 'ss03', 'cv11'`
-  - Weights: 400–550 (prefer 420/550 on dark — optical correction)
-- **Code**: `ui-monospace`, SFMono-Regular, Menlo, Monaco
-
-### Scale (desktop — use `clamp()` for fluid sizing)
-| Role | Size | Min | Weight | Font | Notes |
-|---|---|---|---|---|---|
-| Display XL | 96px | 48px | 400 | NHG | Hero headlines |
-| Display Light | 96px | 44px | 330 | NHG | Ethereal — the signature |
-| H1 | 70px | 40px | 330 | NHG | Section titles |
-| H2 | 55px | 34px | 330 | NHG | Subsections |
-| H3 | 48px | 30px | 330 | NHG | Feature titles |
-| H4 | 32px | 24px | 360 | NHG | Card headings |
-| H5 | 28px | 22px | 500 | NHG | Small headings |
-| Body Large | 20px | 18px | 500 | NHG/Inter | Lead paragraphs |
-| Body | 18px | 16px | 400 | Inter | Standard body |
-| Body Medium | 18px | 16px | 550 | Inter | Emphasized |
-| Body Small | 16px | 14px | 400 | Inter | Compact |
-| Button | 16px | 16px | 400 | NHG | CTA text |
-| Nav Link | 18px | 16px | 500 | NHG | tracking `0.4px` (modern), not 0.72px |
-| Caption | 14px | 13px | 500 | NHG/Inter | Metadata |
-| Label | 12px | 11px | 400 | Inter | Uppercase, tracking 0.72px |
-
-### Rules
-- **Featherweight is signature.** Headings at 330–400. Never above 500 for display body copy.
-- **Optical correction on dark.** Use Inter 420 where you'd use 500 on light, 550 where you'd use 600.
-- **Tabular figures** (`font-variant-numeric: tabular-nums`) for all numeric data, prices, timestamps.
-- **Measure**: 45–75 chars per line for body copy.
-- `ss03` is non-negotiable.
-
----
-
-## 3. Components
-
-### Buttons
-
-**Primary (White Pill)**
-```css
-background: #FFFFFF;
-color: #000000;
-border: 2px solid transparent;
-border-radius: 9999px;
-padding: 12px 26px 12px 16px;
-font-size: 16px;
-transition: transform 200ms cubic-bezier(0.2,0,0,1), background 150ms linear;
-}
-:hover { transform: translateY(-1px); background: #F4F4F5; }
-:active { transform: translateY(0); background: #E4E4E7; }
-:focus-visible { outline: 2px solid #36F4A4; outline-offset: 2px; }
-:disabled { opacity: 0.4; cursor: not-allowed; }
-```
-
-**Secondary (Ghost)**
-```css
-background: transparent;
-color: #FFFFFF;
-border: 2px solid #FFFFFF;
-border-radius: 9999px;
-padding: 12px 26px 12px 16px;
-/* Hover: softer fill, not full white */
-:hover { background: rgba(255,255,255,0.08); }
-:active { background: rgba(255,255,255,0.16); }
-```
-
-**Tertiary (Text)**
-```css
-background: transparent;
-color: #FFFFFF;
-padding: 8px 0;
-text-decoration: underline;
-text-underline-offset: 4px;
-text-decoration-color: rgba(255,255,255,0.3);
-:hover { text-decoration-color: #FFFFFF; }
-```
-
-**Icon Button**
-```css
-width: 40px; height: 40px;
-background: rgba(255,255,255,0.06);
-border: 1px solid rgba(255,255,255,0.1);
-border-radius: 9999px;
-:hover { background: rgba(255,255,255,0.12); }
-```
-
-**Badge / Tag (Frosted Glass)**
-```css
-background: rgba(255,255,255,0.08);
-border: 1px solid rgba(255,255,255,0.1);
-backdrop-filter: blur(12px);
-border-radius: 6px;
-padding: 6px 12px;
-font-size: 13px;
-font-weight: 500;
-color: #FFFFFF;
-```
-
-### Cards
-
-```css
-background: #02090A;
-border: 1px solid #1E2C31;
-border-radius: 12px; /* default — softer than 8px */
-box-shadow:
-  0 0 0 1px rgba(0,0,0,0.1),
-  0 2px 2px rgba(0,0,0,0.1),
-  0 4px 4px rgba(0,0,0,0.1),
-  0 8px 8px rgba(0,0,0,0.1),
-  inset 0 1px 0 rgba(255,255,255,0.03);
-transition: box-shadow 400ms ease, border-color 300ms ease;
-:hover { border-color: #2A3A41; /* shadow grows */ }
-```
-
-> Multi-layer shadow is mandatory. Single `box-shadow` values look flat. Inset white glow simulates top-lit glass.
-
-### Inputs
-
-```css
-background: rgba(255,255,255,0.03); /* subtle fill, not transparent */
-color: #FFFFFF;
-border: 1px solid #3F3F46;
-border-radius: 8px;
-padding: 12px 16px;
-transition: border-color 200ms ease, box-shadow 200ms ease;
-::placeholder { color: #71717A; }
-:hover { border-color: #52525B; }
-:focus {
-  border-color: #36F4A4;
-  box-shadow: 0 0 0 3px rgba(54,244,164,0.15);
-  outline: none;
-}
-:disabled { opacity: 0.5; background: rgba(255,255,255,0.02); }
-/* Error state: */
-.error { border-color: #F47272; background: rgba(244,114,114,0.05); }
-```
-
-Labels: above input, 13px/500, `#A1A1AA`, `margin-bottom: 8px`.
-Helper text: below, 13px/400, `#71717A`, `margin-top: 6px`.
-
-### Navigation
-
-```css
-/* Default */
-background: transparent;
-height: 72px; /* up from 64 — more breathing room */
-
-/* On scroll — frosted glass */
-background: rgba(16, 38, 32, 0.8);
-backdrop-filter: blur(20px);
-border-bottom: 1px solid rgba(255,255,255,0.06);
-transition: background 400ms ease, backdrop-filter 400ms ease;
-
-/* Nav links */
-font-size: 16px;
-font-weight: 500;
-letter-spacing: 0.4px; /* tightened for modern feel */
-color: #FFFFFF;
-:hover { color: #A1A1AA; transition: color 150ms ease; }
-```
-
----
-
-## 4. Spacing (8px base)
-
-| Token | Value |
-|---|---|
-| space-1 | 4px |
-| space-2 | 8px |
-| space-3 | 12px |
-| space-4 | 16px |
-| space-5 | 24px |
-| space-6 | 32px |
-| space-7 | 48px |
-| space-8 | 64px |
-| space-9 | 96px |
-| space-10 | 128px |
-
-**Section separation**: 96–128px of void between major sections. This theatrical breathing room is the cinematic pacing. Never compress it.
-
-Container max-width: **1280px** centered. Horizontal padding: 64px → 40px → 16px.
-
----
-
-## 5. Border Radius
-
-| Value | Use |
-|---|---|
-| 6px | Badges, tags, small controls |
-| 8px | Inputs, small cards |
-| 12px | Standard cards (default) |
-| 16px | Featured cards, image containers |
-| 20px | Modal headers, top-rounded |
-| 9999px | Pill buttons (non-negotiable for CTAs) |
-
-Sharp 0px corners are forbidden on interactive elements.
-
----
-
-## 6. Depth & Elevation
-
-Shadows on dark act as **ambient occlusion** — cards settle into the surface, not float above.
-
-| Level | Use | CSS |
-|---|---|---|
-| L0 | Page bg | none |
-| L1 | Resting cards | `0 0 0 1px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03)` |
-| L2 | Hovered/featured cards | Full multi-layer stack (see Cards) |
-| L3 | Dropdowns, popovers | L2 + `0 24px 48px -12px rgba(0,0,0,0.4)` |
-| L4 | Modals, overlays | L3 + `0 48px 80px -20px rgba(0,0,0,0.6)` |
-| Focus | Keyboard focus | `0 0 0 2px #36F4A4, 0 0 0 6px rgba(54,244,164,0.15)` |
-
-Hierarchy: Void → Deep Teal → Dark Forest → Forest. Adjacent steps should be barely perceptible.
-
-Add a 3% SVG noise overlay to large dark expanses to prevent OLED banding. Never on text.
-
----
-
-## 7. Motion
-
-Slow, soft, deliberate. No bounce. No spring. No elastic.
-
-### Durations
-| Token | Value | Use |
-|---|---|---|
-| instant | 50ms | Button press feedback |
-| fast | 150ms | Hover color shifts |
-| base | 250ms | Standard fades |
-| slow | 400ms | Card shadows, large surfaces |
-| slower | 600ms | Nav scroll transition |
-| theatrical | 1200ms | Hero reveals |
-
-### Easings
-| Token | Curve | Use |
-|---|---|---|
-| standard | `cubic-bezier(0.2, 0, 0, 1)` | Default |
-| entrance | `cubic-bezier(0.16, 1, 0.3, 1)` | Entering viewport |
-| exit | `cubic-bezier(0.7, 0, 0.84, 0)` | Leaving viewport |
-| emphasis | `cubic-bezier(0.4, 0, 0.2, 1)` | Card hovers |
-
-### Rules
-- One or two properties per element — never three+ animating at once.
-- Stagger lists by 30–60ms per item, never more.
-- Always respect `prefers-reduced-motion` — collapse durations to 0.01ms.
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
-
----
-
-## 8. Iconography
-
-Icons used **sparingly** — only when a word is slower or redundant.
-
-- **Library**: Lucide or Phosphor (Thin/Light variant only)
-- **Stroke**: 1.5px (matches ethereal type weight)
-- **Sizes**: 14, 16, 20, 24px — no others
-- **Color**: always `currentColor`, never hardcoded
-- Decorative icons are forbidden. Never mix weights or styles.
-- Icon-only buttons require `aria-label`.
-
----
-
-## 9. Accessibility (Non-Negotiable)
-
-- **Contrast**: body text ≥ 4.5:1, display text ≥ 3:1 (WCAG AA minimum)
-- **Focus**: every interactive element has a visible `:focus-visible` with the doubled Neon Green ring
-- **Touch targets**: minimum 44×44px
-- **Color independence**: status dots pair with text labels; error borders pair with error text
-- **Semantic HTML**: `<button>`, `<nav>`, `<main>` — never `<div onClick>`
-- **Reduced motion**: honored at stylesheet level
-- **Escape closes modals**. Focus is trapped while open.
-
----
-
-## 10. Responsive
-
-| Breakpoint | Width | Display | Padding |
-|---|---|---|---|
-| Mobile | <640px | 48px | 16px |
-| Tablet | 640–1024px | 70px | 40px |
-| Desktop | 1024–1440px | 96px | 64px |
-| Large | >1440px | 96px + centered max-width | 64px+ |
-
-- Nav collapses to hamburger below 1024px
-- 2-col feature layouts stack below 768px
-- Stats row stacks vertically on mobile
-- Section padding scales: 128px → 96px → 64px → 40px
-
----
-
-## 11. Do's and Don'ts
-
-### Do
-- Dark surfaces hierarchy: Void → Deep Teal → Dark Forest → Forest
-- Display type at weight 330–400
-- Neon Green reserved for focus + critical accent
-- 9999px radius on all primary CTAs
-- Multi-layer shadow stack always
-- `ss03` on all text
-- Inter 420/550 on dark for optical correction
-- Tabular figures for numeric data
-- Section separation 96–128px
-- Frosted glass on sticky navs (`backdrop-filter: blur`)
-- Pair color with text/shape — never color alone
-- Respect `prefers-reduced-motion`
-
-### Don't
-- No warm brand colors (orange/red/yellow outside desaturated semantic)
-- No weights above 500 for NHG body copy
-- No Neon Green on large surfaces — point accent only
-- No sharp 0px corners on interactive elements
-- No single-layer `box-shadow` on cards
-- No bright backgrounds — dark-first always
-- No negative letter-spacing on headings
-- No bounce/spring/elastic motion curves
-- No decorative icons
-- No three+ properties animating simultaneously
-- No `<form>` submission handlers when inline buttons work — avoid accidental submits
-
----
-
-## 12. Design Tokens (Copy-Paste CSS)
-
-```css
-:root {
-  /* Surfaces */
-  --color-void: #000000;
-  --color-deep-teal: #02090A;
-  --color-dark-forest: #061A1C;
-  --color-forest: #102620;
-  --color-dark-card-border: #1E2C31;
-
-  /* Text */
-  --color-white: #FFFFFF;
-  --color-muted: #A1A1AA;
-  --color-shade-50: #71717A;
-  --color-shade-60: #52525B;
-  --color-shade-70: #3F3F46;
-
-  /* Accent */
-  --color-neon-green: #36F4A4;
-  --color-neon-green-glow: rgba(54,244,164,0.15);
-
-  /* Semantic */
-  --color-success: #36F4A4;
-  --color-warning: #F5C563;
-  --color-danger:  #F47272;
-  --color-info:    #7FB8F5;
-
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
-  --radius-pill: 9999px;
-
-  /* Shadows */
-  --shadow-l1: 0 0 0 1px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.03);
-  --shadow-l2: 0 0 0 1px rgba(0,0,0,0.1), 0 2px 2px rgba(0,0,0,0.1),
-               0 4px 4px rgba(0,0,0,0.1), 0 8px 8px rgba(0,0,0,0.1),
-               inset 0 1px 0 rgba(255,255,255,0.04);
-  --shadow-l3: var(--shadow-l2), 0 24px 48px -12px rgba(0,0,0,0.4);
-  --shadow-l4: var(--shadow-l3), 0 48px 80px -20px rgba(0,0,0,0.6);
-  --shadow-focus: 0 0 0 2px #36F4A4, 0 0 0 6px rgba(54,244,164,0.15);
-
-  /* Motion */
-  --duration-instant: 50ms;
-  --duration-fast: 150ms;
-  --duration-base: 250ms;
-  --duration-slow: 400ms;
-  --duration-slower: 600ms;
-  --duration-theatrical: 1200ms;
-
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-exit:     cubic-bezier(0.7, 0, 0.84, 0);
-  --ease-emphasis: cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Spacing (8px base) */
-  --space-1: 4px;   --space-2: 8px;   --space-3: 12px; --space-4: 16px;
-  --space-5: 24px;  --space-6: 32px;  --space-7: 48px; --space-8: 64px;
-  --space-9: 96px;  --space-10: 128px;
-}
-```
-
----
-
-## 13. Quick-Reference Prompts
-
-- **Hero**: Void bg, 96px/330 NHG headline white, 20px/500 subtitle `#A1A1AA`, white pill + ghost pill. Optional green atmospheric halo behind primary CTA.
-- **Feature Card**: Deep Teal bg, 1px `#1E2C31` border, 12px radius, L1 shadow → L2 on hover over 400ms, 32px/360 white heading, 18px/420 `#A1A1AA` body.
-- **Stats**: Dark Forest bg, 90.74px/750 white numbers with tabular figures, 14px/500 `#A1A1AA` labels, 64px gap, optional 1px `rgba(255,255,255,0.06)` dividers on desktop.
-- **Sticky Nav**: transparent → `rgba(16,38,32,0.8)` + `backdrop-filter: blur(20px)` on scroll, 16px/500 white links tracked 0.4px, white pill CTA, 72px height.
-- **Input**: `rgba(255,255,255,0.03)` fill, 1px `#3F3F46` border, 8px radius, Neon Green focus with 3px glow halo, 13px/500 `#A1A1AA` label above.
-- **Badge**: `rgba(255,255,255,0.08)` + `blur(12px)` frost, 1px `rgba(255,255,255,0.1)` border, 6px radius, 13px/500 white text.
+## 5. Never
+
+- Apply the marketing-design skill (dark void, neon, 96 px display) to anything under `src/`.
+- Restyle the live app, tokens or primitives without the owner asking for the migration.
+- Ship React before the owner approved the HTML prototype.
+- Invent a number the data has not earned (a goal nobody set, a rate nobody measured).
+- Use a gradient that carries no meaning — the aurora ground, glass, avatar, medal and alert wash are the only gradients.

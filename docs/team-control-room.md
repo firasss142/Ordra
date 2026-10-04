@@ -1,7 +1,8 @@
 # Salle de contrôle (/team) — v6
 
 **v6 (2026-10-04)** = v5's content in the « Aurore » look (`prototypes/team-v6.html`,
-design-system §4.25): the day's work as a waffle + the six numbers as tiles, one live
+design-system §4.25 — since the same day the reference implementation of the house
+language, §1–§9): the day's work as a waffle + the six numbers as tiles, one live
 card per agent in her colour (ring done / in hand, four numbers, the red « non appelées »
 box), the period table with medals, her drawer in frosted glass. Changes of substance:
 « Actif » (10-minute windows) became **« En poste »** — her actions chained, a pause over

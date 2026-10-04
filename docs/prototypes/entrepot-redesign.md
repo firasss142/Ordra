@@ -187,6 +187,10 @@ il n'y a rien à imprimer.
 
 
 
+> **Historique.** Ces jetons décrivent la console d'avant « Aurore ». Depuis le
+> 4 octobre 2026 la référence visuelle est `docs/design-system.md` §1–§9 (fond aurore,
+> verre, ombre douce au repos, encre `#0F1728`) ; la liste ci-dessous n'est plus une règle.
+
 Repris tel quel de `src/app/globals.css` — aucun token nouveau :
 
 - fonds `--bg-page #F6F6F7` / cartes `#FFFFFF`, bordures `#E1E3E5`, rayon 10 px, sans ombre au repos
