@@ -118,14 +118,14 @@ export const NAV_GROUPS: readonly NavGroupDef[] = [
     ],
   },
   {
-    // Post-handover tracking. « Tableau livraison » (/in-delivery) left the bar
-    // on 2026-10-03: the /delivery manager board covers it, and its page stays
-    // reachable by URL until the suivi-livraison deletion phase.
+    // After the parcel leaves: the worklist (which parcel to act on now) and
+    // Transporteurs (is each carrier doing its job?). Suivi transporteur and
+    // Tableau livraison were retired 2026-10-03 (docs/carrier-scorecard.md).
     id: "livraison",
     icon: Truck,
     items: [
       { key: "deliveryWorklist", href: "delivery", icon: PackageCheck, prefetchRoute: "delivery" },
-      { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Route, prefetchRoute: "warehouse" },
+      { key: "carriers", href: "carriers", icon: Route },
     ],
   },
   {

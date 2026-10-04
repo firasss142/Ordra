@@ -123,7 +123,10 @@ export function DeliveryTopic({ user, marketId, marketCode }: TopicProps) {
                     </td>
                     <td className={td}>{siteName(c.warehouse_id)}</td>
                     <td className={`${td} text-end tabular-nums`}>
-                      {c.delivery_fee || c.return_fee ? (
+                      {c.code === "darb_assabil" ? (
+                        // No flat fee for Darb (owner, 2026-10-03): each parcel costs its invoice.
+                        <span className="text-[12.5px] text-ink-secondary">{t("delivery.feesInvoiced")}</span>
+                      ) : c.delivery_fee || c.return_fee ? (
                         <>
                           {c.delivery_fee} · {c.return_fee} <span className="text-[12.5px] text-ink-secondary">{currency}</span>
                         </>
@@ -168,6 +171,11 @@ export function DeliveryTopic({ user, marketId, marketCode }: TopicProps) {
         <NumberSetting form={form} marketId={marketId} settingKey="zone_low_delivery_rate_pct" {...field("zone_low_delivery_rate_pct")} max={100} editable={editRisk} help={(n) => t("fields.zone_low_delivery_rate_pct.help", { n })} />
         <NumberSetting form={form} marketId={marketId} settingKey="zone_min_sample" {...field("zone_min_sample")} min={1} editable={editRisk} help={(n) => t("fields.zone_min_sample.help", { n })} />
         <NumberSetting form={form} marketId={marketId} settingKey="carrier_stall_days" {...field("carrier_stall_days")} min={1} max={90} editable={editRisk} help={(n) => t("fields.carrier_stall_days.help", { n })} />
+      </SettingsCard>
+
+      <SettingsCard title={t("delivery.scorecardTitle")} description={t("delivery.scorecardDesc")}>
+        <NumberSetting form={form} marketId={marketId} settingKey="carrier_delivery_target_pct" {...field("carrier_delivery_target_pct")} min={1} max={100} editable={editRisk} help={(n) => t("fields.carrier_delivery_target_pct.help", { n })} />
+        <NumberSetting form={form} marketId={marketId} settingKey="carrier_late_days" {...field("carrier_late_days")} min={1} max={30} editable={editRisk} help={(n) => t("fields.carrier_late_days.help", { n })} />
       </SettingsCard>
 
       <SettingsCard title={t("delivery.boardTitle")} description={t("delivery.boardDesc")}>

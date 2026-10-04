@@ -29,7 +29,7 @@ describe("visibleNav", () => {
       groups: [
         ["commandes", ["orders", "archived", "duplicates"]],
         ["logistique", ["warehouseToday", "warehouseOut", "warehouseReturns", "warehouseStock"]],
-        ["livraison", ["deliveryWorklist", "carrierTracking"]],
+        ["livraison", ["deliveryWorklist", "carriers"]],
         ["finances", ["pnl", "productsMargins", "stockInventory", "purchases", "adSpend", "investors"]],
         ["clients", ["activeProspects", "customerVoice", "messages"]],
         ["equipe", ["controlRoom", "performanceLive", "access"]],
@@ -44,9 +44,10 @@ describe("visibleNav", () => {
     expect(nav.groups.find(([id]) => id === "systeme")?.[1]).toEqual(["reglages"]);
   });
 
-  it("no longer lists Tableau livraison — the /delivery board replaced it (page stays reachable by URL)", () => {
+  it("no longer lists the two retired boards — Transporteurs replaced them", () => {
     const all = flattenNav(visibleNav("super_admin")).map((e) => e.item.key);
     expect(all).not.toContain("inDeliveryBoard");
+    expect(all).not.toContain("carrierTracking");
   });
 
   it("gives no sidebar entries to the roles that have their own shell", () => {

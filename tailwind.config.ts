@@ -101,6 +101,32 @@ const config: Config = {
           "info-ink": "var(--oms-info-ink)",
           "info-bg": "var(--oms-info-bg)",
         },
+        // Transporteurs — scoped extension, the approved prototype's palette
+        // (prototypes/transporteurs-v2.html). Values live in globals.css. The
+        // carrier ACCOUNT colour is not here: it is data (carriers.accent_color)
+        // and reaches the page as the CSS variable --c.
+        tr: {
+          "ink-1": "var(--tr-ink-1)",
+          "ink-2": "var(--tr-ink-2)",
+          "ink-3": "var(--tr-ink-3)",
+          "ink-4": "var(--tr-ink-4)",
+          line: "var(--tr-line)",
+          "line-2": "var(--tr-line-2)",
+          "line-strong": "var(--tr-line-strong)",
+          well: "var(--tr-well)",
+          seg: "var(--tr-seg)",
+          sunken: "var(--tr-sunken)",
+          hover: "var(--tr-hover)",
+          ok: "var(--tr-ok)",
+          "ok-ink": "var(--tr-ok-ink)",
+          warn: "var(--tr-warn)",
+          "warn-ink": "var(--tr-warn-ink)",
+          bad: "var(--tr-bad)",
+          "bad-ink": "var(--tr-bad-ink)",
+          "bad-bg": "var(--tr-bad-bg)",
+          bar: "var(--tr-bar)",
+          "bar-dark": "var(--tr-bar-dark)",
+        },
         // Products console — scoped extension. Aliases only; the values live in
         // globals.css. Seven tokens, because red/amber/blue reuse status.* and
         // only the grass green was genuinely missing (status.success is a teal,

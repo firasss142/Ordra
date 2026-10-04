@@ -29,5 +29,5 @@ warehouse agents and investors have their own shells and no sidebar.
 - « Aller à… » searches the bar's pages (accent-insensitive) and offers market switches to a
   super_admin. Finding an order is a different feature.
 - `[` toggles the rail (not while typing, not on a phone).
-- « Tableau livraison » (/in-delivery) left the bar: the /delivery board replaces it; the page
-  stays reachable by URL until the suivi-livraison deletion phase.
+- Livraison is Suivi livraison + Transporteurs; the old boards (Suivi transporteur, Tableau
+  livraison) were retired on main the same day (docs/carrier-scorecard.md).

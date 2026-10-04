@@ -135,9 +135,11 @@ describe("Sidebar — what each role sees", () => {
     ]);
   });
 
-  it("lists Livraison's two working pages, without the superseded Tableau livraison", () => {
+  it("LIVRAISON is the worklist, then Transporteurs — the two old boards are gone", () => {
     renderSidebar({ user: superAdmin });
-    expect(groupLinks(/^Suivi livraison$/)).toEqual(["/fr/delivery", "/fr/warehouse/carrier-tracking"]);
+    expect(groupLinks(/^Suivi livraison$/)).toEqual(["/fr/delivery", "/fr/carriers"]);
+    expect(screen.getByRole("link", { name: /^Transporteurs$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Suivi transporteur/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Tableau livraison/ })).not.toBeInTheDocument();
   });
 

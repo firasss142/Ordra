@@ -12,8 +12,11 @@ import { withRouteErrors } from "@/lib/journal/route-errors";
  * opens; the claim_darb_sync RPC enforces "at most once per throttle window" per
  * market, so N browser refreshes collapse to (at most) one carrier sweep.
  *
- * Only NON-TERMINAL Darb orders are swept (vendor guidance: stop polling once a
- * shipment is completed/returned/cancelled). Each is read by its internal _id
+ * Only NON-TERMINAL Darb orders are swept: Darb's word stops at completed /
+ * returned, and an order closed in Ordra is not polled. A Darb `cancelled` is
+ * NOT the end — Darb keeps working the parcel and hands it back (`released`) or
+ * delivers it after all (`completed`); 445 + 37 parcels went silent before
+ * 20261004100300 because this sweep stopped at `cancelled`. Each is read by its internal _id
  * (status + real reference) and written via promote_darb_status — refreshing the
  * slug, repairing tracking_number, and promoting orders.status for terminals.
  *
@@ -28,7 +31,9 @@ import { withRouteErrors } from "@/lib/journal/route-errors";
 const THROTTLE_SECONDS = 600; // 10 minutes
 const CHUNK = 25;
 const CONCURRENCY = 3;
-const TERMINAL_SLUGS = ["completed", "returned", "cancelled"];
+const TERMINAL_SLUGS = ["completed", "returned"];
+/** Closed in Ordra: nothing Darb says can move these (promote_darb_status ignores them). */
+const CLOSED_STATUSES = ["delivered", "returned", "rejected", "deleted", "cancelled"];
 
 interface OrderRow {
   id: string;
@@ -65,10 +70,9 @@ async function handlePOST(_req: NextRequest) {
     );
   }
 
-  // Select NON-TERMINAL Darb orders for the market. Terminal orders (delivered/
-  // returned/cancelled) never change carrier-side — don't re-poll them. We gate
-  // on the cached slug: anything not in the terminal slug set (incl. NULL) is
-  // still in-flight from our projection's POV.
+  // Select NON-TERMINAL Darb orders for the market: Darb has not said
+  // completed / returned (a `cancelled` parcel can still come back or be
+  // delivered), and Ordra has not closed the order.
   const { data: orderRows } = await supabase
     .from("orders")
     .select(
@@ -76,6 +80,7 @@ async function handlePOST(_req: NextRequest) {
     )
     .eq("market_id", marketId)
     .eq("carriers.code", "darb_assabil")
+    .not("status", "in", `(${CLOSED_STATUSES.join(",")})`)
     .or(
       `carrier_status_slug.is.null,carrier_status_slug.not.in.(${TERMINAL_SLUGS.join(",")})`,
     );

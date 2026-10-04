@@ -225,7 +225,11 @@ export function CarrierDrawer({
       </DrawerSection>
 
       <DrawerSection title={t("delivery.drawer.fees")}>
-        {editable ? (
+        {isDarb ? (
+          // Darb bills every delivered parcel; Ordra reads the invoice. A flat
+          // fee here would be read nowhere (owner, 2026-10-03).
+          <p className="m-0 text-[13px] text-ink-secondary">{t("delivery.drawer.feesDarb")}</p>
+        ) : editable ? (
           <>
             <div className="grid grid-cols-2 gap-[12px]">
               <Field label={t("delivery.drawer.feeDelivery")}>

@@ -125,23 +125,6 @@ export const CARRIER_PHASE_STATUSES: OrderStatus[] = [
 ];
 
 /**
- * The carrier phase in journey order, as a tuple, for boards that key a record
- * by it. `unverified` is left out: it is a problem flag, not a leg of the trip.
- */
-export const CARRIER_BOARD_STATUSES = [
-  "at_carrier",
-  "dispatched",
-  "deposit",
-  "in_transit",
-  "out_for_delivery",
-  "delivery_delayed",
-  "returning",
-  "to_be_returned",
-] as const;
-
-export type CarrierBoardStatus = (typeof CARRIER_BOARD_STATUSES)[number];
-
-/**
  * Still moving: neither settled nor sitting on our shelf. This is the set that
  * reporting must count as "in flight" — leaving the four carrier statuses out
  * of it would move a month of delivery figures.

@@ -150,6 +150,30 @@
      white — a focus ring that fails WCAG 2.4.11 is not a focus ring. */
   --focus-ring: var(--brand);
 
+  /* Transporteurs — the approved prototype's palette (prototypes/transporteurs-v2.html).
+     Status hues ship with a word (never colour alone). The carrier account colour
+     is data (carriers.accent_color), set per card as --c. */
+  --tr-ink-1: #15171A;
+  --tr-ink-2: #5A5F66;
+  --tr-ink-3: #7E848B;
+  --tr-ink-4: #B3B8BE;
+  --tr-line: #E3E5E8;
+  --tr-line-2: #EBEDF0;
+  --tr-line-strong: #D2D5D9;
+  --tr-well: #F1F2F4;
+  --tr-seg: #ECEDF0;
+  --tr-sunken: #FAFAFB;
+  --tr-hover: #F7F8F9;
+  --tr-ok: #1E9E55;
+  --tr-ok-ink: #166534;
+  --tr-warn: #E0A23A;
+  --tr-warn-ink: #8A5A0A;
+  --tr-bad: #D64235;
+  --tr-bad-ink: #B42318;
+  --tr-bad-bg: #FCECEA;
+  --tr-bar: #CDD1D6;
+  --tr-bar-dark: #5A5F66;
+
   /* Products console — aliases only. status-critical / status-warning /
      status-action already carry red, amber and blue at the right contrast;
      near-duplicates would mean two reds that drift. */
@@ -489,6 +513,14 @@
   font-family: var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.875rem;
   color: var(--text-primary);
+}
+
+/* Arabic pages set the Arabic face FIRST. IBM Plex Sans Arabic carries Latin
+   and digits too, so a figure reads in the same face as the Arabic around it —
+   the pairing the owner chose in prototypes/products-v6.html (2026-10-03).
+   Surfaces that name Cairo (agent shell, Entrepôt mobile) keep their own stack. */
+:root[dir="rtl"] {
+  font-family: var(--font-sans-arabic), var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ── Entrepôt mobile ────────────────────────────────────────────────────────

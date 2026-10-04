@@ -211,8 +211,8 @@ Edited at Réglages › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Navigation (as coded in lib/navigation/sidebar-nav.ts → TOP_ITEMS + NAV_GROUPS)
 Dashboard (no group) · Commandes → Commandes, Archivées, Doublons · Entrepôt (id
-`logistique`) → Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison, Suivi
-transporteur · Finances (canViewFinances) → P&L global, Produits & marges, Stock &
+`logistique`) → Aujourd'hui, Sortir, Rentrer, Stock · Livraison → Suivi livraison,
+Transporteurs · Finances (canViewFinances) → P&L global, Produits & marges, Stock &
 inventaire, Achats, Dépenses pub, Investisseurs · Clients → Prospects, Voix du client,
 Messages · Équipe → Salle de contrôle, Performance, Accès · Système → Réglages (super_admin +
 market_manager), Journaux (super_admin). Head/foot pinned, 64 px rail, ⌘K « Aller à… », market
@@ -222,7 +222,7 @@ Several live pages are NOT reachable from the sidebar and are reached by URL or 
 link only: /warehouse/preparation (→ /warehouse/out), /warehouse/scan, /warehouse/count,
 /warehouse/stock/[productId], /warehouse/dispatch,
 /warehouse/history, /warehouse/settings, /dashboard/alerts, /assign, /unassigned,
-/confirmation-flow, /in-delivery (Tableau livraison, left the bar 2026-10-03), /settings/integrations, /settings/statuses. Removing a nav
+/confirmation-flow, /profile, /settings/integrations, /settings/statuses. Removing a nav
 entry has not meant deleting its page — check before assuming a route is dead.
 
 ## Design system
@@ -248,6 +248,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Delivery follow-up — customers, delivery_actions, zones, worklist, the /delivery screen
   (agent page + manager board shipped; `lost` status and the commission rule are not):
   docs/delivery-worklist.md + plans/suivi-livraison.md
+- Transporteurs (/carriers) — is each carrier doing its job; `carrier_parcel_outcome`, the ONE
+  failed-parcel definition (shared with Produits v6), the account colour, what replaced Suivi
+  transporteur and Tableau livraison: docs/carrier-scorecard.md + plans/transporteurs.md
 - Ad spend + Meta sync (break-even math, cost stack, cohort basis): docs/ad-spend.md +
   plans/ad-spend-meta-sync-redesign.md (NOT ad-spend-campaign-redesign.md — superseded)
 - Ad spend mapping — per ad set, several products per campaign, dated history; meta
@@ -271,6 +274,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   prototypes/acces-v2.html (structure and rationale in acces-v1.html)
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
+- Produits v6 — the cohort (orders received in the period, followed to today), the shared parcel
+  outcome, the money (Encaissé, Darb invoices, packaging per parcel that leaves), the pipe and the
+  screens: docs/products-cohort.md + plans/products-redesign-v6.md
+- Darb at its real price app-wide (order_delivery_cost) and the « cancelled » sync fix + gated
+  history backfill: docs/darb-assabil-sync.md §6
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Libya destinations (Darb city/zone catalogue, refresh script, the one picker, phone guard): docs/darb-destinations.md
@@ -339,10 +347,9 @@ decision, not a typo.
    → docs/delivery-worklist.md §2
 2. **`line-strong` (#DADCE0, Tailwind) ≠ `--border-strong` (#C9CCCF, CSS var)** — same
    intent, two values. → docs/design-system.md §2
-3. **The delivery worklist and the manager board are both live at /delivery, but the surfaces
-   its plan marks for deletion (Relances, Tableau livraison) are still live.** The board now
-   covers what /in-delivery showed; deleting the old pages is the plan's deletion phase.
-   → docs/delivery-worklist.md
+3. ~~The surfaces the delivery plan marked for deletion are still live.~~ Resolved
+   2026-10-03: Relances, Tableau livraison and Suivi transporteur are deleted; their URLs
+   redirect to /carriers. → docs/carrier-scorecard.md
 4. **The reassign sheet on /delivery says the delivery commission follows the new owner; the
    ledger does not do that yet.** Decision 38 changed the rule to "assigned_to at delivered",
    but `agent_commission_ledger` still attributes to the agent of the last confirmed

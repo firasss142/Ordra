@@ -169,6 +169,10 @@ export interface MarketSettings {
   zone_low_delivery_rate_pct?: number;
   /** Minimum finished orders before a zone's rate is trusted at all. */
   zone_min_sample?: number;
+  /** Transporteurs: delivery rate (%) a carrier must reach to be « on target ». */
+  carrier_delivery_target_pct?: number;
+  /** Transporteurs: days on the road after pickup before a parcel counts as late. */
+  carrier_late_days?: number;
   /** Prior returns + rejections that make a customer a repeat risk. */
   risk_min_prior_failures?: number;
   /** Hours a proactive call task stays open before it expires unanswered. */
@@ -292,6 +296,8 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   high_value_threshold: 0,
   zone_low_delivery_rate_pct: 60,
   zone_min_sample: 20,
+  carrier_delivery_target_pct: 60,
+  carrier_late_days: 3,
   risk_min_prior_failures: 1,
   proactive_call_window_hours: 4,
   delivery_done_window_hours: 24,
@@ -361,6 +367,8 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "high_value_threshold",
   "zone_low_delivery_rate_pct",
   "zone_min_sample",
+  "carrier_delivery_target_pct",
+  "carrier_late_days",
   "risk_min_prior_failures",
   "proactive_call_window_hours",
   "delivery_done_window_hours",
@@ -576,6 +584,8 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   // A zone needs a real sample before its rate may condemn it: 1 would let a
   // single failed delivery mark a whole destination as weak.
   if (!isValidOptionalInt(s.zone_min_sample, 1, 100_000)) return false;
+  if (!isValidOptionalInt(s.carrier_delivery_target_pct, 1, 100)) return false;
+  if (!isValidOptionalInt(s.carrier_late_days, 1, 30)) return false;
   if (!isValidOptionalInt(s.risk_min_prior_failures, 1, 100)) return false;
   if (!isValidOptionalInt(s.proactive_call_window_hours, 1, 72)) return false;
   if (!isValidOptionalInt(s.delivery_done_window_hours, 1, 168)) return false;
