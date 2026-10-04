@@ -182,3 +182,39 @@ never reaches them before the serverless function is killed.
 - Schema/coverage check: `scripts/verify-darb-panel.ts`
 - Read path: `src/lib/carriers/darb-assabil-tracking.ts`
 - Write path: `supabase/migrations/20260817000001_promote_darb_status.sql`
+
+---
+
+## 6. What Darb costs, and following a parcel after Darb cancels it (2026-10-03)
+
+Owner's rules (plans/products-redesign-v6.md §3): no flat fee for Darb anywhere — each delivered
+parcel costs what Darb **invoiced** it; a **failed** Darb parcel costs **nothing** (Darb takes its fee
+out of delivered cash only); Tunisia keeps its carriers' flat fees until they send invoices; settled
+investor statements do not move.
+
+**Cost.** `order_delivery_cost` (`20261004100000`) — ONE row per order: Darb = the completed
+shipment's `billed_shipping_amount`, else `orders.delivery_cost_quoted`, else NULL (the reader applies
+`market_avg_delivery_cost(market)`, Darb's 30-day average invoice, and labels it an estimate); return
+cost 0 for Darb. `order_carrier_cost` (`20261004100200`) keeps its columns but is rebuilt on it: one
+row per order (it used to LEFT JOIN every shipment, so a re-sent parcel counted twice), `cost_source`
+billed / quote / average / flat, `security_invoker`. Readers: `get_dashboard_health`,
+`get_carrier_true_cost`, `get_profitability_summary` / `_daily` (repointed in the same migration),
+`/api/ad-spend/economics`, the products pages. Investor accrual already took the invoice for
+deliveries; a failed Darb parcel is now 0 and final there too (`order-facts.ts`). Réglages no longer
+asks a fee for a Darb account.
+
+**Sync.** Darb « cancelled » used to close the order for good; Darb kept working the parcel — 445
+handed back through its returns desk (`released`), 37 delivered (32 paid out). Since `20261004100300`,
+`promote_darb_status` maps a cancel AFTER pickup to `returning` (not terminal), a `released` behind a
+cancel or a return to `to_be_returned` (the bench can scan it), and keeps `completed` → `delivered`
+reachable. `/api/darb-assabil/sync-market` keeps polling a parcel whose last Darb word is `cancelled`
+and stops on orders closed in Ordra.
+
+**History.** Not touched by the fix. `supabase/scripts/darb-cancelled-history-dry-run.sql` (one
+SELECT) shows what would move — 2026-10-03 on prod: 476 → to_be_returned (485 units), 38 → delivered
+(7 770 LYD, 32 already paid out), 40 → returning, 2 → delivery_delayed, 39 stay cancelled; three
+settled investor statements (20 May → 31 Jul) cover some of them. `…-apply.sql` writes it in one
+transaction, appends history rows DATED AT DARB'S OWN EVENT (completion, hand-back, else its last
+status change; never before Ordra's cancel row) — dated today, the 38 deliveries would land in
+October in the P&L and in `carrier_parcel_outcome.outcome_at` — and deletes the WhatsApp messages the
+status change would queue. Run it only once the owner has read the dry run.

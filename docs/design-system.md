@@ -158,9 +158,17 @@ button — the ring lands on the page ground, not on the fill.
 
 **Font stack:** `var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
 
-Loaded with `next/font/google` in `src/app/[locale]/layout.tsx`: **Inter** (`--font-sans`,
-latin), **Noto Sans Arabic** (`--font-sans-arabic`), **Cairo** (`--font-cairo`, used by
-`.agent-theme` and the agent queue). There are no `@font-face` rules and no local font files.
+Loaded with `next/font/google` in `src/app/[locale]/layout.tsx`: **Plus Jakarta Sans**
+(`--font-sans`, latin, 400–800), **IBM Plex Sans Arabic** (`--font-sans-arabic`, arabic + latin,
+400–700), **Cairo** (`--font-cairo`, used by `.agent-theme` and the agent queue). There are no
+`@font-face` rules and no local font files.
+
+**Since 2026-10-03** (owner's pick in the products v6 prototype's live font switcher): Plus Jakarta
+Sans replaced Inter and IBM Plex Sans Arabic replaced Noto Sans Arabic, app-wide. The variable names
+did not change, so every stack that read the old faces reads the new ones. An Arabic page puts the
+Arabic face FIRST (`:root[dir="rtl"]` in globals.css): Plex Arabic carries Latin and digits, so a
+figure reads in the same face as the Arabic around it. Plex Arabic ships 700, so Arabic bold is real
+bold now (Noto stopped at 600). Surfaces that name Cairo keep it.
 
 > **Superseded.** This line read `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto` —
 > the system stack, from before the `next/font` work landed.

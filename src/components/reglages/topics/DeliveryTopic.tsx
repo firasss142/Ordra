@@ -123,7 +123,10 @@ export function DeliveryTopic({ user, marketId, marketCode }: TopicProps) {
                     </td>
                     <td className={td}>{siteName(c.warehouse_id)}</td>
                     <td className={`${td} text-end tabular-nums`}>
-                      {c.delivery_fee || c.return_fee ? (
+                      {c.code === "darb_assabil" ? (
+                        // No flat fee for Darb (owner, 2026-10-03): each parcel costs its invoice.
+                        <span className="text-[12.5px] text-ink-secondary">{t("delivery.feesInvoiced")}</span>
+                      ) : c.delivery_fee || c.return_fee ? (
                         <>
                           {c.delivery_fee} · {c.return_fee} <span className="text-[12.5px] text-ink-secondary">{currency}</span>
                         </>

@@ -118,6 +118,19 @@ describe("ProductVariantsEditor — les deux axes, séparés", () => {
     renderEditor({ variants: [] });
     expect(screen.getByText(t.empty)).toBeInTheDocument();
   });
+
+  // Produits v6 : l'onglet Variantes montre d'abord l'état vide du prototype ;
+  // « Ajouter une taille » / « Ajouter un pack » ouvrent l'éditeur sur le bon brouillon.
+  test("s'ouvre sur un brouillon de taille quand on le demande", () => {
+    renderEditor({ variants: [], initialDraftKind: "attribute" });
+    expect(within(draftRow()).getByLabelText(t.fields.label)).toBeInTheDocument();
+    expect(within(draftRow()).queryByLabelText(t.fields.quantity)).toBeNull();
+  });
+
+  test("s'ouvre sur un brouillon de palier quand on le demande", () => {
+    renderEditor({ variants: [], initialDraftKind: "pack" });
+    expect(within(draftRow()).getByLabelText(t.fields.quantity)).toHaveValue(2);
+  });
 });
 
 describe("ProductVariantsEditor — créer", () => {

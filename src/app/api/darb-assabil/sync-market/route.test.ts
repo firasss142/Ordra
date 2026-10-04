@@ -72,6 +72,7 @@ function darbOrder(over: Record<string, unknown> = {}) {
 
 // Router: users(market lookup) → single(); orders(select non-terminal) → returns rows;
 // carriers(in) → rows; orders(update) for not_found synced_at.
+const query = { or: [] as unknown[], not: [] as unknown[][] };
 function makeRouter(opts: { userMarket?: string; orderRows?: unknown[]; carrierRows?: unknown[] }) {
   return (table: string) => {
     if (table === "users") {
@@ -87,8 +88,14 @@ function makeRouter(opts: { userMarket?: string; orderRows?: unknown[]; carrierR
       const sel: Record<string, unknown> = {};
       sel.eq = vi.fn().mockReturnValue(sel);
       sel.in = vi.fn().mockReturnValue(sel);
-      sel.not = vi.fn().mockReturnValue(sel);
-      sel.or = vi.fn().mockResolvedValue({ data: opts.orderRows ?? [], error: null });
+      sel.not = vi.fn((...args: unknown[]) => {
+        query.not.push(args);
+        return sel;
+      });
+      sel.or = vi.fn((arg: unknown) => {
+        query.or.push(arg);
+        return Promise.resolve({ data: opts.orderRows ?? [], error: null });
+      });
       sel.then = undefined;
       c.select = vi.fn().mockReturnValue(sel);
       c.update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
@@ -106,6 +113,8 @@ function makeRouter(opts: { userMarket?: string; orderRows?: unknown[]; carrierR
 
 beforeEach(() => {
   vi.clearAllMocks();
+  query.or = [];
+  query.not = [];
   mockBuildConfig.mockReturnValue({
     id: "darb-uuid", code: "darb_assabil", apiEndpoint: "https://v2.sabil.ly",
     apiCredentials: { api_key: "k", account_id: "a" }, deliveryFee: 5, returnFee: 3,
@@ -156,6 +165,20 @@ describe("POST /api/darb-assabil/sync-market", () => {
     // each promotion went through promote_darb_status
     const promoteCalls = mockRpc.mock.calls.filter((c) => c[0] === "promote_darb_status");
     expect(promoteCalls).toHaveLength(2);
+  });
+
+  // Darb keeps working a parcel after it cancels it: it hands it back (released)
+  // or delivers it after all. Only completed / returned end the conversation; a
+  // parcel closed in ORDRA is the one not worth polling.
+  test("keeps polling a parcel Darb cancelled, and stops on orders closed in Ordra", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    mockFrom.mockImplementation(makeRouter({ orderRows: [] }));
+    mockRpc.mockImplementation(async (name: string) =>
+      name === "claim_darb_sync" ? { data: { claimed: true, last_synced_at: null }, error: null } : { data: null, error: null },
+    );
+    await POST(req());
+    expect(query.or).toEqual(["carrier_status_slug.is.null,carrier_status_slug.not.in.(completed,returned)"]);
+    expect(query.not).toContainEqual(["status", "in", "(delivered,returned,rejected,deleted,cancelled)"]);
   });
 
   test("claimed but no non-terminal orders: synced=0, no fetch", async () => {

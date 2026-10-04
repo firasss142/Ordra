@@ -36,6 +36,8 @@ beforeEach(() => {
         { id: "c1", market_id: LY, name: "Darb Assabil - Tripoli", code: "darb_assabil", delivery_fee: 10, return_fee: 5, is_active: true, warehouse_id: "w1" },
         { id: "c2", market_id: LY, name: "Darb Assabil — Benghazi", code: "darb_assabil", delivery_fee: 10, return_fee: 5, is_active: false, warehouse_id: "w2" },
         { id: "c3", market_id: LY, name: "Essai", code: "darb_assabil", delivery_fee: 0, return_fee: 0, is_active: true, warehouse_id: null },
+        { id: "c4", market_id: LY, name: "Dexpress", code: "dexpress", delivery_fee: 6, return_fee: 4, is_active: false, warehouse_id: "w1" },
+        { id: "c5", market_id: LY, name: "Sans tarif", code: "dexpress", delivery_fee: 0, return_fee: 0, is_active: false, warehouse_id: null },
       ],
     },
     [`/api/carriers/performance?market_id=${LY}`]: { data: [{ carrier_id: "c1", delivered: 174, returned: 2, delivery_rate_30d: 0.98, median_transit_hours: null, sample_size: 176 }] },
@@ -52,6 +54,7 @@ beforeEach(() => {
       ],
     },
     "/api/carriers/c1": { data: { id: "c1", name: "Darb Assabil - Tripoli", code: "darb_assabil", delivery_fee: 10, return_fee: 5, is_active: true, credentials: { account_id: "692637b42f63874515cebd63" } } },
+    "/api/carriers/c4": { data: { id: "c4", name: "Dexpress", code: "dexpress", delivery_fee: 6, return_fee: 4, is_active: false, credentials: {} } },
     "/api/carriers/c1/order-preferences": {
       data: {
         is_pickup: { value: true, canOverride: true }, allow_inspection: { value: false, canOverride: true }, is_fragile: { value: false, canOverride: true },
@@ -89,9 +92,27 @@ describe("Réglages › Livraison", () => {
     const rows = within(carriersCard()).getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("Darb Assabil - Tripoli");
     expect(rows[0]).toHaveTextContent("Tripoli");
-    expect(rows[0]).toHaveTextContent("10 · 5");
     expect(rows[0]).toHaveTextContent(/174\s?sur 176/);
-    expect(rows[2]).toHaveTextContent("non renseignés");
+    expect(rows[3]).toHaveTextContent("6 · 4");
+    expect(rows[4]).toHaveTextContent("non renseignés");
+  });
+
+  // Owner, 2026-10-03: no flat fee for Darb — Ordra reads each parcel's invoice.
+  it("prices Darb from its invoices: no flat fee shown, none missing", () => {
+    mount(admin);
+    const rows = within(carriersCard()).getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("Facture par colis");
+    expect(rows[0]).not.toHaveTextContent("10 · 5");
+    expect(rows[2]).toHaveTextContent("Facture par colis");
+    expect(rows[2]).not.toHaveTextContent("non renseignés");
+  });
+
+  it("Darb's panel explains the invoice instead of asking for a fee", async () => {
+    mount(admin);
+    await userEvent.click(within(carriersCard()).getByRole("button", { name: "Ouvrir Darb Assabil - Tripoli" }));
+    const panel = screen.getByRole("dialog");
+    expect(within(panel).queryByRole("spinbutton", { name: "Livraison" })).not.toBeInTheDocument();
+    expect(within(panel).getByText(/Darb facture chaque colis livré/)).toBeInTheDocument();
   });
 
   it("switches a carrier off from the list", async () => {
@@ -110,17 +131,22 @@ describe("Réglages › Livraison", () => {
     expect(screen.getByText("Désactivé : le montant ne rend jamais un colis à risque. Saisissez un montant pour l’activer.")).toBeInTheDocument();
   });
 
-  it("changes a carrier's fee from its panel", async () => {
+  it("shows a Darb account's identifiers in its panel", async () => {
     mount(admin);
     await userEvent.click(within(carriersCard()).getByRole("button", { name: "Ouvrir Darb Assabil - Tripoli" }));
+    expect(within(screen.getByRole("dialog")).getByDisplayValue("692637b42f63874515cebd63")).toBeInTheDocument();
+  });
+
+  it("changes a flat-fee carrier's fee from its panel", async () => {
+    mount(admin);
+    await userEvent.click(within(carriersCard()).getByRole("button", { name: "Ouvrir Dexpress" }));
     const panel = screen.getByRole("dialog");
-    expect(within(panel).getByDisplayValue("692637b42f63874515cebd63")).toBeInTheDocument();
     const fee = within(panel).getByRole("spinbutton", { name: "Livraison" });
     await userEvent.clear(fee);
     await userEvent.type(fee, "12");
     await userEvent.click(within(panel).getByRole("button", { name: "Enregistrer" }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/carriers/c1", expect.objectContaining({ method: "PATCH" })));
-    const patch = fetchMock.mock.calls.find(([u, i]) => u === "/api/carriers/c1" && i.method === "PATCH");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/carriers/c4", expect.objectContaining({ method: "PATCH" })));
+    const patch = fetchMock.mock.calls.find(([u, i]) => u === "/api/carriers/c4" && i.method === "PATCH");
     expect(JSON.parse(patch![1].body)).toEqual({ delivery_fee: 12 });
   });
 

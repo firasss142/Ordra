@@ -515,6 +515,14 @@
   color: var(--text-primary);
 }
 
+/* Arabic pages set the Arabic face FIRST. IBM Plex Sans Arabic carries Latin
+   and digits too, so a figure reads in the same face as the Arabic around it —
+   the pairing the owner chose in prototypes/products-v6.html (2026-10-03).
+   Surfaces that name Cairo (agent shell, Entrepôt mobile) keep their own stack. */
+:root[dir="rtl"] {
+  font-family: var(--font-sans-arabic), var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* ── Entrepôt mobile ────────────────────────────────────────────────────────
    The agent shell is the only warehouse surface that runs full-bleed on a
    phone, so it is the only one that has to reason about the notch and the

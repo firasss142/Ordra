@@ -52,6 +52,8 @@ interface Props {
   currencySymbol?: string;
   /** Called after any successful write so the page can refetch. */
   onChanged: () => void;
+  /** Open on a draft of this axis (the edit page's empty state asked for one). */
+  initialDraftKind?: VariantKind;
 }
 
 type Draft = {
@@ -89,11 +91,14 @@ export function ProductVariantsEditor({
   variants,
   currencySymbol,
   onChanged,
+  initialDraftKind,
 }: Props) {
   void currencySymbol; // rendered by the parent's money chrome, not here
   const t = useTranslations("products.editV2.variantsEditor");
 
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(() =>
+    initialDraftKind ? emptyDraft(initialDraftKind) : null,
+  );
   const [edits, setEdits] = useState<Record<string, Partial<EditorVariant>>>({});
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

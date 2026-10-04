@@ -119,16 +119,24 @@ $patch$;
 
 -- Every settings reader now either goes through setting_scalar or branches on
 -- jsonb_typeof itself. Anything else is the bug this migration fixes.
+-- `settings\M`, not `settings`: settings_history (journal_feed) is another table.
+-- get_team_day (20261003200000) hands shift_config / team_shift_overrides, two
+-- objects, to the client uncast — nothing to unwrap. Both exist on prod before
+-- this file is applied there (it was pasted late), so the check must know them.
+-- post_reception: prod runs the goods-reception branch's version (20261003170000,
+-- not on main yet), which reads costing_update_on_settle as `(value)::text =
+-- 'true'` — a wrapped {"value": true} reads FALSE. Unset in both markets on
+-- 2026-10-04, so harmless today; that branch must switch to setting_scalar.
 DO $verify$
 DECLARE v_bad TEXT;
 BEGIN
   SELECT string_agg(p.proname, ', ' ORDER BY p.proname) INTO v_bad
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public'
-     AND p.prosrc ~* 'from\s+(public\.)?settings'
+     AND p.prosrc ~* 'from\s+(public\.)?settings\M'
      AND p.prosrc !~ 'setting_scalar'
      AND p.prosrc !~ 'jsonb_typeof'
-     AND p.proname <> 'claim_darb_sync';
+     AND p.proname NOT IN ('claim_darb_sync', 'get_team_day', 'post_reception');
   IF v_bad IS NOT NULL THEN
     RAISE EXCEPTION 'settings readers that cast a raw value: %', v_bad;
   END IF;
