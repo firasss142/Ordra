@@ -170,7 +170,8 @@ function sessionsOf(mins: number[]): { a: number; b: number }[] {
   return out;
 }
 
-function stretchesOf(mins: number[]): { b: number; e: number; n: number }[] {
+/** Her day chained into stretches (shared with Performance › Équipe). Minutes must be sorted. */
+export function stretchesOf(mins: number[]): { b: number; e: number; n: number }[] {
   const out: { b: number; e: number; n: number }[] = [];
   for (const m of mins) {
     const cur = out[out.length - 1];

@@ -4709,273 +4709,11 @@
         "unassigned": "non assignée"
       }
     },
-    "perf": {
-      "title": "Performance équipe",
-      "subtitle": "Débit par heure active × taux de confirmation — les deux mesures qui comptent.",
-      "loadError": "Impossible de charger la performance. Réessayez dans un instant.",
-      "productFilter": "Filtrer par produit",
-      "allProducts": "Tous les produits",
-      "maskHint": "taux masqué sous 10 traitées",
-      "periods": {
-        "label": "Période",
-        "yesterday": "Hier",
-        "7d": "7 jours",
-        "30d": "30 jours",
-        "custom": "Personnalisé",
-        "from": "du",
-        "to": "au"
-      },
-      "strip": {
-        "treated": "Traitées",
-        "treatedCap": "commandes menées à un verdict",
-        "rate": "Taux",
-        "rateCap": "pondéré, {c} / {t}",
-        "hours": "Heures",
-        "hoursCap": "équipe entière",
-        "throughput": "Débit",
-        "perHour": "/ h",
-        "throughputCap": "médiane des agents",
-        "teamGoal": "Objectif équipe",
-        "teamGoalOf": "/ {target} conf."
-      },
-      "ranking": {
-        "title": "Classement",
-        "hint": "confirmées / heure active · cible {target}",
-        "empty": "Pas assez d'activité pour classer qui que ce soit sur cette période.",
-        "rate": "taux",
-        "productRate": "taux produit",
-        "throughput": "débit",
-        "treated": "traitées",
-        "days": "{n} j",
-        "confPerHour": "conf/h",
-        "streak": "série {n} j",
-        "streakTitle": "jours actifs consécutifs à 3/3 objectifs — meilleure série sur 14 j : {best}",
-        "ctaRate": "Objectif taux {v} %",
-        "ctaThroughput": "Objectif débit {v}/h",
-        "ctaTitle": "Fixe cet objectif pour l'agent (visible dans son suivi)",
-        "ctaNoPerm": "Réservé aux managers",
-        "targetSaved": "Objectif enregistré",
-        "targetFailed": "Objectif non enregistré",
-        "unranked": "Hors classement :",
-        "noActivity": "aucune action",
-        "littleActivity": "{time} d'activité"
-      },
-      "chart": {
-        "title": "Carte débit × taux",
-        "aria": "Carte débit contre taux de confirmation par agent",
-        "xAxis": "traitées / heure active",
-        "yAxis": "taux de confirmation %",
-        "refTeam": "équipe {rate}",
-        "refMedian": "médiane {v}",
-        "q": {
-          "reliableSlow": "Fiable · lent",
-          "target": "Cible",
-          "weak": "Faible",
-          "fastLossy": "Rapide · perd des leads"
-        }
-      },
-      "products": {
-        "title": "Par produit",
-        "hint": "le taux d'un produit est le plafond de l'équipe",
-        "product": "Produit",
-        "treated": "Traitées",
-        "teamRate": "Taux conf. équipe",
-        "min": "Min (pire)",
-        "team": "Équipe",
-        "max": "Max (meilleur)",
-        "spread": "Écart max entre agents",
-        "pts": "{n} pts",
-        "noSpread": "moins de deux agents à 10 traitées",
-        "others": "Autres ({n})",
-        "insufficient": "volume insuffisant",
-        "empty": "Aucune commande traitée sur la période."
-      },
-      "presence": {
-        "title": "Présence",
-        "hint": "heures actives par jour",
-        "agent": "Agent",
-        "total": "Total",
-        "treated": "traitées",
-        "confirmed": "conf.",
-        "absent": "absente",
-        "days": "{n} j",
-        "l0": "0 h",
-        "l1": "< 1 h",
-        "l2": "1 – 2 h",
-        "l3": "2 – 3 h",
-        "l4": "3 h +",
-        "openDay": "{agent} — {day}",
-        "openAgent": "{agent} — vue d'ensemble de la période"
-      }
-    },
-    "drawer": {
-      "close": "Fermer",
-      "presence": {
-        "online": "en ligne",
-        "idle": "inactive depuis peu",
-        "offline": "hors ligne"
-      },
-      "today": "Aujourd'hui",
-      "calls": "appels",
-      "treated": "traitées",
-      "confirmed": "confirmées",
-      "activity": "activité",
-      "goalsToday": "Objectifs du jour",
-      "noActionToday": "Aucune action aujourd'hui.",
-      "goalsPeriod": "Objectifs — période",
-      "confPerHour": "conf/h · cible {target}",
-      "streak": "série (j)",
-      "bestStreak": "meilleure série 14 j",
-      "daysActive": "jours actifs",
-      "rules": "Objectifs du jour : volume ≥ {volume} traitées · qualité ≥ {rate} % (dès {min} traitées) · hygiène : 0 rappel dépassé, 0 commande > 24 h sans tentative.",
-      "loading": "Chargement…",
-      "byProduct": "Par produit — période",
-      "vsTeam": "{d} pts vs équipe",
-      "noneTreated": "Aucune commande traitée sur la période.",
-      "queue": "File actuelle",
-      "queueEmpty": "File vide.",
-      "rejections": "Rejets — période",
-      "unknownReason": "Motif non renseigné",
-      "vagueReason": "⚠ motif à préciser",
-      "noRejections": "Aucun rejet sur la période.",
-      "takeaway": "À retenir",
-      "takeawayRate": "Le taux ({rate}) est le point faible — objectif {target} % : ralentir le rythme et qualifier avant de rejeter.",
-      "takeawayThroughput": "Le taux tient ; c'est le débit ({thr}/h) qui peut monter — objectif {target}/h.",
-      "takeawayNone": "Pas assez d'activité pour un verdict sur cette période.",
-      "takeawayOrphan": "{n} commande(s) attendent dans sa file alors qu'elle est hors ligne : les récupérer d'abord."
-    },
-    "dayDrawer": {
-      "close": "Fermer",
-      "loading": "Chargement…",
-      "loadError": "Impossible de charger cette journée.",
-      "noActivity": "Aucune activité ce jour-là.",
-      "rhythm": "Rythme de téléchargement",
-      "perHour": "/h",
-      "rhythmTarget": "cible {n}/h",
-      "rhythmWindow": "Rythme, 14 derniers jours",
-      "callsLine": "{calls} appels · {touched} commandes touchées · {ratio} appels par téléchargement",
-      "figure": {
-        "assigned": "Assignées",
-        "calls": "Appels",
-        "treated": "Traitées",
-        "uploaded": "Téléchargées",
-        "rejected": "Rejetées"
-      },
-      "uploadRate": "Taux de téléchargement",
-      "rateTarget": "cible {n} %",
-      "rateLegend": "{uploaded} téléchargées sur {treated} traitées",
-      "journey": "Parcours de la journée",
-      "reach": "{attempted} appelées sur {assigned} assignées · {pct}",
-      "neverCalled": "{n} jamais appelées",
-      "outcome": {
-        "uploaded": "téléchargées",
-        "stuck": "confirmées, non téléchargées",
-        "rejected": "rejetées",
-        "pending": "sans décision"
-      },
-      "effort": "{calls} appels · {per} par commande appelée",
-      "relances": "Relances",
-      "relancesSummary": "{judged} relances mesurées · {late} au-delà de 2 h · médiane {median}",
-      "tier": {
-        "ok": "à temps",
-        "late": "tardif",
-        "abandoned": "abandonné"
-      },
-      "showCadence": "Détail des relances",
-      "hideCadence": "Masquer le détail",
-      "byProduct": "Par produit",
-      "noProducts": "Aucun produit traité ce jour-là.",
-      "thProduct": "Produit",
-      "thCalls": "Appels",
-      "thAttempted": "Tentées",
-      "thTreated": "Traitées",
-      "thUploadRate": "Taux téléch.",
-      "notSignificant": "Moins de {n} traitées — taux non significatif",
-      "hourly": "Activité par heure (00–23)",
-      "hourTitle": "{hour} h · {minutes} · {treated} traitées · {confirmed} confirmées",
-      "hourLow": "Faible",
-      "hourHigh": "Forte activité",
-      "lateDot": "Rappel tardif traité",
-      "takeaways": "Motifs de refus — constats",
-      "takeaway": {
-        "cadence": {
-          "ok": "Rappels dans les temps",
-          "late": "Rappels trop lents, pas oubliés",
-          "abandoned": "Rappels abandonnés plusieurs jours"
-        },
-        "vagueBad": "Rejets sans motif clair · {pct}",
-        "vagueOk": "Motifs de refus correctement détaillés",
-        "stuck": "{n} confirmées jamais téléchargées",
-        "openQueue": "{n} commandes ouvertes en fin de journée"
-      }
-    },
     "commissions": {
-      "verdictToPay": "{count, plural, =0 {0 agent à payer} one {# agent à payer} other {# agents à payer}} ({sum})",
-      "verdictNegative": "{count, plural, one {# solde négatif} other {# soldes négatifs}}",
-      "colBalance": "Solde",
-      "colBalanceTitle": "commissions acquises − versées, depuis le lancement",
-      "owes": "doit {amount}",
-      "disabled": "désactivée",
-      "neverPaid": "jamais payée",
-      "recordPayment": "Enregistrer un paiement…",
-      "stripLabel": "Commissions",
-      "stripCap": "{delivered, plural, =0 {0 livrée} one {# livrée} other {# livrées}} · {paid} versées",
-      "compsDelivered": "livrées <b>{n}</b> · <b>{amount}</b> de commission",
-      "card": {
-        "title": "Commissions & paiements",
-        "hint": "acquis et versé sur la période · solde depuis le lancement · taux {rate} / livrée",
-        "hintOff": "commissions désactivées pour ce marché — les soldes restent payables",
-        "hintNoRate": "aucun taux défini — rien n'est calculé tant que le taux n'est pas réglé dans Paramètres › Général",
-        "agent": "Agent",
-        "delivered": "Livrées",
-        "earned": "Acquis (période)",
-        "paid": "Versé (période)",
-        "balance": "Solde total",
-        "lastPayout": "Dernier paiement",
-        "pay": "Payer",
-        "total": "Total",
-        "netNote": "net · {toPay} à payer",
-        "settingsLink": "Taux · Paramètres →",
-        "export": "Exporter CSV",
-        "footer": "Une commission naît quand une commande confirmée par l'agent atteint « livrée », à condition qu'elle ait été téléversée après l'activation de sa commission ; rien ne la réduit. Le relevé est en écriture seule : une erreur se corrige par une écriture inverse, jamais par une suppression.",
-        "empty": "Aucun agent."
-      },
       "method": {
         "cash": "espèces",
         "bank_transfer": "virement",
         "wallet": "wallet"
-      },
-      "entry": {
-        "accrual": "acquis",
-        "reversal": "annulé",
-        "payout": "versé",
-        "adjustment": "ajustement"
-      },
-      "drawer": {
-        "title": "Commission",
-        "today": "aujourd'hui",
-        "period": "sur la période",
-        "delivered": "{n, plural, =0 {0 livrée} one {# livrée} other {# livrées}}",
-        "inflight": "en cours de livraison — estimation, pas encore acquis",
-        "inflightValue": "{n} cmd ≈ {amount}",
-        "rate": "par commande livrée",
-        "rateOverride": "taux agent",
-        "rateMarket": "taux du marché",
-        "rateOff": "commission désactivée",
-        "balance": "solde — acquis {earned} · versé {paid}",
-        "lastPayout": "dernier paiement",
-        "noPayout": "aucun paiement",
-        "recordPayment": "Enregistrer un paiement",
-        "showLedger": "Voir le relevé",
-        "hideLedger": "Masquer le relevé",
-        "ledgerEmpty": "Aucune écriture.",
-        "export": "Exporter CSV",
-        "colDate": "Date",
-        "colType": "Type",
-        "colAmount": "Montant",
-        "colDetail": "Détail",
-        "system": "système",
-        "loading": "chargement…"
       },
       "payout": {
         "title": "Enregistrer un paiement — {name}",
@@ -9408,6 +9146,228 @@
       "close": "Fermer",
       "returned": "Retournée · {s}",
       "before": "Annulée avant départ"
+    }
+  },
+  "teamPerformance": {
+    "head": {
+      "crumb": "Performance",
+      "crumbPage": "Équipe",
+      "title": "Performance équipe",
+      "sub": "{market} · {n} commandes attribuées · {from} → {to}",
+      "error": "Impossible de charger la performance de l'équipe.",
+      "loading": "Chargement…"
+    },
+    "per": {
+      "30d": "30 jours",
+      "7d": "7 jours",
+      "month": "Ce mois",
+      "custom": "Personnalisé"
+    },
+    "prev": {
+      "30d": "les 30 jours d'avant",
+      "7d": "les 7 jours d'avant",
+      "month": "le mois d'avant",
+      "custom": "les {n} jours d'avant"
+    },
+    "short": {
+      "30d": "30 j",
+      "7d": "7 j",
+      "month": "ce mois",
+      "custom": "{n} j"
+    },
+    "custom": {
+      "from": "Du",
+      "to": "Au",
+      "apply": "Appliquer"
+    },
+    "dur": {
+      "m": "{m} min",
+      "h": "{h} h",
+      "hm": "{h} h {m}"
+    },
+    "trend": {
+      "na": "Pas encore joué : les colis récents ne sont pas tous revenus",
+      "prev": "{prev} : {v}",
+      "stable": "Stable",
+      "up": "En hausse",
+      "down": "En baisse"
+    },
+    "o": {
+      "del": "Livrées",
+      "ret": "Retournées",
+      "rej": "Rejetées",
+      "junk": "Jamais réelles",
+      "pend": "En cours"
+    },
+    "o1": {
+      "del": "Livrée",
+      "ret": "Retournée",
+      "rej": "Rejetée",
+      "junk": "Jamais réelle",
+      "pend": "En cours"
+    },
+    "oDef": {
+      "del": "livrée au client",
+      "pend": "dans sa file ou en route",
+      "ret": "uploadée puis annulée ou revenue",
+      "rej": "rejetée au téléphone, « Autre » compris",
+      "junk": "pas commandé, doublon, simple info, numéro faux, supprimée"
+    },
+    "ov": {
+      "empty": "Aucune commande attribuée sur cette période.",
+      "subDel": "{n, plural, one {{nf} commande} other {{nf} commandes}}",
+      "subRet": "{n} colis · {pct} des colis partis",
+      "subRej": "{n} · dont {autre} « Autre »",
+      "subJunk": "{n} · pas commandé, doublon…",
+      "cellTip": "{label} · {n} sur 100",
+      "aria": "Sur 100 commandes : {list}",
+      "title": "Sur 100 commandes attribuées",
+      "meta": "{n} commandes · {range}",
+      "pend": "{n} en cours",
+      "pendWhere": "— dans leur file ou en route",
+      "arrows": "flèches : contre {prev}",
+      "young": "Les colis de moins de 14 jours ne sont pas tous revenus : « Retournées » va encore monter. Tendance masquée."
+    },
+    "rank": {
+      "title": "Classement",
+      "meta": "livrées pour 100 attribuées · à partir de 30 commandes",
+      "empty": "Personne n'a 30 commandes attribuées sur cette période.",
+      "hors": "Hors classement · moins de 30 commandes",
+      "horsN": "{n, plural, one {{nf} attribuée} other {{nf} attribuées}}",
+      "horsNone": "aucune commande",
+      "fn": "Fuite = ce qu'elle fait de plus que les autres agents, comptée en commandes."
+    },
+    "card": {
+      "segTip": "{label} · {p} pour 100 · {n, plural, one {{nf} commande} other {{nf} commandes}}",
+      "sub": "{n} attribuées · {d} j",
+      "place": "{rank, plural, =1 {1re place} other {{rank}e place}}",
+      "delivered": "livrées",
+      "against": "contre {prev}",
+      "noPrev": "pas de période d'avant",
+      "leak": "Sa plus grosse fuite",
+      "noLeak": "Rien au-dessus des autres",
+      "open": "Ses 3 fuites",
+      "close": "Fermer"
+    },
+    "leak": {
+      "autre": "Motif « Autre »",
+      "sub": "« {label} »",
+      "ret": "Retournées après upload",
+      "first": "Rejet dès le 1er appel",
+      "late": "1er appel après 24 h"
+    },
+    "say": {
+      "eyebrow": "À lui dire",
+      "autre": "Choisir le vrai motif, pas « Autre »",
+      "non_serieux": "Rappeler avant de classer « non sérieuse »",
+      "non_commande": "Vérifier qui a commandé avant de rejeter",
+      "simple_info": "Proposer la commande avant de rejeter",
+      "doublon": "Vérifier le doublon avant de rejeter",
+      "changement_avis": "Rassurer le client avant d'annuler",
+      "prix_eleve": "Rappeler le paiement à la livraison",
+      "produit_non_voulu": "Proposer l'autre produit au lieu d'annuler",
+      "achete_ailleurs": "Revoir ces refus ensemble",
+      "pas_de_reponse": "Rappeler à une autre heure avant de rejeter",
+      "numero_hors_service": "Réessayer le lendemain avant de rejeter",
+      "numero_invalide": "Vérifier le numéro sur WhatsApp avant de rejeter",
+      "mauvais_interlocuteur": "Demander le bon numéro avant de rejeter",
+      "raccroche": "Rappeler plus tard avant de rejeter",
+      "hors_couverture": "Revoir ces refus ensemble",
+      "ret": "Confirmer adresse et intention avant d'uploader",
+      "first": "Rappeler au moins une fois avant de rejeter",
+      "late": "Appeler chaque nouvelle commande le jour même",
+      "other": "Revoir ces refus ensemble"
+    },
+    "cmp": {
+      "her": "elle",
+      "rest": "les autres",
+      "unit": {
+        "att": "% des commandes attribuées",
+        "parcels": "% des colis partis",
+        "rej": "% des rejets"
+      }
+    },
+    "xp": {
+      "title": "Pourquoi {name} perd des commandes",
+      "meta": "{n} attribuées · {score} livrées pour 100 · {period}",
+      "room": "Ses journées dans la Salle de contrôle",
+      "close": "Fermer",
+      "ex": {
+        "att": "+{n, plural, one {{nf} commande} other {{nf} commandes}}",
+        "parcels": "+{nf} colis",
+        "rej": "+{n, plural, one {{nf} rejet} other {{nf} rejets}}"
+      },
+      "exWhy": "de plus qu'au rythme des autres",
+      "none": "Rien au-dessus des autres sur cette période."
+    },
+    "map": {
+      "title": "Débit × taux",
+      "q": "Aller vite lui coûte-t-il des commandes ?",
+      "map": "Carte",
+      "table": "Chiffres",
+      "legNow": "cette période · taille = décisions",
+      "legPrev": "┄ période d'avant",
+      "legMin": "placée à partir de 30 décisions",
+      "empty": "Pas assez de décisions pour placer les agents (30 minimum).",
+      "aria": "Débit et taux d'upload par agent",
+      "xAxis": "décisions par heure en poste →",
+      "yAxis": "↑ taux d'upload",
+      "quad": {
+        "tl": "FIABLE · LENTE",
+        "tr": "RAPIDE · FIABLE",
+        "bl": "LENTE · PERD",
+        "br": "RAPIDE · PERD DES COMMANDES"
+      },
+      "teamX": "équipe {v}/h",
+      "teamY": "équipe {v}",
+      "prevTip": "{name} · période d'avant : {x}/h · {y}",
+      "tip": "{name} · {dec} décisions en {dur} en poste → {x}/h · {y} uploadées",
+      "tipPrev": " · avant : {x}/h · {y}",
+      "th": {
+        "agent": "Agent",
+        "dec": "Décisions",
+        "shift": "En poste",
+        "rate": "Débit",
+        "up": "Taux",
+        "prev": "Période d'avant"
+      },
+      "team": "Équipe"
+    },
+    "pr": {
+      "title": "Par produit",
+      "q": "Qui ne vend pas quel produit ?",
+      "empty": "Pas assez de commandes classées sur cette période.",
+      "team": "Équipe",
+      "orders": "{n, plural, one {{nf} commande} other {{nf} commandes}}",
+      "teamTip": "Équipe · {d} livrées sur {n} → {v}/100",
+      "fewTip": "{name} · {n, plural, one {{nf} commande} other {{nf} commandes}} : trop peu",
+      "tip": "{name} · {d} livrées sur {n} → {v}/100 · équipe {team}",
+      "weakTip": " · 5 points ou plus en dessous",
+      "legRamp": "livrées pour 100 attribuées, 0 → 40",
+      "legWeak": "5 points ou plus sous l'équipe (20 commandes ou plus)",
+      "legFew": "— moins de 10",
+      "others": "+ {n} autres produits · {o} commandes"
+    },
+    "ps": {
+      "title": "Présence",
+      "q": "Qui a travaillé, quand, et combien ?",
+      "empty": "Aucune activité sur cette période.",
+      "hour": "{h} h",
+      "thisDay": "Ce jour",
+      "none": "pas d'activité",
+      "pause": "pause {d}",
+      "segTip": "{b} → {e} · {d} en poste · {n, plural, one {{nf} action} other {{nf} actions}}",
+      "total": "{n, plural, one {{nf} jour} other {{nf} jours}} · {avg}/j",
+      "wd": "D,L,M,M,J,V,S",
+      "dayTip": "{d} en poste, toute l'équipe",
+      "dayNone": "personne en poste",
+      "prevDay": "Jour d'avant",
+      "nextDay": "Jour d'après",
+      "room": "Ouvrir ce jour dans la Salle de contrôle",
+      "legShift": "en poste : actions à moins d'1 h d'écart",
+      "legPause": "pause de plus d'1 h",
+      "tz": "heure de {city}",
+      "legClick": "cliquez une colonne pour changer de jour"
     }
   }
 }
