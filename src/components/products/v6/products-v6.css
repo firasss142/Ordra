@@ -286,7 +286,7 @@
 .pv6 .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--ink-1)}
 .pv6 .field .req{color:var(--bad)}
 .pv6 .field .hint{font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.45}
-.pv6 .field .errmsg{font-size:12px;color:var(--bad-ink);margin-top:6px;font-weight:600}
+.pv6 .errmsg{font-size:12px;color:var(--bad-ink);margin-top:6px;font-weight:600}
 .pv6 .inp{width:100%;height:40px;border:1px solid var(--input);border-radius:10px;background:var(--card);padding:0 12px;font-size:14px;transition:border-color .12s,box-shadow .12s}
 .pv6 .inp:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
 .pv6 textarea.inp{height:auto;min-height:80px;padding:10px 12px;resize:vertical;line-height:1.5}
@@ -360,3 +360,11 @@
 .pv6 .skl{display:block;flex:none;max-width:100%;height:12px;border-radius:6px;background:var(--fill);animation:pv6-pulse 1.4s ease-in-out infinite}
 .pv6 .ord .skl,.pv6 .chips .skl,.pv6 .acts .skl{display:inline-block}
 @keyframes pv6-pulse{50%{opacity:.55}}
+/* /products/new — one row per size, the edit page's fields on a sunk card. */
+.pv6 .vrows{display:flex;flex-direction:column;gap:10px}
+.pv6 .vrow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr) 32px;gap:10px;align-items:start;padding:12px;border:1px solid var(--line-2);border-radius:12px;background:var(--sunk)}
+.pv6 .vrow .iconbtn{margin-top:27px}
+.pv6 .vrow .iconbtn[disabled]{opacity:.35;cursor:not-allowed}
+@media (max-width:760px){.pv6 .vrow{grid-template-columns:repeat(2,minmax(0,1fr))}.pv6 .vrow .iconbtn{margin-top:0}}
+/* A phone cannot fit the message and both buttons on one line: the buttons stay. */
+@media (max-width:520px){.pv6 .savebar>span:first-child{display:none}}

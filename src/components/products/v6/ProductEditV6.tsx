@@ -12,7 +12,7 @@
 // may make). Variants keep their own per-row save inside their tab: each size
 // is a record with its own stock.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -24,7 +24,6 @@ import {
   Coins,
   Eye,
   FileText,
-  Image as ImageIcon,
   Info,
   Layers,
   Plus,
@@ -36,14 +35,14 @@ import {
 } from "lucide-react";
 import type { Role } from "@/types";
 import { useToast } from "@/components/ui/Toast";
-import { decodeImageFile, type AvatarDecodeError } from "@/lib/client/image";
 import { marketTimezone } from "@/lib/markets";
 import { presetPeriod } from "@/lib/products/period";
-import { groupDigits, instantDayLabel, moneyText, numText } from "@/lib/products/format";
+import { currencySymbol, groupDigits, instantDayLabel, moneyText, numText } from "@/lib/products/format";
 import { useProductSheetOverview } from "@/hooks/useProductsOverview";
 import { ProductVariantsEditor, type EditorVariant, type VariantKind } from "@/components/products/ProductVariantsEditor";
 import { Amount, Num, SHARE_CLASS, Thumb, useUiLocale } from "./atoms";
 import { previewDelivery } from "./delivery-preview";
+import { Field, Group, PhotoField, SaveBar, Unit, num, validAmount, validCount } from "./form";
 import { useProductActions } from "./useProductActions";
 import "./products-v6.css";
 
@@ -122,12 +121,6 @@ const BRIEF_MAX = 280;
 const TAB_ICON: Record<TabKey, typeof Tag> = { general: Tag, prix: Coins, var: Layers, stock: Box, fiche: FileText };
 const TAB_LABEL: Record<TabKey, string> = { general: "tab_general", prix: "tab_prix", var: "tab_var", stock: "tab_stock", fiche: "tab_fiche" };
 
-const IMAGE_ERROR: Record<AvatarDecodeError, string> = {
-  "not-image": "errors.notImage",
-  "too-large": "errors.tooLarge",
-  "decode-failed": "errors.decodeFailed",
-};
-
 function str(v: number | null | undefined): string {
   return v === null || v === undefined ? "" : String(v);
 }
@@ -152,18 +145,6 @@ function fromProduct(p: EditableProductV6): Ed {
     contra: p.agent_contraindications ?? "",
     notes: p.agent_notes ?? "",
   };
-}
-
-function num(v: string): number {
-  const x = parseFloat(String(v).replace(",", "."));
-  return Number.isFinite(x) ? x : 0;
-}
-
-/** A non-negative decimal, or empty when allowed. */
-function validAmount(v: string, allowEmpty: boolean): boolean {
-  if (v.trim() === "") return allowEmpty;
-  const x = Number(v.replace(",", "."));
-  return Number.isFinite(x) && x >= 0;
 }
 
 export function ProductEditV6({
@@ -211,7 +192,6 @@ export function ProductEditV6({
   );
   const [origVNotes, setOrigVNotes] = useState(vNotes);
   const [variantDraft, setVariantDraft] = useState<VariantKind | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // The rail's averages and the stock facts: the last 30 days of this product.
   const last30 = useMemo(() => presetPeriod("30d", tz), [tz]);
@@ -253,9 +233,9 @@ export function ProductEditV6({
     if (!validAmount(ed.cogs, false)) e.cogs = t("e_cogs");
     if (!validAmount(ed.price, true)) e.price = t("e_price");
     if (!validAmount(ed.floor, true)) e.floor = t("e_floor");
-    if (!validAmount(ed.pack, true)) e.pack = t("e_cogs");
-    if (!validAmount(ed.proc, true)) e.proc = t("e_cogs");
-    if (!/^\d+$/.test(ed.thr.trim())) e.thr = t("e_thr");
+    if (!validAmount(ed.pack, true)) e.pack = t("e_amount");
+    if (!validAmount(ed.proc, true)) e.proc = t("e_amount");
+    if (!validCount(ed.thr)) e.thr = t("e_thr");
     return e;
   }
 
@@ -364,17 +344,6 @@ export function ProductEditV6({
     setDiscarding(false);
   }
 
-  async function pickImage(file: File) {
-    setImageError(null);
-    const result = await decodeImageFile(file, 768);
-    if (!result.ok) {
-      setImageError(tImage(IMAGE_ERROR[result.error]));
-      return;
-    }
-    setImage(result.dataUrl);
-    setNewImage(result.dataUrl);
-  }
-
   // ── fields (the prototype's field()) ─────────────────────────────────────
   function field(
     k: keyof Ed,
@@ -432,40 +401,22 @@ export function ProductEditV6({
           onChange={(e) => set(k, e.target.value as Ed[typeof k])}
         />
       );
-      control = o.unit ? (
-        <div className="unit">
-          {input}
-          <span className="u">{o.unit}</span>
-        </div>
-      ) : (
-        input
-      );
+      control = <Unit unit={o.unit}>{input}</Unit>;
     }
     return (
-      <div className="field">
-        <label htmlFor={id}>
-          {label}
-          {o.required ? <span className="req"> *</span> : null}
-        </label>
+      <Field id={id} label={label} required={o.required} error={err} hint={o.hint} after={o.after}>
         {control}
-        {err ? <div className="errmsg">{err}</div> : null}
-        {o.after}
-        {o.hint ? <div className="hint">{o.hint}</div> : null}
-      </div>
+      </Field>
     );
   }
 
   const group = (title: string, sub: string | null, body: ReactNode) => (
-    <div className="fg">
-      <div>
-        <div className="gt">{title}</div>
-        {sub ? <div className="gs">{sub}</div> : null}
-      </div>
+    <Group title={title} sub={sub}>
       {body}
-    </div>
+    </Group>
   );
 
-  const unit = currency === "LYD" ? "د.ل" : "DT";
+  const unit = currencySymbol(currency);
   const counted = o?.stock.counted_at ?? null;
 
   // ── panels (the prototype's panelHTML) ───────────────────────────────────
@@ -477,43 +428,16 @@ export function ProductEditV6({
           t("g_identity"),
           t("g_identity_s"),
           <>
-            <div className="field">
-              <label>{t("f_photo")}</label>
-              <div className="photo">
-                <Thumb src={image} name={ed.name || product.name} size={72} radius={14} />
-                <div className="acts">
-                  <button type="button" className="btn sm" onClick={() => fileRef.current?.click()}>
-                    <ImageIcon className="ic" aria-hidden />
-                    {t("f_replace")}
-                  </button>
-                  {image ? (
-                    <button
-                      type="button"
-                      className="btn sm"
-                      onClick={() => {
-                        setImage(null);
-                        setNewImage(null);
-                      }}
-                    >
-                      {t("f_remove")}
-                    </button>
-                  ) : null}
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void pickImage(f);
-                      e.target.value = "";
-                    }}
-                  />
-                </div>
-              </div>
-              {imageError ? <div className="errmsg">{imageError}</div> : null}
-              <div className="hint">{t("f_photo_h")}</div>
-            </div>
+            <PhotoField
+              image={image}
+              name={ed.name || product.name}
+              uploadError={imageError}
+              onChange={(v) => {
+                setImage(v);
+                setNewImage(v);
+                setImageError(null);
+              }}
+            />
             <div className="frow">
               {field("name", t("f_name"), { required: true, hint: t("f_name_h") })}
               {field("sku", t("f_sku"), { hint: t("f_sku_h") })}
@@ -947,7 +871,7 @@ export function ProductEditV6({
 
       {dirtyCount > 0 ? (
         discarding ? (
-          <div className="savebar" role="region" aria-label="save">
+          <SaveBar>
             <span>{t("sb_discardQ", { n: dirtyCount })}</span>
             <button type="button" className="btn ghost" onClick={() => setDiscarding(false)}>
               {t("sb_keep")}
@@ -955,9 +879,9 @@ export function ProductEditV6({
             <button type="button" className="btn danger" onClick={discard}>
               {t("sb_discard")}
             </button>
-          </div>
+          </SaveBar>
         ) : (
-          <div className="savebar" role="region" aria-label="save">
+          <SaveBar>
             <span>{t("sb_changes", { n: dirtyCount })}</span>
             <button type="button" className="btn ghost" onClick={() => setDiscarding(true)}>
               {t("sb_cancel")}
@@ -966,7 +890,7 @@ export function ProductEditV6({
               <Check className="ic" aria-hidden />
               {saveLabel}
             </button>
-          </div>
+          </SaveBar>
         )
       ) : null}
     </div>

@@ -83,6 +83,18 @@ whose tspans overlapped in a right-to-left run.
 The edit page saves the whole product with one button (PATCH product, image, agent content); the
 variants editor keeps its per-row save — each size is a record with its own stock.
 
+**`/products/new`** (2026-10-04) is the edit page's design for a product that does not exist yet:
+same header, tabs (Général, Prix & coûts, Variantes, Stock — the agent sheet is written after),
+dots, rail (the margin per piece, before delivery and ads) and save bar. One POST creates the
+product and its sizes with the old form's body; a 207 (product made, a size not) is checked before
+`res.ok`, which is true for every 2xx. The form vocabulary both pages use (`Field`, `Group`, `Unit`,
+`PhotoField`, `SaveBar`, `num`, `validAmount`, `validCount`) lives in `v6/form.tsx`.
+
+**Loading.** One skeleton per page, in the page's own markup (`v6/skeletons.tsx`): the route's
+`loading.tsx` and the component's first data wait render the same one, so a page fills in and never
+changes layout. SWR keeps the previous period's figures while a new one loads, so the skeleton is a
+first-load state only. `ProductsFrame` is the page padding, once, for pages and skeletons.
+
 ## 6. Darb at its real price, app-wide
 
 See `docs/darb-assabil-sync.md` §6. In short: `order_delivery_cost` (one row per order) is the cost
