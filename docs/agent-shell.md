@@ -32,3 +32,14 @@ The prototype is the spec: class names, words and reading order are its own.
   the bottom sheet on a phone. Both sit in a `.agt.agt-inline` layer (display: contents) so agent.css draws the steps.
 - Fermées' carrier chip is « Chez le transporteur » (it said « En cours »).
 - Agents read « Tentative n/3 »; managers read « Appel n/3 ».
+- **Owner review, 2026-10-05 (second round):**
+  - The activity column is **icons and numbers** on one line (`0/3`, `⏰ 18:30`, `📅 27/09 10:00`); the words live in the tooltip.
+  - A parcel with a carrier shows the carrier's **logo** (`carriers.logo_url`, else the brand file) beside its status.
+  - Pages take the screen (`.page` max 1880px, 24px gutter), not the prototype's 1400px column.
+  - Every list pages **automatically** (`components/agent/useAutoPage.tsx`): 40 rows, the next 40 as the end comes into view.
+  - The header's market search is on **every tab**, with its own query (it never filters Commandes); `/` focuses it off
+    Commandes, ↑ ↓ Enter pick, Esc clears then closes. Results land on their row: `?openOrderId=`, `/delivery?open=`, `/leads?open=`.
+  - The open order sticks under the band (`top: --ahh + 12px`), and the page ends where it ends.
+  - The Commandes tab stays mounted behind the others, so off Commandes its keys stand down and its open order closes.
+  - « Envoyer » never fails silently: no carrier chosen (no « meilleur choix » without a quote), uncovered city, still
+    loading — each says so. The Darb form renders in a portal, above the band.

@@ -10684,6 +10684,7 @@
       "hours": "{n} h",
       "unknown": "—",
       "loading": "Chargement des transporteurs…",
+      "pickFirst": "Choisissez d’abord un transporteur ci-dessus.",
       "none": "Aucun transporteur actif pour ce marché.",
       "pickState": "Choisissez la ville Dexpress pour envoyer."
     },

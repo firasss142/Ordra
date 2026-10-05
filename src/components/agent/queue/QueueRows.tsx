@@ -6,8 +6,9 @@
 
 import { memo, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Ic, APill, type AgentHue } from "@/components/agent/shared";
+import { Ic } from "@/components/agent/shared";
 import { RowTags, StatusPill, marketParts, type When } from "@/components/orders/commandes/ui";
+import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
 import { ageTone, rowTags, CALLING_STATUSES } from "@/lib/orders/row-signals";
 import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import type { MarketSearchRow } from "@/lib/agent-search/market";
@@ -87,7 +88,7 @@ function Signs({ o, ctx }: { o: QueueOrder; ctx: RowCtx }) {
   );
 }
 
-/** « 18:30 » today, « demain 11:00 », else « 6 oct. 10:00 » (prototype `cbWhen`). */
+/** « 18:30 » today, « demain 11:00 », else « 6 oct. 10:00 » (prototype `cbWhen`) — the words, for the tooltip. */
 function useCbWhen(ctx: RowCtx) {
   const t = useTranslations("agentQueue");
   return (iso: string) => {
@@ -98,56 +99,84 @@ function useCbWhen(ctx: RowCtx) {
   };
 }
 
-/** The activity cell: a chip, and one line under it. */
+/** « 18:30 » today, else « 27/09 18:30 » — digits only, so the chip never outgrows its column. */
+function shortWhen(iso: string, ctx: RowCtx) {
+  const { day, time } = marketParts(iso, ctx.marketId);
+  if (day === marketParts(ctx.now.toISOString(), ctx.marketId).day) return time;
+  const [, m, d] = day.split("-");
+  return `${d}/${m} ${time}`;
+}
+
+/** The carrier's logo (the account's upload, else the brand file), its initial when it has none. */
+export function CarrierLogoMini({ code, name, logoUrl }: { code: string | null; name: string | null; logoUrl?: string | null }) {
+  const src = getCarrierLogo(code, logoUrl);
+  if (!src && !name) return null;
+  return (
+    <span className="carlogo" data-tip={name ?? undefined} role="img" aria-label={name ?? code ?? ""}>
+      {src ? <img src={src} alt="" loading="lazy" /> : (name ?? "").trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+const shipped = (o: QueueOrder) => !!o.carrier_code && (!!o.tracking_number || !["confirmed", "dispatch_scheduled", "rejected", "cancelled", "deleted"].includes(o.status));
+
+/**
+ * The activity cell: icons and numbers on one line (owner, 2026-10-05: « no words »), the words in
+ * the tooltip. Calls « 2/3 », a callback « ⏰ 18:30 », a scheduled send « 📅 27/09 10:00 »; a parcel
+ * with its carrier's logo beside its status.
+ */
 export function Activity({ o, ctx, chipOnly }: { o: QueueOrder; ctx: RowCtx; chipOnly?: boolean }) {
   const t = useTranslations("agentQueue");
   const rejection = useRejectionBadge(ctx.marketId);
   const cbWhen = useCbWhen(ctx);
   const a = activityOf(o, ctx.now);
-  let chip: { hue: AgentHue; icon: string; text: string } | null = null;
-  let line: ReactNode = null;
-  let no = false;
-  let red = false;
+  const ago = (iso: string | null | undefined) => (iso ? t("since", { age: ageLong(t, minutesSince(iso, ctx.now)) }) : "");
+  const calls = (n: number, hue: string, sec = false) => (
+    <span key="calls" className={`chipm ${hue}${sec ? " sec" : ""}`}><Ic n="phone" /><span className="num">{n}/{ctx.maxAttempts}</span></span>
+  );
+  let chips: ReactNode[] = [];
+  let tip = "";
   switch (a.kind) {
     case "new":
-      line = t("act.never");
-      no = true;
+      chips = [calls(0, "plain")];
+      tip = t("act.never");
       break;
     case "attempt":
-      chip = { hue: "amber", icon: "phone", text: `${a.n}/${ctx.maxAttempts}` };
-      line = a.since ? t("act.called", { since: t("since", { age: ageLong(t, minutesSince(a.since, ctx.now)) }) }) : null;
-      red = a.stale;
+      chips = [calls(a.n, a.stale ? "h-red" : "h-amber")];
+      tip = a.since ? t("act.called", { since: ago(a.since) }) : "";
       break;
     case "callback":
-      chip = a.due ? { hue: "red", icon: "clock", text: t("act.cbDue", { when: cbWhen(a.at) }) } : { hue: "violet", icon: "clock", text: t("act.cb", { when: cbWhen(a.at) }) };
-      line = t("act.cbLine", { n: a.n, max: ctx.maxAttempts });
+      chips = [
+        <span key="cb" className={`chipm h-${a.due ? "red" : "violet"}`}><Ic n="clock" /><span className="num">{shortWhen(a.at, ctx)}</span></span>,
+        calls(a.n, "plain", true),
+      ];
+      tip = a.due ? t("act.cbDue", { when: cbWhen(a.at) }) : t("act.cb", { when: cbWhen(a.at) });
       break;
     case "scheduled":
-      chip = { hue: "violet", icon: "cal", text: a.at ? t("act.send", { when: cbWhen(a.at) }) : t("act.sendLine") };
-      line = t("act.sendLine");
+      chips = [<span key="sch" className="chipm h-violet"><Ic n="cal" />{a.at ? <span className="num">{shortWhen(a.at, ctx)}</span> : null}</span>];
+      tip = a.at ? t("act.send", { when: cbWhen(a.at) }) : t("act.sendLine");
       break;
     case "confirmed":
-      chip = { hue: "violet", icon: "check", text: t("act.confirmed") };
-      line = a.since ? t("act.confLine", { since: t("since", { age: ageLong(t, minutesSince(a.since, ctx.now)) }) }) : null;
+      chips = [<span key="ok" className="chipm h-violet"><Ic n="check" /></span>];
+      tip = a.since ? `${t("act.confirmed")} · ${t("act.confLine", { since: ago(a.since) })}` : t("act.confirmed");
       break;
     default:
       break;
   }
   if (a.kind === "other") {
     return (
-      <div className="actv">
-        <span>
+      <div className="actv one">
+        <span className="chips">
+          {shipped(o) ? <CarrierLogoMini code={o.carrier_code} name={o.carrier_name} logoUrl={o.carrier_logo_url} /> : null}
           <StatusPill o={{ status: o.status, rejection_reason: o.rejection_reason, rejection_subreason: o.rejection_subreason, rejection_note: o.rejection_note, attempts_count: o.attempt_count }} maxAttempts={ctx.maxAttempts} rejection={rejection} when={ctx.when} now={ctx.now} />
         </span>
-        {!chipOnly ? <small>{o.status === "rejected" ? t("act.rejected") : o.tracking_number ? <span className="num">{o.tracking_number}</span> : null}</small> : null}
       </div>
     );
   }
-  if (chipOnly) return chip ? <span className={`chipm h-${chip.hue}`}><Ic n={chip.icon} />{chip.text}</span> : <span className="chipm plain">{t("act.never")}</span>;
+  if (chipOnly) return <span className="chips" data-tip={tip || undefined}>{chips}</span>;
   return (
-    <div className="actv">
-      {chip ? <span><APill hue={chip.hue} icon={chip.icon} text={chip.text} /></span> : null}
-      <small className={no ? "no" : ""} style={red ? { color: "var(--bad)", fontWeight: 800 } : undefined}>{line}</small>
+    <div className="actv one" data-tip={tip || undefined}>
+      <span className="chips">{chips}</span>
     </div>
   );
 }
@@ -231,9 +260,10 @@ function DeskRowInner({ o, ctx, open, focused, selected, closedAt, onOpen, onTog
         </div>
       </div>
       {o.status === "confirmed" && !ctx.narrow ? (
-        <div className="actv">
-          <span><APill hue="violet" icon="check" text={t("act.confirmed")} /></span>
-          <button
+        <div className="actv one">
+          <span className="chips">
+            <span className="chipm h-violet" data-tip={t("act.confirmed")}><Ic n="check" /></span>
+            <button
             type="button"
             className="sendb"
             onClick={(e) => {
@@ -244,6 +274,7 @@ function DeskRowInner({ o, ctx, open, focused, selected, closedAt, onOpen, onTog
             <Ic n="truck" />
             {t("act.sendBtn")}
           </button>
+          </span>
         </div>
       ) : (
         <Activity o={o} ctx={ctx} />

@@ -103,19 +103,21 @@ describe("File de commandes", () => {
     expect(buttons[2].textContent).toContain("à envoyer au transporteur");
   });
 
-  it("lists Nouveau first, with « Pas encore appelé »", () => {
+  it("lists Nouveau first: « 0/3 » on the row, « Pas encore appelé » in its tooltip", () => {
     renderPage();
     expect(screen.getByText("Ahmed Salem")).toBeInTheDocument();
-    expect(screen.getAllByText("Pas encore appelé").length).toBe(2);
+    expect(document.querySelectorAll('[data-tip="Pas encore appelé"]').length).toBe(2);
+    expect(document.querySelector(".row.qr")?.textContent).toContain("0/3");
     expect(screen.queryByText("Omar Zawi")).toBeNull();
   });
 
-  it("writes the callback time on the row, the due one first", () => {
+  it("writes the callback time on the row in digits, the due one first, the words in the tooltip", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /En cours/ }));
     const rows = document.querySelectorAll(".row.qr");
     expect(rows[0].textContent).toContain("Sara Mabrouk");
-    expect(rows[0].textContent).toMatch(/Rappel dû · \d\d:\d\d/);
+    expect(rows[0].querySelector(".chipm.h-red")?.textContent).toMatch(/^\d\d:\d\d$/);
+    expect(rows[0].querySelector(".actv")?.getAttribute("data-tip")).toMatch(/Rappel dû · \d\d:\d\d/);
     expect(rows[1].textContent).toContain("1/3");
   });
 

@@ -9,7 +9,7 @@ import { LY_MARKET_ID } from "@/lib/markets";
 import type { ProspectRow, ProspectsResponse } from "@/lib/prospects/types";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/hooks/useWhatsAppAvailability", () => ({ useWhatsAppAvailability: () => ({ active: false, known: false }) }));
 
 const NOW = Date.now();

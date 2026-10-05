@@ -110,6 +110,7 @@ export function useOutcomeFlow({
   onDone: (r: OutcomeDone) => void;
 }) {
   const t = useTranslations("agentOutcome");
+  const tCov = useTranslations("dispatch.coverage");
   const toast = useAgentToast();
   const cbWhen = useCbWhen();
   const outcome = useCallOutcome(order.id);
@@ -291,8 +292,15 @@ export function useOutcomeFlow({
   const submitSend = useCallback(
     async (confirmDuplicate = false) => {
       const c = carriers.selectedCard;
-      if (!c) return;
-      if (c.coverage === "uncovered") return;
+      // Never a silent no-op: the button says why it did nothing.
+      if (!c) {
+        outcome.setError(carriers.loading ? t("send.loading") : carriers.cards.length ? t("send.pickFirst") : t("send.none"));
+        return;
+      }
+      if (c.coverage === "uncovered") {
+        outcome.setError(tCov("notCovered", { city: carriers.order?.customer_city ?? "" }));
+        return;
+      }
       // Darb asks its own questions (service, area, options) in its own form.
       if (c.code === "darb_assabil") {
         setDarbOpen(true);
@@ -311,21 +319,24 @@ export function useOutcomeFlow({
       if (r.kind === "duplicate") setDupAsk({ externalId: r.externalId });
       if (r.kind === "sent") sent(r.tracking, c.name);
     },
-    [carriers.selectedCard, carriers.order, dexState.stateId, outcome, sent],
+    [carriers.selectedCard, carriers.order, carriers.loading, carriers.cards.length, dexState.stateId, outcome, sent, t, tCov],
   );
 
   const scheduledAt = new Date(`${schedDate}T${schedTime}:00`);
 
   const submitSchedule = useCallback(async () => {
     const c = carriers.selectedCard;
-    if (!c) return;
+    if (!c) {
+      outcome.setError(carriers.loading ? t("send.loading") : carriers.cards.length ? t("send.pickFirst") : t("send.none"));
+      return;
+    }
     const ok = await outcome.schedule(c.id, scheduledAt, schedAuto);
     if (!ok) return;
     finish(
       { hue: "violet", icon: "cal", text: t("done.scheduled", { when: cbWhen(scheduledAt) }) },
       { action: "confirmed", newStatus: "dispatch_scheduled" },
     );
-  }, [carriers.selectedCard, outcome, scheduledAt, schedAuto, finish, t, cbWhen]);
+  }, [carriers.selectedCard, carriers.loading, carriers.cards.length, outcome, scheduledAt, schedAuto, finish, t, cbWhen]);
 
   const onDarbSuccess = useCallback(
     (tracking: string | null) => {

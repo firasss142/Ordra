@@ -26,8 +26,10 @@ import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 import { isBulkCallEligible } from "@/lib/order-permissions";
 import { bucketFor } from "@/lib/carriers/buckets";
 import { pushRecentSearch } from "@/lib/agent-search/recent";
+import { agentTabOf } from "@/components/agent/shell/AgentNav";
 import { toQueueOrder } from "@/lib/agent-queue/to-queue-order";
 import { Ic, useAgentPhone, useAgentToast, useTip, useWhen } from "@/components/agent/shared";
+import { useAutoPage } from "@/components/agent/useAutoPage";
 import type { QueueOrder } from "@/types/queue";
 import { DeskRow, MarketRows, PhoneRow, ageLong, type RowCtx } from "./QueueRows";
 import { Q_BUCKETS, CLOSED_KEYS, bucketOfStatus, closedKeyOf, isCallbackDue, queueRank, tileHint, type ClosedKey, type QBucket } from "./model";
@@ -90,7 +92,6 @@ export function AgentQueuePage() {
   const [bucket, setBucket] = useState<QBucket>(() => bucketParam(searchParams.get("bucket")));
   const [sub, setSub] = useState<Sub>("all");
   const [att, setAtt] = useState(0);
-  const [more, setMore] = useState(40);
   const { query, setQuery, setResultCount, inputRef } = useQueueSearch();
   const q = useDebounce(query, 200).trim();
   const searching = q.length > 0;
@@ -258,15 +259,25 @@ export function AgentQueuePage() {
     return () => window.removeEventListener(AGENT_NEW_ORDER_EVENT, onNew);
   }, []);
 
-  const shown = rows.slice(0, more);
+  // Automatic pagination: 40 rows, then 40 more as the list's end comes into view.
+  const { shown, more } = useAutoPage(rows, `${bucket}|${sub}|${att}|${q}`);
 
   // ── keys: ? · / · ↑↓ (j k) · Enter · Esc. 1–4 and p are the order's own (the panel). ──────────
-  const keyState = useRef({ shown, focus, openId, layered: false });
-  keyState.current = { shown, focus, openId, layered: createOpen || captureOpen || keysOpen || sheet !== null };
+  // The queue stays mounted (hidden) behind the other tabs: there its keys stand down and its
+  // order closes — a hidden order must never take « 1 » for « Pas de réponse ».
+  const onQueue = agentTabOf(pathname ?? "") === "orders";
+  useEffect(() => {
+    if (onQueue) return;
+    setOpenId(null);
+    setSheet(null);
+    setKeysOpen(false);
+  }, [onQueue]);
+  const keyState = useRef({ shown, focus, openId, layered: false, onQueue });
+  keyState.current = { shown, focus, openId, layered: createOpen || captureOpen || keysOpen || sheet !== null, onQueue };
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (isEditableTarget(e.target)) return;
       const s = keyState.current;
+      if (!s.onQueue || isEditableTarget(e.target)) return;
       if (e.key === "?") {
         e.preventDefault();
         setKeysOpen((v) => !v);
@@ -354,7 +365,6 @@ export function AgentQueuePage() {
     setBucket(k);
     setSub("all");
     setAtt(0);
-    setMore(40);
     setSel(new Set());
     setQuery("");
   };
@@ -479,10 +489,11 @@ export function AgentQueuePage() {
         {subs ? <div className="hscroll">{subs}</div> : null}
         <section className="list">
           <div className="rows">
-            {loading ? <div className="sk-row" /> : rows.length ? rows.slice(0, 30).map(({ o, closed: c }) => (
+            {loading ? <div className="sk-row" /> : shown.length ? shown.map(({ o, closed: c }) => (
               <PhoneRow key={o.id} o={o} ctx={ctx} closed={c} onOpen={(id) => open(id)} onCall={(o2) => { toast(t("phone.calling", { phone: o2.customer_phone })); setSheet({ o: o2 }); }} onSend={(o2) => setSheet({ o: o2, step: "send" })} />
             )) : empty}
           </div>
+          {more}
         </section>
         <MarketRows rows={marketRows} ctx={ctx} onView={setViewId} />
         {openId ? (
@@ -540,7 +551,7 @@ export function AgentQueuePage() {
             id="q"
             type="search"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setMore(40); }}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder={t("search.placeholder")}
             autoComplete="off"
             spellCheck={false}
@@ -590,14 +601,7 @@ export function AgentQueuePage() {
                 />
               )) : empty}
             </div>
-            {rows.length > shown.length ? (
-              <div className="more">
-                <button type="button" className="btn2" onClick={() => setMore((v) => v + 40)}>
-                  {t("more", { n: Math.min(40, rows.length - shown.length) })}
-                  <span className="q">{t("left", { n: rows.length - shown.length })}</span>
-                </button>
-              </div>
-            ) : null}
+            {more}
             <div className="lfoot"><span className="kbd2">F</span>{t("vocFoot")}</div>
           </section>
           <MarketRows rows={marketRows} ctx={ctx} onView={setViewId} />

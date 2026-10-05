@@ -234,7 +234,7 @@ export function OutcomeTray({ flow }: { flow: OutcomeFlow }) {
             <Ic n="left" className="flip" />
             <span>{t("schedule.back")}</span>
           </button>
-          <button type="button" className="fa pri wide" disabled={!ch.selectedCard || busy} onClick={() => void sc.submit()}>
+          <button type="button" className="fa pri wide" disabled={busy} onClick={() => void sc.submit()}>
             <Ic n="cal" />
             <span>{flow.busy === "schedule" ? t("sheet.saving") : t("schedule.submit")}</span>
           </button>
@@ -286,7 +286,7 @@ export function OutcomeTray({ flow }: { flow: OutcomeFlow }) {
         <button
           type="button"
           className="fa pri wide"
-          disabled={!ch.selectedCard || ch.selectedCard.coverage === "uncovered" || busy || (s.needState && s.dexState.stateId === null)}
+          disabled={busy || (s.needState && s.dexState.stateId === null)}
           onClick={() => void s.submit()}
         >
           <Ic n="truck" />

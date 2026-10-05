@@ -5,6 +5,7 @@ import "@/components/agent/agent-app.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import type { DeliveryScorecard, WorklistRow } from "@/lib/delivery/types";
 import type { AgentActionType } from "@/lib/delivery/actions";
 import { applyRecordedAction, partitionStalled } from "@/lib/delivery/worklist";
@@ -18,6 +19,7 @@ import type { PendingAction, QueuedBody } from "@/hooks/useDeliveryActionQueue";
 import { useRegisterFeedbackContext } from "@/components/feedback/FeedbackCaptureProvider";
 import { WhatsAppSheet } from "@/components/delivery/Sheets";
 import { APill, Ic, Thumb, useAgentPhone, useAgentToast, useTip } from "@/components/agent/shared";
+import { useAutoPage } from "@/components/agent/useAutoPage";
 import { ParcelDetail, type ParcelHandlers } from "./ParcelDetail";
 import { ActionTray, type Who } from "./ActionTray";
 import { fnum, useDayWhen, useDur } from "./words";
@@ -81,6 +83,11 @@ export function AgentDeliveryView(props: AgentDeliveryViewProps) {
   const [menu, setMenu] = useState<Menu>(null);
   const [showStalled, setShowStalled] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  // ?open=<id> — a result picked in the header's search lands on its own row.
+  const openParam = useSearchParams()?.get("open") ?? null;
+  useEffect(() => {
+    if (openParam) setOpenId(openParam);
+  }, [openParam]);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const feedback = useRegisterFeedbackContext(openId);
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -94,6 +101,7 @@ export function AgentDeliveryView(props: AgentDeliveryViewProps) {
   const visible = useMemo(() => filterParcels(all, { bucket, q, risk, sort }, now), [all, bucket, q, risk, sort, now]);
   const waitingDone = bucket === "done" && !doneLoaded;
   const { live: main, stalled } = useMemo(() => (waitingDone ? { live: [], stalled: [] } : partitionStalled(visible, now)), [visible, now, waitingDone]);
+  const { shown: mainShown, more } = useAutoPage(main, `${bucket}|${q}|${risk}|${sort}`);
   const inFlight = all.filter((r) => r.bucket !== "done").length;
   const byId = useCallback((id: string | null) => (id ? all.find((r) => r.order_id === id) ?? null : null), [all]);
 
@@ -306,7 +314,7 @@ export function AgentDeliveryView(props: AgentDeliveryViewProps) {
   const detailProps = { now, tz, locale, market: marketCode, marketId, whatsappOn: whatsappActive || whatsappKnown, handlers, onClose: () => setOpenId(null) };
 
   if (phone) {
-    const cards = main;
+    const cards = mainShown;
     return (
       <div style={{ display: "contents" }} onMouseOver={tip.onOver} onMouseMove={tip.onMove} onMouseLeave={tip.onLeave}>
         <div className="hscroll">{tiles}</div>
@@ -342,6 +350,7 @@ export function AgentDeliveryView(props: AgentDeliveryViewProps) {
               </div>
             );
           }))}
+          {more}
         </div>
         {selected && (
           <div className="mpanel" role="dialog" aria-label={t("detail.phoneTitle")}>
@@ -411,7 +420,8 @@ export function AgentDeliveryView(props: AgentDeliveryViewProps) {
             <span>{t("cols.situation")}</span><span>{t("cols.parcel")}</span><span>{t("cols.action")}</span><span className="e">{t("cols.amount")}</span>
           </div>
           <div className="rows" role="list" aria-label={t("title")} aria-busy={rows === null && !error}>
-            {loadingOrError ?? (main.length || stalled.length ? main.map(parcelRow) : emptyOrLoad)}
+            {loadingOrError ?? (main.length || stalled.length ? mainShown.map(parcelRow) : emptyOrLoad)}
+            {rows !== null ? more : null}
             {rows !== null && fold}
           </div>
         </section>

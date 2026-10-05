@@ -7,6 +7,7 @@ import type { AgentStatement, LostReason, StatementCredit, StatementStage } from
 import { fmtCommission } from "@/lib/commissions/view-models";
 import { formatMoneyParts } from "@/lib/format";
 import { Ic, Thumb, useTip, useAgentPhone, type AgentHue } from "@/components/agent/shared";
+import { AutoMore } from "@/components/agent/useAutoPage";
 
 /**
  * « Mes commissions » in the agent shell « Aurore » — prototypes/agent-shell-v2.html § 5
@@ -272,9 +273,7 @@ export function AgentCommissionsView({ me, marketCode, locale, tz, onMore }: Pro
 
   const more = (left: number) =>
     left > 0 ? (
-      <div className="more">
-        <button type="button" className="btn2" onClick={() => setShown((s) => s + PAGE)}>{t("more", { n: Math.min(PAGE, left) })}</button>
-      </div>
+      <AutoMore watch={shown} onMore={() => setShown((s) => s + PAGE)}>{t("more", { n: Math.min(PAGE, left) })}</AutoMore>
     ) : null;
   const widen = canWiden ? (
     <div className="more"><button type="button" className="btn2" onClick={onMore}>{t("older")}</button></div>

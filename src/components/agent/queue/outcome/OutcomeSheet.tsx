@@ -7,6 +7,7 @@
  */
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { Ic, Thumb } from "@/components/agent/shared";
@@ -35,7 +36,10 @@ export function DarbStep({ flow }: { flow: OutcomeFlow }) {
   const card = s.carriers.selectedCard;
   if (!s.darbOpen || !card) return null;
   const o = s.carriers.order;
-  return (
+  // To the body: inside the order (a sticky card) or the phone sheet, the modal stacked under
+  // the band and could not be seen whole.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <DarbAssabilDispatchModal
       orderId={flow.order.id}
       carrierId={card.id}
@@ -45,7 +49,8 @@ export function DarbStep({ flow }: { flow: OutcomeFlow }) {
       darbDestinationId={o?.darb_destination_id ?? null}
       onClose={s.closeDarb}
       onSuccess={s.onDarbSuccess}
-    />
+    />,
+    document.body,
   );
 }
 
