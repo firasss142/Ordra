@@ -19,7 +19,7 @@ function wrap(ui: React.ReactNode) {
  * the switch from "loading" to "loaded" is a fill-in, never a different layout
  * (the old route skeleton drew the previous page's KPI cards and filter chips).
  */
-describe("products v6 skeletons", () => {
+describe("products skeletons (Finances kit)", () => {
   test("the list skeleton is the list: its title, its five KPIs, its columns, eight rows", () => {
     const { container } = wrap(<ProductsListSkeleton />);
     const status = screen.getByRole("status");
@@ -30,34 +30,34 @@ describe("products v6 skeletons", () => {
       expect(kpis.getByText(k)).toBeInTheDocument();
     }
     expect(screen.getByText(v6.h_prod)).toBeInTheDocument();
-    expect(container.querySelectorAll(".pv6 .kpi")).toHaveLength(5);
-    expect(container.querySelectorAll(".pv6 .tbl .tr")).toHaveLength(8);
+    expect(container.querySelectorAll(".fin .kpi")).toHaveLength(5);
+    expect(container.querySelectorAll(".fin .tg .row")).toHaveLength(8);
     expect(container.querySelector(".empty-q")).toBeNull();
   });
 
   test("the sheet skeleton has the hero, the period bar, the KPIs and the cards", () => {
     const { container } = wrap(<ProductSheetSkeleton />);
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
-    expect(container.querySelector(".pv6 .hero")).not.toBeNull();
-    expect(container.querySelector(".pv6 .pbar2")).not.toBeNull();
-    expect(container.querySelectorAll(".pv6 .kpi")).toHaveLength(5);
-    expect(container.querySelectorAll(".pv6 .card").length).toBeGreaterThanOrEqual(4);
+    expect(container.querySelector(".fin .phero")).not.toBeNull();
+    expect(container.querySelector(".fin .prow")).not.toBeNull();
+    expect(container.querySelectorAll(".fin .kpi")).toHaveLength(5);
+    expect(container.querySelectorAll(".fin .card").length).toBeGreaterThanOrEqual(4);
   });
 
   test("without money (warehouse agent) the sheet skeleton is the hero and the stock cards only", () => {
     const { container } = wrap(<ProductSheetSkeleton money={false} />);
-    expect(container.querySelector(".pv6 .hero")).not.toBeNull();
-    expect(container.querySelector(".pv6 .kpis")).toBeNull();
-    expect(container.querySelector(".pv6 .pbar2")).toBeNull();
-    expect(container.querySelector(".pv6 .two")).not.toBeNull();
+    expect(container.querySelector(".fin .phero")).not.toBeNull();
+    expect(container.querySelector(".fin .kpis")).toBeNull();
+    expect(container.querySelector(".fin .prow")).toBeNull();
+    expect(container.querySelector(".fin .two")).not.toBeNull();
   });
 
   test("the edit skeleton has the header, the tabs, the panel and the rail", () => {
     const { container } = wrap(<ProductEditSkeleton />);
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
-    expect(container.querySelector(".pv6 .ehead")).not.toBeNull();
-    expect(container.querySelector(".pv6 .tabs")).not.toBeNull();
-    expect(container.querySelector(".pv6 .egrid .panel")).not.toBeNull();
-    expect(container.querySelector(".pv6 .egrid .rail")).not.toBeNull();
+    expect(container.querySelector(".fin .ehead")).not.toBeNull();
+    expect(container.querySelector(".fin .tabsrow")).not.toBeNull();
+    expect(container.querySelector(".fin .egrid .panel")).not.toBeNull();
+    expect(container.querySelector(".fin .egrid .rail")).not.toBeNull();
   });
 });

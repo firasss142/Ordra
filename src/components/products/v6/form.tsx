@@ -124,14 +124,20 @@ export function PhotoField({
     <div className="field">
       <label>{t("f_photo")}</label>
       <div className="photo">
-        <Thumb src={image} name={name} size={72} radius={14} />
+        {image || name.trim() ? (
+          <Thumb src={image} name={name} />
+        ) : (
+          <span className="pimg new" aria-hidden="true">
+            <ImageIcon className="ic" />
+          </span>
+        )}
         <div className="acts">
-          <button type="button" className="btn sm" onClick={() => fileRef.current?.click()}>
+          <button type="button" className="btn2 sm" onClick={() => fileRef.current?.click()}>
             <ImageIcon className="ic" aria-hidden />
             {image ? t("f_replace") : t("n_pick")}
           </button>
           {image ? (
-            <button type="button" className="btn sm" onClick={() => onChange(null)}>
+            <button type="button" className="btn2 sm" onClick={() => onChange(null)}>
               {t("f_remove")}
             </button>
           ) : null}
@@ -154,7 +160,7 @@ export function PhotoField({
   );
 }
 
-/** The floating dark bar at the bottom of the screen while there is something to save. */
+/** The floating glass bar at the bottom of the screen while there is something to save. */
 export function SaveBar({ children }: { children: ReactNode }) {
   return (
     <div className="savebar" role="region" aria-label="save">

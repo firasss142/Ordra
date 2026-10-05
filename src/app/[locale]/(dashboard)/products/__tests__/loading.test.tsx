@@ -21,21 +21,21 @@ function wrap(ui: React.ReactNode) {
  * chips) that /products/loading.tsx drew until 2026-10-04.
  */
 describe("products route loading states", () => {
-  test("/products paints the v6 list skeleton", () => {
+  test("/products paints the list skeleton, in the Finances kit", () => {
     const { container } = wrap(<ListLoading />);
     expect(screen.getByRole("heading", { level: 1, name: fr.products.v6.l_title })).toBeInTheDocument();
-    expect(container.querySelector(".pv6 .tbl")).not.toBeNull();
+    expect(container.querySelector(".fin .tg")).not.toBeNull();
   });
 
   test("/products/[id] paints the sheet skeleton", () => {
     const { container } = wrap(<SheetLoading />);
-    expect(container.querySelector(".pv6 .hero")).not.toBeNull();
+    expect(container.querySelector(".fin .phero")).not.toBeNull();
   });
 
   test("/products/[id]/edit and /products/new paint the edit skeleton", () => {
     for (const Loading of [EditLoading, NewLoading]) {
       const { container, unmount } = wrap(<Loading />);
-      expect(container.querySelector(".pv6 .tabs")).not.toBeNull();
+      expect(container.querySelector(".fin .tabsrow")).not.toBeNull();
       unmount();
     }
   });

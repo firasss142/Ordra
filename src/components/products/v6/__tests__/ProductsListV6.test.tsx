@@ -153,7 +153,7 @@ describe("ProductsListV6 — the approved list", () => {
     const { container } = renderList();
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
     expect(container.querySelector(".empty-q")).toBeNull();
-    expect(container.querySelectorAll(".tbl .tr")).toHaveLength(8);
+    expect(container.querySelectorAll(".tg .row")).toHaveLength(8);
     release();
     expect(await screen.findByText(norm(QR.name))).toBeInTheDocument();
     expect(screen.queryByRole("status")).toBeNull();
@@ -179,7 +179,9 @@ describe("ProductsListV6 — the approved list", () => {
     expect(text).toContain("53 %"); // 205 ÷ 386
     expect(text).toContain("Encaissé39 784 د.ل");
     expect(text).toContain("Payé 44 406 د.ل · Darb −4 622 د.ل");
-    expect(text).toContain("+15 925 د.ل");
+    expect(text).toContain("Bénéfice brut+15 925 د.ل");
+    expect(text).toContain("avant salaires et charges fixes");
+    expect(text).not.toContain("Profit net");
   });
 
   test("says intake stopped, and since when, when the market has been silent for more than a day", async () => {
@@ -188,13 +190,14 @@ describe("ProductsListV6 — the approved list", () => {
     expect(norm(document.querySelector(".notes")?.textContent)).toContain(
       "Aucune commande reçue depuis mar. 29 sept., 17:30. Aucune dépense pub non plus depuis ce jour.",
     );
-    expect(norm(document.querySelector(".notes")?.textContent)).toContain("Aucun stock n’a encore été compté");
+    // The « stock pas encore compté » banner is gone (owner, 2026-10-04): the stock reads as true.
+    expect(norm(document.querySelector(".notes")?.textContent)).not.toContain("compté");
   });
 
   test("lists active products by orders received, most first, and hides the inactive", async () => {
     renderList();
     await screen.findByText("القرآن تدبر وعمل");
-    const names = Array.from(document.querySelectorAll(".pname")).map((n) => n.textContent);
+    const names = Array.from(document.querySelectorAll(".pn b")).map((n) => n.textContent);
     expect(names).toEqual(["القرآن تدبر وعمل", "كتاب الداء والدواء", "دميه ملاكمه حجم صغير"]);
   });
 
@@ -210,7 +213,7 @@ describe("ProductsListV6 — the approved list", () => {
   test("a product without orders says so across its row", async () => {
     renderList();
     await screen.findByText("القرآن تدبر وعمل");
-    const doll = screen.getByText("دميه ملاكمه حجم صغير").closest(".tr") as HTMLElement;
+    const doll = screen.getByText("دميه ملاكمه حجم صغير").closest(".row") as HTMLElement;
     expect(within(doll).getByText("Aucune commande sur la période")).toBeInTheDocument();
   });
 
@@ -238,5 +241,34 @@ describe("ProductsListV6 — the approved list", () => {
     scope.marketId = null;
     renderList();
     expect(screen.getByText(fr.products.selectMarketPrompt)).toBeInTheDocument();
+  });
+test("sits in Finances: « Produits & marges », the market, and the basis of every figure beside the period", async () => {
+    renderList();
+    await screen.findByText("القرآن تدبر وعمل");
+    expect(screen.getByRole("heading", { level: 1, name: "Produits & marges" })).toBeInTheDocument();
+    expect(norm(document.querySelector(".crumb")?.textContent)).toContain("Finances");
+    expect(norm(document.querySelector(".ph .sub")?.textContent)).toContain("Libye");
+    expect(norm(document.querySelector(".prow")?.textContent)).toContain("commandes reçues, suivies jusqu’à aujourd’hui");
+  });
+
+  test("a product short of stock gets « Commander », a pre-filled purchase order in Achats — not the sheet", async () => {
+    renderList();
+    await screen.findByText("كتاب الداء والدواء");
+    const da2 = screen.getByText("كتاب الداء والدواء").closest(".row") as HTMLElement;
+    const order = within(da2).getByRole("link", { name: /Commander/ });
+    expect(order).toHaveAttribute("href", "/fr/finance/purchases?new=po&product=da2");
+    fireEvent.click(order);
+    expect(nav.push).not.toHaveBeenCalled();
+    const qr = screen.getByText("القرآن تدبر وعمل").closest(".row") as HTMLElement;
+    expect(within(qr).queryByRole("link", { name: /Commander/ })).toBeNull();
+  });
+
+  test("the money columns say « Bénéfice brut », never « Profit net »", async () => {
+    renderList();
+    await screen.findByText("القرآن تدبر وعمل");
+    const head = norm(document.querySelector(".thd")?.textContent);
+    expect(head).toContain("Bénéfice brut");
+    expect(head).not.toContain("Profit");
+    expect(norm(document.querySelector(".lgd")?.textContent)).toContain("Bénéfice brut");
   });
 });

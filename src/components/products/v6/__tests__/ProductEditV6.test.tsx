@@ -149,12 +149,13 @@ describe("ProductEditV6 — tabs, one save", () => {
   test("the rail recomputes one delivery as the cost is typed", async () => {
     renderEdit();
     fireEvent.click(tab("Prix & coûts"));
-    await waitFor(() => expect(norm(document.querySelector(".rail")?.textContent)).toContain("Net par livraison"));
+    await waitFor(() => expect(norm(document.querySelector(".rail")?.textContent)).toContain("Bénéfice brut par livraison"));
     // 249 − 23,6 (Darb) − 40 − 1,0 (packaging) − 137,2 (ads) = +47,2
     expect(norm(document.querySelector(".rail")?.textContent)).toContain("+47,2 د.ل");
     fireEvent.change(screen.getByLabelText(/Coût d’achat/), { target: { value: "50" } });
     expect(norm(document.querySelector(".rail")?.textContent)).toContain("+37,2 د.ل");
     expect(norm(document.querySelector(".rail")?.textContent)).toContain("Moyennes des 30 derniers jours · 77 livraisons");
+    expect(norm(document.querySelector(".rail")?.textContent)).toContain("recalcule le bénéfice brut");
   });
 
   test("one save writes the product and the agent sheet, then stays", async () => {
@@ -200,5 +201,11 @@ describe("ProductEditV6 — tabs, one save", () => {
     fireEvent.change(screen.getByLabelText(/À savoir/), { target: { value: "Fragile" } });
     expect(norm(document.querySelector(".pv")?.textContent)).toContain("Fragile");
     expect(norm(document.querySelector("#briefCount")?.textContent)).toBe("273 caractères restants");
+  });
+  test("the stock tab gives the last count as a plain fact", async () => {
+    renderEdit();
+    fireEvent.click(tab("Stock"));
+    expect(await screen.findByText("Dernier comptage : jamais")).toBeInTheDocument();
+    expect(screen.queryByText("Jamais compté")).toBeNull();
   });
 });

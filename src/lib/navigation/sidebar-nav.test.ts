@@ -46,9 +46,13 @@ describe("visibleNav", () => {
     expect(hrefs).toEqual(["performance/orders", "team/performance", "carriers"]);
   });
 
-  it("hides Finances and Journaux from a market_manager", () => {
+  it("shows a market_manager Finances › Produits & marges and Achats only — never the P&L, Stock, Pub or Investisseurs", () => {
     const nav = keys("market_manager");
-    expect(nav.groups.map(([id]) => id)).not.toContain("finances");
+    expect(nav.groups.find(([id]) => id === "finances")?.[1]).toEqual(["productsMargins", "purchases"]);
+  });
+
+  it("hides Journaux from a market_manager", () => {
+    const nav = keys("market_manager");
     expect(nav.groups.find(([id]) => id === "systeme")?.[1]).toEqual(["reglages"]);
   });
 
