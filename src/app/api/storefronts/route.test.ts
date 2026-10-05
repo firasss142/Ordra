@@ -183,6 +183,12 @@ describe("POST /api/storefronts — a Converty account through Google Sheets", (
     expect(await res.json()).toMatchObject({ code: "missing_columns", columns: ["QR Code", "Total Price", "Products"] });
   });
 
+  test("says which columns it did read, so a wrong tab is visible at a glance", async () => {
+    mockInspect.mockResolvedValue({ headers: ["Order", "Phone", "", "Items"], dataRowCount: 10 });
+    const res = await POST(post(sheetBody()));
+    expect((await res.json()).found).toEqual(["Order", "Phone", "Items"]);
+  });
+
   test("refuses the same sheet and tab twice in one market — the rows would import into two shops", async () => {
     mockSources.mockResolvedValue([
       { storefront_id: "sf-1", market_id: "m-ly", spreadsheet_id: SHEET_ID, sheet_name: "orders", platform: "converty", is_active: true },

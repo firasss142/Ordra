@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { getAuthClient, sheetRange } from "./client";
+import { getAuthClient, sheetRange, cleanHeader, LAST_COLUMN } from "./client";
 
 /**
  * A look at a sheet before it becomes a shop.
@@ -31,7 +31,7 @@ export function getServiceAccountEmail(): string | null {
   }
 }
 
-const norm = (h: string) => h.trim().toLowerCase();
+const norm = (h: string) => cleanHeader(h).toLowerCase();
 
 export function missingHeaders(headers: string[], required: readonly string[]): string[] {
   const have = new Set(headers.map(norm));
@@ -57,9 +57,9 @@ export async function inspectSheet(params: { spreadsheetId: string; sheetName: s
   const sheets = google.sheets({ version: "v4", auth: getAuthClient() });
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: params.spreadsheetId,
-    range: sheetRange(params.sheetName, "A1:Z"),
+    range: sheetRange(params.sheetName, `A1:${LAST_COLUMN}`),
   });
   const rows = (res.data.values ?? []) as unknown[][];
-  const headers = (rows[0] ?? []).map((h) => String(h ?? "").trim());
+  const headers = (rows[0] ?? []).map(cleanHeader);
   return { headers, dataRowCount: Math.max(rows.length - 1, 0) };
 }

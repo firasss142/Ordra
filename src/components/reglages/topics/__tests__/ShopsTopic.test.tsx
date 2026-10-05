@@ -138,7 +138,7 @@ describe("Réglages › Boutiques", () => {
   it("says what to fix when the sheet cannot be connected", async () => {
     swr.byKey["/api/storefronts/sheets-service-account"] = { email: "ordra@x.iam.gserviceaccount.com" };
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ code: "missing_columns", columns: ["QR Code", "Total Price"] }), { status: 422 }),
+      new Response(JSON.stringify({ code: "missing_columns", columns: ["QR Code", "Total Price"], found: ["Order", "Phone"] }), { status: 422 }),
     );
     mount(admin);
     await userEvent.click(within(shopsCard()).getByRole("button", { name: "Ajouter une boutique" }));
@@ -149,6 +149,7 @@ describe("Réglages › Boutiques", () => {
     await userEvent.type(within(panel).getByLabelText("Onglet"), "Orders");
     await userEvent.click(within(panel).getByRole("button", { name: "Créer la boutique" }));
     expect(await within(panel).findByRole("alert")).toHaveTextContent("QR Code, Total Price");
+    expect(within(panel).getByRole("alert")).toHaveTextContent("Order, Phone");
   });
 
   it("shows which sheet and tab a sheet shop reads", async () => {

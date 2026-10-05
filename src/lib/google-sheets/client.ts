@@ -15,6 +15,15 @@ const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
 const DEFAULT_MAX_ROWS = 50;
 
 /**
+ * The last column read. Was Z, which cut a Converty export that carries extra
+ * columns (UTM, custom fields) before its Products column — the sheet then
+ * failed the connection check as « not a Converty export » although the column
+ * was there. ZZ is 702 columns, far past any export, and costs nothing: Google
+ * returns only the cells that hold data.
+ */
+export const LAST_COLUMN = "ZZ";
+
+/**
  * Google's 400 for a range starting past the sheet's last row.
  *
  * Matched on the message because the API gives no machine-readable reason for
@@ -36,6 +45,24 @@ export function isRangeBeyondSheet(err: unknown): boolean {
  */
 export function sheetRange(sheetName: string, cells: string): string {
   return `'${sheetName.replace(/'/g, "''")}'!${cells}`;
+}
+
+/**
+ * A header as an adapter will look it up.
+ *
+ * A sheet is written by people and spreadsheets: Google Sheets keeps the
+ * non-breaking space of a pasted cell, a CSV import brings a BOM, a copy from a
+ * web page brings a zero-width space. `"Products\u00A0"` is not `"Products"`, so
+ * a column that is plainly there read as missing — or, once connected, as an
+ * empty cell on every row. Cleaned in one place, used by both the connection
+ * check and the import, so what passes the first is what the second reads.
+ */
+export function cleanHeader(raw: unknown): string {
+  return String(raw ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function getAuthClient() {
@@ -94,7 +121,7 @@ export async function fetchSheetRows(options: FetchRowsOptions): Promise<SheetRo
   try {
     response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId,
-      ranges: [sheetRange(sheetName, "A1:Z1"), sheetRange(sheetName, `A${firstSheetRow}:Z`)],
+      ranges: [sheetRange(sheetName, `A1:${LAST_COLUMN}1`), sheetRange(sheetName, `A${firstSheetRow}:${LAST_COLUMN}`)],
     });
   } catch (err) {
     // "Range exceeds grid limits" means the cursor has walked past the last row
@@ -115,7 +142,7 @@ export async function fetchSheetRows(options: FetchRowsOptions): Promise<SheetRo
 
   const headerCells = headerRange?.values?.[0];
   if (!headerCells) return [];
-  const headers = (headerCells as unknown[]).map((h) => String(h ?? "").trim());
+  const headers = (headerCells as unknown[]).map(cleanHeader);
 
   const dataRows = (dataRange?.values ?? []) as unknown[][];
   const result: SheetRow[] = [];
