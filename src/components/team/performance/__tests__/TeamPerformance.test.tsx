@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { SWRConfig } from "swr";
 import fr from "@/messages/fr.json";
@@ -48,6 +48,7 @@ const RAW = {
 };
 
 const calls: string[] = [];
+const norm = (t: string | null | undefined) => (t ?? "").replace(/[\u2066\u2069]/g, "").replace(/[\s\u00A0\u202F]+/g, " ").trim();
 beforeEach(() => {
   nav.search = "";
   calls.length = 0;
@@ -76,7 +77,14 @@ describe("Performance › Équipe", () => {
     renderPage();
     expect(await screen.findByRole("heading", { name: "Performance équipe" })).toBeInTheDocument();
     expect(calls[0]).toContain(`/api/team/performance?market_id=${LY}&period=30d`);
-    expect(screen.getByText("Sur 100 commandes attribuées")).toBeInTheDocument();
+    // Aurore calme: a sentence with the counts, then one bar per outcome — no waffle, no « sur 100 »
+    expect(norm(document.querySelector(".lede")!.textContent)).toBe("Sur 184 commandes attribuées, 80 ont été livrées.");
+    expect(norm(document.querySelector(".lede b")!.textContent)).toBe("80 ont été livrées"); // the answer, in bold
+    const rows = within(screen.getByRole("list", { name: "Ce que sont devenues les commandes" })).getAllByRole("listitem");
+    expect(rows.map((r) => norm(r.querySelector("b")!.textContent))).toEqual(["Livrées", "Retournées", "Rejetées", "Jamais réelles", "En cours"]);
+    expect(norm(rows[0].querySelector(".obr-n")!.textContent)).toBe("80");
+    expect(norm(rows[0].querySelector(".obr-p")!.textContent)).toBe("43 %");
+    expect(document.querySelector(".waffle")).toBeNull();
     expect(screen.getByRole("heading", { name: "Classement" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Débit × taux" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Par produit" })).toBeInTheDocument();
@@ -88,6 +96,9 @@ describe("Performance › Équipe", () => {
     const cards = await screen.findAllByRole("button", { expanded: false });
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent("tasnim");
+    // her ring carries the delivered COUNT, its share small under it
+    expect(norm(cards[0].querySelector(".rc .n")!.textContent)).toBe("50");
+    expect(norm(cards[0].querySelector(".rc .l")!.textContent)).toBe("livrées · 45 %");
     expect(cards[0]).toHaveTextContent("Motif « Autre »");
     expect(cards[0]).toHaveTextContent("Choisir le vrai motif, pas « Autre »");
     expect(screen.getByText("Hors classement · moins de 30 commandes")).toBeInTheDocument();

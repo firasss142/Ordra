@@ -67,8 +67,11 @@ src/
 ## Critical rules
 - **UI/UX & Design**: `docs/design-system.md` governs ALL product UI — since 2026-10-04 the
   « Aurore » language (reference: `/team`, from `prototypes/team-v6.html`): aurora ground,
-  frosted-glass cards, 800-weight numbers, colour that means exactly ONE thing (chrome green ·
-  status · identity · severity), dark sidebar and brand green (#15803D) unchanged. Doctrine
+  frosted-glass cards, colour that means exactly ONE thing (chrome green · status · identity ·
+  severity), dark sidebar and brand green (#15803D) unchanged. Since 2026-10-05 its register
+  is **« Aurore calme »**: calm validated outcome palette, thin marks, 700 not 800, no halos /
+  medals / entrance motion, counts first (never « /100 »), the waffle retired for one bar per
+  outcome (`components/shared/charts/OutcomeRows`) — see the note at the top of the doc. Doctrine
   only so far — existing screens are NOT migrated (§10 of the doc); don't restyle `src/`
   without the owner's go. Design work starts from the `design` skill (`.claude/skills/design`:
   one question → HTML prototype → Aurore → self-review). `marketing-design` is for public
@@ -243,10 +246,12 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Soft aurora ground (5 pastel radials over #F6F7FB) painted once by the shell; dark sidebar
   (#0E1013) stays the only dark surface
 - Frosted-glass cards (white .62, 24px radius, indigo-tinted resting shadow); inner surfaces 16px
-- Plus Jakarta Sans, headings/figures 800 with tight tracking, 14px root (write px, not rem)
+- Plus Jakarta Sans, headings/figures 700 (« Aurore calme », 2026-10-05), 14px root (write px, not rem)
 - Colour means ONE thing: brand green = chrome · status/outcome hues · identity (agent, role,
   carrier account) · severity. Never colour alone; text ≥ 4.5:1 (#667085 is the lightest text)
-- Waffles, rings, pill bars, tooltips on every mark; motion on arrival, off under reduced-motion
+- One bar per outcome (OutcomeRows) for overviews, thin 9px rings on entity cards, pill bars,
+  tooltips on every mark; no waffles, halos, medal gradients or entrance motion; each figure
+  once, count first, share small. Validated outcome hues in docs/design-system.md §2.4
 - Showcase vs workbench density (§1.1): no glass or entrance motion on list rows
 - RTL: full layout mirror for Arabic market
 - Doctrine only: §10 of docs/design-system.md lists what the code still says

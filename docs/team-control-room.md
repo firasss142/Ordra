@@ -2,7 +2,9 @@
 
 **v6 (2026-10-04)** = v5's content in the « Aurore » look (`prototypes/team-v6.html`,
 design-system §4.25 — since the same day the reference implementation of the house
-language, §1–§9): the day's work as a waffle + the six numbers as tiles, one live
+language, §1–§9): the day's work as a waffle + the six numbers as tiles (since 2026-10-05,
+« Aurore calme »: a sentence + one bar per kind via `OutcomeRows`, and three context figures —
+agents actifs, reçues, livrées; the 30-day score reads « 26 % », not « 26/100 »), one live
 card per agent in her colour (ring done / in hand, four numbers, the red « non appelées »
 box), the period table with medals, her drawer in frosted glass. Changes of substance:
 « Actif » (10-minute windows) became **« En poste »** — her actions chained, a pause over
