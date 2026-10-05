@@ -3599,8 +3599,6 @@
       },
       "hours": "{n} h",
       "days": "{n} j",
-      "noSiteTitle": "Aucun bâtiment ne vous est assigné",
-      "noSiteBody": "Demandez à votre responsable de vous affecter à un entrepôt dans Accès.",
       "loadError": "Impossible de charger cette page. Réessayez dans un instant.",
       "today": {
         "title": "Aujourd'hui",

@@ -66,7 +66,7 @@ export function StockDesk({ market, dateLabel }: { market: "ly" | "tn"; dateLabe
   );
 
   return tab === "journal" ? (
-    <Journal market={market} dateLabel={dateLabel} tabs={tabs} sites={<SiteSeg sites={sites} value={siteId} onChange={setSite} />} />
+    <Journal market={market} dateLabel={dateLabel} tabs={tabs} />
   ) : (
     <Products
       market={market}
@@ -304,7 +304,11 @@ function ProductDrawer({
   );
 }
 
-function Journal({ market, dateLabel, tabs, sites }: { market: "ly" | "tn"; dateLabel: string; tabs: React.ReactNode; sites: React.ReactNode }) {
+/**
+ * The ledger. No building switch here: the history API cannot filter by
+ * building, and a switch that changes nothing would lie.
+ */
+function Journal({ market, dateLabel, tabs }: { market: "ly" | "tn"; dateLabel: string; tabs: React.ReactNode }) {
   const t = useTranslations("warehouse.desk");
   const ts = useTranslations("warehouse.desk.stock");
   const format = useFormatter();
@@ -320,7 +324,6 @@ function Journal({ market, dateLabel, tabs, sites }: { market: "ly" | "tn"; date
         acts={
           <>
             {tabs}
-            {sites}
             <a className="btn2" href={`/api/warehouse/history/export.csv?kind=${kind}`}><Ic n="file" />{ts("export")}</a>
           </>
         }
