@@ -10565,17 +10565,7 @@
       "calling": "Appel du {phone}…"
     },
     "autoRejected": "Commande rejetée automatiquement — tentatives max atteintes",
-    "panel": "La commande",
-    "tags": {
-      "dup": "Doublon ×{n}",
-      "dupShipped": "Doublon ×{n} · déjà envoyé",
-      "dupTip": "{n} commandes du même client — une seule doit partir.",
-      "dupShippedTip": "{n} commandes du même client — une copie est déjà chez le transporteur. Ouvrez-la pour supprimer celle-ci.",
-      "rejected": "Déjà rejeté {n, plural, one {# fois} other {# fois}}",
-      "rejectedTip": "{n} sur {of} commandes rejetées — confirmez l'adresse et l'intention.",
-      "loyal": "Client fidèle · {n, plural, one {# livrée} other {# livrées}}",
-      "loyalTip": "{of, plural, one {# commande précédente} other {# commandes précédentes}} · {n, plural, one {# livrée} other {# livrées}}"
-    }
+    "panel": "La commande"
   },
   "agentOutcome": {
     "foot": {

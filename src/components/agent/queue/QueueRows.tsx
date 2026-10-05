@@ -6,9 +6,9 @@
 
 import { memo, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Ic, APill, ATag, type AgentHue } from "@/components/agent/shared";
-import { StatusPill, marketParts, type When } from "@/components/orders/commandes/ui";
-import { ageTone, rowTags, CALLING_STATUSES, type RowTag } from "@/lib/orders/row-signals";
+import { Ic, APill, type AgentHue } from "@/components/agent/shared";
+import { RowTags, StatusPill, marketParts, type When } from "@/components/orders/commandes/ui";
+import { ageTone, rowTags, CALLING_STATUSES } from "@/lib/orders/row-signals";
 import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import type { MarketSearchRow } from "@/lib/agent-search/market";
 import type { QueueOrder } from "@/types/queue";
@@ -171,24 +171,6 @@ function AgeCell({ o, ctx, closedAt }: { o: QueueOrder; ctx: RowCtx; closedAt?: 
   );
 }
 
-/** The tags say their number in words (plan decision 7) — the live chips were a bare icon and count. */
-function WordTags({ tags }: { tags: RowTag[] }) {
-  const t = useTranslations("agentQueue.tags");
-  return (
-    <>
-      {tags.map((g) => {
-        const [icon, text, tip] =
-          g.kind === "dup"
-            ? ["copy", g.shipped ? t("dupShipped", { n: g.n }) : t("dup", { n: g.n }), g.shipped ? t("dupShippedTip", { n: g.n }) : t("dupTip", { n: g.n })]
-            : g.kind === "rejected"
-              ? ["alert", t("rejected", { n: g.n }), t("rejectedTip", { n: g.n, of: g.of })]
-              : ["star", t("loyal", { n: g.n }), t("loyalTip", { n: g.n, of: g.of })];
-        return <ATag key={g.kind} hue={g.hue} icon={icon} text={text} tip={tip} />;
-      })}
-    </>
-  );
-}
-
 const tagInput = (o: QueueOrder) => ({
   status: o.status,
   prior_order_count: o.prior_order_count,
@@ -243,7 +225,7 @@ function DeskRowInner({ o, ctx, open, focused, selected, closedAt, onOpen, onTog
           <div className="l1">
             <span className="nm" dir="auto">{o.customer_name}</span>
             <Signs o={o} ctx={ctx} />
-            <WordTags tags={rowTags(tagInput(o))} />
+            <RowTags tags={rowTags(tagInput(o))} />
           </div>
           <div className="l2"><Line2 o={o} ctx={ctx} /></div>
         </div>
@@ -324,7 +306,7 @@ function PhoneRowInner({ o, ctx, closed, onOpen, onCall, onSend }: PhoneRowProps
       <div className="meta">
         <Activity o={o} ctx={ctx} chipOnly />
         {closed ? null : <span className={`age ${cls}`}>{cls ? <Ic n="clock" /> : null}{ageLong(t, age)}</span>}
-        <WordTags tags={tags} />
+        <RowTags tags={tags} />
       </div>
     </div>
   );

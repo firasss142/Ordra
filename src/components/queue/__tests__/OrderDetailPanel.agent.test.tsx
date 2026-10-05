@@ -237,3 +237,58 @@ describe("OrderDetailPanel — the agent's four endings (agent-shell-v2)", () =>
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe("OrderDetailPanel — the manager's call results use the same steps, inside the order", () => {
+  const managerPanel = () => {
+    const onClose = vi.fn();
+    const onOutcomeDone = vi.fn();
+    render(<OrderDetailPanel orderId="order-1" role="market_manager" userId="mgr-1" onClose={onClose} onOutcomeDone={onOutcomeDone} />);
+    return { onClose, onOutcomeDone };
+  };
+  beforeEach(() => {
+    currentOrder = { ...order, status: "attempt_1", attempts_count: 1, created_at: new Date(Date.now() - 30 * 60_000).toISOString() };
+    posts = [];
+    vi.mocked(useSWR).mockImplementation(((key: unknown) => swrFor(key)) as unknown as typeof useSWR);
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") posts.push(url);
+      const body = url.endsWith("/no-answer") ? { data: { new_status: "attempt_2", auto_rejected: false, attempts_count: 2 } } : { data: {} };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it("opens « Refuser » as the reasons step inside the order, never the old call sheet", () => {
+    managerPanel();
+    fireEvent.click(within(screen.getByTestId("panel-actions")).getByRole("button", { name: "Refuser" }));
+    expect(document.querySelector(".tray")).toHaveTextContent("Pourquoi ?");
+    expect(screen.queryByTestId("panel-actions")).toBeNull();
+    expect(screen.queryByText("Résultat de l'appel")).toBeNull();
+  });
+
+  it("Escape closes the step before the order", () => {
+    const { onClose } = managerPanel();
+    fireEvent.click(within(screen.getByTestId("panel-actions")).getByRole("button", { name: "Rappeler" }));
+    expect(document.querySelector(".tray")).toHaveTextContent("Programmer un rappel");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.querySelector(".tray")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("records « Pas de réponse » straight away and tells the page", async () => {
+    const { onOutcomeDone } = managerPanel();
+    fireEvent.click(within(screen.getByTestId("panel-actions")).getByRole("button", { name: "Pas de réponse" }));
+    await waitFor(() => expect(onOutcomeDone).toHaveBeenCalledWith({ action: "attempt", newStatus: "attempt_2", autoRejected: false }));
+    expect(posts).toEqual(["/api/orders/order-1/no-answer"]);
+  });
+
+  it("confirms, then opens the send step with « Commande confirmée avec succès. »", async () => {
+    managerPanel();
+    fireEvent.click(within(screen.getByTestId("panel-actions")).getByRole("button", { name: "Confirmer" }));
+    await waitFor(() => expect(document.querySelector(".tray")).toHaveTextContent("Choisir le transporteur"));
+    expect(posts).toEqual(["/api/orders/order-1/confirm"]);
+  });
+});
+

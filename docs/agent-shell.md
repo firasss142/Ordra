@@ -25,7 +25,10 @@ The prototype is the spec: class names, words and reading order are its own.
 - The three meters count since the **market's** midnight (`/api/agent/stats` now uses `marketDayStartUtc`;
   it used the server's, i.e. UTC, before) and say so: « confirmées · aujourd'hui », « traitées · aujourd'hui »,
   « dans votre file ».
-- Row tags are in **words** (plan decision 7) — the managers' Commandes went icon-only in PR #78; the agent rows
-  have their own `agentQueue.tags.*`.
+- Row tags are **icons** with the words as tooltip (owner, 2026-10-05) — the same `RowTags` as the managers' Commandes.
+- **One way to record a call, for every role** (owner, 2026-10-05): the old `PostCallActionSheet` is gone. Agents get
+  `AgentEndings` (their footer + keys 1–4); managers keep their footer (`ActionFooter`, with pool / restore / cancel) through
+  `ManagerEndings`, whose call-result and send/schedule buttons open the same steps — inside the order on a computer,
+  the bottom sheet on a phone. Both sit in a `.agt.agt-inline` layer (display: contents) so agent.css draws the steps.
 - Fermées' carrier chip is « Chez le transporteur » (it said « En cours »).
 - Agents read « Tentative n/3 »; managers read « Appel n/3 ».

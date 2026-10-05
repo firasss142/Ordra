@@ -93,6 +93,7 @@ import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import { reliabilityChip, type HistoryInput, type ReliabilityChip } from "@/lib/orders/row-signals";
 import { useAgentPhone } from "@/components/agent/shared";
 import { AgentOrderEndings } from "@/components/agent/queue/outcome/AgentOrderEndings";
+import { ManagerEndings } from "@/components/agent/queue/outcome/ManagerEndings";
 import { AgentSla, AttemptPill, VoiceButton } from "@/components/agent/queue/outcome/AgentTop";
 import { agentNotes, twinOf, type OutcomeDone, type Tray } from "@/components/agent/queue/outcome/outcome-model";
 import { CALLING_STATUSES } from "@/lib/orders/row-signals";
@@ -237,28 +238,10 @@ const TERMINAL_STATUSES = new Set([
 ]);
 
 
-export interface CallTerminatedContext {
-  orderId: string;
-  status: string;
-  marketId: string;
-  attemptsCount: number;
-  /**
-   * Which step the post-call sheet should open on. Set when the footer already
-   * knows how the call ended, so the agent is not asked the same question
-   * twice. Omitted means the full outcome picker.
-   */
-  flow?: "option_select" | "reject_flow" | "callback_expanded" | "confirm_now" | "no_answer_now";
-}
-
 interface OrderDetailPanelProps {
   orderId: string | null;
   onClose: () => void;
-  /**
-   * The manager's round-trip to the page-level call sheet. Unused for role="agent": the
-   * agent's endings live inside the panel (onOutcomeDone reports them).
-   */
-  onCallTerminated?: (orderId: string, ctx?: CallTerminatedContext) => void;
-  /** role="agent": fired after every recorded ending, so the page refreshes and a bulk run moves on. */
+  /** Fired after every recorded call result (any role), so the page refreshes and a bulk run moves on. */
   onOutcomeDone?: (r: OutcomeDone) => void;
   /** role="agent": open straight on a step (the queue row's truck opens « send »). */
   initialTray?: Tray;
@@ -318,7 +301,6 @@ function useIsPhone(): boolean {
 export function OrderDetailPanel({
   orderId,
   onClose,
-  onCallTerminated,
   onReturnToPool,
   role,
   userId,
@@ -1207,32 +1189,13 @@ export function OrderDetailPanel({
     (kind: PanelActionKind) => {
       if (!order || !orderId) return;
       switch (kind) {
+        // The call results never reach here: AgentEndings / ManagerEndings run them inside the order.
         case "endCall":
         case "changeStatus":
         case "rescheduleCallback":
         case "confirm":
         case "callback":
         case "reject":
-          onCallTerminated?.(orderId, {
-            orderId,
-            status: order.status,
-            marketId: order.market_id,
-            attemptsCount: order.attempts_count ?? 0,
-            // Each of the four buttons names its ending, so each carries the
-            // agent straight to it — nothing re-asks the question the button
-            // just answered. `rescheduleCallback` deliberately lands on the
-            // callback step; only `changeStatus` opens the plain picker.
-            flow:
-              kind === "confirm"
-                ? "confirm_now"
-                : kind === "endCall"
-                  ? "no_answer_now"
-                  : kind === "reject"
-                    ? "reject_flow"
-                    : kind === "callback" || kind === "rescheduleCallback"
-                      ? "callback_expanded"
-                      : undefined,
-          });
           return;
         case "uploadToCarrier":
         case "uploadNow":
@@ -1271,7 +1234,6 @@ export function OrderDetailPanel({
     [
       order,
       orderId,
-      onCallTerminated,
       handleCancelSchedule,
       handleReturnToPool,
       handleDeleteCarrierBarcode,
@@ -1688,25 +1650,37 @@ export function OrderDetailPanel({
             />
           )}
 
-          {/* Notices sit directly above the buttons they are about. */}
+          {/* The manager: their own footer, with the agent's steps for the call results (no more PostCallActionSheet). */}
           {order && !agentMode && (
-            <AlertBanners
-              notes={notes}
-              extra={extraNotes}
-              marketId={order.market_id}
-              callbackScheduledAt={order.callback_scheduled_at}
-              dispatchScheduledAt={order.scheduled_dispatch_at}
-              dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
-            />
-          )}
-
-          {order && !agentMode && (
-            <ActionFooter
+            <ManagerEndings
+              order={{ id: order.id, status: order.status, marketId: order.market_id, attempts: order.attempts_count ?? 0, currency: order.currency, twin: null }}
+              maxAttempts={maxCallAttempts ?? Number.POSITIVE_INFINITY}
+              phone={agentPhone}
+              locale={locale}
+              echo={{
+                name: order.customer_name,
+                phone: order.customer_phone,
+                productName: orderItems[0]?.product_name ?? order.product_name,
+                imageUrl: null,
+                quantity: orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0),
+                total: order.total_price,
+              }}
               actions={panelActions}
-              primaryPending={reopening || returningToPool || cancelingSchedule || recovering}
-              onInvoke={invokeAction}
+              pending={reopening || returningToPool || cancelingSchedule || recovering}
+              banners={
+                <AlertBanners
+                  notes={notes}
+                  extra={extraNotes}
+                  marketId={order.market_id}
+                  callbackScheduledAt={order.callback_scheduled_at}
+                  dispatchScheduledAt={order.scheduled_dispatch_at}
+                  dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
+                />
+              }
               showNavHint={variant === "side"}
               feedbackHint={feedback.enabled}
+              onDone={agentDone}
+              onInvoke={invokeAction}
             />
           )}
         </aside>

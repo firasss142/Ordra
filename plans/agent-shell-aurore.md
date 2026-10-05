@@ -45,8 +45,8 @@ Not fixed by design (code-level): prefetch keys (`days=60` vs 90, old leads endp
   is one component; the word follows the role.
 - Meters stay « since midnight » with honest labels — and midnight is now the MARKET's (the route cut the day at the
   server's UTC midnight, i.e. 02:00 in Tripoli).
-- Row tags in words (decision 7) even though the managers' Commandes went icon-only in PR #78 — the owner's call
-  for managers came after this prototype; ask whether agents should follow it.
+- Row tags: built in words (decision 7), then the owner chose ICONS (2026-10-05), as the managers' Commandes (#78).
+- Managers' call results: the owner chose the new steps for them too and dropped the old pop-up (2026-10-05).
 
 ## Build order after approval
 Commandes (tiles + row + panel endings, agents' panel switch +1 week after managers per commandes plan) → Livraison → CRM →

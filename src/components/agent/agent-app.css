@@ -9,6 +9,9 @@
 [dir=rtl] .agt,.agt[dir=rtl]{font-family:var(--fa)}
 :where(.agt) a{color:inherit;text-decoration:none}
 :where(.agt) h5,:where(.agt) h6,:where(.agt) ul,:where(.agt) dl{margin:0}
+.agt.agt-layer{min-height:0;background:none}
+/* a layer drawn inside another surface's flow (the managers' panel): tokens only, no box */
+.agt.agt-inline{display:contents}
 .agt .agt-main{padding:22px 28px 120px}
 .agt .tip{position:fixed}
 .agt .thumb img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
