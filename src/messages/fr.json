@@ -7801,7 +7801,7 @@
           "invalid_sheet": "Collez le lien de la feuille Google et le nom de l’onglet.",
           "no_access": "Ordra ne peut pas ouvrir cette feuille. Partagez-la avec {email}, puis réessayez.",
           "no_tab": "Aucun onglet « {tab} » dans cette feuille. Vérifiez le nom exact.",
-          "missing_columns": "Ce n’est pas un export Converty : il manque {columns}.",
+          "missing_columns": "Ce n’est pas un export Converty : il manque {columns}. Colonnes lues dans l’onglet : {found}. Vérifiez que l’onglet est le bon.",
           "already_connected": "Cette feuille et cet onglet sont déjà reliés à une boutique."
         },
         "sync": "Lecture de la feuille",

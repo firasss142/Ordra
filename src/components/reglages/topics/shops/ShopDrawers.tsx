@@ -308,6 +308,7 @@ function SheetSyncSection({ shopId, marketId, formatDate }: { shopId: string; ma
 interface SheetRefusal {
   code?: string;
   columns?: string[];
+  found?: string[];
   service_account?: string | null;
 }
 
@@ -345,7 +346,10 @@ export function AddShopDrawer({ marketId, onClose, onCreated }: { marketId: stri
       case "no_tab":
         return t("shops.drawer.sheetError.no_tab", { tab: tab.trim() });
       case "missing_columns":
-        return t("shops.drawer.sheetError.missing_columns", { columns: (body.columns ?? []).join(", ") });
+        return t("shops.drawer.sheetError.missing_columns", {
+          columns: (body.columns ?? []).join(", "),
+          found: (body.found ?? []).slice(0, 30).join(", ") || "—",
+        });
       case "already_connected":
         return t("shops.drawer.sheetError.already_connected");
       default:
