@@ -679,7 +679,7 @@ decides when. This table is the checklist for that migration and must shrink, no
 **« Aurore calme » status (2026-10-05).** In the calm register: `/team` (`.r6` block of
 `globals.css`, « Aurore calme » sub-block), `/team/performance` (`team-performance.css`, last
 block), `/performance/orders` (`performance-orders.css`, last block), and the shared
-`OutcomeRows`. Not yet calm: Accueil (`store-dashboard.css` still ships the pastels that fail
+`OutcomeRows`, and Accès (`/users`, `src/components/admin/access/acces.css`, 2026-10-05). Not yet calm: Accueil (`store-dashboard.css` still ships the pastels that fail
 the validator — move it to §2.4's steps), Transporteurs, Produits, Entrepôt, the agent shell.
 On the two Performance pages the lower blocks were restyled, not redesigned: « Les plus
 grosses fuites », « Par produit » and « Par agent » still print « /100 » figures — convert them
@@ -688,7 +688,7 @@ to counts first when they are next touched.
 | Area | Code today | Aurore target |
 |---|---|---|
 | Page ground | `--bg-page` `#F6F6F7` flat, set in `DashboardChrome` (inline style); `--oms-bg` `#FAFAF8`, `--agent-bg` `#FAFAF9`, `--wh-bg` / `--wm-ground` `#F6F6F7`, investor `bg-oms-bg` | `.au-ground` painted once on the shell's `<main>` (`SidebarFrame`), the agent shell, the investor shell; phone warehouse stays opaque `#F6F7FB` |
-| Page roots | ~23 roots paint `min-h-screen bg-surface-page / bg-oms-bg / bg-fin-bg / bg-agent-bg` over the ground (carriers, dashboard, P&L, stock, ad spend, investors, messages, integrations, performance, users, réglages, products, queue, leads, purchases…) | no ground on page roots; a test forbids `min-h-screen` + an opaque ground |
+| Page roots | ~23 roots paint `min-h-screen bg-surface-page / bg-oms-bg / bg-fin-bg / bg-agent-bg` over the ground (carriers, dashboard, P&L, stock, ad spend, investors, messages, integrations, performance, réglages, products, queue, leads, purchases…) | no ground on page roots; a test forbids `min-h-screen` + an opaque ground |
 | Ink | Tailwind `ink.primary #1A1A1A`, `secondary #6D7175`, `muted #9CA3AF` (2.5:1 — fails AA as text) | `#0F1728` / `#475467` / `#667085` |
 | Lines | `line.subtle #ECEEF0`, `line #E1E3E5`, `line.strong #DADCE0` ≠ `--border-strong #C9CCCF` (open discrepancy) | one value each; strong = `#D0D5DD` in both |
 | Radius | `rounded-card` 10px (12px under `.agent-theme`) | `rounded-card` 16px inner, new `rounded-panel` 24px, `drawer` 26, `modal` 22 |
@@ -1433,11 +1433,22 @@ tokens out of `globals.css` and holds ink ≥ 4.5:1 and hue ≥ 3:1 on the tint.
 3. They may appear elsewhere only to represent a **person** (an avatar, a role chip) —
    never as decoration, never for a non-person category.
 
-**Where they show on Accès:** the role tiles (§4.19 holder, selected tile filled with
-its tint), avatars (initials or photo on the role tint, with a green or amber presence
-beat), the role chip in each row, the warehouse pill (always `tone-warehouse`), the
-creation cards, and the band at the top of a person's file. Brand green keeps the
-chrome: the primary button, the « Tous » tile, focus, the selected row.
+**Where they show on Accès:** the role cards, avatars, the role chip in each row, the
+warehouse pill (always `tone-warehouse`), the selected row, the creation cards and the
+halo of a person's file. Brand green keeps the chrome: the primary button, the « Tous »
+card, focus, a pressed filter (« Sans activité »), the step numbers.
+
+**In « Aurore calme » since 2026-10-05** (`src/components/admin/access/acces.css`, scoped
+`.acx`; the page paints its own aurora like `/team/performance`). The role hue is an
+**identity**, so it gets the entity-card treatment of §4.2: each role card has a 3px top
+accent, a wash fading down, the count in `--tone-ink`, gradient faces; the pressed card a
+1px ring in its hue. Avatars are `linear-gradient(140deg, --tone, --tone-ink)` with a white
+ring and a glow. The selected row is tinted `--tone-bg` with a 3px start edge in `--tone`.
+The person's file is the floating drawer of §4.9 with a halo of their hue; its sections are
+glass, the three account facts are figures between hairlines. The no-building alert is the
+calm problem line (§4.2) with a red top accent and **at most six people** before « +N
+autres » — a dozen red chips was a wall. « Affecter » is a soft red tag that fills on hover.
+`UsersPageAurore.test.tsx` forbids the old flat hexes and rem sizes in these files.
 
 ## 4.24 Journaux — severity only (2026-10-03)
 

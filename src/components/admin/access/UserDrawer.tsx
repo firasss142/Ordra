@@ -23,13 +23,11 @@ const EVENT_TONE: Record<string, string> = {
   warehouse_assigned: "tone-warehouse",
   password_reset: "tone-manager",
   avatar_updated: "tone-agent",
-  user_deactivated: "[--tone:#DC2626] [--tone-bg:#FEF0EE]",
-  user_deleted: "[--tone:#DC2626] [--tone-bg:#FEF0EE]",
-  user_invited: "[--tone:#D97706] [--tone-bg:#FFF6E5]",
+  user_deactivated: "bad",
+  user_deleted: "bad",
+  user_invited: "warn",
 };
 const KNOWN_EVENTS = Object.keys(EVENT_TONE);
-
-const section = "m-0 mb-[12px] flex items-center gap-[7px] text-[12px] font-semibold uppercase tracking-[.06em] text-[#656B72] rtl:text-[13px] rtl:tracking-normal";
 
 /**
  * One person's file: the account in three facts, the building (warehouse
@@ -89,36 +87,36 @@ export function UserDrawer({
   }
 
   return (
-    <SidePanel labelledBy={titleId} onClose={onClose}>
-      <div className={`${TONE[user.role]} relative border-b border-tone-edge bg-tone-bg px-[22px] pb-[18px] pt-[22px]`}>
-        <CloseButton label={t("drawer.close")} onClick={onClose} className="absolute end-[14px] top-[14px] bg-white shadow-[inset_0_0_0_1px_var(--tone-edge)]" />
+    <SidePanel labelledBy={titleId} onClose={onClose} tone={TONE[user.role]}>
+      <div className="acx-dh">
+        <CloseButton label={t("drawer.close")} onClick={onClose} />
         <PhotoPicker hasPhoto={!!user.avatar_url} onChange={onSetPhoto}>
           <AccessAvatar user={user} size="xl" presence={presenceOf(user.last_seen_at, active, now)} muted={status === "disabled"} />
         </PhotoPicker>
-        <h2 id={titleId} className="m-0 mt-[12px] text-[19px] font-bold tracking-[-.01em] text-[#15171A]">
+        <h2 id={titleId}>
           <bdi>{user.full_name}</bdi>
-          {isSelf && <span className="ms-[6px] rounded-full bg-white px-[7px] py-[1px] align-[2px] text-[11px] font-semibold text-[#4F555B]">{t("you")}</span>}
+          {isSelf && <span className="acx-you">{t("you")}</span>}
         </h2>
-        <div className="mt-[9px] flex flex-wrap gap-[6px]">
+        <div className="acx-dh-tags">
           <RoleChip role={user.role} onWhite />
           {admin && (
-            <span className="inline-flex h-[26px] items-center gap-[5px] rounded-full bg-white px-[10px] text-[12.5px] font-semibold text-[#4F555B] shadow-[inset_0_0_0_1px_#E3E5E8]">
-              <MapPin size={13} aria-hidden="true" className="text-[#656B72]" />
+            <span className="acx-pill white">
+              <MapPin size={13} aria-hidden="true" />
               {code ? t(`market.${code}`) : t("market.none")}
             </span>
           )}
           {status === "active" ? (
-            <span className="inline-flex h-[26px] items-center gap-[6px] rounded-full bg-white px-[10px] text-[12.5px] font-semibold text-[#15803D] shadow-[inset_0_0_0_1px_#A9DDBC]">
+            <span className="acx-pill good">
               <Dot tone="on" size={7} />
               {t("status.active")}
             </span>
           ) : status === "invited" ? (
-            <span className="inline-flex h-[26px] items-center gap-[6px] rounded-full bg-[#FFF6E5] px-[10px] text-[12.5px] font-semibold text-[#B45309]">
+            <span className="acx-pill warn">
               <Mail size={13} aria-hidden="true" />
               {t("status.invited")}
             </span>
           ) : (
-            <span className="inline-flex h-[26px] items-center gap-[6px] rounded-full bg-white px-[10px] text-[12.5px] font-semibold text-[#4F555B] shadow-[inset_0_0_0_1px_#E3E5E8]">
+            <span className="acx-pill white">
               <Ban size={13} aria-hidden="true" />
               {t("status.disabled")}
               {user.deactivation_reason ? ` · ${t(`reasons.${user.deactivation_reason}`)}` : ""}
@@ -127,108 +125,96 @@ export function UserDrawer({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-[22px] py-[20px]">
-        <div className="grid grid-cols-1 gap-[8px] sm:grid-cols-3">
-          <div className="min-w-0 rounded-[12px] border border-[#F2F3F5] bg-[#F7F8F9] px-[12px] py-[10px]">
-            <span className="block text-[11.5px] font-medium text-[#656B72]">{t("drawer.activity")}</span>
-            <span className="mt-[4px] block text-[13px] [&>span]:whitespace-normal">
+      <div className="acx-db">
+        <div className="acx-sec acx-facts">
+          <div className="acx-fact">
+            <span>{t("drawer.activity")}</span>
+            <div>
               <ActivityLabel lastSeenAt={user.last_seen_at} now={now} />
-            </span>
-            {user.last_seen_at && (
-              <small className="mt-[2px] block truncate text-[11.5px] text-[#656B72]">
-                {fmt(user.last_seen_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}
-              </small>
-            )}
+            </div>
+            {user.last_seen_at && <small>{fmt(user.last_seen_at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}</small>}
           </div>
-          <div className="min-w-0 rounded-[12px] border border-[#F2F3F5] bg-[#F7F8F9] px-[12px] py-[10px]">
-            <span className="block text-[11.5px] font-medium text-[#656B72]">{t("drawer.identifier")}</span>
-            <b className="mt-[4px] block truncate text-[13.5px] font-semibold text-[#15171A]">
+          <div className="acx-fact">
+            <span>{t("drawer.identifier")}</span>
+            <b>
               <bdi>{loginIdentifier(user.email)}</bdi>
             </b>
             {loginIdentifier(user.email) !== user.email && (
-              <small className="mt-[2px] block truncate text-[11.5px] text-[#656B72]">
+              <small>
                 <bdi>{user.email}</bdi>
               </small>
             )}
           </div>
-          <div className="min-w-0 rounded-[12px] border border-[#F2F3F5] bg-[#F7F8F9] px-[12px] py-[10px]">
-            <span className="block text-[11.5px] font-medium text-[#656B72]">{t("drawer.created")}</span>
-            <b className="mt-[4px] block text-[13.5px] font-semibold text-[#15171A]">{fmt(user.created_at, { day: "numeric", month: "long", year: "numeric" })}</b>
+          <div className="acx-fact">
+            <span>{t("drawer.created")}</span>
+            <b>{fmt(user.created_at, { day: "numeric", month: "long", year: "numeric" })}</b>
           </div>
         </div>
 
         {user.role === "warehouse_agent" && (
-          <section aria-labelledby={`${titleId}-wh`}>
-            <h3 id={`${titleId}-wh`} className={section}>
-              <Box size={14} aria-hidden="true" className="text-[#9AA0A6]" />
+          <section aria-labelledby={`${titleId}-wh`} className="acx-sec">
+            <h3 id={`${titleId}-wh`} className="acx-eyebrow">
+              <Box size={14} aria-hidden="true" />
               {t("warehouse.label")}
-              <span className="flex-1" />
+              <span className="grow" />
               {user.warehouse_id && active && (
-                <button type="button" onClick={() => void chooseSite(null)} className="rounded-[6px] px-[6px] py-[2px] text-[12px] font-semibold normal-case tracking-normal text-[#C0362C] hover:bg-[#FDECEA]">
+                <button type="button" onClick={() => void chooseSite(null)} className="acx-eyebrow-act">
                   {t("warehouse.remove")}
                 </button>
               )}
             </h3>
-            <div role="radiogroup" aria-labelledby={`${titleId}-wh`} className="tone-warehouse grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-[8px]">
-              {sites.map((s) => {
-                const on = user.warehouse_id === s.id;
-                return (
-                  <label
-                    key={s.id}
-                    className={`relative flex cursor-pointer items-center gap-[10px] rounded-[12px] border px-[12px] py-[10px] text-[13.5px] font-semibold transition-colors has-[:disabled]:cursor-default has-[:disabled]:opacity-55 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand ${
-                      on ? "border-tone bg-tone-bg text-tone-ink shadow-[inset_0_0_0_1px_var(--tone)]" : "border-[#E3E5E8] text-[#15171A] hover:border-tone-edge"
-                    }`}
-                  >
-                    <input type="radio" name={`${titleId}-site`} value={s.id} checked={on} disabled={!active} onChange={() => void chooseSite(s.id)} className="absolute opacity-0" />
-                    <span aria-hidden="true" className={`grid h-[30px] w-[30px] place-items-center rounded-[8px] text-tone ${on ? "bg-white" : "bg-tone-bg"}`}>
-                      <Box size={15} />
-                    </span>
-                    {s.name}
-                  </label>
-                );
-              })}
+            <div role="radiogroup" aria-labelledby={`${titleId}-wh`} className="tone-warehouse acx-sites">
+              {sites.map((s) => (
+                <label key={s.id} className="acx-opt">
+                  <input type="radio" name={`${titleId}-site`} value={s.id} checked={user.warehouse_id === s.id} disabled={!active} onChange={() => void chooseSite(s.id)} />
+                  <span aria-hidden="true" className="acx-opt-ic">
+                    <Box size={15} />
+                  </span>
+                  {s.name}
+                </label>
+              ))}
             </div>
             {whError ? (
-              <p role="alert" className="m-0 mt-[8px] text-[12.5px] font-medium text-[#C0362C]">{t("warehouse.error")}</p>
+              <p role="alert" className="acx-hint acx-err">{t("warehouse.error")}</p>
             ) : active && !user.warehouse_id ? (
-              <div className="mt-[10px] flex items-start gap-[8px] rounded-[10px] border border-[#F8D9A6] bg-[#FFF6E5] px-[12px] py-[9px] text-[12.5px] text-[#8F4A06]">
-                <AlertTriangle size={14} aria-hidden="true" className="mt-[1px] flex-none text-[#D97706]" />
+              <div className="acx-warnline">
+                <AlertTriangle size={14} aria-hidden="true" />
                 {t("warehouse.warn")}
               </div>
             ) : (
-              <p className="m-0 mt-[8px] text-[12.5px] leading-[1.45] text-[#656B72]">{t("warehouse.hint")}</p>
+              <p className="acx-hint">{t("warehouse.hint")}</p>
             )}
           </section>
         )}
 
-        <section aria-labelledby={`${titleId}-perms`}>
-          <h3 id={`${titleId}-perms`} className={section}>
-            <Shield size={14} aria-hidden="true" className="text-[#9AA0A6]" />
+        <section aria-labelledby={`${titleId}-perms`} className="acx-sec">
+          <h3 id={`${titleId}-perms`} className="acx-eyebrow">
+            <Shield size={14} aria-hidden="true" />
             {t("drawer.permissions")}
           </h3>
-          <ul aria-labelledby={`${titleId}-perms`} className="m-0 grid list-none grid-cols-1 gap-x-[16px] gap-y-[9px] p-0 text-[13px] sm:grid-cols-2">
+          <ul aria-labelledby={`${titleId}-perms`} className="acx-perms">
             {getPermissionsForRole(user.role).map((p) => (
-              <li key={p.key} data-allowed={p.allowed} className={`flex items-center gap-[9px] ${p.allowed ? "font-medium text-[#15171A]" : "text-[#656B72]"}`}>
-                <span aria-hidden="true" className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full ${p.allowed ? "bg-brand-bg text-brand" : "bg-[#F3F4F6] text-[#9AA0A6]"}`}>
+              <li key={p.key} data-allowed={p.allowed}>
+                <span aria-hidden="true" className="acx-tick">
                   {p.allowed ? <Check size={13} strokeWidth={2.4} /> : <Minus size={13} strokeWidth={2.4} />}
                 </span>
                 {tp(p.key as Parameters<typeof tp>[0])}
               </li>
             ))}
           </ul>
-          <p className="m-0 mt-[12px] text-[12px] text-[#656B72]">{t("drawer.permissionsNote")}</p>
+          <p className="acx-note">{t("drawer.permissionsNote")}</p>
         </section>
 
         {admin && (
-          <section ref={journalRef} aria-labelledby={`${titleId}-journal`}>
-            <h3 id={`${titleId}-journal`} className={section}>
-              <History size={14} aria-hidden="true" className="text-[#9AA0A6]" />
+          <section ref={journalRef} aria-labelledby={`${titleId}-journal`} className="acx-sec">
+            <h3 id={`${titleId}-journal`} className="acx-eyebrow">
+              <History size={14} aria-hidden="true" />
               {t("drawer.journal")}
             </h3>
-            {journal && journal.data.length === 0 && <p className="m-0 text-[13px] text-[#656B72]">{t("drawer.journalEmpty")}</p>}
+            {journal && journal.data.length === 0 && <p className="acx-hint">{t("drawer.journalEmpty")}</p>}
             {journal && journal.data.length > 0 && (
-              <ol className="m-0 list-none p-0">
-                {journal.data.map((ev, i) => {
+              <ol className="acx-journal">
+                {journal.data.map((ev) => {
                   const meta = ev.meta ?? {};
                   const known = KNOWN_EVENTS.includes(ev.event_type);
                   const extras: string[] = [];
@@ -236,12 +222,10 @@ export function UserDrawer({
                   if (typeof meta.reason === "string" && ["on-leave", "off-boarded", "terminated"].includes(meta.reason)) extras.push(t(`reasons.${meta.reason as "on-leave"}`));
                   if (typeof meta.orders_returned === "number" && meta.orders_returned > 0) extras.push(t("drawer.returned", { count: meta.orders_returned }));
                   return (
-                    <li key={ev.id} className={`${EVENT_TONE[ev.event_type] ?? "tone-admin"} relative pb-[16px] ps-[26px] text-[13px] last:pb-0`}>
-                      {i < journal.data.length - 1 && <span aria-hidden="true" className="absolute bottom-0 start-[5px] top-[16px] w-[2px] rounded-[2px] bg-[#ECEEF0]" />}
-                      <span aria-hidden="true" className="absolute start-0 top-[3px] h-[12px] w-[12px] rounded-full bg-tone shadow-[0_0_0_3px_var(--tone-bg)]" />
-                      <span className="font-semibold text-[#15171A]">{known ? t(`events.${ev.event_type as "user_created"}`) : ev.event_type}</span>
-                      {extras.length > 0 && <span className="text-[#15171A]">{` · ${extras.join(" · ")}`}</span>}
-                      <small className="mt-[2px] block text-[12px] text-[#656B72]">
+                    <li key={ev.id} className={EVENT_TONE[ev.event_type] ?? "tone-admin"}>
+                      <b>{known ? t(`events.${ev.event_type as "user_created"}`) : ev.event_type}</b>
+                      {extras.length > 0 && <span>{` · ${extras.join(" · ")}`}</span>}
+                      <small>
                         {t("drawer.by", { name: ev.actor?.full_name ?? t("drawer.system") })} · {fmt(ev.created_at, { day: "numeric", month: "short", year: "numeric" })} ·{" "}
                         <bdi>{fmt(ev.created_at, { hour: "2-digit", minute: "2-digit", hour12: false })}</bdi>
                       </small>
@@ -254,7 +238,7 @@ export function UserDrawer({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-[8px] border-t border-[#ECEEF0] bg-white px-[22px] py-[14px]">
+      <div className="acx-df">
         {active ? (
           <>
             <button type="button" onClick={() => onAction("reset")} className={buttonClass("neutral")}>
@@ -280,7 +264,7 @@ export function UserDrawer({
         )}
         {admin && !isSelf && (
           <>
-            <span className="flex-1" />
+            <span className="grow" />
             <button type="button" aria-label={t("menu.delete")} title={t("menu.delete")} onClick={() => onAction("delete")} className={buttonClass("ghostCritical")}>
               <Trash2 size={16} aria-hidden="true" />
             </button>

@@ -17,6 +17,7 @@ import { DeactivateUserDialog, DeleteUserDialog, ResetPasswordDialog } from "@/c
 import { buttonClass } from "@/components/admin/access/parts";
 import type { RowMenuItem } from "@/components/admin/access/RowMenu";
 import type { AuthUser, UserWithStats } from "@/types";
+import "@/components/admin/access/acces.css";
 
 type Dialog = { kind: "deactivate" | "delete" | "reset"; user: UserWithStats };
 
@@ -31,13 +32,15 @@ function useNow(intervalMs = 60_000): Date {
 }
 
 /**
- * Équipe › Accès (/users) — prototypes/acces-v2.html. Who can sign in, with
- * which role and on which market: role tiles, one table, a file per person,
- * creation in three steps. Same routes and role rules as before; a manager's
- * list is already scoped by GET /api/users.
+ * Équipe › Accès (/users) — who can sign in, with which role and on which
+ * market: role cards, one table, a file per person, creation in three steps.
+ * Structure from prototypes/acces-v2.html; look in « Aurore calme »
+ * (acces.css, design-system §4.23). Same routes and role rules as before; a
+ * manager's list is already scoped by GET /api/users.
  */
 export function UsersPageClient({ user }: { user: AuthUser }) {
   const t = useTranslations("users");
+  const tNav = useTranslations("nav.sections");
   const locale = useLocale();
   const { show } = useToast();
   const ws = useUsersWorkspace();
@@ -150,14 +153,17 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
   const filtered = filters.query.trim() !== "" || filters.dormantOnly || filters.tab !== "all" || filters.market !== "all";
 
   return (
-    <div dir={locale === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-surface-page">
-      <div className="mx-auto flex max-w-[1160px] flex-col gap-[18px] px-[16px] pb-[64px] pt-[28px] md:px-[32px]">
-        <header className="flex flex-wrap items-end justify-between gap-[16px]">
+    <div dir={locale === "ar" ? "rtl" : "ltr"} className="acx">
+      <div className="acx-page">
+        <header className="acx-ph">
           <div>
-            <h1 className="m-0 text-[24px] font-bold tracking-[-.02em] text-[#15171A]">{t("title")}</h1>
-            <p className="m-0 mt-[4px] text-[14px] text-[#4F555B]">
-              {admin ? t("subtitleAdmin") : t("subtitleManager", { market: ownMarket ? t(`market.${ownMarket}`) : "" })}
-            </p>
+            <nav aria-label={t("crumbLabel")} className="acx-crumb">
+              <span>{tNav("equipe")}</span>
+              <i aria-hidden="true">/</i>
+              <span aria-current="page">{t("title")}</span>
+            </nav>
+            <h1>{t("title")}</h1>
+            <p className="acx-sub">{admin ? t("subtitleAdmin") : t("subtitleManager", { market: ownMarket ? t(`market.${ownMarket}`) : "" })}</p>
           </div>
           <button ref={createButton} type="button" onClick={() => setCreating(true)} className={buttonClass("primary")}>
             <Plus size={16} aria-hidden="true" />
@@ -168,18 +174,18 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
         <UnassignedBanner users={view.unassignedWarehouse} onAssign={(u, el) => open(u, el)} />
 
         {ws.isLoading ? (
-          <div role="status" aria-label={t("loading")} className="flex flex-col gap-[18px]">
-            <div className="grid grid-cols-2 gap-[12px] md:grid-cols-[repeat(auto-fit,minmax(168px,1fr))]">
+          <div role="status" aria-label={t("loading")} className="acx-sk">
+            <div className="acx-sk-roles">
               {Array.from({ length: admin ? 6 : 3 }, (_, i) => (
-                <span key={i} className="block h-[118px] animate-pulse rounded-[14px] bg-[#EEF0F2]" />
+                <span key={i} className="acx-sk-role" />
               ))}
             </div>
-            <div className="flex flex-col gap-[14px] rounded-[14px] border border-[#ECEEF0] bg-white p-[20px]">
+            <div className="acx-sk-card">
               {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className="flex items-center gap-[12px]">
-                  <span className="block h-[36px] w-[36px] animate-pulse rounded-full bg-[#EEF0F2]" />
-                  <span className="block h-[12px] animate-pulse rounded-[6px] bg-[#EEF0F2]" style={{ width: 90 + ((i * 37) % 70) }} />
-                  <span className="ms-[18%] block h-[24px] animate-pulse rounded-full bg-[#EEF0F2]" style={{ width: 120 + ((i * 23) % 50) }} />
+                <div key={i} className="acx-sk-row">
+                  <span />
+                  <span style={{ width: 90 + ((i * 37) % 70) }} />
+                  <span style={{ width: 120 + ((i * 23) % 50) }} />
                 </div>
               ))}
             </div>
@@ -188,7 +194,7 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
           <>
             <RoleTiles tiles={view.tiles} selected={filters.tab} onSelect={(tab: RoleTab) => patch({ tab })} />
 
-            <div className="overflow-hidden rounded-[14px] border border-[#ECEEF0] bg-white">
+            <div className="acx-card">
               <AccessToolbar
                 query={filters.query}
                 onQuery={(query) => patch({ query })}
@@ -203,13 +209,13 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
               {view.rows.length > 0 ? (
                 <UsersTable rows={view.rows} ctx={ctx} />
               ) : (
-                <div className="px-[16px] py-[48px] text-center text-[14px] text-[#4F555B]">
-                  <span aria-hidden="true" className="mx-auto mb-[12px] grid h-[44px] w-[44px] place-items-center rounded-[12px] bg-brand-bg text-brand">
+                <div className="acx-empty">
+                  <span aria-hidden="true" className="acx-empty-ic">
                     <Search size={18} />
                   </span>
-                  <p className="m-0">{filters.query.trim() ? t("emptyQuery", { query: filters.query.trim() }) : t("empty")}</p>
+                  <p>{filters.query.trim() ? t("emptyQuery", { query: filters.query.trim() }) : t("empty")}</p>
                   {filtered && (
-                    <button type="button" onClick={() => setFilters({ tab: "all", market: "all", query: "", dormantOnly: false })} className={`${buttonClass("neutral", "sm")} mt-[14px]`}>
+                    <button type="button" onClick={() => setFilters({ tab: "all", market: "all", query: "", dormantOnly: false })} className={buttonClass("neutral", "sm")}>
                       {t("clear")}
                     </button>
                   )}
@@ -218,7 +224,7 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
               <DisabledFold rows={view.disabled} ctx={ctx} open={foldOpen} onToggle={() => setFoldOpen((o) => !o)} />
             </div>
 
-            <p className="m-0 flex items-center gap-[7px] px-[4px] text-[12.5px] text-[#656B72]">
+            <p className="acx-foot">
               <Info size={14} aria-hidden="true" />
               {t("footnote")}
             </p>

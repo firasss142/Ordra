@@ -17,25 +17,24 @@ export function CloseButton({ label, onClick, className = "" }: { label: string;
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={`grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px] text-[#4F555B] hover:bg-[#F3F4F6] hover:text-[#15171A] ${className}`}
+      className={`acx-close ${className}`.trim()}
     >
       <X size={16} aria-hidden="true" />
     </button>
   );
 }
 
-/** The right-edge panel (§4.13), 480px so its footer holds on one line. */
-export function SidePanel({ labelledBy, onClose, children }: { labelledBy: string; onClose: () => void; children: ReactNode }) {
+/**
+ * The floating glass drawer (design-system §4.9): inset 12px, 26px radius, a
+ * blurred scrim, and a halo of `tone` (the person's role hue) behind the head.
+ * 480px wide so its footer holds on one line; a bottom sheet on a phone.
+ */
+export function SidePanel({ labelledBy, onClose, tone = "tone-all", children }: { labelledBy: string; onClose: () => void; tone?: string; children: ReactNode }) {
   return (
     <>
-      <div aria-hidden="true" onClick={onClose} className="fixed inset-0 z-[49] bg-[rgba(17,24,39,.42)]" />
+      <div aria-hidden="true" onClick={onClose} className="acx-scrim" />
       <FocusTrap focusTrapOptions={{ ...TRAP, fallbackFocus: () => document.body }}>
-        <aside
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={labelledBy}
-          className="fixed bottom-0 end-0 top-0 z-[50] flex w-full max-w-[100vw] flex-col bg-white shadow-[0_8px_32px_rgba(16,24,40,.10)] sm:w-[480px]"
-        >
+        <aside role="dialog" aria-modal="true" aria-labelledby={labelledBy} className={`${tone} acx-drawer`}>
           {children}
         </aside>
       </FocusTrap>
@@ -44,11 +43,11 @@ export function SidePanel({ labelledBy, onClose, children }: { labelledBy: strin
 }
 
 const DIALOG_TONE = {
-  critical: "bg-[#FEF0EE] text-[#DC2626]",
-  manager: "tone-manager bg-tone-bg text-tone",
+  critical: "bad",
+  manager: "tone-manager tone",
 } as const;
 
-/** A centred decision: a tinted icon, the question, then two full-width buttons. */
+/** A centred decision (§4.13 modal): a tinted icon, the question, then two full-width buttons. */
 export function AccessDialog({
   labelId,
   icon: Icon,
@@ -75,27 +74,20 @@ export function AccessDialog({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[60] grid place-items-center bg-[rgba(17,24,39,.42)] p-[16px]"
+      className="acx-modal-scrim"
     >
       <FocusTrap focusTrapOptions={{ ...TRAP, fallbackFocus: () => document.body }}>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={labelId}
-          className="relative flex max-h-[calc(100vh-80px)] w-[440px] max-w-full flex-col rounded-[16px] bg-white shadow-[0_12px_32px_rgba(16,24,40,.14)]"
-        >
-          <div className="px-[24px] pt-[24px]">
-            <CloseButton label={closeLabel} onClick={onClose} className="absolute end-[14px] top-[14px]" />
-            <div className={`mb-[14px] grid h-[46px] w-[46px] place-items-center rounded-[13px] ${DIALOG_TONE[tone]}`}>
+        <div role="dialog" aria-modal="true" aria-labelledby={labelId} className="acx-modal">
+          <div className="acx-modal-h">
+            <CloseButton label={closeLabel} onClick={onClose} />
+            <div className={`acx-modal-ic ${DIALOG_TONE[tone]}`}>
               <Icon size={22} aria-hidden="true" />
             </div>
-            <h2 id={labelId} className="m-0 pe-[28px] text-[17px] font-bold tracking-[-.01em] text-[#15171A]">
-              {title}
-            </h2>
-            {lead && <p className="m-0 mt-[6px] text-[13.5px] leading-[1.55] text-[#4F555B]">{lead}</p>}
+            <h2 id={labelId}>{title}</h2>
+            {lead && <p className="acx-modal-lead">{lead}</p>}
           </div>
-          {children && <div className="flex flex-col gap-[14px] overflow-y-auto px-[24px] pb-[2px] pt-[18px]">{children}</div>}
-          <div className="grid grid-cols-2 gap-[10px] px-[24px] pb-[22px] pt-[20px]">{footer}</div>
+          {children && <div className="acx-modal-b">{children}</div>}
+          <div className="acx-modal-f">{footer}</div>
         </div>
       </FocusTrap>
     </div>
@@ -106,7 +98,7 @@ export function AccessDialog({
 export function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="m-0 rounded-[10px] border border-[#F5C9C4] bg-[#FDECEA] px-[12px] py-[9px] text-[13px] text-[#C0362C]">
+    <p role="alert" className="acx-formerr">
       {message}
     </p>
   );
