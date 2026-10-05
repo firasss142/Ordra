@@ -2,7 +2,7 @@ import type { Role } from "@/types";
 
 /**
  * Gate for the FINANCES section: the P&L, stock-inventory, and ad-spend pages
- * AND their market-level APIs (/api/profitability, /api/ad-spend*,
+ * AND their market-level APIs (/api/finance/pnl, /api/ad-spend*,
  * /api/inventory/position). Super-admin only — matches the sidebar's
  * canViewFinances visibility so the page, sidebar, and API agree.
  */

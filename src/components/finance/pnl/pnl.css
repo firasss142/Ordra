@@ -1,0 +1,94 @@
+/* P&L global — prototypes/finances-pnl-v3.html, PAGE block, scoped under .fin */
+
+/* 1 · the answer — one number, one sentence */
+.fin .top{padding:30px 32px 0}
+.fin .ans-n{margin-top:12px;font-size:60px;font-weight:800;letter-spacing:-.05em;line-height:.95;font-variant-numeric:tabular-nums;color:var(--ink)}
+.fin .ans-n .cur{font-size:.3em}
+.fin .ans-n.neg{color:var(--bad)}
+.fin .ans-l{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px;font-weight:700;color:var(--ink-2)}
+.fin .ans-s{margin-top:8px;font-size:14px;color:var(--ink-3);font-weight:500;max-width:720px;line-height:1.55}
+.fin .ans-s b{color:var(--ink);font-weight:800}
+
+/* 2 · the pipeline — one pipe of money; each cost leaves it as a stream; what stays reaches you */
+.fin .pipe-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:34px 32px 0;padding-top:22px;border-top:1px solid var(--line)}
+.fin .pipe-h h2{font-size:17px;font-weight:800;letter-spacing:-.015em}
+.fin .pipe-h p{font-size:13px;color:var(--ink-3);font-weight:500}
+.fin .flow{display:block;width:calc(100% - 40px);margin:6px 20px 0;height:auto;overflow:visible;direction:ltr}
+.fin .flow .main{fill:url(#fin-gMain)}
+.fin .flow .end{fill:url(#fin-gEnd)}
+.fin .flow .br{fill:var(--k);opacity:.9;transition:opacity .15s}
+.fin .flow g.c:hover .br{opacity:1}
+.fin .flow:has(g.c:hover) g.c:not(:hover) .br{opacity:.28}
+.fin .flow g.c.go{cursor:pointer}
+.fin .flow .rest{font:700 13px var(--f);fill:var(--ink-2);text-anchor:middle;dominant-baseline:central;font-variant-numeric:tabular-nums}
+.fin .flow .rest.sm{font-size:11.5px;font-weight:600;fill:var(--ink-3)}
+.fin .flow .rest.w{fill:#fff;font-weight:800;font-size:15px}
+.fin .flow .lab-t{font:700 13.5px var(--f);fill:var(--ink);text-anchor:middle}
+.fin .flow .lab-v{font:800 19px var(--f);fill:var(--ink);text-anchor:middle;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.fin .flow .lab-p{font:600 12.5px var(--f);fill:var(--ink-3);text-anchor:middle}
+.fin .flow .in-t{font:700 13px var(--f);fill:var(--ink-2)}
+.fin .flow .in-v{font:800 24px var(--f);fill:var(--ink);letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.fin .flow .out-t{font:700 13px var(--f);fill:var(--m-profit);text-anchor:end}
+.fin .flow .out-v{font:800 26px var(--f);fill:var(--m-profit);text-anchor:end;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.fin .flow .out-p{font:700 12.5px var(--f);fill:var(--m-profit);text-anchor:end}
+.fin .flow.loss .out-t,.fin .flow.loss .out-v,.fin .flow.loss .out-p{fill:var(--bad)}
+.fin .flow .cu{font-size:12px;fill:var(--ink-3)}
+.fin .flow .dot{fill:var(--k)}
+.fin .pipe-f{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 32px 0;padding:14px 0 26px;font-size:13px;color:var(--ink-3);font-weight:500}
+.fin .pipe-f .ic{color:var(--ink-q)}
+.fin .pipe-f .link{margin-inline-start:auto}
+.fin .pipe-empty{margin:20px 32px 30px}
+
+/* 3 · month by month */
+.fin .mc{padding:6px 24px 4px;position:relative}
+.fin .mplot{position:relative;height:250px;margin-inline-start:52px}
+.fin .mgrid{position:absolute;inset:0;pointer-events:none}
+.fin .mgrid div{position:absolute;inset-inline:0;border-top:1px dashed rgba(15,23,40,.08)}
+.fin .mgrid span{position:absolute;inset-inline-end:calc(100% + 10px);top:-8px;font-size:11px;font-weight:600;color:var(--ink-q);white-space:nowrap}
+.fin .mcols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(13,minmax(0,1fr));align-items:end}
+.fin .mcol{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;border-radius:12px}
+.fin .mcol:hover{background:rgba(255,255,255,.45)}
+.fin .mval{font-size:11.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.fin .mval.dim{color:var(--ink-3)}
+.fin .mval.neg{color:var(--bad)}
+.fin .mbar{position:relative;width:26px;height:var(--h);min-height:2px;border-radius:8px 8px 3px 3px;background:rgba(15,23,40,.075);box-shadow:inset 0 0 0 1px rgba(15,23,40,.05);overflow:hidden;transform-origin:bottom;animation:fin-grow .7s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i) * 40ms)}
+.fin .mbar i{position:absolute;inset-inline:0;bottom:0;height:var(--p);background:linear-gradient(180deg,#27A35A,var(--m-profit));border-radius:6px 6px 3px 3px}
+.fin .mcol.sel .mbar{box-shadow:0 0 0 2px var(--ink),0 8px 20px rgba(15,23,40,.18)}
+.fin .mcol.live .mbar{background:repeating-linear-gradient(135deg,rgba(15,23,40,.09) 0 5px,rgba(15,23,40,.03) 5px 10px)}
+.fin .mcol.live .mbar i{opacity:.75}
+.fin .mx{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));margin-inline-start:52px;margin-top:10px}
+.fin .mx button{display:grid;justify-items:center;gap:1px;padding:4px 0;border-radius:8px}
+.fin .mx b{font-size:12px;font-weight:700;color:var(--ink-2)}
+.fin .mx small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.fin .mx button.sel b{color:var(--ink);font-weight:800}
+.fin .mx button.sel{background:rgba(255,255,255,.75)}
+.fin .mfoot{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:12px 24px 20px;font-size:12.5px;color:var(--ink-3);font-weight:500}
+.fin .mfoot b{color:var(--ink);font-weight:800}
+.fin .lg{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.fin .lg i{width:11px;height:11px;border-radius:4px;display:inline-block}
+.fin .lg i.paid{background:rgba(15,23,40,.12);box-shadow:inset 0 0 0 1px rgba(15,23,40,.08)}
+.fin .lg i.prof{background:var(--m-profit)}
+.fin .lg i.live{background:repeating-linear-gradient(135deg,rgba(15,23,40,.22) 0 3px,rgba(15,23,40,.06) 3px 6px)}
+
+/* month picker */
+.fin .mp{width:360px;padding:12px}
+.fin .mp-y{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:6px}
+.fin .mp-g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fin .mp-m{display:grid;gap:1px;padding:8px 10px;border-radius:12px;text-align:start;border:1px solid transparent}
+.fin .mp-m:hover{background:rgba(15,23,40,.04)}
+.fin .mp-m b{font-size:13px;font-weight:800}
+.fin .mp-m small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.fin .mp-m.on{background:var(--brand-wash);border-color:rgba(21,128,61,.35)}
+.fin .mp-m.on b{color:var(--brand-hover)}
+
+/* choose a market (« Tous les marchés ») */
+.fin .choose{padding:40px 32px;display:grid;justify-items:center;gap:8px;text-align:center}
+.fin .choose b{font-size:17px;font-weight:800}
+.fin .choose p{color:var(--ink-3);font-weight:500}
+
+@media (max-width:900px){
+  .fin .ans-n{font-size:44px}
+  .fin .mx small{display:none}
+  .fin .mval{font-size:10px}
+  .fin .mbar{width:16px}
+}

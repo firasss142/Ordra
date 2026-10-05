@@ -375,72 +375,6 @@
     "claimResolveNote": "Note",
     "claimErrorGeneric": "Le litige n'a pas pu être résolu."
   },
-  "pnl": {
-    "title": "P&L global",
-    "subtitle": "Revenu, coûts et profit net par période.",
-    "loading": "Chargement des chiffres…",
-    "loadError": "Impossible de charger les données financières.",
-    "noData": "Aucune donnée pour la période sélectionnée.",
-    "kpi": {
-      "revenue": "CA",
-      "netProfit": "Profit net",
-      "margin": "Marge",
-      "adSpend": "Pub",
-      "cpa": "CPA",
-      "cpl": "CPL",
-      "aov": "Panier moyen",
-      "deliveredCount": "{count, plural, one {# livrée} other {# livrées}}",
-      "deltaVsPrev": "vs période précédente",
-      "noPrev": "—",
-      "prevShort": "précéd.",
-      "leadsShort": "leads",
-      "confirmedShort": "conf.",
-      "basedOn": "sur {n, plural, one {# livrée} other {# livrées}}",
-      "tooFew": "{n, plural, one {# livrée} other {# livrées}} — trop peu pour comparer",
-      "noBaseline": "pas d’historique",
-      "noAdSpend": "aucune dépense saisie"
-    },
-    "composition": {
-      "title": "Composition du chiffre d'affaires",
-      "ofRevenue": "% du CA"
-    },
-    "funnel": {
-      "title": "Entonnoir",
-      "leads": "Leads",
-      "confirmed": "Confirmées",
-      "delivered": "Livrées",
-      "toConfirmed": "Confirmation",
-      "toDelivered": "Livraison",
-      "notCohort": "Cohortes différentes sur cette fenêtre — taux non calculable."
-    },
-    "operational": {
-      "title": "Opérations",
-      "leads": "Leads reçus",
-      "confirmed": "Confirmées",
-      "delivered": "Livrées",
-      "returned": "Retournées",
-      "confirmationRate": "Taux confirmation",
-      "deliveryRate": "Taux livraison",
-      "returnRate": "Taux retour",
-      "aov": "Panier moyen",
-      "profitPerDelivered": "Profit / livrée"
-    },
-    "breakdown": {
-      "title": "Décomposition des coûts",
-      "rows": {
-        "revenue": "Chiffre d'affaires",
-        "cogs": "COGS (coût des produits)",
-        "delivery": "Frais de livraison",
-        "returns": "Frais de retour",
-        "packing": "Coût d'emballage",
-        "ads": "Dépenses publicitaires",
-        "netProfit": "Profit net"
-      }
-    },
-    "scopeAllBanner": "Vue multi-marchés indisponible pour le P&L — affichage : {market}",
-    "export": "Exporter",
-    "periodLabel": "Période"
-  },
   "alerts": {
     "title": "Alertes",
     "subtitleZero": "Rien ne nécessite votre attention. Tout va bien.",
@@ -6632,11 +6566,11 @@
       "templatesGroup": "Modèles"
     },
     "errors": {
+      "190": "jeton invalide — prévenez l'administrateur",
       "131000": "erreur temporaire côté WhatsApp, réessayez",
       "131026": "ce numéro n'est pas sur WhatsApp",
       "131047": "la fenêtre de 24 h est fermée, utilisez un modèle",
       "131049": "limite marketing atteinte pour ce client aujourd'hui",
-      "190": "jeton invalide — prévenez l'administrateur",
       "window_closed": "la fenêtre de 24 h est fermée, utilisez un modèle",
       "opted_out": "ce client a demandé à ne plus recevoir de messages",
       "undeliverable": "ce numéro n'est pas sur WhatsApp",
@@ -10716,5 +10650,67 @@
       "foot": "Le résultat est enregistré dans l'historique de la commande.",
       "saving": "Enregistrement…"
     }
+  },
+  "financePnl": {
+    "crumb": "Finances",
+    "title": "P&L global",
+    "sub": "ventes livrées en {month}",
+    "closed": "Mois clos · ne bougera plus",
+    "live": "En cours · jusqu'au {day}",
+    "export": "Exporter",
+    "exportTip": "CSV des 13 mois : payé, chaque coût, bénéfice brut",
+    "btnLive": "1 → {day} · en cours",
+    "btnClosed": "du 1er au dernier jour",
+    "pickEarned": "{v} gagnés",
+    "pickLive": "en cours",
+    "eyebrow": "{month} · ventes livrées dans le mois",
+    "eyebrowLive": "{month} · en cours · ventes livrées dans le mois",
+    "profit": "Bénéfice brut",
+    "sentence": "Sur 100 {sym} payés par vos clients, <b>{n} vous restent</b> — contre {prev} en {prevMonth}. {orders} commandes livrées.",
+    "sentenceFirst": "Sur 100 {sym} payés par vos clients, <b>{n} vous restent</b>. {orders} commandes livrées.",
+    "sentenceLive": "Depuis le 1er {month}, sur 100 {sym} payés par vos clients, <b>{n} vous restent</b>.",
+    "sentenceLoss": "Ce mois-ci, les coûts ont dépassé ce que vos clients ont payé : <b>{v} de perte</b>. {orders} commandes livrées.",
+    "trendTip": "{month} : {v}",
+    "trendTipLive": "comparé aux {days} premiers jours de {month}",
+    "pipeTitle": "Où sont partis les {paid} payés par vos clients",
+    "pipeSub": "chaque coût sort du tuyau ; ce qui arrive au bout est à vous",
+    "pipeAria": "Payé {paid} ; produits {cogs}, livraison {ship}, pub {ads}, emballage {pack} ; il reste {profit}",
+    "inLabel": "Payé par vos clients",
+    "outLabel": "Il vous reste · bénéfice brut",
+    "outLoss": "Perte du mois",
+    "per100": "{n} sur 100",
+    "rest": "reste {v}",
+    "streams": {
+      "cogs": "Produits",
+      "ship": "Livraison",
+      "ads": "Pub",
+      "pack": "Emballage"
+    },
+    "streamTips": {
+      "cogs": "ce que les produits livrés vous ont coûté",
+      "ship": "frais transporteur des colis livrés, et des retours",
+      "ads": "dépensée dans le mois, toutes plateformes",
+      "pack": "par colis parti"
+    },
+    "streamPrev": "{month} : {n} sur 100",
+    "streamOpen": "Cliquer pour ouvrir la page",
+    "pipeFoot": "Avant salaires, commissions, charges fixes et part des investisseurs.",
+    "byProduct": "Voir par produit",
+    "emptyMonth": "Aucune vente livrée ce mois-ci.",
+    "monthsTitle": "Mois par mois",
+    "monthsQ": "Est-ce que ça s'améliore ? Ce que vos clients ont payé, et ce qu'il vous en reste.",
+    "lgPaid": "Payé par les clients",
+    "lgProfit": "Bénéfice brut",
+    "lgLive": "Mois en cours",
+    "colTip": "{month}\npayé {paid} · bénéfice brut {profit} · {n} sur 100",
+    "colTipLive": "{month} · en cours\npayé {paid} · bénéfice brut {profit} · {n} sur 100",
+    "total12": "Bénéfice brut sur 12 mois : <b>{v}</b>",
+    "evolution": "Sur 100 {sym} payés : <b>{from}</b> en {m1} → <b>{to}</b> en {m2}",
+    "clickMonth": "Cliquez un mois pour l'ouvrir",
+    "basis": "<b>Base : ventes livrées dans le mois.</b> Un mois clos ne bouge plus. Produits & marges et Dépenses pub suivent les commandes <b>reçues</b> dans la période : leurs chiffres diffèrent, c'est voulu.",
+    "error": "Impossible de charger le P&L. Réessayez dans un instant.",
+    "chooseTitle": "Choisissez un marché",
+    "chooseText": "Chaque marché a sa monnaie : le P&L se lit un marché à la fois. Choisissez la Libye ou la Tunisie en haut du menu.",
+    "csvHead": "mois,payé,produits,livraison,pub,emballage,bénéfice brut,commandes livrées"
   }
 }
