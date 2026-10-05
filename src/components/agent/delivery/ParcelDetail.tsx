@@ -255,15 +255,39 @@ function DeliveryStatus({ status, marketId, locale }: { status: string; marketId
   return <StatusPill o={{ status }} maxAttempts={null} rejection={() => null} when={when} />;
 }
 
-/** « Journal d'activité » — Tout / Actions / Transporteur (prototype journal()). */
-function Journal({ orderId, tz, now, locale }: { orderId: string; tz: string; now: number; locale: string }) {
+/** A block that starts folded: its title is the button (owner, 2026-10-05 — the journal is long). */
+function Fold({ title, children }: { title: string; children: (open: boolean) => React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`blk2 fold${open ? " open" : ""}`}>
+      <button type="button" className="foldh" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <h6>{title}</h6>
+        <Ic n="down" />
+      </button>
+      {open ? children(open) : null}
+    </div>
+  );
+}
+
+const JOURNAL_PAGE = 10;
+
+/** « Journal d'activité » — Tout / Actions / Transporteur (prototype journal()); folded, then 10 at a time. */
+function Journal(props: { orderId: string; tz: string; now: number; locale: string }) {
+  const t = useTranslations("agentDelivery");
+  return <Fold title={t("detail.journal")}>{() => <JournalBody {...props} />}</Fold>;
+}
+
+function JournalBody({ orderId, tz, now, locale }: { orderId: string; tz: string; now: number; locale: string }) {
   const t = useTranslations("agentDelivery");
   const tStatus = useTranslations("orders.statuses");
   const tWa = useTranslations("whatsapp");
   const when = useDayWhen(tz, now, locale);
   const [jf, setJf] = useState<JF>("all");
-  const { timeline } = useDeliveryTimeline(orderId, locale === "ar" ? "ar" : "fr");
-  const shown = timeline.filter((e) => jf === "all" || journalKind(e.source) === jf);
+  const [n, setN] = useState(JOURNAL_PAGE);
+  // Read only once unfolded: a parcel's story can run to hundreds of carrier lines.
+  const { timeline, isLoading } = useDeliveryTimeline(orderId, locale === "ar" ? "ar" : "fr");
+  const all = timeline.filter((e) => jf === "all" || journalKind(e.source) === jf);
+  const shown = all.slice(0, n);
 
   const text = (e: TimelineEntry): string => {
     if (e.source === "order") return tStatus.has(e.kind) ? tStatus(e.kind) : e.kind;
@@ -280,16 +304,15 @@ function Journal({ orderId, tz, now, locale }: { orderId: string; tz: string; no
   };
 
   return (
-    <div className="blk2">
-      <h6>{t("detail.journal")}</h6>
+    <>
       <div className="seg sm2">
         {(["all", "act", "car"] as JF[]).map((k) => (
-          <button key={k} type="button" className={jf === k ? "on" : ""} aria-pressed={jf === k} onClick={() => setJf(k)}>{t(`detail.jf.${k}`)}</button>
+          <button key={k} type="button" className={jf === k ? "on" : ""} aria-pressed={jf === k} onClick={() => { setJf(k); setN(JOURNAL_PAGE); }}>{t(`detail.jf.${k}`)}</button>
         ))}
       </div>
       <ul className="tl">
         {shown.length === 0 ? (
-          <li className="h-neutral">{t("detail.nothing")}</li>
+          <li className="h-neutral">{isLoading ? t("detail.journalLoading") : t("detail.nothing")}</li>
         ) : (
           shown.map((e) => {
             const k = journalKind(e.source);
@@ -302,23 +325,28 @@ function Journal({ orderId, tz, now, locale }: { orderId: string; tz: string; no
           })
         )}
       </ul>
-    </div>
+      {all.length > n ? (
+        <button type="button" className="btn2 foldmore" onClick={() => setN((v) => v + JOURNAL_PAGE)}>
+          {t("detail.journalMore", { n: Math.min(JOURNAL_PAGE, all.length - n) })}
+        </button>
+      ) : null}
+    </>
   );
 }
 
-/** « Messages » — what was said on WhatsApp with this customer, read-only; sending is the sheet's. */
+/** « Messages » — what was said on WhatsApp with this customer, read-only; sending is the sheet's. Folded. */
 function Messages({ orderId, marketId }: { orderId: string; marketId: string | null }) {
+  const t = useTranslations("agentDelivery");
+  return <Fold title={t("detail.messages")}>{() => <MessagesBody orderId={orderId} marketId={marketId} />}</Fold>;
+}
+
+function MessagesBody({ orderId, marketId }: { orderId: string; marketId: string | null }) {
   const t = useTranslations("agentDelivery");
   const { thread } = useWhatsAppThread(marketId ? { order_id: orderId, market_id: marketId } : null);
   const messages = thread?.messages ?? [];
-  return (
-    <div className="blk2">
-      <h6>{t("detail.messages")}</h6>
-      {messages.length ? (
-        <MessageThread messages={messages.slice(-8)} conversation={thread?.conversation ?? null} highlightUnread={false} />
-      ) : (
-        <p className="q" style={{ fontSize: 13 }}>{t("detail.noMessages")}</p>
-      )}
-    </div>
+  return messages.length ? (
+    <MessageThread messages={messages.slice(-8)} conversation={thread?.conversation ?? null} highlightUnread={false} />
+  ) : (
+    <p className="q" style={{ fontSize: 13 }}>{t("detail.noMessages")}</p>
   );
 }

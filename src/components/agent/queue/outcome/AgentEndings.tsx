@@ -266,23 +266,6 @@ export function AgentEndings(p: AgentEndingsProps) {
           <div className="dr-foot" data-testid="panel-actions">
             {foot}
           </div>
-          {calling && !p.phone ? (
-            <div className="keys">
-              <span>
-                <kbd>↑</kbd>
-                <kbd>↓</kbd>
-                {t("keys.next")}
-              </span>
-              <span>
-                <kbd>1</kbd>–<kbd>4</kbd>
-                {t("keys.outcome")}
-              </span>
-              <span>
-                <kbd>F</kbd>
-                {t("keys.voice")}
-              </span>
-            </div>
-          ) : null}
         </>
       )}
       {p.phone && flow.tray ? <OutcomeSheet flow={flow} echo={p.echo} onClose={flow.dismiss} /> : null}

@@ -78,3 +78,97 @@
 /* with an order open the page ends where the order ends: the bottom margin of the page would
    otherwise scroll the sticky order up under the band once the list runs out */
 @media (min-width:1024px){ .agt .agt-main:has(.split.open){padding-bottom:12px} }
+
+/* ── Owner review, round 3 (2026-10-05) ───────────────────────────────────────────────────── */
+
+/* The band: plain tabs (no track), one soft green pill for where you are, a wider search, quiet
+   icon buttons. Reads at a glance; the glass stays, the frames go. */
+.agt .ah{gap:12px;background:rgba(255,255,255,.8)}
+.agt .at{background:none;box-shadow:none;padding:0;gap:2px}
+.agt .at a{height:36px;padding:0 12px;border-radius:10px;font-weight:600;color:var(--ink-2)}
+.agt .at a:hover{background:rgba(15,23,40,.045);color:var(--ink)}
+.agt .at a.on{background:#ECFDF3;color:#067647;box-shadow:none;font-weight:700}
+.agt .at a.on .ic{color:#067647}
+.agt .at a .nb{margin-inline-start:2px}
+.agt .gs{width:clamp(220px,24vw,400px);height:38px;border-radius:11px;background:rgba(15,23,40,.045);border-color:transparent}
+.agt .gs:hover{background:rgba(15,23,40,.07);border-color:transparent}
+.agt .gs .mini{flex:none;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--ink-3)}
+.agt .gs .mini:hover{background:#F2F4F7;color:var(--ink)}
+.agt .avl{height:38px;background:none;border-color:transparent}
+.agt .avl:hover{background:rgba(15,23,40,.045)}
+.agt .avl .avt small{display:none}
+.agt .avl.on{background:#ECFDF3;border-color:transparent}
+.agt .avl.warn{background:#FFFAEB;color:#B54708}
+.agt .bell{width:38px;height:38px;background:none;border-color:transparent}
+.agt .bell:hover{background:rgba(15,23,40,.045)}
+.agt .me{height:38px}
+
+/* The four tiles: icon · label over its one-line hint · the count at the end. Flat, no lift; the
+   chosen one is a green edge on a white card, a late one says so in red words, not a red frame. */
+.agt .wts{gap:10px}
+.agt .wt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(15,23,40,.07);box-shadow:none}
+.agt .wt:hover{transform:none;box-shadow:none;background:#fff;border-color:rgba(15,23,40,.14)}
+.agt .wt.on{background:#fff;border-color:var(--brand);box-shadow:0 0 0 1px var(--brand)}
+.agt .wt.alarm{border-color:rgba(15,23,40,.07);box-shadow:none}
+.agt .wt.alarm.on{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
+.agt .wt .hold{width:36px;height:36px;border-radius:11px;box-shadow:none}
+.agt .wt .hold .ic{width:18px;height:18px}
+.agt .wt-t > span{margin-top:0;font-size:13.5px}
+.agt .wt small{margin-top:2px}
+.agt .wt > b{font-size:26px;justify-self:end;color:var(--ink)}
+.agt .wt.zero > b{color:var(--ink-q)}
+.agt .wt.alarm > b{color:var(--bad)}
+@media (max-width:767px){ .agt .wt{gap:10px;padding:11px 12px} .agt .wt > b{font-size:22px} }
+
+/* The queue's tools line: the search now lives in the band; the count leads. */
+.agt .tools{min-height:36px}
+.agt .tools .count{margin-inline-end:auto}
+
+/* ── the agent's order: lighter, one reading order, one scroll ────────────────────────────── */
+/* The column's own scroll hands over to the page at its ends (« contain » trapped the wheel). */
+@media (min-width:1024px){ .agt .cmd .odp-side .dr-body{overscroll-behavior:auto} }
+.agt .odp-side .dr-top{gap:6px;padding-block:10px}
+.agt .odp-side .dr-top .sla{background:none;padding:0;height:auto;color:var(--ink-3);font-weight:700}
+.agt .odp-side .dr-top .sla[data-state=vlate],.agt .odp-side .dr-top .sla[data-state=run]{color:var(--bad)}
+.agt .odp-side .dr-top .sla[data-state=ok]{color:var(--good)}
+.agt .odp-side .pc{padding:16px 18px 14px;gap:4px 12px}
+.agt .odp-side .pc-btns .btn,.agt .odp-side .pc-btns .btn2{height:38px}
+.agt .odp-side .agsec{padding:12px 18px 14px;border-top:1px solid var(--line)}
+.agt .odp-side .agh{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--ink-3)}
+.agt .odp-side .agsec .line{padding:10px 0}
+.agt .odp-side .agsec .pane-acts{margin-top:10px}
+.agt .odp-side .agsec .tot{padding-top:12px;gap:5px;font-size:13px}
+.agt .odp-side .agsec .tot .big{font-size:15px;padding-top:6px}
+.agt .odp-side .facts.agfacts{padding:0;border-top:0;grid-template-columns:96px minmax(0,1fr);gap:9px 12px;font-size:13.5px}
+/* The folded strip: tracking, history, messages — chips that open below and close on a 2nd click. */
+.agt .odp-side .tabwrap.agfold{position:static;padding:10px 18px 12px;background:#FAFBFC;border-top:1px solid var(--line)}
+.agt .odp-side .agfold .tabs{background:none;padding:0;gap:6px}
+.agt .odp-side .agfold .tabs button{height:30px;padding:0 12px;border-radius:99px;border:1px solid #E4E7EC;background:#fff;font-size:12.5px;font-weight:600;color:var(--ink-2);box-shadow:none}
+.agt .odp-side .agfold .tabs button:hover{border-color:#D0D5DD;color:var(--ink)}
+.agt .odp-side .agfold .tabs button.on{border-color:var(--ink);color:var(--ink);font-weight:700}
+.agt .odp-side .agb .pane{background:#FAFBFC;padding:2px 18px 18px}
+/* The notes above the buttons: one quiet line each. */
+.agt .odp-side .notes{padding:10px 14px 0;gap:5px}
+.agt .odp-side .note{padding:6px 10px;border-radius:9px;font-size:12px;font-weight:600;border-color:transparent}
+.agt .odp-side .dr-foot{padding:10px 14px 12px}
+.agt .odp-side .fa{height:42px}
+
+/* Livraison: the journal and the messages start folded; the journal comes 10 lines at a time. */
+.agt .fold .foldh{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:start}
+.agt .fold .foldh h6{margin:0}
+.agt .fold .foldh .ic{width:15px;height:15px;color:var(--ink-3);transition:transform .15s}
+.agt .fold.open .foldh{margin-bottom:8px}
+.agt .fold.open .foldh .ic{transform:rotate(180deg)}
+.agt .foldmore{margin-top:8px;height:32px;font-size:12.5px}
+/* « Ajouter un produit » / « Fusionner » — links under the articles, not two more buttons. */
+.agt .odp-side .agsec .pane-acts{gap:4px}
+.agt .odp-side .agsec .pane-acts .btn2{height:28px;padding:0 8px;border:0;background:none;box-shadow:none;color:var(--brand);font-weight:700}
+.agt .odp-side .agsec .pane-acts .btn2:hover{background:#ECFDF3}
+.agt .odp-side .fa kbd{opacity:.7}
+/* The band stays over the page but under the app's sheets (z 40/50): a sheet opened from the
+   page — the preview, the carrier picker — must not slide its title under the band. */
+.agt .ah{z-index:35}
+/* Every detail column hands the wheel back to the page at its ends. */
+@media (min-width:1024px){ .agt .pcol .dr-body{overscroll-behavior:auto} }
+/* Every detail column hands the wheel back to the page at its ends. */
+@media (min-width:1024px){ .agt .pcol .dr-body{overscroll-behavior:auto} }

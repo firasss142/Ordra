@@ -1,9 +1,10 @@
 "use client";
 
-// The market search (prototype `searchDrop`): one query, four groups — your orders, your parcels,
-// the market (read-only), the CRM — and the recent searches while the field is empty. In the band
-// it is `.gsw`, on every tab, with its own query; on a phone it is a
-// full screen `.mpanel`. The data is the old QueueSearchBar's: buildSuggestions over the warm caches
+// The agent's one search (prototype `searchDrop`; owner 2026-10-05 « one unified search bar »):
+// one query, four groups — your orders, your parcels, the rest of the market (« Prendre la
+// commande » from its preview), the CRM — and the recent searches while the field is empty. In the
+// band it is `.gsw`, the same on every tab; on Commandes the list behind it filters by the same
+// query (the shell's QueueSearch context). On a phone it is a full screen `.mpanel`. The data is the old QueueSearchBar's: buildSuggestions over the warm caches
 // + the server's market search.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +19,7 @@ import { useAgentMarketSearch } from "@/hooks/useAgentMarketSearch";
 import { readRecentSearches, pushRecentSearch, RECENT_SEARCHES_KEY } from "@/lib/agent-search/recent";
 import { presentStatus } from "@/lib/orders/status-presentation";
 import { Ic, APill, type AgentHue } from "@/components/agent/shared";
+import { useQueueSearch } from "@/context/queue-search";
 import { useOutside } from "./useOutside";
 
 // Served from the warm caches when a tab has loaded them; fetched once when none has.
@@ -25,8 +27,8 @@ const swrOpts = { revalidateIfStale: false, revalidateOnFocus: false } as const;
 
 function useSearchModel(enabled: boolean) {
   const locale = useLocale();
-  // Its own query: typing here never filters the Commandes list behind it.
-  const [query, setQuery] = useState("");
+  // The shell's one query — Commandes filters its list by it.
+  const { query, setQuery, inputRef } = useQueueSearch();
   const { data: queue } = useSWR(enabled ? "/api/agent/queue" : null, fetchAgentQueue, swrOpts);
   const { data: worklist } = useSWR<{ rows?: Record<string, unknown>[] }>(enabled ? "/api/delivery/worklist" : null, fetcher, swrOpts);
   const { data: leads } = useSWR<{ allLeads?: Record<string, unknown>[]; leads?: Record<string, unknown>[] }>(
@@ -47,7 +49,7 @@ function useSearchModel(enabled: boolean) {
       locale,
     });
   }, [enabled, query, queue, worklist, leads, market.rows, market.total, locale]);
-  return { query, setQuery, groups, market, locale };
+  return { query, setQuery, groups, market, locale, inputRef };
 }
 
 /** The drop's content — shared by the band and the phone screen. */
@@ -133,7 +135,7 @@ function SearchResults({
             {t(`groups.${g.key}`)}
             {g.key === "market" ? (
               <span className="pl h-neutral" style={{ height: 20 }}>
-                <Ic n="lock" />
+                <Ic n="eye" />
                 {t("readOnly")}
               </span>
             ) : null}
@@ -211,7 +213,7 @@ export function AgentSearchDesk() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement | null>(null);
   const close = useCallback(() => setOpen(false), []);
   useOutside(ref, open, close);
   const model = useSearchModel(open);
@@ -219,29 +221,37 @@ export function AgentSearchDesk() {
   const flat = flatRows(model);
   const cur = flat[Math.min(active, flat.length - 1)] ?? null;
 
+  // « / » focuses it, on every tab.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
-      // On Commandes the queue's own field answers « / ».
-      if (!/\/(leads|delivery|commissions|feedback)/.test(pathname)) return;
       e.preventDefault();
       input.current?.focus();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [pathname]);
+  }, []);
+
+  // Another tab: the query does not follow (a forgotten filter would hide rows there).
+  const { setQuery } = model;
+  const lastPath = useRef(pathname);
+  useEffect(() => {
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
+    setQuery("");
+    setOpen(false);
+  }, [pathname, setQuery]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Escape: the drop closes first (on Commandes the list stays filtered), then the query clears.
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      if (model.query) model.setQuery("");
-      else {
-        close();
-        input.current?.blur();
-      }
+      if (open) close();
+      else if (model.query) model.setQuery("");
+      else input.current?.blur();
       return;
     }
     if (!open) setOpen(true);
@@ -263,7 +273,10 @@ export function AgentSearchDesk() {
       <label className={`gs${open ? " on" : ""}`}>
         <Ic n="search" />
         <input
-          ref={input}
+          ref={(el) => {
+            input.current = el;
+            (model.inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
+          }}
           id="gq"
           type="search"
           value={model.query}
@@ -280,7 +293,22 @@ export function AgentSearchDesk() {
           autoComplete="off"
           spellCheck={false}
         />
-        <span className="kbd2">/</span>
+        {model.query ? (
+          <button
+            type="button"
+            className="mini"
+            aria-label={t("clear")}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              model.setQuery("");
+              input.current?.focus();
+            }}
+          >
+            <Ic n="x" />
+          </button>
+        ) : (
+          <span className="kbd2">/</span>
+        )}
       </label>
       {open ? <SearchResults model={model} onPick={pick} onRecent={(x) => model.setQuery(x)} activeKey={cur?.key ?? null} /> : null}
     </div>
@@ -291,8 +319,12 @@ export function AgentSearchDesk() {
 export function AgentSearchPhone() {
   const t = useTranslations("agent.search");
   const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
   const model = useSearchModel(open);
+  const { setQuery } = model;
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+  }, [setQuery]);
   const pick = usePick(model, close);
   return (
     <>

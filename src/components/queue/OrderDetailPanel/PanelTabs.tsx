@@ -11,25 +11,31 @@ import { useTranslations } from "next-intl";
 export type PanelTab = "items" | "shipping" | "history" | "messages";
 
 interface Props {
-  active: PanelTab;
+  /** null: nothing open (the agent's strip starts folded). */
+  active: PanelTab | null;
   onChange: (tab: PanelTab) => void;
   /** Unread WhatsApp replies, on the Messages tab. */
   messagesCount?: number;
   /** The Messages tab appears once the market's WhatsApp state is known. */
   showMessages?: boolean;
+  /**
+   * The agent's panel: the articles are always shown above, so the strip holds only what is
+   * read now and then — « Suivi », « Historique », « Messages » — and a tab clicked twice folds.
+   */
+  agentView?: boolean;
 }
 
-export function PanelTabs({ active, onChange, messagesCount, showMessages = false }: Props) {
+export function PanelTabs({ active, onChange, messagesCount, showMessages = false, agentView = false }: Props) {
   const t = useTranslations("orders.detail");
   const tabs: { key: PanelTab; label: string; count?: number }[] = [
-    { key: "items", label: t("tabItems") },
-    { key: "shipping", label: t("tabShipping") },
+    ...(agentView ? [] : [{ key: "items" as const, label: t("tabItems") }]),
+    { key: "shipping", label: agentView ? t("tabTracking") : t("tabShipping") },
     { key: "history", label: t("tabHistory") },
     ...(showMessages ? [{ key: "messages" as const, label: t("tabMessages"), count: messagesCount }] : []),
   ];
 
   return (
-    <div className="tabwrap">
+    <div className={agentView ? "tabwrap agfold" : "tabwrap"}>
       <div className="tabs" role="tablist">
         {tabs.map((tab) => {
           const on = tab.key === active;
@@ -39,6 +45,7 @@ export function PanelTabs({ active, onChange, messagesCount, showMessages = fals
               type="button"
               role="tab"
               aria-selected={on}
+              aria-expanded={agentView ? on : undefined}
               className={on ? "on" : undefined}
               onClick={() => onChange(tab.key)}
             >
