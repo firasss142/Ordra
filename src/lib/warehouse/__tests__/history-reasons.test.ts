@@ -21,9 +21,13 @@ import {
 
 describe("ALL_LEDGER_REASONS", () => {
   it("couvre exactement le vocabulaire de la contrainte inventory_log_reason_check", () => {
-    // Le même douze que la contrainte en base, `deposit` hérité compris.
+    // Les mêmes quatorze que la contrainte en base (20261003180000_quai_et_bureau),
+    // `deposit` hérité compris. `arrival` et `arrival_correction` y manquaient :
+    // tout arrivage compté au quai était absent du Journal.
     expect([...ALL_LEDGER_REASONS].sort()).toEqual(
       [
+        "arrival",
+        "arrival_correction",
         "damaged_writeoff",
         "deposit",
         "initial_stock",
@@ -37,6 +41,16 @@ describe("ALL_LEDGER_REASONS", () => {
         "scanned",
         "stock_count",
       ].sort(),
+    );
+  });
+});
+
+describe("les arrivages du quai", () => {
+  it("se rangent avec les réceptions, correction comprise", () => {
+    expect(kindForReason("arrival")).toBe("reception");
+    expect(kindForReason("arrival_correction")).toBe("reception");
+    expect(reasonsForKind("reception")).toEqual(
+      expect.arrayContaining(["arrival", "arrival_correction", "reception", "reception_reversal"]),
     );
   });
 });
@@ -76,9 +90,9 @@ describe("reasonsForKind — chaque famille", () => {
     );
   });
 
-  it("reception = la réception et sa contre-passation", () => {
+  it("reception = l'arrivage, sa correction, la réception et sa contre-passation", () => {
     expect(new Set(reasonsForKind("reception"))).toEqual(
-      new Set(["reception", "reception_reversal"]),
+      new Set(["arrival", "arrival_correction", "reception", "reception_reversal"]),
     );
   });
 

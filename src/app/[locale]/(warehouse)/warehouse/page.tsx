@@ -72,6 +72,9 @@ export default async function WarehouseTodayPage({
       dateLabel={dateLabel}
       warehouseId={site.warehouseId}
       showPickup={marketCode === "ly"}
+      marketCode={marketCode === "ly" ? "ly" : marketCode === "tn" ? "tn" : null}
+      marketId={marketId}
+      today={marketToday(marketId)}
     />
   );
 }
