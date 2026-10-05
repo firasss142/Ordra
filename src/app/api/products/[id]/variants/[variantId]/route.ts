@@ -221,11 +221,18 @@ async function handleDELETE(
     return NextResponse.json({ error: "Variant not found" }, { status: 404 });
   }
 
-  if (Number(variant.current_stock ?? 0) > 0 || Number(variant.damaged_return_count ?? 0) > 0) {
+  /*
+   * Only the sellable stock blocks. `damaged_return_count` counts units already
+   * out of it, and nothing can lower it — blocking on it made a size that once
+   * had a broken return impossible to delete, with no way to fix it.
+   */
+  const onShelf = Number(variant.current_stock ?? 0);
+  if (onShelf > 0) {
     return NextResponse.json(
       {
-        error:
-          "Cette variante porte encore du stock — soldez-le avant de la supprimer",
+        error: "Cette variante porte encore du stock — soldez-le avant de la supprimer",
+        code: "variant_has_stock",
+        current_stock: onShelf,
       },
       { status: 409 },
     );
