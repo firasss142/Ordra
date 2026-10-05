@@ -19,3 +19,14 @@ export function canViewFinanceSection(role: Role): boolean {
 export function canViewProductProfitability(role: Role): boolean {
   return role === "super_admin" || role === "market_manager";
 }
+
+/**
+ * Gate for Finances › Achats (what the market owes its suppliers, purchase
+ * orders, settling arrivals, payments, disputes): the page, its sidebar entry
+ * and GET /api/finance/purchases. Owner decision (plans/finances-redesign.md):
+ * the owner AND market managers — a manager only ever on their own market,
+ * which the route takes from the actor, never from the request.
+ */
+export function canUsePurchases(role: Role): boolean {
+  return role === "super_admin" || role === "market_manager";
+}

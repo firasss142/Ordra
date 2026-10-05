@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   canViewFinanceSection,
   canViewProductProfitability,
+  canUsePurchases,
 } from "@/lib/finance-permissions";
 
 describe("canViewFinanceSection (market-level finance: P&L, stock, ad-spend)", () => {
@@ -19,5 +20,15 @@ describe("canViewProductProfitability (product-level margin analytics)", () => {
     expect(canViewProductProfitability("market_manager")).toBe(true);
     expect(canViewProductProfitability("agent")).toBe(false);
     expect(canViewProductProfitability("warehouse_agent")).toBe(false);
+  });
+});
+
+describe("canUsePurchases (Finances › Achats — owner decision, plans/finances-redesign.md)", () => {
+  it("allows the owner and market managers (own market), nobody else", () => {
+    expect(canUsePurchases("super_admin")).toBe(true);
+    expect(canUsePurchases("market_manager")).toBe(true);
+    expect(canUsePurchases("agent")).toBe(false);
+    expect(canUsePurchases("warehouse_agent")).toBe(false);
+    expect(canUsePurchases("investor")).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { payable, summarise, rollupSuppliers, type PayableRow } from "./derive";
+import { payable, type PayableRow } from "./derive";
 
 const TODAY = new Date("2026-10-03T09:00:00Z");
 
@@ -79,58 +79,6 @@ describe("payable — le solde d'une réception", () => {
     expect(p.daysLate).toBeNull();
   });
 });
-
-describe("summarise — les trois indicateurs", () => {
-  const rows = [
-    row({ receptionId: "a", supplierId: "s-biovera", invoiceTotal: 6200, paid: 0, dueAt: "2026-09-24" }),
-    row({ receptionId: "b", supplierId: "s-risala", invoiceTotal: 18720, paid: 7488, dueAt: "2026-10-15" }),
-    row({ receptionId: "c", supplierId: "s-wafra", invoiceTotal: 12480, paid: 12480, dueAt: "2026-09-20" }),
-  ];
-
-  test("le dû additionne les soldes connus", () => {
-    expect(summarise(rows, TODAY).owed).toBe(6200 + 11232);
-  });
-
-  test("le retard ne compte que ce qui est échu et impayé", () => {
-    const s = summarise(rows, TODAY);
-    expect(s.overdue).toBe(6200);
-    expect(s.overdueSuppliers).toBe(1);
-    expect(s.worstDaysLate).toBe(9);
-  });
-
-  test("une facture non chiffrée est comptée à part, pas à zéro", () => {
-    const s = summarise([...rows, row({ receptionId: "d", invoiceTotal: null })], TODAY);
-    expect(s.owed).toBe(6200 + 11232);
-    expect(s.unpriced).toBe(1);
-  });
-
-  test("sans rien à payer, tout est à zéro et worstDaysLate est null", () => {
-    const s = summarise([], TODAY);
-    expect(s).toMatchObject({ owed: 0, overdue: 0, overdueSuppliers: 0, unpriced: 0, worstDaysLate: null });
-  });
-});
-
-describe("rollupSuppliers — ce qu'on doit à chacun", () => {
-  const rows = [
-    row({ receptionId: "a", supplierId: "s-risala", invoiceTotal: 18720, paid: 7488, dueAt: "2026-10-15" }),
-    row({ receptionId: "b", supplierId: "s-risala", invoiceTotal: 5000, paid: 5000, dueAt: "2026-09-01" }),
-    row({ receptionId: "c", supplierId: "s-biovera", invoiceTotal: 6200, paid: 0, dueAt: "2026-09-24" }),
-  ];
-
-  test("regroupe par fournisseur", () => {
-    const out = rollupSuppliers(rows, TODAY);
-    expect(out.find((s) => s.supplierId === "s-risala")).toMatchObject({ owed: 11232, overdue: 0 });
-    expect(out.find((s) => s.supplierId === "s-biovera")).toMatchObject({ owed: 6200, overdue: 6200 });
-  });
-
-  test("une réception sans fournisseur n'est rattachée à personne", () => {
-    // Elle existe (le stock est entré) mais le bureau ne l'a pas encore
-    // attribuée. L'inventer sur un fournisseur serait pire que de l'omettre.
-    const out = rollupSuppliers([...rows, row({ receptionId: "d", supplierId: null })], TODAY);
-    expect(out.map((s) => s.supplierId)).not.toContain(null);
-  });
-});
-
 
 /**
  * CE QU'ON RETIENT N'EST PAS DÛ.

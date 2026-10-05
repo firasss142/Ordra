@@ -340,3 +340,38 @@ List, sheet, edit, new — Produits v6 restyled in Aurore. Switchable fixes (stu
 
 - **Dépenses pub v3** (`prototypes/finances-pub-v3.html`): \"previous design\" meant the LIVE page look (flat white cards, grey ground: AdSpendEconomics / ad-spend-v3), not the Aurore prototypes. v3 copies it exactly with sample data plus small fixes: products without spend fold into one line in the bars; « Trop tôt » under 30 leads; period switch and cohort maturity in the header; « + N en route » under delivered; clicking a bar opens that product in the table; sticky Produit and Verdict columns; every verdict explains itself on hover; a platform tag on each campaign; a sync strip for Meta, TikTok and Snapchat; « Profit net » → « Bénéfice brut ».
 - **P&L global v3** (`prototypes/finances-pnl-v3.html`): the v2 column cascade was \"not clear\". It is replaced by one pipe: money paid comes in on the left, each cost leaves as a downward stream in its own colour, and what reaches the right end, in green, is the bénéfice brut. The pipe is always the same thickness (the 100 dinars paid), so months compare at a glance. Mois par mois is unchanged.
+
+## Round 4 — build (2026-10-05)
+
+The owner: "follow the last prototype — skip the ad spend page, keep it as it is — and redesign all the rest."
+Dépenses pub stays the live page, untouched. Built on branch `feat/finances-redesign`, one commit per page,
+on the data that exists today; the shared kit is `src/components/finance/kit/` (prototype KIT CSS scoped
+under `.fin`, plus Money / Trend / tooltip / drawer).
+
+| Page | Prototype | What it reads |
+|---|---|---|
+| P&L global | pnl-v3 (the pipe) | `GET /api/finance/pnl` — 12 closed months + the month in progress, `loadProfitabilitySummary` per month (same figures as the old P&L). Return fees count in Livraison so the four streams + profit = paid. |
+| Stock & inventaire | stock-v1 | `GET /api/finance/stock` — the old `get_stock_position` RPC for the market, `product_site_stock` per site, each site's shipped orders to split the sales rate, open POs per site. Lists cap at 5 rows (« + N autres »). |
+| Investisseurs | investisseurs-v1 | `GET /api/finance/investors` — the v2 engine's snapshots (day series), terms in force, statements, paid withdrawals; closed months only. Writes open the existing console at `?view=console&tab=…`. |
+| Produits & marges | produits-v1 | restyle of Products v6 + the four fixes (all on). |
+| Achats | achats-v1 | rebuilt on suppliers / POs / receptions / claims; managers reach it (own market). |
+
+Deleted as dead: the old P&L client and `/api/profitability`, `load-daily`, seven `components/finance/*`
+cards, `InventoryClient`, `/api/inventory/position`, `useStockPosition`, four `components/stock/*`, the
+`pnl` strings and all of `inventory` but `inventory.reorder` (ReorderDialog moves to Achats).
+
+### Not built — needs a data model first (follow-up PRs, each with its own migration)
+- **Fixed-return deals** (X % of capital per month, with coverage) — the engine only knows % of profit.
+- **Payout rhythm per investor**, editable from the card — today the cadence is a per-deal term
+  (indicative, `investor_deal_terms.payout_cadence`), changed by amending the contract.
+- **Import deposits on purchase orders** (acompte, solde avant expédition) and supplier payments
+  decoupled from receptions; supplier local/import kind (see the Achats report for the exact list).
+- « Où est votre argent » (dropped from the P&L in round 2; the owner has not said where it lives).
+
+### Found while building (not fixed here)
+- `get_stock_position` (20260814104214) lists « left the shelf » statuses from before the Darb rebuild:
+  `at_carrier`, `out_for_delivery`, `delivery_delayed`, `returning` are missing, so a Libyan parcel on the
+  road is not demand until delivered — sales rates lag, days of cover read long. The per-site split in
+  `lib/finance/stock/load.ts` uses the full list.
+- The investors' « bénéfice » is the engine's contractual net (incl. processing and product-mapped ads),
+  not the P&L's bénéfice brut — the page says which one it shows.

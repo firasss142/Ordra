@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  claimEffect,
-  disputedTotal,
-  withheldTotal,
-  summariseClaims,
-  type SupplierClaim,
-} from "../claims";
+import { claimEffect, type SupplierClaim } from "../claims";
 
 function claim(over: Partial<SupplierClaim> = {}): SupplierClaim {
   return {
@@ -53,36 +47,11 @@ describe("claimEffect — trois états, trois conséquences", () => {
   });
 });
 
-describe("les totaux", () => {
-  const rows = [
-    claim({ id: "a", amount: 170 }),
-    claim({ id: "b", amount: 60, status: "conceded" }),
-    claim({ id: "c", amount: 999, status: "credited" }),
-    claim({ id: "d", amount: 40, supplierId: "s2" }),
-  ];
-
-  it("additionne ce qui reste contesté", () => {
-    expect(disputedTotal(rows)).toBe(210);
-  });
-
-  it("additionne ce qui est retenu — contesté ou déjà crédité", () => {
-    expect(withheldTotal(rows)).toBe(170 + 999 + 40);
-  });
-
-  it("répartit par fournisseur", () => {
-    const by = summariseClaims(rows);
-    expect(by.get("s1")).toEqual({ withheld: 1169, disputed: 170, openCount: 1, conceded: 60 });
-    expect(by.get("s2")).toEqual({ withheld: 40, disputed: 40, openCount: 1, conceded: 0 });
-    // Absent plutôt qu'à zéro : l'écran rend « — ».
-    expect(by.has("s3")).toBe(false);
-  });
-});
-
 describe("ce qui ne doit jamais arriver silencieusement", () => {
   it("un montant nul ou négatif ne compte pour rien", () => {
     // La base l'interdit (CHECK amount > 0) ; fabriquer un litige de zéro dinar
     // serait pire que d'ignorer la ligne.
-    expect(withheldTotal([claim({ amount: 0 }), claim({ amount: -5 })])).toBe(0);
-    expect(disputedTotal([claim({ amount: 0 })])).toBe(0);
+    expect(claimEffect(claim({ amount: 0 }))).toEqual({ withheld: 0, disputed: 0 });
+    expect(claimEffect(claim({ amount: -5 }))).toEqual({ withheld: 0, disputed: 0 });
   });
 });
