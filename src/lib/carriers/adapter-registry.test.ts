@@ -8,6 +8,7 @@ import {
 } from "./adapter-registry";
 import { NavexAdapter } from "./navex-adapter";
 import { DexpressAdapter } from "./dexpress/adapter";
+import { XDeliveryAdapter } from "./xdelivery/adapter";
 
 describe("getCarrierAdapter", () => {
   test("returns NavexAdapter for 'navex'", () => {
@@ -18,6 +19,10 @@ describe("getCarrierAdapter", () => {
   test("returns DexpressAdapter for 'dexpress'", () => {
     const adapter = getCarrierAdapter("dexpress");
     expect(adapter).toBeInstanceOf(DexpressAdapter);
+  });
+
+  test("returns XDeliveryAdapter for 'xdelivery'", () => {
+    expect(getCarrierAdapter("xdelivery")).toBeInstanceOf(XDeliveryAdapter);
   });
 
   test("throws for unknown carrier code", () => {
@@ -49,7 +54,7 @@ describe("adapter descriptors", () => {
   test("listAdapterDescriptors returns all registered adapters", () => {
     const list = listAdapterDescriptors();
     const codes = list.map((d) => d.code).sort();
-    expect(codes).toEqual(["darb_assabil", "dexpress", "navex"]);
+    expect(codes).toEqual(["darb_assabil", "dexpress", "navex", "xdelivery"]);
   });
 
   test("each descriptor has label, credential fields, and marks secrets", () => {
@@ -95,6 +100,23 @@ describe("adapter descriptors", () => {
     }
   });
 
+  test("xdelivery: API key + sender id for uploads, portal login for the pickup request", () => {
+    const d = getAdapterDescriptor("xdelivery")!;
+    expect(d.markets).toEqual(["tn"]);
+    expect(d.defaultEndpoint).toBe("https://app.x-delivery.io/api/company");
+    const byKey = Object.fromEntries(d.credentialFields.map((f) => [f.key, f]));
+    expect(Object.keys(byKey)).toEqual([
+      "api_key",
+      "unique_identifier",
+      "portal_email",
+      "portal_password",
+      "is_opened",
+    ]);
+    expect(byKey.api_key.secret).toBe(true);
+    expect(byKey.portal_password.secret).toBe(true);
+    expect(byKey.is_opened.type).toBe("switch");
+  });
+
   test("navex is scoped to Tunisia, dexpress to Libya", () => {
     expect(getAdapterDescriptor("navex")!.markets).toEqual(["tn"]);
     expect(getAdapterDescriptor("dexpress")!.markets).toEqual(["ly"]);
@@ -102,9 +124,9 @@ describe("adapter descriptors", () => {
 });
 
 describe("listAdapterDescriptors with market filter", () => {
-  test("returns only navex when filtering by Tunisia (tn)", () => {
+  test("returns the Tunisian carriers when filtering by Tunisia (tn)", () => {
     const list = listAdapterDescriptors("tn");
-    expect(list.map((d) => d.code)).toEqual(["navex"]);
+    expect(list.map((d) => d.code)).toEqual(["navex", "xdelivery"]);
   });
 
   test("returns Libyan carriers when filtering by Libya (ly)", () => {
@@ -113,7 +135,7 @@ describe("listAdapterDescriptors with market filter", () => {
   });
 
   test("market filter is case-insensitive", () => {
-    expect(listAdapterDescriptors("TN").map((d) => d.code)).toEqual(["navex"]);
+    expect(listAdapterDescriptors("TN").map((d) => d.code)).toEqual(["navex", "xdelivery"]);
     expect(listAdapterDescriptors("Ly").map((d) => d.code).sort()).toEqual([
       "darb_assabil",
       "dexpress",
@@ -130,6 +152,7 @@ describe("listAdapterDescriptors with market filter", () => {
       "darb_assabil",
       "dexpress",
       "navex",
+      "xdelivery",
     ]);
   });
 });

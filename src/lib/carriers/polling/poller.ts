@@ -51,7 +51,7 @@ export interface PollerDeps {
 }
 
 export interface PollRunResult {
-  carrierCode: "navex";
+  carrierCode: "navex" | "xdelivery";
   polled: number;
   processed: number;
   ignored: number;

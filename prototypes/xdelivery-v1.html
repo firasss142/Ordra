@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Prototype: X-Delivery (Tunisie) — pickup switch on the warehouse bench + delegation picker at upload.
+     Plan: plans/xdelivery-integration.md. Fictional data only (public repo). -->
+<title>X-Delivery Enlèvement</title>
+<style>
+:root{
+  --ground:#F6F6F7; --card:#FFFFFF; --edge:#E1E3E5; --ink:#1A1A1A; --ink2:#5C5F62; --ink3:#8C9196;
+  --accent:#147A47; --accent-deep:#0F6239; --accent-soft:#E6F2EA; --track:#ECEDEE;
+  --warn:#8A6100; --warn-bg:#FFF6DD; --bad:#B42318; --bad-bg:#FDECEA; --xd:#0D2C54; --xd-soft:#E8EEF7;
+  --studio:#EAEBEC; --studio-ink:#2B2E2B;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.studio{min-height:100vh;display:grid;grid-template-columns:1fr;justify-items:center}
+.notes{padding:16px;font-size:13.5px;color:var(--studio-ink)}
+.notes h1{font-size:18px;margin:0 0 4px}
+.notes p{margin:0 0 10px;color:#4A4E4A}
+.notes .pick{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.notes button{font:inherit;text-align:left;padding:8px 12px;border:1px solid #C9CBC2;background:#F7F6F1;border-radius:8px;cursor:pointer;color:var(--studio-ink)}
+.notes button[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.notes ol{padding-left:18px;margin:8px 0}.notes li{margin-bottom:6px}
+@media (min-width:900px){
+  .studio{grid-template-columns:340px 1fr;align-items:start;padding:32px 40px;gap:40px}
+  .notes{position:sticky;top:32px;padding:0}
+  .notes .pick{flex-direction:column}
+  .device{width:390px;height:844px;border:10px solid #1F221F;border-radius:44px;overflow:hidden;position:relative;background:var(--ground)}
+  .device.wide{width:760px;height:auto;min-height:620px;border-radius:14px;border-width:1px;border-color:#C9CBC2}
+}
+@media (max-width:899px){ .device{width:100%;min-height:100vh;background:var(--ground)} }
+.screen{display:none;padding:14px 16px 32px}
+.screen[data-active="true"]{display:block}
+
+h1.t{font-size:22px;font-weight:700;margin:0}
+.sub{color:var(--ink2);font-size:14px;margin:0}
+.lbl{font-size:13px;font-weight:600;color:var(--ink2);margin:16px 0 8px}
+.card{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:12px 14px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--edge);border-radius:999px;font-size:13px;color:var(--ink2);background:var(--card)}
+.chip b{color:var(--ink)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.kpi{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:12px}
+.kpi .n{font-size:28px;font-weight:700;line-height:1.1;color:var(--accent)}
+.kpi .k{font-size:12px;font-weight:700;color:var(--ink2)}
+
+/* The switch card */
+.pick-card{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin-top:12px}
+.pick-card h2{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;font-weight:700;color:var(--ink2)}
+.logo{height:16px;padding:2px 6px;border-radius:5px;background:var(--xd-soft);color:var(--xd);font-size:11px;font-weight:800;letter-spacing:.02em;display:inline-flex;align-items:center}
+.state{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.state .site{font-size:14px;font-weight:600;margin:0}
+.state .word{margin:0;font-size:13px;font-weight:600}
+.on .word{color:var(--accent)} .off .word{color:var(--warn)}
+.state .hint{margin:0;font-size:12.5px;color:var(--ink2)}
+.toggle{position:relative;width:52px;height:30px;border-radius:999px;border:0;cursor:pointer;flex:0 0 auto;background:var(--track)}
+.toggle i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+.toggle[aria-checked="true"]{background:var(--accent)}
+.toggle[aria-checked="true"] i{left:25px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--edge)}
+.facts p{margin:0;font-size:12px;color:var(--ink2)} .facts b{display:block;font-size:15px;color:var(--ink)}
+.banner{margin-top:10px;padding:8px 10px;border-radius:10px;font-size:12.5px}
+.banner.warn{background:var(--warn-bg);color:var(--warn)}
+.banner.bad{background:var(--bad-bg);color:var(--bad)}
+
+.list{margin-top:6px}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border:1px solid var(--edge);border-radius:12px;margin-bottom:6px;font-size:14px}
+.prow .m{color:var(--ink2);font-size:12.5px}
+.tag{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+.tag.wait{background:var(--track);color:var(--ink2)} .tag.asked{background:var(--accent-soft);color:var(--accent-deep)}
+
+/* Upload sheet (desktop console) */
+.console{padding:22px 24px}
+.sheet{max-width:460px;margin:0 auto;background:var(--card);border:1px solid var(--edge);border-radius:14px;overflow:hidden}
+.sheet header{padding:14px 18px;border-bottom:1px solid var(--edge)}
+.sheet header h3{margin:0;font-size:16px}
+.sheet header p{margin:2px 0 0;font-size:13px;color:var(--ink2)}
+.sheet .body{padding:14px 18px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+.select,.search{width:100%;height:38px;border:1px solid var(--edge);border-radius:10px;padding:0 12px;font:inherit;font-size:14px;background:#fff}
+.opts{border:1px solid var(--edge);border-radius:10px;max-height:236px;overflow-y:auto}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:14px;border-bottom:1px solid var(--track);cursor:pointer}
+.opt:last-child{border-bottom:0}
+.opt:hover{background:#FAFAFB}
+.opt[aria-selected="true"]{background:var(--accent-soft);font-weight:600}
+.opt .d{font-size:11.5px;color:var(--ink3);font-weight:600}
+.note{font-size:12.5px;color:var(--ink2);margin:8px 0 0}
+.sheet footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;background:var(--ground);border-top:1px solid var(--edge)}
+.btn{height:36px;padding:0 14px;border-radius:10px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--edge);background:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="notes">
+    <h1>X-Delivery — enlèvement et délégation</h1>
+    <p>Trois écrans. Données fictives.</p>
+    <div class="pick">
+      <button data-go="on" aria-current="true">1 · Banc (agent) — enlèvement activé</button>
+      <button data-go="off">2 · Banc (agent) — coupé</button>
+      <button data-go="upload">3 · Envoi d'une commande — délégation</button>
+    </div>
+    <ol>
+      <li><b>Activé (par défaut)</b> : chaque colis X-Delivery <em>scanné en sortie</em> est demandé à l'enlèvement au prochain passage de la synchro (≤ 10 min), en un seul lot.</li>
+      <li><b>Coupé</b> : rien n'est demandé (le livreur est déjà passé, ou l'équipe le fait sur le portail). Revient tout seul à « activé » à minuit.</li>
+      <li>L'agent d'entrepôt peut <b>couper et rallumer</b> lui-même, sur son site seulement.</li>
+      <li>À l'envoi, la délégation est <b>facultative</b> : sans choix, la ville principale du gouvernorat part — même dépôt.</li>
+    </ol>
+  </aside>
+
+  <!-- Screens 1–2: the agent's phone bench -->
+  <div class="device" id="phone">
+    <section class="screen" data-screen="on" data-active="true">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h1 class="t">Banc</h1><span class="chip">Site <b>Tunis</b></span>
+      </div>
+      <p class="sub">Mardi 6 octobre</p>
+      <div class="kpis">
+        <div class="kpi"><div class="n">18</div><div class="k">À préparer</div></div>
+        <div class="kpi"><div class="n">7</div><div class="k">Scannés aujourd'hui</div></div>
+      </div>
+
+      <div class="pick-card on">
+        <h2><span class="logo">X-DELIVERY</span> Enlèvement</h2>
+        <div class="state">
+          <div>
+            <p class="site">Tunis</p>
+            <p class="word">Demande automatique activée</p>
+            <p class="hint">Chaque colis scanné est demandé à l'enlèvement.</p>
+          </div>
+          <button class="toggle" role="switch" aria-checked="true" aria-label="Demande d'enlèvement" data-go="off"><i></i></button>
+        </div>
+        <div class="facts">
+          <p><b>3</b>colis partent au prochain passage</p>
+          <p><b>14:20</b>dernière demande · 4 colis</p>
+        </div>
+      </div>
+
+      <p class="lbl">Scannés aujourd'hui · X-Delivery</p>
+      <div class="list">
+        <div class="prow"><div>Colis 6117 9121 77xx<div class="m">Sousse · Pantalon M</div></div><span class="tag wait">À demander</span></div>
+        <div class="prow"><div>Colis 6117 9121 81xx<div class="m">Sfax · Chemise ×2</div></div><span class="tag wait">À demander</span></div>
+        <div class="prow"><div>Colis 4117 9112 54xx<div class="m">Tunis · Robe</div></div><span class="tag wait">À demander</span></div>
+        <div class="prow"><div>Colis 6117 9120 03xx<div class="m">Bizerte · Veste</div></div><span class="tag asked">Demandé 14:20</span></div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="off">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h1 class="t">Banc</h1><span class="chip">Site <b>Tunis</b></span>
+      </div>
+      <p class="sub">Mardi 6 octobre</p>
+      <div class="kpis">
+        <div class="kpi"><div class="n">18</div><div class="k">À préparer</div></div>
+        <div class="kpi"><div class="n">7</div><div class="k">Scannés aujourd'hui</div></div>
+      </div>
+
+      <div class="pick-card off">
+        <h2><span class="logo">X-DELIVERY</span> Enlèvement</h2>
+        <div class="state">
+          <div>
+            <p class="site">Tunis</p>
+            <p class="word">Coupé depuis 15:10</p>
+            <p class="hint">Rien n'est demandé. Se rallume seul à minuit.</p>
+          </div>
+          <button class="toggle" role="switch" aria-checked="false" aria-label="Demande d'enlèvement" data-go="on"><i></i></button>
+        </div>
+        <div class="banner warn">3 colis scannés attendent : ils ne seront pas demandés tant que c'est coupé.</div>
+      </div>
+
+      <p class="lbl">Si la connexion au portail échoue</p>
+      <div class="pick-card on">
+        <h2><span class="logo">X-DELIVERY</span> Enlèvement</h2>
+        <div class="banner bad">Connexion au portail X-Delivery refusée — vérifiez l'email et le mot de passe dans Connexions › Transporteurs. Réessai automatique toutes les 10 min.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Screen 3: upload sheet, agent console -->
+  <div class="device wide" id="desk" style="display:none">
+    <section class="screen console" data-screen="upload">
+      <div class="sheet">
+        <header>
+          <h3>Envoyer à X-Delivery</h3>
+          <p>Commande de Client T. · 89,900 DT · Sousse</p>
+        </header>
+        <div class="body">
+          <div class="field">
+            <label>Gouvernorat</label>
+            <select class="select"><option>Sousse (de la commande)</option><option>Monastir</option><option>Mahdia</option></select>
+          </div>
+          <div class="field">
+            <label>Délégation <span style="font-weight:400;color:var(--ink3)">— facultative</span></label>
+            <input class="search" placeholder="Chercher une délégation ou une localité…" value="">
+            <div class="opts" style="margin-top:6px" role="listbox">
+              <div class="opt" aria-selected="true">Sousse Ville <span class="d">PAR DÉFAUT</span></div>
+              <div class="opt">Akouda</div>
+              <div class="opt">Bou Ficha</div>
+              <div class="opt">Enfidha</div>
+              <div class="opt">Hammam Sousse</div>
+              <div class="opt">Hergla</div>
+              <div class="opt">Kalaa El Kebira</div>
+              <div class="opt">Kalaa Essghira</div>
+              <div class="opt">Msaken</div>
+              <div class="opt">Sidi Bou Ali</div>
+              <div class="opt">Sousse Jaouhara</div>
+              <div class="opt">Sousse Riadh</div>
+            </div>
+            <p class="note">Sans choix, on envoie <b>Sousse Ville</b> : même dépôt X-Delivery, le livreur a l'adresse.</p>
+          </div>
+        </div>
+        <footer>
+          <button class="btn">Annuler</button>
+          <button class="btn primary">Envoyer</button>
+        </footer>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+  const show = (name) => {
+    document.querySelectorAll(".screen").forEach((s) => (s.dataset.active = String(s.dataset.screen === name)));
+    document.getElementById("phone").style.display = name === "upload" ? "none" : "";
+    document.getElementById("desk").style.display = name === "upload" ? "" : "none";
+    document.querySelectorAll(".notes button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.go === name)));
+  };
+  document.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", () => show(el.dataset.go)));
+  if (location.hash) show(location.hash.slice(1));
+  document.querySelectorAll(".opt").forEach((o) =>
+    o.addEventListener("click", () => {
+      document.querySelectorAll(".opt").forEach((x) => x.setAttribute("aria-selected", "false"));
+      o.setAttribute("aria-selected", "true");
+    }),
+  );
+</script>
+</body>
+</html>
