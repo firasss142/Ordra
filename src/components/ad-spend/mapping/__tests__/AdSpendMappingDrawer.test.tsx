@@ -186,6 +186,15 @@ describe("opening", () => {
     expect(detail("QuranTadabr")).toBeInTheDocument();
   });
 
+  it("holds the page's other warning too: products with no attributed spend, and the backfill", async () => {
+    const onBackfill = vi.fn();
+    open({ coverage: { count: 1, fromDate: "2026-07-14", onBackfill } });
+    expect(screen.getByText(/dépensés par/)).toBeInTheDocument();
+    expect(screen.getByText(/1 produit\(s\) sans dépense attribuée/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Récupérer depuis le 14 juil." }));
+    expect(onBackfill).toHaveBeenCalled();
+  });
+
   it("says when everything that spent is attributed", () => {
     tree.coverage.life = { total: 35778, attributed: 35236, market_level: 542, unmapped: 0 };
     for (const c of tree.campaigns) c.spend_unattributed = 0;

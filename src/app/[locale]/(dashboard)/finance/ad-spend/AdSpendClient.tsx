@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Link2, Loader2, Plus, RefreshCw, Upload } from "lucide-react";
+import { AlertTriangle, ChevronRight, Info, Link2, Loader2, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
 import {
@@ -22,7 +22,6 @@ import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
 import { AdSpendMappingDrawer } from "@/components/ad-spend/AdSpendMappingDrawer";
 import { useAdSpendMapping } from "@/hooks/useAdSpendMapping";
 import { needsAttribution } from "@/lib/ad-spend/mapping-view";
-import { EmptyState } from "@/components/dashboard/Panel";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AuthUser } from "@/types";
 import { todayISO, startOfMonthISO } from "@/lib/date";
@@ -37,6 +36,11 @@ interface AdSpendClientProps {
   user: AuthUser;
   markets: Market[];
   initialMarketId: string;
+}
+
+/** « 1 239 » — the amount as the rest of the page writes it. */
+function fmtAmount(n: number): string {
+  return n.toLocaleString("fr-FR", { maximumFractionDigits: 2 }).replace(/\u202f/g, "\u00a0");
 }
 
 // 12-week window: from_date = 84 days ago, to_date = today
@@ -354,259 +358,238 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   );
 
   const hasCohort = !!economicsMeta && economicsMeta.total_leads > 0;
+  // The page's two warnings live in ONE place — the head of the drawer — and
+  // the drawer's button carries their total (prototypes/finances-pub-v5.html).
+  // Without a Meta account there is no drawer, so the page keeps them.
+  const productsWithoutSpend = hasCohort ? economicsMeta.products_without_spend : 0;
+  const warnings = toMap + productsWithoutSpend;
+  const backfill =
+    (syncStatus?.accounts.length ?? 0) > 0 ? () => runSyncNow({ since: fromDate, until: toDate }) : undefined;
+  const maturity = hasCohort ? `${Math.round(economicsMeta.maturity_pct * 100)} %` : null;
 
   return (
-    <div className="bg-surface-page min-h-screen px-4 sm:px-6 pt-5 pb-16 flex flex-col gap-3.5">
-      {/* Page header */}
-      <div className="flex items-start gap-3 flex-wrap">
-        <div>
-          <h1 className="m-0 text-[20px] font-semibold text-ads-ink-1 tracking-[-0.01em]">{t("title")}</h1>
-          <p className="m-0 text-[12.5px] text-ads-ink-2 mt-[3px]">
-            {hasCohort
-              ? t("cohortSubtitle", {
-                  period: periodLabel,
-                  maturity: `${Math.round(economicsMeta.maturity_pct * 100)} %`,
-                })
-              : t("subtitle")}
-          </p>
-        </div>
-
-        <span className="flex-1" />
-
-        {!scopeIsAll && (
-          <div className="flex gap-2 flex-wrap items-center">
-            {market && (
-              <span className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-surface-card text-ads-ink-1">
-                <span className="w-[7px] h-[7px] rounded-full bg-ads-green" />
-                {market.name} · {currency}
-              </span>
-            )}
-            {/* One chip, three truths: connected and fresh, connected and
-                stale, or not connected at all. */}
-            {syncHealth.lastSyncedAt ? (
-              <span className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-surface-card text-ads-ink-1">
-                {t("economics.syncedAgo", { ago: syncHealth.lastSyncedAt })}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 border border-ads-orange-line rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-ads-orange-bg text-ads-orange-ink">
-                {t("economics.metaNotConnected")}
-              </span>
-            )}
-            {hasMetaAccount && (
-              <button
-                type="button"
-                onClick={() => setMapping({ focus: null })}
-                className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
-              >
-                <Link2 size={14} strokeWidth={1.8} />
-                {t("mapping.openButton")}
-                {toMap > 0 && (
-                  <span className="rounded-full bg-ads-orange-bg border border-ads-orange-line text-ads-orange-ink text-[11px] font-bold px-1.5 leading-[18px]">
-                    {t("mapping.toMapBadge", { count: toMap })}
+    <>
+      <div className="fin ads">
+        <div className="page">
+          {/* Page header — the kit's (Produits & marges) */}
+          <div className="ph">
+            <div>
+              <div className="crumb">
+                {t("economics.crumb")}
+                <ChevronRight className="ic rtl:rotate-180" aria-hidden />
+                {t("title")}
+              </div>
+              <h1>{t("title")}</h1>
+              <div className="sub">
+                {market && (
+                  <span>
+                    {market.name} · {currency}
                   </span>
                 )}
-              </button>
-            )}
-            {(syncStatus?.accounts.length ?? 0) > 0 && (
-              <button
-                type="button"
-                // Wrapped: passing the handler directly would hand the click
-                // event in as the backfill range.
-                onClick={() => runSyncNow()}
-                disabled={syncing}
-                className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast disabled:opacity-60"
-              >
-                {syncing ? (
-                  <Loader2 size={14} strokeWidth={2} className="animate-spin" />
+                {hasCohort ? (
+                  <>
+                    <i className="sep" aria-hidden />
+                    <span>{t("economics.cohortRange", { period: periodLabel })}</span>
+                    <i className="sep" aria-hidden />
+                    <span className="mat" title={t("economics.maturityTip")}>
+                      {t("economics.maturity", { pct: maturity })}
+                      <span className="matbar" aria-hidden>
+                        <i style={{ width: maturity ?? "0" }} />
+                      </span>
+                    </span>
+                  </>
                 ) : (
-                  <RefreshCw size={14} strokeWidth={1.8} />
+                  <>
+                    {market && <i className="sep" aria-hidden />}
+                    <span>{t("subtitle")}</span>
+                  </>
                 )}
-                {t("economics.syncNow")}
-              </button>
+              </div>
+            </div>
+
+            {!scopeIsAll && (
+              <div className="ph-r">
+                <div className="acts">
+                  {hasMetaAccount && (
+                    <button type="button" className="btn2" onClick={() => setMapping({ focus: null })}>
+                      <Link2 className="ic" aria-hidden />
+                      {t("mapping.openButton")}
+                      {warnings > 0 && (
+                        <span className="cnt" title={t("mapping.warningsBadge", { count: warnings })}>
+                          {warnings}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {hasMetaAccount && (
+                    <button
+                      type="button"
+                      className="btn2"
+                      // Wrapped: passing the handler directly would hand the
+                      // click event in as the backfill range.
+                      onClick={() => runSyncNow()}
+                      disabled={syncing}
+                    >
+                      {syncing ? <Loader2 className="ic animate-spin" aria-hidden /> : <RefreshCw className="ic" aria-hidden />}
+                      {t("economics.syncNow")}
+                    </button>
+                  )}
+                  <button type="button" className="btn2" onClick={() => setShowImport(true)}>
+                    <Upload className="ic" aria-hidden />
+                    {t("importCsv")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setEditingEntry(null)}>
+                    <Plus className="ic" aria-hidden />
+                    {t("addEntry")}
+                  </button>
+                </div>
+                {/* One chip, three truths: connected and fresh, connected and
+                    stale, or not connected at all. */}
+                {syncHealth.lastSyncedAt ? (
+                  <span className="chip">
+                    <i className="dot" aria-hidden />
+                    {t("economics.syncedAgo", { ago: syncHealth.lastSyncedAt })}
+                  </span>
+                ) : (
+                  <span className="chip warn">{t("economics.metaNotConnected")}</span>
+                )}
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => setShowImport(true)}
-              className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
-            >
-              <Upload size={14} strokeWidth={1.8} />
-              {t("importCsv")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditingEntry(null)}
-              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-ads-green-ink text-white hover:bg-brand-hover transition-colors duration-fast"
-            >
-              <Plus size={14} strokeWidth={2} />
-              {t("addEntry")}
-            </button>
           </div>
-        )}
+
+          {scopeIsAll ? (
+            <section className="card empty">{t("selectMarketPrompt")}</section>
+          ) : !hasCohort ? (
+            <section className="card empty">{economicsLoading ? t("refreshing") : t("empty")}</section>
+          ) : (
+            <>
+              {syncError && (
+                <div role="alert" className="note bad">
+                  <span className="nh"><AlertTriangle className="ic" aria-hidden /></span>
+                  <span>
+                    <b>{t("economics.syncFailed")}</b> {syncError}
+                  </span>
+                </div>
+              )}
+
+              {/* No drawer to hold the warnings — the page keeps them. */}
+              {!hasMetaAccount && (
+                <>
+                  <AdSpendCoverageBanner meta={economicsMeta} fromDate={fromDate} backfilling={syncing} onBackfill={backfill} />
+                  <AdSpendUnmappedBanner meta={economicsMeta} currency={currency} />
+                </>
+              )}
+
+              {economicsMeta.total_spend === 0 && (
+                <div className="note warn">
+                  <span className="nh"><AlertTriangle className="ic" aria-hidden /></span>
+                  <span>
+                    <b>{t("economics.noSpendYet")}</b> {t("economics.noSpendYetHint")}
+                  </span>
+                </div>
+              )}
+
+              {/* What the money turned into, end to end. Leads with the
+                  arithmetic rather than four totals, because a total says how
+                  much was spent and never whether spending it was a good idea. */}
+              <AdSpendChain meta={economicsMeta} currency={currency} />
+
+              <div className="two">
+                <AdSpendCplBars products={economics} currency={currency} periodLabel={t("economics.overPeriod")} />
+                <AdSpendCostStack meta={economicsMeta} currency={currency} />
+              </div>
+
+              <AdSpendProductTable
+                products={economics}
+                meta={economicsMeta}
+                currency={currency}
+                onEditEntry={openEntry}
+                onDeleteEntry={confirmDelete}
+                onMapCampaigns={hasMetaAccount ? () => setMapping({ focus: null }) : undefined}
+                onOpenCampaign={hasMetaAccount ? (id) => setMapping({ focus: id }) : undefined}
+              />
+
+              <AdSpendSyncStrip health={syncHealth} />
+
+              <p className="foot">
+                <Info className="ic" aria-hidden />
+                <span>{t("economics.basisFoot")}</span>
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
-      {scopeIsAll ? (
-        <div className="bg-surface-card border border-ads-line rounded-card p-6">
-          <EmptyState label={t("selectMarketPrompt")} minHeight={160} />
-        </div>
-      ) : !hasCohort ? (
-        <div className="bg-surface-card border border-ads-line rounded-card p-6">
-          <EmptyState label={economicsLoading ? t("refreshing") : t("empty")} minHeight={260} />
-        </div>
-      ) : (
-        <>
-          {syncError && (
-            <div role="alert" className="rounded-card border border-ads-red-line bg-ads-red-bg px-4 py-3">
-              <p className="text-[13px] font-semibold text-ads-red-ink">{t("economics.syncFailed")}</p>
-              <p className="text-[12.5px] text-ads-ink-2 mt-0.5 break-words">{syncError}</p>
-            </div>
-          )}
-
-          {/* The drawer maps Meta campaigns. A manual market-level entry is
-              unmapped too, but it is fixed by editing the entry, not by
-              mapping a campaign — so the banner only offers the action when
-              there is actually a campaign behind it. */}
-          {/* The backfill covers exactly the window the page is analysing, so
-              "no spend" stops meaning "never fetched". */}
-          <AdSpendCoverageBanner
-            meta={economicsMeta}
-            fromDate={fromDate}
-            backfilling={syncing}
-            onBackfill={
-              (syncStatus?.accounts.length ?? 0) > 0
-                ? () => runSyncNow({ since: fromDate, until: toDate })
-                : undefined
-            }
-          />
-
-          <AdSpendUnmappedBanner
-            meta={economicsMeta}
+      {/* Overlays render BESIDE `.fin`, never inside it: the kit's button
+          reset would outrank the drawer's Tailwind (see ad-spend.css). */}
+      <div className="ads-ov">
+        {editingEntry !== undefined && (
+          <AdSpendEntryModal
+            entry={editingEntry}
+            products={products}
             currency={currency}
-            onAttach={
-              economicsMeta.unmapped.campaigns.length > 0
-                ? () => setMapping({ focus: null })
-                : undefined
-            }
+            marketLabel={market ? `${market.name} · ${currency}` : currency}
+            defaultPeriodStart={startOfMonthISO()}
+            defaultPeriodEnd={todayISO()}
+            onClose={() => setEditingEntry(undefined)}
+            onSave={handleSave}
           />
+        )}
 
-          {economicsMeta.total_spend === 0 && (
-            <div className="rounded-card border border-ads-orange-line bg-ads-orange-bg px-4 py-3">
-              <p className="text-[13.5px] font-semibold text-ads-ink-1">{t("economics.noSpendYet")}</p>
-              <p className="text-[12.5px] text-ads-ink-2 mt-1 leading-relaxed">{t("economics.noSpendYetHint")}</p>
-            </div>
-          )}
-
-          {/* What the money turned into, end to end. Leads with the arithmetic
-              rather than four totals, because a total says how much was spent
-              and never whether spending it was a good idea. */}
-          <AdSpendChain meta={economicsMeta} currency={currency} />
-
-          <div className="grid grid-cols-1 [@media(min-width:1240px)]:grid-cols-[1.18fr_1fr] gap-3.5 items-start">
-            <AdSpendCplBars
-              products={economics}
-              currency={currency}
-              periodLabel={t("economics.overPeriod")}
-            />
-            <AdSpendCostStack meta={economicsMeta} currency={currency} />
-          </div>
-
-          <AdSpendProductTable
-            products={economics}
-            meta={economicsMeta}
-            currency={currency}
-            onEditEntry={openEntry}
-            onDeleteEntry={confirmDelete}
-            onMapCampaigns={hasMetaAccount ? () => setMapping({ focus: null }) : undefined}
-            onOpenCampaign={hasMetaAccount ? (id) => setMapping({ focus: id }) : undefined}
-          />
-
-          <AdSpendSyncStrip health={syncHealth} />
-        </>
-      )}
-
-      {/* Entry modal (create or edit) */}
-      {editingEntry !== undefined && (
-        <AdSpendEntryModal
-          entry={editingEntry}
-          products={products}
-          defaultPeriodStart={startOfMonthISO()}
-          defaultPeriodEnd={todayISO()}
-          onClose={() => setEditingEntry(undefined)}
-          onSave={handleSave}
-        />
-      )}
-
-      {/* Delete confirmation */}
-      {deleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(26,26,26,0.5)" }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDeleteConfirm(null);
-          }}
-        >
+        {deleteConfirm && (
           <div
-            role="dialog"
-            aria-modal="true"
-            className="bg-surface-card rounded-[8px] p-5 w-[400px] max-w-full flex flex-col gap-4 shadow-floating"
+            className="mscrim"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setDeleteConfirm(null);
+            }}
           >
-            <h2 className="m-0 text-[15px] font-semibold text-ink-primary">{t("deleteTitle")}</h2>
-            <p className="m-0 text-[13px] text-ink-secondary">
-              {t("deleteDescription", { amount: deleteConfirm.amount })}
-            </p>
-            {deleteError ? (
-              <p role="alert" className="m-0 text-[12px]" style={{ color: "#D72C0D" }}>
-                {deleteError}
-              </p>
-            ) : null}
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-[13px] bg-surface-card border border-line rounded-[6px] text-ink-primary cursor-pointer hover:bg-surface-hover"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteConfirm}
-                disabled={deleting}
-                className="px-4 py-2 text-[13px] font-semibold rounded-[6px]"
-                style={{
-                  background: "#D72C0D",
-                  color: "#FFFFFF",
-                  border: "none",
-                  cursor: deleting ? "not-allowed" : "pointer",
-                  opacity: deleting ? 0.7 : 1,
-                }}
-              >
-                {deleting ? "…" : t("deleteConfirm")}
-              </button>
+            <div role="dialog" aria-modal="true" aria-labelledby="ads-del-t" className="mbox s">
+              <div className="dr-h">
+                <div>
+                  <h2 id="ads-del-t">{t("deleteTitle")}</h2>
+                  <p>{t("deleteDescription", { amount: fmtAmount(deleteConfirm.amount), currency })}</p>
+                </div>
+              </div>
+              {deleteError ? (
+                <p role="alert" className="ferr" style={{ padding: "0 24px 12px" }}>
+                  {deleteError}
+                </p>
+              ) : null}
+              <div className="mf">
+                <button type="button" className="btn2" onClick={() => setDeleteConfirm(null)}>
+                  {t("cancel")}
+                </button>
+                <button type="button" className="btn bad" onClick={handleDeleteConfirm} disabled={deleting}>
+                  <Trash2 className="ic" aria-hidden />
+                  {deleting ? "…" : t("deleteConfirm")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Campaign / ad set → product(s) */}
-      {mapping && (
-        <AdSpendMappingDrawer
-          marketId={selectedMarketId}
-          currency={currency}
-          focusCampaignId={mapping.focus}
-          onClose={() => setMapping(null)}
-          onSaved={refresh}
-        />
-      )}
+        {/* Campaign / ad set → product(s); the page's warnings sit at its head */}
+        {mapping && (
+          <AdSpendMappingDrawer
+            marketId={selectedMarketId}
+            currency={currency}
+            focusCampaignId={mapping.focus}
+            onClose={() => setMapping(null)}
+            onSaved={refresh}
+            coverage={{ count: productsWithoutSpend, fromDate, onBackfill: backfill, backfilling: syncing }}
+          />
+        )}
 
-      {/* CSV Import modal */}
-      {showImport && (
-        <AdSpendCsvImport
-          products={products}
-          marketId={selectedMarketId}
-          onClose={() => setShowImport(false)}
-          onImport={handleImport}
-          canConfirmLocked={isSuperAdmin}
-        />
-      )}
-    </div>
+        {showImport && (
+          <AdSpendCsvImport
+            products={products}
+            marketId={selectedMarketId}
+            onClose={() => setShowImport(false)}
+            onImport={handleImport}
+            canConfirmLocked={isSuperAdmin}
+          />
+        )}
+      </div>
+    </>
   );
 }

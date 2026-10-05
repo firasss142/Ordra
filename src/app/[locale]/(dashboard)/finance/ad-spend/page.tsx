@@ -3,6 +3,8 @@ import { getServerUser } from "@/lib/auth/server-user";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { listMarketsFor, getDefaultMarketId } from "@/lib/markets/list";
 import { AdSpendClient } from "./AdSpendClient";
+import "@/components/finance/kit/finance-kit.css";
+import "@/components/ad-spend/ad-spend.css";
 
 export default async function AdSpendPage({
   params,
