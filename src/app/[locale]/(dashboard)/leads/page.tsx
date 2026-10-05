@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
-import { ProspectsClient } from "@/components/prospects/ProspectsClient";
+import { AgentCrmPage } from "@/components/agent/crm/AgentCrmPage";
 import { ConsoleClient } from "@/components/prospects/console/ConsoleClient";
 
 export const dynamic = "force-dynamic";
@@ -8,9 +8,10 @@ export const dynamic = "force-dynamic";
 /**
  * /leads — « Prospects », rebuilt from prototypes/prospects-v3.html.
  *
- *   agent                        → the worklist: six derived buckets, one
- *                                  recommended move per row, the call outcome
- *                                  in one sheet.
+ *   agent                        → « Prospects » in the agent shell
+ *                                  (components/agent/crm, prototypes/agent-shell-v2.html
+ *                                  §3): seven tiles over the six derived buckets, the
+ *                                  call result inside the prospect, « Nouveau prospect ».
  *   market_manager / super_admin → the console: four views on one route —
  *                                  Vue d'ensemble, Prospects, Campagnes,
  *                                  Équipe — with bulk distribution, the
@@ -30,14 +31,7 @@ export default async function LeadsPage({ params }: { params: { locale: string }
   if (user.role === "investor") redirect(`/${params.locale}/investor`);
 
   if (user.role === "agent") {
-    return (
-      <ProspectsClient
-        role={user.role}
-        viewerId={user.id}
-        marketId={user.market_id ?? null}
-        locale={params.locale}
-      />
-    );
+    return <AgentCrmPage marketId={user.market_id ?? null} locale={params.locale} />;
   }
 
   return (

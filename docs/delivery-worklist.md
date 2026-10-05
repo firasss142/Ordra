@@ -187,8 +187,13 @@ every SECURITY INVOKER function with `search_path = ''` fails RLS with *relation
 not exist* — test such functions under a JWT, never as the owner). Code: `src/lib/delivery/`
 (bucket reading, situation + move, validation, WhatsApp, schedule, timeline merge),
 `src/app/api/delivery/`, `src/hooks/useDeliveryActionQueue.ts` (the 5-second undo: the POST
-waits, no reversal row is ever written), `src/components/delivery/`, page
-`src/app/[locale]/(dashboard)/delivery/page.tsx`.
+waits, no reversal row is ever written), `src/components/delivery/` (the manager board, and
+`DeliveryWorklistClient`, the agent's data side), page
+`src/app/[locale]/(dashboard)/delivery/page.tsx`. Since 2026-10-05 the AGENT's screen is drawn
+by `src/components/agent/delivery/` in the « Aurore » agent shell (prototype
+`prototypes/agent-shell-v2.html` § 4 Livraison, i18n `agentDelivery`); its vocabulary — the
+prototype's situations, the move with the number inside the button, the sorts — is
+`src/lib/delivery/agent-view.ts`, read on top of `situationOf` / `moveFor`.
 
 **Plan / prototype** — `plans/suivi-livraison.md`,
 `prototypes/suivi-livraison-v1.html`.

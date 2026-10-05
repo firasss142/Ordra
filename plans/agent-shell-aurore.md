@@ -1,7 +1,7 @@
 # Agent shell — the five tabs in « Aurore » (2026-10-04)
 
-Status: **prototype v1 awaiting review** — `prototypes/agent-shell-v2.html`. No React until the owner says yes;
-then one screen first (Commandes), shown, before the rest.
+Status: **BUILT 2026-10-05** in React (branch `feat/agent-shell-aurore`, owner: « follow exactly the prototype and
+the plan »). All five tabs + the shell at once. Where each piece lives: docs/agent-shell.md.
 
 ## The brief and the answers
 "Following the design style of commandes-v4.html, redesign the agent orders page and the other pages." Answers (all Recommended):
@@ -40,9 +40,13 @@ with the agent's four endings.
 - Age units « mn / d » → « min / j ». Takeover screen and presence tooltips had no Arabic → both languages.
 Not fixed by design (code-level): prefetch keys (`days=60` vs 90, old leads endpoint), parcel search deep-link, silent prospect failures.
 
-## Open points for the owner
-- Word for attempts: agents read « Tentative 1/3 », commandes-v4 (managers) says « Appel 1/3 ». One panel → pick one.
-- Do the meters stay « since midnight » (cheap) or become real 7-day / 24 h windows (API change)?
+## Open points — settled at build time (veto any)
+- Attempts: agents read « Tentative n/3 » (the prototype's own override), managers keep « Appel n/3 ». The panel
+  is one component; the word follows the role.
+- Meters stay « since midnight » with honest labels — and midnight is now the MARKET's (the route cut the day at the
+  server's UTC midnight, i.e. 02:00 in Tripoli).
+- Row tags: built in words (decision 7), then the owner chose ICONS (2026-10-05), as the managers' Commandes (#78).
+- Managers' call results: the owner chose the new steps for them too and dropped the old pop-up (2026-10-05).
 
 ## Build order after approval
 Commandes (tiles + row + panel endings, agents' panel switch +1 week after managers per commandes plan) → Livraison → CRM →

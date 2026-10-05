@@ -71,6 +71,9 @@ export interface MyFeedbackRow {
   moment: FeedbackMoment;
   status: ComplaintStatus | null;
   product: FeedbackProductRef | null;
+  /** The order's customer (or the linked customer's name) — the row's « · name · #ref ». */
+  customer_name: string | null;
+  order_ref: string | null;
 }
 
 /** GET /api/feedback/rows — the manager's sheet. */

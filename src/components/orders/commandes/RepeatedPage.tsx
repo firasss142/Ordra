@@ -289,10 +289,7 @@ export function RepeatedPage({ role, userId, locale, userMarketId, initialMarket
         role={role}
         userId={userId}
         onClose={() => setOpenId(null)}
-        onCallTerminated={() => {
-          setOpenId(null);
-          void refresh();
-        }}
+        onOutcomeDone={() => void refresh()}
       />
 
       {toast && (

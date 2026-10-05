@@ -37,6 +37,12 @@ vi.mock("@/hooks/useFeedback", () => ({
   createFeedback: (...a: unknown[]) => createFeedback(...a),
 }));
 
+let phone = false;
+vi.mock("@/components/agent/shared", async (orig) => ({
+  ...(await orig<typeof import("@/components/agent/shared")>()),
+  useAgentPhone: () => phone,
+}));
+
 import { CaptureDialog } from "../CaptureDialog";
 
 function mount(orderId: string | null = ORDER) {
@@ -54,6 +60,7 @@ beforeEach(() => {
   createFeedback.mockReset();
   createFeedback.mockResolvedValue({ id: "fb1", moment: "call", category: "objection", status: null });
   lookupQuery = "";
+  phone = false;
 });
 
 describe("CaptureDialog — linked to the order on screen", () => {
@@ -61,16 +68,19 @@ describe("CaptureDialog — linked to the order on screen", () => {
     mount();
     expect(screen.getByRole("dialog", { name: "Ce que dit le client" })).toBeInTheDocument();
     expect(screen.getByText("فاطمة المقريف")).toBeInTheDocument();
-    expect(screen.getByText("Commande #39508")).toBeInTheDocument();
-    expect(screen.getByTestId("moment-row")).toHaveTextContent("Appel de confirmation");
+    const card = screen.getByText("فاطمة المقريف").parentElement!;
+    expect(card).toHaveTextContent("092 611 0387 · Commande #39508 · كتاب الداء والدواء");
+    expect(screen.getByTestId("moment-row")).toHaveTextContent("Moment : Appel de confirmation");
+    expect(screen.getByTestId("moment-row")).toHaveTextContent("auto");
     expect(screen.getByTestId("moment-row")).toHaveTextContent("déduit du statut « En attente »");
-    expect(screen.getByText(/Ce client a déjà 2 retours · 1 réclamation ouverte/)).toBeInTheDocument();
+    expect(screen.getByTestId("moment-row")).toHaveTextContent("Ce client a déjà 2 retours · 1 réclamation ouverte");
     expect(screen.getByText("حاجزه وموصلتهاش الاوله")).toBeInTheDocument();
   });
 
   it("keys 1–3 pick the category, topics follow it, and nothing saves without words", async () => {
     mount();
-    const save = screen.getByRole("button", { name: "Enregistrer" });
+    const save = screen.getByRole("button", { name: /^Enregistrer/ });
+    expect(screen.getByText("Choisissez d'abord une catégorie")).toBeInTheDocument();
     expect(save).toBeDisabled();
     fireEvent.keyDown(document.body, { code: "Digit2", key: "2" });
     expect(screen.getByRole("button", { name: /Objection/, pressed: true })).toBeInTheDocument();
@@ -80,6 +90,7 @@ describe("CaptureDialog — linked to the order on screen", () => {
     expect(save).toBeDisabled();
     fireEvent.change(screen.getByPlaceholderText(/Ce qu'il a dit/), { target: { value: "قال اريد الدفع بالبطاقة" } });
     expect(save).toBeEnabled();
+    expect(screen.getByText("23 / 2000")).toBeInTheDocument();
   });
 
   it("Ctrl+Enter saves — order linked, no moment sent", async () => {
@@ -90,7 +101,7 @@ describe("CaptureDialog — linked to the order on screen", () => {
     expect(createFeedback).toHaveBeenCalledWith({
       category: "objection", body: "قال اريد الدفع بالبطاقة", topic_id: null, order_id: ORDER, market_id: null,
     });
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith({ id: "fb1", category: "objection", moment: "call" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith({ id: "fb1", category: "objection", moment: "call", topic: null }));
   });
 
   it("a réclamation says it will be followed to resolution", () => {
@@ -110,7 +121,7 @@ describe("CaptureDialog — linked to the order on screen", () => {
     mount();
     fireEvent.keyDown(document.body, { code: "Digit3", key: "3" });
     fireEvent.change(screen.getByPlaceholderText(/Ce qu'il a dit/), { target: { value: "أعجبته الخدمة" } });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Enregistrer" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Enregistrer/ })); });
     expect(await screen.findByRole("alert")).toHaveTextContent("L'enregistrement a échoué");
     expect(screen.getByPlaceholderText(/Ce qu'il a dit/)).toHaveValue("أعجبته الخدمة");
   });
@@ -120,6 +131,7 @@ describe("CaptureDialog — the customer calls back (no order open)", () => {
   it("searches by the number, lists orders with their moment, and picking one sets it", async () => {
     mount(null);
     expect(screen.getByText("Appel entrant")).toBeInTheDocument();
+    expect(screen.getByText("Tapez le numéro qui s'affiche sur votre téléphone")).toBeInTheDocument();
     expect(screen.getByText(/choisissez la commande pour situer le moment/)).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("Numéro, nom ou n° de commande…"), { target: { value: "0926" } });
     expect(lookupQuery).toBe("0926");
@@ -131,7 +143,7 @@ describe("CaptureDialog — the customer calls back (no order open)", () => {
 
     fireEvent.keyDown(document.body, { code: "Digit1", key: "1" });
     fireEvent.change(screen.getByPlaceholderText(/Ce qu'il a dit/), { target: { value: "مش نفس لي في نت" } });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Enregistrer" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Enregistrer/ })); });
     expect(createFeedback).toHaveBeenCalledWith(expect.objectContaining({ category: "reclamation", order_id: "o-delivered" }));
   });
 
@@ -152,7 +164,35 @@ describe("CaptureDialog — the customer calls back (no order open)", () => {
     mount(null);
     fireEvent.keyDown(document.body, { code: "Digit3", key: "3" });
     fireEvent.change(screen.getByPlaceholderText(/Ce qu'il a dit/), { target: { value: "أعجبته الخدمة" } });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Enregistrer" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Enregistrer/ })); });
     expect(createFeedback).toHaveBeenCalledWith(expect.objectContaining({ category: "suggestion", order_id: null }));
+  });
+});
+
+describe("CaptureDialog — the window's two forms", () => {
+  it("desktop: a wide dialog with the three cards keyed 1–3 and « Ctrl ↵ » on the save", () => {
+    mount();
+    const dialog = screen.getByRole("dialog", { name: "Ce que dit le client" });
+    expect(dialog).toHaveClass("mbox", "wide");
+    expect(screen.getByRole("button", { name: /Réclamation.*un souci à régler.*1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Enregistrer/ })).toHaveTextContent("Ctrl ↵");
+  });
+
+  it("phone: a bottom sheet, no keyboard hints", () => {
+    phone = true;
+    mount();
+    const dialog = screen.getByRole("dialog", { name: "Ce que dit le client" });
+    expect(dialog).toHaveClass("sheet");
+    expect(screen.getByRole("button", { name: /^Enregistrer/ })).not.toHaveTextContent("Ctrl");
+  });
+
+  it("the topic chosen travels with the save", async () => {
+    const { onSaved } = mount();
+    fireEvent.keyDown(document.body, { code: "Digit2", key: "2" });
+    fireEvent.click(screen.getByRole("button", { name: "Pas de cash maintenant" }));
+    fireEvent.change(screen.getByPlaceholderText(/Ce qu'il a dit/), { target: { value: "ما عنديش" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Enregistrer/ })); });
+    expect(createFeedback).toHaveBeenCalledWith(expect.objectContaining({ topic_id: "t-nocash" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ topic: "Pas de cash maintenant" })));
   });
 });

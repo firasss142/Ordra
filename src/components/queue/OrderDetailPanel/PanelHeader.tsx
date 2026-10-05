@@ -35,6 +35,12 @@ export interface PanelHeaderProps {
   carrierDeletedChip?: { label: string; tooltip: string } | null;
   /** « Voix du client » — sits after the reference, before the close button. */
   feedbackSlot?: ReactNode;
+  /**
+   * The agent's top line (prototypes/agent-shell-v2.html `panelTop`): the pill may read
+   * « Tentative n/3 » (null = the shared pill), the SLA chip replaces « reçue … » and the
+   * late chip, and the × goes on a phone (the back bar closes there).
+   */
+  agentTop?: { pill: ReactNode; sla: ReactNode; showClose: boolean };
   onClose: () => void;
 }
 
@@ -57,6 +63,7 @@ export function PanelHeader({
   presenceRows,
   carrierDeletedChip,
   feedbackSlot,
+  agentTop,
   onClose,
 }: PanelHeaderProps) {
   const t = useTranslations("orders.detail");
@@ -84,11 +91,12 @@ export function PanelHeader({
 
   return (
     <div className="dr-top">
-      <StatusPill o={pill} maxAttempts={maxAttempts} rejection={rejection} when={when} now={clock} />
-      <span className="dr-age" data-testid="panel-received" title={formatDateTime(createdAt, locale)}>
+      {agentTop?.pill ?? <StatusPill o={pill} maxAttempts={maxAttempts} rejection={rejection} when={when} now={clock} />}
+      {agentTop ? agentTop.sla : null}
+      {agentTop ? null : <span className="dr-age" data-testid="panel-received" title={formatDateTime(createdAt, locale)}>
         {t("receivedWhen", { when: when(createdAt, { now: clock }) })}
-      </span>
-      {late && slaMinutes != null ? (
+      </span>}
+      {!agentTop && late && slaMinutes != null ? (
         <span className={`sla${late === "vlate" ? " vlate" : ""}`} data-testid="panel-sla" data-state={late}>
           <Ic n="clock" />
           {t("slaLate", { h: Math.round((slaMinutes / 60) * 10) / 10 })}
@@ -115,9 +123,11 @@ export function PanelHeader({
         <Ic n={copied ? "check" : "copy"} />
       </button>
       {feedbackSlot}
-      <button type="button" className="xbtn" onClick={onClose} aria-label={t("close")}>
-        <Ic n="x" />
-      </button>
+      {agentTop && !agentTop.showClose ? null : (
+        <button type="button" className="xbtn" onClick={onClose} aria-label={t("close")}>
+          <Ic n="x" />
+        </button>
+      )}
     </div>
   );
 }

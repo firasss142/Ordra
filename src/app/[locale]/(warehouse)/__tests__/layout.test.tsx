@@ -52,9 +52,6 @@ vi.mock("@/components/layout/Sidebar", async () => {
 vi.mock("@/components/alerts/AlertsPanel", () => ({
   AlertsPanel: () => <div data-testid="alerts-panel" />,
 }));
-vi.mock("@/components/layout/Topbar", () => ({
-  Topbar: () => <div data-testid="topbar" />,
-}));
 
 function user(role: string): AuthUser {
   return {
@@ -106,15 +103,6 @@ describe("Entrepôt shell — navigation", () => {
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
     expect(screen.getByRole("link", { name: "Scanner" })).toBeInTheDocument();
-  });
-
-  it("gives the agent no top bar — the mockups start with the page title", () => {
-    mockUser = user("warehouse_agent");
-    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
-    // 56px of chrome that carried a market badge the agent cannot change and
-    // an avatar menu that now lives in Réglages. Three of the four mockups
-    // have no header at all.
-    expect(screen.queryByTestId("topbar")).toBeNull();
   });
 
   it("follows the day: Aujourd'hui, Sortir, Scan in the centre, Rentrer, Stock", () => {

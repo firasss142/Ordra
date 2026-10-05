@@ -179,7 +179,7 @@ describe("OrderDetailPanel", () => {
   it("market not connected: the WhatsApp button and the Messages tab are there, and the tab explains why with the wa.me link", () => {
     waAvailability = { availability: null, active: false, known: true, isLoading: false };
     waThread = { conversation: null, messages: [], phone_e164: "218912345678", customer_language: null, window_open: false, window_closes_at: null, config_active: false, config_status: null };
-    render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+    render(<OrderDetailPanel orderId="order-1" onClose={() => {}} userId="user-1" />);
 
     const btn = screen.getByRole("button", { name: /^واتساب/ });
     expect(btn).toHaveAttribute("data-state", "not_connected");
@@ -194,7 +194,7 @@ describe("OrderDetailPanel", () => {
       <OrderDetailPanel
         orderId="order-1"
         onClose={() => {}}
-        onCallTerminated={() => {}}
+       
         userId="user-1"
       />,
     );
@@ -209,7 +209,7 @@ describe("OrderDetailPanel", () => {
       <OrderDetailPanel
         orderId="order-1"
         onClose={() => {}}
-        onCallTerminated={() => {}}
+       
         userId="user-1"
       />,
     );
@@ -228,7 +228,7 @@ describe("OrderDetailPanel", () => {
       <OrderDetailPanel
         orderId="order-1"
         onClose={() => {}}
-        onCallTerminated={() => {}}
+       
         userId="user-1"
       />,
     );
@@ -251,7 +251,7 @@ describe("OrderDetailPanel", () => {
       <OrderDetailPanel
         orderId="order-1"
         onClose={() => {}}
-        onCallTerminated={() => {}}
+       
         userId="user-1"
       />,
     );
@@ -286,7 +286,7 @@ describe("OrderDetailPanel", () => {
       <OrderDetailPanel
         orderId="order-1"
         onClose={() => {}}
-        onCallTerminated={() => {}}
+       
         userId="user-1"
       />,
     );
@@ -310,7 +310,7 @@ describe("OrderDetailPanel", () => {
 
   describe("the prototype's layout (commandes-v4)", () => {
     it("is the drawer over a scrim on the orders page, under the .cmd token root", () => {
-      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} userId="user-1" />);
       const drawer = screen.getByRole("dialog");
       expect(drawer).toHaveClass("drawer");
       expect(drawer.closest(".cmd")).not.toBeNull();
@@ -319,14 +319,14 @@ describe("OrderDetailPanel", () => {
 
     it("closes from the scrim", () => {
       const onClose = vi.fn();
-      render(<OrderDetailPanel orderId="order-1" onClose={onClose} onCallTerminated={() => {}} userId="user-1" />);
+      render(<OrderDetailPanel orderId="order-1" onClose={onClose} userId="user-1" />);
       fireEvent.click(document.querySelector(".scrim")!);
       expect(onClose).toHaveBeenCalled();
     });
 
     it("pins a missing city as a notice directly above the footer", () => {
       currentOrder = { ...order, customer_city: null };
-      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} userId="user-1" />);
       const note = screen.getByText("المدينة غير محددة — يجب تحديدها قبل الإرسال").closest(".notes")!;
       expect(note.nextElementSibling).toHaveClass("dr-foot");
     });
@@ -336,7 +336,7 @@ describe("OrderDetailPanel", () => {
         <OrderDetailPanel
           orderId="order-1"
           onClose={() => {}}
-          onCallTerminated={() => {}}
+         
           userId="user-1"
           fallbackOrder={{ ...order, prior_order_count: 4, prior_rejected_count: 1, prior_returned_count: 1, prior_delivered_count: 2 }}
         />,
@@ -346,7 +346,7 @@ describe("OrderDetailPanel", () => {
 
     it("tells a shipped order to be reopened before editing", () => {
       currentOrder = { ...order, status: "delivered" };
-      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" />);
+      render(<OrderDetailPanel orderId="order-1" onClose={() => {}} userId="user-1" />);
       expect(screen.getByText("أعد فتح الطلب لتعديل تفاصيله.")).toBeInTheDocument();
     });
   });
@@ -356,7 +356,7 @@ describe("OrderDetailPanel", () => {
     // `document`, so without this one press closed both layers at once.
     it("stands down its Escape while the call sheet covers it", () => {
       const onClose = vi.fn();
-      const props = { orderId: "order-1", onClose, onCallTerminated: () => {}, userId: "user-1" };
+      const props = { orderId: "order-1", onClose, userId: "user-1" };
       const { rerender } = render(<OrderDetailPanel {...props} covered />);
       fireEvent.keyDown(document, { key: "Escape" });
       expect(onClose).not.toHaveBeenCalled();
@@ -377,7 +377,7 @@ describe("OrderDetailPanel", () => {
     };
     const renderPanel = () =>
       render(
-        <OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" variant="side" />,
+        <OrderDetailPanel orderId="order-1" onClose={() => {}} userId="user-1" variant="side" />,
       );
 
     // The masthead used to be its own capped scroll box above a second one
@@ -439,7 +439,7 @@ describe("OrderDetailPanel", () => {
         <OrderDetailPanel
           orderId="order-1"
           onClose={() => {}}
-          onCallTerminated={() => {}}
+         
           userId="user-1"
         />,
       );
@@ -467,7 +467,7 @@ describe("OrderDetailPanel", () => {
         <OrderDetailPanel
           orderId="order-1"
           onClose={() => {}}
-          onCallTerminated={() => {}}
+         
           userId="user-1"
         />,
       );
@@ -494,7 +494,7 @@ describe("OrderDetailPanel", () => {
         <OrderDetailPanel
           orderId="order-1"
           onClose={() => {}}
-          onCallTerminated={() => {}}
+         
           userId="user-1"
         />,
       );

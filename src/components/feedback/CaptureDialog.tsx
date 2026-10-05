@@ -1,19 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import "@/components/agent/agent.css";
+import "@/components/agent/agent-app.css";
+import "@/components/agent/voc/voc.css";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
-import { AlertTriangle, Info, PhoneIncoming, Quote, Search, User, X } from "lucide-react";
 import { createFeedback, useFeedbackContext, useFeedbackLookup, useFeedbackTopics } from "@/hooks/useFeedback";
 import { FEEDBACK_BODY_MAX, FEEDBACK_CATEGORIES, type FeedbackCategory, type FeedbackMoment } from "@/lib/feedback/taxonomy";
 import { isEditableTarget } from "@/lib/dom";
+import { Ic, Thumb, useAgentPhone } from "@/components/agent/shared";
+import { VCAT } from "@/components/agent/voc/vocab";
 import type { FeedbackLookupCustomer, FeedbackLookupOrder } from "@/types/feedback";
-import { CategoryCards, Kbd, MomentChip, MomentRow, ProductThumb, TopicChips } from "./atoms";
 
 export interface SavedFeedback {
   id: string;
   category: FeedbackCategory;
   moment: FeedbackMoment;
+  /** The topic's label, when one was picked — the toast says it. */
+  topic?: string | null;
 }
 
 export interface CaptureDialogProps {
@@ -23,20 +28,6 @@ export interface CaptureDialogProps {
   market: string | null;
   onClose: () => void;
   onSaved: (saved: SavedFeedback) => void;
-}
-
-const PHONE_QUERY = "(max-width: 1023px)";
-function useIsPhone(): boolean {
-  const [phone, setPhone] = useState(false);
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia(PHONE_QUERY);
-    setPhone(mq.matches);
-    const on = (e: MediaQueryListEvent) => setPhone(e.matches);
-    mq.addEventListener?.("change", on);
-    return () => mq.removeEventListener?.("change", on);
-  }, []);
-  return phone;
 }
 
 const digits = (s: string) => s.replace(/\D/g, "");
@@ -56,26 +47,26 @@ function Highlight({ text, q }: { text: string; q: string }) {
     }
   }
   if (a < 0 || b < 0) return <>{text}</>;
-  return <>{text.slice(0, a)}<mark className="rounded-[3px] bg-[#FEF9C3] text-inherit">{text.slice(a, b)}</mark>{text.slice(b)}</>;
+  return <>{text.slice(0, a)}<mark>{text.slice(a, b)}</mark>{text.slice(b)}</>;
 }
 
 /**
- * « Ce que dit le client » — the capture window, prototype voix-du-client-agent-v2.
+ * « Ce que dit le client » — the capture (prototypes/agent-shell-v2.html, `captureHTML`):
+ * a wide dialog on a desktop, a bottom sheet on a phone.
  *
- *   ① linked: opened with an order on screen; the order, its customer and product are the
- *     context, the moment is derived from its status (« auto »), and the customer's earlier
- *     entries show in red when one is still open.
- *   ② the customer calls back: no order open; search by the number on the agent's phone,
- *     each order listed with its moment — picking one sets it.
+ *   ① linked: opened with an order on screen; its customer and product are the context, the
+ *     moment is derived from its status (« auto »), and the customer's earlier entries show.
+ *   ② « Appel entrant »: no order open; search by the number on the agent's phone, each order
+ *     listed with its moment — picking one sets it.
  *
  * Keys: 1–3 category · Ctrl/⌘+Enter save · Esc close. Owned here in the capture phase, so
  * the queue and the panel underneath never see them.
  */
 export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDialogProps) {
-  const t = useTranslations("feedback.capture");
+  const t = useTranslations("agentVoc");
   const ts = useTranslations("orders.statuses");
   const locale = useLocale();
-  const phone = useIsPhone();
+  const phone = useAgentPhone();
   const titleId = useId();
 
   const [mode, setMode] = useState<"context" | "blank">(orderId ? "context" : "blank");
@@ -95,9 +86,13 @@ export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDial
 
   const textRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const firstCardRef = useRef<HTMLDivElement>(null);
+  const catsRef = useRef<HTMLDivElement>(null);
 
   const ready = category !== null && text.trim().length > 0 && !saving;
+  const topicName = useCallback((id: string | null) => {
+    const x = id ? topics.find((tp) => tp.id === id) : null;
+    return x ? (locale === "ar" ? x.label_ar : x.label_fr) : null;
+  }, [topics, locale]);
 
   const pickCategory = useCallback((c: FeedbackCategory | null) => {
     setCategory(c);
@@ -120,12 +115,12 @@ export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDial
       });
       const moment = (res.moment as FeedbackMoment | undefined)
         ?? (mode === "context" ? context?.order.moment : picked?.moment) ?? "call";
-      onSaved({ id: res.id, category, moment });
+      onSaved({ id: res.id, category, moment, topic: topicName(topic) });
     } catch {
       setError(true);
       setSaving(false);
     }
-  }, [category, text, saving, mode, orderId, picked, topic, market, context, onSaved]);
+  }, [category, text, saving, mode, orderId, picked, topic, market, context, onSaved, topicName]);
 
   // Keyboard, in the capture phase: these keys belong to the window while it is open.
   useEffect(() => {
@@ -156,7 +151,7 @@ export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDial
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       if (mode === "blank" && !picked) searchRef.current?.focus();
-      else firstCardRef.current?.querySelector("button")?.focus();
+      else catsRef.current?.querySelector("button")?.focus();
     });
     return () => cancelAnimationFrame(id);
   }, [mode, picked]);
@@ -177,225 +172,205 @@ export function CaptureDialog({ orderId, market, onClose, onSaved }: CaptureDial
     const o = result?.orders.find((x) => x.id === c.latest_order_id) ?? result?.orders.find((x) => x.customer_id === c.id);
     if (o) pickOrder(o);
   };
+  const toSearch = () => {
+    setMode("blank");
+    setPicked(null);
+    setFocusSearch(true);
+  };
 
   const dateFmt = (iso: string) =>
-    new Intl.DateTimeFormat(locale.startsWith("ar") ? "ar-LY" : "fr-FR", { day: "numeric", month: "short" }).format(new Date(iso));
+    new Intl.DateTimeFormat(locale === "ar" ? "ar-LY-u-nu-latn" : "fr-FR", { day: "numeric", month: "short" }).format(new Date(iso));
   const when = (o: FeedbackLookupOrder) =>
-    o.status_at && o.status === "delivered" ? t("deliveredOn", { date: dateFmt(o.status_at) })
-      : o.status_at && o.status === "returned" ? t("returnedOn", { date: dateFmt(o.status_at) })
-        : ts(o.status as never);
+    o.status_at && o.status === "delivered" ? t("capture.deliveredOn", { date: dateFmt(o.status_at) })
+      : o.status_at && o.status === "returned" ? t("capture.returnedOn", { date: dateFmt(o.status_at) })
+        : statusWord(ts, o.status);
 
-  const L3 = ({ children, end }: { children: React.ReactNode; end?: React.ReactNode }) => (
-    <div className="mb-2 mt-3.5 flex items-center gap-2 text-[12.5px] font-bold text-[#6B7280]">
-      {children}
-      {end && <span className="ms-auto font-medium">{end}</span>}
+  /** `.vmeta` — « Moment : En attente · en route  [auto]  déduit du statut « … » ». */
+  const momentRow = (moment: FeedbackMoment | null, status: string | null, extra?: ReactNode) =>
+    moment ? (
+      <div className="vmeta" data-testid="moment-row">
+        <span>{t("capture.moment")} : <b>{t(`moment.${moment}`)}</b></span>
+        <span className="tg h-neutral">{t("capture.auto")}</span>
+        {status ? <span className="q">{t("capture.fromStatus", { status: statusWord(ts, status) })}</span> : null}
+        {extra}
+      </div>
+    ) : (
+      <div className="vmeta"><span>{t("capture.moment")} · <span className="q">{t("capture.noMoment")}</span></span></div>
+    );
+
+  const orderCard = (o: { name: string; phone: string; ref: string; product: { id: string; name: string; image_url: string | null } | null; seed: string }, tail?: string) => (
+    <div className="sh-o">
+      <Thumb src={o.product?.image_url} seed={o.product?.id ?? o.seed} />
+      <div>
+        <b dir="auto">{o.name}</b>
+        <small>
+          <span dir="ltr" className="num">{o.phone}</span>
+          {" · "}{t("capture.orderN", { ref: o.ref })}
+          {o.product ? <> · <span dir="auto">{o.product.name}</span></> : null}
+          {tail ? ` · ${tail}` : null}
+        </small>
+      </div>
+      <button type="button" className="lnk" onClick={toSearch}>{t("capture.change")}</button>
     </div>
   );
 
-  const contextBlock = context && (
+  const contextBlock = context ? (
     <>
-      <div className="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2.5">
-        <ProductThumb url={context.order.product?.image_url} />
-        <div className="min-w-0 flex-1">
-          <b className="block text-[15px] font-bold [unicode-bidi:plaintext]">{context.order.customer_name}</b>
-          <span className="mt-px flex flex-wrap gap-2.5 text-[13px] text-[#6B7280]">
-            <span dir="ltr" className="tabular-nums">{context.order.customer_phone}</span>
-            <span>{t("orderN", { ref: context.order.ref })}</span>
-            {context.order.product && <span className="[unicode-bidi:plaintext]">{context.order.product.name}</span>}
-          </span>
-        </div>
-        <button type="button" onClick={() => { setMode("blank"); setFocusSearch(true); }} className="whitespace-nowrap text-[13px] font-semibold text-[#15803D]">
-          {t("change")}
-        </button>
-      </div>
-      <MomentRow moment={context.order.moment} status={context.order.status} />
-      {context.history.count > 0 && (
-        <div className={`mt-2 flex items-start gap-2.5 rounded-[10px] border px-3 py-2.5 text-[13px] ${context.history.open > 0 ? "border-[#FECACA] bg-[#FFF4F4] text-[#7F1D1D]" : "border-[#E5E7EB] bg-[#F9FAFB] text-[#374151]"}`}>
-          <AlertTriangle size={16} className={`mt-px shrink-0 ${context.history.open > 0 ? "text-[#DC2626]" : "text-[#6B7280]"}`} aria-hidden />
-          <div>
-            <b className="font-bold">{t("history", { n: context.history.count, open: context.history.open })}</b>
-            {context.history.quote && <span className="mt-[3px] block text-[14px] text-[#111827] [unicode-bidi:plaintext]">{context.history.quote}</span>}
-          </div>
-        </div>
-      )}
+      {orderCard({ name: context.order.customer_name, phone: context.order.customer_phone, ref: context.order.ref, product: context.order.product, seed: context.order.id })}
+      {momentRow(context.order.moment, context.order.status, context.history.count > 0 ? (
+        <span className={`tg h-${context.history.open > 0 ? "red" : "amber"}`}>
+          <Ic n="alert" />
+          {t("capture.history", { n: context.history.count })}
+          {context.history.open > 0 ? ` · ${t("capture.historyOpen", { open: context.history.open })}` : null}
+        </span>
+      ) : null)}
+      {context.history.quote ? <p className="vquote">« <span dir="auto">{context.history.quote}</span> »</p> : null}
     </>
-  );
+  ) : null;
 
   const blankBlock = picked ? (
     <>
-      <div className="flex min-h-[52px] items-center gap-2.5 rounded-xl border-[1.5px] border-[#15803D] bg-[#F0FDF4] py-1.5 pe-1.5 ps-3 text-[14px]">
-        <ProductThumb url={picked.product?.image_url} size={36} />
-        <span className="min-w-0 flex-1">
-          <b className="font-bold [unicode-bidi:plaintext]">{picked.customer_name}</b>{" "}
-          <span dir="ltr" className="tabular-nums">{picked.customer_phone}</span>
-          <br />
-          <span className="text-[13px] text-[#6B7280]">
-            {t("orderN", { ref: picked.ref })}
-            {picked.product && <> · <span className="[unicode-bidi:plaintext]">{picked.product.name}</span></>} · {when(picked)}
-          </span>
-        </span>
-        <button type="button" aria-label={t("change")} onClick={() => { setPicked(null); setFocusSearch(true); }} className="grid h-8 w-8 place-items-center rounded-lg text-[#6B7280]">
-          <X size={16} aria-hidden />
-        </button>
-      </div>
-      <MomentRow moment={picked.moment} status={picked.status} />
+      {orderCard({ name: picked.customer_name, phone: picked.customer_phone, ref: picked.ref, product: picked.product, seed: picked.id }, when(picked))}
+      {momentRow(picked.moment, picked.status)}
     </>
   ) : (
     <>
-      <div className="mb-1 flex items-center gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-2.5 text-[13px] text-[#1E3A8A]">
-        <PhoneIncoming size={18} className="text-[#2563EB]" aria-hidden />
-        <div><b className="text-[14px]">{t("ringTitle")}</b><div>{t("ringSub")}</div></div>
-      </div>
-      <L3>{t("custLabel")}</L3>
-      <div className="relative">
-        <div className="flex h-11 items-center gap-2 rounded-[10px] border border-[#D1D5DB] bg-white px-3 text-[#6B7280] focus-within:border-[#15803D] focus-within:shadow-[0_0_0_3px_#DCFCE7]">
-          <Search size={18} aria-hidden />
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setHot(0); setFocusSearch(true); }}
-            onFocus={() => setFocusSearch(true)}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") { e.preventDefault(); setHot((h) => Math.min(h + 1, options.length - 1)); }
-              else if (e.key === "ArrowUp") { e.preventDefault(); setHot((h) => Math.max(h - 1, 0)); }
-              else if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && options[hot]) {
-                e.preventDefault();
-                const opt = options[hot];
-                if (opt.kind === "order") pickOrder(opt.o); else pickCustomer(opt.c);
-              }
-            }}
-            placeholder={t("custPlaceholder")}
-            autoComplete="off"
-            className="h-full min-w-0 flex-1 border-0 bg-transparent text-[14.5px] text-[#111827] outline-none"
-          />
+      <div className="incall">
+        <b>{t("capture.ringTitle")}</b>
+        <small>{t("capture.ringSub")}</small>
+        <div className="vlook-w">
+          <label className="srch" style={{ boxShadow: "none" }}>
+            <Ic n="search" />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setHot(0); setFocusSearch(true); }}
+              onFocus={() => setFocusSearch(true)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") { e.preventDefault(); setHot((h) => Math.min(h + 1, options.length - 1)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setHot((h) => Math.max(h - 1, 0)); }
+                else if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && options[hot]) {
+                  e.preventDefault();
+                  const opt = options[hot];
+                  if (opt.kind === "order") pickOrder(opt.o); else pickCustomer(opt.c);
+                }
+              }}
+              placeholder={t("capture.lookup")}
+              autoComplete="off"
+            />
+          </label>
+          {focusSearch && query.trim().length >= 3 && (result || searching) ? (
+            <div className="vlook">
+              {!result ? <span className="q">{t("capture.searching")}</span> : null}
+              {result && !options.length ? <span className="q">{t("capture.noResult")}</span> : null}
+              {result?.customers.length ? <h6>{t("capture.groupCustomers")}</h6> : null}
+              {result?.customers.map((c, i) => (
+                <button key={c.id} type="button" className="vlo" data-hot={hot === i || undefined} onClick={() => pickCustomer(c)}>
+                  <span className="thumb h-neutral" style={{ width: 32, height: 32, background: "var(--pb)", color: "var(--pi)" }}><Ic n="user" /></span>
+                  <span>
+                    <b dir="auto">{c.name}</b>
+                    <small><span dir="ltr" className="num"><Highlight text={c.phone} q={query} /></span>{c.city ? ` · ${c.city}` : ""}</small>
+                  </span>
+                  <span className="e">{t("capture.nOrders", { n: c.orders })}</span>
+                </button>
+              ))}
+              {result?.orders.length ? <h6>{t("capture.groupOrders")}</h6> : null}
+              {result?.orders.map((o, j) => (
+                <button key={o.id} type="button" className="vlo" data-hot={hot === (result.customers.length + j) || undefined} onClick={() => pickOrder(o)}>
+                  <Thumb src={o.product?.image_url} seed={o.product?.id ?? o.id} />
+                  <span>
+                    <b><span className="num">#{o.ref}</span> · <span dir="auto">{o.customer_name}</span></b>
+                    {o.product ? <small dir="auto">{o.product.name}</small> : null}
+                  </span>
+                  <span className="e"><span>{t(`moment.${o.moment}`)}</span><span>{when(o)}</span></span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        {focusSearch && query.trim().length >= 3 && !result && searching && (
-          <div className="absolute inset-x-0 top-[calc(100%+6px)] z-10 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-[12.5px] text-[#6B7280] shadow-[0_12px_32px_rgba(17,24,39,0.14)]">
-            {t("searching")}
-          </div>
-        )}
-        {focusSearch && query.trim().length >= 3 && result && (
-          <div className="absolute inset-x-0 top-[calc(100%+6px)] z-10 max-h-[300px] overflow-y-auto rounded-xl border border-[#E5E7EB] bg-white shadow-[0_12px_32px_rgba(17,24,39,0.14)]">
-            {options.length === 0 && <div className="px-3 pb-1 pt-2 text-[11.5px] font-bold text-[#9CA3AF]">{t("noResult")}</div>}
-            {result.customers.length > 0 && <div className="px-3 pb-1 pt-2 text-[11.5px] font-bold text-[#9CA3AF]">{t("groupCustomers")}</div>}
-            {result.customers.map((c, i) => (
-              <button key={c.id} type="button" data-hot={hot === i || undefined} onClick={() => pickCustomer(c)}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-start hover:bg-[#F9FAFB] data-[hot]:bg-[#F9FAFB]">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-[#F3F4F6] text-[#6B7280]"><User size={16} aria-hidden /></span>
-                <span className="min-w-0">
-                  <b className="block text-[14px] font-semibold [unicode-bidi:plaintext]">{c.name}</b>
-                  <small className="text-[12px] text-[#6B7280]"><span dir="ltr" className="tabular-nums"><Highlight text={c.phone} q={query} /></span>{c.city ? ` · ${c.city}` : ""}</small>
-                </span>
-                <span className="ms-auto text-[12px] text-[#6B7280]">{t("nOrders", { n: c.orders })}</span>
+      </div>
+      {momentRow(null, null)}
+    </>
+  );
+
+  const topicsOf = category ? topics.filter((x) => x.category === category) : [];
+
+  const body = (
+    <>
+      {phone ? <div className="grab" /> : null}
+      <div className="tray-h">
+        <span className="hold h-blue"><Ic n="quote" /></span>
+        <span className="tt"><b id={titleId}>{t("capture.title")}</b><small>{t("capture.sub")}</small></span>
+        <button type="button" className="xbtn" onClick={onClose} aria-label={t("capture.close")}><Ic n="x" /></button>
+      </div>
+      {mode === "context" ? contextBlock : blankBlock}
+      <div className="vcats" ref={catsRef}>
+        {FEEDBACK_CATEGORIES.map((c, i) => (
+          <button key={c} type="button" aria-pressed={category === c} className={`vcat h-${VCAT[c].hue}${category === c ? " on" : ""}`} onClick={() => pickCategory(category === c ? null : c)}>
+            <span className="hold"><Ic n={VCAT[c].icon} /></span>
+            <span><b>{t(`cat.${c}`)}</b><small>{t(`hint.${c}`)}</small></span>
+            {phone ? null : <kbd>{i + 1}</kbd>}
+          </button>
+        ))}
+      </div>
+      <div className="fld">
+        <label>{t("capture.subject")}</label>
+        {category ? (
+          <div className="vtopics">
+            {topicsOf.map((x) => (
+              <button key={x.id} type="button" aria-pressed={topic === x.id} className={`rc h-${VCAT[category].hue}${topic === x.id ? " on" : ""}`}
+                onClick={() => { setTopic(topic === x.id ? null : x.id); textRef.current?.focus(); }}>
+                {locale === "ar" ? x.label_ar : x.label_fr}
               </button>
             ))}
-            {result.orders.length > 0 && <div className="px-3 pb-1 pt-2 text-[11.5px] font-bold text-[#9CA3AF]">{t("groupOrders")}</div>}
-            {result.orders.map((o, j) => {
-              const i = result.customers.length + j;
-              return (
-                <button key={o.id} type="button" data-hot={hot === i || undefined} onClick={() => pickOrder(o)}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-start hover:bg-[#F9FAFB] data-[hot]:bg-[#F9FAFB]">
-                  <ProductThumb url={o.product?.image_url} size={32} />
-                  <span className="min-w-0">
-                    <b className="block text-[14px] font-semibold"><span dir="ltr" className="tabular-nums">#{o.ref}</span> · <span className="[unicode-bidi:plaintext]">{o.customer_name}</span></b>
-                    {o.product && <small className="text-[12px] text-[#6B7280] [unicode-bidi:plaintext]">{o.product.name}</small>}
-                  </span>
-                  <span className="ms-auto flex flex-col items-end gap-[3px]">
-                    <MomentChip moment={o.moment} small />
-                    <small className="text-[12px] text-[#6B7280]">{when(o)}</small>
-                  </span>
-                </button>
-              );
-            })}
           </div>
-        )}
+        ) : <small className="q" style={{ fontSize: 12.5 }}>{t("capture.subjectFirst")}</small>}
       </div>
-      <MomentRow moment={null} status={null} />
+      <div className="fld">
+        <label htmlFor={`${titleId}-w`}>{t("capture.words")}</label>
+        <textarea
+          id={`${titleId}-w`}
+          ref={textRef}
+          className="inp"
+          dir="auto"
+          style={{ height: 84 }}
+          value={text}
+          maxLength={FEEDBACK_BODY_MAX}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={t("capture.wordsPh")}
+        />
+        <small className="q" style={{ fontSize: 11.5, textAlign: "end" }}><span dir="ltr" className="num">{t("capture.chars", { n: text.length })}</span></small>
+      </div>
+      {category === "reclamation" ? <div className="note h-red"><Ic n="info" /><span>{t("capture.lifecycle")}</span></div> : null}
+      {error ? <div className="err" role="alert">{t("capture.error")}</div> : null}
+      <div className="trayf">
+        <button type="button" className="fa" onClick={onClose}>{t("capture.cancel")}</button>
+        <button type="button" className="fa pri wide" disabled={!ready} onClick={() => void save()}>
+          <Ic n="check" />
+          <span>{saving ? t("capture.saving") : t("capture.save")}</span>
+          {phone ? null : <kbd>Ctrl ↵</kbd>}
+        </button>
+      </div>
     </>
   );
 
   return (
     <FocusTrap focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false, fallbackFocus: () => document.body }}>
-      <div
-        className="fixed inset-0 z-[80] flex items-end justify-center bg-[rgba(17,24,39,0.34)] lg:items-start lg:pt-14"
-        onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[18px] bg-white text-start shadow-[0_24px_60px_rgba(17,24,39,0.24)] lg:max-h-[calc(100vh-84px)] lg:w-[680px] lg:rounded-2xl"
-        >
-          <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#D1D5DB] lg:hidden" aria-hidden />
-          <div className="flex items-center gap-3 px-[18px] pb-2.5 pt-4">
-            <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#F5F3FF] text-[#6D28D9]"><Quote size={18} aria-hidden /></span>
-            <div>
-              <h3 id={titleId} className="m-0 text-[18px] font-bold">{t("title")}</h3>
-              <p className="m-0 mt-px text-[13px] text-[#6B7280]">{mode === "context" ? t("subContext") : t("subBlank")}</p>
-            </div>
-            <span className="ms-auto flex items-center gap-2">
-              <span className="max-lg:hidden"><Kbd>Esc</Kbd></span>
-              <button type="button" onClick={onClose} aria-label={t("close")} className="grid h-9 w-9 place-items-center rounded-lg border border-[#D1D5DB] text-[#374151]">
-                <X size={18} aria-hidden />
-              </button>
-            </span>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-[18px] pb-4">
-            {mode === "context" ? contextBlock : blankBlock}
-
-            <L3 end={phone ? undefined : t("catHint")}>{t("catLabel")}</L3>
-            <div ref={firstCardRef}>
-              <CategoryCards value={category} onChange={pickCategory} showKeys={!phone} stack={phone} />
-            </div>
-
-            {category && (
-              <>
-                <L3>{t("topicLabel")} <small className="font-medium text-[#9CA3AF]">· {t("optional")}</small></L3>
-                <TopicChips category={category} topics={topics} value={topic} onChange={(id) => { setTopic(id); textRef.current?.focus(); }} />
-              </>
-            )}
-
-            <L3>{t("textLabel")}</L3>
-            <textarea
-              ref={textRef}
-              value={text}
-              maxLength={FEEDBACK_BODY_MAX}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={t("textPlaceholder")}
-              className="min-h-[96px] w-full resize-y rounded-xl border border-[#D1D5DB] bg-white px-3 py-2.5 text-[15px] leading-[1.6] outline-none [unicode-bidi:plaintext] focus:border-[#15803D] focus:shadow-[0_0_0_3px_#DCFCE7]"
-            />
-            <div className="mt-[5px] flex justify-between text-[12px] text-[#9CA3AF]">
-              <span>{t("textHint")}</span>
-              <span dir="ltr" className="tabular-nums">{t("chars", { n: text.length })}</span>
-            </div>
-            {category === "reclamation" && (
-              <div className="mt-2.5 flex items-start gap-[9px] rounded-[10px] border border-[#FECACA] bg-[#FFF4F4] px-3 py-2.5 text-[13px] text-[#7F1D1D]">
-                <Info size={16} className="mt-px shrink-0 text-[#DC2626]" aria-hidden />
-                <span>{t("lifecycle")}</span>
-              </div>
-            )}
-            {error && <p role="alert" className="mt-2.5 text-[13px] font-semibold text-[#B91C1C]">{t("error")}</p>}
-          </div>
-
-          <div className="flex items-center gap-2.5 border-t border-[#E5E7EB] px-[18px] py-3 max-lg:pb-[max(12px,env(safe-area-inset-bottom))]">
-            <span className="flex flex-wrap items-center gap-3 text-[12px] text-[#6B7280] max-lg:hidden">
-              <span className="inline-flex items-center gap-[5px]"><Kbd>Ctrl</Kbd>+<Kbd>↵</Kbd> {t("keySave")}</span>
-              <span className="inline-flex items-center gap-[5px]"><Kbd>1–3</Kbd> {t("keyCategory")}</span>
-              <span className="inline-flex items-center gap-[5px]"><Kbd>Esc</Kbd> {t("keyClose")}</span>
-            </span>
-            <span className="ms-auto flex gap-2 max-lg:w-full">
-              <button type="button" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-lg border border-[#D1D5DB] bg-white px-3.5 text-[14px] font-semibold hover:bg-[#F9FAFB] max-lg:hidden">
-                {t("cancel")}
-              </button>
-              <button type="button" onClick={() => void save()} disabled={!ready}
-                className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#15803D] px-4 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45 max-lg:h-12 max-lg:flex-1 max-lg:text-[16px]">
-                {saving ? t("saving") : t("save")}
-              </button>
-            </span>
-          </div>
+      {phone ? (
+        <div>
+          <div className="shscrim" onClick={onClose} />
+          <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>{body}</div>
         </div>
-      </div>
+      ) : (
+        <div className="modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="mbox wide" role="dialog" aria-modal="true" aria-labelledby={titleId}>{body}</div>
+        </div>
+      )}
     </FocusTrap>
   );
+}
+
+function statusWord(ts: (k: never) => string, status: string): string {
+  const label = ts(status as never);
+  return label && !label.includes("statuses") ? label : status;
 }

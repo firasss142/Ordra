@@ -91,6 +91,13 @@ import { TypingActivityProvider } from "@/components/ui/typing-activity";
 import { Ic, type StoreInfo } from "@/components/orders/commandes/ui";
 import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import { reliabilityChip, type HistoryInput, type ReliabilityChip } from "@/lib/orders/row-signals";
+import { useAgentPhone } from "@/components/agent/shared";
+import { AgentOrderEndings } from "@/components/agent/queue/outcome/AgentOrderEndings";
+import { ManagerEndings } from "@/components/agent/queue/outcome/ManagerEndings";
+import { AgentSla, AttemptPill, VoiceButton } from "@/components/agent/queue/outcome/AgentTop";
+import { agentNotes, twinOf, type OutcomeDone, type Tray } from "@/components/agent/queue/outcome/outcome-model";
+import { CALLING_STATUSES } from "@/lib/orders/row-signals";
+import { useWhen } from "@/components/orders/commandes/ui";
 import "@/components/orders/commandes/commandes.css";
 import "./panel.css";
 
@@ -231,23 +238,13 @@ const TERMINAL_STATUSES = new Set([
 ]);
 
 
-export interface CallTerminatedContext {
-  orderId: string;
-  status: string;
-  marketId: string;
-  attemptsCount: number;
-  /**
-   * Which step the post-call sheet should open on. Set when the footer already
-   * knows how the call ended, so the agent is not asked the same question
-   * twice. Omitted means the full outcome picker.
-   */
-  flow?: "option_select" | "reject_flow" | "callback_expanded" | "confirm_now" | "no_answer_now";
-}
-
 interface OrderDetailPanelProps {
   orderId: string | null;
   onClose: () => void;
-  onCallTerminated: (orderId: string, ctx?: CallTerminatedContext) => void;
+  /** Fired after every recorded call result (any role), so the page refreshes and a bulk run moves on. */
+  onOutcomeDone?: (r: OutcomeDone) => void;
+  /** role="agent": open straight on a step (the queue row's truck opens « send »). */
+  initialTray?: Tray;
   onReturnToPool?: () => Promise<void>;
   role?: Role;
   userId?: string;
@@ -304,7 +301,6 @@ function useIsPhone(): boolean {
 export function OrderDetailPanel({
   orderId,
   onClose,
-  onCallTerminated,
   onReturnToPool,
   role,
   userId,
@@ -315,7 +311,13 @@ export function OrderDetailPanel({
   variant = "overlay",
   initialTab,
   covered = false,
+  onOutcomeDone,
+  initialTray,
 }: OrderDetailPanelProps) {
+  // The agent's panel (prototypes/agent-shell-v2.html `agentPanel`): the same order, with
+  // the four call endings inside it instead of the manager's footer.
+  const agentMode = role === "agent";
+  const agentPhone = useAgentPhone();
   const t = useTranslations("orders.detail");
 
   // On a phone the panel covers the queue. Without this, a drag on its header
@@ -483,6 +485,15 @@ export function OrderDetailPanel({
     : undefined;
 
   const slaMinutes = useSlaMinutes(order?.market_id ?? null);
+  const agentWhen = useWhen(order?.market_id ?? null, locale);
+  const agentDone = useCallback(
+    (r: OutcomeDone) => {
+      void mutate();
+      onOutcomeDone?.(r);
+    },
+    [mutate, onOutcomeDone],
+  );
+
 
   const assignedCarrierName = order?.carrier_id
     ? carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.name ?? null
@@ -767,13 +778,14 @@ export function OrderDetailPanel({
           input.focus();
           input.select();
         }
-      } else if (e.key === "Escape") {
+      } else if (e.key === "Escape" && !agentMode) {
+        // The agent's endings own Escape: the open step first, then the order.
         onClose();
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, canEdit, onClose, productSheetOpen, layered]);
+  }, [order, canEdit, onClose, productSheetOpen, layered, agentMode]);
 
   if (orderId === null) return null;
 
@@ -1128,8 +1140,8 @@ export function OrderDetailPanel({
     }
   }
 
-  async function handleCancelSchedule() {
-    if (!orderId) return;
+  async function handleCancelSchedule(): Promise<boolean> {
+    if (!orderId) return false;
     setCancelingSchedule(true);
     try {
       const res = await fetch(`/api/orders/${orderId}/transition`, {
@@ -1142,6 +1154,7 @@ export function OrderDetailPanel({
       });
       if (res.ok) {
         await mutate();
+        return true;
       } else {
         // This used to be swallowed entirely: a failed cancel just stopped the
         // spinner and left the schedule on screen. The common failure is a lost
@@ -1151,6 +1164,7 @@ export function OrderDetailPanel({
         const failure = readActionFailure(res.status, body);
         if (failure.conflict) await mutate();
         setSaveError(failure.message ?? t("inlineSaveError"));
+        return false;
       }
     } finally {
       setCancelingSchedule(false);
@@ -1175,32 +1189,13 @@ export function OrderDetailPanel({
     (kind: PanelActionKind) => {
       if (!order || !orderId) return;
       switch (kind) {
+        // The call results never reach here: AgentEndings / ManagerEndings run them inside the order.
         case "endCall":
         case "changeStatus":
         case "rescheduleCallback":
         case "confirm":
         case "callback":
         case "reject":
-          onCallTerminated(orderId, {
-            orderId,
-            status: order.status,
-            marketId: order.market_id,
-            attemptsCount: order.attempts_count ?? 0,
-            // Each of the four buttons names its ending, so each carries the
-            // agent straight to it — nothing re-asks the question the button
-            // just answered. `rescheduleCallback` deliberately lands on the
-            // callback step; only `changeStatus` opens the plain picker.
-            flow:
-              kind === "confirm"
-                ? "confirm_now"
-                : kind === "endCall"
-                  ? "no_answer_now"
-                  : kind === "reject"
-                    ? "reject_flow"
-                    : kind === "callback" || kind === "rescheduleCallback"
-                      ? "callback_expanded"
-                      : undefined,
-          });
           return;
         case "uploadToCarrier":
         case "uploadNow":
@@ -1239,7 +1234,6 @@ export function OrderDetailPanel({
     [
       order,
       orderId,
-      onCallTerminated,
       handleCancelSchedule,
       handleReturnToPool,
       handleDeleteCarrierBarcode,
@@ -1288,6 +1282,30 @@ export function OrderDetailPanel({
 
   const reference = order?.external_id ?? order?.id ?? orderId ?? "";
 
+  // ── the agent's endings (role="agent") ──
+  const agentTwin = agentMode ? twinOf(fallbackOrder as Parameters<typeof twinOf>[0]) : null;
+  const agentMax = maxCallAttempts ?? Number.POSITIVE_INFINITY;
+  const agentAttempts = order?.attempts_count ?? 0;
+  const confirmedAt = order?.history?.find((h) => h.to_status === "confirmed")?.created_at ?? null;
+  const agentNoteList =
+    agentMode && order
+      ? agentNotes({
+          status: order.status,
+          attempts: agentAttempts,
+          maxAttempts: agentMax,
+          outOfStock,
+          twin: agentTwin,
+          cityMissing,
+          editBlocked: !canEdit,
+          callbackAt: order.callback_scheduled_at,
+          dispatchAt: order.scheduled_dispatch_at,
+          now: new Date(),
+        })
+      : [];
+  const agentCovered =
+    layered || productSheetOpen || reopenModalOpen || mergeOpen || addProductOpen || wasTakenOver || dexpressModalOpen || darbAssabilModalOpen || scheduleDispatchOpen || uploadOpen;
+  const agentPhoneShell = agentMode && agentPhone;
+
   async function copyTracking() {
     if (!order?.tracking_number) return;
     try {
@@ -1315,10 +1333,19 @@ export function OrderDetailPanel({
         )}
 
         <aside
-          className={shell.panel}
+          className={agentPhoneShell ? `${shell.panel} mpanel` : shell.panel}
           role={variant === "overlay" ? "dialog" : undefined}
           aria-label={t("panelAria", { ref: reference })}
         >
+          {/* The phone's back bar (prototype `phoneOverlay`): ← and the customer's name. */}
+          {agentPhoneShell ? (
+            <div className="mback">
+              <button type="button" className="xbtn" onClick={onClose} aria-label={t("close")}>
+                <Ic n="left" className="flip" />
+              </button>
+              <b dir="auto">{order?.customer_name ?? ""}</b>
+            </div>
+          ) : null}
           {wasTakenOver && (
             <OrderTakeoverScreen
               releasedByName={takenOverBy}
@@ -1349,7 +1376,33 @@ export function OrderDetailPanel({
             slaMinutes={slaMinutes}
             saveFlash={saveFlash}
             presenceRows={orderId ? othersOn(orderId) : undefined}
-            feedbackSlot={feedback.enabled && orderId ? <PanelFeedbackButton orderId={orderId} /> : undefined}
+            feedbackSlot={
+              agentMode && orderId ? (
+                <VoiceButton orderId={orderId} />
+              ) : feedback.enabled && orderId ? (
+                <PanelFeedbackButton orderId={orderId} />
+              ) : undefined
+            }
+            agentTop={
+              agentMode && order
+                ? {
+                    pill: order.status.startsWith("attempt_") ? (
+                      <AttemptPill status={order.status} attempts={order.attempts_count} max={maxCallAttempts} />
+                    ) : null,
+                    sla: (
+                      <AgentSla
+                        status={order.status}
+                        createdAt={order.created_at}
+                        confirmedAt={confirmedAt}
+                        callbackAt={order.callback_scheduled_at}
+                        slaMinutes={slaMinutes}
+                        now={new Date()}
+                      />
+                    ),
+                    showClose: !agentPhoneShell,
+                  }
+                : undefined
+            }
             carrierDeletedChip={
               order?.carrier_barcode_deleted_at && !order.tracking_number
                 ? {
@@ -1554,25 +1607,80 @@ export function OrderDetailPanel({
             </div>
           )}
 
-          {/* Notices sit directly above the buttons they are about. */}
-          {order && (
-            <AlertBanners
-              notes={notes}
+          {/* The agent: the result line, the notes, then the step or the four endings. */}
+          {order && agentMode && (
+            <AgentOrderEndings
+              order={{
+                id: order.id,
+                status: order.status,
+                marketId: order.market_id,
+                attempts: agentAttempts,
+                currency: order.currency,
+                twin: agentTwin,
+              }}
+              maxAttempts={agentMax}
+              initialTray={initialTray ?? null}
+              onDone={agentDone}
+              status={order.status}
+              phone={agentPhone}
+              covered={agentCovered}
+              notes={agentNoteList}
+              twin={agentTwin}
+              callbackAt={order.callback_scheduled_at}
+              dispatchAt={order.scheduled_dispatch_at}
               extra={extraNotes}
-              marketId={order.market_id}
-              callbackScheduledAt={order.callback_scheduled_at}
-              dispatchScheduledAt={order.scheduled_dispatch_at}
-              dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
+              canReopen={panelActions.primary.kind === "reopen"}
+              canDeleteBarcode={canDeleteCarrierBarcode}
+              canReturnToPool={canReturnToPool}
+              pending={reopening || returningToPool || cancelingSchedule || recovering}
+              echo={{
+                name: order.customer_name,
+                phone: order.customer_phone,
+                productName: orderItems[0]?.product_name ?? order.product_name,
+                imageUrl: null,
+                quantity: orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0),
+                total: order.total_price,
+              }}
+              when={(iso) => agentWhen(iso)}
+              onClose={onClose}
+              onReopen={() => setReopenModalOpen(true)}
+              onDeleteBarcode={() => void handleDeleteCarrierBarcode()}
+              onCancelSchedule={handleCancelSchedule}
+              onReturnToPool={() => void handleReturnToPool()}
             />
           )}
 
-          {order && (
-            <ActionFooter
+          {/* The manager: their own footer, with the agent's steps for the call results (no more PostCallActionSheet). */}
+          {order && !agentMode && (
+            <ManagerEndings
+              order={{ id: order.id, status: order.status, marketId: order.market_id, attempts: order.attempts_count ?? 0, currency: order.currency, twin: null }}
+              maxAttempts={maxCallAttempts ?? Number.POSITIVE_INFINITY}
+              phone={agentPhone}
+              locale={locale}
+              echo={{
+                name: order.customer_name,
+                phone: order.customer_phone,
+                productName: orderItems[0]?.product_name ?? order.product_name,
+                imageUrl: null,
+                quantity: orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0),
+                total: order.total_price,
+              }}
               actions={panelActions}
-              primaryPending={reopening || returningToPool || cancelingSchedule || recovering}
-              onInvoke={invokeAction}
+              pending={reopening || returningToPool || cancelingSchedule || recovering}
+              banners={
+                <AlertBanners
+                  notes={notes}
+                  extra={extraNotes}
+                  marketId={order.market_id}
+                  callbackScheduledAt={order.callback_scheduled_at}
+                  dispatchScheduledAt={order.scheduled_dispatch_at}
+                  dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
+                />
+              }
               showNavHint={variant === "side"}
               feedbackHint={feedback.enabled}
+              onDone={agentDone}
+              onInvoke={invokeAction}
             />
           )}
         </aside>

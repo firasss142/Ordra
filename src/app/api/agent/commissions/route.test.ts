@@ -36,6 +36,17 @@ describe("GET /api/agent/commissions", () => {
     expect((await res.json()).data.owed).toBe(253);
   });
 
+  test("attaches what one parcel on the road is likely to earn — rate × delivery rate, computed here, not in the browser", async () => {
+    vi.mocked(getActor).mockResolvedValue({ actor: { id: "a1", role: "agent", market_id: LY } });
+    mockRpc.mockResolvedValue({
+      data: { enabled: true, owed: 0, rate: { amount: 10 }, delivery_rate: 0.714, way: { count: 3, est: 30, est_likely: 21 } },
+      error: null,
+    });
+    const body = await (await GET(req())).json();
+    expect(body.data.way.likely_each).toBe(7);
+    expect(body.data.way.est_likely).toBe(21);
+  });
+
   test("days defaults to 90 and is clamped to 7..366", async () => {
     vi.mocked(getActor).mockResolvedValue({ actor: { id: "a1", role: "agent", market_id: LY } });
     mockRpc.mockResolvedValue({ data: {}, error: null });
