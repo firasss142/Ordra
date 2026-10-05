@@ -109,14 +109,20 @@ const groupLinks = (linkName: RegExp) =>
   );
 
 describe("Sidebar — what each role sees", () => {
-  it("gives a market_manager Dashboard on its own, then six groups", () => {
+  it("gives a market_manager Dashboard on its own, then the groups of their day", () => {
     renderSidebar({ user: managerUser });
     expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute("href", "/fr/dashboard");
-    for (const g of ["Commandes", "Entrepôt", "Livraison", "Clients", "Équipe", "Système"]) {
+    for (const g of ["Commandes", "Entrepôt", "Livraison", "Finances", "Clients", "Équipe", "Système"]) {
       expect(screen.getByRole("button", { name: new RegExp(`^${g}`) })).toHaveAttribute("aria-expanded", "true");
     }
     expect(screen.queryByRole("button", { name: /Accueil/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Finances/ })).not.toBeInTheDocument();
+  });
+
+  it("opens Finances to a market_manager for Achats and Produits & marges only (owner, 2026-10-04)", () => {
+    renderSidebar({ user: managerUser });
+    expect(screen.getByRole("link", { name: "Achats" })).toHaveAttribute("href", "/fr/finance/purchases");
+    expect(screen.getByRole("link", { name: "Produits & marges" })).toHaveAttribute("href", "/fr/products");
+    expect(screen.queryByRole("link", { name: "P&L global" })).not.toBeInTheDocument();
   });
 
   it("adds Finances for a super_admin", () => {

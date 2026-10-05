@@ -7,11 +7,11 @@
 import { memo, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Ic } from "@/components/agent/shared";
-import { RowTags, StatusPill, marketParts, type When } from "@/components/orders/commandes/ui";
+import { RowTags, STATUS_ICON, marketParts, type When } from "@/components/orders/commandes/ui";
+import { presentStatus } from "@/lib/orders/status-presentation";
 import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
 import { ageTone, rowTags, CALLING_STATUSES } from "@/lib/orders/row-signals";
 import { useRejectionBadge } from "@/hooks/useRejectionBadge";
-import type { MarketSearchRow } from "@/lib/agent-search/market";
 import type { QueueOrder } from "@/types/queue";
 import { activityOf, type ClosedKey } from "./model";
 
@@ -127,6 +127,7 @@ const shipped = (o: QueueOrder) => !!o.carrier_code && (!!o.tracking_number || !
  */
 export function Activity({ o, ctx, chipOnly }: { o: QueueOrder; ctx: RowCtx; chipOnly?: boolean }) {
   const t = useTranslations("agentQueue");
+  const tS = useTranslations("orders.statuses");
   const rejection = useRejectionBadge(ctx.marketId);
   const cbWhen = useCbWhen(ctx);
   const a = activityOf(o, ctx.now);
@@ -164,11 +165,21 @@ export function Activity({ o, ctx, chipOnly }: { o: QueueOrder; ctx: RowCtx; chi
       break;
   }
   if (a.kind === "other") {
+    // Settled or with the carrier: the carrier's logo, then one icon and at most one word (owner,
+    // 2026-10-05). A rejection is its group's icon alone, in the rejected red; the sub-reason and
+    // the full status are the tooltip.
+    const r = o.status === "rejected" ? rejection({ status: o.status, rejection_reason: o.rejection_reason, rejection_subreason: o.rejection_subreason, rejection_note: o.rejection_note }) : null;
+    const p = presentStatus(o.status);
+    const full = r ? r.detail ?? r.text : tS.has(o.status) ? tS(o.status) : o.status;
+    const word = r ? null : t.has(`short.${o.status}`) ? t(`short.${o.status}`) : full;
     return (
-      <div className="actv one">
+      <div className="actv one" data-tip={full}>
         <span className="chips">
           {shipped(o) ? <CarrierLogoMini code={o.carrier_code} name={o.carrier_name} logoUrl={o.carrier_logo_url} /> : null}
-          <StatusPill o={{ status: o.status, rejection_reason: o.rejection_reason, rejection_subreason: o.rejection_subreason, rejection_note: o.rejection_note, attempts_count: o.attempt_count }} maxAttempts={ctx.maxAttempts} rejection={rejection} when={ctx.when} now={ctx.now} />
+          <span className={`chipm h-${r ? "red" : p.hue}`} aria-label={full}>
+            <Ic n={r ? STATUS_ICON[r.icon] ?? "xcircle" : STATUS_ICON[p.icon] ?? "clock"} />
+            {word ? <span>{word}</span> : null}
+          </span>
         </span>
       </div>
     );
@@ -343,46 +354,5 @@ function PhoneRowInner({ o, ctx, closed, onOpen, onCall, onSend }: PhoneRowProps
   );
 }
 export const PhoneRow = memo(PhoneRowInner);
-
-/** `marketHTML` — the rest of the market, read-only, under the agent's own results. */
-export function MarketRows({ rows, ctx, onView }: { rows: MarketSearchRow[]; ctx: RowCtx; onView: (id: string) => void }) {
-  const t = useTranslations("agentQueue");
-  const rejection = useRejectionBadge(ctx.marketId);
-  if (!rows.length) return null;
-  return (
-    <section className="list">
-      <div className="lh" style={{ display: "flex", alignItems: "center", gap: 10, paddingInline: 18 }}>
-        <Ic n="lock" />
-        <span>{t("market.title")}</span>
-        <span className="pl h-neutral" style={{ height: 21, textTransform: "none", letterSpacing: 0 }}>{t("market.readOnly")}</span>
-      </div>
-      <div className="rows">
-        {rows.map((r) => (
-          <div key={r.id} className="row qr" data-ro={r.id} tabIndex={-1} onClick={() => onView(r.id)}>
-            <span className="ck" style={{ border: 0, background: "none", color: "var(--ink-3)" }}><Ic n="eye" /></span>
-            <div className="oc">
-              <QThumb src={null} seed={r.product_name ?? r.id} qty={1} />
-              <div className="oc-t">
-                <div className="l1">
-                  <span className="nm" dir="auto">{r.customer_name}</span>
-                  {r.external_id ? <span className="q num" style={{ fontSize: 12 }}>#{r.external_id}</span> : null}
-                </div>
-                <div className="l2"><b dir="auto">{r.product_name}</b>{r.customer_phone ? <> · <span className="num">{r.customer_phone}</span></> : null}</div>
-              </div>
-            </div>
-            <div className="actv">
-              <span><StatusPill o={{ status: r.status }} maxAttempts={ctx.maxAttempts} rejection={rejection} when={ctx.when} now={ctx.now} /></span>
-              <small>
-                {r.owner_name ? <span className="who2">{t("market.with", { name: r.owner_name })}</span> : <span className="who2 q">{t("market.free")}</span>}
-              </small>
-            </div>
-            <div className="agew"><span className="age">{ageLong(t, minutesSince(r.created_at, ctx.now))}</span></div>
-            <div className="amt">{fmtAmount(r.total_price ?? 0)}<small>{r.currency}</small></div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export type { ClosedKey };

@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within, waitFor } from "@testing-library/rea
 import { SWRConfig } from "swr";
 import { NextIntlClientProvider } from "next-intl";
 import fr from "@/messages/fr.json";
-import { QueueSearchProvider } from "@/context/queue-search";
+import { QueueSearchProvider, useQueueSearch } from "@/context/queue-search";
 import { AgentToastProvider } from "@/components/agent/shared";
 
 const replace = vi.fn();
@@ -52,6 +52,12 @@ vi.mock("@/hooks/useAgentQueue", () => ({
 
 import { AgentQueuePage } from "@/components/agent/queue/AgentQueuePage";
 
+/** The band's search field, reduced to what the page reads: the shell's one query. */
+function BandSearch() {
+  const { query, setQuery } = useQueueSearch();
+  return <input aria-label="band search" value={query} onChange={(e) => setQuery(e.target.value)} />;
+}
+
 function renderPage() {
   const fetcher = (k: string) =>
     k === "/api/agent/stats" ? { assigned_today: 7, actioned_today: 12, confirmation_rate: 58 } : k === "/api/agent/settings" ? { max_call_attempts: 3 } : {};
@@ -60,6 +66,7 @@ function renderPage() {
       <NextIntlClientProvider locale="fr" messages={fr} timeZone="Africa/Tripoli">
         <QueueSearchProvider>
           <AgentToastProvider>
+            <BandSearch />
             <AgentQueuePage />
           </AgentToastProvider>
         </QueueSearchProvider>
@@ -135,9 +142,10 @@ describe("File de commandes", () => {
     expect(screen.getByTestId("panel").textContent).toBe("k1 send");
   });
 
-  it("searches the whole file from the page field, across buckets", () => {
+  it("filters the whole file by the band's one search, across buckets — the page has no field of its own", () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText("Rechercher nom, téléphone, ville, produit…"), { target: { value: "Omar" } });
+    expect(screen.queryByPlaceholderText("Rechercher nom, téléphone, ville, produit…")).toBeNull();
+    fireEvent.change(screen.getByLabelText("band search"), { target: { value: "Omar" } });
     return waitFor(() => {
       expect(screen.getByText("Omar Zawi")).toBeInTheDocument();
       expect(screen.queryByText("Ahmed Salem")).toBeNull();

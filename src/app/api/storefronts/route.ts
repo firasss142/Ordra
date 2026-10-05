@@ -169,7 +169,7 @@ async function createSheetShop(
   const missing = missingHeaders(inspection.headers, getSheetsAdapter(sheetAdapter).requiredHeaders);
   if (missing.length > 0) {
     return NextResponse.json(
-      { error: "The sheet is missing required columns", code: "missing_columns", columns: missing },
+      { error: "The sheet is missing required columns", code: "missing_columns", columns: missing, found: inspection.headers.filter(Boolean) },
       { status: 422 },
     );
   }

@@ -36,6 +36,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getPermissionsForRole } from "@/lib/user-permissions";
+import { canUsePurchases, canViewProductProfitability } from "@/lib/finance-permissions";
 import type { Role } from "@/types";
 
 /*
@@ -82,15 +83,23 @@ export interface NavItemDef {
   /** Sub-pages that keep this item highlighted (relative to `/{locale}/`). */
   activeOn?: string[];
   /** Hidden when the role lacks the permission, though its group stays. */
-  requiresPermission?: "canViewFinances";
+  requiresPermission?: NavPermission;
 }
+
+/**
+ * What a link can require. `canViewFinances` comes from the role table
+ * (src/lib/user-permissions.ts); the two page gates come from
+ * src/lib/finance-permissions.ts, so the link, the page and its API share one
+ * rule. A group whose links are all hidden disappears.
+ */
+export type NavPermission = "canViewFinances" | "canUsePurchases" | "canViewProductProfitability";
 
 export interface NavGroupDef {
   id: NavGroupId;
   /** Shown in the rail only. */
   icon: LucideIcon;
   items: NavItemDef[];
-  requiresPermission?: "canViewFinances";
+  requiresPermission?: NavPermission;
   /** The admin block: a hairline before it. */
   admin?: boolean;
 }
@@ -145,16 +154,18 @@ export const NAV_GROUPS: readonly NavGroupDef[] = [
     ],
   },
   {
+    // Per link, not per group (owner, 2026-10-04): a market manager uses Achats
+    // and keeps Produits & marges; the P&L, Stock, Pub and Investisseurs stay
+    // the owner's.
     id: "finances",
     icon: Wallet,
-    requiresPermission: "canViewFinances",
     items: [
-      { key: "pnl", href: "dashboard/pnl", icon: TrendingUp, prefetchRoute: "dashboard" },
-      { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
-      { key: "stockInventory", href: "dashboard/stock", icon: Layers, prefetchRoute: "dashboard" },
-      { key: "purchases", href: "finance/purchases", icon: ReceiptText },
-      { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
-      { key: "investors", href: "finance/investors", icon: HandCoins },
+      { key: "pnl", href: "dashboard/pnl", icon: TrendingUp, prefetchRoute: "dashboard", requiresPermission: "canViewFinances" },
+      { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products", requiresPermission: "canViewProductProfitability" },
+      { key: "stockInventory", href: "dashboard/stock", icon: Layers, prefetchRoute: "dashboard", requiresPermission: "canViewFinances" },
+      { key: "purchases", href: "finance/purchases", icon: ReceiptText, requiresPermission: "canUsePurchases" },
+      { key: "adSpend", href: "finance/ad-spend", icon: Megaphone, requiresPermission: "canViewFinances" },
+      { key: "investors", href: "finance/investors", icon: HandCoins, requiresPermission: "canViewFinances" },
     ],
   },
   {
@@ -197,7 +208,9 @@ export interface VisibleNav {
 
 export function visibleNav(role: Role): VisibleNav {
   if (!SIDEBAR_ROLES.includes(role)) return { top: [], groups: [] };
-  const perms = new Map(getPermissionsForRole(role).map((p) => [p.key, p.allowed]));
+  const perms = new Map<string, boolean>(getPermissionsForRole(role).map((p) => [p.key, p.allowed]));
+  perms.set("canUsePurchases", canUsePurchases(role));
+  perms.set("canViewProductProfitability", canViewProductProfitability(role));
   const allowed = (i: NavItemDef) =>
     (!i.requiresPermission || perms.get(i.requiresPermission)) &&
     (!i.superAdminOnly || role === "super_admin");

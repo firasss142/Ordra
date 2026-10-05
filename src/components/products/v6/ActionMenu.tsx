@@ -1,7 +1,7 @@
 "use client";
 
 // The ⋯ button of the prototype (rows and the sheet header), with the actions
-// it stood for. The panel is portaled out of .pv6, so it re-enters the scope.
+// it stood for. The panel is portaled out of .fin, so it carries its own class.
 
 import { Ellipsis } from "lucide-react";
 import { Popover } from "@/components/ui/Popover";
@@ -13,7 +13,8 @@ export interface MenuAction {
   danger?: boolean;
 }
 
-export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: string }) {
+/** `variant`: « mbtn » in a list row, « ibtn » (a bordered square) in the sheet header. */
+export function ActionMenu({ actions, label, variant = "mbtn" }: { actions: MenuAction[]; label: string; variant?: "mbtn" | "ibtn" }) {
   if (actions.length === 0) return null;
   return (
     <Popover
@@ -21,7 +22,7 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
       trigger={
         <button
           type="button"
-          className="iconbtn"
+          className={variant}
           aria-label={label}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
@@ -31,7 +32,7 @@ export function ActionMenu({ actions, label }: { actions: MenuAction[]; label: s
       }
     >
       {(close) => (
-        <div className="pv6 pv6-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+        <div className="prd-menu" role="menu" onClick={(e) => e.stopPropagation()}>
           {actions.map((a) => (
             <button
               key={a.key}

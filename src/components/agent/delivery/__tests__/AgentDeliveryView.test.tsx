@@ -206,7 +206,10 @@ describe("AgentDeliveryView — the parcel (prototype dlvDetail)", () => {
     expect(within(d).getByText("Fiable · 2 commandes · 1 livrées")).toBeInTheDocument();
     expect(within(d).getAllByText("DRB5501").length).toBeGreaterThan(0);
     expect(within(d).getByText(/Sérum vitamine C ×2/)).toBeInTheDocument();
-    // journal + its filter
+    // journal + its filter — folded until asked for, like the messages
+    expect(within(d).queryByText(/Ne répond pas/)).toBeNull();
+    fireEvent.click(within(d).getByRole("button", { name: "Journal d'activité" }));
+    fireEvent.click(within(d).getByRole("button", { name: "Messages" }));
     expect(within(d).getByText(/Ne répond pas/)).toBeInTheDocument();
     fireEvent.click(within(d).getByRole("button", { name: "Transporteur" }));
     expect(within(d).queryByText(/Ne répond pas/)).toBeNull();

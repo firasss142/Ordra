@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProductSheetV6 } from "@/components/products/v6/ProductSheetV6";
-import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 
 /*
  * FICHE PRODUIT — prototypes/products-v6.html (detail), approved 2026-10-03.
@@ -30,9 +29,5 @@ export default async function ProductSheetPage({
     redirect(`/${params.locale}/products`);
   }
 
-  return (
-    <ProductsFrame>
-      <ProductSheetV6 productId={params.id} role={role} locale={params.locale} />
-    </ProductsFrame>
-  );
+  return <ProductSheetV6 productId={params.id} role={role} locale={params.locale} />;
 }

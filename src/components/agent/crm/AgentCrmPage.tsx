@@ -10,6 +10,7 @@
  * a reversal would leave lead_history saying "called, then un-called"), POST /api/leads for a
  * new prospect. A failed write now says so and puts the prospect back (it used to be silent).
  */
+import { useFitColumn } from "@/components/agent/useFitColumn";
 import "@/components/agent/agent.css";
 import "@/components/agent/agent-app.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -58,6 +59,7 @@ export function AgentCrmPage({ marketId, locale }: { marketId: string | null; lo
   const [tile, setTile] = useState<Tile>("all");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  useFitColumn(".agt .pcol", openId !== null && !phone, openId);
   // ?open=<id> — a result picked in the header's search lands on its own row.
   const openParam = useSearchParams()?.get("open") ?? null;
   useEffect(() => {

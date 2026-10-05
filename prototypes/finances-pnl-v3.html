@@ -1,0 +1,678 @@
+<!doctype html>
+<!--
+  Finances › P&L global — prototype v3 (2026-10-05). v1 et v2 gardées à côté.
+
+  Retour sur la v2 : « le graphique en barres n.est pas clair, je ne l.aime pas. Vise quelque chose de plus clair,
+  comme un pipeline. Tu es l.expert : simple, clair, efficace. » → la cascade de colonnes devient UN TUYAU : l.argent
+  payé entre à gauche, chaque coût en sort vers le bas comme un ruisseau de sa couleur (produits, livraison, pub,
+  emballage), ce qui arrive au bout à droite est le bénéfice brut, en vert. Le tuyau a toujours la même épaisseur
+  (les 100 dinars payés), donc un mois se compare à un autre d.un coup d.œil.
+
+
+  Retour du propriétaire sur la v1 (5 oct.) : « la seule chose que j'aime c'est Mois par mois ; tout le reste ne me
+  dit rien. Vise quelque chose de calme, des visuels clairs et un pipeline. Simple, pas de visuels ni d'informations
+  denses. »
+  Donc la v2 :
+  - RETIRE le gaufrier des 100 dinars, les cinq lignes avec leurs flèches, « Où est votre argent » et les tiroirs ;
+  - garde UNE réponse en tête (le bénéfice brut du mois, en grand, une phrase) ;
+  - montre LE PIPELINE : de ce que les clients ont payé à ce qu'il vous reste, une colonne par étape, chaque coût
+    retiré de ce qui reste (cascade). Six colonnes, un chiffre chacune, rien d'autre ;
+  - garde « Mois par mois » à l'identique (cliquer un mois ouvre ce mois en haut).
+  Inchangé depuis la v1 (réponses contraignantes) : base = ventes LIVRÉES dans le mois · « Bénéfice brut » · palette argent.
+
+  DONNÉES FICTIVES (feuille commune du plan).
+  URL : ?m=2026-09 (défaut, mois clos) | ?m=2026-10 (en cours) | ?m=2026-07 …
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P&amp;L global · Finances v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap">
+<style>
+/* ═══════════════ KIT — shared by every finances-*-v1.html (copy verbatim) ═══════════════ */
+:root{
+  --f:"Plus Jakarta Sans","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --brand:#15803D; --brand-hover:#12692F; --brand-wash:#EEF8F1;
+  --sb-bg:#0E1013; --sb-el:#14171C; --sb-bd:rgba(255,255,255,.06); --sb-bd2:rgba(255,255,255,.10);
+  --sb-ink:#E6E8EB; --sb-2:#B5BAC2; --sb-3:#7F858F; --sb-hov:rgba(255,255,255,.07);
+  --bg:#F6F7FB; --card:rgba(255,255,255,.62); --card-bd:rgba(255,255,255,.9); --r:24px; --r-in:16px;
+  --card-sh:0 10px 36px rgba(42,52,110,.07); --card-sh-hover:0 20px 52px rgba(42,52,110,.14);
+  --glass-in:rgba(255,255,255,.66); --glass-in-bd:rgba(255,255,255,.95); --blur:blur(20px) saturate(170%);
+  --ink:#0F1728; --ink-2:#475467; --ink-3:#667085; --ink-q:#8A94A6; --ink-4:#C9CED7;
+  --line:rgba(15,23,40,.07); --track:rgba(15,23,40,.06);
+  --good:#067647; --good-bg:#DCFAE6; --live:#12B76A;
+  --warn:#B54708; --warn-bg:#FFF4E0; --warn-dot:#F79009;
+  --bad:#C01048; --bad-bg:#FFE4E8; --bad-dot:#E8385A;
+  --flat:#475467; --flat-bg:rgba(15,23,40,.05); --tip-bg:#101828;
+  /* money — ONE vocabulary for the whole Finances section, fixed order, validated (plans/finances-redesign.md) */
+  --m-cogs:#2563eb; --m-ship:#0d9488; --m-ads:#ea6a1f; --m-pack:#a855f7; --m-profit:#15803d;
+  /* identity (people) — the agent ramps; used for investors and suppliers' initials only */
+  --id-indigo:#444CE7; --id-indigo-7:#3538CD; --id-pink:#DD2590; --id-pink-7:#C11574;
+  --id-cyan:#088AB2; --id-cyan-7:#0E7090; --id-gold:#CA8504; --id-gold-7:#A15C07; --id-lime:#4CA30D; --id-lime-7:#3B7C0F;
+  --pbh:45px;
+  --page:radial-gradient(58% 40% at 2% 0%, #D3DBFF 0%, transparent 72%), radial-gradient(48% 36% at 100% 0%, #FAD3EC 0%, transparent 72%),
+         radial-gradient(56% 46% at 98% 100%, #C6F2DA 0%, transparent 72%), radial-gradient(52% 46% at 0% 100%, #FFE6B3 0%, transparent 72%),
+         radial-gradient(40% 30% at 50% 50%, #EDE7FF 0%, transparent 80%), var(--bg);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0;text-align:inherit}
+button:disabled{cursor:default}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4,p{margin:0}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+.cur{font-size:max(.42em,10.5px);font-weight:700;color:var(--ink-3);margin-inline-start:.28em;letter-spacing:0}
+
+/* studio bar — always LTR, always French, never part of the product */
+.pbar{position:sticky;top:0;z-index:400;height:var(--pbh);background:#16191E;color:#E6E8EB;padding:0 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #000;direction:ltr;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+.pbar .tag{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7F858F}
+.pbar .pt{font-size:13.5px;font-weight:700;color:#fff}
+.pbar .src{font-size:12px;color:#8B9198}
+.looks{display:inline-flex;gap:3px;background:#0E1013;border:1px solid #2A2F36;border-radius:10px;padding:3px;align-items:center}
+.looks > i{font-style:normal;font-size:11px;color:#7F858F;font-weight:700;padding:0 6px 0 4px}
+.looks a,.looks button{height:27px;padding:0 10px;border-radius:7px;font-size:12.5px;font-weight:700;color:#B5BAC2;display:inline-flex;align-items:center}
+.looks a:hover,.looks button:hover{color:#fff}
+.looks a.on,.looks button.on{background:#fff;color:#0E1013}
+
+/* shell + sidebar (the live structure on main) */
+.stage{display:flex;min-height:calc(100vh - var(--pbh))}
+.side{width:240px;flex:none;background:var(--sb-bg);color:var(--sb-ink);display:flex;flex-direction:column;position:sticky;top:var(--pbh);height:calc(100vh - var(--pbh))}
+.sb-head{padding:12px 12px 10px;display:grid;gap:10px}
+.sb-top{display:flex;align-items:center;gap:8px}
+.sb-word{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.01em;padding-inline-start:4px;flex:1}
+.sb-alerts{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 8px 0 7px;border-radius:8px;border:1px solid var(--sb-bd2);color:var(--sb-ink);font-size:12px;font-weight:600}
+.sb-alerts b{min-width:18px;height:18px;border-radius:9px;background:#D72C0D;color:#fff;font-size:11px;display:grid;place-items:center;padding:0 5px}
+.sb-search{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:8px;background:var(--sb-el);border:1px solid var(--sb-bd);color:var(--sb-3);font-size:13px}
+.sb-search span{flex:1;text-align:start}
+.kbd{font-size:11px;padding:0 5px;line-height:18px;border-radius:5px;border:1px solid var(--sb-bd2);color:var(--sb-3)}
+.sb-mk{display:flex;align-items:center;gap:10px;height:50px;padding:0 10px 0 8px;border-radius:10px;background:var(--sb-el);border:1px solid var(--sb-bd2)}
+.flag{width:26px;height:18px;border-radius:4px;overflow:hidden;display:grid;grid-template-rows:1fr 2fr 1fr;box-shadow:0 0 0 1px rgba(255,255,255,.14);position:relative;flex:none}
+.flag i:nth-child(1){background:#E70013}.flag i:nth-child(2){background:#000}.flag i:nth-child(3){background:#239E46}
+.flag b{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:9px}
+.sb-mk div{flex:1;display:grid}
+.sb-mk strong{font-size:13.5px;color:#fff;font-weight:600}
+.sb-mk small{font-size:11.5px;color:var(--sb-3)}
+.sb-scroll{flex:1;overflow:auto;padding:4px 8px 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1) transparent}
+.sb-item{display:flex;align-items:center;gap:10px;height:32px;margin-top:1px;padding:0 8px 0 10px;border-radius:8px;color:var(--sb-ink);font-size:14px;width:100%;text-align:start}
+.sb-item .ic{color:var(--sb-3)}
+.sb-item:hover{background:var(--sb-hov)}
+.sb-item span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-item.on{background:var(--brand);color:#fff;font-weight:600}
+.sb-item.on .ic{color:#fff}
+.sb-badge{flex:none;height:18px;min-width:20px;padding:0 6px;border-radius:9px;font-size:11.5px;font-weight:600;display:grid;place-items:center;background:rgba(247,144,9,.18);color:#FDB022}
+.sb-item.on .sb-badge{background:rgba(255,255,255,.22);color:#fff}
+.sb-group{margin-top:14px}
+.sb-gl{height:26px;padding:0 10px;color:var(--sb-3);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center}
+.sb-foot{border-top:1px solid var(--sb-bd2);padding:8px;display:flex;align-items:center;gap:10px}
+.sb-foot .me{width:30px;height:30px;border-radius:50%;background:#2A2F36;display:grid;place-items:center;font-weight:700;font-size:12px}
+.sb-foot div{display:grid;font-size:13px}.sb-foot small{color:var(--sb-3);font-size:12px}
+
+main{flex:1;min-width:0;padding:28px 36px 96px;background:var(--page);background-attachment:fixed}
+.page{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+
+/* page header — showcase scale (H1 32 / 800) */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.crumb{font-size:12.5px;font-weight:600;color:var(--ink-3);margin-bottom:6px;display:flex;gap:6px;align-items:center}
+.crumb .ic{width:13px;height:13px}
+.ph h1{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.sub{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13.5px;color:var(--ink-2);font-weight:500;flex-wrap:wrap}
+.sub .sep{width:3px;height:3px;border-radius:50%;background:var(--ink-4)}
+.ph-r{display:grid;justify-items:end;gap:8px}
+.acts{display:flex;gap:8px;align-items:center}
+.cmp{font-size:12px;color:var(--ink-3);font-weight:500}
+
+/* buttons */
+.btn{height:40px;padding:0 16px;border-radius:12px;background:var(--brand);color:#fff;font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:8px;justify-content:center;white-space:nowrap}
+.btn:hover{background:var(--brand-hover)}
+.btn .ic{width:15px;height:15px}
+.btn2{height:40px;padding:0 14px;border-radius:12px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;background:rgba(255,255,255,.85);border:1px solid rgba(15,23,40,.09);color:var(--ink)}
+.btn2:hover:not(:disabled){background:#fff;box-shadow:0 4px 14px rgba(42,52,110,.12)}
+.btn2 .ic{width:15px;height:15px}
+.btn2.sm,.btn.sm{height:32px;padding:0 12px;border-radius:10px;font-size:12.5px}
+.dbtn{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 12px 0 14px;border-radius:14px;background:rgba(255,255,255,.85);border:1px solid var(--card-bd);box-shadow:var(--card-sh);text-align:start}
+.dbtn:hover,.dbtn.open{background:#fff}
+.dbtn > div{display:grid;line-height:1.2}
+.dbtn b{font-size:14px;font-weight:800}
+.dbtn small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.dbtn .chev{width:15px;height:15px;color:var(--ink-3)}
+
+/* pills, chips, trend pills */
+.pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--flat-bg);color:var(--ink-2);white-space:nowrap}
+.pill .ic{width:13px;height:13px;stroke-width:2.4}
+.pill.good{background:var(--good-bg);color:var(--good)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill i.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:99px;background:rgba(255,255,255,.72);border:1px solid var(--glass-in-bd);font-size:12.5px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.tr{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px 0 6px;border-radius:99px;font-size:12px;font-weight:800;white-space:nowrap}
+.tr .ic{width:12px;height:12px;stroke-width:2.8}
+.tr.good{background:var(--good-bg);color:var(--good)} .tr.bad{background:var(--bad-bg);color:var(--bad)} .tr.eq{background:var(--flat-bg);color:var(--flat);padding:0 9px}
+
+/* cards */
+.card{position:relative;background:var(--card);border:1px solid var(--card-bd);border-radius:var(--r);box-shadow:var(--card-sh);min-width:0;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.chead{display:flex;align-items:flex-start;gap:14px;padding:22px 24px 8px;flex-wrap:wrap}
+.chead h2{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.chead .q{font-size:13px;color:var(--ink-2);font-weight:500;margin-top:4px}
+.chead .rt{margin-inline-start:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.glass{background:var(--glass-in);border:1px solid var(--glass-in-bd);border-radius:var(--r-in)}
+.link{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--brand);white-space:nowrap}
+.link:hover{text-decoration:underline}
+.link .ic{width:13px;height:13px}
+.hold{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;background:#fff;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-2)}
+.hold .ic{width:17px;height:17px}
+.sw{width:11px;height:11px;border-radius:4px;background:var(--k);flex:none;display:inline-block}
+.k-cogs{--k:var(--m-cogs)} .k-ship{--k:var(--m-ship)} .k-ads{--k:var(--m-ads)} .k-pack{--k:var(--m-pack)} .k-profit{--k:var(--m-profit)}
+.empty{padding:28px;border:1.5px dashed var(--ink-4);border-radius:18px;text-align:center;color:var(--ink-3);font-weight:600}
+.foot{display:flex;gap:10px;align-items:flex-start;padding:2px 6px;font-size:12.5px;color:var(--ink-3);font-weight:500;line-height:1.5}
+.foot .ic{width:15px;height:15px;margin-top:2px;color:var(--ink-q)}
+.foot b{color:var(--ink-2)}
+
+/* tooltip — on every mark; never the only place a figure lives */
+.tip{position:fixed;z-index:600;pointer-events:none;background:var(--tip-bg);color:#fff;font-size:12.5px;font-weight:600;padding:8px 11px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.22);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;max-width:320px;line-height:1.45}
+.tip.on{opacity:1;transform:none}
+.tip b{font-weight:800}
+.tip small{display:block;color:#B5BAC2;font-weight:600}
+
+/* popover (date / month picker, menus) */
+.popw{position:relative}
+.pop{position:absolute;top:calc(100% + 8px);inset-inline-end:0;z-index:80;min-width:300px;padding:10px;border-radius:18px;background:rgba(255,255,255,.97);border:1px solid var(--card-bd);box-shadow:0 24px 60px rgba(20,25,60,.22);display:none}
+.pop.on{display:block}
+
+/* drawer — floating glass, a halo of its colour (--h) */
+.scrim{position:fixed;inset:0;z-index:500;background:rgba(15,23,40,.16);opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:12px;bottom:12px;inset-inline-end:12px;z-index:510;width:min(560px,calc(100vw - 24px));border-radius:26px;background:rgba(250,251,255,.86);backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--card-bd);box-shadow:0 30px 80px rgba(20,25,60,.24);transform:translateX(calc(100% + 30px));transition:transform .34s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;overflow:hidden;isolation:isolate}
+.drawer.on{transform:none}
+.drawer::before{content:"";position:absolute;z-index:-1;inset-inline-start:-80px;top:-120px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--h,#444CE7) 30%,transparent),transparent 70%)}
+.dr-h{padding:22px 24px 14px;display:flex;gap:12px;align-items:flex-start}
+.dr-h h3{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.dr-h p{font-size:13px;color:var(--ink-2);font-weight:500;margin-top:3px}
+.dr-x{margin-inline-start:auto;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--glass-in);border:1px solid var(--glass-in-bd);flex:none}
+.dr-x:hover{background:#fff}
+.dr-b{flex:1;overflow:auto;padding:4px 24px 24px;display:grid;gap:16px;align-content:start}
+.dr-sec{padding:14px 16px;border-radius:var(--r-in);background:rgba(255,255,255,.66);border:1px solid var(--glass-in-bd)}
+.dr-sec h4{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
+.dr-f{padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* motion — explains once; off under reduced motion */
+.rise{animation:rise .55s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--d,0) * 80ms)}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+@keyframes pop{from{opacity:0;transform:scale(.3)}}
+@keyframes grow{from{transform:scaleY(0)}}
+@keyframes growx{from{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* ═══════════════ /KIT ═══════════════ */
+
+/* ═══════════════ PAGE · P&L global v2 ═══════════════ */
+/* 1 · the answer — one number, one sentence */
+.top{padding:30px 32px 0}
+.ans{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap}
+.ans-n{margin-top:12px;font-size:60px;font-weight:800;letter-spacing:-.05em;line-height:.95;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ans-n .cur{font-size:.3em}
+.ans-l{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px;font-weight:700;color:var(--ink-2)}
+.ans-s{margin-top:8px;font-size:14px;color:var(--ink-3);font-weight:500;max-width:720px;line-height:1.55}
+.ans-s b{color:var(--ink);font-weight:800}
+.ans-r{margin-inline-start:auto;display:flex;gap:10px;padding-bottom:6px}
+.fact{display:grid;gap:3px;padding:12px 16px;min-width:150px}
+.fact span{font-size:12px;font-weight:700;color:var(--ink-3)}
+.fact b{font-size:20px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.fact b .cur{font-size:.55em}
+
+/* 2 · the pipeline — one pipe of money; each cost leaves it as a stream; what stays reaches you */
+.pipe-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:34px 32px 0;padding-top:22px;border-top:1px solid var(--line)}
+.pipe-h h2{font-size:17px;font-weight:800;letter-spacing:-.015em}
+.pipe-h p{font-size:13px;color:var(--ink-3);font-weight:500}
+.flow{display:block;width:calc(100% - 40px);margin:6px 20px 0;height:auto;overflow:visible}
+.flow .main{fill:url(#gMain)}
+.flow .end{fill:url(#gEnd)}
+.flow .br{fill:var(--k);opacity:.9;transition:opacity .15s}
+.flow .br.ret{opacity:.9}
+.flow g.c:hover .br{opacity:1}
+.flow:has(g.c:hover) g.c:not(:hover) .br{opacity:.28}
+.flow .rest{font:700 13px var(--f);fill:var(--ink-2);text-anchor:middle;dominant-baseline:central;font-variant-numeric:tabular-nums}
+.flow .rest.sm{font-size:11.5px;font-weight:600;fill:var(--ink-3)}
+.flow .rest.w{fill:#fff;font-weight:800;font-size:15px}
+.flow .lab-t{font:700 13.5px var(--f);fill:var(--ink);text-anchor:middle}
+.flow .lab-v{font:800 19px var(--f);fill:var(--ink);text-anchor:middle;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.flow .lab-p{font:600 12.5px var(--f);fill:var(--ink-3);text-anchor:middle}
+.flow .lab-n{font:500 11.5px var(--f);fill:var(--ink-q);text-anchor:middle}
+.flow .in-t{font:700 13px var(--f);fill:var(--ink-2)}
+.flow .in-v{font:800 24px var(--f);fill:var(--ink);letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.flow .out-t{font:700 13px var(--f);fill:var(--m-profit);text-anchor:end}
+.flow .out-v{font:800 26px var(--f);fill:var(--m-profit);text-anchor:end;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.flow .out-p{font:700 12.5px var(--f);fill:var(--m-profit);text-anchor:end}
+.flow .dot{fill:var(--k)}
+.flow .anim{animation:fadein .7s cubic-bezier(.2,.8,.2,1) backwards}
+@keyframes fadein{from{opacity:0;transform:translateY(-6px)}}
+.pipe-f{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 32px 0;padding:14px 0 26px;font-size:13px;color:var(--ink-3);font-weight:500}
+.pipe-f .link{margin-inline-start:auto}
+
+/* 3 · month by month — unchanged from v1 */
+.mc{padding:6px 24px 4px;position:relative}
+.mplot{position:relative;height:250px;margin-inline-start:52px}
+.mgrid{position:absolute;inset:0;pointer-events:none}
+.mgrid div{position:absolute;inset-inline:0;border-top:1px dashed rgba(15,23,40,.08)}
+.mgrid span{position:absolute;inset-inline-end:calc(100% + 10px);top:-8px;font-size:11px;font-weight:600;color:var(--ink-q);white-space:nowrap}
+.mcols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(13,minmax(0,1fr));align-items:end}
+.mcol{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;border-radius:12px}
+.mcol:hover{background:rgba(255,255,255,.45)}
+.mval{font-size:11.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mval.dim{color:var(--ink-3)}
+.mbar{position:relative;width:26px;height:var(--h);border-radius:8px 8px 3px 3px;background:rgba(15,23,40,.075);box-shadow:inset 0 0 0 1px rgba(15,23,40,.05);overflow:hidden;transform-origin:bottom;animation:grow .7s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i) * 40ms)}
+.mbar i{position:absolute;inset-inline:0;bottom:0;height:var(--p);background:linear-gradient(180deg,#27A35A,var(--m-profit));border-radius:6px 6px 3px 3px}
+.mcol.sel .mbar{box-shadow:0 0 0 2px var(--ink),0 8px 20px rgba(15,23,40,.18)}
+.mcol.live .mbar{background:repeating-linear-gradient(135deg,rgba(15,23,40,.09) 0 5px,rgba(15,23,40,.03) 5px 10px)}
+.mcol.live .mbar i{opacity:.75}
+.mx{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));margin-inline-start:52px;margin-top:10px}
+.mx button{display:grid;justify-items:center;gap:1px;padding:4px 0;border-radius:8px}
+.mx b{font-size:12px;font-weight:700;color:var(--ink-2)}
+.mx small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.mx button.sel b{color:var(--ink);font-weight:800}
+.mx button.sel{background:rgba(255,255,255,.75)}
+.mfoot{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:12px 24px 20px;font-size:12.5px;color:var(--ink-3);font-weight:500}
+.mfoot b{color:var(--ink);font-weight:800}
+.lg{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.lg i{width:11px;height:11px;border-radius:4px;display:inline-block}
+.lg i.paid{background:rgba(15,23,40,.12);box-shadow:inset 0 0 0 1px rgba(15,23,40,.08)}
+.lg i.prof{background:var(--m-profit)}
+.lg i.live{background:repeating-linear-gradient(135deg,rgba(15,23,40,.22) 0 3px,rgba(15,23,40,.06) 3px 6px)}
+
+/* month picker */
+.mp{width:360px;padding:12px}
+.mp-y{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:6px 6px 6px}
+.mp-g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mp-m{display:grid;gap:1px;padding:8px 10px;border-radius:12px;text-align:start;border:1px solid transparent}
+.mp-m:hover{background:rgba(15,23,40,.04)}
+.mp-m b{font-size:13px;font-weight:800}
+.mp-m small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.mp-m.on{background:var(--brand-wash);border-color:rgba(21,128,61,.35)}
+.mp-m.on b{color:var(--brand-hover)}
+.mp-f{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--ink-3);font-weight:600}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-pkg" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-boxes" viewBox="0 0 24 24"><path d="M7 16.5 2.5 14v-5L7 6.5l4.5 2.5v5Z"/><path d="M17 16.5 12.5 14v-5L17 6.5l4.5 2.5v5Z"/><path d="M12 22l-4.5-2.5v-5L12 12l4.5 2.5v5Z"/></symbol>
+    <symbol id="i-pkgcheck" viewBox="0 0 24 24"><path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="M3.29 7 12 12l8.71-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></symbol>
+    <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></symbol>
+    <symbol id="i-mega" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h.01M12 9h.01M16 9h.01"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-usercog" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4"/><circle cx="18" cy="17" r="2.5"/><path d="M18 13v1.5M18 19.5V21M21.5 17H20M16 17h-1.5"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+    <symbol id="i-scroll" viewBox="0 0 24 24"><path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+    <symbol id="i-dn" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M2 7h20v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-2-1 2.7 2.7 0 0 1-4 0 2.7 2.7 0 0 1-4 0 2.7 2.7 0 0 1-4 0 2.7 2.7 0 0 1-2 1 2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </defs>
+</svg>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <span class="pt">Finances v3 — P&amp;L global</span>
+  <div class="looks" id="pb-pages"></div>
+  <div class="looks"><i>Mois</i><button data-m="2026-09">Septembre · clos</button><button data-m="2026-10">Octobre · en cours</button></div>
+  <div class="looks"><i>Comparer</i><a href="finances-pnl-v2.html">v2</a><a href="finances-pnl-v1.html">v1</a></div>
+  <span class="src">données fictives · plans/finances-redesign.md</span>
+</div>
+
+<div class="stage">
+  <aside class="side" id="side"></aside>
+  <main>
+    <div class="page" id="page"></div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dr-title"></aside>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+/* ═══════════════ KIT script — shared by every finances-*-v1.html (copy verbatim) ═══════════════ */
+const ic = (n, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const nf = new Intl.NumberFormat("fr-FR");
+const fmt = (n) => nf.format(Math.round(n)).replace(/\u202f/g, "\u00a0");
+const fmt1 = (n) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n).replace(/\u202f/g, "\u00a0");
+const LYD = `<span class="cur">د.ل</span>`;
+const money = (n) => `${fmt(n)}${LYD}`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const qs = new URLSearchParams(location.search);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* a trend pill: dir = "up" | "down" | "eq"; good = is this direction good news? */
+function trend(delta, unit, goodWhenUp = true, tipText = "") {
+  if (Math.abs(delta) < 0.5) return `<span class="tr eq" ${tipText ? `data-tip="${esc(tipText)}"` : ""}>=</span>`;
+  const up = delta > 0, good = up === goodWhenUp;
+  return `<span class="tr ${good ? "good" : "bad"}" ${tipText ? `data-tip="${esc(tipText)}"` : ""}>${ic(up ? "up" : "dn")}${fmt(Math.abs(delta))}${unit ? " " + unit : ""}</span>`;
+}
+
+/* the Finances pages: the studio bar and the sidebar link the six files */
+const FIN = [
+  { k: "pnl", t: "P&L global", i: "trend", href: "finances-pnl-v3.html" },
+  { k: "produits", t: "Produits & marges", i: "percent", href: "finances-produits-v1.html" },
+  { k: "stock", t: "Stock & inventaire", i: "layers", href: "finances-stock-v1.html" },
+  { k: "achats", t: "Achats", i: "receipt", href: "finances-achats-v1.html" },
+  { k: "pub", t: "Dépenses pub", i: "mega", href: "finances-pub-v3.html" },
+  { k: "invest", t: "Investisseurs", i: "coins", href: "finances-investisseurs-v1.html" },
+];
+const NAV = [
+  { items: [{ t: "Accueil", i: "home" }] },
+  { g: "Commandes", items: [{ t: "Commandes", i: "inbox", b: "3" }, { t: "Archivées", i: "archive" }, { t: "Commandes répétées", i: "repeat" }] },
+  { g: "Entrepôt", items: [{ t: "Aujourd'hui", i: "sun" }, { t: "Sortir", i: "pkg" }, { t: "Rentrer", i: "undo" }, { t: "Stock", i: "boxes" }] },
+  { g: "Livraison", items: [{ t: "Suivi livraison", i: "pkgcheck" }] },
+  { g: "Performance", items: [{ t: "Commandes", i: "filter" }, { t: "Équipe", i: "chart" }, { t: "Livraison", i: "route" }] },
+  { g: "Finances", items: FIN },
+  { g: "Clients", items: [{ t: "Prospects", i: "target" }, { t: "Voix du client", i: "quote" }, { t: "Messages", i: "msg", b: "2" }] },
+  { g: "Équipe", items: [{ t: "Salle de contrôle", i: "phone" }, { t: "Accès", i: "usercog" }] },
+  { g: "Système", items: [{ t: "Connexions", i: "plug" }, { t: "Réglages", i: "sliders" }, { t: "Journaux", i: "scroll" }] },
+];
+function renderShell(active, role = "sa") {
+  const isMM = role === "mm";
+  const allowed = (it) => !isMM || !FIN.includes(it) || it.k === "achats" || it.k === "produits";
+  const item = (it) => {
+    if (!allowed(it)) return "";
+    const tag = it.href ? "a" : "button";
+    const href = it.href ? ` href="${it.href}${isMM ? "?role=mm" : ""}"` : ` type="button"`;
+    return `<${tag} class="sb-item${it.k === active ? " on" : ""}"${href}>${ic(it.i)}<span>${esc(it.t)}</span>${it.b ? `<em class="sb-badge">${it.b}</em>` : ""}</${tag}>`;
+  };
+  $("#side").innerHTML = `
+    <div class="sb-head">
+      <div class="sb-top"><span class="sb-word">Ordra</span><span class="sb-alerts">${ic("bell")}<b>3</b></span></div>
+      <div class="sb-search">${ic("search")}<span>Aller à…</span><span class="kbd">⌘K</span></div>
+      <div class="sb-mk"><span class="flag"><i></i><i></i><i></i><b>☪</b></span><div><strong>Libye</strong><small>LYD · 17:20</small></div>${ic("down")}</div>
+    </div>
+    <nav class="sb-scroll" aria-label="Navigation">
+      ${NAV.map((s) => `<div class="${s.g ? "sb-group" : ""}">${s.g ? `<div class="sb-gl">${esc(s.g)}</div>` : ""}${s.items.map(item).join("")}</div>`).join("")}
+    </nav>
+    <div class="sb-foot"><span class="me">${isMM ? "N" : "F"}</span><div><span>${isMM ? "Nadia" : "Firas"}</span><small>${isMM ? "Manager · Libye" : "Super admin"}</small></div></div>`;
+  $("#pb-pages").innerHTML = `<i>Page</i>` + FIN.map((p) => `<a href="${p.href}" class="${p.k === active ? "on" : ""}">${esc(p.t.replace(" global", "").replace(" & inventaire", "").replace(" & marges", ""))}</a>`).join("");
+}
+
+/* tooltip: any element with data-tip */
+(function tooltip() {
+  const tip = $("#tip");
+  document.addEventListener("pointerover", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (!t) return tip.classList.remove("on");
+    tip.innerHTML = t.dataset.tip;
+    tip.classList.add("on");
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (!tip.classList.contains("on")) return;
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY + 16;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  document.addEventListener("pointerout", (e) => { if (!e.relatedTarget || !e.relatedTarget.closest?.("[data-tip]")) tip.classList.remove("on"); });
+})();
+
+/* drawer */
+function openDrawer(html, hue) {
+  const d = $("#drawer");
+  d.style.setProperty("--h", hue || "#444CE7");
+  d.innerHTML = html;
+  d.classList.add("on"); $("#scrim").classList.add("on");
+  setTimeout(() => $(".dr-x", d)?.focus(), 50);
+}
+function closeDrawer() { $("#drawer").classList.remove("on"); $("#scrim").classList.remove("on"); }
+document.addEventListener("click", (e) => { if (e.target.closest(".dr-x") || e.target.id === "scrim") closeDrawer(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDrawer(); $$(".pop.on").forEach((p) => p.classList.remove("on")); } });
+document.addEventListener("click", (e) => { if (!e.target.closest(".popw")) $$(".pop.on").forEach((p) => p.classList.remove("on")); });
+/* ═══════════════ /KIT script ═══════════════ */
+
+/* ═══════════════ PAGE · P&L global v2 ═══════════════ */
+/* months — payé par les clients (Σ total_price of orders DELIVERED in the month) and bénéfice brut */
+const MONTHS = [
+  { k: "2025-10", s: "oct.", l: "Octobre 2025", paid: 21400, profit: 2140 },
+  { k: "2025-11", s: "nov.", l: "Novembre 2025", paid: 26800, profit: 3480 },
+  { k: "2025-12", s: "déc.", l: "Décembre 2025", paid: 31200, profit: 3120 },
+  { k: "2026-01", s: "janv.", l: "Janvier 2026", paid: 35600, profit: 4980 },
+  { k: "2026-02", s: "févr.", l: "Février 2026", paid: 41900, profit: 6290 },
+  { k: "2026-03", s: "mars", l: "Mars 2026", paid: 47300, profit: 6150 },
+  { k: "2026-04", s: "avr.", l: "Avril 2026", paid: 55800, profit: 9490 },
+  { k: "2026-05", s: "mai", l: "Mai 2026", paid: 62400, profit: 11230 },
+  { k: "2026-06", s: "juin", l: "Juin 2026", paid: 70100, profit: 12620 },
+  { k: "2026-07", s: "juil.", l: "Juillet 2026", paid: 79600, profit: 15920 },
+  { k: "2026-08", s: "août", l: "Août 2026", paid: 88400, profit: 17680 },
+  { k: "2026-09", s: "sept.", l: "Septembre 2026", paid: 101640, profit: 24390 },
+  { k: "2026-10", s: "oct.", l: "Octobre 2026", paid: 12860, profit: 2960, live: true },
+];
+/* the pipeline's steps, in the section's fixed money order */
+const STEPS = [
+  { k: "cogs", t: "Produits", i: "boxes", tip: "ce que les produits livrés vous ont coûté", href: "finances-produits-v1.html" },
+  { k: "ship", t: "Livraison", i: "truck", tip: "factures Darb des colis livrés — un colis échoué ne coûte rien" },
+  { k: "ads", t: "Pub", i: "mega", tip: "dépensée dans le mois, toutes plateformes", href: "finances-pub-v3.html" },
+  { k: "pack", t: "Emballage", i: "pkg", tip: "par colis parti" },
+];
+/* September is the plan's sheet; other months follow a smooth, seeded profile that sums exactly */
+function breakdown(i) {
+  const m = MONTHS[i];
+  if (m.k === "2026-09") return { cogs: 28460, ship: 11180, ads: 34560, pack: 3050, profit: 24390, orders: 452, est: 1240 };
+  const r10 = (n) => Math.round(n / 10) * 10;
+  const cogs = r10(m.paid * (0.305 - i * 0.002)), ship = r10(m.paid * (0.124 - i * 0.0012)), pack = r10(m.paid * 0.03);
+  const ads = m.paid - cogs - ship - pack - m.profit;
+  const basket = 206 + i * 1.6;
+  return { cogs, ship, ads, pack, profit: m.profit, orders: Math.round(m.paid / basket), est: m.live ? r10(ship * 0.62) : (i >= 10 ? r10(ship * 0.04) : 0) };
+}
+
+let cur = Math.max(0, MONTHS.findIndex((m) => m.k === (qs.get("m") || "2026-09")));
+const per100 = (v, i = cur) => Math.round((v / MONTHS[i].paid) * 100);
+const short = (m) => m.l.split(" ")[0].toLowerCase();
+
+function renderHeader() {
+  const m = MONTHS[cur];
+  const status = m.live
+    ? `<span class="pill warn"><i class="dot"></i>En cours · jusqu'au 4 oct. 17:20</span>`
+    : `<span class="pill good">${ic("check")}Mois clos · ne bougera plus</span>`;
+  return `
+  <header class="ph rise" style="--d:0">
+    <div>
+      <div class="crumb">Finances ${ic("right")} P&amp;L global</div>
+      <h1>P&amp;L global</h1>
+      <div class="sub">Libye <span class="sep"></span> ventes livrées en ${m.l.toLowerCase()} ${status}</div>
+    </div>
+    <div class="ph-r">
+      <div class="acts">
+        <button class="btn2" type="button" data-tip="CSV du mois : chaque étape, par produit">${ic("dl")}Exporter</button>
+        <div class="popw">
+          <button class="dbtn" id="mbtn" type="button" aria-haspopup="true">${ic("cal")}<div><b>${m.l}</b><small>${m.live ? "1 → 4 oct. · en cours" : "du 1er au dernier jour"}</small></div>${ic("down", "chev")}</button>
+          <div class="pop mp" id="mpop">${monthPicker()}</div>
+        </div>
+      </div>
+    </div>
+  </header>`;
+}
+function monthPicker() {
+  const years = [...new Set(MONTHS.map((m) => m.k.slice(0, 4)))].reverse();
+  return years.map((y) => `
+    <div class="mp-y">${y}</div>
+    <div class="mp-g">${MONTHS.map((m, i) => ({ m, i })).filter(({ m }) => m.k.startsWith(y)).reverse().map(({ m, i }) => `
+      <button class="mp-m${i === cur ? " on" : ""}" type="button" data-mi="${i}"><b>${m.s.replace(".", "")} ${m.live ? "· en cours" : ""}</b><small>${fmt(m.profit)} د.ل gagnés</small></button>`).join("")}
+    </div>`).join("") + `<div class="mp-f"><span>Plusieurs mois ou d'autres dates ?</span><button class="btn2 sm" type="button" data-tip="Choisir deux dates sur un calendrier — dans la version finale">${ic("cal")}Personnalisé</button></div>`;
+}
+
+/* 2 · the pipeline, drawn in SVG: the pipe keeps the same thickness every month (it is the 100 dinars paid);
+   each cost leaves it downward as a stream of its own colour; the rest arrives on the right, green */
+function flowSvg(m, b) {
+  const W = 1120, H = 420, top = 92, T0 = 150, k = T0 / m.paid;
+  const xs = [250, 470, 690, 900], x0 = 40, xEnd = W - 40, Ri = 34, Yb = 318;
+  let h = T0, left = m.paid;
+  const segs = [], brs = [];
+  let prevX = x0;
+  STEPS.forEach((s, i) => {
+    const t = b[s.k] * k;
+    segs.push({ x1: prevX, x2: xs[i], h, v: left });
+    const yTop = top + h - t, Ro = Ri + t;
+    brs.push({ ...s, name: s.t, i, t, x: xs[i], yTop, Ro, v: b[s.k], cx: xs[i] + Ri + t / 2 });
+    h -= t; left -= b[s.k]; prevX = xs[i];
+  });
+  segs.push({ x1: prevX, x2: xEnd, h, v: left, end: true });
+
+  /* the pipe: top edge flat, bottom edge steps up where each stream leaves */
+  let d = `M${x0 + 14} ${top} L${xEnd} ${top} L${xEnd} ${top + h} `;
+  for (let i = segs.length - 1; i >= 0; i--) { const s = segs[i]; d += `L${s.x2} ${top + s.h} L${s.x1 + (i ? 0 : 14)} ${top + s.h} `; }
+  d += `Q${x0} ${top + T0} ${x0} ${top + T0 - 14} L${x0} ${top + 14} Q${x0} ${top} ${x0 + 14} ${top} Z`;
+  const endSeg = segs[segs.length - 1];
+  const endPath = `M${endSeg.x1} ${top} L${xEnd - 14} ${top} Q${xEnd} ${top} ${xEnd} ${top + 14} L${xEnd} ${top + endSeg.h - Math.min(14, endSeg.h / 2)} Q${xEnd} ${top + endSeg.h} ${xEnd - 14} ${top + endSeg.h} L${endSeg.x1} ${top + endSeg.h} Z`;
+
+  const branch = (r) => {
+    const yBot = r.yTop + r.t, yTurn = r.yTop + r.Ro;
+    return `M${r.x} ${r.yTop} A${r.Ro} ${r.Ro} 0 0 1 ${r.x + r.Ro} ${yTurn} L${r.x + r.Ro} ${Yb} L${r.x + Ri} ${Yb} L${r.x + Ri} ${yBot + Ri} A${Ri} ${Ri} 0 0 0 ${r.x} ${yBot} Z`;
+  };
+  const prevB = cur > 0 ? breakdown(cur - 1) : null, prev = MONTHS[cur - 1];
+  const tipOf = (r) => esc(`<b>${r.name}</b> · ${fmt(r.v)} د.ل · ${per100(r.v)} sur 100<small>${r.tip}</small>${r.k === "ship" && b.est ? `<small>dont ${fmt(b.est)} estimés — facture Darb pas encore reçue</small>` : ""}${prevB ? `<small>${short(prev)} : ${per100(prevB[r.k], cur - 1)} sur 100</small>` : ""}`);
+
+  return `
+  <svg class="flow" viewBox="0 0 ${W} ${H}" role="img" aria-label="Payé ${fmt(m.paid)} ; produits ${fmt(b.cogs)}, livraison ${fmt(b.ship)}, pub ${fmt(b.ads)}, emballage ${fmt(b.pack)} ; il reste ${fmt(b.profit)}">
+    <defs>
+      <linearGradient id="gMain" x1="0" x2="1"><stop offset="0" stop-color="#D5DAE3"/><stop offset="1" stop-color="#E6E9EF"/></linearGradient>
+      <linearGradient id="gEnd" x1="0" x2="1"><stop offset="0" stop-color="#27A35A"/><stop offset="1" stop-color="#15803d"/></linearGradient>
+    </defs>
+    <text class="in-t" x="${x0}" y="${top - 46}">Payé par vos clients</text>
+    <text class="in-v" x="${x0}" y="${top - 16}">${fmt(m.paid)} <tspan style="font-size:12px;fill:var(--ink-3)">د.ل</tspan></text>
+    <text class="out-t" x="${xEnd}" y="${top - 46}">Il vous reste · bénéfice brut</text>
+    <text class="out-v" x="${xEnd - 92}" y="${top - 14}">${fmt(b.profit)} <tspan style="font-size:12px">د.ل</tspan></text>
+    <text class="out-p" x="${xEnd}" y="${top - 16}">${per100(b.profit)} sur 100</text>
+    <path class="main" d="${d}"/>
+    <path class="end" d="${endPath}"/>
+    ${segs.slice(1, -1).map((s) => `<text class="rest sm" x="${(s.x1 + s.x2) / 2}" y="${top + Math.min(s.h, 60) / 2 + 2}">reste ${fmt(s.v)}</text>`).join("")}
+    <text class="rest w" x="${(endSeg.x1 + xEnd) / 2}" y="${top + endSeg.h / 2}">${fmt(endSeg.v)}</text>
+    ${brs.map((r) => `
+      <g class="c k-${r.k}"${r.href ? ` onclick="location.href='${r.href}'" style="cursor:pointer"` : ""} data-tip="${tipOf(r)}">
+        <path class="br" d="${branch(r)}"/>
+        <circle class="dot" cx="${r.cx}" cy="${Yb + 18}" r="5"/>
+        <text class="lab-t" x="${r.cx}" y="${Yb + 46}">${r.name}</text>
+        <text class="lab-v" x="${r.cx}" y="${Yb + 72}">− ${fmt(r.v)}</text>
+        <text class="lab-p" x="${r.cx}" y="${Yb + 92}">${per100(r.v)} sur 100</text>
+      </g>`).join("")}
+  </svg>`;
+}
+
+/* 1 + 2 · the answer, then the pipeline that produced it — one card */
+function renderTop() {
+  const m = MONTHS[cur], b = breakdown(cur), prev = MONTHS[cur - 1];
+  /* a live month compares with the same number of days of the month before */
+  const base = prev ? (m.live ? prev.profit * 4 / 30 : prev.profit) : null;
+  const dProf = base ? ((m.profit - base) / base) * 100 : null;
+  const sentence = m.live
+    ? `Depuis le 1<sup>er</sup> octobre, sur 100 د.ل payés par vos clients, <b>${per100(m.profit)} vous restent</b>.`
+    : `Sur 100 د.ل payés par vos clients, <b>${per100(m.profit)} vous restent</b>${prev ? ` — contre ${per100(prev.profit, cur - 1)} en ${short(prev)}` : ""}. ${fmt(b.orders)} commandes livrées.`;
+
+  return `
+  <section class="card rise" style="--d:1" aria-label="Ce que vous avez gagné">
+    <div class="top">
+      <div class="eyebrow">${m.l}${m.live ? " · en cours" : ""} · ventes livrées dans le mois</div>
+      <div class="ans">
+        <div>
+          <div class="ans-l"><i class="sw k-profit"></i>Bénéfice brut ${dProf != null ? trend(dProf, "%", true, m.live ? "comparé aux 4 premiers jours de septembre" : `${prev.l} : ${fmt(prev.profit)} د.ل`) : ""}</div>
+          <div class="ans-n">${money(m.profit)}</div>
+          <p class="ans-s">${sentence}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pipe-h">
+      <h2>Où sont partis les ${fmt(m.paid)} د.ل payés par vos clients</h2>
+      <p>chaque coût sort du tuyau ; ce qui arrive au bout est à vous</p>
+    </div>
+    ${flowSvg(m, b)}
+    <div class="pipe-f">${ic("info")}<span>Avant salaires, commissions, charges fixes et part des investisseurs.</span><a class="link" href="finances-produits-v1.html">Voir par produit${ic("right")}</a></div>
+  </section>`;
+}
+
+function renderMonths() {
+  const max = 110000, ticks = [0, 25000, 50000, 75000, 100000];
+  const total12 = MONTHS.filter((m) => !m.live).slice(-12).reduce((a, m) => a + m.profit, 0);
+  const first = MONTHS[0], last = MONTHS[MONTHS.length - 2];
+  return `
+  <section class="card rise" style="--d:2" aria-label="Mois par mois">
+    <div class="chead">
+      <div><h2>Mois par mois</h2><p class="q">Est-ce que ça s'améliore ? Ce que vos clients ont payé, et ce qu'il vous en reste.</p></div>
+      <div class="rt"><span class="lg"><i class="paid"></i>Payé par les clients</span><span class="lg"><i class="prof"></i>Bénéfice brut</span><span class="lg"><i class="live"></i>Mois en cours</span></div>
+    </div>
+    <div class="mc">
+      <div class="mplot">
+        <div class="mgrid">${ticks.map((t) => `<div style="bottom:${(t / max) * 100}%"><span>${t ? fmt(t / 1000) + " k" : "0"}</span></div>`).join("")}</div>
+        <div class="mcols">${MONTHS.map((m, i) => {
+          const h = (m.paid / max) * 100, p = (m.profit / m.paid) * 100;
+          return `<button class="mcol${i === cur ? " sel" : ""}${m.live ? " live" : ""}" type="button" data-mi="${i}" data-tip="<b>${m.l}</b>${m.live ? " · en cours" : ""}<small>payé ${fmt(m.paid)} د.ل · bénéfice brut ${fmt(m.profit)} د.ل · ${Math.round(p)} sur 100</small>">
+            <span class="mval${m.live ? " dim" : ""}">${fmt1(m.profit / 1000)} k</span>
+            <span class="mbar" style="--h:${h}%;--p:${p}%;--i:${i}"><i></i></span>
+          </button>`;
+        }).join("")}</div>
+      </div>
+      <div class="mx">${MONTHS.map((m, i) => `<button type="button" class="${i === cur ? "sel" : ""}" data-mi="${i}"><b>${m.s}</b><small>${Math.round((m.profit / m.paid) * 100)} %</small></button>`).join("")}</div>
+    </div>
+    <div class="mfoot">
+      <span>Bénéfice brut sur 12 mois : <b>${money(total12)}</b></span>
+      <span>Sur 100 د.ل payés : <b>${Math.round((first.profit / first.paid) * 100)}</b> en ${first.s} ${first.k.slice(0, 4)} → <b>${Math.round((last.profit / last.paid) * 100)}</b> en ${last.s}</span>
+      <span>Cliquez un mois pour l'ouvrir</span>
+    </div>
+  </section>`;
+}
+
+function render() {
+  $("#page").innerHTML = renderHeader() + renderTop() + renderMonths() + `
+    <p class="foot rise" style="--d:3">${ic("info")}<span><b>Base : ventes livrées dans le mois.</b> Un mois clos ne bouge plus. Produits &amp; marges et Dépenses pub suivent les commandes <b>reçues</b> dans la période : leurs chiffres diffèrent, c'est voulu.</span></p>`;
+  $$(".pbar [data-m]").forEach((b) => b.classList.toggle("on", b.dataset.m === MONTHS[cur].k));
+}
+
+/* events */
+document.addEventListener("click", (e) => {
+  const mi = e.target.closest("[data-mi]");
+  if (mi) { cur = +mi.dataset.mi; render(); history.replaceState(null, "", `?m=${MONTHS[cur].k}`); return; }
+  if (e.target.closest("#mbtn")) { e.stopPropagation(); $("#mpop").classList.toggle("on"); $("#mbtn").classList.toggle("open"); return; }
+  const pm = e.target.closest(".pbar [data-m]");
+  if (pm) { cur = MONTHS.findIndex((m) => m.k === pm.dataset.m); render(); history.replaceState(null, "", `?m=${MONTHS[cur].k}`); }
+});
+
+renderShell("pnl");
+render();
+</script>
+</body>
+</html>

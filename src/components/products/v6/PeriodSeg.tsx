@@ -5,12 +5,14 @@
 // pill is read from the dates (presetOf), never remembered. The old
 // PeriodSelector kept « Aujourd'hui » in useState and lit it over 30 days of data.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { DayPicker, type DateRange } from "react-day-picker";
+import { Calendar, Info } from "lucide-react";
 import { ar, fr } from "date-fns/locale";
 import { Popover } from "@/components/ui/Popover";
 import { presetOf, presetPeriod, type DayRange, type PeriodPreset } from "@/lib/products/period";
+import { rangeLabel } from "@/lib/products/format";
 import { useUiLocale } from "./atoms";
 import "@/components/ui/datepicker.css";
 
@@ -48,6 +50,7 @@ export function PeriodSeg({
           key={p.key}
           type="button"
           aria-pressed={active === p.key}
+          className={active === p.key ? "on" : undefined}
           onClick={() => onChange(presetPeriod(p.key, tz))}
         >
           {t(p.label)}
@@ -62,7 +65,7 @@ export function PeriodSeg({
         align="end"
         panelClassName="overflow-hidden"
         trigger={
-          <button type="button" aria-pressed={active === "custom"}>
+          <button type="button" aria-pressed={active === "custom"} className={active === "custom" ? "on" : undefined}>
             {t("per_custom")}
           </button>
         }
@@ -92,6 +95,41 @@ export function PeriodSeg({
           />
         </div>
       </Popover>
+    </div>
+  );
+}
+
+/**
+ * The period row of every products screen: the pills, the dates, and the basis
+ * chip — what a figure here counts (orders RECEIVED in the period, followed to
+ * today), which is not what the P&L counts. `extra` sits at the end (the sheet
+ * puts « Résultat définitif » there).
+ */
+export function PeriodRow({
+  period,
+  tz,
+  onChange,
+  extra,
+}: {
+  period: DayRange;
+  tz: string;
+  onChange: (range: DayRange) => void;
+  extra?: ReactNode;
+}) {
+  const t = useTranslations("products.v6");
+  const locale = useUiLocale();
+  return (
+    <div className="prow rise" style={{ ["--d" as string]: 1 }}>
+      <PeriodSeg period={period} tz={tz} onChange={onChange} />
+      <span className="chip lg">
+        <Calendar className="ic" aria-hidden />
+        {rangeLabel(period.from, period.to, locale)}
+      </span>
+      <span className="chip lg basis" data-tip={t("basis_tip")}>
+        <Info className="ic" aria-hidden />
+        {t("basis")}
+      </span>
+      {extra}
     </div>
   );
 }

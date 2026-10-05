@@ -17,6 +17,8 @@ interface Props {
   onClose: () => void;
   /** Called when the order turns out to be the agent's own — open the real panel instead. */
   onOpenOwn: (orderId: string) => void;
+  /** After « Prendre la commande »: the order is now the agent's (refresh the lists). */
+  onTaken?: (orderId: string) => void;
 }
 
 /**
@@ -26,14 +28,17 @@ interface Props {
  * Deliberately not the order panel. The panel registers the agent's presence,
  * and an agent's presence row blocks manager writes; this sheet registers
  * nothing, subscribes to nothing, and has nothing to edit. Writes are refused
- * server-side for non-owners regardless. Its one action, copying the
- * reference, is what the agent hands the manager to get the order reassigned.
+ * server-side for non-owners regardless. Its actions: copy the reference, and
+ * (owner, 2026-10-05) « Prendre la commande » — the order moves to the agent's list
+ * (POST /api/agent/orders/[id]/take) and opens in the real panel, full rights.
  */
-export function OrderPreviewSheet({ orderId, onClose, onOpenOwn }: Props) {
+export function OrderPreviewSheet({ orderId, onClose, onOpenOwn, onTaken }: Props) {
   const t = useTranslations("queue.preview");
   const tStatus = useTranslations("orders.statuses");
   const locale = useLocale();
   const [copied, setCopied] = useState<string | null>(null);
+  const [taking, setTaking] = useState(false);
+  const [takeErr, setTakeErr] = useState<string | null>(null);
 
   const { data, error } = useSWR<{ data: OrderPreview }>(
     orderId ? `/api/agent/orders/${orderId}/preview` : null,
@@ -46,7 +51,37 @@ export function OrderPreviewSheet({ orderId, onClose, onOpenOwn }: Props) {
     if (p?.access === "full") onOpenOwn(p.id);
   }, [p?.access, p?.id, onOpenOwn]);
 
-  useEffect(() => setCopied(null), [orderId]);
+  useEffect(() => {
+    setCopied(null);
+    setTakeErr(null);
+  }, [orderId]);
+
+  const settled = p ? ["delivered", "returned", "cancelled", "deleted"].includes(p.status) : true;
+  async function take() {
+    if (!p || taking) return;
+    setTaking(true);
+    setTakeErr(null);
+    try {
+      const res = await fetch(`/api/agent/orders/${p.id}/take`, { method: "POST" });
+      if (res.ok) {
+        onTaken?.(p.id);
+        onOpenOwn(p.id);
+        return;
+      }
+      const body = (await res.json().catch(() => null)) as { code?: string; lock?: { holder_name?: string | null } } | null;
+      setTakeErr(
+        body?.code === "locked"
+          ? t("takeLocked", { name: body.lock?.holder_name ?? p.owner_name ?? "—" })
+          : body?.code === "settled"
+            ? t("takeSettled")
+            : t("takeError"),
+      );
+    } catch {
+      setTakeErr(t("takeError"));
+    } finally {
+      setTaking(false);
+    }
+  }
 
   const ref = p?.external_id ? `#${p.external_id}` : null;
   async function copyRef() {
@@ -170,6 +205,24 @@ export function OrderPreviewSheet({ orderId, onClose, onOpenOwn }: Props) {
         )}
       </div>
 
+      {p && p.access === "view" && !settled ? (
+        <div className="shrink-0 border-t border-agent-outline-variant bg-agent-surface px-4 pt-3">
+          <button
+            type="button"
+            onClick={() => void take()}
+            disabled={taking}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-agent-primary px-4 text-[14.5px] font-bold text-white hover:opacity-95 disabled:opacity-60"
+          >
+            {taking ? t("taking") : t("take")}
+          </button>
+          {p.owner === "other" && p.owner_name ? (
+            <p className="mt-1.5 text-center text-[12px] text-agent-ink-3">{t("takeFrom", { name: p.owner_name })}</p>
+          ) : null}
+          {takeErr ? (
+            <p role="alert" className="mt-1.5 text-center text-[12.5px] font-semibold text-status-critical">{takeErr}</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex shrink-0 items-center gap-2.5 border-t border-agent-outline-variant bg-agent-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {p && p.access === "view" && ref && (
           <button

@@ -187,7 +187,7 @@ describe("ProductSheetV6 — the approved product sheet", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
     expect(container.querySelector(".empty-q")).toBeNull();
-    expect(container.querySelectorAll(".hero")).toHaveLength(1);
+    expect(container.querySelectorAll(".phero")).toHaveLength(1);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     release();
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
@@ -197,7 +197,7 @@ describe("ProductSheetV6 — the approved product sheet", () => {
   test("the hero names the product, its state, SKU, price and last order", async () => {
     renderSheet();
     await screen.findByRole("heading", { level: 1, name: "القرآن تدبر وعمل" });
-    const hero = text(".hero");
+    const hero = text(".phero");
     expect(hero).toContain("Actif");
     expect(hero).toContain("qr-01");
     expect(hero).toContain("249 د.ل · prix catalogue");
@@ -207,7 +207,7 @@ describe("ProductSheetV6 — the approved product sheet", () => {
   test("the period says how final the figures are", async () => {
     renderSheet();
     await screen.findByText(FLOW_TITLE);
-    expect(text(".pbar2")).toContain("Résultat définitif : 98 %");
+    expect(text(".prow")).toContain("Résultat définitif : 98 %");
     expect(screen.getByRole("button", { name: "30 jours" })).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -223,14 +223,15 @@ describe("ProductSheetV6 — the approved product sheet", () => {
     expect(k).toContain("77 livrées · 63 échouées · 8 en route");
     expect(k).toContain("Encaissé17 357 د.ل");
     expect(k).toContain("Payé 19 173 د.ل · Darb −1 816 د.ل");
-    expect(k).toContain("+3 633 د.ل");
+    expect(k).toContain("Bénéfice brut+3 633 د.ل");
+    expect(k).toContain("avant salaires et charges fixes");
     expect(k).toContain("Marge 21 % · +47,2 د.ل par livraison");
   });
 
   test("the outcome flow and why orders are lost", async () => {
     renderSheet();
     await screen.findByText(FLOW_TITLE);
-    const flow = text(".flowwrap");
+    const flow = text(".pflow");
     for (const label of ["Reçues", "Uploadées", "Rejetées", "Supprimées", "Livrées", "Échouées", "Chez Darb", "Annulées avant envoi"]) {
       expect(flow).toContain(label);
     }
@@ -245,11 +246,13 @@ describe("ProductSheetV6 — the approved product sheet", () => {
     await screen.findByText("Où vont 100 د.ل payés par les clients");
     const ledger = text(".ledger");
     expect(ledger).toContain("Payé par les clients19 173 د.ل249,0 د.ل");
-    expect(ledger).toContain("Frais Darb (factures)−1 816 د.ل−23,6 د.ل");
+    expect(ledger).toContain("Livraisonfactures Darb des colis livrés−1 816 د.ل−23,6 د.ل");
+    expect(ledger).toContain("Coût des produits77 × 40−3 080 د.ل−40,0 د.ل");
     expect(ledger).toContain("Encaissé17 357 د.ل225,4 د.ل");
     expect(ledger).toContain("Emballage156 colis × 0,5−78 د.ل−1,0 د.ل");
-    expect(ledger).toContain("Profit net+3 633 د.ل+47,2 د.ل");
-    const ins = text(".insights");
+    expect(ledger).toContain("Bénéfice brutavant salaires et charges fixes+3 633 د.ل+47,2 د.ل");
+    expect(ledger).not.toContain("Profit");
+    const ins = text(".ins");
     expect(ins).toContain("La pub coûte 137,2 د.ل par livraison, soit 55 % de ce que paie le client.");
     expect(ins).toContain("C’est plus que le produit, Darb et l’emballage réunis (64,6 د.ل).");
     expect(ins).toContain("Point mort : la pub peut monter jusqu’à 184,4 د.ل par livraison");
@@ -270,12 +273,14 @@ describe("ProductSheetV6 — the approved product sheet", () => {
     expect(within(table).getByText("Sans agent")).toBeInTheDocument();
   });
 
-  test("stock: never counted, said plainly, with the pace", async () => {
+  test("stock reads as true: the last count is a plain fact, no « not counted yet » warning", async () => {
     renderSheet();
-    await screen.findByText("Jamais compté");
+    await screen.findByText("Dernier comptage : jamais");
     const card = text(".two");
-    expect(card).toContain("943");
-    expect(card).toContain("158 colis sont partis en 30 jours, 56 ont été scannés en sortie, et aucun retour n’a été scanné.");
+    expect(card).toContain("943en stock");
+    expect(card).not.toContain("selon le registre");
+    expect(card).not.toContain("ont été scannés en sortie");
+    expect(screen.queryByText("Jamais compté")).toBeNull();
     expect(card).toContain("≈ 179 jours");
     expect(card).toContain("Sortie scannée");
     expect(card).toContain("Stock initial");
@@ -292,7 +297,8 @@ describe("ProductSheetV6 — the approved product sheet", () => {
     await screen.findByRole("heading", { level: 1, name: "القرآن تدبر وعمل" });
     expect(calls.some((c) => c.includes("/overview"))).toBe(false);
     expect(document.querySelector(".kpis")).toBeNull();
-    expect(screen.getByText("Jamais compté")).toBeInTheDocument();
+    expect(screen.getByText("Dernier comptage : jamais")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Commander/ })).toBeNull();
   });
 
   test("a product without orders in the period says so", async () => {
@@ -300,5 +306,23 @@ describe("ProductSheetV6 — the approved product sheet", () => {
     renderSheet();
     await screen.findByText("Aucune commande sur la période");
     expect(document.querySelector(".kpis")).toBeNull();
+  });
+  test("short of stock: « Commander » beside the cover opens a pre-filled purchase order in Achats", async () => {
+    overview = sheet({ stock: { ...sheet().stock, cover: 9 } });
+    renderSheet();
+    await screen.findByText("Dernier comptage : jamais");
+    expect(screen.getByRole("link", { name: /Commander/ })).toHaveAttribute("href", "/fr/finance/purchases?new=po&product=qr");
+  });
+
+  test("enough stock: no « Commander »", async () => {
+    renderSheet();
+    await screen.findByText("Dernier comptage : jamais");
+    expect(screen.queryByRole("link", { name: /Commander/ })).toBeNull();
+  });
+
+  test("the period carries the basis of every figure", async () => {
+    renderSheet();
+    await screen.findByText(FLOW_TITLE);
+    expect(text(".prow")).toContain("commandes reçues, suivies jusqu’à aujourd’hui");
   });
 });

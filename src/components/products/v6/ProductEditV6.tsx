@@ -1,8 +1,8 @@
 "use client";
 
-// /products/[id]/edit — the prototype's edit screen (prototypes/products-v6.html:
-// editScreen, panelHTML, railHTML, saveBarHTML), approved by the owner on
-// 2026-10-03. TABS, one section at a time (his call), and ONE save for the whole
+// /products/[id]/edit — the prototype's edit screen (prototypes/finances-produits-v1.html:
+// editScreen, panelHTML, railHTML, saveBarHTML; v6 restyled in Aurore, approved
+// 2026-10-04). TABS, one section at a time (his call), and ONE save for the whole
 // product: a tab with unsaved changes carries an amber dot, a tab with an error
 // a red one, and Save jumps to it — the reason the old form refused tabs (a
 // required field hiding behind one) is answered by the dot, not by a long scroll.
@@ -40,10 +40,12 @@ import { presetPeriod } from "@/lib/products/period";
 import { currencySymbol, groupDigits, instantDayLabel, moneyText, numText } from "@/lib/products/format";
 import { useProductSheetOverview } from "@/hooks/useProductsOverview";
 import { ProductVariantsEditor, type EditorVariant, type VariantKind } from "@/components/products/ProductVariantsEditor";
-import { Amount, Num, SHARE_CLASS, Thumb, useUiLocale } from "./atoms";
+import type { CostShareKey } from "@/types/product-overview";
+import { Amount, Num, StackBar, Thumb, useUiLocale } from "./atoms";
 import { previewDelivery } from "./delivery-preview";
 import { Field, Group, PhotoField, SaveBar, Unit, num, validAmount, validCount } from "./form";
 import { useProductActions } from "./useProductActions";
+import "@/components/finance/kit/finance-kit.css";
 import "./products-v6.css";
 
 export interface EditableProductV6 {
@@ -377,7 +379,7 @@ export function ProductEditV6({
       );
     } else if (o.select) {
       control = (
-        <div className="selwrap">
+        <div className="selw">
           <select className="inp" id={id} value={value} onChange={(e) => set(k, e.target.value as Ed[typeof k])}>
             {o.select.map(([v, l]) => (
               <option key={v} value={v}>
@@ -479,8 +481,10 @@ export function ProductEditV6({
               {field("proc", t("f_proc"), { num: true, unit, hint: t("f_proc_h") })}
             </div>
             {avg !== null ? (
-              <div className="infobox">
-                <Truck className="ic" aria-hidden />
+              <div className="glass infob">
+                <span className="tk k-ship">
+                  <Truck className="ic" aria-hidden />
+                </span>
                 <span>
                   {invoiced
                     ? t("darb_info", { a: moneyText(avg, currency, { decimals: 1 }) })
@@ -495,28 +499,28 @@ export function ProductEditV6({
   } else if (tab === "var") {
     panel =
       variants.length === 0 && variantDraft === null ? (
-        <div className="empty" style={{ margin: 0 }}>
-          <span className="ih t-slate">
+        <div className="empty fe">
+          <span className="tk k-neu">
             <Layers className="ic" aria-hidden />
           </span>
           <b>{t("v_emptyT")}</b>
           <p>{t("v_emptyB")}</p>
           <div className="axes">
-            <div>
+            <div className="glass">
               <b>{t("v_ax1")}</b>
               <span>{t("v_ax1_s")}</span>
             </div>
-            <div>
+            <div className="glass">
               <b>{t("v_ax2")}</b>
               <span>{t("v_ax2_s")}</span>
             </div>
           </div>
-          <div className="acts" style={{ justifyContent: "center" }}>
-            <button type="button" className="btn sm" onClick={() => setVariantDraft("attribute")}>
+          <div className="acts">
+            <button type="button" className="btn2 sm" onClick={() => setVariantDraft("attribute")}>
               <Plus className="ic" aria-hidden />
               {t("v_size")}
             </button>
-            <button type="button" className="btn sm" onClick={() => setVariantDraft("pack")}>
+            <button type="button" className="btn2 sm" onClick={() => setVariantDraft("pack")}>
               <Plus className="ic" aria-hidden />
               {t("v_pack")}
             </button>
@@ -525,6 +529,7 @@ export function ProductEditV6({
       ) : (
         <ProductVariantsEditor
           productId={product.id}
+          productName={product.name}
           variants={variants}
           currencySymbol={unit}
           initialDraftKind={variantDraft ?? undefined}
@@ -539,39 +544,32 @@ export function ProductEditV6({
           t("g_current"),
           t("f_current_h"),
           <>
-            <div className="stockhead" style={{ margin: 0 }}>
-              <span className="big xl">
+            <div className="sbig">
+              <b>
                 <Num value={product.current_stock} />
+              </b>
+              <span className="plain">
+                <ScanLine className="ic" aria-hidden />
+                {counted ? t("st_counted", { d: instantDayLabel(counted, tz, ui) }) : t("st_never")}
               </span>
-              {counted ? (
-                <span className="pill ok">
-                  <Check className="ic" aria-hidden />
-                  {t("st_counted", { d: instantDayLabel(counted, tz, ui) })}
-                </span>
-              ) : (
-                <span className="pill call">
-                  <TriangleAlert className="ic" aria-hidden />
-                  {t("st_never")}
-                </span>
-              )}
             </div>
             <div className="acts">
-              <Link className="btn sm" href={`/${locale}/warehouse/count?product=${product.id}`}>
+              <Link className="btn2 sm" href={`/${locale}/warehouse/count?product=${product.id}`}>
                 <ScanLine className="ic" aria-hidden />
                 {t("b_count")}
               </Link>
-              <button type="button" className="btn sm" onClick={() => actions.openStock(product.id, product.name)}>
+              <button type="button" className="btn2 sm" onClick={() => actions.openStock(product.id, product.name)}>
                 {t("b_adjust")}
               </button>
             </div>
-            <div className="stats" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))", maxWidth: 360, margin: 0 }}>
-              <div className="stat">
+            <div className="stats" style={{ ["--n" as string]: 2, maxWidth: 380, margin: 0 }}>
+              <div className="glass stat">
                 <span>{t("st_damaged")}</span>
                 <b>
                   <Num value={product.damaged_return_count} />
                 </b>
               </div>
-              <div className="stat">
+              <div className="glass stat">
                 <span>{t("st_value")}</span>
                 <b>
                   <Amount value={product.current_stock * num(ed.cogs)} currency={currency} />
@@ -584,9 +582,9 @@ export function ProductEditV6({
     );
   } else {
     const tones: [string, string, string][] = [
-      ["info", "tone_info", "var(--info)"],
-      ["warning", "tone_warn", "var(--call)"],
-      ["critical", "tone_crit", "var(--bad)"],
+      ["info", "tone_info", "#98A2B3"],
+      ["warning", "tone_warn", "var(--warn-dot)"],
+      ["critical", "tone_crit", "var(--bad-dot)"],
     ];
     panel = (
       <>
@@ -611,7 +609,7 @@ export function ProductEditV6({
                     <button
                       key={key}
                       type="button"
-                      className={key}
+                      className={`${key}${ed.tone === key ? " on" : ""}`}
                       aria-pressed={ed.tone === key}
                       onClick={() => set("tone", key)}
                     >
@@ -685,12 +683,12 @@ export function ProductEditV6({
       </div>
     );
     rail = (
-      <div className="card rcard">
-        <div className="rh">
+      <div className="card rc">
+        <div className="rh eyebrow">
           <Eye className="ic" aria-hidden />
           {t("pv_title")}
         </div>
-        <div className="pv">
+        <div className="glass pv">
           <div className="pvn">
             <bdi>{ed.name || product.name}</bdi>
           </div>
@@ -724,11 +722,11 @@ export function ProductEditV6({
       const r = (sw: string, label: string, sub: string, v: number, sum = false) => (
         <div className={`crow${sum ? " sum" : ""}`} key={label}>
           <span>
-            {sw ? <span className={`sw ${sw}`} /> : null}
+            {sw ? <i className={`sw ${sw}`} /> : null}
             {label}
             {sub ? <small>{sub}</small> : null}
           </span>
-          <b className={sum ? (v < 0 ? "neg" : "pos") : undefined}>
+          <b className={sum && v < 0 ? "neg" : undefined}>
             <Amount value={v} currency={currency} d={1} signed={sum || v < 0} />
           </b>
         </div>
@@ -737,23 +735,17 @@ export function ProductEditV6({
         <>
           <div className="calc">
             {r("", t("r_price"), "", p.price)}
-            {r("s-darb", invoiced ? t("r_darb") : t("r_carrier"), "", -p.carrier)}
-            {r("s-cogs", t("r_cogs"), "", -p.cogs)}
+            {r("k-ship", invoiced ? t("r_darb") : t("r_carrier"), "", -p.carrier)}
+            {r("k-cogs", t("r_cogs"), "", -p.cogs)}
             {num(ed.pack) > 0
-              ? r("s-pack", t("r_pack"), t("r_pack_d", { c: groupDigits(num(ed.pack), 1), k: groupDigits(p.parcels, 1) }), -p.packing)
+              ? r("k-pack", t("r_pack"), t("r_pack_d", { c: groupDigits(num(ed.pack), 1), k: groupDigits(p.parcels, 1) }), -p.packing)
               : null}
-            {num(ed.proc) > 0 ? r("s-proc", t("m_proc"), "", -p.processing) : null}
+            {num(ed.proc) > 0 ? r("k-proc", t("m_proc"), "", -p.processing) : null}
             {r("", t("r_before"), "", p.before, true)}
-            {r("s-ads", t("r_ads"), "", -p.ads)}
-            {r("", t("r_net"), "", p.net, true)}
+            {r("k-ads", t("r_ads"), "", -p.ads)}
+            {r("k-profit", t("r_net"), t("gross_s"), p.net, true)}
           </div>
-          <div className="stack" style={{ maxWidth: "none", height: 9, marginTop: 12 }}>
-            {p.shares
-              .filter((s) => s.share > 0)
-              .map((s) => (
-                <i key={s.key} className={SHARE_CLASS[s.key as keyof typeof SHARE_CLASS]} style={{ flex: Math.round(s.share * 1000) }} />
-              ))}
-          </div>
+          <StackBar shares={p.shares as { key: CostShareKey; share: number }[]} />
           <p className="rnote">
             {t("r_be", {
               b: moneyText(p.before, currency, { decimals: 1 }),
@@ -767,15 +759,15 @@ export function ProductEditV6({
     const inFlight = o?.counts.in_flight ?? 0;
     rail = (
       <>
-        <div className="card rcard">
-          <div className="rh">
+        <div className="card rc">
+          <div className="rh eyebrow">
             <Wallet className="ic" aria-hidden />
             {t("r_title")}
           </div>
           {calc}
         </div>
-        <div className="card rcard">
-          <div className="rh">
+        <div className="card rc">
+          <div className="rh eyebrow">
             <TriangleAlert className="ic" aria-hidden />
             {t("i_title")}
           </div>
@@ -798,101 +790,105 @@ export function ProductEditV6({
 
   const saveLabel = t("sb_save");
   return (
-    <div className="pv6 page">
-      {actions.modals}
-      <nav className="crumb" aria-label="breadcrumb">
-        <Link href={`/${locale}/products`}>{t("crumb_products")}</Link>
-        <ChevronRight className="ic chev" aria-hidden />
-        <Link href={`/${locale}/products/${product.id}`} dir="auto">
-          {product.name}
-        </Link>
-        <ChevronRight className="ic chev" aria-hidden />
-        <span>{t("b_edit")}</span>
-      </nav>
-
-      <div className="ehead">
-        <Thumb src={image} name={ed.name || product.name} size={52} radius={12} />
-        <div className="grow">
-          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-.02em" }}>{t("e_title")}</h1>
-          <div className="nm">
-            <bdi>{ed.name || product.name}</bdi>
-          </div>
-        </div>
-        <div className="acts">
-          <Link className="btn" href={`/${locale}/products/${product.id}`}>
-            <Eye className="ic" aria-hidden />
-            {t("e_view")}
+    <div className="fin prd">
+      <div className="page">
+        {actions.modals}
+        <nav className="crumb rise" style={{ ["--d" as string]: 0 }} aria-label="breadcrumb">
+          {t("crumb_fin")}
+          <ChevronRight className="ic" aria-hidden />
+          <Link href={`/${locale}/products`}>{t("crumb_products")}</Link>
+          <ChevronRight className="ic" aria-hidden />
+          <Link href={`/${locale}/products/${product.id}`} dir="auto">
+            {product.name}
           </Link>
-          <button type="button" className="btn pri" disabled={dirtyCount === 0 || saving} onClick={() => void save()}>
-            <Check className="ic" aria-hidden />
-            {saveLabel}
-          </button>
-        </div>
-      </div>
+          <ChevronRight className="ic" aria-hidden />
+          <span>{t("b_edit")}</span>
+        </nav>
 
-      <div className="acts">
-        <div className="tabs" role="tablist">
-          {tabs.map((k) => {
-            const Icon = TAB_ICON[k];
-            const err = tabHasError(k);
-            return (
-              <button
-                key={k}
-                type="button"
-                className="tab"
-                role="tab"
-                aria-selected={tab === k}
-                onClick={() => {
-                  setTab(k);
-                  setDiscarding(false);
-                }}
-              >
-                <Icon className="ic" aria-hidden />
-                {t(TAB_LABEL[k])}
-                {err ? <span className="dd err" aria-label="!" /> : tabIsDirty(k) ? <span className="dd" aria-label="•" /> : null}
-              </button>
-            );
-          })}
-        </div>
-        {!isSa ? (
-          <span className="rolenote">
-            <Info className="ic" aria-hidden />
-            {t("role_note")}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="egrid">
-        <div className="panel" role="tabpanel">
-          {panel}
-        </div>
-        <aside className="rail">{rail}</aside>
-      </div>
-
-      {dirtyCount > 0 ? (
-        discarding ? (
-          <SaveBar>
-            <span>{t("sb_discardQ", { n: dirtyCount })}</span>
-            <button type="button" className="btn ghost" onClick={() => setDiscarding(false)}>
-              {t("sb_keep")}
-            </button>
-            <button type="button" className="btn danger" onClick={discard}>
-              {t("sb_discard")}
-            </button>
-          </SaveBar>
-        ) : (
-          <SaveBar>
-            <span>{t("sb_changes", { n: dirtyCount })}</span>
-            <button type="button" className="btn ghost" onClick={() => setDiscarding(true)}>
-              {t("sb_cancel")}
-            </button>
-            <button type="button" className="btn pri" disabled={saving} onClick={() => void save()}>
+        <div className="ehead rise" style={{ ["--d" as string]: 0 }}>
+          <Thumb src={image} name={ed.name || product.name} />
+          <div className="grow">
+            <h1>{t("e_title")}</h1>
+            <div className="nm">
+              <bdi>{ed.name || product.name}</bdi>
+            </div>
+          </div>
+          <div className="acts">
+            <Link className="btn2" href={`/${locale}/products/${product.id}`}>
+              <Eye className="ic" aria-hidden />
+              {t("e_view")}
+            </Link>
+            <button type="button" className="btn" disabled={dirtyCount === 0 || saving} onClick={() => void save()}>
               <Check className="ic" aria-hidden />
               {saveLabel}
             </button>
-          </SaveBar>
-        )
-      ) : null}
+          </div>
+        </div>
+
+        <div className="tabsrow rise" style={{ ["--d" as string]: 1 }}>
+          <div className="seg" role="tablist">
+            {tabs.map((k) => {
+              const Icon = TAB_ICON[k];
+              const err = tabHasError(k);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  className={tab === k ? "on" : undefined}
+                  role="tab"
+                  aria-selected={tab === k}
+                  onClick={() => {
+                    setTab(k);
+                    setDiscarding(false);
+                  }}
+                >
+                  <Icon className="ic" aria-hidden />
+                  {t(TAB_LABEL[k])}
+                  {err ? <span className="dd err" aria-label="!" /> : tabIsDirty(k) ? <span className="dd" aria-label="•" /> : null}
+                </button>
+              );
+            })}
+          </div>
+          {!isSa ? (
+            <span className="rolenote">
+              <Info className="ic" aria-hidden />
+              {t("role_note")}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="egrid rise" style={{ ["--d" as string]: 2 }}>
+          <div className="card panel" role="tabpanel">
+            {panel}
+          </div>
+          <aside className="rail">{rail}</aside>
+        </div>
+
+        {dirtyCount > 0 ? (
+          discarding ? (
+            <SaveBar>
+              <span>{t("sb_discardQ", { n: dirtyCount })}</span>
+              <button type="button" className="btn2 sm" onClick={() => setDiscarding(false)}>
+                {t("sb_keep")}
+              </button>
+              <button type="button" className="btn sm dang" onClick={discard}>
+                {t("sb_discard")}
+              </button>
+            </SaveBar>
+          ) : (
+            <SaveBar>
+              <span>{t("sb_changes", { n: dirtyCount })}</span>
+              <button type="button" className="btn2 sm" onClick={() => setDiscarding(true)}>
+                {t("sb_cancel")}
+              </button>
+              <button type="button" className="btn sm" disabled={saving} onClick={() => void save()}>
+                <Check className="ic" aria-hidden />
+                {saveLabel}
+              </button>
+            </SaveBar>
+          )
+        ) : null}
+      </div>
     </div>
   );
 }

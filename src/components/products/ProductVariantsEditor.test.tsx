@@ -6,6 +6,14 @@ import { ProductVariantsEditor } from "./ProductVariantsEditor";
 import frMessages from "@/messages/fr.json";
 import arMessages from "@/messages/ar.json";
 
+// The stock dialog's focus trap is loaded lazily (client only); render it straight away.
+vi.mock("next/dynamic", () => ({
+  default: () =>
+    function Passthrough({ children }: { children: React.ReactNode }) {
+      return <>{children}</>;
+    },
+}));
+
 const t = frMessages.products.editV2.variantsEditor;
 
 const GRAND = {
@@ -243,7 +251,7 @@ describe("ProductVariantsEditor — modifier et supprimer", () => {
   test("dit quand le serveur a retiré au lieu de supprimer", async () => {
     const user = userEvent.setup();
     okFetch({ deleted: false, retired: true });
-    renderEditor();
+    renderEditor({ variants: [{ ...GRAND, current_stock: 0 }, PACK2] });
 
     await user.click(within(row("Grand")).getByRole("button", { name: t.actions.delete }));
     await user.click(screen.getByRole("button", { name: t.actions.confirmDelete }));
@@ -256,7 +264,7 @@ describe("ProductVariantsEditor — modifier et supprimer", () => {
 
   test("une suppression demande confirmation avant d'appeler le serveur", async () => {
     const user = userEvent.setup();
-    renderEditor();
+    renderEditor({ variants: [{ ...GRAND, current_stock: 0 }, PACK2] });
     await user.click(within(row("Grand")).getByRole("button", { name: t.actions.delete }));
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: t.actions.confirmDelete })).toBeInTheDocument();
@@ -280,5 +288,75 @@ describe("ProductVariantsEditor — arabe", () => {
     expect(screen.getByText(ar.axis.attribute)).toBeInTheDocument();
     expect(screen.getByText(ar.axis.pack)).toBeInTheDocument();
     expect(screen.queryByText(t.axis.attribute)).toBeNull();
+  });
+});
+
+
+/*
+ * « Cette variante porte encore du stock — soldez-le avant de la supprimer »
+ * était un cul-de-sac : le message disait quoi faire, aucun écran ne le
+ * permettait (la modale de stock ne savait pas viser une taille). Supprimer une
+ * taille qui porte des unités ouvre donc directement le geste qui les solde.
+ */
+describe("ProductVariantsEditor — supprimer une taille qui porte du stock", () => {
+  const stockCall = () =>
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => String(url).endsWith("/stock"));
+
+  test("ouvre le solde de stock au lieu d'appeler une suppression vouée au refus", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(within(row("Grand")).getByRole("button", { name: t.actions.delete }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(within(dialog).getByLabelText(frMessages.products.stockModal.quantityLabel)).toHaveValue(-60);
+    expect(within(dialog).getByLabelText(frMessages.products.stockModal.variantLabel)).toBeDisabled();
+    expect(within(dialog).getByText(/60 unités/)).toBeInTheDocument();
+  });
+
+  test("solder écrit la correction sur CETTE taille, puis dit que la suppression est possible", async () => {
+    const user = userEvent.setup();
+    okFetch({ new_stock: 0 });
+    const { props } = renderEditor();
+    await user.click(within(row("Grand")).getByRole("button", { name: t.actions.delete }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: frMessages.products.stockModal.apply }));
+
+    await waitFor(() => expect(stockCall()).toBeDefined());
+    const [url, init] = stockCall()!;
+    expect(url).toBe("/api/products/p-1/stock");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toMatchObject({ change: -60, reason: "manual_adjustment", variant_id: "v-grand" });
+    expect(await screen.findByText(t.cleared)).toBeInTheDocument();
+    expect(props.onChanged).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  test("« Ajuster » corrige une taille sans la supprimer", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(within(row("Grand")).getByRole("button", { name: t.actions.adjust }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByLabelText(frMessages.products.stockModal.quantityLabel)).toHaveValue(null);
+    expect(within(dialog).getByLabelText(frMessages.products.stockModal.variantLabel)).toHaveValue("v-grand");
+  });
+
+  test("un pack n'a pas de bouton « Ajuster » : il ne porte pas de stock", () => {
+    renderEditor();
+    expect(within(row("Pack 2")).queryByRole("button", { name: t.actions.adjust })).not.toBeInTheDocument();
+  });
+
+  test("un écran périmé (stock 0 affiché, 9 en vrai) bascule sur le solde avec le vrai chiffre", async () => {
+    const user = userEvent.setup();
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Cette variante porte encore du stock", code: "variant_has_stock", current_stock: 9 }),
+    });
+    renderEditor({ variants: [{ ...GRAND, current_stock: 0 }, PACK2] });
+    await user.click(within(row("Grand")).getByRole("button", { name: t.actions.delete }));
+    await user.click(screen.getByRole("button", { name: t.actions.confirmDelete }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText(frMessages.products.stockModal.quantityLabel)).toHaveValue(-9);
+    expect(screen.queryByText("Cette variante porte encore du stock")).not.toBeInTheDocument();
   });
 });
