@@ -43,23 +43,33 @@
 .fin.ads .note .go{margin-inline-start:auto;font-size:13px;font-weight:800;color:var(--warn);white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
 .fin.ads .note .go:disabled{opacity:.6}
 
-/* 1 · the chain — one glass card; the links carry the ratios */
-.fin.ads .chain{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px 18px}
-.fin.ads .step{display:flex;flex-direction:column;min-width:0}
-.fin.ads .step .sh{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:700;color:var(--ink-2);white-space:nowrap}
-.fin.ads .step .sv{font-size:24px;font-weight:800;letter-spacing:-.035em;line-height:1;margin-top:9px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.fin.ads .step .sl{font-size:12px;color:var(--ink-3);font-weight:500;margin-top:7px;white-space:nowrap}
+/* 1 · the chain — six equal columns, then a rail of their own for the conversions.
+   The ratios used to sit inline between the figures and crowded them; on the rail
+   each one sits on the boundary between the two steps it joins. */
+.fin.ads .chain{padding:22px 0 14px}
+.fin.ads .steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+.fin.ads .step{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;padding:2px 12px}
+.fin.ads .step + .step{border-inline-start:1px solid var(--line)}
+.fin.ads .step .sh{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.fin.ads .step .sv{font-size:26px;font-weight:800;letter-spacing:-.035em;line-height:1;margin-top:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fin.ads .step .sl{font-size:12px;color:var(--ink-3);font-weight:500;margin-top:8px;white-space:nowrap}
 .fin.ads .step.last .sv{color:var(--good)} .fin.ads .step.last.bad .sv{color:var(--bad)}
-.fin.ads .lnk{display:flex;flex-direction:column;align-items:center;padding:0 4px;margin-top:22px;flex:none}
-.fin.ads .lk{border-radius:12px;padding:5px 10px;text-align:center;background:rgba(255,255,255,.82);border:1px solid var(--glass-in-bd);box-shadow:0 2px 8px rgba(42,52,110,.06)}
-.fin.ads .lk b{display:block;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.2}
-.fin.ads .lk span{display:block;font-size:10.5px;font-weight:600;color:var(--ink-3);white-space:nowrap;margin-top:1px}
-.fin.ads .lk.cost{background:var(--bad-bg);border-color:transparent;box-shadow:none} .fin.ads .lk.cost b,.fin.ads .lk.cost span{color:var(--bad)}
-.fin.ads .lnk svg{width:34px;height:9px;color:var(--ink-4);margin-top:7px}
-[dir=rtl] .fin.ads .lnk svg{transform:scaleX(-1)}
-/* below 1340px the live chain drops its links and wraps to a grid — kept */
-@media (max-width:1340px){.fin.ads .chain{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 16px}.fin.ads .lnk{display:none}}
-@media (max-width:640px){.fin.ads .chain{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fin.ads .rail{position:relative;height:52px;margin-top:18px}
+.fin.ads .rail .line{position:absolute;top:50%;height:2px;margin-top:-1px;inset-inline:calc(100% / 12);border-radius:2px;background:rgba(15,23,40,.09)}
+.fin.ads .rail .node{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:var(--k);box-shadow:0 0 0 3px #fff;transform:translate(-50%,-50%)}
+.fin.ads .lk{position:absolute;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:6px 10px 6px 12px;background:#fff;border:1px solid rgba(15,23,40,.08);box-shadow:0 2px 10px rgba(42,52,110,.08);white-space:nowrap}
+[dir=rtl] .fin.ads .rail .node,[dir=rtl] .fin.ads .lk{transform:translate(50%,-50%)}
+.fin.ads .lk .lkt{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.fin.ads .lk b{font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.fin.ads .lk .lkt span{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-top:1px}
+.fin.ads .lk .ic{width:14px;height:14px;color:var(--ink-q)}
+[dir=rtl] .fin.ads .lk .ic{transform:scaleX(-1)}
+.fin.ads .lk.cost{background:var(--bad-bg);border-color:transparent;box-shadow:none}
+.fin.ads .lk.cost b,.fin.ads .lk.cost .lkt span,.fin.ads .lk.cost .ic{color:var(--bad)}
+/* below 1280px six columns are too narrow: three per row, and the rail goes (a rail between
+   wrapped rows would join the wrong neighbours) */
+@media (max-width:1279px){.fin.ads .steps{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:22px}.fin.ads .step:nth-child(3n+1){border-inline-start:0}.fin.ads .rail{display:none}}
+@media (max-width:640px){.fin.ads .steps{grid-template-columns:repeat(2,minmax(0,1fr))}.fin.ads .step:nth-child(3n+1){border-inline-start:1px solid var(--line)}.fin.ads .step:nth-child(2n+1){border-inline-start:0}}
 
 /* two panels */
 .fin.ads .two{display:grid;grid-template-columns:1.18fr 1fr;gap:16px;align-items:start}

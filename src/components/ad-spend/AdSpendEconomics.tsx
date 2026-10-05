@@ -2,7 +2,7 @@
 
 import { useState, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, ChevronRight, Info, Link2, Lock, Package, Pencil, Trash2, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronRight, Info, Link2, Lock, Package, Pencil, Trash2, Zap } from "lucide-react";
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import { fmtDay } from "./mapping/format";
 import type { ProductEconomics, EconomicsMeta, SpendEntry, CampaignSpend } from "@/hooks/useAdSpendEconomics";
@@ -186,11 +186,13 @@ export function AdSpendChain({ meta, currency }: { meta: EconomicsMeta; currency
     { b: `− ${fmt(meta.total_costs)} ${currency}`, s: t("ofWhichAds", { amount: fmt(meta.total_spend) }), cost: true },
   ];
 
+  const at = (x: number) => `${(x / steps.length) * 100}%`;
+
   return (
     <div className="card chain">
-      {steps.map((s, i) => (
-        <div key={s.head} style={{ display: "contents" }}>
-          <div className={`step${s.last ? " last" : ""}${s.bad ? " bad" : ""}`}>
+      <div className="steps">
+        {steps.map((s) => (
+          <div key={s.head} className={`step${s.last ? " last" : ""}${s.bad ? " bad" : ""}`}>
             <span className="sh">
               <i className={`sw ${s.k}`} aria-hidden />
               {s.head}
@@ -201,23 +203,27 @@ export function AdSpendChain({ meta, currency }: { meta: EconomicsMeta; currency
             </span>
             <span className="sl">{s.sub}</span>
           </div>
-          {/* The link between two steps is the conversion that got you there.
-              Below 1340px the row wraps to a grid and the links are dropped
-              rather than stacked — an arrow between grid cells points at the
-              wrong neighbour. */}
-          {links[i] && (
-            <div className="lnk" aria-hidden={false}>
-              <span className={`lk${links[i].cost ? " cost" : ""}`}>
-                <b>{links[i].b}</b>
-                <span>{links[i].s}</span>
-              </span>
-              <svg viewBox="0 0 34 9" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                <path d="M0 4.5h29M25 1l4 3.5-4 3.5" />
-              </svg>
-            </div>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
+      {/* The conversion that got you from one step to the next, on a rail of
+          its own: a dot under each step, the ratio on the boundary between
+          the two it joins. Below 1280px the steps wrap and the rail goes —
+          a rail between wrapped rows would join the wrong neighbours. */}
+      <div className="rail">
+        <i className="line" aria-hidden />
+        {steps.map((s, i) => (
+          <i key={s.head} className={`node ${s.k}`} style={{ insetInlineStart: at(i + 0.5) }} aria-hidden />
+        ))}
+        {links.map((l, i) => (
+          <span key={l.s} className={`lk${l.cost ? " cost" : ""}`} style={{ insetInlineStart: at(i + 1) }}>
+            <span className="lkt">
+              <b>{l.b}</b>
+              <span>{l.s}</span>
+            </span>
+            <ArrowRight className="ic" aria-hidden />
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
