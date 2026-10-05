@@ -15,7 +15,7 @@ import {
   wholeMonths,
 } from "@/lib/performance/orders/period";
 import type { DashWindow } from "@/lib/dashboard/stores/period";
-import { Ic, NB, glue, useHome } from "./ui";
+import { Ic, NB, useHome } from "./ui";
 
 export interface DpState {
   s: string | null;
@@ -63,7 +63,7 @@ export function DateButton({ dp, setDp }: { dp: DpState | null; setDp: (d: DpSta
         : t("head.cmpLine", { prev, range: f.range(w.pf, w.pt) });
   return (
     <div className="dwrap">
-      <button type="button" className={`dbtn${dp ? " on" : ""}`} aria-haspopup="dialog" aria-expanded={!!dp} onClick={() => setDp(dp ? null : openDp(w, view.first))}>
+      <button type="button" className={`dbtn${dp ? " on" : ""}`} aria-haspopup="dialog" aria-expanded={!!dp} data-tip={dp ? undefined : cmp} onClick={() => setDp(dp ? null : openDp(w, view.first))}>
         <Ic n="cal" />
         <span>
           <b>{label}</b>
@@ -71,7 +71,6 @@ export function DateButton({ dp, setDp }: { dp: DpState | null; setDp: (d: DpSta
         </span>
         <Ic n="down" />
       </button>
-      <div className="dcmp">{glue(cmp)}</div>
       {dp && <DatePopover dp={dp} setDp={setDp} />}
     </div>
   );

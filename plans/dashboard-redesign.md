@@ -164,3 +164,42 @@ filter resolved with the same buckets (`carrier_parcel_outcome`), and the store 
 - Equal-age arrows: adopt them for Performance › Commandes too?
 - Store colours given automatically (first free), editable in Connexions — fine?
 - Build a YouCan connector (and which other platforms come next)?
+
+## Calm revision — 2026-10-05 (built straight in code, no prototype, at the owner's request)
+
+Owner: "calmer, easier to monitor, elegant but smoother, not dense"; the « Toutes les boutiques » block had to change.
+Answers (all Recommended except extras):
+- **Summary card** replaces « Toutes les boutiques »: big count + arrow + « ≈ n par jour », ONE soft single-colour
+  curve (monotone cubic, `src/lib/dashboard/stores/curve.ts`; hour by hour today, stopping at now), then a bottom row:
+  « Sur 100 commandes reçues » outcome bar with a worded legend · Payé · Profit (owner) / Confirmées (manager) /
+  Confirmées · À appeler · Rejetées (today). No per-store stacking, no store bar list.
+- **Store cards, lighter**: logo (storefronts.logo_url, initials fallback) + name + platform word, orders + arrow,
+  a thin outcome bar + « n livrées sur 100 » (today: « x confirmées · n à appeler »), one status line (dot + words,
+  detail in the tooltip). Gone: ring, products, mini numbers, sort control, hover cross-highlighting.
+- **Kept only** the doors to Performance (now quiet links in the header). Removed: ad-stop banner, silent-stores
+  line, « Comment lire cette page ». The comparison sentence moved into the date button's tooltip.
+- An arrow with nothing to compare is not drawn at all (was a grey « — » pill on every card).
+- The API still computes `ads` and `quiet`; nothing reads them now — drop them if they stay unused.
+
+### Second pass — same day
+- The curve became **rounded bars** (`src/lib/dashboard/stores/bars.ts`): one per day, one per WEEK beyond 45 days,
+  one per hour today; the bar holding now (else the last lived) in full indigo with its number, the others soft;
+  a dashed « moy. » line labelled on the oldest side (the newest side collided with the highlighted bar).
+- **Two hero figures** lead the card: Commandes reçues and « Chiffre d’affaires encaissé » (owner, not today) — the
+  renamed « Payé par les clients », same figure (orders.total_price of delivered orders). Profit stays in the bottom row.
+- **Logos**: uploaded logo, else the PLATFORM's logo from public/ (Shopify cropped to its bag:
+  public/platforms/shopify-mark.svg), else initials (BuyBox, YouCan, Sheets have no file). On prod 2026-10-05 no shop
+  had an uploaded logo — that is why every card showed initials.
+
+### Final polish — same day
+- Arrows: from +200 % they read « ×15 » (`src/lib/dashboard/stores/trend.ts`), not « 1 380 % ».
+- Header subtitle shortened so « n % ont leur issue finale » stays on its line; revenue icon = a banknote.
+- One skeleton (`HomeSkeleton.tsx`) in the page's real shape, for loading.tsx and the first fetch.
+- Chart labels: first/last pinned inside the edges; under 600 px only those two show.
+
+### Store cards back to the v2 layout, calm — same day
+Owner liked the v2 card (ring, product tags, three mini figures, note box) but not its loud colours, and rejected
+« sur 100 ». Now: soft outcome palette (--o-* tokens), thinner ring, store hue only as a 12 % wash; the ring's
+middle is the DELIVERED COUNT with its % small under it, and every outcome on the page reads « 147 livrées 18 % »
+(Summ.k carries the counts). Arrows: ×N from +200 %. Mini figures: Confirmées · Retournées · CA encaissé (owner) /
+Rejetées (manager) / today: Confirmées · À appeler · Rejetées, with hour bars instead of the ring.

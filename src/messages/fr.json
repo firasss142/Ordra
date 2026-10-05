@@ -9279,8 +9279,8 @@
   "home": {
     "head": {
       "hello": "Bonjour {name}",
-      "subToday": "{market} · commandes reçues <b>aujourd’hui</b>, {date}, jusqu’à {time}",
-      "subRange": "{market} · commandes reçues du <b>{from}</b> au <b>{to}</b>, suivies jusqu’à aujourd’hui",
+      "subToday": "{market} · <b>aujourd’hui</b>, {date} · jusqu’à {time}",
+      "subRange": "{market} · commandes reçues du <b>{from}</b> au <b>{to}</b>",
       "final": "{pct} ont leur issue finale",
       "finalTip": "Part des commandes dont l’issue est connue (livrée, retournée, rejetée, jamais réelle). Le reste est encore en appel ou en route : ces chiffres bougeront encore.",
       "cmpNone": "Rien à comparer avant le {first}",
@@ -9323,58 +9323,48 @@
       "weekdays": "L,M,M,J,V,S,D"
     },
     "trend": {
-      "naBefore": "Rien à comparer : pas de commandes avant le {first}",
-      "naFew": "Trop peu de commandes pour comparer (moins de 30)",
-      "naEmpty": "Rien sur la période d’avant",
       "stable": "Stable · {prev} : {v}",
-      "pts": "{prev} : {v} sur 100",
+      "pts": "{prev} : {v} %",
       "val": "{prev} : {v}"
     },
-    "banner": {
-      "title": "La pub est à l’arrêt depuis le {day}",
-      "body": "0 {ccy} dépensé en {days, plural, one {# jour} other {# jours}} · les boutiques reçoivent toujours ({n, plural, one {# commande} other {# commandes}} aujourd’hui) : ce n’est pas une panne",
-      "open": "Dépenses pub"
-    },
     "all": {
-      "title": "Toutes les boutiques",
-      "connected": "{market} · {n, plural, one {# boutique connectée} other {# boutiques connectées}}",
       "emptyToday": "Aucune commande reçue en {market} aujourd’hui",
       "emptyRange": "Aucune commande reçue en {market} du {from} au {to}",
       "emptyLast": "La dernière commande date du {day} ({store}) · ",
       "emptyHint": "les boutiques sont connectées, rien n’arrive",
-      "eyebrow": "Toutes les boutiques · commandes reçues",
-      "metaToday": "aujourd’hui jusqu’à {time} · hier à la même heure : {n}",
-      "metaRange": "≈ {perDay} par jour · {n, plural, one {# boutique} other {# boutiques}}",
-      "flowToday": "Heure par heure · par boutique",
-      "flowRange": "Jour par jour · par boutique",
-      "colTip": "{label} · {n, plural, one {# commande} other {# commandes}}",
+      "eyebrow": "Commandes reçues",
       "colFuture": "{label} · à venir",
       "hour": "{h}h",
       "doorOrders": "Commandes",
       "doorTeam": "Équipe",
-      "doorDelivery": "Livraison"
+      "doorDelivery": "Livraison",
+      "curveRange": "Commandes reçues, jour par jour",
+      "curveToday": "Commandes reçues, heure par heure",
+      "perDay": "≈ {n} par jour",
+      "pointTip": "{label} · {n, plural, one {# commande} other {# commandes}}",
+      "chartWeeks": "Commandes reçues, semaine par semaine",
+      "avg": "moy. {n}",
+      "weekTip": "Du {from} au {to} · {n, plural, one {# commande} other {# commandes}}",
+      "avgTip": "Moyenne : {n} par {unit}",
+      "unitDay": "jour",
+      "unitWeek": "semaine",
+      "unitHour": "heure"
     },
     "tile": {
       "confirmed": "Confirmées",
-      "confirmedToday": "{up} uploadées sur {dec} décidées",
       "confirmedSub": "uploadées sur les décidées",
       "toCall": "À appeler",
       "toCallSub": "reçues aujourd’hui, pas encore décidées",
       "rejected": "Rejetées",
-      "rejectedSub": "dont jamais réelles : {n}",
-      "delivered": "Livrées",
-      "deliveredSub": "{n} colis livrés",
-      "paid": "Payé par les clients",
+      "paid": "Chiffre d’affaires encaissé",
       "paidSub": "pour {n} commandes livrées",
       "profit": "Profit net",
-      "why": "Comment on arrive à ce chiffre",
-      "returned": "Retournées",
-      "returnedSub": "{n} colis revenus"
+      "why": "Comment on arrive à ce chiffre"
     },
     "profit": {
       "dialog": "Le calcul du profit",
       "title": "Le profit net, ligne par ligne",
-      "paid": "Payé par les clients",
+      "paid": "Chiffre d’affaires encaissé",
       "paidSub": "{n} commandes livrées",
       "cogs": "− Coût des produits",
       "cogsSub": "achat des articles livrés",
@@ -9393,12 +9383,7 @@
     },
     "stores": {
       "title": "Vos boutiques",
-      "metaToday": "une carte par boutique · ses commandes d’aujourd’hui, heure par heure · cliquez pour sa performance",
-      "metaRange": "une carte par boutique · sur 100 commandes reçues, ce qu’elles sont devenues · cliquez pour sa performance",
-      "sort": "Trier",
-      "sortCmd": "Commandes",
-      "sortLiv": "Livrées /100",
-      "sortPaye": "Payé"
+      "meta": "cliquez une boutique pour voir sa performance"
     },
     "o": {
       "del": "Livrées",
@@ -9407,35 +9392,11 @@
       "junk": "Jamais réelles",
       "pend": "En cours"
     },
-    "odef": {
-      "del": "livrée au client",
-      "ret": "uploadée puis revenue",
-      "rej": "rejetée au téléphone",
-      "junk": "pas commandé, doublon, simple info, numéro faux",
-      "pend": "en appel, à uploader ou en route"
-    },
     "card": {
       "aria": "{name} — ouvrir sa performance",
-      "received": "{n, plural, one {commande reçue} other {commandes reçues}}",
-      "share": "{pct} du total",
-      "unique": "produit unique",
-      "ringL": "livrées",
-      "ringTip": "{o} · {n} sur 100 — {def}",
-      "earlyL": "livrées /100",
-      "earlyH": "trop tôt pour juger · jugée à 30 commandes",
       "confirmed": "Confirmées",
-      "confirmedSub": "des décidées",
-      "confirmedToday": "{n} uploadées",
-      "delivered": "Livrées",
-      "deliveredSub": "colis arrivés",
-      "paid": "Payé",
-      "paidSub": "par les clients",
-      "returned": "Retournées",
-      "returnedSub": "{n} colis",
+      "paid": "CA encaissé",
       "toCall": "À appeler",
-      "toCallSub": "en attente",
-      "rejected": "Rejetées",
-      "rejectedSub": "{n} jamais réelles",
       "viaSheets": "{platform} · reçue via une feuille Google Sheets",
       "freshTip": "Dernière commande reçue {at}",
       "atToday": "aujourd’hui à {time}",
@@ -9445,7 +9406,21 @@
       "agoYesterday": "hier à {time}",
       "agoD": "il y a {n} j",
       "agoDay": "le {day}",
-      "none": "aucune commande"
+      "none": "aucune commande",
+      "received": "{n, plural, one {commande reçue} other {commandes reçues}}",
+      "share": "{pct} du total",
+      "ringL": "livrées",
+      "ringTip": "{o} · {n} ({pct})",
+      "earlyL": "Trop tôt pour juger",
+      "earlyH": "jugée à 30 commandes",
+      "confirmedSub": "des décidées",
+      "returned": "Retournées",
+      "returnedSub": "colis revenus",
+      "rejected": "Rejetées",
+      "rejectedSub": "au téléphone",
+      "paidSub": "{n} livrées",
+      "toCallSub": "en attente",
+      "hoursL": "Heure par heure"
     },
     "platform": {
       "converty": "Converty",
@@ -9479,18 +9454,18 @@
       "best": "Meilleure livraison des boutiques",
       "below": "Livre moins bien que les autres",
       "ok": "Rien à signaler",
-      "vsMarket": "{del} livrées sur 100 · {mkt} pour l’ensemble"
+      "vsMarket": "{del} % livrées · {mkt} % pour l’ensemble"
     },
-    "quiet": {
-      "line": "{n, plural, one {# boutique sans commande} other {# boutiques sans commande}} sur la période",
-      "last": "dernière commande le {day}",
-      "notYet": "pas encore ouverte",
-      "never": "aucune commande, jamais",
-      "add": "Connecter une boutique"
+    "out": {
+      "title": "Ce que sont devenues les commandes",
+      "item": "{n} {o} ({pct})"
     },
-    "defs": {
-      "summary": "Comment lire cette page",
-      "body": "<b>Base</b> : les commandes <b>reçues</b> pendant la période, suivies jusqu’à aujourd’hui — les mêmes que Performance › Commandes et Produits & marges. <b>Livrées sur 100</b> : pour 100 commandes reçues par la boutique, combien sont arrivées chez le client. <b>Confirmées</b> : uploadées ÷ (uploadées + rejetées). Une boutique est jugée à partir de <b>30 commandes</b> ; avant, « trop tôt pour juger ». Les <b>flèches</b> comparent à la période d’avant <b>au même âge</b> : telle qu’elle était il y a 30 jours (pour 30 jours), jamais des colis encore en route contre des colis arrivés. <b>Payé</b> : ce que les clients ont payé pour les commandes livrées (orders.total_price). Le <b>profit</b> n’existe qu’à l’échelle du marché tant que la pub n’est pas rattachée à une boutique. Une <b>boutique</b> = un sous-compte (sous-domaine) d’une plateforme ; la plateforme n’est qu’une étiquette."
+    "ol": {
+      "del": "livrées",
+      "ret": "retournées",
+      "rej": "rejetées",
+      "junk": "jamais réelles",
+      "pend": "en cours"
     }
   },
   "commandes": {

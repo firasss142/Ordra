@@ -9,6 +9,7 @@ import { makeFmt, type Fmt, type Loc } from "@/components/performance/orders/ui"
 import type { DashState } from "@/lib/dashboard/stores/period";
 import type { Hue } from "@/lib/dashboard/stores/model";
 import type { StoreDashView } from "@/lib/dashboard/stores/view";
+import { change } from "@/lib/dashboard/stores/trend";
 import { ICON_PATHS } from "./icons";
 
 export { makeFmt, type Fmt, type Loc };
@@ -26,10 +27,28 @@ export const HUES: Record<Hue, [string, string]> = {
 };
 export const hueVars = (h: Hue): CSSProperties => ({ "--a5": HUES[h][0], "--a7": HUES[h][1] }) as CSSProperties;
 
-/** Platform glyphs on the small dark tile (prototype `PF.g`). */
-export const PLATFORM_GLYPH: Record<string, string> = {
-  converty: "C", shopify: "S", lightfunnels: "LF", youcan: "Y", woocommerce: "W", easyorders: "E", buybox: "B", sheets: "G", other: "·",
+/**
+ * The platform's own logo, shown when the shop has none uploaded (same fallback idea
+ * as Réglages › Boutiques). No file for BuyBox / YouCan / Sheets: those keep initials.
+ */
+export const PLATFORM_LOGO: Partial<Record<string, string>> = {
+  converty: "/converty.svg",
+  shopify: "/platforms/shopify-mark.svg",
+  woocommerce: "/woo_logo_black.svg",
+  easyorders: "/easy_orders.svg",
+  lightfunnels: "/lightfunnel-logo.svg",
 };
+
+/** A shop's mark: its uploaded logo, else its platform's logo, else its initials on its colour. */
+export function StoreLogo({ name, logo, platform }: { name: string; logo: string | null; platform: string }) {
+  const src = logo ?? PLATFORM_LOGO[platform] ?? null;
+  return (
+    <span className={`sav${src ? " img" : ""}${!logo && src ? " pf" : ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- uploaded logos live on any host */}
+      {src ? <img src={src} alt="" /> : initials(name)}
+    </span>
+  );
+}
 
 export function initials(name: string): string {
   const words = name.split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w));
@@ -75,14 +94,11 @@ export function Ic({ n, className = "" }: { n: string; className?: string }) {
   return <svg className={`ic ${className}`} viewBox="0 0 24 24" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICON_PATHS[n] ?? "" }} />;
 }
 
-function naTip(c: HomeCtx): string {
-  return c.view.why === "before_first" ? c.t("trend.naBefore", { first: c.f.day(c.view.first) }) : c.t("trend.naFew");
-}
-
 /** An arrow in points per 100 (prototype `trendPts`). */
 export function TrendPts({ now, prev, upGood, ok }: { now: number; prev: number | null; upGood: boolean; ok: boolean }) {
   const c = useHome();
-  if (!ok || prev == null) return <span className="tr na" data-tip={naTip(c)}>—</span>;
+  // Nothing to compare: no arrow at all — a grey « — » on every card was noise.
+  if (!ok || prev == null) return null;
   const d = Math.round(now) - Math.round(prev);
   if (!d) return <span className="tr eq" data-tip={c.t("trend.stable", { prev: c.sameAge, v: c.f.n(Math.round(prev)) })}>=</span>;
   return (
@@ -96,13 +112,13 @@ export function TrendPts({ now, prev, upGood, ok }: { now: number; prev: number 
 /** An arrow in % of change (prototype `trendPct`). */
 export function TrendPct({ now, prev, ok, fmt }: { now: number; prev: number | null; ok: boolean; fmt: (v: number) => string }) {
   const c = useHome();
-  if (!ok || !prev) return <span className="tr na" data-tip={!prev && ok ? c.t("trend.naEmpty") : naTip(c)}>—</span>;
-  const d = Math.round(((now - prev) / Math.abs(prev)) * 100);
-  if (!d) return <span className="tr eq" data-tip={c.t("trend.stable", { prev: c.sameAge, v: fmt(prev) })}>=</span>;
+  if (!ok || !prev) return null;
+  const ch = change(now, prev);
+  if (!ch.dir) return <span className="tr eq" data-tip={c.t("trend.stable", { prev: c.sameAge, v: fmt(prev) })}>=</span>;
   return (
-    <span className={`tr ${d > 0 ? "good" : "bad"}`} data-tip={c.t("trend.val", { prev: c.sameAge, v: fmt(prev) })}>
-      <Ic n={d > 0 ? "up" : "dn"} />
-      {c.f.pct(Math.abs(d))}
+    <span className={`tr ${ch.dir > 0 ? "good" : "bad"}`} data-tip={c.t("trend.val", { prev: c.sameAge, v: fmt(prev) })}>
+      <Ic n={ch.dir > 0 ? "up" : "dn"} />
+      {ch.times ? `×${c.f.n(ch.times)}` : c.f.pct(ch.pct)}
     </span>
   );
 }
