@@ -9,17 +9,18 @@ import { groupDigits, NBSP } from "@/lib/products/format";
 import type { CohortCounts } from "@/types/product-overview";
 import { useUiLocale } from "./atoms";
 
-type Tone = "go" | "bad" | "gone" | "call" | "ok";
+/** The outcome hue of a node (products-v6.css: .k-up, .k-rej… — v6 colours, kept). */
+type Tone = "up" | "rej" | "del" | "call" | "dlv" | "fly" | "fail" | "wd";
 
-const W = 820;
-const H = 330;
+const W = 720;
+const H = 320;
 const TOP = 34;
 const BOT = 10;
 const NW = 12;
 const GAP = 12;
-const X0 = 118;
-const X1 = 380;
-const X2 = 600;
+const X0 = 104;
+const X1 = 330;
+const X2 = 530;
 
 export function OutcomeFlow({ counts, invoiced }: { counts: CohortCounts; invoiced: boolean }) {
   const t = useTranslations("products.v6");
@@ -30,19 +31,19 @@ export function OutcomeFlow({ counts, invoiced }: { counts: CohortCounts; invoic
 
   const c1 = (
     [
-      ["up", c.uploaded, "go", t("nd_up")],
-      ["rej", c.rejected, "bad", t("nd_rej")],
-      ["del", c.deleted, "gone", t("nd_del")],
-      ["cancel", c.cancelled, "gone", t("nd_cancel")],
+      ["up", c.uploaded, "up", t("nd_up")],
+      ["rej", c.rejected, "rej", t("nd_rej")],
+      ["del", c.deleted, "del", t("nd_del")],
+      ["cancel", c.cancelled, "del", t("nd_cancel")],
       ["call", c.calling + c.to_upload, "call", t("nd_call")],
     ] as [string, number, Tone, string][]
   ).filter((n) => n[1] > 0);
   const c2 = (
     [
-      ["dlv", c.delivered, "ok", t("nd_dlv")],
-      ["fly", c.in_flight, "go", invoiced ? t("nd_fly") : t("nd_fly_c")],
-      ["fail", c.failed, "bad", t("nd_fail")],
-      ["wd", c.withdrawn, "gone", t("nd_wd")],
+      ["dlv", c.delivered, "dlv", t("nd_dlv")],
+      ["fly", c.in_flight, "fly", invoiced ? t("nd_fly") : t("nd_fly_c")],
+      ["fail", c.failed, "fail", t("nd_fail")],
+      ["wd", c.withdrawn, "wd", t("nd_wd")],
     ] as [string, number, Tone, string][]
   ).filter((n) => n[1] > 0);
 
@@ -70,17 +71,18 @@ export function OutcomeFlow({ counts, invoiced }: { counts: CohortCounts; invoic
   const settled = c.delivered + c.failed;
   const pct = (x: number) => `${groupDigits(x * 100)}${rtl ? "%" : `${NBSP}%`}`;
 
-  const rect = (key: string, x: number, yy: number, h: number, cls: string) => (
-    <rect key={key} className={cls} x={(rtl ? W - x - NW : x).toFixed(1)} y={yy.toFixed(1)} width={NW} height={h.toFixed(1)} rx="3" />
+  const rect = (key: string, x: number, yy: number, h: number, cls: string, tip: string) => (
+    <rect key={key} className={`nd ${cls}`} x={(rtl ? W - x - NW : x).toFixed(1)} y={yy.toFixed(1)} width={NW} height={h.toFixed(1)} rx="4" data-tip={tip} />
   );
-  const rib = (key: string, x0: number, y0: number, x1: number, y1: number, h0: number, h1: number, tone: Tone) => {
+  const rib = (key: string, x0: number, y0: number, x1: number, y1: number, h0: number, h1: number, tone: Tone, tip: string) => {
     const a = mx(x0);
     const b = mx(x1);
     const m = mx((x0 + x1) / 2);
     return (
       <path
         key={key}
-        className={`rb r-${tone}`}
+        className={`rb k-${tone}`}
+        data-tip={tip}
         d={`M${a} ${y0.toFixed(1)} C${m} ${y0.toFixed(1)} ${m} ${y1.toFixed(1)} ${b} ${y1.toFixed(1)} L${b} ${(y1 + h1).toFixed(1)} C${m} ${(y1 + h1).toFixed(1)} ${m} ${(y0 + h0).toFixed(1)} ${a} ${(y0 + h0).toFixed(1)} Z`}
       />
     );
@@ -121,7 +123,7 @@ export function OutcomeFlow({ counts, invoiced }: { counts: CohortCounts; invoic
   for (const n of c1) {
     const tn = N1[n[0]];
     const h = n[1] * k;
-    ribbons.push(rib(`r1-${n[0]}`, X0 + NW, so, X1, tn.y, h, Math.max(h, tn.h), n[2]));
+    ribbons.push(rib(`r1-${n[0]}`, X0 + NW, so, X1, tn.y, h, Math.max(h, tn.h), n[2], `${n[3]} · ${groupDigits(n[1])}\n${t("fl_of_rec", { p: pct(n[1] / c.received) })}`));
     so += h;
   }
   if (N1.up) {
@@ -129,7 +131,7 @@ export function OutcomeFlow({ counts, invoiced }: { counts: CohortCounts; invoic
     for (const n of c2) {
       const tn = N2[n[0]];
       const h = n[1] * k;
-      ribbons.push(rib(`r2-${n[0]}`, X1 + NW, so2, X2, tn.y, h, Math.max(h, tn.h), n[2]));
+      ribbons.push(rib(`r2-${n[0]}`, X1 + NW, so2, X2, tn.y, h, Math.max(h, tn.h), n[2], `${n[3]} · ${groupDigits(n[1])}\n${t("fl_of_up", { p: pct(n[1] / c.uploaded) })}`));
       so2 += h;
     }
   }
@@ -137,21 +139,21 @@ export function OutcomeFlow({ counts, invoiced }: { counts: CohortCounts; invoic
 
   return (
     <div className="flowscroll">
-      <svg className="sk" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("fl_title", { n: groupDigits(c.received) })}>
+      <svg className="flowsvg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("fl_title", { n: groupDigits(c.received) })}>
         {ribbons}
-        {rect("n0", X0, n0.y, n0.h, "n-src")}
-        {c1.map((n) => rect(`n1-${n[0]}`, X1, N1[n[0]].y, N1[n[0]].h, `n-${n[2]}`))}
-        {c2.map((n) => rect(`n2-${n[0]}`, X2, N2[n[0]].y, N2[n[0]].h, `n-${n[2]}`))}
-        <text x={mx(X0 - 10)} y={(c0y - 8).toFixed(1)} textAnchor="end" direction={dir} className="l0">
+        {rect("n0", X0, n0.y, n0.h, "k-src", `${t("nd_rec")} · ${groupDigits(c.received)}`)}
+        {c1.map((n) => rect(`n1-${n[0]}`, X1, N1[n[0]].y, N1[n[0]].h, `k-${n[2]}`, `${n[3]} · ${groupDigits(n[1])}`))}
+        {c2.map((n) => rect(`n2-${n[0]}`, X2, N2[n[0]].y, N2[n[0]].h, `k-${n[2]}`, `${n[3]} · ${groupDigits(n[1])}`))}
+        <text x={mx(X0 - 12)} y={(c0y - 10).toFixed(1)} textAnchor="end" direction={dir} className="l0">
           {t("nd_rec")}
         </text>
-        <text x={mx(X0 - 10)} y={(c0y + 18).toFixed(1)} textAnchor="end" direction={dir} className="v0">
+        <text x={mx(X0 - 12)} y={(c0y + 20).toFixed(1)} textAnchor="end" direction={dir} className="v0">
           {groupDigits(c.received)}
         </text>
         {c1.map((n) => {
           const node = N1[n[0]];
           return n[0] === "up"
-            ? label(`l1-${n[0]}`, X1, node.y - 10, n[3], n[1], n[1] / c.received)
+            ? label(`l1-${n[0]}`, X1, node.y - 11, n[3], n[1], n[1] / c.received)
             : label(`l1-${n[0]}`, X1 + NW + 8, node.y + node.h / 2 + 4.5, n[3], n[1], n[1] / c.received);
         })}
         {c2.map((n) => {

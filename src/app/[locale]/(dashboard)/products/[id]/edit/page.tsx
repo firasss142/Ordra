@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ProductEditV6 } from "@/components/products/v6/ProductEditV6";
-import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 
 const TABS = ["general", "prix", "var", "stock", "fiche"] as const;
 type Tab = (typeof TABS)[number];
@@ -88,56 +87,54 @@ export default async function EditProductPage({
   const tab = TABS.find((t) => t === searchParams.tab) as Tab | undefined;
 
   return (
-    <ProductsFrame>
-      <ProductEditV6
-        locale={params.locale}
-        role={profile.role}
-        currency={(market as { currency?: string } | null)?.currency ?? "TND"}
-        initialTab={tab}
-        crossSellOptions={crossSellOptions ?? []}
-        variantNotes={(variants ?? []).map((v) => ({
-          id: v.id,
-          label: v.label,
-          agent_note: v.agent_note ?? null,
-        }))}
-        variants={(variants ?? []).map((v) => ({
-          id: v.id,
-          kind: v.kind === "attribute" ? ("attribute" as const) : ("pack" as const),
-          label: v.label,
-          sku: v.sku ?? null,
-          quantity: Number(v.quantity ?? 1),
-          unit_cogs: Number(v.unit_cogs ?? 0),
-          display_price: Number(v.display_price ?? 0),
-          current_stock: Number(v.current_stock ?? 0),
-          damaged_return_count: Number(v.damaged_return_count ?? 0),
-          is_active: v.is_active !== false,
-        }))}
-        product={{
-          id: product.id,
-          market_id: product.market_id,
-          name: product.name,
-          sku: product.sku ?? null,
-          description: product.description ?? null,
-          image_url: product.image_url ?? null,
-          agent_brief: product.agent_brief ?? null,
-          agent_brief_tone: product.agent_brief_tone ?? "info",
-          agent_notes: product.agent_notes ?? null,
-          agent_composition: product.agent_composition ?? null,
-          agent_contraindications: product.agent_contraindications ?? null,
-          agent_usage: product.agent_usage ?? null,
-          cross_sell_product_id: product.cross_sell_product_id ?? null,
-          floor_price: product.floor_price === null ? null : Number(product.floor_price),
-          unit_cogs: Number(product.unit_cogs),
-          packing_cost: Number(product.packing_cost),
-          confirmation_processing_cost:
-            product.confirmation_processing_cost === null ? null : Number(product.confirmation_processing_cost),
-          default_price: product.default_price === null ? null : Number(product.default_price),
-          low_stock_threshold: Number(product.low_stock_threshold),
-          is_active: product.is_active,
-          current_stock: Number(product.current_stock),
-          damaged_return_count: Number(product.damaged_return_count ?? 0),
-        }}
-      />
-    </ProductsFrame>
+    <ProductEditV6
+      locale={params.locale}
+      role={profile.role}
+      currency={(market as { currency?: string } | null)?.currency ?? "TND"}
+      initialTab={tab}
+      crossSellOptions={crossSellOptions ?? []}
+      variantNotes={(variants ?? []).map((v) => ({
+        id: v.id,
+        label: v.label,
+        agent_note: v.agent_note ?? null,
+      }))}
+      variants={(variants ?? []).map((v) => ({
+        id: v.id,
+        kind: v.kind === "attribute" ? ("attribute" as const) : ("pack" as const),
+        label: v.label,
+        sku: v.sku ?? null,
+        quantity: Number(v.quantity ?? 1),
+        unit_cogs: Number(v.unit_cogs ?? 0),
+        display_price: Number(v.display_price ?? 0),
+        current_stock: Number(v.current_stock ?? 0),
+        damaged_return_count: Number(v.damaged_return_count ?? 0),
+        is_active: v.is_active !== false,
+      }))}
+      product={{
+        id: product.id,
+        market_id: product.market_id,
+        name: product.name,
+        sku: product.sku ?? null,
+        description: product.description ?? null,
+        image_url: product.image_url ?? null,
+        agent_brief: product.agent_brief ?? null,
+        agent_brief_tone: product.agent_brief_tone ?? "info",
+        agent_notes: product.agent_notes ?? null,
+        agent_composition: product.agent_composition ?? null,
+        agent_contraindications: product.agent_contraindications ?? null,
+        agent_usage: product.agent_usage ?? null,
+        cross_sell_product_id: product.cross_sell_product_id ?? null,
+        floor_price: product.floor_price === null ? null : Number(product.floor_price),
+        unit_cogs: Number(product.unit_cogs),
+        packing_cost: Number(product.packing_cost),
+        confirmation_processing_cost:
+          product.confirmation_processing_cost === null ? null : Number(product.confirmation_processing_cost),
+        default_price: product.default_price === null ? null : Number(product.default_price),
+        low_stock_threshold: Number(product.low_stock_threshold),
+        is_active: product.is_active,
+        current_stock: Number(product.current_stock),
+        damaged_return_count: Number(product.damaged_return_count ?? 0),
+      }}
+    />
   );
 }

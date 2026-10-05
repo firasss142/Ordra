@@ -13,11 +13,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Box, Check, ChevronDown, ChevronRight, Coins, FileText, Info, Layers, Plus, Tag, Wallet, X } from "lucide-react";
+import { Box, Check, ChevronDown, ChevronRight, Coins, Info, Layers, Plus, Tag, Wallet, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { currencySymbol, numText } from "@/lib/products/format";
 import { Amount, Thumb } from "./atoms";
 import { Field, Group, PhotoField, SaveBar, Unit, num, validAmount, validCount } from "./form";
+import "@/components/finance/kit/finance-kit.css";
 import "./products-v6.css";
 
 export interface CreateMarket {
@@ -315,7 +316,7 @@ export function ProductCreateV6({
           {lockedMarketId === null && markets.length > 1 ? (
             <div className="frow">
               <Field id="f-market" label={t("n_market")} hint={t("n_market_h")}>
-                <div className="selwrap">
+                <div className="selw">
                   <select className="inp" id="f-market" value={d.market} onChange={(e) => set("market", e.target.value)}>
                     {markets.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -335,8 +336,10 @@ export function ProductCreateV6({
     panel = (
       <>
         {hasSizes ? (
-          <div className="infobox">
-            <Layers className="ic" aria-hidden />
+          <div className="glass infob">
+            <span className="tk k-neu">
+              <Layers className="ic" aria-hidden />
+            </span>
             <span>{t("n_var_moved")}</span>
           </div>
         ) : (
@@ -355,14 +358,14 @@ export function ProductCreateV6({
     );
   } else if (tab === "var") {
     panel = !sizes ? (
-      <div className="empty" style={{ margin: 0 }}>
-        <span className="ih t-slate">
+      <div className="empty fe">
+        <span className="tk k-neu">
           <Layers className="ic" aria-hidden />
         </span>
         <b>{t("v_emptyT")}</b>
         <p>{t("n_v_off")}</p>
-        <div className="acts" style={{ justifyContent: "center" }}>
-          <button type="button" className="btn sm" onClick={() => setSizes([emptySize()])}>
+        <div className="acts">
+          <button type="button" className="btn2 sm" onClick={() => setSizes([emptySize()])}>
             <Plus className="ic" aria-hidden />
             {t("v_size")}
           </button>
@@ -401,7 +404,7 @@ export function ProductCreateV6({
                 {cell("stock", t("n_v_stock"), { count: true })}
                 <button
                   type="button"
-                  className="iconbtn"
+                  className="mbtn"
                   aria-label={t("n_v_remove")}
                   title={t("n_v_remove")}
                   disabled={sizes.length === 1}
@@ -415,13 +418,13 @@ export function ProductCreateV6({
         </div>
         {errors.variants ? <div className="errmsg">{errors.variants}</div> : null}
         <div className="acts">
-          <button type="button" className="btn sm" onClick={() => setSizes([...sizes, emptySize()])}>
+          <button type="button" className="btn2 sm" onClick={() => setSizes([...sizes, emptySize()])}>
             <Plus className="ic" aria-hidden />
             {t("v_size")}
           </button>
           <button
             type="button"
-            className="btn sm"
+            className="btn2 sm"
             onClick={() => {
               setSizes(null);
               setBadSizes({});
@@ -439,8 +442,10 @@ export function ProductCreateV6({
       <>
         <Group title={t("n_g_start")}>
           {hasSizes ? (
-            <div className="infobox">
-              <Layers className="ic" aria-hidden />
+            <div className="glass infob">
+              <span className="tk k-neu">
+                <Layers className="ic" aria-hidden />
+              </span>
               <span>{t("n_stock_var", { n: numText(sizeTotal) })}</span>
             </div>
           ) : (
@@ -461,10 +466,10 @@ export function ProductCreateV6({
     return (
       <div className={`crow${o.sum ? " sum" : ""}`} key={label}>
         <span>
-          {sw ? <span className={`sw ${sw}`} /> : null}
+          {sw ? <i className={`sw ${sw}`} /> : null}
           {label}
         </span>
-        <b className={result ? (v < 0 ? "neg" : "pos") : undefined}>
+        <b className={result && v < 0 ? "neg" : undefined}>
           {currency ? <Amount value={v} currency={currency} d={1} signed={result || v < 0} /> : numText(v)}
         </b>
       </div>
@@ -493,9 +498,9 @@ export function ProductCreateV6({
       <>
         <div className="calc">
           {row("", t("r_price"), price)}
-          {row("s-cogs", t("r_cogs"), -cogs)}
-          {pack > 0 ? row("s-pack", t("r_pack"), -pack) : null}
-          {proc > 0 ? row("s-proc", t("m_proc"), -proc) : null}
+          {row("k-cogs", t("r_cogs"), -cogs)}
+          {pack > 0 ? row("k-pack", t("r_pack"), -pack) : null}
+          {proc > 0 ? row("k-proc", t("m_proc"), -proc) : null}
           {row("", t("n_m_before"), price - cogs - pack - proc, { sum: true })}
         </div>
         <p className="rnote">{t("n_m_note")}</p>
@@ -506,112 +511,124 @@ export function ProductCreateV6({
   }
 
   return (
-    <div className="pv6 page">
-      <nav className="crumb" aria-label="breadcrumb">
-        <Link href={`/${locale}/products`}>{t("crumb_products")}</Link>
-        <ChevronRight className="ic chev" aria-hidden />
-        <span>{t("n_title")}</span>
-      </nav>
+    <div className="fin prd">
+      <div className="page">
+        <nav className="crumb rise" style={{ ["--d" as string]: 0 }} aria-label="breadcrumb">
+          {t("crumb_fin")}
+          <ChevronRight className="ic" aria-hidden />
+          <Link href={`/${locale}/products`}>{t("crumb_products")}</Link>
+          <ChevronRight className="ic" aria-hidden />
+          <span>{t("n_title")}</span>
+        </nav>
 
-      <div className="ehead">
-        <Thumb src={image} name={d.name || "?"} size={52} radius={12} />
-        <div className="grow">
-          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-.02em" }}>{t("n_title")}</h1>
-          <div className="nm">{d.name.trim() ? <bdi>{d.name}</bdi> : t("n_unnamed")}</div>
-        </div>
-        <div className="acts">
-          <Link className="btn" href={`/${locale}/products`}>
-            {t("sb_cancel")}
-          </Link>
-          <button type="button" className="btn pri" disabled={saving} onClick={() => void create()}>
-            <Check className="ic" aria-hidden />
-            {saving ? t("n_creating") : t("n_create")}
-          </button>
-        </div>
-      </div>
-
-      <div className="acts">
-        <div className="tabs" role="tablist">
-          {TABS.map((k) => {
-            const Icon = TAB_ICON[k];
-            const err = tabHasError(k);
-            return (
-              <button
-                key={k}
-                type="button"
-                className="tab"
-                role="tab"
-                aria-selected={tab === k}
-                onClick={() => {
-                  setTab(k);
-                  setLeaving(false);
-                }}
-              >
-                <Icon className="ic" aria-hidden />
-                {t(TAB_LABEL[k])}
-                {err ? <span className="dd err" aria-label="!" /> : tabIsDirty(k) ? <span className="dd" aria-label="•" /> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="egrid">
-        <div className="panel" role="tabpanel">
-          {panel}
-        </div>
-        <aside className="rail">
-          <div className="card rcard">
-            <div className="rh">
-              <Wallet className="ic" aria-hidden />
-              {t("n_m_title")}
-            </div>
-            {margin}
-          </div>
-          <div className="card rcard">
-            <div className="rh">
-              <FileText className="ic" aria-hidden />
-              {t("n_next_t")}
-            </div>
-            <p className="rnote">{t("n_next_b")}</p>
-          </div>
-        </aside>
-      </div>
-
-      {dirty ? (
-        leaving ? (
-          <SaveBar>
-            <span>{t("n_leaveQ")}</span>
-            <button type="button" className="btn ghost" onClick={() => setLeaving(false)}>
-              {t("sb_keep")}
-            </button>
-            <button
-              type="button"
-              className="btn danger"
-              onClick={() => {
-                done.current = true;
-                router.push(`/${locale}/products`);
-              }}
-            >
-              {t("sb_discard")}
-            </button>
-          </SaveBar>
-        ) : (
-          <SaveBar>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <Info className="ic" aria-hidden />
-              {complete ? t("n_ready") : t("n_incomplete")}
+        <div className="ehead rise" style={{ ["--d" as string]: 0 }}>
+          {image ? (
+            <Thumb src={image} name={d.name || "?"} />
+          ) : (
+            <span className="pimg new" aria-hidden="true">
+              <Plus className="ic" />
             </span>
-            <button type="button" className="btn ghost" onClick={() => setLeaving(true)}>
+          )}
+          <div className="grow">
+            <h1>{t("n_title")}</h1>
+            <div className="nm">{d.name.trim() ? <bdi>{d.name}</bdi> : t("n_unnamed")}</div>
+          </div>
+          <div className="acts">
+            <Link className="btn2" href={`/${locale}/products`}>
               {t("sb_cancel")}
-            </button>
-            <button type="button" className="btn pri" disabled={saving} onClick={() => void create()}>
+            </Link>
+            <button type="button" className="btn" disabled={saving} onClick={() => void create()}>
               <Check className="ic" aria-hidden />
               {saving ? t("n_creating") : t("n_create")}
             </button>
-          </SaveBar>
-        )
-      ) : null}
+          </div>
+        </div>
+
+        <div className="tabsrow rise" style={{ ["--d" as string]: 1 }}>
+          <div className="seg" role="tablist">
+            {TABS.map((k) => {
+              const Icon = TAB_ICON[k];
+              const err = tabHasError(k);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  className={tab === k ? "on" : undefined}
+                  role="tab"
+                  aria-selected={tab === k}
+                  onClick={() => {
+                    setTab(k);
+                    setLeaving(false);
+                  }}
+                >
+                  <Icon className="ic" aria-hidden />
+                  {t(TAB_LABEL[k])}
+                  {err ? <span className="dd err" aria-label="!" /> : tabIsDirty(k) ? <span className="dd" aria-label="•" /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="egrid rise" style={{ ["--d" as string]: 2 }}>
+          <div className="card panel" role="tabpanel">
+            {panel}
+          </div>
+          <aside className="rail">
+            <div className="card rc">
+              <div className="rh eyebrow">
+                <Wallet className="ic" aria-hidden />
+                {t("n_m_title")}
+              </div>
+              {margin}
+            </div>
+            <div className="card rc">
+              <div className="rh eyebrow">
+                <Info className="ic" aria-hidden />
+                {t("n_next_t")}
+              </div>
+              <p className="rnote" style={{ margin: 0 }}>
+                {t("n_next_b")}
+              </p>
+            </div>
+          </aside>
+        </div>
+
+        {dirty ? (
+          leaving ? (
+            <SaveBar>
+              <span>{t("n_leaveQ")}</span>
+              <button type="button" className="btn2 sm" onClick={() => setLeaving(false)}>
+                {t("sb_keep")}
+              </button>
+              <button
+                type="button"
+                className="btn sm dang"
+                onClick={() => {
+                  done.current = true;
+                  router.push(`/${locale}/products`);
+                }}
+              >
+                {t("sb_discard")}
+              </button>
+            </SaveBar>
+          ) : (
+            <SaveBar>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <Info className="ic" aria-hidden />
+                {complete ? t("n_ready") : t("n_incomplete")}
+              </span>
+              <button type="button" className="btn2 sm" onClick={() => setLeaving(true)}>
+                {t("sb_cancel")}
+              </button>
+              <button type="button" className="btn sm" disabled={saving} onClick={() => void create()}>
+                <Check className="ic" aria-hidden />
+                {saving ? t("n_creating") : t("n_create")}
+              </button>
+            </SaveBar>
+          )
+        ) : null}
+      </div>
     </div>
   );
 }

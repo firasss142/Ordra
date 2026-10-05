@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { ProductCreateV6, type CreateMarket } from "@/components/products/v6/ProductCreateV6";
-import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 
 /*
  * NOUVEAU PRODUIT — the edit page's design (tabs, one save, the rail), for a
@@ -45,13 +44,11 @@ export default async function NewProductPage({
   const lockedMarketId = activeScope.marketId ?? null;
 
   return (
-    <ProductsFrame>
-      <ProductCreateV6
-        locale={params.locale}
-        markets={markets}
-        defaultMarketId={lockedMarketId ?? markets[0]?.id ?? ""}
-        lockedMarketId={lockedMarketId}
-      />
-    </ProductsFrame>
+    <ProductCreateV6
+      locale={params.locale}
+      markets={markets}
+      defaultMarketId={lockedMarketId ?? markets[0]?.id ?? ""}
+      lockedMarketId={lockedMarketId}
+    />
   );
 }

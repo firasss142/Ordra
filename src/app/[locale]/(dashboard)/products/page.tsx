@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ProductsListV6 } from "@/components/products/v6/ProductsListV6";
-import { ProductsFrame } from "@/components/products/v6/ProductsFrame";
 import { canViewProductProfitability } from "@/lib/finance-permissions";
 import { getTranslations } from "next-intl/server";
+import "@/components/finance/kit/finance-kit.css";
+import "@/components/products/v6/products-v6.css";
 
 export default async function ProductsPage({
   params,
@@ -31,17 +32,13 @@ export default async function ProductsPage({
   if (!canViewProductProfitability(profile.role)) {
     const t = await getTranslations({ locale: params.locale, namespace: "products" });
     return (
-      <ProductsFrame>
-        <div className="mx-auto max-w-[1260px] rounded-[14px] border border-line-subtle bg-surface-card px-6 py-16 text-center text-[14px] text-ink-secondary">
-          {t("noPermission")}
+      <div className="fin prd">
+        <div className="page">
+          <section className="card empty">{t("noPermission")}</section>
         </div>
-      </ProductsFrame>
+      </div>
     );
   }
 
-  return (
-    <ProductsFrame>
-      <ProductsListV6 role={profile.role} userMarketId={profile.market_id ?? null} locale={params.locale} />
-    </ProductsFrame>
-  );
+  return <ProductsListV6 role={profile.role} userMarketId={profile.market_id ?? null} locale={params.locale} />;
 }
