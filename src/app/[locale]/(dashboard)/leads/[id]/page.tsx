@@ -16,12 +16,12 @@ export const dynamic = "force-dynamic";
  * still decides what it will accept.
  */
 export default async function ProspectDetailPage({
-  params,
-}: { params: { locale: string; id: string } }) {
+  params, searchParams,
+}: { params: { locale: string; id: string }; searchParams?: { convert?: string } }) {
   const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
   if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
   if (user.role === "investor") redirect(`/${params.locale}/investor`);
 
-  return <ProspectDetailClient leadId={params.id} locale={params.locale} />;
+  return <ProspectDetailClient leadId={params.id} locale={params.locale} openConvert={searchParams?.convert === "1"} />;
 }

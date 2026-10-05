@@ -1,5 +1,8 @@
 "use client";
 
+import "@/components/agent/agent.css";
+import "@/components/agent/agent-app.css";
+import "@/components/agent/commissions/commissions.css";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAgentCommissions } from "@/hooks/useAgentCommissions";
@@ -11,16 +14,23 @@ interface Props {
   tz: string;
 }
 
+/** « Mes commissions » — the children of the agent shell's `.page`. */
 export function AgentCommissionsClient({ marketCode, locale, tz }: Props) {
   const t = useTranslations("agentCommissions");
   const [days, setDays] = useState(90);
   const { me, error } = useAgentCommissions(days);
-  if (error && !me) return <p className="px-5 py-8 text-center text-[13.5px] text-agent-error">{t("loadError")}</p>;
+  if (error && !me) {
+    return (
+      <section className="list">
+        <div className="empty" role="alert">{t("loadError")}</div>
+      </section>
+    );
+  }
   if (!me) {
     return (
-      <div className="mx-auto max-w-[800px] px-5 pt-5" role="status">
-        <div className="h-[180px] animate-pulse rounded-xl bg-agent-surface-low" />
-        <div className="mt-3.5 h-[260px] animate-pulse rounded-xl bg-agent-surface-low" />
+      <div className="com-root" role="status" aria-busy="true">
+        <div className="com-skel" />
+        <div className="twoc"><div className="com-skel sm" /><div className="com-skel sm" /></div>
       </div>
     );
   }

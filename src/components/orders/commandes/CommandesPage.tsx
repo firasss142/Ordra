@@ -52,7 +52,6 @@ import { BulkBar } from "./BulkBar";
 
 const OrderDetailPanel = dynamic(() => import("@/components/queue/OrderDetailPanel").then((m) => m.OrderDetailPanel), { ssr: false });
 const CreateOrderModal = dynamic(() => import("@/components/orders/CreateOrderModal").then((m) => m.CreateOrderModal), { ssr: false });
-const PostCallActionSheet = dynamic(() => import("@/components/queue/PostCallActionSheet").then((m) => m.PostCallActionSheet), { ssr: false });
 
 interface Market {
   id: string;
@@ -254,7 +253,6 @@ export function CommandesPage(props: CommandesPageProps) {
   const [uploadIds, setUploadIds] = useState<string[] | null>(null);
   const [reopenIds, setReopenIds] = useState<string[] | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [callSheet, setCallSheet] = useState<{ orderId: string; status: string; marketId: string; attemptsCount: number } | null>(null);
 
   const assignOne = useCallback(
     async (id: string, agentId: string | null) => {
@@ -556,11 +554,7 @@ export function CommandesPage(props: CommandesPageProps) {
         role={role}
         userId={userId}
         onClose={() => setOpenId(null)}
-        onCallTerminated={(_id, ctx) => {
-          setOpenId(null);
-          if (ctx) setCallSheet(ctx);
-          void refresh();
-        }}
+        onOutcomeDone={() => void refresh()}
         onReturnToPool={
           openId
             ? async () => {
@@ -571,20 +565,6 @@ export function CommandesPage(props: CommandesPageProps) {
             : undefined
         }
       />
-
-      {callSheet && (
-        <PostCallActionSheet
-          orderId={callSheet.orderId}
-          orderStatus={callSheet.status}
-          marketId={callSheet.marketId}
-          attemptsCount={callSheet.attemptsCount}
-          onClose={() => setCallSheet(null)}
-          onSuccess={() => {
-            setCallSheet(null);
-            void refresh();
-          }}
-        />
-      )}
 
       {toast && (
         <div className="tip on" role="status" style={{ left: "50%", top: 64, transform: "translateX(-50%)" }}>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { marketDayStartUtc } from "@/lib/dates/market-day";
+import { marketTimezone } from "@/lib/markets";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +29,12 @@ async function handleGET(_req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayISO = todayStart.toISOString();
+  // « aujourd'hui » is the market's day: Tripoli's midnight, not the server's (UTC on Vercel), which
+  // made the meters reset at 02:00 local time and count the night before.
+  const localDay = new Intl.DateTimeFormat("en-CA", { timeZone: marketTimezone(actor.market_id), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const fallback = new Date();
+  fallback.setHours(0, 0, 0, 0);
+  const todayISO = marketDayStartUtc(localDay, actor.market_id) ?? fallback.toISOString();
 
   const [historyResult, ordersResult] = await Promise.all([
     supabase

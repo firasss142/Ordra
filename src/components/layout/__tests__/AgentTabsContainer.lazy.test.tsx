@@ -27,8 +27,8 @@ const leadsMounted = vi.fn();
 
 // Counts MOUNTS, not renders: the point of the latch is that a tab is
 // constructed (and fires its fetch waterfall) at most once.
-vi.mock("@/components/queue/QueuePage", () => ({
-  QueuePage: () => {
+vi.mock("@/components/agent/queue/AgentQueuePage", () => ({
+  AgentQueuePage: () => {
     useEffect(() => { queueMounted(); }, []);
     return <div data-testid="queue-tab">queue</div>;
   },

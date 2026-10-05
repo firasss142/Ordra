@@ -376,10 +376,7 @@ export function ArchivePage({ role, userId, locale, userMarketId, userMarketLabe
         role={role}
         userId={userId}
         onClose={() => setOpenId(null)}
-        onCallTerminated={() => {
-          setOpenId(null);
-          void refresh();
-        }}
+        onOutcomeDone={() => void refresh()}
       />
 
       {toast && (

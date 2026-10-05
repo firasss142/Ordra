@@ -26,7 +26,7 @@ export function useAgentQueue(options: UseAgentQueueOptions = {}) {
   // Explicit fetcher, not the global one: the wire sends `visibleIds` and
   // fetchAgentQueue rehydrates it into the `orders` array that cache-patch and
   // buckets operate on. Anywhere else that populates this key must use the same
-  // fetcher — see AgentNavTabs' preload.
+  // fetcher — see AgentNav's preload.
   const [reassignmentEvent, setReassignmentEvent] = useState<ReassignmentEvent | null>(null);
   const handleEvent = useCallback((ev: ReassignmentEvent) => {
     setReassignmentEvent(ev);

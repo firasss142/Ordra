@@ -164,4 +164,24 @@ describe("GET /api/agent/stats", () => {
     const res = await GET(createRequest());
     expect(res.status).toBe(500);
   });
+
+  test("counts « aujourd'hui » from the market's midnight, not the server's", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-04T23:30:00Z")); // 01:30 on 5 Oct in Tripoli (UTC+2)
+    try {
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+      let history: ReturnType<typeof queryChainList> | null = null;
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users") return queryChainSingle({ data: { role: "agent", market_id: "00000000-0000-0000-0000-000000000002" }, error: null });
+        const c = queryChainList({ data: [], error: null });
+        if (table === "order_history") history = c;
+        return c;
+      });
+      const res = await GET(createRequest());
+      expect(res.status).toBe(200);
+      expect((history as unknown as { gte: ReturnType<typeof vi.fn> }).gte).toHaveBeenCalledWith("created_at", "2026-10-04T22:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
