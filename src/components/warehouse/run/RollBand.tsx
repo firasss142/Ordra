@@ -19,7 +19,7 @@ import type { OrderZone } from "@/lib/warehouse/zone-index";
  *     Both plates are solid white: 16.97:1 on every colour;
  *   · the colour never travels alone — its name and the branch code ride with it.
  */
-export function RollBand({ zone, big = false }: { zone: OrderZone | null; big?: boolean }) {
+export function RollBand({ zone }: { zone: OrderZone | null }) {
   const t = useTranslations("warehouse.bench");
   const tr = useTranslations("warehouse.run");
   const locale = useLocale();
@@ -27,29 +27,19 @@ export function RollBand({ zone, big = false }: { zone: OrderZone | null; big?: 
   const hex = zone?.colorHex ?? null;
 
   return (
-    <div>
+    <div className="band-w">
       <div
         data-testid="wh-run-band"
         data-roll={hex ?? ""}
-        className={`flex items-center gap-3 rounded-[12px] px-3.5 ${big ? "min-h-[64px]" : "min-h-[56px]"} ${
-          hex ? "border border-black/10" : "border-2 border-dashed border-wm-ink-3"
-        }`}
-        style={{ background: hex ?? "transparent" }}
+        className={`band ${hex ? "" : "unknown"}`}
+        style={hex ? ({ "--c": hex } as React.CSSProperties) : undefined}
       >
-        <span className="min-w-0 flex-1 truncate rounded-[8px] bg-white px-3 py-1 text-[16px] font-bold text-wm-ink">
-          {hex && labels.colour ? t("roll", { colour: labels.colour }) : tr("unknownZone")}
-        </span>
-        <span
-          data-testid="wh-run-plate"
-          dir="ltr"
-          className="shrink-0 rounded-[6px] bg-white px-2.5 py-0.5 text-[15px] font-bold tracking-[0.04em] text-wm-ink"
-        >
+        <span className="band-p">{hex && labels.colour ? t("roll", { colour: labels.colour }) : tr("unknownZone")}</span>
+        <span data-testid="wh-run-plate" dir="ltr" className="band-p plate-lg">
           {zone?.branchGroup ?? "?"}
         </span>
       </div>
-      <p className="mt-1.5 px-0.5 text-[14px] text-wm-ink-2">
-        {hex && labels.name ? labels.name : t("unknownZoneHint")}
-      </p>
+      <span className="l2" style={{ whiteSpace: "normal" }}>{hex && labels.name ? labels.name : t("unknownZoneHint")}</span>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import frMessages from "@/messages/fr.json";
 import { StockDesk } from "../StockDesk";
 
 let search = new URLSearchParams();
+let stockRows: Array<Record<string, unknown>> | null = null;
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/fr/warehouse/stock",
@@ -43,13 +44,20 @@ const urls: string[] = [];
 beforeEach(() => {
   urls.length = 0;
   search = new URLSearchParams();
+  stockRows = null;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (u: string) => {
       const url = String(u);
       urls.push(url);
       const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { "Content-Type": "application/json" } });
-      if (url.startsWith("/api/warehouse/stock")) return json({ rows: [row({}), row({ product_id: "p2", name: "Tasse", free: -1, current_stock: 0, sites: [] })] });
+      if (url.startsWith("/api/warehouse/stock"))
+        return json({ rows: stockRows ?? [row({}), row({ product_id: "p2", name: "Tasse", free: -1, current_stock: 0, sites: [] })] });
+      if (url.startsWith("/api/warehouse/history"))
+        return json({
+          rows: Array.from({ length: 25 }, (_, i) => ({ id: `${url.includes("cursor=") ? "b" : "a"}${i}`, kind: "scan", at: "2026-10-05T10:00:00Z", product_id: "p1", product_name: "Tapis", qty_change: -1, order_number: null, is_damaged: false, note: null, detail: "", actor: null })),
+          nextCursor: url.includes("cursor=") ? null : "CUR1",
+        });
       if (url.startsWith("/api/warehouse/sites"))
         return json({ sites: [{ id: "T", code: "t", name: "طرابلس", nameFr: "Tripoli", isDefault: true, marketId: "m" }, { id: "B", code: "b", name: "بنغازي", nameFr: "Benghazi", isDefault: false, marketId: "m" }] });
       return json({ rows: [] });
@@ -101,5 +109,26 @@ describe("StockDesk", () => {
     renderDesk();
     fireEvent.click(await screen.findByRole("button", { name: "Arrivages" }));
     await waitFor(() => expect(urls.some((u) => u.includes("kind=reception"))).toBe(true));
+  });
+
+  it("pages the products 25 at a time", async () => {
+    stockRows = Array.from({ length: 30 }, (_, i) => row({ product_id: `p${i}`, name: `Produit ${i}` }));
+    renderDesk();
+    await waitFor(() => expect(screen.getAllByTestId("stock-row")).toHaveLength(25));
+    fireEvent.click(screen.getByRole("button", { name: /Page suivante/ }));
+    expect(screen.getAllByTestId("stock-row")).toHaveLength(5);
+  });
+
+  it("walks the journal page by page with the server's cursor, and back", async () => {
+    search = new URLSearchParams("tab=journal");
+    renderDesk();
+    await waitFor(() => expect(screen.getAllByTestId("journal-row")).toHaveLength(25));
+    expect(urls.some((u) => u.includes("/api/warehouse/history") && u.includes("limit=25"))).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /Page suivante/ }));
+    await waitFor(() => expect(urls.some((u) => u.includes("cursor=CUR1"))).toBe(true));
+    await waitFor(() => expect(screen.getByTestId("pager")).toHaveTextContent("26–50"));
+    expect(screen.getByRole("button", { name: /Page suivante/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Page précédente/ }));
+    await waitFor(() => expect(screen.getByTestId("pager")).toHaveTextContent("1–25"));
   });
 });

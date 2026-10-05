@@ -6,7 +6,8 @@ import useSWR from "swr";
 import { useLocale, useTranslations } from "next-intl";
 import { jsonFetcher } from "@/lib/fetchers";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
-import { DeskHeader, DeskPage, Ic, LiveSub, Thumb, useToast } from "./ui";
+import { PAGE_SIZE } from "@/lib/warehouse/desk";
+import { DeskHeader, DeskPage, Ic, LiveSub, Pager, Thumb, usePaged, useToast } from "./ui";
 import { useDeskSite } from "./useDeskSite";
 
 /**
@@ -65,6 +66,9 @@ export function CountDesk({ market, productId }: { market: "ly" | "tn"; productI
   }, [site]);
 
   const queue = order ?? [];
+  // The list beside the count turns its page on its own as the run moves on.
+  const [todo, setTodoPage] = usePaged(queue, site ?? "");
+  useEffect(() => setTodoPage(Math.floor(index / PAGE_SIZE) + 1), [index, setTodoPage]);
   const current = queue[index] ? byId.get(queue[index]) ?? null : null;
   const here = current && site ? current.sites.find((s) => s.warehouse_id === site) ?? null : null;
   const expected = current ? (sites.length > 1 ? here?.current_stock ?? 0 : current.current_stock) : 0;
@@ -204,17 +208,19 @@ export function CountDesk({ market, productId }: { market: "ly" | "tn"; productI
               <b>{tc("toCount")}</b>
               <span className="l2" style={{ margin: 0 }}>{tc("remaining", { n: queue.length - done.length })}</span>
             </div>
-            {queue.slice(0, 40).map((id, k) => {
+            {todo.rows.map((id, i) => {
+              const k = (todo.page - 1) * PAGE_SIZE + i;
               const r = byId.get(id);
               if (!r) return null;
               return (
-                <button type="button" key={id} className={`todo-i ${k === index ? "now" : ""}`} onClick={() => { setIndex(k); setTyped(""); setShown(false); }}>
+                <button type="button" key={id} data-testid="todo-item" className={`todo-i ${k === index ? "now" : ""}`} onClick={() => { setIndex(k); setTyped(""); setShown(false); }}>
                   <Thumb seed={id} image={r.image_url} />
                   <span><bdi>{r.name}</bdi></span>
                   {done.includes(id) ? <span className="ck"><Ic n="check" /></span> : <small className="l2" style={{ margin: 0 }}>{k === index ? tc("now") : ""}</small>}
                 </button>
               );
             })}
+            <Pager paged={todo} onPage={setTodoPage} />
           </div>
         </div>
       )}

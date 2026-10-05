@@ -31,9 +31,11 @@ const stock = {
   incoming: null,
 };
 
+let stockRows: Array<Record<string, unknown>> | null = null;
 const posts: Array<Record<string, unknown>> = [];
 beforeEach(() => {
   posts.length = 0;
+  stockRows = null;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (u: string, init?: RequestInit) => {
@@ -42,7 +44,7 @@ beforeEach(() => {
         posts.push(JSON.parse(String(init.body)));
         return json({ ok: true });
       }
-      if (String(u).startsWith("/api/warehouse/stock")) return json({ rows: [stock] });
+      if (String(u).startsWith("/api/warehouse/stock")) return json({ rows: stockRows ?? [stock] });
       return json({
         sites: [
           { id: "T", code: "t", name: "طرابلس", nameFr: "Tripoli", isDefault: true, marketId: "m" },
@@ -57,7 +59,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function renderCount() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <NextIntlClientProvider locale="fr" messages={frMessages} timeZone="Africa/Tripoli">
+        <CountDesk market="ly" productId={null} />
+      </NextIntlClientProvider>
+    </SWRConfig>,
+  );
+}
+
 describe("CountDesk", () => {
+  it("lists what is left to count 25 at a time, and follows the product being counted", async () => {
+    stockRows = Array.from({ length: 30 }, (_, i) => ({ ...stock, product_id: `p${i}`, name: `Produit ${String(i).padStart(2, "0")}`, sites: [] }));
+    renderCount();
+    await screen.findByLabelText("Quantité comptée");
+    expect(screen.getAllByTestId("todo-item")).toHaveLength(25);
+    for (let i = 0; i < 25; i++) fireEvent.click(screen.getByRole("button", { name: /Passer/ }));
+    expect(screen.getAllByTestId("todo-item")).toHaveLength(5);
+    expect(screen.getByTestId("pager")).toHaveTextContent("26–30 sur 30");
+  });
+
   it("hides what Ordra expects until the count is validated, and writes only on « suivant »", async () => {
     render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>

@@ -8,7 +8,8 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { jsonFetcher } from "@/lib/fetchers";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
 import type { WarehouseHistoryRow } from "@/app/api/warehouse/history/route";
-import { DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pill, SearchLine, Sec, SiteSeg, Thumb, Tile, Tiles, fnum, type Hue } from "./ui";
+import { DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pager, Pill, SearchLine, Sec, SiteSeg, StepPager, Thumb, Tile, Tiles, fnum, usePaged, type Hue } from "./ui";
+import { PAGE_SIZE } from "@/lib/warehouse/desk";
 import type { IconName } from "./icons";
 import { useDeskSite } from "./useDeskSite";
 
@@ -121,6 +122,7 @@ function Products({
   const base = tile === "low" ? low : tile === "neg" ? neg : tile === "nc" ? nc : all;
   const needle = q.trim().toLowerCase();
   const rows = needle ? base.filter((r) => r.name.toLowerCase().includes(needle) || (r.sku ?? "").toLowerCase().includes(needle)) : base;
+  const [paged, setPage] = usePaged(rows, `${tile}|${q}|${siteId ?? ""}`);
   const cols = "minmax(240px,1.5fr) 240px 90px 90px 110px 150px";
 
   return (
@@ -160,7 +162,7 @@ function Products({
           ) : rows.length === 0 ? (
             <Empty icon="check">{ts("empty")}</Empty>
           ) : (
-            rows.map((r) => {
+            paged.rows.map((r) => {
               const shown = siteId ? siteIds.filter((id) => id === siteId) : siteIds;
               const per = shown.map((id, i) => {
                 const s = r.sites.find((x) => x.warehouse_id === id);
@@ -215,6 +217,7 @@ function Products({
             })
           )}
         </div>
+        <Pager paged={paged} onPage={setPage} />
         <div className="lfoot"><Ic n="info" /><span>{ts("foot")}</span></div>
       </div>
     </DeskPage>
@@ -313,8 +316,19 @@ function Journal({ market, dateLabel, tabs }: { market: "ly" | "tn"; dateLabel: 
   const ts = useTranslations("warehouse.desk.stock");
   const format = useFormatter();
   const [kind, setKind] = useState<JournalKind>("all");
-  const { data, error } = useSWR<{ rows: WarehouseHistoryRow[] }>(`/api/warehouse/history?limit=100&kind=${kind}`, jsonFetcher);
+  // The cursors that opened each page so far: back is a pop, next a push.
+  const [cursors, setCursors] = useState<Array<string | null>>([null]);
+  const cursor = cursors[cursors.length - 1];
+  const { data, error } = useSWR<{ rows: WarehouseHistoryRow[]; nextCursor?: string | null }>(
+    `/api/warehouse/history?limit=${PAGE_SIZE}&kind=${kind}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+    jsonFetcher,
+    { keepPreviousData: true },
+  );
   const rows = data?.rows ?? [];
+  const pickKind = (k: JournalKind) => {
+    setKind(k);
+    setCursors([null]);
+  };
   const cols = "150px minmax(240px,1.5fr) 90px minmax(180px,1fr) 140px";
   return (
     <DeskPage>
@@ -331,11 +345,10 @@ function Journal({ market, dateLabel, tabs }: { market: "ly" | "tn"; dateLabel: 
       <div className="rolls">
         <span className="lab">{ts("movement")}</span>
         {JOURNAL_KINDS.map((k) => (
-          <button key={k} type="button" className={`rc ${kind === k ? "on" : ""}`} aria-pressed={kind === k} onClick={() => setKind(k)}>
+          <button key={k} type="button" className={`rc ${kind === k ? "on" : ""}`} aria-pressed={kind === k} onClick={() => pickKind(k)}>
             {ts(`filter.${k}`)}
           </button>
         ))}
-        <span className="count">{ts.rich("lines", { n: rows.length, b: (c) => <b>{c}</b> })}</span>
       </div>
       <div className="list" style={{ "--cols": cols } as React.CSSProperties}>
         <div className="lh">
@@ -377,6 +390,13 @@ function Journal({ market, dateLabel, tabs }: { market: "ly" | "tn"; dateLabel: 
             })
           )}
         </div>
+        <StepPager
+          page={cursors.length}
+          shown={rows.length}
+          hasNext={!!data?.nextCursor}
+          onPrev={() => setCursors((c) => (c.length > 1 ? c.slice(0, -1) : c))}
+          onNext={() => data?.nextCursor && setCursors((c) => [...c, data.nextCursor as string])}
+        />
         <div className="lfoot"><Ic n="info" /><span>{ts("journalFoot")}</span></div>
       </div>
     </DeskPage>

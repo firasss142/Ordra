@@ -110,3 +110,30 @@ export function reconcileInvoice(input: {
 export function isDue(po: { wanted_by: string | null }, today: string): boolean {
   return po.wanted_by !== null && po.wanted_by.slice(0, 10) <= today;
 }
+
+/** Every list of the Entrepôt desk shows this many rows a page. */
+export const PAGE_SIZE = 25;
+
+export interface Paged<T> {
+  rows: T[];
+  /** 1-based, clamped to the pages that exist. */
+  page: number;
+  pages: number;
+  /** 1-based position of the first and last row shown; 0 when empty. */
+  from: number;
+  to: number;
+  total: number;
+}
+
+/**
+ * One page of a list. A page past the end is clamped rather than shown empty:
+ * a filter that shrinks the list must not leave the operator on « page 4 of 1 ».
+ */
+export function pageOf<T>(rows: T[], page: number, size = PAGE_SIZE): Paged<T> {
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const p = Math.min(Math.max(1, Math.floor(page) || 1), pages);
+  const start = (p - 1) * size;
+  const slice = rows.slice(start, start + size);
+  return { rows: slice, page: p, pages, from: total ? start + 1 : 0, to: start + slice.length, total };
+}

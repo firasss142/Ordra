@@ -10,7 +10,7 @@ import { useReceptions } from "@/hooks/useReceptions";
 import type { ProjectedReception } from "@/lib/receptions/project";
 import type { ProjectedPurchaseOrder } from "@/lib/purchases/orders";
 import { ReceptionSheet } from "@/components/warehouse/receptions/ReceptionSheet";
-import { DeskHeader, DeskPage, Ic, LiveSub, Pill, SiteSeg, Tag, Thumb, fnum, useToast } from "./ui";
+import { DeskHeader, DeskPage, Ic, LiveSub, Pager, Pill, SiteSeg, Tag, Thumb, fnum, usePaged, useToast } from "./ui";
 import { useDeskSite } from "./useDeskSite";
 import { ArrivalDrawer } from "./ArrivalDrawer";
 import { SettleDrawer } from "./SettleDrawer";
@@ -26,8 +26,6 @@ import { SettleDrawer } from "./SettleDrawer";
  * The dock records an arrival blind; the office settles it against the
  * invoice. A settled card opens the full reception sheet (payments, reversal).
  */
-
-const SETTLED_SHOWN = 6;
 
 export function ReceiveDesk({
   market,
@@ -63,7 +61,10 @@ export function ReceiveDesk({
     [pos, siteId],
   );
   const open = receptions.filter((r) => r.status === "open");
-  const settled = receptions.filter((r) => r.status === "settled").slice(0, SETTLED_SHOWN);
+  const settled = receptions.filter((r) => r.status === "settled");
+  const [poPage, setPoPage] = usePaged(enRoute, siteId ?? "");
+  const [openPage, setOpenPage] = usePaged(open, siteId ?? "");
+  const [settledPage, setSettledPage] = usePaged(settled, siteId ?? "");
   const settling = settleId ? receptions.find((r) => r.id === settleId) ?? null : null;
 
   const site = (r: { warehouse_id: string; warehouse_name?: string | null }) => nameOf(r.warehouse_id) ?? r.warehouse_name ?? "—";
@@ -153,7 +154,7 @@ export function ReceiveDesk({
           {enRoute.length === 0 ? (
             <div className="empty" style={{ background: "none", padding: "22px 10px" }}>{marketId ? tr("stage1Empty") : tr("stage1NoMarket")}</div>
           ) : (
-            enRoute.map((po) => {
+            poPage.rows.map((po) => {
               const pct = po.ordered_units > 0 ? Math.round((po.received_units / po.ordered_units) * 100) : 0;
               const due = isDue(po, today);
               return (
@@ -190,6 +191,7 @@ export function ReceiveDesk({
               );
             })
           )}
+          <Pager paged={poPage} onPage={setPoPage} />
           <span className="arrow"><Ic n="right" /></span>
         </section>
 
@@ -203,7 +205,7 @@ export function ReceiveDesk({
           {open.length === 0 ? (
             <div className="empty" style={{ background: "none", padding: "22px 10px" }}><Ic n="check" />{tr("stage2Empty")}</div>
           ) : (
-            open.map((r: ProjectedReception) => (
+            openPage.rows.map((r: ProjectedReception) => (
               <button type="button" className="po" key={r.id} data-testid="open-card" onClick={() => setSettleId(r.id)} disabled={!r.can.settle}>
                 <div className="po-h">
                   <Thumb seed={r.lines[0]?.product_id ?? r.id} image={r.lines[0]?.product_image_url} />
@@ -223,6 +225,7 @@ export function ReceiveDesk({
               </button>
             ))
           )}
+          <Pager paged={openPage} onPage={setOpenPage} />
           <span className="arrow"><Ic n="right" /></span>
         </section>
 
@@ -230,13 +233,13 @@ export function ReceiveDesk({
           <div className="sh">
             <span className="hold" style={{ width: 34, height: 34, borderRadius: 11 }}><Ic n="receipt" /></span>
             <b id="ent-st3">{tr("stage3")}</b>
-            <span className="n">{receptions.filter((r) => r.status === "settled").length}</span>
+            <span className="n">{settled.length}</span>
           </div>
           <p>{tr("stage3Sub")}</p>
           {settled.length === 0 ? (
             <div className="empty" style={{ background: "none", padding: "22px 10px" }}>{tr("stage3Empty")}</div>
           ) : (
-            settled.map((r) => (
+            settledPage.rows.map((r) => (
               <button type="button" className="po" key={r.id} style={{ background: "rgba(255,255,255,.6)" }} onClick={() => setSheetId(r.id)}>
                 <div className="po-h">
                   <span className="hold h-green" style={{ width: 32, height: 32, borderRadius: 10 }}><Ic n="check" /></span>
@@ -257,6 +260,7 @@ export function ReceiveDesk({
               </button>
             ))
           )}
+          <Pager paged={settledPage} onPage={setSettledPage} />
         </section>
       </div>
 

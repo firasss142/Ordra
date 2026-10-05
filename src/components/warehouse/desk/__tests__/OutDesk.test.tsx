@@ -12,6 +12,9 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/warehouse/QrScanner", () => ({ QrScanner: () => null }));
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => <a href={href} {...rest}>{children}</a>,
+}));
 
 /**
  * Sortir on the desk (prototypes/entrepot-desk-v1.html): « Prendre » arms the
@@ -52,18 +55,20 @@ function row(id: string, over: Partial<ToLabelRow> = {}): ToLabelRow {
   } as ToLabelRow;
 }
 
-const queue = [
+let queue: ToLabelRow[] = [];
+const BASE = [
   row("aaaaaaaa-1", { uploaded_at: hoursAgo(80) }),
   row("bbbbbbbb-2", { zone: { branchGroup: "misrata", colorHex: ORANGE, colourFr: "Orange", nameFr: null, nameAr: null, source: "directory" } }),
   row("cccccccc-3", { uploaded_at: hoursAgo(5) }),
 ];
 
 let scanOk = true;
+queue = BASE;
 function respond(url: string, init?: RequestInit) {
   const json = (b: unknown, status = 200) =>
     new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
   if (url.startsWith("/api/warehouse/to-label"))
-    return json({ orders: queue, total: 3, late: 1, scannedToday: 0, carrierWarehouse: 0 });
+    return json({ orders: queue, total: queue.length, late: 1, scannedToday: 0, carrierWarehouse: 0 });
   if (url.startsWith("/api/warehouse/scanned")) return json({ orders: [] });
   if (url.startsWith("/api/warehouse/sites"))
     return json({ sites: [{ id: "T", code: "tripoli", name: "Tripoli", isDefault: true, marketId: "m" }], mine: null, pinned: false, unassigned: false });
@@ -75,6 +80,7 @@ function respond(url: string, init?: RequestInit) {
 
 beforeEach(() => {
   scanOk = true;
+  queue = BASE;
   vi.stubGlobal("fetch", vi.fn(async (u: string, i?: RequestInit) => respond(String(u), i)));
 });
 afterEach(() => {
@@ -133,5 +139,31 @@ describe("OutDesk", () => {
     renderOut();
     fireEvent.click(screen.getByRole("button", { name: /En attente depuis \+ 2 jours/ }));
     expect(screen.getAllByTestId("out-row")).toHaveLength(1);
+  });
+
+  it("shows 25 parcels a page and goes back to the first page when the filter changes", async () => {
+    queue = Array.from({ length: 30 }, (_, i) => row(`p${String(i).padStart(7, "0")}-x`, { uploaded_at: hoursAgo(100 - i) }));
+    renderOut();
+    expect(screen.getAllByTestId("out-row")).toHaveLength(25);
+    expect(screen.getByTestId("pager")).toHaveTextContent("1–25 sur 30");
+    fireEvent.click(screen.getByRole("button", { name: /Page suivante/ }));
+    expect(screen.getAllByTestId("out-row")).toHaveLength(5);
+    expect(screen.getByTestId("pager")).toHaveTextContent("26–30 sur 30");
+    fireEvent.click(screen.getByRole("button", { name: /En attente depuis \+ 2 jours/ }));
+    expect(screen.getByTestId("pager")).toHaveTextContent("1–25");
+  });
+
+  it("hides the pager when everything fits on one page", () => {
+    renderOut();
+    expect(screen.queryByTestId("pager")).not.toBeInTheDocument();
+  });
+
+  it("opens the scan run from « Commencer une tournée », on the chosen roll", () => {
+    renderOut();
+    expect(screen.getByRole("link", { name: /Commencer une tournée/ })).toHaveAttribute("href", "/fr/warehouse/scan");
+    fireEvent.click(screen.getByRole("button", { name: /Rouge/ }));
+    expect(screen.getByRole("link", { name: /Tournée Rouge/ }).getAttribute("href")).toBe(
+      `/fr/warehouse/scan?roll=${encodeURIComponent(RED)}`,
+    );
   });
 });

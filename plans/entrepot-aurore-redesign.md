@@ -61,3 +61,21 @@ Owner: "follow the prototype and make the actual changes". Desk only; the agent 
   for set-aside parcels (no such action exists — links to Commandes); Journal has no building switch
   (the API cannot filter by building); settled receptions open the existing full sheet (payments, reversal).
 - Removed: BenchConsole, PreparationConsole, ScannedTable, ScanStation, ReturnsConsole.
+
+## Revision 2 — 2026-10-05 (owner: pagination, the scan run, a last UX pass)
+
+- **Pagination, 25 rows a page, everywhere a list can grow**: Sortir (à sortir + sortis), Rentrer
+  (chez Darb, en route, rentrés), Recevoir (each of the three columns), Stock (products), Compter (the
+  to-count list, which turns its page on its own as the count advances) — client-side over the loaded
+  rows, via `pageOf` (lib/warehouse/desk.ts) + `usePaged`/`Pager` (desk/ui.tsx). A filter change goes
+  back to page 1; one page hides the pager. The Journal pages ON THE SERVER with the history API's
+  cursor (`StepPager`: back/next, no total). Aujourd'hui has no list that grows — nothing to page.
+- **The scan run (/warehouse/scan) rebuilt in Aurore** — it was still the old mobile `wm-*` look and
+  nothing on the desk linked to it. « Commencer une tournée » on Sortir now opens it (« Tournée Rouge »
+  when a roll is filtered, carrying `?roll=` and `?warehouse_id=`). Same logic and tests; new: a track
+  with one mark per parcel, « Ensuite » preview, a dashed scan zone in the roll's colour, the camera opens
+  first only on a touch device (desk = gun/keyboard), Enter on a result moves on, warnings BEFORE the
+  sticker is peeled for short stock and for a parcel with no Darb reference, the counter no longer jumps
+  to « 16 / 16 » while a bound parcel's result is on screen.
+- UX pass fixes: Aujourd'hui named the buildings in Arabic on the French desk (now the reader's
+  language, from the pickup API); `.res` class clash; summary buttons squashed on phone.

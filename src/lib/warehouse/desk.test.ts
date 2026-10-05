@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   isDue,
+  pageOf,
+  PAGE_SIZE,
   ageTone,
   arrivalVerdict,
   benchAge,
@@ -99,5 +101,27 @@ describe("isDue", () => {
     expect(isDue({ wanted_by: "2026-10-01" }, "2026-10-05")).toBe(true);
     expect(isDue({ wanted_by: "2026-10-08" }, "2026-10-05")).toBe(false);
     expect(isDue({ wanted_by: null }, "2026-10-05")).toBe(false);
+  });
+});
+
+describe("pageOf", () => {
+  const rows = Array.from({ length: 60 }, (_, i) => i + 1);
+
+  it("cuts 25 rows a page, and says which slice is shown", () => {
+    expect(PAGE_SIZE).toBe(25);
+    const p = pageOf(rows, 2);
+    expect(p.rows[0]).toBe(26);
+    expect(p.rows).toHaveLength(25);
+    expect(p).toMatchObject({ page: 2, pages: 3, from: 26, to: 50, total: 60 });
+  });
+
+  it("clamps a page that no longer exists — a filter shrank the list", () => {
+    expect(pageOf(rows.slice(0, 10), 3)).toMatchObject({ page: 1, pages: 1, from: 1, to: 10 });
+    expect(pageOf(rows, 9).page).toBe(3);
+    expect(pageOf(rows, 9).rows).toEqual([51, 52, 53, 54, 55, 56, 57, 58, 59, 60]);
+  });
+
+  it("an empty list is one empty page, not page zero", () => {
+    expect(pageOf([], 1)).toMatchObject({ page: 1, pages: 1, from: 0, to: 0, total: 0, rows: [] });
   });
 });

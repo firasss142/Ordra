@@ -39,9 +39,11 @@ const ret = (id: string, days: number) => ({
   low_stock_threshold: null,
 });
 
+let darbOrders = [ret("a1", 41), ret("a2", 5)];
 const posts: Array<{ url: string; body: Record<string, unknown> }> = [];
 beforeEach(() => {
   posts.length = 0;
+  darbOrders = [ret("a1", 41), ret("a2", 5)];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (u: string, init?: RequestInit) => {
@@ -53,7 +55,7 @@ beforeEach(() => {
       }
       if (url.startsWith("/api/warehouse/returns/stats")) return json({ doneToday: 0, restockedToday: 0, currency: "LYD" });
       if (url.includes("state=way")) return json({ orders: [ret("w1", 3)] });
-      if (url.startsWith("/api/warehouse/returns")) return json({ orders: [ret("a1", 41), ret("a2", 5)] });
+      if (url.startsWith("/api/warehouse/returns")) return json({ orders: darbOrders });
       if (url.startsWith("/api/warehouse/sites"))
         return json({ sites: [{ id: "B", code: "b", name: "بنغازي", nameFr: "Benghazi", isDefault: true, marketId: "m" }] });
       return json({ rows: [] });
@@ -111,5 +113,14 @@ describe("ReturnsDesk", () => {
     await screen.findAllByTestId("return-row");
     fireEvent.click(screen.getByRole("button", { name: /En route vers Darb/ }));
     await waitFor(() => expect(screen.getAllByTestId("return-row")[0]).toHaveTextContent("client w1"));
+  });
+
+  it("pages the returns 25 at a time", async () => {
+    darbOrders = Array.from({ length: 40 }, (_, i) => ret(`r${i}`, 60 - i));
+    renderDesk();
+    await waitFor(() => expect(screen.getAllByTestId("return-row")).toHaveLength(25));
+    fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
+    expect(screen.getAllByTestId("return-row")).toHaveLength(15);
+    expect(screen.getByTestId("pager")).toHaveTextContent("26–40 sur 40");
   });
 });

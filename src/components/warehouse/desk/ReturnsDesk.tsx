@@ -10,7 +10,7 @@ import type { ReturnsQueuePage } from "@/app/api/warehouse/returns/route";
 import type { ReturnsStats } from "@/app/api/warehouse/returns/stats/route";
 import type { WarehouseHistoryRow } from "@/app/api/warehouse/history/route";
 import {
-  DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pill, SearchLine, Sec, SiteSeg, Tag, Thumb, Tile, Tiles, fnum, useToast,
+  DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pager, Pill, SearchLine, Sec, SiteSeg, Tag, Thumb, Tile, Tiles, fnum, usePaged, useToast,
 } from "./ui";
 import { useDeskSite } from "./useDeskSite";
 
@@ -41,10 +41,10 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
   const currency = market === "ly" ? "LYD" : "TND";
 
   const site = siteId ? `&warehouse_id=${siteId}` : "";
-  const { data: darb, mutate } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?limit=100${site}`, jsonFetcher, {
+  const { data: darb, mutate } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?limit=200${site}`, jsonFetcher, {
     revalidateOnFocus: true,
   });
-  const { data: way } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?state=way&limit=100${site}`, jsonFetcher);
+  const { data: way } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?state=way&limit=200${site}`, jsonFetcher);
   const { data: stats, mutate: mutateStats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", jsonFetcher);
   const { data: hist, mutate: mutateHist } = useSWR<{ rows: WarehouseHistoryRow[] }>(
     `/api/warehouse/history?kind=return&limit=100&date_from=${today}`,
@@ -67,6 +67,10 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
   const listed = (tile === "way" ? wayRows : darbRows).filter((r) =>
     match([r.customer_name, r.product_name, r.customer_city, r.carrier_sticker_ref, r.tracking_number, r.id]),
   );
+
+  const listKey = `${tile}|${q}|${siteId ?? ""}`;
+  const [listPage, setListPage] = usePaged(listed, listKey);
+  const [donePage, setDonePage] = usePaged(doneRows, listKey);
 
   /** A sticker scanned into the search line opens that parcel, if it is a return. */
   const lookup = async (raw: string) => {
@@ -159,7 +163,7 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
               {doneRows.length === 0 ? (
                 <Empty icon="back">{tr("emptyDone")}</Empty>
               ) : (
-                doneRows.map((h) => (
+                donePage.rows.map((h) => (
                   <div className="row static" key={h.id}>
                     <div className="lt">
                       <Thumb seed={h.product_id ?? h.product_name ?? h.id} />
@@ -197,7 +201,7 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
               {listed.length === 0 ? (
                 <Empty icon="check">{tile === "way" ? tr("emptyWay") : q ? tr("emptyFiltered") : tr("emptyDarb")}</Empty>
               ) : (
-                listed.map((r) => {
+                listPage.rows.map((r) => {
                   const tone = returnTone(r.days_at_carrier);
                   return (
                     <div
@@ -245,6 +249,7 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
             </div>
           </>
         )}
+        {tile === "done" ? <Pager paged={donePage} onPage={setDonePage} /> : <Pager paged={listPage} onPage={setListPage} />}
         <div className="lfoot">
           <Ic n="info" />
           <span>{tile === "done" ? tr("footDone") : tr("foot")}</span>

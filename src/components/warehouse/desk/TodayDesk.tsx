@@ -213,13 +213,19 @@ export function TodayDesk({
 
   const shown = data.focus ? sites.filter((s) => s.id === data.focus) : sites;
   const pickupOf = (id: string) => pickup?.sites?.find((p) => p.warehouseId === id) ?? null;
+  // The building in the reader's language, as on every other desk page; the
+  // day loop carries only the market's spelling.
+  const siteName = (s: { id: string; name: string }) => {
+    const p = pickupOf(s.id);
+    return (locale === "ar" ? p?.nameAr : p?.nameFr) || s.name;
+  };
 
   return (
     <DeskPage>
       <DeskHeader
         title={tt("title")}
         sub={<LiveSub parts={[marketCode ? t(`market.${marketCode}`) : null, dateLabel]} />}
-        acts={<SiteSeg sites={sites.map((s) => ({ id: s.id, name: s.name }))} value={data.focus} onChange={setSite} />}
+        acts={<SiteSeg sites={sites.map((s) => ({ id: s.id, name: siteName(s) }))} value={data.focus} onChange={setSite} />}
       />
 
       <div className="jobs">
@@ -293,13 +299,13 @@ export function TodayDesk({
             const last = crew.map((m) => m.lastScanAt).filter(Boolean).sort().pop() ?? null;
             const pk = pickupOf(s.id);
             return (
-              <section className="card bld" key={s.id} aria-label={s.name}>
+              <section className="card bld" key={s.id} aria-label={siteName(s)}>
                 <div className="bld-h">
                   <span className="av" style={{ "--a5": a5, "--a7": a7 } as React.CSSProperties} aria-hidden="true">
-                    {(lead?.name ?? s.name).slice(0, 1)}
+                    {(lead?.name ?? siteName(s)).slice(0, 1)}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <b>{s.name}</b>
+                    <b>{siteName(s)}</b>
                     <small dir="auto">
                       {lead ? `${crew.map((m) => m.name).join(", ")} · ` : ""}
                       {last ? tt("lastScan", { time: time(last) }) : tt("noScan")}

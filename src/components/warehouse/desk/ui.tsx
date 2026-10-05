@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { thumbTint } from "@/lib/warehouse/desk";
+import { PAGE_SIZE, pageOf, thumbTint, type Paged } from "@/lib/warehouse/desk";
 import { ICON_PATHS, type IconName } from "./icons";
 import "./entrepot-desk.css";
 
@@ -203,6 +203,114 @@ export function SearchLine({
       </label>
       {children}
     </div>
+  );
+}
+
+/**
+ * A list's page, 25 rows at a time. `resetOn` names what the list is filtered
+ * by: when it changes the list goes back to its first page, because page 3 of
+ * a different question is not the operator's place any more.
+ */
+export function usePaged<T>(rows: T[], resetOn: string): [Paged<T>, (page: number) => void] {
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [resetOn]);
+  return [pageOf(rows, page), setPage];
+}
+
+/** The pages a pager offers: the ends, and two either side of where you are. */
+function pageList(page: number, pages: number): Array<number | "…"> {
+  const keep = new Set([1, pages, page - 1, page, page + 1].filter((n) => n >= 1 && n <= pages));
+  const out: Array<number | "…"> = [];
+  let prev = 0;
+  for (const n of Array.from(keep).sort((a, b) => a - b)) {
+    if (n - prev > 1) out.push("…");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
+/**
+ * Previous · numbers · next, under a list. Nothing at all when the list fits
+ * on one page — a pager that offers « 1 » is noise. Turning a page brings the
+ * list's head back into view, or the operator lands mid-list.
+ */
+export function Pager({
+  paged,
+  onPage,
+}: {
+  paged: Pick<Paged<unknown>, "page" | "pages" | "from" | "to" | "total">;
+  onPage: (page: number) => void;
+}) {
+  const t = useTranslations("warehouse.desk.pager");
+  const box = useRef<HTMLElement>(null);
+  if (paged.pages <= 1) return null;
+  const go = (n: number) => {
+    onPage(n);
+    const list = box.current?.closest(".list");
+    if (list && list.getBoundingClientRect().top < 0) list.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  };
+  return (
+    <nav ref={box} className="pager" data-testid="pager" aria-label={t("label")}>
+      <span className="pg-r num">{t("range", { from: paged.from, to: paged.to, total: paged.total })}</span>
+      <button type="button" className="kb" aria-label={t("prev")} disabled={paged.page <= 1} onClick={() => go(paged.page - 1)}>
+        <Ic n="left" className="flip" />
+      </button>
+      {pageList(paged.page, paged.pages).map((n, i) =>
+        n === "…" ? (
+          <span key={`gap${i}`} className="pg-gap" aria-hidden="true">…</span>
+        ) : (
+          <button
+            key={n}
+            type="button"
+            className={`pg-n num ${n === paged.page ? "on" : ""}`}
+            aria-label={t("page", { n })}
+            aria-current={n === paged.page ? "page" : undefined}
+            onClick={() => go(n)}
+          >
+            {n}
+          </button>
+        ),
+      )}
+      <button type="button" className="kb" aria-label={t("next")} disabled={paged.page >= paged.pages} onClick={() => go(paged.page + 1)}>
+        <Ic n="right" className="flip" />
+      </button>
+    </nav>
+  );
+}
+
+/**
+ * The pager of a list the SERVER pages with a cursor (the Journal): it knows
+ * where it is and whether more follows, never the total, so it says
+ * « 26–50 » and offers back and next only.
+ */
+export function StepPager({
+  page,
+  shown,
+  hasNext,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  shown: number;
+  hasNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const t = useTranslations("warehouse.desk.pager");
+  if (page <= 1 && !hasNext) return null;
+  const from = (page - 1) * PAGE_SIZE + (shown ? 1 : 0);
+  return (
+    <nav className="pager" data-testid="pager" aria-label={t("label")}>
+      <span className="pg-r num">{t("rangeOpen", { from, to: (page - 1) * PAGE_SIZE + shown })}</span>
+      <button type="button" className="kb" aria-label={t("prev")} disabled={page <= 1} onClick={onPrev}>
+        <Ic n="left" className="flip" />
+      </button>
+      <span className="pg-n on num" aria-current="page">{page}</span>
+      <button type="button" className="kb" aria-label={t("next")} disabled={!hasNext} onClick={onNext}>
+        <Ic n="right" className="flip" />
+      </button>
+    </nav>
   );
 }
 

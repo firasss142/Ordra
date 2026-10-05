@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { jsonFetcher } from "@/lib/fetchers";
@@ -13,7 +14,7 @@ import { useScanOut } from "@/components/warehouse/bench/useScanOut";
 import { canUnscan, useScannedActions } from "@/components/warehouse/bench/useScannedActions";
 import { QrScanner } from "@/components/warehouse/QrScanner";
 import {
-  DeskHeader, DeskPage, Empty, Ic, LiveSub, RollDot, SearchLine, SiteSeg, Tag, Thumb, Tile, Tiles, fnum, useToast,
+  DeskHeader, DeskPage, Empty, Ic, LiveSub, Pager, RollDot, SearchLine, SiteSeg, Tag, Thumb, Tile, Tiles, fnum, usePaged, useToast,
 } from "./ui";
 import { useDeskSite } from "./useDeskSite";
 
@@ -123,6 +124,10 @@ export function OutDesk({
       matches([r.customer_name, r.customer_city, r.product_name, r.id, r.carrier_sticker_ref, r.tracking_number]),
   );
 
+  const listKey = `${tile}|${roll ?? ""}|${q}|${siteId ?? ""}`;
+  const [todoPage, setTodoPage] = usePaged(todoRows, listKey);
+  const [donePage, setDonePage] = usePaged(doneRows, listKey);
+
   /* ── the scan ─────────────────────────────────────────────────────── */
   const onScanned = useCallback(() => {
     void mutate();
@@ -187,10 +192,11 @@ export function OutDesk({
   };
 
   const take = (o: ToLabelRow) => setHand((h) => (h?.id === o.id ? null : o));
-  const startRun = () => {
-    const first = todoRows[0] ?? null;
-    if (first) setHand(first);
-  };
+  // The scan run: one roll in hand, the parcels one after another, full screen.
+  const runParams = new URLSearchParams();
+  if (roll) runParams.set("roll", roll);
+  if (siteId) runParams.set("warehouse_id", siteId);
+  const runHref = `/${locale}/warehouse/scan${runParams.size ? `?${runParams.toString()}` : ""}`;
 
   const handColour = hand ? zoneLabels(hand.zone, locale).colour : null;
   const cols = isLy
@@ -327,10 +333,12 @@ export function OutDesk({
       {!hand ? (
         <SearchLine value={q} onChange={setQ} placeholder={isLy ? to("searchLy") : to("search")}>
           {isLy && tile !== "done" ? (
-            <button type="button" className="btn" onClick={startRun} disabled={todoRows.length === 0}>
-              <Ic n="scan" />
-              {to("startRun")}
-            </button>
+            todoRows.length > 0 ? (
+              <Link className="btn" href={runHref}>
+                <Ic n="scan" />
+                {roll ? to("startRunRoll", { colour: zoneLabels(roll, locale).colour ?? roll }) : to("startRun")}
+              </Link>
+            ) : null
           ) : null}
         </SearchLine>
       ) : null}
@@ -367,7 +375,7 @@ export function OutDesk({
             doneRows.length === 0 ? (
               <Empty icon="out">{to("emptyDone")}</Empty>
             ) : (
-              doneRows.map((r) => (
+              donePage.rows.map((r) => (
                 <DoneRow
                   key={r.id}
                   row={r}
@@ -386,7 +394,7 @@ export function OutDesk({
           ) : todoRows.length === 0 ? (
             <Empty icon="check">{orders.length > 0 ? to("emptyFiltered") : isLy ? to("empty") : to("emptyTn")}</Empty>
           ) : (
-            todoRows.map((o) => {
+            todoPage.rows.map((o) => {
               const gone = GONE_AT_CARRIER.has(o.carrier_status_slug ?? "");
               const unbindable = isLy && !gone && o.has_carrier_ref === false;
               const short = (o.current_stock ?? 0) < o.quantity;
@@ -450,6 +458,7 @@ export function OutDesk({
             })
           )}
         </div>
+        {tile === "done" ? <Pager paged={donePage} onPage={setDonePage} /> : <Pager paged={todoPage} onPage={setTodoPage} />}
         <div className="lfoot">
           <Ic n="info" />
           <span>

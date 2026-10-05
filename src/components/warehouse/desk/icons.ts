@@ -11,6 +11,8 @@ export const ICON_PATHS = {
   receipt: '<path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 1V2l-1 1-3-2-3 2-3-2-3 2-3-2z"/><path d="M8 8h8M8 12h8"/>',
   search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   right: '<polyline points="9 18 15 12 9 6"/>',
+  left: '<polyline points="15 18 9 12 15 6"/>',
+  roll: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/>',
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   check: '<polyline points="20 6 9 17 4 12"/>',
   alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',

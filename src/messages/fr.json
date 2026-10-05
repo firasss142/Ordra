@@ -3368,9 +3368,9 @@
       "progress": "{done} / {total}",
       "progressLabel": "Colis {done} sur {total}",
       "elapsed": "Depuis {time}",
-      "tallyBound": "{n} liés",
-      "tallyRefused": "{n} refusés",
-      "tallySkipped": "{n} passés",
+      "tallyBound": "{n, plural, one {# lié} other {# liés}}",
+      "tallyRefused": "{n, plural, one {# refusé} other {# refusés}}",
+      "tallySkipped": "{n, plural, one {# passé} other {# passés}}",
       "parcelTitle": "Colis en main",
       "linesTitle": "{n, plural, one {# produit} other {# produits}} dans ce colis",
       "lineQty": "× {n}",
@@ -3391,11 +3391,19 @@
       "summaryRefusedTitle": "À reprendre",
       "nextBucket": "Lot suivant : {name}",
       "changeMode": "Changer de lot",
-      "backToBench": "Retour au banc",
+      "backToBench": "Retour à Sortir",
       "noSiteTitle": "Aucun entrepôt",
       "noSiteBody": "Votre compte n'est rattaché à aucun bâtiment. Demandez à votre responsable de vous affecter à Tripoli ou à Benghazi.",
       "start": "Lancer la tournée",
-      "recent": "Derniers scans"
+      "recent": "Derniers scans",
+      "setupCount": "{batches, plural, one {# lot} other {# lots}} · {parcels, plural, one {# colis} other {# colis}}",
+      "upNext": "Ensuite",
+      "stockMove": "Stock {from} → {to}",
+      "scanReady": "Le lecteur est prêt : visez le sticker, ou saisissez son numéro ci-dessous.",
+      "scanReadyTn": "Le lecteur est prêt : visez le QR de l'étiquette, ou saisissez le code ci-dessous.",
+      "rollTitle": "Rouleau {colour}",
+      "short": "Stock insuffisant — le scan sera refusé",
+      "noRef": "Pas de référence Darb — le sticker ne pourra pas être lié. Passez ce colis."
     },
     "pickupSwitch": {
       "title": "Ramassage Darb",
@@ -3713,7 +3721,8 @@
         "unconfirmed": "Darb n'a pas notre numéro",
         "rowMenu": "Actions sur ce colis",
         "recheck": "Revérifier chez Darb",
-        "unscan": "Annuler la sortie"
+        "unscan": "Annuler la sortie",
+        "startRunRoll": "Tournée {colour}"
       },
       "returns": {
         "title": "Rentrer",
@@ -3952,7 +3961,6 @@
           "count": "Comptages",
           "adjust": "Corrections"
         },
-        "lines": "<b>{n}</b> lignes",
         "colWhen": "Quand",
         "colUnits": "Unités",
         "colWhy": "Pourquoi",
@@ -3992,6 +4000,14 @@
         "finished": "Comptage terminé : {n, plural, one {# produit compté} other {# produits comptés}}.",
         "nothing": "Rien à compter ici.",
         "backToStock": "Retour au stock"
+      },
+      "pager": {
+        "range": "{from}–{to} sur {total}",
+        "prev": "Page précédente",
+        "next": "Page suivante",
+        "page": "Page {n}",
+        "label": "Pagination",
+        "rangeOpen": "Lignes {from}–{to}"
       }
     }
   },
