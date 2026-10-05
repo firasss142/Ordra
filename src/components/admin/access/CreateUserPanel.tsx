@@ -23,15 +23,11 @@ const SUPER_ADMIN_CREATABLE: Role[] = ["agent", "warehouse_agent", "market_manag
 const MANAGER_CREATABLE: Role[] = ["agent", "warehouse_agent"];
 const MARKET_ID: Record<MarketCode, string> = { tn: TN_MARKET_ID, ly: LY_MARKET_ID };
 
-const field = "h-[40px] w-full rounded-[10px] border border-transparent bg-[#F3F4F6] px-[12px] text-[14px] text-[#15171A] transition-colors placeholder:text-[#656B72] hover:bg-[#EDEEF1] focus:border-brand focus:bg-white focus:shadow-[0_0_0_3px_var(--brand-bg)] focus:outline-none";
-const label = "mb-[7px] block text-[13px] font-semibold text-[#15171A]";
-const choice = "has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand";
-
 function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
-    <section>
-      <h3 className="m-0 mb-[12px] flex items-center gap-[9px] text-[13.5px] font-semibold text-[#15171A]">
-        <span aria-hidden="true" className="grid h-[22px] w-[22px] place-items-center rounded-full bg-brand-bg text-[11.5px] font-bold text-brand-hover">
+    <section className="acx-sec acx-step">
+      <h3 className="acx-step-h">
+        <span aria-hidden="true" className="acx-num">
           {n}
         </span>
         {title}
@@ -97,21 +93,19 @@ export function CreateUserPanel({
   }
 
   return (
-    <SidePanel labelledBy="access-create-title" onClose={onClose}>
+    <SidePanel labelledBy="access-create-title" onClose={onClose} tone={role ? TONE[role] : "tone-all"}>
       <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-start gap-[12px] border-b border-[#ECEEF0] px-[22px] py-[18px]">
+        <div className="acx-ch">
           <div className="min-w-0 flex-1">
-            <h2 id="access-create-title" className="m-0 text-[18px] font-bold tracking-[-.01em] text-[#15171A]">
-              {t("createPanel.title")}
-            </h2>
-            <p className="m-0 mt-[2px] text-[13px] text-[#656B72]">{t("createPanel.subtitle")}</p>
+            <h2 id="access-create-title">{t("createPanel.title")}</h2>
+            <p>{t("createPanel.subtitle")}</p>
           </div>
           <CloseButton label={t("drawer.close")} onClick={onClose} />
         </div>
 
-        <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto px-[22px] py-[20px]">
+        <div className="acx-db">
           <Step n={1} title={t("createPanel.identity")}>
-            <label htmlFor="access-create-username" className={label}>
+            <label htmlFor="access-create-username" className="acx-label">
               {t("createPanel.username")}
             </label>
             <input
@@ -123,86 +117,68 @@ export function CreateUserPanel({
               autoComplete="off"
               autoFocus
               aria-describedby="access-create-identifier"
-              className={field}
+              className="acx-field"
             />
             <div id="access-create-identifier" role="status">
               {identifier && (
-                <div
-                  className={`mt-[9px] flex items-center gap-[10px] rounded-[10px] border px-[12px] py-[9px] text-[13px] ${
-                    taken ? "border-[#F5C9C4] bg-[#FDECEA] text-[#C0362C]" : "border-[#A9DDBC] bg-brand-tint text-[#4F555B]"
-                  }`}
-                >
-                  <span aria-hidden="true" className={`grid h-[28px] w-[28px] flex-none place-items-center rounded-[8px] bg-white ${taken ? "text-[#C0362C]" : "text-brand"}`}>
+                <div className={`acx-idbox${taken ? " taken" : ""}`}>
+                  <span aria-hidden="true" className="acx-idbox-ic">
                     {taken ? <AlertTriangle size={15} /> : <IdCard size={15} />}
                   </span>
                   <span>
                     {t("createPanel.identifier")}{" "}
-                    <code className={`rounded-[6px] border bg-white px-[6px] py-[1px] font-mono text-[12.5px] font-semibold ${taken ? "border-[#F5C9C4] text-[#C0362C]" : "border-[#A9DDBC] text-brand-hover"}`}>
+                    <code>
                       <bdi>{identifier}</bdi>
                     </code>
-                    <small className="mt-[2px] block text-[12px] text-[#656B72]">{taken ? t("createPanel.identifierTaken") : t("createPanel.identifierHint")}</small>
+                    <small>{taken ? t("createPanel.identifierTaken") : t("createPanel.identifierHint")}</small>
                   </span>
                 </div>
               )}
             </div>
 
-            <label htmlFor="access-create-password" className={`${label} mt-[14px]`}>
+            <label htmlFor="access-create-password" className="acx-label gap">
               {t("createPanel.password")}
             </label>
-            <div className="relative">
-              <input id="access-create-password" type={show ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" className={`${field} pe-[92px]`} />
-              <button
-                type="button"
-                aria-pressed={show}
-                onClick={() => setShow((s) => !s)}
-                className="absolute end-[5px] top-[6px] inline-flex h-[28px] items-center gap-[5px] rounded-[7px] bg-white px-[10px] text-[12px] font-semibold text-[#4F555B] shadow-[0_1px_2px_rgba(16,24,40,.08),0_0_0_1px_rgba(16,24,40,.04)] hover:text-[#15171A]"
-              >
+            <div className="acx-pw">
+              <input id="access-create-password" type={show ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" className="acx-field peek" />
+              <button type="button" aria-pressed={show} onClick={() => setShow((s) => !s)} className="acx-peek">
                 {show ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
                 {show ? t("createPanel.hide") : t("createPanel.show")}
               </button>
             </div>
           </Step>
 
-          <fieldset className="m-0 min-w-0 border-0 p-0">
-            <legend className="mb-[12px] flex items-center gap-[9px] p-0 text-[13.5px] font-semibold text-[#15171A]">
-              <span aria-hidden="true" className="grid h-[22px] w-[22px] place-items-center rounded-full bg-brand-bg text-[11.5px] font-bold text-brand-hover">
+          <fieldset className="acx-sec acx-step">
+            <legend className="acx-step-h">
+              <span aria-hidden="true" className="acx-num">
                 2
               </span>
               {t("createPanel.role")}
             </legend>
-            <div className="grid gap-[8px]">
+            <div className="acx-roleopts">
               {(admin ? SUPER_ADMIN_CREATABLE : MANAGER_CREATABLE).map((r) => {
                 const Icon = ROLE_ICON[r];
-                const on = role === r;
                 return (
-                  <label
-                    key={r}
-                    className={`${TONE[r]} ${choice} relative flex cursor-pointer items-center gap-[12px] rounded-[12px] border px-[14px] py-[12px] transition-colors ${
-                      on ? "border-tone bg-tone-bg shadow-[inset_0_0_0_1px_var(--tone)]" : "border-[#E3E5E8] hover:border-tone-edge"
-                    }`}
-                  >
+                  <label key={r} className={`${TONE[r]} acx-opt`}>
                     <input
                       type="radio"
                       name="access-create-role"
                       value={r}
-                      checked={on}
+                      checked={role === r}
                       onChange={() => {
                         setRole(r);
                         // A building belongs to the warehouse role alone.
                         if (r !== "warehouse_agent") setWarehouseId("");
                       }}
-                      className="absolute opacity-0"
                     />
-                    <span aria-hidden="true" className={`grid h-[32px] w-[32px] flex-none place-items-center rounded-[9px] text-tone ${on ? "bg-white" : "bg-tone-bg"}`}>
+                    <span aria-hidden="true" className="acx-opt-ic">
                       <Icon size={17} />
                     </span>
-                    <span className="min-w-0">
-                      <span className={`block text-[13.5px] font-semibold ${on ? "text-tone-ink" : "text-[#15171A]"}`}>{t(`role.${r}`)}</span>
-                      <span className="mt-[2px] block text-[12.5px] leading-[1.4] text-[#4F555B]">{t(`roleDescription.${r as "agent"}`)}</span>
+                    <span className="acx-opt-t">
+                      {t(`role.${r}`)}
+                      <small>{t(`roleDescription.${r as "agent"}`)}</small>
                     </span>
-                    <span aria-hidden="true" className={`ms-auto grid h-[20px] w-[20px] flex-none place-items-center rounded-full ${on ? "bg-tone" : "bg-white shadow-[inset_0_0_0_1.5px_#D5D8DC]"}`}>
-                      {on && <span className="h-[7px] w-[7px] rounded-full bg-white" />}
-                    </span>
+                    <span aria-hidden="true" className="acx-radio" />
                   </label>
                 );
               })}
@@ -212,15 +188,10 @@ export function CreateUserPanel({
           <Step n={3} title={t("createPanel.attach")}>
             {admin ? (
               <fieldset className="m-0 min-w-0 border-0 p-0">
-                <legend className={label}>{t("createPanel.market")}</legend>
-                <div className="flex gap-[2px] rounded-[10px] bg-[#F3F4F6] p-[3px]">
+                <legend className="acx-label">{t("createPanel.market")}</legend>
+                <div className="acx-mktseg">
                   {(["tn", "ly"] as const).map((m) => (
-                    <label
-                      key={m}
-                      className={`${choice} relative grid h-[34px] flex-1 cursor-pointer place-items-center rounded-[8px] text-[13px] ${
-                        market === m ? "bg-white font-semibold text-[#15171A] shadow-[0_1px_2px_rgba(16,24,40,.08),0_0_0_1px_rgba(16,24,40,.04)]" : "font-medium text-[#4F555B] hover:text-[#15171A]"
-                      }`}
-                    >
+                    <label key={m}>
                       <input
                         type="radio"
                         name="access-create-market"
@@ -231,7 +202,6 @@ export function CreateUserPanel({
                           // Buildings are per market; the old choice cannot survive.
                           setWarehouseId("");
                         }}
-                        className="absolute opacity-0"
                       />
                       {t(`market.${m}`)}
                     </label>
@@ -239,39 +209,31 @@ export function CreateUserPanel({
                 </div>
               </fieldset>
             ) : (
-              <p className="m-0 flex items-center gap-[8px] rounded-[10px] border border-[#F2F3F5] bg-[#F7F8F9] px-[12px] py-[9px] text-[13px] text-[#4F555B]">
-                <MapPin size={14} aria-hidden="true" className="text-[#656B72]" />
+              <p className="acx-fixed">
+                <MapPin size={14} aria-hidden="true" />
                 {t("createPanel.marketFixed", { market: ownMarket ? t(`market.${ownMarket}`) : "" })}
               </p>
             )}
 
             {isWarehouse && marketId && (
               <fieldset className="m-0 mt-[14px] min-w-0 border-0 p-0">
-                <legend className={label}>{t("createPanel.warehouse")}</legend>
-                <div className="tone-warehouse grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-[8px]">
-                  {sites.map((s) => {
-                    const on = warehouseId === s.id;
-                    return (
-                      <label
-                        key={s.id}
-                        className={`${choice} relative flex cursor-pointer items-center gap-[10px] rounded-[12px] border px-[12px] py-[10px] text-[13.5px] font-semibold transition-colors ${
-                          on ? "border-tone bg-tone-bg text-tone-ink shadow-[inset_0_0_0_1px_var(--tone)]" : "border-[#E3E5E8] text-[#15171A] hover:border-tone-edge"
-                        }`}
-                      >
-                        <input type="radio" name="access-create-site" value={s.id} checked={on} onChange={() => setWarehouseId(s.id)} className="absolute opacity-0" />
-                        <span aria-hidden="true" className={`grid h-[30px] w-[30px] place-items-center rounded-[8px] text-tone ${on ? "bg-white" : "bg-tone-bg"}`}>
-                          <Box size={15} />
-                        </span>
-                        {s.name}
-                      </label>
-                    );
-                  })}
+                <legend className="acx-label">{t("createPanel.warehouse")}</legend>
+                <div className="tone-warehouse acx-sites">
+                  {sites.map((s) => (
+                    <label key={s.id} className="acx-opt">
+                      <input type="radio" name="access-create-site" value={s.id} checked={warehouseId === s.id} onChange={() => setWarehouseId(s.id)} />
+                      <span aria-hidden="true" className="acx-opt-ic">
+                        <Box size={15} />
+                      </span>
+                      {s.name}
+                    </label>
+                  ))}
                 </div>
                 {warehouseId ? (
-                  <p className="m-0 mt-[8px] text-[12.5px] leading-[1.45] text-[#656B72]">{t("warehouse.hint")}</p>
+                  <p className="acx-hint">{t("warehouse.hint")}</p>
                 ) : (
-                  <div className="mt-[10px] flex items-start gap-[8px] rounded-[10px] border border-[#F8D9A6] bg-[#FFF6E5] px-[12px] py-[9px] text-[12.5px] text-[#8F4A06]">
-                    <AlertTriangle size={14} aria-hidden="true" className="mt-[1px] flex-none text-[#D97706]" />
+                  <div className="acx-warnline">
+                    <AlertTriangle size={14} aria-hidden="true" />
                     {t("warehouse.warn")}
                   </div>
                 )}
@@ -282,7 +244,7 @@ export function CreateUserPanel({
           <FormError message={error} />
         </div>
 
-        <div className="flex items-center justify-end gap-[8px] border-t border-[#ECEEF0] bg-white px-[22px] py-[14px]">
+        <div className="acx-df acx-cf">
           <button type="button" onClick={onClose} className={buttonClass("neutral")}>
             {t("createPanel.cancel")}
           </button>

@@ -3847,6 +3847,7 @@
   },
   "users": {
     "title": "Accès",
+    "crumbLabel": "Fil d'Ariane",
     "subtitleAdmin": "Qui peut se connecter à Ordra, avec quel rôle et sur quel marché.",
     "subtitleManager": "Les comptes de l'équipe {market} : agents de confirmation et agents entrepôt.",
     "create": "Créer un utilisateur",
@@ -3917,7 +3918,8 @@
     "banner": {
       "title": "{count, plural, one {# agent entrepôt n'a pas d'entrepôt} other {# agents entrepôt n'ont pas d'entrepôt}}",
       "body": "Sans entrepôt, un agent ne voit aucun colis et ne peut rien scanner. Affectez-le avant sa prochaine prise de poste.",
-      "assign": "Affecter"
+      "assign": "Affecter",
+      "more": "{count, plural, one {+# autre} other {+# autres}}"
     },
     "empty": "Aucun compte dans cette vue.",
     "emptyQuery": "Aucun compte ne correspond à « {query} ».",
