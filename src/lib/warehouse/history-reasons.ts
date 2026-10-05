@@ -35,6 +35,10 @@ export const ALL_LEDGER_REASONS = [
   "deposit",
   "reception",
   "reception_reversal",
+  // The dock's arrival and its correction (20261003180000_quai_et_bureau). They
+  // were missing here, so every counted arrival was invisible in the Journal.
+  "arrival",
+  "arrival_correction",
 ] as const;
 
 export type LedgerReason = (typeof ALL_LEDGER_REASONS)[number];
@@ -73,6 +77,8 @@ const FAMILY: Record<LedgerReason, Exclude<HistoryKind, "all" | "print" | "hando
   stock_count: "count",
   reception: "reception",
   reception_reversal: "reception",
+  arrival: "reception",
+  arrival_correction: "reception",
 };
 
 /**

@@ -185,6 +185,11 @@ export interface WarehouseOrderRow {
    * for the lines; empty when the order predates `order_items`.
    */
   items?: OrderLine[];
+  /**
+   * The building the parcel leaves from. `get_to_label_orders` has returned it
+   * since 20260909134107; nothing typed it, so no screen could say « Bâtiment ».
+   */
+  warehouse_id?: string | null;
   current_stock: number | null;
   low_stock_threshold: number | null;
 }

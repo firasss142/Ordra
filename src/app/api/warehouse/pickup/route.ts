@@ -36,6 +36,9 @@ export interface PickupSiteState {
   warehouseId: string;
   code: string;
   name: string;
+  /** Both spellings, for a desk read in the other language. */
+  nameFr?: string;
+  nameAr?: string;
   /** True when pickup is switched OFF for this site today. */
   disabled: boolean;
   /** When it was switched off, if it is. */
@@ -111,6 +114,8 @@ async function loadState(
         code: r.code,
         // The site name is a place name painted on the building, not a key.
         name: marketCode === "ly" ? r.name_ar : r.name_fr,
+        nameFr: r.name_fr,
+        nameAr: r.name_ar,
         disabled,
         disabledAt: at ? at.toISOString() : null,
         canDisable:

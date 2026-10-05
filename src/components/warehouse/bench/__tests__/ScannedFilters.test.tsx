@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { ScannedList } from "../ScannedList";
-import { ScannedTable } from "@/components/warehouse/console/ScannedTable";
 import { Intl } from "./fixtures";
 import type { ScannedRow } from "@/app/api/warehouse/scanned/route";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
@@ -84,29 +83,6 @@ afterEach(() => {
 });
 
 const phone = () => render(<Intl locale="fr"><ScannedList isLy /></Intl>);
-const desk = () => render(<Intl locale="fr"><ScannedTable isLy /></Intl>);
-
-describe("both surfaces agree", () => {
-  it("puts the parcels Darb is not holding first, on the phone as at the desk", () => {
-    phone();
-    const first = screen.getAllByTestId("wh-scanned-card")[0];
-    expect(first).toHaveTextContent("Cassé");
-    cleanup();
-
-    desk();
-    // The desk renders rows in the same order, from the same sort.
-    const rows = screen.getAllByTestId("wh-bind-state");
-    expect(rows[0]).toHaveAttribute("data-state", "not_registered");
-  });
-
-  it("offers the same segments with the same counts", () => {
-    phone();
-    const phoneSegs = screen.getAllByTestId("wh-scanned-seg").map((s) => s.textContent);
-    cleanup();
-    desk();
-    expect(screen.getAllByTestId("wh-scanned-seg").map((s) => s.textContent)).toEqual(phoneSegs);
-  });
-});
 
 describe("narrowing the list", () => {
   it("shows only what needs a human when asked", () => {

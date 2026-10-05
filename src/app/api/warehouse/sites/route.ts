@@ -21,6 +21,9 @@ export interface WarehouseSite {
   id: string;
   code: string;
   name: string;
+  /** Both spellings, so a desk read in French can say « Tripoli » (prototypes/entrepot-desk-v1.html). */
+  nameFr?: string;
+  nameAr?: string;
   isDefault: boolean;
   /** Le marché du bâtiment — la seule source fiable pour un super_admin. */
   marketId: string;
@@ -78,6 +81,8 @@ async function handleGET(req: NextRequest) {
       id: r.id,
       code: r.code,
       name: marketCode === "ly" ? r.name_ar : r.name_fr,
+      nameFr: r.name_fr,
+      nameAr: r.name_ar,
       isDefault: r.is_default,
       /*
        * LE BÂTIMENT PORTE SON MARCHÉ, parce qu'un super_admin n'en a pas : les

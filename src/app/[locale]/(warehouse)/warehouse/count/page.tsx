@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { CountRun } from "@/components/warehouse/count/CountRun";
+import { CountDesk } from "@/components/warehouse/desk/CountDesk";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -23,5 +25,11 @@ export default async function WarehouseCountPage({
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
-  return <CountRun locale={locale} productId={product ?? null} initialSiteId={warehouse_id ?? null} />;
+  // The agent's phone keeps its run; the desk counts with the screen of the
+  // prototype (it reads the building from ?warehouse_id itself).
+  if (user.role === "warehouse_agent") {
+    return <CountRun locale={locale} productId={product ?? null} initialSiteId={warehouse_id ?? null} />;
+  }
+  const { marketCode } = await getActiveMarketScope(user);
+  return <CountDesk market={marketCode === "ly" ? "ly" : "tn"} productId={product ?? null} />;
 }

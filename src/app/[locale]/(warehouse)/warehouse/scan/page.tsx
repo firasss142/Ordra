@@ -33,11 +33,11 @@ export default async function ScanRunPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ roll?: string }>;
+  searchParams: Promise<{ roll?: string; warehouse_id?: string }>;
 }) {
   const { locale } = await params;
   // « Commencer » on a roll in Sortir: open the run on that roll.
-  const { roll } = await searchParams;
+  const { roll, warehouse_id: requested } = await searchParams;
   const initialRoll = roll && /^#[0-9a-f]{6}$/i.test(roll) ? roll.toLowerCase() : null;
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
@@ -46,7 +46,11 @@ export default async function ScanRunPage({
   const { marketId: scope, marketCode } = await getActiveMarketScope(user);
   const market: "ly" | "tn" = marketCode === "ly" ? "ly" : "tn";
   const supabase = await createClient();
-  const site = await resolveSiteFilter(supabase, { actor: user, requested: null });
+  // The building chosen on Sortir; an agent stays pinned to their own whatever the address says.
+  const site = await resolveSiteFilter(supabase, {
+    actor: user,
+    requested: requested && /^[0-9a-f-]{36}$/i.test(requested) ? requested : null,
+  });
 
   /*
    * Sans bâtiment, pas de tournée : l'agent verrait les colis des deux
@@ -74,14 +78,14 @@ export default async function ScanRunPage({
       p_warehouse_id: site.warehouseId,
     }),
     getZoneIndex(supabase),
-    // Le nom peint sur le mur, dans la langue du marché — jamais traduit par clé.
+    // Le nom du bâtiment dans la langue du lecteur, comme sur le reste du bureau.
     site.warehouseId
       ? supabase
           .from("warehouses")
           .select("name_fr, name_ar")
           .eq("id", site.warehouseId)
           .maybeSingle<{ name_fr: string; name_ar: string }>()
-          .then((r) => (marketCode === "ly" ? r.data?.name_ar : r.data?.name_fr) ?? null)
+          .then((r) => (locale === "ar" ? r.data?.name_ar : r.data?.name_fr) ?? null)
       : Promise.resolve(null),
   ]);
 
@@ -98,6 +102,7 @@ export default async function ScanRunPage({
       currency={market === "ly" ? "LYD" : "TND"}
       initialOrders={orders}
       siteName={siteName}
+      siteId={site.pinned ? null : site.warehouseId}
       initialRoll={initialRoll}
     />
   );

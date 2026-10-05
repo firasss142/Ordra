@@ -48,7 +48,8 @@ export default async function WarehouseTodayPage({
       ...assembleDayLoop(rows, {
         focus: site.warehouseId,
         today: marketToday(marketId),
-        locale: marketCode === "ly" ? "ar" : "fr",
+        // The reader's language: a French desk names « Tripoli », an Arabic one « طرابلس ».
+        locale: locale === "ar" ? "ar" : "fr",
         withManagerViews: !isAgent,
       }),
       siteUnassigned: false,
@@ -72,6 +73,9 @@ export default async function WarehouseTodayPage({
       dateLabel={dateLabel}
       warehouseId={site.warehouseId}
       showPickup={marketCode === "ly"}
+      marketCode={marketCode === "ly" ? "ly" : marketCode === "tn" ? "tn" : null}
+      marketId={marketId}
+      today={marketToday(marketId)}
     />
   );
 }
