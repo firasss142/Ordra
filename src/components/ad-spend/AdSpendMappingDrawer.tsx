@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, Check, RefreshCw, Search, X } from "lucide-react";
+import { Check, Link2, Search, X } from "lucide-react";
+import { AdSpendCoverageNote } from "./AdSpendEconomics";
 import { Sheet } from "@/components/ui/Sheet";
 import { useAdSpendMapping, type SaveMappingResult } from "@/hooks/useAdSpendMapping";
 import { attributionStatus, firstToAttribute, groupCampaigns } from "@/lib/ad-spend/mapping-view";
@@ -33,12 +34,18 @@ interface Props {
   onClose: () => void;
   /** After a save: the page's figures moved. */
   onSaved: () => void;
+  /**
+   * The page's other warning — products with no attributed spend over the
+   * page's period, and the backfill that may fix it. It lives here, beside
+   * the spend waiting for a product, so both are read and fixed in one place.
+   */
+  coverage?: { count: number; fromDate: string; onBackfill?: () => void; backfilling?: boolean };
 }
 
 /** null = the campaign itself; a string = one of its ad sets. */
 type EditTarget = { adsetId: string | null };
 
-const b = (chunks: ReactNode) => <b className="font-semibold">{chunks}</b>;
+const b = (chunks: ReactNode) => <b>{chunks}</b>;
 
 /** Where the drawer opens: the page's campaign, else the most money waiting, else the top of the list. */
 function defaultCampaign(tree: MappingTreeDTO, focus: string | null): string | null {
@@ -49,7 +56,7 @@ function defaultCampaign(tree: MappingTreeDTO, focus: string | null): string | n
   return (g.live[0] ?? g.paused[0] ?? g.never[0])?.id ?? null;
 }
 
-export function AdSpendMappingDrawer({ marketId, currency, focusCampaignId = null, onClose, onSaved }: Props) {
+export function AdSpendMappingDrawer({ marketId, currency, focusCampaignId = null, onClose, onSaved, coverage }: Props) {
   const t = useTranslations("adSpend.mapping");
   const locale = useLocale();
   const { tree, isLoading, error, mutate } = useAdSpendMapping({ marketId });
@@ -77,6 +84,9 @@ export function AdSpendMappingDrawer({ marketId, currency, focusCampaignId = nul
   const campaign = tree?.campaigns.find((c) => c.id === selectedId) ?? null;
   const adset = campaign && editing?.adsetId ? (campaign.adsets.find((s) => s.id === editing.adsetId) ?? null) : null;
   const status = tree ? attributionStatus(tree) : null;
+  const hasStatus = !!status && !!tree && tree.coverage.life.total > 0;
+  const coverageCount = coverage?.count ?? 0;
+  const allClear = hasStatus && (status?.waiting ?? 0) === 0 && coverageCount === 0;
   const money = (n: number) => `${fmtMoney(n)} ${currency}`;
 
   const select = useCallback((id: string) => {
@@ -107,70 +117,67 @@ export function AdSpendMappingDrawer({ marketId, currency, focusCampaignId = nul
   const close = useCallback(() => (editing ? setEditing(null) : onClose()), [editing, onClose]);
 
   return (
-    <Sheet open onClose={close} width="w-full sm:w-[min(1080px,94vw)]" ariaLabel={t("title")}>
-      {/* header */}
-      <div className="flex-none flex items-start gap-3.5 px-4 pt-4 pb-3 md:px-6 md:pt-5 md:pb-3.5">
+    <Sheet open onClose={close} width="ads-sheet w-full sm:w-[min(1080px,94vw)]" ariaLabel={t("title")}>
+      {/* header — the Finances kit's drawer head (prototypes/finances-pub-v5.html) */}
+      <div className="flex-none dr-h">
         <div className="flex-1 min-w-0">
-          <h2 className="text-[18px] font-bold tracking-[-0.01em] text-ink-primary">{t("title")}</h2>
-          <p className="hidden md:block mt-[3px] text-[13px] text-ink-secondary">{t("subtitle")}</p>
+          <h2>{t("title")}</h2>
+          <p className="hidden md:block">{t("subtitle")}</p>
+          {account && (
+            <span className={`chip${account.last_synced_at ? "" : " off"}`}>
+              <i className="dot" aria-hidden />
+              {account.last_synced_at ? t("syncedAgo", { ago: relativeTime(account.last_synced_at, locale) ?? "" }) : t("neverSynced")}
+            </span>
+          )}
         </div>
-        {account && (
-          <span className="hidden md:inline-flex items-center gap-1.5 mt-[7px] text-[12px] text-ink-muted whitespace-nowrap">
-            <RefreshCw size={13} aria-hidden />
-            {account.last_synced_at ? t("syncedAgo", { ago: relativeTime(account.last_synced_at, locale) ?? "" }) : t("neverSynced")}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("close")}
-          className="flex-none w-[34px] h-[34px] grid place-items-center rounded-[9px] text-ink-secondary hover:bg-line-subtle hover:text-ink-primary"
-        >
-          <X size={18} aria-hidden />
+        <button type="button" onClick={onClose} aria-label={t("close")} className="dr-x">
+          <X className="ic" aria-hidden />
         </button>
       </div>
 
-      {/* one sentence, whole history */}
-      {status && tree && tree.coverage.life.total > 0 && (
-        <div
-          className={`flex-none ${editing ? "hidden md:flex" : "flex"} flex-wrap md:flex-nowrap items-center gap-3 mx-4 mb-3 md:mx-6 md:mb-4 px-3.5 py-[11px] rounded-[12px] border text-[13px] leading-[1.4] ${
-            status.waiting > 0 ? "bg-[#FFFBEB] border-ads-orange-line text-[#78350F]" : "bg-status-successBg border-[#CDE8DD] text-[#05603A]"
-          }`}
-        >
-          <span
-            aria-hidden
-            className={`flex-none w-[26px] h-[26px] rounded-full grid place-items-center ${
-              status.waiting > 0 ? "bg-ads-orange-bg text-ads-orange-ink" : "bg-[#D5EFE3] text-status-success"
-            }`}
-          >
-            {status.waiting > 0 ? <AlertTriangle size={15} /> : <Check size={15} strokeWidth={2.4} />}
-          </span>
-          {status.waiting > 0 ? (
-            <p className="flex-1 min-w-0">
-              {t.rich("statusTodo", { amount: money(status.waiting), count: status.waitingCampaigns, b })}{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  const first = firstToAttribute(tree.campaigns);
-                  if (first) select(first.id);
-                }}
-                className="font-semibold underline underline-offset-[3px] whitespace-nowrap"
-              >
-                {t("statusGo")}
-              </button>
-            </p>
-          ) : (
-            <p className="flex-1 min-w-0">
-              {t("statusDone")}
-              {status.general > 0 && <span className="opacity-80"> {t("statusGeneral", { amount: money(status.general) })}</span>}
-            </p>
+      {/* The page's warnings, in one place: spend on no product (whole
+          history), then products with no spend (the page's period). */}
+      {(hasStatus || coverageCount > 0) && (
+        <div className={`dr-warn ${editing ? "hidden md:block" : ""}${allClear ? " ok" : ""}`}>
+          {hasStatus && status && tree && (
+            status.waiting > 0 ? (
+              <div className="dw">
+                <span className="nh"><Link2 className="ic" aria-hidden /></span>
+                <span className="min-w-0">
+                  {t.rich("statusTodo", { amount: money(status.waiting), count: status.waitingCampaigns, b })}
+                </span>
+                <button
+                  type="button"
+                  className="go"
+                  onClick={() => {
+                    const first = firstToAttribute(tree.campaigns);
+                    if (first) select(first.id);
+                  }}
+                >
+                  {t("statusGo")}
+                </button>
+              </div>
+            ) : (
+              <div className="dw">
+                <span className="nh"><Check className="ic" strokeWidth={2.4} aria-hidden /></span>
+                <span className="min-w-0">
+                  {t("statusDone")}
+                  {status.general > 0 && <span className="opacity-80"> {t("statusGeneral", { amount: money(status.general) })}</span>}
+                </span>
+              </div>
+            )
           )}
-          <span className="hidden md:flex items-center gap-2.5 text-[12px] whitespace-nowrap opacity-90">
-            {t("meter", { pct: fmtPct(status.onProductsPct) })}
-            <i aria-hidden className="block w-[110px] h-1.5 rounded-[3px] bg-black/[.08] overflow-hidden">
-              <b className="block h-full rounded-[3px] bg-status-success" style={{ width: `${status.onProductsPct}%` }} />
-            </i>
-          </span>
+          {coverage && <AdSpendCoverageNote {...coverage} />}
+          {hasStatus && status && (
+            <div className="dw meterline">
+              <span className="meter">
+                {t("meter", { pct: fmtPct(status.onProductsPct) })}
+                <i aria-hidden>
+                  <b style={{ width: `${status.onProductsPct}%` }} />
+                </i>
+              </span>
+            </div>
+          )}
         </div>
       )}
 

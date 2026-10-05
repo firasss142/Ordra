@@ -1,7 +1,8 @@
 /** Display helpers for the mapping drawer. Figures follow the rest of the page (fr-FR grouping). */
 
+/** U+202F (fr-FR grouping) has no width in Plus Jakarta Sans — a plain no-break space instead. */
 export function fmtMoney(n: number, decimals = 0): string {
-  return n.toLocaleString("fr-FR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return n.toLocaleString("fr-FR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).replace(/\u202f/g, "\u00a0");
 }
 
 export function fmtPct(n: number): string {

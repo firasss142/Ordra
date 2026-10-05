@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import { isPeriodLocked } from "@/lib/ad-spend/period-lock";
 import type { CampaignsProduct } from "@/hooks/useAdSpendCampaigns";
-import { AD_SPEND_THEME as D } from "./theme";
 
 interface FormState {
   periodStart: string;
@@ -20,6 +19,10 @@ interface FormState {
 interface AdSpendEntryModalProps {
   entry: AdSpendWithMetrics | null; // null = create new
   products: CampaignsProduct[];
+  /** The market currency, beside the amount. */
+  currency?: string;
+  /** « Libye · LYD » under the title. */
+  marketLabel?: string;
   defaultPeriodStart: string;
   defaultPeriodEnd: string;
   onClose: () => void;
@@ -36,30 +39,13 @@ interface AdSpendEntryModalProps {
   ) => Promise<void>;
 }
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "#FFFFFF",
-  border: "1px solid #E1E3E5",
-  borderRadius: 6,
-  color: "#1A1A1A",
-  fontSize: 13,
-  boxSizing: "border-box",
-};
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#6D7175",
-  display: "block",
-  marginBottom: 6,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-};
 
 export function AdSpendEntryModal({
   entry,
   products,
+  currency,
+  marketLabel,
   defaultPeriodStart,
   defaultPeriodEnd,
   onClose,
@@ -131,207 +117,115 @@ export function AdSpendEntryModal({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(16,24,40,0.40)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: 16,
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        style={{
-          background: D.cardBg,
-          border: `1px solid ${D.border}`,
-          borderRadius: 8,
-          width: 480,
-          maxWidth: "100%",
-          boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px",
-            borderBottom: `1px solid ${D.border}`,
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.ink }}>
-            {entry ? t("titleEdit") : t("titleNew")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: D.muted,
-              cursor: "pointer",
-              padding: 4,
-              lineHeight: 0,
-            }}
-          >
-            <X size={18} strokeWidth={1.5} />
+    <div className="mscrim" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mbox" role="dialog" aria-modal="true" aria-labelledby="ads-entry-t">
+        <div className="dr-h">
+          <div>
+            <h2 id="ads-entry-t">{entry ? t("titleEdit") : t("titleNew")}</h2>
+            {marketLabel && <p>{marketLabel}</p>}
+          </div>
+          <button type="button" className="dr-x" onClick={onClose} aria-label={t("cancel")}>
+            <X className="ic" aria-hidden />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Period */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label>
-              <span style={labelStyle}>{t("fieldStart")}</span>
-              <input
-                type="date"
-                value={form.periodStart}
-                onChange={(e) => setForm((f) => ({ ...f, periodStart: e.target.value }))}
-                style={inputStyle}
-                required
-              />
-            </label>
-            <label>
-              <span style={labelStyle}>{t("fieldEnd")}</span>
-              <input
-                type="date"
-                value={form.periodEnd}
-                onChange={(e) => setForm((f) => ({ ...f, periodEnd: e.target.value }))}
-                style={inputStyle}
-                required
-              />
-            </label>
-          </div>
-
-          {/* Amount */}
-          <label>
-            <span style={labelStyle}>{t("fieldAmount")}</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              placeholder="0.00"
-              style={inputStyle}
-              required
-            />
-          </label>
-
-          {/* Product */}
-          <label>
-            <span style={labelStyle}>{t("fieldProduct")}</span>
-            <select
-              value={form.productId}
-              onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
-              style={{ ...inputStyle, cursor: "pointer" }}
-            >
-              <option value="">{t("productMarketWide")}</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* Note */}
-          <label>
-            <span style={labelStyle}>{t("fieldNote")}</span>
-            <input
-              type="text"
-              value={form.note}
-              onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-              placeholder={t("notePlaceholder")}
-              style={inputStyle}
-            />
-          </label>
-
-          {/* Locked-period confirmation */}
-          {locked && (
-            <div
-              style={{
-                background: "rgba(245,197,99,0.06)",
-                border: "1px solid rgba(245,197,99,0.25)",
-                borderRadius: 8,
-                padding: "12px 14px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Lock size={14} strokeWidth={1.5} color={D.warning} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: D.warning }}>
-                  {t("lockedWarning")}
-                </span>
-              </div>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                  color: D.muted,
-                  cursor: "pointer",
-                }}
-              >
+        <form onSubmit={handleSubmit}>
+          <div className="mb">
+            <div className="row2">
+              <label className="fld">
+                <span>{t("fieldStart")}</span>
                 <input
-                  type="checkbox"
-                  checked={form.confirmLocked}
-                  onChange={(e) => setForm((f) => ({ ...f, confirmLocked: e.target.checked }))}
-                  style={{ width: 14, height: 14 }}
+                  type="date"
+                  className="inp"
+                  value={form.periodStart}
+                  onChange={(e) => setForm((f) => ({ ...f, periodStart: e.target.value }))}
+                  required
                 />
-                {t("lockedConfirm")}
+              </label>
+              <label className="fld">
+                <span>{t("fieldEnd")}</span>
+                <input
+                  type="date"
+                  className="inp"
+                  value={form.periodEnd}
+                  onChange={(e) => setForm((f) => ({ ...f, periodEnd: e.target.value }))}
+                  required
+                />
               </label>
             </div>
-          )}
 
-          {/* Error */}
-          {error && (
-            <div style={{ fontSize: 13, color: D.danger }}>{error}</div>
-          )}
+            <label className="fld">
+              <span>{t("fieldAmount")}</span>
+              <span className="sufw">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="inp"
+                  value={form.amount}
+                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  placeholder="0.00"
+                  required
+                />
+                {currency && <span className="suf">{currency}</span>}
+              </span>
+            </label>
 
-          {/* Footer buttons */}
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 4 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: "9px 18px",
-                fontSize: 13,
-                fontWeight: 500,
-                background: "transparent",
-                border: `1px solid ${D.border}`,
-                borderRadius: 6,
-                color: D.muted,
-                cursor: "pointer",
-              }}
-            >
+            <label className="fld">
+              <span>{t("fieldProduct")}</span>
+              <select
+                className="inp"
+                value={form.productId}
+                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+              >
+                <option value="">{t("productMarketWide")}</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="fld">
+              <span>
+                {t("fieldNote")} <em>· {t("notePlaceholder")}</em>
+              </span>
+              <input
+                type="text"
+                className="inp"
+                value={form.note}
+                onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+                placeholder={t("notePlaceholder")}
+              />
+            </label>
+
+            {/* Locked-period confirmation */}
+            {locked && (
+              <>
+                <div className="fwarn">
+                  <span className="nh"><Lock className="ic" aria-hidden /></span>
+                  <b>{t("lockedWarning")}</b>
+                </div>
+                <label className="chk">
+                  <input
+                    type="checkbox"
+                    checked={form.confirmLocked}
+                    onChange={(e) => setForm((f) => ({ ...f, confirmLocked: e.target.checked }))}
+                  />
+                  {t("lockedConfirm")}
+                </label>
+              </>
+            )}
+
+            {error && <p role="alert" className="ferr">{error}</p>}
+          </div>
+
+          <div className="mf">
+            <button type="button" className="btn2" onClick={onClose}>
               {t("cancel")}
             </button>
-            <button
-              type="submit"
-              disabled={submitDisabled}
-              style={{
-                padding: "9px 18px",
-                fontSize: 13,
-                fontWeight: 600,
-                background: submitDisabled ? "#E1E3E5" : "#1A1A1A",
-                border: "none",
-                borderRadius: 6,
-                color: submitDisabled ? D.tertiary : "#FFFFFF",
-                cursor: submitDisabled ? "not-allowed" : "pointer",
-              }}
-            >
+            <button type="submit" className="btn" disabled={submitDisabled}>
               {submitting ? "…" : t("save")}
             </button>
           </div>
