@@ -50,7 +50,7 @@ Prod dry run on 2026-10-02:
   - The order panel and the selected Livraison parcel register as its context. With no context
     it opens the callback search (`/api/feedback/lookup`), which reads the whole market through
     the service role, like `/api/agent/search`.
-- **Agent:** `/feedback` shows « Mes retours » (`AgentFeedbackSheet`).
+- **Agent:** `/feedback` shows « Voix du client » in the agent shell (`components/agent/voc/VocPage`, prototype agent-shell-v2 §6; cards on a phone). The capture (`CaptureDialog`) is drawn in the shell language too, in a `.agt` portal layer.
 - **Order panel:** a « Voix du client » button carrying the count of the customer's open
   complaints, and « F » in the hint line.
 - **Queue rows:** « n réclamation ouverte », from `/api/feedback/open-complaints`, keyed on the

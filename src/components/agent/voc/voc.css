@@ -1,0 +1,23 @@
+/*
+ * Voix du client — what agent.css does not draw. The capture and its toast are mounted by
+ * FeedbackCaptureProvider in a portal (`.agt.agt-layer`): a layer, not a page, so no height and
+ * no background of its own. The callback search lists its matches under the field (the
+ * prototype draws the field only). px on purpose (root font 14px).
+ */
+.agt.agt-layer{min-height:0;background:none}
+.agt .vlook-w{position:relative}
+.agt .vlook{position:absolute;inset-inline:0;top:calc(100% + 6px);z-index:5;max-height:300px;overflow:auto;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 18px 46px rgba(42,52,110,.16);padding:4px 0}
+.agt .vlook h6{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);padding:8px 12px 4px}
+.agt[lang=ar] .vlook h6{letter-spacing:0;font-size:12px}
+.agt .vlook .vlo{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;text-align:start}
+.agt .vlook .vlo:hover,.agt .vlook .vlo[data-hot]{background:#F8F9FC}
+.agt .vlook .vlo > span:nth-child(2){display:grid;gap:1px;min-width:0;flex:1}
+.agt .vlook .vlo b{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agt .vlook .vlo small{font-size:12px;color:var(--ink-3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agt .vlook .vlo .e{display:grid;justify-items:end;gap:2px;font-size:12px;color:var(--ink-3);font-weight:600;flex:none}
+.agt .vlook .vlo .thumb{width:32px;height:32px;border-radius:9px}
+.agt .vlook mark{background:#FEF0C7;color:inherit;border-radius:3px}
+.agt .vlook .q{display:block;padding:8px 12px;font-size:12.5px}
+.agt .vquote{font-size:13px;font-family:var(--fa);color:var(--ink-2);line-height:1.5}
+.agt .vtopics{display:flex;flex-wrap:wrap;gap:6px}
+.agt .vtopics .rc{height:32px;font-size:12.5px}

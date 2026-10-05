@@ -57,6 +57,11 @@ export interface QueueOrder {
   prior_order_count: number;
   prior_lead_count: number;
   prior_rejected_count: number;
+  /** Earlier orders of this customer that were delivered / returned (customer-history enrichment). */
+  prior_delivered_count?: number;
+  prior_returned_count?: number;
+  /** The human order reference (#41207). */
+  external_id?: string | null;
   last_known_address: string | null;
   /** The rejection *group*. The specific reason is `rejection_subreason`. */
   rejection_reason: string | null;

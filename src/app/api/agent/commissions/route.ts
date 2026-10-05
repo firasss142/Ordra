@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewOwnCommissions } from "@/lib/role-permissions";
 import type { AgentStatement } from "@/lib/commissions/types";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { likelyPerParcel } from "@/lib/calculations/commission-likely";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,12 @@ async function handleGET(req: NextRequest) {
     console.error("[api/agent/commissions] rpc failed", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-  return NextResponse.json({ data: (data ?? {}) as AgentStatement });
+  const me = (data ?? {}) as AgentStatement;
+  // « ≈ 7 » on each parcel of the road: rate × delivery rate, computed here, never in the browser.
+  if (me.way) {
+    me.way.likely_each = likelyPerParcel({ enabled: !!me.enabled, rate: me.rate?.amount ?? null, deliveryRate: me.delivery_rate ?? null });
+  }
+  return NextResponse.json({ data: me });
 }
 
 export const GET = withRouteErrors("/api/agent/commissions", "GET", handleGET);

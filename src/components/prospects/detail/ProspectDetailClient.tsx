@@ -34,8 +34,13 @@ interface LeadWithHistory extends Lead {
 type SheetKind = "convert" | "callback" | "lost" | null;
 
 export function ProspectDetailClient({
-  leadId, locale,
-}: { leadId: string; locale: string }) {
+  leadId, locale, openConvert = false,
+}: {
+  leadId: string;
+  locale: string;
+  /** `?convert=1` — the agent's « Convertir en commande » lands on the open form. */
+  openConvert?: boolean;
+}) {
   const router = useRouter();
   const t = useTranslations("prospects");
 
@@ -50,7 +55,7 @@ export function ProspectDetailClient({
     return () => clearInterval(id);
   }, []);
 
-  const [sheet, setSheet] = useState<SheetKind>(null);
+  const [sheet, setSheet] = useState<SheetKind>(openConvert ? "convert" : null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 

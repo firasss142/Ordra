@@ -23,7 +23,8 @@ There are FOUR route groups — (auth), (dashboard), (warehouse), (investor).
 **There is no `(agent)` group.** The agent shell is a ROLE BRANCH inside (dashboard):
 `(dashboard)/layout.tsx` returns `<AgentDashboardShell>` when `user.role === "agent"`,
 and the agent's pages are `(dashboard)/queue`, `/leads`, `/follow-ups`, `/commissions`
-reached through `components/layout/AgentNavTabs.tsx`.
+reached through `components/agent/shell/AgentNav.tsx`. The shell (« Aurore », since 2026-10-05) is
+`components/agent/**` + `agent.css` (the prototype's stylesheet, scoped `.agt`) — see docs/agent-shell.md.
 
 src/
   app/[locale]/(auth)/       → login
@@ -32,7 +33,8 @@ src/
   app/[locale]/(investor)/   → investor portal (mobile-first PWA, no staff chrome)
   app/api/                   → ~237 route handlers; app/api/webhooks/ = storefront intake
   components/ui/             → Button, Input, Card, Badge, Modal, Toast
-  components/layout/         → Sidebar, Topbar, NavItem, AgentNavTabs, shells
+  components/layout/         → Sidebar, NavItem, shells (AgentDashboardShell → components/agent/shell)
+  components/agent/          → the agent's five tabs + shell, from prototypes/agent-shell-v2.html
   lib/supabase/              → browser + server clients
   lib/calculations/          → financial logic (SERVER-SIDE ONLY — never client)
   lib/investors/             → investor v2 engine — see docs/investor-domain.md
@@ -376,6 +378,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
   the inbox, campaigns from the business number, Meta checklist and warm-up:
   docs/whatsapp-cloud-api.md + plans/whatsapp-cloud-api.md (prototypes
   `prototypes/whatsapp-{agent,manager}-v1.html`)
+- Agent shell « Aurore » — the five tabs, agent.css scoped from the prototype, where each tab lives, the
+  meters' market midnight, word tags: docs/agent-shell.md + plans/agent-shell-aurore.md (prototype
+  `prototypes/agent-shell-v2.html`)
 
 ## Open discrepancies (found in the 2026-09-13 doc audit — code untouched)
 Documented where they live; none of these were "fixed" silently, because each is a

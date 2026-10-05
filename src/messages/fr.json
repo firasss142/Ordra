@@ -4915,7 +4915,6 @@
     "rateOff": "coupée depuis le {date}",
     "offBanner": "Ta commission est coupée depuis le {date}. Ce qu'on te doit reste dû ; ce qui est livré après cette date ne compte pas.",
     "owedNow": "Ce qu'on te doit maintenant",
-    "owedFor": "pour <b>{n, plural, one {# commande livrée} other {# commandes livrées}}</b> pas encore payées",
     "owedRange": "livrées du {from} au {to}",
     "owedNone": "Tout ce qui a été livré a été payé.",
     "negative": "Tu as reçu <b>{amount}</b> de plus que ce que tu as gagné — cela se déduit des prochaines livraisons.",
@@ -4928,7 +4927,6 @@
       "paidSub": "{n, plural, =0 {0 commande} one {# commande} other {# commandes}} · {k, plural, =0 {aucun paiement} one {# paiement} other {# paiements}}",
       "leftSub": "{n, plural, =0 {0 commande} one {# commande} other {# commandes}}"
     },
-    "lastPayout": "Dernier paiement <b>{date}</b> · {amount} {method}",
     "noPayout": "Aucun paiement enregistré — ton responsable l'enregistre quand il te paie.",
     "method": {
       "cash": "en espèces",
@@ -4949,7 +4947,10 @@
         "out": "En livraison",
         "delayed": "En retard",
         "returning": "En retour"
-      }
+      },
+      "unit": "{n, plural, one { commande} other { commandes}}",
+      "estAll": "≈ {all} si toutes sont livrées",
+      "estUsual": "≈ {all} si toutes sont livrées — d'habitude {k} sur 10 le sont, soit <b>≈ {likely}</b>"
     },
     "rateCard": {
       "title": "Taux de livraison",
@@ -5021,7 +5022,18 @@
     "rule": "<b>La règle :</b> une commande compte quand le transporteur la marque livrée, si elle a été téléversée après l'activation de ta commission. Le montant est celui du jour de livraison. Ton responsable enregistre les paiements ; chaque paiement règle les commandes les plus anciennes d'abord.",
     "disabledTitle": "Les commissions ne sont pas activées pour ton compte.",
     "disabledHint": "Ton responsable peut les activer dans les paramètres.",
-    "loadError": "Impossible de charger tes commissions."
+    "loadError": "Impossible de charger tes commissions.",
+    "statp": "<b>{amount}</b> par commande livrée · depuis le {date}",
+    "statpNoDate": "<b>{amount}</b> par commande livrée",
+    "heroFor": "pour <b>{n}</b> {n, plural, one {commande livrée pas encore payée} other {commandes livrées pas encore payées}}",
+    "pbarLabel": "Reçu {paid}, reste {owed}",
+    "last": "Dernier paiement {date} · {amount} {method}",
+    "day": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier"
+    },
+    "rule2": "La règle : {amount} pour chaque commande que tu as confirmée et qui a été livrée et payée. Une commande retournée, rejetée ou annulée ne rapporte rien. Ton responsable enregistre chaque paiement.",
+    "rule2More": "Elle compte si elle a été téléversée après l'activation de ta commission ; le montant est celui du jour de livraison ; chaque paiement règle les plus anciennes d'abord."
   },
   "investorAdmin": {
     "title": "Investisseurs",
@@ -9799,6 +9811,919 @@
       "too-large": "Image trop volumineuse (max 5 Mo)",
       "decode-failed": "Impossible de lire l'image",
       "failed": "La photo n'a pas pu être enregistrée"
+    }
+  },
+  "agent": {
+    "undo": "Annuler",
+    "nav": "Navigation",
+    "market": {
+      "ly": "Libye",
+      "tn": "Tunisie"
+    },
+    "role": "Agent · {market}",
+    "tabs": {
+      "orders": "Commandes",
+      "crm": "CRM",
+      "delivery": "Livraison",
+      "commissions": "Mes commissions",
+      "voc": "Voix du client"
+    },
+    "titles": {
+      "orders": "Commandes",
+      "crm": "Prospects",
+      "delivery": "Suivi livraison",
+      "commissions": "Mes commissions",
+      "voc": "Voix du client"
+    },
+    "avail": {
+      "aria": "Je prends des commandes",
+      "on": "Disponible",
+      "off": "En pause",
+      "onSub": "Temps réel",
+      "offSub": "Aucune nouvelle",
+      "staleSub": "Session inactive",
+      "reconnectSub": "Reconnexion…",
+      "toastOn": "Disponible — les nouvelles commandes arrivent",
+      "toastOff": "En pause — {n, plural, =0 {aucune commande rendue} one {# commande rendue au pool} other {# commandes rendues au pool}}",
+      "failed": "Impossible de changer votre disponibilité — réessayez"
+    },
+    "me": {
+      "changePhoto": "Changer la photo",
+      "logout": "Déconnexion",
+      "sessionExpired": "Votre session a expiré — reconnectez-vous."
+    },
+    "bell": {
+      "aria": "Notifications",
+      "title": "Notifications ({n})",
+      "allRead": "Tout marquer comme lu",
+      "seeAll": "Voir tout",
+      "seeLess": "Voir moins",
+      "viewOrder": "Voir la commande",
+      "empty": "Rien à faire pour l'instant.",
+      "waReplied": "{name} a répondu sur WhatsApp",
+      "kind": {
+        "callback_due": "Rappel en attente",
+        "attempt_due": "Tentative en attente",
+        "dispatch_due": "Livraison planifiée à envoyer"
+      },
+      "due": {
+        "now": "à l'instant",
+        "inMin": "dans {n} min",
+        "inH": "dans {n} h",
+        "agoMin": "dû il y a {n} min",
+        "agoH": "dû il y a {n} h",
+        "agoD": "dû il y a {n} j"
+      },
+      "ago": {
+        "now": "à l'instant",
+        "min": "il y a {n} min",
+        "h": "il y a {n} h",
+        "d": "il y a {n} j"
+      },
+      "unknown": "Client inconnu"
+    },
+    "search": {
+      "placeholder": "Rechercher dans le marché…",
+      "phonePlaceholder": "Nom, téléphone, référence…",
+      "aria": "Rechercher",
+      "recent": "Recherches récentes",
+      "hint": "Astuce : phone:, city:, name:, product:",
+      "clearRecent": "Effacer l'historique",
+      "intentNumber": "Téléphone ou numéro · tous formats",
+      "intentText": "Nom, ville, produit, adresse",
+      "scope": "Tout le marché",
+      "count": "{shown} sur {total}",
+      "groups": {
+        "orders": "Commandes",
+        "delivery": "Livraison",
+        "market": "Autres commandes du marché",
+        "leads": "CRM"
+      },
+      "readOnly": "Lecture seule",
+      "searching": "Recherche dans le marché…",
+      "error": "La recherche dans le marché a échoué.",
+      "empty": "Aucune commande ne correspond à « {q} » dans tout le marché.",
+      "emptyHint": "Essayez le numéro de téléphone ou la référence de la commande.",
+      "back": "Retour"
+    }
+  },
+  "agentCrm": {
+    "title": "Prospects",
+    "subNow": "<b>{n}</b> à appeler maintenant · le reste attend",
+    "subCalm": "Rien d'urgent · la liste attend",
+    "stat": "<b>{calls}</b> appels · <b>{converted}</b> convertis aujourd'hui",
+    "newLead": "Nouveau prospect",
+    "bucketsAria": "Seaux",
+    "buckets": {
+      "all": "Tout",
+      "hot": "Chauds",
+      "callback": "Rappels",
+      "retry": "Sans réponse",
+      "campaign": "Campagne",
+      "winback": "Retours",
+      "converted": "Convertis"
+    },
+    "act": {
+      "hot": "Appeler",
+      "callback": "Rappeler",
+      "retry": "Réessayer",
+      "campaign": "Appeler avec le script",
+      "winback": "Proposer le renvoi",
+      "converted": "Voir la commande"
+    },
+    "next": {
+      "hot": "Appeler maintenant",
+      "callback": "Rappeler comme convenu",
+      "retry": "Nouvel essai",
+      "campaign": "Appeler avec le script",
+      "winback": "Proposer le renvoi sans frais",
+      "converted": "Rien à faire"
+    },
+    "search": "Rechercher par nom, numéro ou produit…",
+    "searchPhone": "Nom, numéro ou produit…",
+    "count": "<b>{n}</b> prospects",
+    "cols": {
+      "who": "Prospect",
+      "sit": "Situation · depuis",
+      "action": "Action",
+      "value": "Valeur"
+    },
+    "empty": {
+      "search": "Aucun prospect ne correspond à cette recherche.",
+      "bucket": "Rien dans ce bucket."
+    },
+    "loadError": "Les prospects n'ont pas pu être chargés.",
+    "retry": "Réessayer",
+    "truncated": "Seuls les {n} premiers prospects sont affichés.",
+    "sit": {
+      "replied": "a répondu",
+      "hot": "Chaud · {age}",
+      "cbLate": "Rappel dépassé · {age}",
+      "cbAt": "Rappel {when}",
+      "retry": "Sans réponse · {n, plural, one {# essai} other {# essais}}",
+      "campaign": "Campagne",
+      "winback": "Retour à récupérer",
+      "won": "Commande #{ref}",
+      "wonNoRef": "Convertie"
+    },
+    "line": {
+      "replied": "a répondu il y a {age}",
+      "callback": "rappel convenu au dernier appel",
+      "retry": "dernier essai il y a {age}",
+      "sentYday": "envoyé hier",
+      "sentDays": "envoyé il y a {d} j",
+      "winback": "retourné · {why}",
+      "winbackNoWhy": "retourné",
+      "won": "convertie il y a {age}"
+    },
+    "risk": "Risque",
+    "whatsapp": "Envoyer sur WhatsApp",
+    "vk": {
+      "order": "commande",
+      "potential": "potentiel"
+    },
+    "src": {
+      "whatsapp": "WhatsApp",
+      "facebook_dm": "Messenger",
+      "facebook_comment": "Commentaire Facebook",
+      "instagram_dm": "Instagram",
+      "tiktok_comment": "TikTok",
+      "campaign": "Campagne",
+      "winback": "Retour",
+      "manual_call": "Saisi à la main"
+    },
+    "detail": {
+      "created": "créé {when}",
+      "more": "Plus d'actions",
+      "close": "Clore",
+      "nextEyebrow": "Prochaine action",
+      "message": "Message d'origine",
+      "client": "Le client",
+      "phone": "Téléphone",
+      "recommended": "recommandé",
+      "city": "Ville",
+      "history": "Historique",
+      "origin": "Origine",
+      "source": "Source",
+      "agent": "Agent",
+      "createdAt": "Créé le",
+      "campaign": "Campagne",
+      "offer": "Offre",
+      "order": "Commande",
+      "returnWhy": "Motif du retour",
+      "product": "Produit",
+      "script": "Script de campagne",
+      "viewOrder": "Voir la commande",
+      "call": "Appeler",
+      "convert": "Convertir en commande",
+      "outcome": "Résultat de l'appel",
+      "back": "Retour"
+    },
+    "hist": {
+      "new": "Nouveau numéro · aucune commande",
+      "loyal": "Client fidèle · {n, plural, one {# commande livrée} other {# commandes livrées}}",
+      "risk": "Risque · {n, plural, one {# commande retournée} other {# commandes retournées}}",
+      "mixed": "{d} livrées · {r} retournées"
+    },
+    "why": {
+      "hot": "Il a écrit il y a {age} — un prospect chaud refroidit vite.",
+      "cbLate": "Rappel promis à {time} — il attend votre appel.",
+      "cbAt": "Rappel prévu {when} — rien à faire avant.",
+      "retry": "{n, plural, one {# essai} other {# essais}} sans réponse — essayez à une autre heure.",
+      "campaign": "Contact de campagne, jamais appelé — le script est plus bas.",
+      "winback": "Colis retourné ({why}) — on peut le renvoyer sans frais.",
+      "winbackNoWhy": "Colis retourné — on peut le renvoyer sans frais.",
+      "won": "Commande #{ref} créée — elle est dans votre file."
+    },
+    "out": {
+      "title": "Résultat de l'appel",
+      "cancel": "Annuler",
+      "want": "Veut commander",
+      "later": "Rappeler plus tard",
+      "na": "Pas de réponse",
+      "no": "Pas intéressé",
+      "when": {
+        "p1h": "+1 h",
+        "p2h": "+2 h",
+        "evening": "Ce soir 18:00",
+        "tomorrow": "Demain 10:00"
+      },
+      "lost": {
+        "price": "Prix",
+        "not_interested": "Plus besoin",
+        "competitor": "Acheté ailleurs",
+        "wrong_number": "Faux numéro",
+        "autre": "Autre"
+      },
+      "wantHint": "Vous passez à la conversion : le prospect devient une commande, dans votre file.",
+      "note": "Note (optionnelle)",
+      "save": "Enregistrer le résultat"
+    },
+    "toast": {
+      "calling": "Appel du {phone}…",
+      "moved": "Enregistré · déplacé vers « {bucket} »",
+      "closed": "Enregistré · prospect clos",
+      "failed": "Échec de l'enregistrement — {name} est revenu à sa place",
+      "created": "Prospect créé — il est dans « {bucket} »"
+    },
+    "nl": {
+      "title": "Nouveau prospect",
+      "sub": "Quelqu'un qui a appelé ou écrit sans commander",
+      "close": "Fermer",
+      "phone": "Téléphone",
+      "name": "Nom",
+      "product": "Produit",
+      "noProduct": "—",
+      "said": "Ce qu'il a dit",
+      "cancel": "Annuler",
+      "create": "Créer le prospect",
+      "errPhone": "Le téléphone est obligatoire.",
+      "errName": "Le nom est obligatoire.",
+      "errGeneric": "Le prospect n'a pas été créé — réessayez."
+    },
+    "age": {
+      "min": "{n} min",
+      "h": "{h} h {m}",
+      "d": "{d} j",
+      "dh": "{d} j {h} h"
+    },
+    "tomorrow": "demain {time}",
+    "ccy": {
+      "ly": "LYD",
+      "tn": "TND"
+    }
+  },
+  "agentVoc": {
+    "title": "Voix du client",
+    "sub": "Ce que vos clients vous ont dit, à chaque moment — lié au produit et au client.",
+    "new": "Nouveau",
+    "phoneNew": "Noter ce que dit un client",
+    "all": "Tous",
+    "search": "Rechercher dans leurs mots…",
+    "cols": {
+      "date": "Date",
+      "category": "Catégorie",
+      "words": "Ses mots · sujet",
+      "product": "Produit",
+      "moment": "Moment",
+      "status": "Statut"
+    },
+    "count": "{shown} sur {total}",
+    "empty": "Aucun retour pour l'instant. Appuyez sur F pendant un appel.",
+    "noMatch": "Aucun retour pour ce filtre.",
+    "error": "Impossible de charger vos retours.",
+    "when": {
+      "today": "Aujourd'hui {time}",
+      "yday": "Hier {time}",
+      "other": "{day} {time}"
+    },
+    "cat": {
+      "reclamation": "Réclamation",
+      "objection": "Objection",
+      "suggestion": "Suggestion"
+    },
+    "hint": {
+      "reclamation": "un souci à régler",
+      "objection": "pourquoi il hésite ou refuse",
+      "suggestion": "ce qu'il aimerait ou apprécie"
+    },
+    "moment": {
+      "call": "Appel de confirmation",
+      "transit": "En attente · en route",
+      "door": "À la porte · retour",
+      "after": "Après livraison"
+    },
+    "status": {
+      "open": "Ouverte",
+      "in_progress": "En cours",
+      "resolved": "Résolue"
+    },
+    "capture": {
+      "title": "Ce que dit le client",
+      "sub": "Ses mots, tels quels — lié au produit et au client",
+      "close": "Fermer",
+      "orderN": "Commande #{ref}",
+      "change": "Changer",
+      "moment": "Moment",
+      "auto": "auto",
+      "fromStatus": "déduit du statut « {status} »",
+      "noMoment": "choisissez la commande pour situer le moment",
+      "history": "Ce client a déjà {n, plural, one {# retour} other {# retours}}",
+      "historyOpen": "{open, plural, one {# réclamation ouverte} other {# réclamations ouvertes}}",
+      "ringTitle": "Appel entrant",
+      "ringSub": "Tapez le numéro qui s'affiche sur votre téléphone",
+      "lookup": "Numéro, nom ou n° de commande…",
+      "groupCustomers": "Clients",
+      "groupOrders": "Commandes",
+      "nOrders": "{n, plural, one {# commande} other {# commandes}}",
+      "noResult": "Aucun résultat",
+      "searching": "Recherche…",
+      "deliveredOn": "Livrée le {date}",
+      "returnedOn": "Retournée le {date}",
+      "subject": "Sujet · facultatif",
+      "subjectFirst": "Choisissez d'abord une catégorie",
+      "words": "Ses mots",
+      "wordsPh": "Ce qu'il a dit, tel quel — en arabe si c'est ainsi qu'il l'a dit…",
+      "chars": "{n} / 2000",
+      "lifecycle": "Une réclamation est suivie jusqu'à sa résolution : elle part ouverte chez votre responsable ; vous verrez son statut ici.",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "error": "L'enregistrement a échoué. Réessayez.",
+      "saved": "Enregistré",
+      "undo": "Annuler"
+    }
+  },
+  "agentDelivery": {
+    "title": "Suivi livraison",
+    "inFlight": "<b>{n}</b> en cours",
+    "stat": "<b>{rate} %</b> livraison 30 j · <b>{saved}</b> sauvées",
+    "selectMarket": "Choisis un marché pour voir les colis.",
+    "loadError": "Impossible de charger les colis.",
+    "retry": "Réessayer",
+    "tilesLabel": "Seaux",
+    "tiles": {
+      "all": "Tout",
+      "returning": "Retours à sauver",
+      "act_now": "À traiter maintenant",
+      "waiting_customer": "En attente client",
+      "waiting_carrier": "Chez le transporteur",
+      "done": "Terminées"
+    },
+    "last24h": "24 dernières heures",
+    "ccy": {
+      "ly": "LYD",
+      "tn": "TND"
+    },
+    "search": "Rechercher par nom, numéro ou ville…",
+    "searchPhone": "Nom, numéro ou ville…",
+    "filter": "Filtrer",
+    "riskOnly": "Colis à risque seulement",
+    "hideDone": "Masquer les terminées",
+    "sort": "Trier",
+    "sorts": {
+      "prio": "Priorité",
+      "amt": "Montant",
+      "old": "Plus ancien"
+    },
+    "cols": {
+      "situation": "Situation / durée",
+      "parcel": "Détails du colis",
+      "action": "Action",
+      "amount": "Montant"
+    },
+    "loadDone": "Charger les colis terminés (24 h)",
+    "empty": "Rien ici",
+    "seeAll": "Voir tous les colis",
+    "stalled": "{n} colis sans mouvement",
+    "stalledSince": "Chez le transporteur depuis {min} à {max} jours",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "dur": {
+      "min": "{n} min",
+      "h": "{n} h",
+      "d": "{n} j"
+    },
+    "when": {
+      "today": "Aujourd'hui {time}",
+      "yday": "Hier {time}",
+      "other": "{day} {time}"
+    },
+    "sit": {
+      "ret": {
+        "label": "Retourné",
+        "why": "Le colis repart chez nous — un appel peut le faire livrer."
+      },
+      "risk": {
+        "label": "Colis à risque",
+        "why": "Ce client a déjà refusé des colis — confirmez avant le passage du livreur."
+      },
+      "cancel": {
+        "label": "Veut annuler",
+        "why": "Le livreur dit que le client veut annuler — parlez-lui avant le retour."
+      },
+      "unreach": {
+        "label": "Non joignable",
+        "why": "Le livreur n'a pas pu le joindre."
+      },
+      "offnet": {
+        "label": "Hors réseau",
+        "why": "Le téléphone du client ne passe pas — le livreur peut le trouver sur place."
+      },
+      "address": {
+        "label": "Adresse à corriger",
+        "why": "Le livreur ne trouve pas l'adresse — corrigez-la avec le client."
+      },
+      "delayed": {
+        "label": "Livraison retardée",
+        "why": "Darb a reporté la livraison — confirmez la nouvelle date avec le client."
+      },
+      "cbdue": {
+        "label": "Rappel dépassé",
+        "why": "Vous aviez promis de le rappeler."
+      },
+      "stall": {
+        "label": "Aucun mouvement",
+        "why": "Rien n'a bougé chez Darb depuis des semaines."
+      },
+      "wait": {
+        "label": "En attente client",
+        "why": "Le client a demandé une autre date — rien à faire avant."
+      },
+      "depot": {
+        "label": "À l'entrepôt",
+        "why": "Téléchargé chez Darb, pas encore sorti de l'entrepôt."
+      },
+      "carrier": {
+        "label": "Chez le transporteur",
+        "why": "En route, tout va bien."
+      },
+      "ofd": {
+        "label": "En livraison",
+        "why": "Le livreur passe aujourd'hui — un appel évite un refus."
+      },
+      "delivered": {
+        "label": "Livré",
+        "why": "Livré et payé."
+      },
+      "retdone": {
+        "label": "Retour confirmé",
+        "why": "Revenu à l'entrepôt."
+      }
+    },
+    "act": {
+      "save": "Sauver le retour",
+      "before": "Appeler avant livraison",
+      "call": "Appeler",
+      "call2": "Appeler le 2ᵉ numéro",
+      "courier": "Appeler le livreur",
+      "wa": "Écrire sur WhatsApp",
+      "track": "Suivre le colis",
+      "details": "Voir les détails"
+    },
+    "trace": {
+      "wa": "WhatsApp · {label} · {time}",
+      "call_customer": "{when} · vous avez appelé",
+      "call_courier": "{when} · vous avez appelé le livreur",
+      "call_branch": "{when} · vous avez appelé l'agence",
+      "whatsapp_customer": "{when} · WhatsApp",
+      "note": "{when} · note"
+    },
+    "calling": "Appel du {num}…",
+    "callingCourier": "Appel du livreur…",
+    "waOpened": "WhatsApp ouvert",
+    "detail": {
+      "since": "depuis {d}",
+      "copy": "Copier le n° de suivi",
+      "copied": "N° de suivi copié",
+      "more": "Plus d'actions",
+      "logAction": "Enregistrer une action",
+      "close": "Fermer",
+      "next": "Prochaine action",
+      "callResult": "Résultat de l'appel",
+      "client": "client",
+      "courier": "livreur",
+      "clientInfo": "Informations client",
+      "phone1": "1ᵉʳ numéro",
+      "phone2": "2ᵉ numéro",
+      "recommended": "Recommandé",
+      "address": "Adresse",
+      "carrier": "Transporteur",
+      "courierName": "Livreur",
+      "courierPhone": "Téléphone du livreur",
+      "callCourier": "Appeler le livreur",
+      "status": "Statut",
+      "courierMsg": "Message du livreur",
+      "notYet": "Pas encore remis au transporteur",
+      "parcel": "Colis",
+      "tracking": "N° de suivi",
+      "content": "Contenu",
+      "created": "Créée le",
+      "journal": "Journal d'activité",
+      "jf": {
+        "all": "Tout",
+        "act": "Actions",
+        "car": "Transporteur"
+      },
+      "nothing": "Rien encore",
+      "you": "Vous",
+      "system": "Système",
+      "messages": "Messages",
+      "noMessages": "Aucun message avec ce client.",
+      "back": "Retour",
+      "phoneTitle": "Détail du colis",
+      "callShort": "Appeler",
+      "saveShort": "Enregistrer"
+    },
+    "rel": {
+      "new": "Nouveau",
+      "risk": "À risque · {n} commandes · {bad} non livrées",
+      "reliable": "Fiable · {n} commandes · {del} livrées",
+      "mid": "Moyen · {n} commandes · {del} livrées"
+    },
+    "quick": {
+      "reached_will_receive": "A répondu",
+      "no_answer": "Pas de réponse",
+      "reached_reschedule": "Promet de recevoir",
+      "reached_wants_cancel": "Refuse le colis",
+      "reattempt_promised": "Nouvelle tentative",
+      "courier_no_answer": "Livreur injoignable",
+      "parcel_located": "Colis localisé",
+      "return_confirmed": "Retour confirmé"
+    },
+    "sheet": {
+      "title": "Enregistrer une action",
+      "who": "Contact avec",
+      "whos": {
+        "call_customer": "Client",
+        "call_courier": "Livreur",
+        "call_branch": "Agence",
+        "note": "Note seule"
+      },
+      "result": "Résultat",
+      "outcomes": {
+        "reached_will_receive": "Va recevoir",
+        "reached_reschedule": "Veut autre date",
+        "reached_wants_cancel": "Veut annuler",
+        "reached_address_fix": "Adresse corrigée",
+        "no_answer": "Ne répond pas",
+        "wrong_number": "Faux numéro",
+        "phone_off": "Téléphone éteint",
+        "reattempt_promised": "Nouvelle tentative promise",
+        "courier_no_answer": "Livreur ne répond pas",
+        "parcel_located": "Colis localisé",
+        "return_confirmed": "Retour confirmé",
+        "info_passed": "Info transmise"
+      },
+      "why": "Pourquoi ? Garder ce que le client a dit",
+      "remind": "Me rappeler",
+      "reminders": {
+        "in2h": "Dans 2 h",
+        "tomorrow10": "Demain",
+        "none": "Sans rappel"
+      },
+      "cancel": "Annuler",
+      "save": "Enregistrer l'action"
+    },
+    "toast": {
+      "saved": "Action enregistrée",
+      "moved": "Action enregistrée · déplacé vers « {bucket} »",
+      "failed": "L'action n'a pas pu être enregistrée. Réessaie."
+    }
+  },
+  "agentQueue": {
+    "title": "File de commandes",
+    "live": "en temps réel",
+    "liveTip": "La file se met à jour toute seule",
+    "reconnecting": "Reconnexion… la file se met à jour toutes les 20 s en attendant",
+    "loading": "Chargement de votre file…",
+    "error": "Votre file n'a pas pu être chargée — réessayez dans un instant.",
+    "meters": {
+      "rate": "confirmées · aujourd'hui",
+      "rateTip": "Confirmées sur les commandes tranchées depuis minuit",
+      "done": "traitées · aujourd'hui",
+      "doneTip": "Appelées, confirmées ou envoyées depuis minuit",
+      "file": "dans votre file",
+      "fileTip": "Commandes dans votre file en ce moment"
+    },
+    "newOrder": "Nouvelle commande",
+    "tilesAria": "Votre file",
+    "buckets": {
+      "new": "Nouveau",
+      "cours": "En cours",
+      "conf": "Confirmé",
+      "closed": "Fermées"
+    },
+    "hints": {
+      "newOldest": "la plus ancienne attend depuis {age}",
+      "newNone": "rien de nouveau",
+      "coursLate": "{n, plural, one {# rappel à faire maintenant} other {# rappels à faire maintenant}}",
+      "coursSplit": "{tent} tentatives · {rappel} rappels",
+      "confToSend": "à envoyer au transporteur",
+      "confNone": "tout est parti",
+      "closed": "7 derniers jours · sorties de vos mains"
+    },
+    "search": {
+      "placeholder": "Rechercher nom, téléphone, ville, produit…",
+      "phonePlaceholder": "Nom, téléphone, produit…",
+      "clear": "Effacer la recherche",
+      "count": "<b>{n}</b> {n, plural, one {commande} other {commandes}}",
+      "countSearch": "<b>{n}</b> dans votre file",
+      "countElsewhere": " · <b>{m}</b> ailleurs",
+      "urgent": "la plus urgente en haut",
+      "recent": "les plus récentes d'abord",
+      "keys": "Raccourcis clavier"
+    },
+    "subs": {
+      "all": "Tous",
+      "tent": "Tentative",
+      "livr": "Livraison planifiée",
+      "rappel": "Appel planifié",
+      "attAll": "toutes",
+      "uploaded": "Téléchargé",
+      "carrier": "Chez le transporteur",
+      "delivered": "Livré",
+      "returned": "Retourné",
+      "cancelled": "Annulé",
+      "rejected": "Rejeté",
+      "refresh": "Actualiser le suivi",
+      "refreshed": "Suivi actualisé chez le transporteur",
+      "refreshing": "Actualisation…"
+    },
+    "cols": {
+      "client": "Client",
+      "activity": "Activité",
+      "outcome": "Issue",
+      "age": "Âge",
+      "closed": "Fermée",
+      "amount": "Montant"
+    },
+    "more": "Afficher {n} de plus",
+    "left": "· {n} restantes",
+    "vocFoot": "Voix du client — même sans commande ouverte",
+    "market": {
+      "title": "Autres commandes du marché",
+      "readOnly": "Lecture seule",
+      "with": "Chez {name}",
+      "free": "Non attribuée"
+    },
+    "empty": {
+      "searchTitle": "Aucun résultat",
+      "search": "Aucune commande ne correspond à « {q} ».",
+      "newTitle": "Bon travail — votre file est vide",
+      "new": "Les nouvelles commandes s'afficheront ici dès qu'elles seront assignées.",
+      "recheck": "Vérifier à nouveau",
+      "rechecked": "File vérifiée — rien de nouveau",
+      "none": "Rien ici"
+    },
+    "act": {
+      "never": "Pas encore appelé",
+      "called": "Appelé {since}",
+      "cbDue": "Rappel dû · {when}",
+      "cb": "Rappel {when}",
+      "cbLine": "{n}/{max} · rappel programmé",
+      "send": "Envoi {when}",
+      "sendLine": "confirmée · envoi programmé",
+      "confirmed": "Confirmée",
+      "confLine": "{since} · pas encore envoyée",
+      "rejected": "rejetée",
+      "sendBtn": "Envoyer",
+      "tomorrow": "demain {time}"
+    },
+    "since": "il y a {age}",
+    "age": {
+      "min": "{n} min",
+      "h": "{h} h {mm}",
+      "d": "{d} j",
+      "dh": "{d} j {h} h"
+    },
+    "ageTip": "Reçue {when}",
+    "ageLate": " — délai de {h} h dépassé",
+    "closedAge": {
+      "today": "aujourd'hui",
+      "yday": "hier",
+      "days": "il y a {n} j"
+    },
+    "line": {
+      "replied": "a répondu",
+      "city": "ville ?"
+    },
+    "signs": {
+      "manager": "{name} consulte cette commande",
+      "addr": "Adresse modifiée — avant : {addr}",
+      "note": "Note client — {note}"
+    },
+    "select": "Sélectionner la commande #{ref}",
+    "bulk": {
+      "count": "{n, plural, one {# sélectionnée} other {# sélectionnées}}",
+      "start": "Démarrer les appels",
+      "esc": "Échap",
+      "escHint": "pour annuler",
+      "clear": "Désélectionner tout",
+      "started": "{n} appels à la suite — la commande suivante s'ouvre après chaque résultat"
+    },
+    "keys": {
+      "title": "Raccourcis clavier",
+      "close": "Fermer",
+      "nav": "Naviguer entre les commandes",
+      "enter": "Entrée",
+      "open": "Ouvrir la commande",
+      "k1": "Pas de réponse",
+      "k2": "Confirmé",
+      "k3": "Rejeté",
+      "k4": "Rappel demandé",
+      "p": "Fiche produit",
+      "f": "Voix du client",
+      "slash": "Rechercher",
+      "esc": "Échap",
+      "escDo": "Fermer",
+      "help": "Afficher les raccourcis"
+    },
+    "phone": {
+      "call": "Appeler, puis dire le résultat",
+      "send": "Envoyer au transporteur",
+      "calling": "Appel du {phone}…"
+    },
+    "autoRejected": "Commande rejetée automatiquement — tentatives max atteintes",
+    "panel": "La commande",
+    "tags": {
+      "dup": "Doublon ×{n}",
+      "dupShipped": "Doublon ×{n} · déjà envoyé",
+      "dupTip": "{n} commandes du même client — une seule doit partir.",
+      "dupShippedTip": "{n} commandes du même client — une copie est déjà chez le transporteur. Ouvrez-la pour supprimer celle-ci.",
+      "rejected": "Déjà rejeté {n, plural, one {# fois} other {# fois}}",
+      "rejectedTip": "{n} sur {of} commandes rejetées — confirmez l'adresse et l'intention.",
+      "loyal": "Client fidèle · {n, plural, one {# livrée} other {# livrées}}",
+      "loyalTip": "{of, plural, one {# commande précédente} other {# commandes précédentes}} · {n, plural, one {# livrée} other {# livrées}}"
+    }
+  },
+  "agentOutcome": {
+    "foot": {
+      "noAnswer": "Pas de réponse",
+      "confirm": "Confirmer",
+      "reject": "Refuser",
+      "callback": "Rappeler",
+      "more": "Plus d'actions",
+      "reschedule": "Replanifier le rappel",
+      "send": "Envoyer au transporteur",
+      "schedule": "Planifier la livraison",
+      "changeStatus": "Modifier le statut",
+      "sendNow": "Envoyer maintenant",
+      "unschedule": "Annuler la planification",
+      "reopen": "Réouvrir la commande",
+      "close": "Fermer",
+      "deleteBarcode": "Supprimer le code-barres",
+      "returnToPool": "Rendre au pool"
+    },
+    "keys": {
+      "next": "commande suivante",
+      "outcome": "issue de l'appel",
+      "voice": "voix du client"
+    },
+    "top": {
+      "attempt": "Tentative {n}/{max}",
+      "sla": "{took} · délai {h} h",
+      "slaOk": "Confirmée dans le délai — le compteur s'est arrêté",
+      "slaLate": "Confirmée après le délai — le compteur s'est arrêté",
+      "voice": "Voix du client",
+      "voiceTip": "Voix du client — ce que dit ce client (touche F)",
+      "voiceTipOpen": "Voix du client — ce que dit ce client (touche F) · {n} réclamation ouverte",
+      "back": "Retour",
+      "attemptBare": "Tentative {n}"
+    },
+    "age": {
+      "min": "{n} min",
+      "hours": "{h} h {m}",
+      "days": "{d} j",
+      "daysHours": "{d} j {h} h"
+    },
+    "notes": {
+      "outOfStock": "Rupture de stock — ne pas confirmer",
+      "dup": "Doublon possible : #{ref}, reçue {when}",
+      "dupShipped": "Doublon possible : #{ref}, reçue {when} — déjà chez le transporteur",
+      "dupDelete": "Supprimer celle-ci",
+      "maxAttempts": "Tentatives max atteintes — veuillez confirmer ou rejeter",
+      "callbackLate": "Rappel prévu à {time} — le client attend votre appel",
+      "callback": "Rappel prévu {when}",
+      "dispatch": "Livraison planifiée {when}",
+      "dispatchCancel": "Annuler",
+      "noCity": "Ville non renseignée — à définir avant l'envoi",
+      "locked": "Réouvrez la commande pour modifier ses détails."
+    },
+    "done": {
+      "attempt": "Tentative {n}/{max} enregistrée — prochain essai {time}",
+      "attemptPlain": "Tentative {n}/{max} enregistrée",
+      "autoRejected": "Tentatives max atteintes — la commande a été rejetée automatiquement",
+      "rejected": "Rejetée — {reason}",
+      "callback": "Rappel prévu {when}",
+      "sent": "Envoyé — suivi {tracking}",
+      "scheduled": "Livraison planifiée {when}",
+      "unscheduled": "Planification annulée — la commande reste confirmée",
+      "confirmed": "Commande confirmée avec succès.",
+      "attemptBare": "Tentative {n} enregistrée — prochain essai {time}",
+      "attemptBarePlain": "Tentative {n} enregistrée"
+    },
+    "toast": {
+      "noAnswer": "Pas de réponse enregistré",
+      "rejected": "Commande rejetée — {reason}",
+      "rejectedKept": "Commande rejetée — {reason} · gardée dans la voix du client",
+      "callback": "Rappel prévu {when} — la cloche vous préviendra",
+      "sent": "Envoyé chez {carrier}",
+      "dupDeleted": "Copie #{ref} supprimée",
+      "dupFailed": "La copie n'a pas pu être supprimée"
+    },
+    "when": {
+      "today": "aujourd'hui {time}",
+      "tomorrow": "demain {time}"
+    },
+    "reject": {
+      "title": "Pourquoi ?",
+      "sub": "Sélectionnez la raison du rejet.",
+      "subMax": "Injoignable pré-sélectionné — tentatives max atteintes",
+      "precise": "Plus précisément",
+      "note": "Précisez…",
+      "later": "Le client veut plus tard",
+      "laterHint": "Programme un rappel au lieu de rejeter",
+      "keep": "Garder aussi dans la voix du client",
+      "cancel": "Annuler",
+      "submit": "Confirmer le rejet"
+    },
+    "callback": {
+      "title": "Programmer un rappel",
+      "sub": "Choisissez une date et heure de rappel.",
+      "in2h": "+2 h",
+      "tonight": "Ce soir",
+      "tomorrow": "Demain",
+      "other": "Autre",
+      "submit": "Planifier le rappel",
+      "submitAt": "Planifier le rappel · {time}"
+    },
+    "send": {
+      "title": "Choisir le transporteur",
+      "sub": "Équilibre les frais et le taux de livraison. L'envoi est immédiat.",
+      "dup": "Doublon possible — une autre commande de ce client attend",
+      "dupConfirm": "Envoyer quand même",
+      "later": "Plus tard",
+      "schedule": "Programmer la livraison",
+      "now": "Envoyer maintenant",
+      "sending": "Envoi…",
+      "best": "meilleur choix",
+      "stats": "Taux de livraison {rate} · Délai {delay}",
+      "rate": "{n} %",
+      "days": "{n} j",
+      "hours": "{n} h",
+      "unknown": "—",
+      "loading": "Chargement des transporteurs…",
+      "none": "Aucun transporteur actif pour ce marché.",
+      "pickState": "Choisissez la ville Dexpress pour envoyer."
+    },
+    "schedule": {
+      "title": "Programmer la livraison",
+      "sub": "Choisissez une date et heure d'envoi.",
+      "date": "Date d'envoi",
+      "time": "Heure d'envoi",
+      "auto": "Expédier automatiquement à l'heure prévue",
+      "will": "La commande sera envoyée {when} à {carrier}.",
+      "back": "Retour",
+      "submit": "Programmer l'envoi"
+    },
+    "sheet": {
+      "result": "Résultat de l'appel",
+      "reject": "Refuser la commande",
+      "callback": "Rappel demandé",
+      "send": "Envoyer la commande",
+      "schedule": "Programmer la livraison",
+      "close": "Annuler",
+      "noAnswer": "Pas de réponse",
+      "noAnswerHint": "Incrémente la tentative.",
+      "confirmed": "Confirmé",
+      "confirmedHint": "Confirmez la commande — l'entrepôt se chargera de l'expédition.",
+      "rejected": "Rejeté",
+      "rejectedHintMax": "Injoignable pré-sélectionné.",
+      "callbackHint": "Choisissez une date et heure de rappel.",
+      "required": "Requis",
+      "foot": "Le résultat est enregistré dans l'historique de la commande.",
+      "saving": "Enregistrement…"
     }
   }
 }

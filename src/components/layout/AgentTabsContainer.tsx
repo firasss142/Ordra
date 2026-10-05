@@ -2,7 +2,7 @@
 
 import { memo, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { QueuePage } from "@/components/queue/QueuePage";
+import { AgentQueuePage as QueuePage } from "@/components/agent/queue/AgentQueuePage";
 import type { AuthUser } from "@/types";
 
 type Tab = "queue" | "leads" | "delivery" | "commissions" | "feedback";
@@ -44,14 +44,19 @@ function AgentTabsContainerInner({
 
   // delivery, commissions and « Voix du client » render via their own pages
   if (active === "delivery" || active === "commissions" || active === "feedback") {
-    return <main id="main-content">{children}</main>;
+    return (
+      <main id="main-content" className="agt-main">
+        <div className="page">{children}</div>
+      </main>
+    );
   }
 
   return (
-    <main id="main-content">
+    <main id="main-content" className="agt-main">
       {visited.has("queue") && (
         <div
-          style={{ display: active === "queue" ? "block" : "none" }}
+          className="page"
+          style={active === "queue" ? undefined : { display: "none" }}
           aria-hidden={active !== "queue"}
         >
           <QueuePage />
@@ -68,7 +73,7 @@ function AgentTabsContainerInner({
         time the agent is back on /queue. Hiding it would leave the previous
         route's markup on the page.
       */}
-      {active === "leads" && children}
+      {active === "leads" && <div className="page">{children}</div>}
     </main>
   );
 }

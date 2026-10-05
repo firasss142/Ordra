@@ -94,4 +94,15 @@ describe("FeedbackCaptureProvider — « Enregistré · Annuler »", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Annuler" })); });
     expect(undoFeedback).toHaveBeenCalledWith("fb1");
   });
+
+  it("the toast is the shell's « Annuler » toast: words, topic, moment — inside the agent layer", () => {
+    mount(<div />);
+    fireEvent.keyDown(document.body, { code: "KeyF", key: "f" });
+    expect(screen.getByRole("dialog", { name: "capture" }).closest(".agt")).not.toBeNull();
+    act(() => lastProps!.onSaved({ id: "fb2", category: "reclamation", moment: "after", topic: "Jamais reçu" }));
+    const toast = screen.getByRole("status");
+    expect(toast).toHaveTextContent("Enregistré · Réclamation · Jamais reçu · Après livraison");
+    expect(toast).toHaveClass("tip", "toast", "on");
+    expect(toast.closest(".agt")).not.toBeNull();
+  });
 });

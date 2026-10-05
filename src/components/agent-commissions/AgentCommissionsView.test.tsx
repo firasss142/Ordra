@@ -1,15 +1,23 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { NextIntlClientProvider } from "next-intl";
 import fr from "@/messages/fr.json";
+import ar from "@/messages/ar.json";
 import { AgentCommissionsView } from "./AgentCommissionsView";
 import type { AgentStatement, StatementCredit } from "@/lib/commissions/types";
 
 /**
- * « Mes commissions » v2 (prototypes/agent-commissions-v2.html). The page's one rule:
- * every number at the top is a tab below whose rows add up to it. These tests read
- * the real fr.json, so a key that exists only in the component fails here.
+ * « Mes commissions » in the agent shell « Aurore » (prototypes/agent-shell-v2.html § 5).
+ * Every figure is the statement RPC's (plus `way.likely_each`, attached server-side by the
+ * API route); the page only formats. These tests read the real fr.json, so a key that
+ * exists only in the component fails here.
  */
+
+let phone = false;
+vi.mock("@/hooks/useMediaQuery", () => ({
+  useMediaQuery: () => phone,
+  PHONE_QUERY: "(max-width: 767px)",
+}));
 
 const credit = (over: Partial<StatementCredit>): StatementCredit => ({
   order_id: "o", external_id: "x", customer_name: "?", product_name: "Dibio", image_url: null, city: "Tripoli",
@@ -48,6 +56,7 @@ const ME: AgentStatement = {
     count: 3,
     est: 20,
     est_likely: 14,
+    likely_each: 7,
     stages: { awaiting_scan: 0, with_carrier: 1, out: 0, delayed: 1, returning: 1 },
     rows: [
       { order_id: "w1", external_id: "w1", customer_name: "Hana Sharif", product_name: "Dibio", image_url: null, city: "Benghazi", stage: "delayed", uploaded_at: "2026-09-26T10:00:00Z", stage_at: "2026-09-28T10:00:00Z" },
@@ -67,55 +76,58 @@ const ME: AgentStatement = {
   delivery_rate: 0.714,
 };
 
-function mount(me: AgentStatement = ME) {
+function mount(me: AgentStatement = ME, locale: "fr" | "ar" = "fr", onMore = () => {}) {
   return render(
-    <NextIntlClientProvider locale="fr" messages={fr}>
-      <AgentCommissionsView me={me} marketCode="LY" locale="fr" tz="Africa/Tripoli" onMore={() => {}} />
+    <NextIntlClientProvider locale={locale} messages={locale === "fr" ? fr : ar}>
+      <AgentCommissionsView me={me} marketCode="LY" locale={locale} tz="Africa/Tripoli" onMore={onMore} />
     </NextIntlClientProvider>,
   );
 }
 
-const text = (el: HTMLElement) => (el.textContent ?? "").replace(/[⁦-⁩]/g, "").replace(/\s+/g, " ");
+const text = (el: Element) => (el.textContent ?? "").replace(/[⁦-⁩]/g, "").replace(/\s+/g, " ");
+const rows = () => Array.from(document.querySelectorAll(".crow")).map(text);
 
 beforeAll(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-09-30T12:00:00Z"));
 });
 afterAll(() => vi.useRealTimers());
+beforeEach(() => { phone = false; });
 
-describe("AgentCommissionsView — the money", () => {
-  it("says what is owed, for how many unpaid deliveries, and proves it: earned − received = left", () => {
+describe("Mes commissions — the header and the money", () => {
+  it("states the rule in the header: the rate per delivered order, since activation, and what it was before", () => {
     mount();
-    const hero = screen.getByTestId("commission-hero");
+    const h = screen.getByRole("heading", { level: 1, name: "Mes commissions" });
+    const statp = h.closest("header")!.querySelector(".statp")!;
+    expect(text(statp)).toMatch(/10\sد\.ل\. par commande livrée · depuis le 12 sept\./);
+    expect(text(statp)).toMatch(/avant 9\sد\.ل\./);
+  });
+
+  it("says what is owed, for how many unpaid deliveries, and proves it: Gagné − Reçu = Reste à recevoir", () => {
+    mount();
+    const hero = document.querySelector(".hero2")!;
     expect(text(hero)).toContain("Ce qu'on te doit maintenant");
-    expect(text(hero)).toMatch(/13\sد\.ل\./);
-    expect(text(hero)).toContain("pour 2 commandes livrées pas encore payées");
-    const eq = within(hero).getByTestId("commission-equation");
-    expect(text(eq)).toMatch(/Gagné\s?36\sد\.ل\./);
-    expect(text(eq)).toMatch(/Reçu\s?23\sد\.ل\./);
-    expect(text(eq)).toMatch(/Reste à recevoir\s?13\sد\.ل\./);
-    expect(text(hero)).toMatch(/Dernier paiement .*10\sد\.ل\. en espèces/);
+    expect(text(hero.querySelector(".big2")!)).toMatch(/^13\s?د\.ل\.$/);
+    expect(text(hero)).toContain("pour 2 commandes livrées pas encore payées · livrées du 27 sept. au 29 sept.");
+    const eq = hero.querySelector(".eq")!;
+    expect(text(eq)).toMatch(/Gagné\s?36\s?−\s?Reçu\s?23\s?=\s?Reste à recevoir\s?13\sد\.ل\./);
+    const bar = hero.querySelector(".pbar3")!;
+    expect(bar.getAttribute("role")).toBe("img");
+    expect(bar.getAttribute("aria-label")!.replace(/[⁦-⁩]/g, "")).toMatch(/^Reçu 23\sد\.ل\., reste 13\sد\.ل\.$/);
+    expect(text(hero.querySelector(".last")!)).toMatch(/Dernier paiement 26 sept\. · 10\sد\.ل\. en espèces/);
   });
 
-  it("says the rate changed today and what it was", () => {
-    mount();
-    const rate = screen.getByTestId("commission-rate");
-    expect(text(rate)).toMatch(/10\sد\.ل\. par commande livrée/);
-    expect(text(rate)).toContain("depuis aujourd'hui");
-    expect(text(rate)).toMatch(/avant 9\sد\.ل\./);
-  });
-
-  it("an overpaid agent reads « reçu en trop », not a green « reste à recevoir »", () => {
+  it("an overpaid agent reads « Reçu en trop », and the sentence says it comes off the next deliveries", () => {
     mount({ ...ME, paid: 41, owed: -5, unpaid: { count: 0, amount: 0, rows: [] } });
-    const hero = screen.getByTestId("commission-hero");
+    const hero = document.querySelector(".hero2")!;
     expect(text(hero)).toContain("Reçu en trop");
     expect(text(hero)).toMatch(/Tu as reçu 5\sد\.ل\. de plus que ce que tu as gagné/);
   });
 
   it("a switched-off commission says so, and the road stops promising money", () => {
-    mount({ ...ME, enabled: false, rate: { ...ME.rate, previous_amount: null, off_since: "2026-09-29" }, way: { ...ME.way, est: 0, est_likely: null } });
-    expect(screen.getByRole("status").textContent).toContain("Ta commission est coupée depuis le");
-    expect(text(screen.getByTestId("commission-way"))).toContain("Ne compteront pas — commission coupée");
+    mount({ ...ME, enabled: false, rate: { ...ME.rate, previous_amount: null, off_since: "2026-09-29" }, way: { ...ME.way, est: 0, est_likely: null, likely_each: null } });
+    expect(text(screen.getByRole("status"))).toContain("Ta commission est coupée depuis le");
+    expect(text(document.querySelectorAll(".card2")[0])).toContain("Ne compteront pas — commission coupée");
   });
 
   it("an account that never had a commission explains it instead of showing zeros", () => {
@@ -123,71 +135,105 @@ describe("AgentCommissionsView — the money", () => {
       unpaid: { count: 0, amount: 0, rows: [] }, paid_orders: { count: 0, amount: 0, payouts: [] },
       way: { ...ME.way, count: 0, rows: [] }, lost: { ...ME.lost, count: 0, rows: [] } });
     expect(screen.getByText("Les commissions ne sont pas activées pour ton compte.")).toBeTruthy();
-    expect(screen.queryByTestId("commission-hero")).toBeNull();
+    expect(document.querySelector(".hero2")).toBeNull();
   });
 });
 
-describe("AgentCommissionsView — the road and the rate", () => {
-  it("counts what is on the road by stage, with the likely amount, and sends late parcels to Livraison", () => {
+describe("Mes commissions — the road and the rate", () => {
+  it("counts what is on the road, the ≈ if all arrive and the usual share, chips by stage, and links to Livraison", () => {
     mount();
-    const way = screen.getByTestId("commission-way");
-    expect(text(way)).toContain("3 commandes");
-    expect(text(way)).toMatch(/≈ 20\sد\.ل\. si toutes sont livrées/);
-    expect(text(way)).toMatch(/d'habitude 7 sur 10 sont livrées — soit ≈ 14\sد\.ل\./);
-    expect(text(way)).toMatch(/En retard\s?1/);
-    expect(within(way).getByRole("link", { name: /Suivre les retards/ }).getAttribute("href")).toBe("/fr/delivery");
+    const way = document.querySelectorAll(".card2")[0] as HTMLElement;
+    expect(text(way.querySelector(".kv")!)).toBe("3 commandes");
+    expect(text(way)).toMatch(/≈ 20\sد\.ل\. si toutes sont livrées — d'habitude 7 sur 10 le sont, soit ≈ 14\sد\.ل\./);
+    const chips = Array.from(way.querySelectorAll(".chipm")).map(text);
+    expect(chips).toEqual(["Chez le transporteur · 1", "En retard · 1", "En retour · 1"]);
+    expect(within(way).getByRole("link", { name: /Suivre les retards dans « Livraison »/ }).getAttribute("href")).toBe("/fr/delivery");
   });
 
-  it("shows the delivery rate and where the confirmed orders went", () => {
+  it("shows the delivery rate and the funnel of where the confirmed orders went", () => {
     mount();
-    const card = screen.getByTestId("commission-delivery-rate");
-    expect(text(card)).toMatch(/71\s?%/);
-    expect(text(card)).toContain("7 ont été livrées et payées");
-    expect(text(card)).toMatch(/12 confirmées depuis le/);
-    expect(text(card)).toMatch(/Livrées\s?5/);
-    expect(text(card)).toMatch(/Non livrées\s?2/);
+    const card = document.querySelectorAll(".card2")[1] as HTMLElement;
+    expect(text(card.querySelector(".kv")!)).toMatch(/^71\s?%$/);
+    expect(text(card)).toContain("Sur 10 commandes confirmées arrivées au bout, 7 ont été livrées et payées.");
+    expect(within(card).getByRole("img", { name: /Livrées 5, En route 3, Non livrées 2, À téléverser 1, Revenues dans la file 1/ })).toBeTruthy();
+    expect(Array.from(card.querySelectorAll(".leg span")).map(text)).toEqual([
+      "Livrées 5", "En route 3", "Non livrées 2", "À téléverser 1", "Revenues dans la file 1",
+    ]);
   });
 });
 
-describe("AgentCommissionsView — the four lists", () => {
-  it("each tab carries the count of the figure above it; unpaid is open first and sums to the balance", () => {
+describe("Mes commissions — the four lists", () => {
+  it("each tab carries its count; Pas payées is open first, grouped by day with the day's + amount", () => {
     mount();
-    const tabs = screen.getAllByRole("tab").map((t) => text(t));
-    expect(tabs).toEqual(["Pas payées2", "En route3", "Payées2", "Sans commission3"]);
-    const list = screen.getByTestId("commission-list");
-    expect(text(list)).toMatch(/2 commandes livrées · 13\sد\.ل\./);
-    expect(text(list)).toContain("Fatma Zaid");
-    expect(text(list)).toMatch(/payée en partie — reste 4\sد\.ل\. sur 9\sد\.ل\./);
+    expect(screen.getAllByRole("tab").map(text)).toEqual(["Pas payées2", "En route3", "Payées2", "Sans commission3"]);
+    const days = Array.from(document.querySelectorAll(".dayh")).map(text);
+    expect(days[0]).toMatch(/^Hier\s?\+9\sد\.ل\.$/);
+    expect(days[1]).toMatch(/^27 sept\.\s?\+4\sد\.ل\.$/);
+    const r = rows();
+    expect(r[0]).toContain("Fatma Zaid");
+    expect(r[0]).toMatch(/Dibio · Tripoli/);
+    expect(r[0]).toMatch(/\+9\s?د\.ل\./);
+    expect(r[1]).toMatch(/payée en partie — reste 4\sد\.ل\. sur 9\sد\.ل\./);
   });
 
-  it("paid orders sit under the payout that settled them, and a split is said", () => {
-    mount();
-    fireEvent.click(screen.getByRole("tab", { name: /Payées/ }));
-    const list = screen.getByTestId("commission-list");
-    expect(text(list)).toMatch(/Paiement du 26 sept/);
-    expect(text(list)).toContain("une commande réglée en deux fois");
-    expect(screen.queryByText("Ali Misrati")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Paiement du 26 sept/ }));
-    expect(screen.getByText("Ali Misrati")).toBeTruthy();
-    expect(text(list)).toContain("réglée en deux fois");
-  });
-
-  it("the road lists late parcels first and flags one stuck at the carrier", () => {
+  it("the road lists each parcel with its stage, how long it has been out, and what it will likely earn", () => {
     mount();
     fireEvent.click(screen.getByRole("tab", { name: /En route/ }));
-    const names = screen.getAllByTestId("commission-row").map((r) => text(r));
-    expect(names[0]).toContain("Hana Sharif");
-    expect(names[1]).toContain("11 jours chez le transporteur");
+    const r = rows();
+    expect(r[0]).toContain("Hana Sharif");
+    expect(r[0]).toContain("En retard");
+    expect(r[0]).toMatch(/≈ 7\s?د\.ل\./);
+    expect(r[1]).toContain("11 jours chez le transporteur");
+    expect(document.querySelectorAll(".crow")[1].querySelector(".tm.warn")).toBeTruthy();
+    expect(r[2]).not.toContain("≈");
   });
 
-  it("orders without commission say why, and filter by reason", () => {
+  it("paid orders sit under the payout that settled them; the payout row opens", () => {
+    mount();
+    fireEvent.click(screen.getByRole("tab", { name: /Payées/ }));
+    const btn = screen.getByRole("button", { name: /Paiement du 26 sept\./ });
+    expect(text(btn)).toContain("en espèces · a réglé 1 livrée du 24 sept. au 24 sept. · une commande réglée en deux fois");
+    expect(text(btn)).toMatch(/10\s?د\.ل\./);
+    expect(screen.queryByText("Ali Misrati")).toBeNull();
+    fireEvent.click(btn);
+    expect(btn.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Ali Misrati")).toBeTruthy();
+  });
+
+  it("orders without commission say why, strike what they would have earned, and filter by reason", () => {
     mount();
     fireEvent.click(screen.getByRole("tab", { name: /Sans commission/ }));
-    const list = screen.getByTestId("commission-list");
-    expect(text(list)).toContain("Khaled Senussi");
-    expect(text(list)).toContain("comptée puis annulée");
-    fireEvent.click(within(list).getByRole("button", { name: /Annulée par le transporteur/ }));
-    expect(screen.getAllByTestId("commission-row")).toHaveLength(1);
-    expect(screen.queryByText("Youssef Kikli")).toBeNull();
+    expect(rows()).toHaveLength(3);
+    expect(rows()[0]).toContain("Annulée par le transporteur");
+    expect(document.querySelector(".crow .plus.strike")).toBeTruthy();
+    const fil = document.querySelector(".cfil") as HTMLElement;
+    expect(within(fil).getAllByRole("button").map(text)).toEqual([
+      "Toutes", "Annulée par le transporteur", "Rejetée", "Téléversée avant l'activation",
+    ]);
+    fireEvent.click(within(fil).getByRole("button", { name: "Rejetée" }));
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]).toContain("Amna Tarhouni");
+  });
+
+  it("closes with the rule, at the rate from the database", () => {
+    mount();
+    expect(text(document.querySelector(".rule2")!)).toMatch(/La règle : 10\sد\.ل\. pour chaque commande que tu as confirmée/);
+  });
+});
+
+describe("Mes commissions — phone and Arabic", () => {
+  it("on a phone the page has no header (the shell titles it) but keeps the hero and the lists", () => {
+    phone = true;
+    mount();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(document.querySelector(".hero2")).toBeTruthy();
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+  });
+
+  it("reads in Arabic with the prototype's words", () => {
+    mount(ME, "ar");
+    expect(screen.getByRole("heading", { level: 1, name: "عمولاتي" })).toBeTruthy();
+    expect(text(document.querySelector(".hero2")!)).toContain("ما نَدين لك به الآن");
+    expect(screen.getAllByRole("tab").map(text)[0]).toBe("غير مدفوعة2");
   });
 });

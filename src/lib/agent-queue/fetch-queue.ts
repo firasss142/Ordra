@@ -58,7 +58,7 @@ export function expandAgentQueue(body: AgentQueueResponse): AgentQueueCache {
 
 /**
  * SWR fetcher for the agent queue key. Must be used everywhere that key is
- * populated — including AgentNavTabs' preload() — or the cache would hold the
+ * populated — including AgentNav's preload() — or the cache would hold the
  * raw wire shape for whichever call landed first.
  */
 export async function fetchAgentQueue(url: string): Promise<AgentQueueCache> {
