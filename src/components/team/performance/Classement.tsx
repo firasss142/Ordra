@@ -8,9 +8,9 @@ import { ORDER, per100, round100, type Outcomes } from "@/lib/team/performance/m
 import type { CardView } from "@/lib/team/performance/build";
 import { Av, CmpBars, Ic, SayBox, Trend, agv, useLeakView, useTp } from "./ui";
 
-function Ring({ o, n, id }: { o: Outcomes; n: number; id: string }) {
+function Ring({ o }: { o: Outcomes }) {
   const { t, f } = useTp();
-  const R = 70, C = 2 * Math.PI * R, gap = 3.2;
+  const R = 72, C = 2 * Math.PI * R, gap = 2.5;
   const p = round100(per100(o));
   let acc = 0;
   const segs: JSX.Element[] = [];
@@ -32,18 +32,11 @@ function Ring({ o, n, id }: { o: Outcomes; n: number; id: string }) {
     );
     acc += len;
   }
-  const mid = `tpm-${id}`;
   return (
     <svg className="ringsvg" viewBox="0 0 176 176" aria-hidden="true">
-      <defs>
-        <mask id={mid} maskUnits="userSpaceOnUse" x="0" y="0" width="176" height="176">
-          <circle className="sweep" cx="88" cy="88" r={R} transform="rotate(-90 88 88)" style={{ "--n": n } as CSSProperties} />
-        </mask>
-      </defs>
-      <g mask={`url(#${mid})`}>
-        <g className="segs" transform="rotate(-90 88 88)">
-          {segs}
-        </g>
+      <circle className="track" cx="88" cy="88" r={R} />
+      <g className="segs" transform="rotate(-90 88 88)">
+        {segs}
       </g>
     </svg>
   );
@@ -82,13 +75,12 @@ function Card({ r, n }: { r: CardView; n: number }) {
         </span>
       </div>
       <div className="ag-ring">
-        <Ring o={o} n={n} id={r.id} />
+        <Ring o={o} />
         <div className="rc">
           <div className="n">
-            <b>{f.n(Math.round(r.score))}</b>
-            <small>/100</small>
+            <b>{f.n(o.del)}</b>
           </div>
-          <div className="l">{t("card.delivered")}</div>
+          <div className="l">{t("card.ringSub", { pct: f.pct(r.score) })}</div>
         </div>
       </div>
       <div className="ag-tr">
@@ -105,7 +97,7 @@ function Card({ r, n }: { r: CardView; n: number }) {
         {(["ret", "rej", "junk", "pend"] as const).map((k) => (
           <span key={k} className={`k-${k}`} data-tip={t("card.segTip", { label: t(`o.${k}`), p: p[k], n: o[k], nf: f.n(o[k]) })}>
             <i />
-            {f.n(p[k])}
+            {f.n(o[k])}
           </span>
         ))}
       </div>

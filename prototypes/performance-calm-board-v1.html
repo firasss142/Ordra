@@ -1,0 +1,574 @@
+<!doctype html>
+<!--
+  Planche « Aurore calme » — v1 (2026-10-05). Une seule question : quel graphique remplace la gaufre
+  (et l'anneau des cartes agents) sur les trois pages qui l'utilisent — Salle de contrôle (/team),
+  Performance › Équipe (/team/performance), Performance › Commandes (/performance/orders).
+
+  Demande du propriétaire (5 oct.) : « très chargé, beaucoup de couleurs, pas facile à lire ni à
+  comprendre — plus calme, garder l'élégance ». Même jour sur Accueil : les comptes d'abord, le
+  pourcentage en petit ; une palette douce.
+
+  Palette des issues VALIDÉE (dataviz validate_palette.js, mode clair) : #4DAE7E · #E9A23B · #E46A7B ·
+  #9D8FEF — CVD ΔE 8.2, vision normale 17.0. La palette pastel d'Accueil (#5CB88A #F2B661 #EC8E98
+  #ABA0F2) ÉCHOUE : retournées/rejetées à ΔE 13.8 (< 15) et l'ambre hors bande de luminosité.
+  « En route » = vert plus clair #6FC29A (rampe ordinale validée). Uploadée (Salle) = #2FA39B.
+
+  Chiffres : ceux des captures du propriétaire (Libye, 6 sept. → 5 oct., aujourd'hui 5 oct.).
+  Prénoms d'agents INVENTÉS (dépôt public). Aucune donnée client.
+  URL : ?chart=1|2|3|4 &card=a|b &fond=aurore|uni   — touches 1–4, A/B, F
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Graphiques calmes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --f:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  /* ink — one ramp, every text step clears AA on white */
+  --ink:#101828; --ink-2:#475467; --ink-3:#667085; --quiet:#98A2B3; --ink-4:#D0D5DD;
+  --line:rgba(16,24,40,.07); --track:rgba(16,24,40,.06);
+  /* calm surfaces: more opaque than Aurore's .62 glass, a hairline instead of a white rim */
+  --card:rgba(255,255,255,.86); --card-bd:rgba(16,24,40,.06); --r:20px; --r-in:14px;
+  --sh:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(42,52,110,.05);
+  /* outcomes — calm, validated */
+  --o-del:#4DAE7E; --o-road:#6FC29A; --o-ret:#E9A23B; --o-rej:#E46A7B; --o-junk:#9D8FEF; --o-pend:#D0D5DD;
+  /* the day's work (Salle de contrôle) */
+  --o-up:#2FA39B; --o-prog:#B4BDCC; --o-todo:#E4E7EC;
+  --o-late:repeating-linear-gradient(-45deg,#F6C7CF 0 3px,#DE5A72 3px 5.5px);
+  /* severity — trend pills, the one alert */
+  --good:#067647; --good-bg:#ECFDF3; --bad:#B42318; --bad-bg:#FEF3F2; --flat:#475467; --flat-bg:#F2F4F7;
+  --warn:#B54708; --live:#12B76A; --warn-dot:#F79009;
+  --aurore:radial-gradient(58% 40% at 2% 0%, #D3DBFF 0%, transparent 72%), radial-gradient(48% 36% at 100% 0%, #FAD3EC 0%, transparent 72%),
+           radial-gradient(56% 46% at 98% 100%, #C6F2DA 0%, transparent 72%), radial-gradient(52% 46% at 0% 100%, #FFE6B3 0%, transparent 72%),
+           radial-gradient(40% 30% at 50% 50%, #EDE7FF 0%, transparent 80%), #F6F7FB;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:14px/1.45 var(--f);color:var(--ink);-webkit-font-smoothing:antialiased;background:var(--aurore);background-attachment:fixed;min-height:100vh}
+body[data-fond=uni]{background:#F5F6F8}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+h1,h2,h3,p{margin:0}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ── studio bar (not part of the design) ─────────────────────────────── */
+.studio{position:sticky;top:0;z-index:50;background:#0E1013;color:#E6E8EB;padding:10px 22px 11px;display:grid;gap:7px;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.studio .row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.studio .word{font-weight:800;letter-spacing:-.01em;font-size:15px}
+.studio .word small{font-weight:500;color:#7F858F;font-size:12.5px;margin-inline-start:8px}
+.studio .grp{display:flex;align-items:center;gap:8px}
+.studio .gl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7F858F}
+.studio .seg{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:#1B1F26}
+.studio .seg button{height:28px;padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:#B5BAC2;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.studio .seg button:hover{color:#fff}
+.studio .seg button.on{background:#2A303A;color:#fff}
+.studio .seg kbd{font:600 10.5px var(--f);color:#7F858F;border:1px solid #3A414C;border-radius:4px;padding:0 4px;line-height:15px}
+.studio .seg button.on kbd{color:#B5BAC2}
+.studio .star{color:#F5C451;font-size:11px}
+.studio .why{font-size:12.5px;color:#B5BAC2;display:flex;gap:16px;flex-wrap:wrap}
+.studio .why b{color:#fff;font-weight:700}
+.studio .why span{display:inline-flex;gap:6px}
+
+/* ── page ────────────────────────────────────────────────────────────── */
+.page{max-width:1200px;margin:0 auto;padding:30px 36px 90px;display:flex;flex-direction:column;gap:22px}
+.where{display:flex;align-items:baseline;gap:10px;margin:22px 2px -6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--quiet)}
+.where:first-child{margin-top:0}
+.where code{font:600 11.5px ui-monospace,Menlo,monospace;letter-spacing:0;text-transform:none;color:var(--quiet)}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.crumb{font-size:12.5px;font-weight:600;color:var(--ink-3);margin-bottom:5px}
+.crumb i{font-style:normal;margin:0 6px;color:var(--ink-4)}
+.ph h1{font-size:26px;font-weight:700;letter-spacing:-.025em;line-height:1.15}
+.sub{display:flex;align-items:center;gap:8px;margin-top:7px;font-size:13.5px;color:var(--ink-3);font-weight:500;flex-wrap:wrap}
+.livechip{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);font-weight:600}
+.livechip i{width:7px;height:7px;border-radius:50%;background:var(--live);box-shadow:0 0 0 3px rgba(18,183,106,.16)}
+.ctl{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:rgba(255,255,255,.7);border:1px solid var(--card-bd)}
+.ctl span{height:30px;padding:0 13px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);display:inline-flex;align-items:center}
+.ctl span.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.08)}
+
+.card{position:relative;background:var(--card);border:1px solid var(--card-bd);border-radius:var(--r);box-shadow:var(--sh);min-width:0;backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%)}
+body[data-fond=uni] .card{background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}
+.ov{padding:24px 28px 22px}
+.ov-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ov-top h2{font-size:15px;font-weight:700;color:var(--ink-2)}
+.meta{font-size:13px;color:var(--ink-3);font-weight:500}
+.ov-top .meta{margin-inline-start:auto}
+.lede{margin-top:10px;font-size:24px;font-weight:700;letter-spacing:-.022em;line-height:1.25}
+.lede .n{font-weight:800}
+.lede-s{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:var(--ink-3);font-weight:500;flex-wrap:wrap}
+
+/* trend pill — severity, small */
+.tr{display:inline-flex;align-items:center;gap:2px;height:20px;padding:0 7px 0 5px;border-radius:99px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.tr .ic{width:11px;height:11px;stroke-width:2.6}
+.tr.good{background:var(--good-bg);color:var(--good)}
+.tr.bad{background:var(--bad-bg);color:var(--bad)}
+.tr.eq{background:var(--flat-bg);color:var(--flat);padding:0 8px}
+
+/* ① the outcome bar */
+.obar{display:flex;gap:2px;height:12px;margin-top:20px;border-radius:99px;overflow:hidden;background:var(--track)}
+.obar i{display:block;height:100%;min-width:3px;background:var(--c);transition:opacity .15s}
+.obar.sm{height:8px;margin-top:12px}
+.obar.empty{background:var(--track)}
+
+.cols{display:grid;grid-template-columns:repeat(var(--n,5),minmax(0,1fr));margin-top:18px}
+.col{min-width:0;padding-inline:18px;border-inline-start:1px solid var(--line);transition:opacity .15s;cursor:default}
+.col:first-child{padding-inline-start:0;border:0}
+.col:last-child{padding-inline-end:0}
+.lbl{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.dot.hatch{border-radius:2px;width:9px;height:9px}
+.val{display:flex;align-items:baseline;gap:7px;margin-top:7px;white-space:nowrap}
+.val b{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.val small{font-size:13px;font-weight:600;color:var(--ink-3)}
+.val .tr{align-self:center}
+.hint{margin-top:4px;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.col.alert .val b{color:var(--bad)}
+.col.alert .hint{color:var(--bad);font-weight:600}
+.col.zero .val b{color:var(--ink-4)}
+.foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;gap:16px;flex-wrap:wrap}
+
+/* ② bars by outcome */
+.blist{display:grid;grid-template-columns:150px minmax(0,1fr) 64px 46px 64px;gap:12px 14px;align-items:center;margin-top:18px}
+.blist .bl{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.blist .bt{height:10px;border-radius:99px;background:var(--track);overflow:hidden}
+.blist .bt i{display:block;height:100%;border-radius:99px;background:var(--c);min-width:4px}
+.blist .bn{font-size:16px;font-weight:700;text-align:end;letter-spacing:-.02em}
+.blist .bp{font-size:13px;font-weight:600;color:var(--ink-3);text-align:end}
+.blist .bd{display:flex;justify-content:flex-end}
+.blist .row{display:contents}
+.blist .bh{grid-column:2/-1;margin-top:-9px;font-size:12px;color:var(--ink-3)}
+.blist .alert .bn{color:var(--bad)}
+
+/* ③ ④ chart + legend list */
+.duo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:44px;align-items:center;margin-top:18px}
+.ringwrap{position:relative;width:184px;height:184px}
+.ringwrap svg{display:block;width:100%;height:100%}
+.rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.rc b{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.rc span{font-size:12.5px;font-weight:600;color:var(--ink-3);margin-top:5px}
+.rc em{font-style:normal;font-size:12px;color:var(--ink-3);margin-top:2px}
+.waf{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));gap:var(--g)}
+.waf i{width:var(--cell);height:var(--cell);border-radius:4px;background:var(--c);transition:opacity .15s}
+.llist{display:grid;gap:2px}
+.li{display:grid;grid-template-columns:minmax(0,1fr) 70px 50px 60px;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line);transition:opacity .15s;cursor:default}
+.li:first-child{border-top:0}
+.li .lbl{font-size:13px}
+.li .h{display:block;font-size:12px;font-weight:500;color:var(--ink-3);margin:2px 0 0 15px}
+.li .n{font-size:17px;font-weight:700;text-align:end;letter-spacing:-.02em}
+.li .p{font-size:13px;font-weight:600;color:var(--ink-3);text-align:end}
+.li .d{display:flex;justify-content:flex-end}
+.li.alert .n{color:var(--bad)}
+
+/* hover: one outcome lit, the others recede */
+[data-hl] [data-k]{opacity:.32}
+[data-hl=del] [data-k=del],[data-hl=ret] [data-k=ret],[data-hl=rej] [data-k=rej],[data-hl=junk] [data-k=junk],[data-hl=pend] [data-k=pend],
+[data-hl=up] [data-k=up],[data-hl=prog] [data-k=prog],[data-hl=todo] [data-k=todo],[data-hl=late] [data-k=late]{opacity:1}
+
+/* Salle de contrôle overview: chart on the start side, three context figures on the end side */
+.room{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:0}
+.room .main{padding-inline-end:28px;min-width:0}
+.room .side{border-inline-start:1px solid var(--line);padding-inline-start:24px;display:grid;align-content:center}
+.fig{padding:13px 0;border-top:1px solid var(--line)}
+.fig:first-child{border-top:0;padding-top:2px}
+.fig .lbl{font-size:12.5px}
+.fig .lbl .ic{width:14px;height:14px;color:var(--quiet)}
+.fig .val b{font-size:22px}
+.fig .hint.warn{color:var(--warn);font-weight:600}
+.stk{display:inline-flex;margin-inline-start:6px}
+.split{display:flex;justify-content:space-between;margin-top:18px;margin-bottom:-12px;font-size:12px;font-weight:600;color:var(--ink-3)}
+.split span b{color:var(--ink);font-weight:700}
+
+/* section heads */
+.sec{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:8px 2px -6px}
+.sec h2{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.sec .meta{margin-top:3px}
+.legend{margin-inline-start:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+/* agents */
+.cards{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:16px}
+.ag{padding:18px 20px 16px;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .2s,border-color .2s}
+.ag:hover{border-color:rgba(16,24,40,.12);box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 28px rgba(42,52,110,.08)}
+.ag-h{display:flex;align-items:center;gap:11px}
+.av{position:relative;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;background:var(--a);flex:none}
+.av.sm{width:26px;height:26px;font-size:11px;box-shadow:0 0 0 2px #fff}
+.av .pres{position:absolute;bottom:-1px;inset-inline-end:-1px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:var(--ink-4)}
+.av .pres.live{background:var(--live)}
+.av .pres.late{background:var(--warn-dot)}
+.ag-n{min-width:0;flex:1}
+.ag-n b{display:block;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.ag-n span{display:block;font-size:12.5px;color:var(--ink-3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-n span.warn{color:var(--warn);font-weight:600}
+.rank{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ink-2);background:var(--flat-bg);flex:none}
+.wa{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--quiet);flex:none}
+.wa:hover{background:var(--flat-bg);color:var(--ink-2)}
+.ag-v{display:flex;align-items:baseline;gap:8px;margin-top:16px;white-space:nowrap}
+.ag-v b{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1}
+.ag-v span{font-size:13px;font-weight:600;color:var(--ink-2)}
+.ag-v small{font-size:13px;font-weight:600;color:var(--ink-3)}
+.ag-v .tr{align-self:center;margin-inline-start:auto}
+.ag-c{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:9px;font-size:12px;color:var(--ink-3);font-weight:500}
+.ag-c span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.ag-c b{color:var(--ink-2);font-weight:700}
+.ag-c .dot{width:7px;height:7px}
+.ag-ring{position:relative;width:148px;height:148px;margin:14px auto 2px}
+.ag-ring svg{display:block;width:100%;height:100%}
+.ag-ring .rc b{font-size:32px}
+.ag-ring .rc span{font-size:12px;margin-top:3px}
+.mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.mini div{text-align:center}
+.mini small{display:block;font-size:11.5px;color:var(--ink-3);font-weight:500}
+.mini b{display:block;font-size:16px;font-weight:700;margin-top:2px}
+.mini b.z{color:var(--ink-4)}
+.state{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.state .ic{width:15px;height:15px;color:var(--o-del)}
+.state small{font-weight:500;color:var(--ink-3)}
+.state.bad{color:var(--bad)}
+.state.bad .ic{color:var(--bad)}
+.leak{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:600;color:var(--ink-3)}
+.lk{display:flex;align-items:baseline;gap:10px;margin-top:5px}
+.lk b{font-size:14px;font-weight:700;flex:1;min-width:0;line-height:1.3}
+.lk em{font-style:normal;font-size:18px;font-weight:700;letter-spacing:-.02em}
+.cmp{display:grid;grid-template-columns:62px 1fr 38px;gap:6px 9px;align-items:center;margin-top:9px;font-size:12px;color:var(--ink-3);font-weight:500}
+.cmp .bt{height:6px;border-radius:99px;background:var(--track);overflow:hidden}
+.cmp .bt i{display:block;height:100%;border-radius:99px;background:var(--c);min-width:3px}
+.cmp .bt.rest i{background:var(--ink-4)}
+.cmp b{font-weight:700;color:var(--ink-2);text-align:end}
+.say{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
+.say .ic{width:15px;height:15px;color:var(--quiet);margin-top:1px}
+.say small{display:block;font-size:11.5px;font-weight:500;color:var(--ink-3)}
+.more{display:flex;align-items:center;gap:5px;margin-top:auto;padding-top:12px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.more .ic{width:14px;height:14px}
+.dorm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3);font-weight:500;margin-top:-6px}
+.dorm .ic{width:15px;height:15px;color:var(--quiet)}
+.chip{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 4px;border-radius:99px;background:var(--card);border:1px solid var(--card-bd);font-weight:600;color:var(--ink)}
+.chip .av{width:24px;height:24px;font-size:10.5px}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;background:#FFF6E5;color:var(--warn);font-size:11.5px;font-weight:600}
+
+.tip{position:fixed;z-index:100;pointer-events:none;background:#101828;color:#fff;font-size:12.5px;font-weight:600;padding:7px 10px;border-radius:9px;box-shadow:0 10px 26px rgba(0,0,0,.2);opacity:0;transform:translateY(3px);transition:opacity .1s,transform .1s;max-width:300px}
+.tip.on{opacity:1;transform:none}
+@media (max-width:1100px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.room{grid-template-columns:1fr}.room .side{border:0;padding:16px 0 0;grid-template-columns:repeat(3,1fr);gap:16px}.room .main{padding:0}}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="row">
+    <span class="word">Ordra<small>planche · graphiques calmes · 5 oct.</small></span>
+    <div class="grp"><span class="gl">Graphique</span><div class="seg" id="s-chart"></div></div>
+    <div class="grp"><span class="gl">Cartes agents</span><div class="seg" id="s-card"></div></div>
+    <div class="grp"><span class="gl">Fond</span><div class="seg" id="s-fond"></div></div>
+  </div>
+  <div class="why" id="why"></div>
+</div>
+<main class="page" id="page"></main>
+<div class="tip" id="tip"></div>
+<script>
+const ICONS = {
+  up:'<path d="M12 19V5M5 12l7-7 7 7"/>', dn:'<path d="M12 5v14M5 12l7 7 7-7"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62L18.3 9.38a1 1 0 0 0-.78-.38H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  msg:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>', say:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  down:'<path d="m6 9 6 6 6-6"/>', ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>'
+};
+const ic = (n, c = "") => `<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+const NF = new Intl.NumberFormat("fr-FR");
+const fn = v => NF.format(v);
+const pc = v => `${Math.round(v)} %`;
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+/* ── the numbers (owner's screenshots, 5 oct.) ─────────────────────────── */
+const OUT = {
+  del: { l: "Livrées", one: "livrée", c: "var(--o-del)", upGood: true },
+  ret: { l: "Retournées", one: "retournée", c: "var(--o-ret)", upGood: false },
+  rej: { l: "Rejetées", one: "rejetée", c: "var(--o-rej)", upGood: false },
+  junk: { l: "Jamais réelles", one: "jamais réelle", c: "var(--o-junk)", upGood: false },
+  pend: { l: "En cours", one: "en cours", c: "var(--o-pend)", upGood: null },
+  up: { l: "Uploadées", one: "uploadée", c: "var(--o-up)" },
+  rej2: { l: "Rejetées", one: "rejetée", c: "var(--o-rej)" },
+  prog: { l: "En cours", one: "en cours", c: "var(--o-prog)" },
+  todo: { l: "À appeler", one: "à appeler", c: "var(--o-todo)" },
+  late: { l: "Non appelées > 2 h", one: "non appelée > 2 h", c: "var(--o-late)" },
+};
+const TEAM = {
+  total: 1441, what: "attribuées",
+  seg: { del: 275, ret: 248, rej: 601, junk: 276, pend: 41 },
+  tr: { del: 4, ret: 0, rej: -8, junk: 1 },
+  hint: { del: "colis remis au client", ret: "46 % des colis partis", rej: "dont 298 « Autre »", junk: "pas commandé, doublon…", pend: "dans leur file ou en route" },
+};
+const ORD = {
+  total: 1535, what: "reçues",
+  seg: { del: 278, ret: 260, rej: 596, junk: 360, pend: 41 },
+  tr: { del: 3, ret: 1, rej: -7, junk: 0 },
+  hint: { del: "arrivées chez le client", ret: "47 % des uploadées", rej: "dont 291 « Autre »", junk: "pas commandé, doublon…", pend: "en appel, à uploader ou en route" },
+};
+const ROOM = { total: 37, seg: { up: 4, rej2: 8, prog: 17, todo: 0, late: 8 } };
+const LIVE = [
+  { name: "Rania", a: "#088AB2", pres: "late", line: "Pas encore d'appel · prévu 08:00", warn: true, seg: {}, done: 0, hand: 0, mini: [0, 0, 0, 0], ok: true },
+  { name: "Salma", a: "#DD2590", pres: "late", line: "Pas encore d'appel · prévu 08:00", warn: true, seg: {}, done: 0, hand: 0, mini: [0, 0, 0, 0], ok: true },
+  { name: "Amira", a: "#444CE7", pres: "late", line: "Arrêt à 16:45, avant 18:00", warn: true, seg: { up: 4, rej2: 8, prog: 17, todo: 0, late: 8 }, done: 12, hand: 25, mini: [8, 4, 8, 12], ok: false },
+];
+const RANK = [
+  { name: "Amira", a: "#444CE7", n: 550, days: 24, seg: { del: 143, ret: 82, rej: 286, junk: 11, pend: 28 }, tr: 8, leak: "Motif « Autre »", lk: 281, her: 51, rest: 2, say: "Choisir le vrai motif, pas « Autre »" },
+  { name: "Salma", a: "#DD2590", n: 422, days: 24, seg: { del: 68, ret: 97, rej: 177, junk: 76, pend: 4 }, tr: 1, leak: "« Commande non sérieuse »", lk: 109, her: 26, rest: 2, say: "Rappeler avant de classer « non sérieuse »" },
+  { name: "Rania", a: "#088AB2", n: 337, days: 16, seg: { del: 51, ret: 44, rej: 88, junk: 151, pend: 3 }, tr: 5, leak: "« N'a pas commandé »", lk: 88, her: 26, rest: 5, say: "Vérifier qui a commandé avant de rejeter", tone: "junk" },
+  { name: "Hiba", a: "#CA8504", n: 128, days: 8, seg: { del: 14, ret: 23, rej: 51, junk: 38, pend: 2 }, tr: -5, leak: "« Ne répond pas »", lk: 18, her: 14, rest: 1, say: "Rappeler à une autre heure avant de rejeter" },
+];
+const DORM = [{ name: "Hiba", a: "#CA8504", tag: "1 confirmée non uploadée" }, { name: "Lina", a: "#4CA30D" }, { name: "Nada", a: "#E04F16" }];
+
+/* ── state ─────────────────────────────────────────────────────────────── */
+const Q = new URLSearchParams(location.search);
+const S = { chart: ["1", "2", "3", "4"].includes(Q.get("chart")) ? Q.get("chart") : "1", card: Q.get("card") === "b" ? "b" : "a", fond: Q.get("fond") === "uni" ? "uni" : "aurore" };
+const CHARTS = { 1: "Barre unique", 2: "Barres par issue", 3: "Anneau fin", 4: "Gaufre adoucie" };
+const CARDS = { a: "Barre", b: "Anneau fin" };
+const WHY = {
+  1: "<b>Barre unique</b> — une ligne lue de gauche à droite : le vert d'abord, puis où partent les autres. Chaque chiffre écrit une fois, dessous. C'est la barre d'Accueil.",
+  2: "<b>Barres par issue</b> — une barre par issue, même échelle : la plus grosse fuite saute aux yeux. Plus haute, et l'idée du « tout » se perd.",
+  3: "<b>Anneau fin</b> — familier (cartes boutiques d'Accueil). Mais l'œil compare mal des angles : 17 et 19 se confondent.",
+  4: "<b>Gaufre adoucie</b> — votre graphique actuel, couleurs calmées. Il faut compter des carrés ; à 1 441 commandes, un carré vaut 14 commandes.",
+};
+const WHYC = {
+  a: "<b>Cartes · Barre</b> — toutes les barres partent du même bord : on compare les agents d'un regard. Cartes plus courtes.",
+  b: "<b>Cartes · Anneau fin</b> — comme Accueil, en plus fin. Plus décoratif, cartes plus hautes, comparaison moins directe.",
+};
+
+/* ── atoms ─────────────────────────────────────────────────────────────── */
+function trend(d, upGood, unit = " pt") {
+  if (d == null || upGood == null) return "";
+  if (d === 0) return `<span class="tr eq" data-tip="Stable contre les 30 jours d'avant">=</span>`;
+  const good = d > 0 === upGood;
+  return `<span class="tr ${good ? "good" : "bad"}" data-tip="${d > 0 ? "+" : "−"}${Math.abs(d)}${unit}${Math.abs(d) > 1 ? "s" : ""} sur 100 contre les 30 jours d'avant">${ic(d > 0 ? "up" : "dn")}${Math.abs(d)}</span>`;
+}
+const dot = (k, small) => `<span class="dot${k === "late" ? " hatch" : ""}" style="--c:${OUT[k].c};${small ? "width:7px;height:7px" : ""}"></span>`;
+const av = (p, cls = "") => `<span class="av ${cls}" style="--a:${p.a}">${p.name[0]}${p.pres ? `<i class="pres ${p.pres}"></i>` : ""}</span>`;
+
+function obar(keys, seg, total, cls = "") {
+  const tot = total ?? keys.reduce((s, k) => s + (seg[k] || 0), 0);
+  if (!tot) return `<div class="obar empty ${cls}"></div>`;
+  return `<div class="obar ${cls}" role="img" aria-label="${keys.filter(k => seg[k]).map(k => `${fn(seg[k])} ${OUT[k].l.toLowerCase()}`).join(", ")}">${keys
+    .filter(k => seg[k])
+    .map(k => `<i data-k="${k === "rej2" ? "rej" : k}" style="flex:${seg[k]};--c:${OUT[k].c}" data-tip="${esc(`${OUT[k].l} · ${fn(seg[k])} · ${pc((seg[k] / tot) * 100)}`)}"></i>`)
+    .join("")}</div>`;
+}
+
+function ring(keys, seg, size, stroke, center) {
+  const tot = keys.reduce((s, k) => s + (seg[k] || 0), 0);
+  const R = size / 2 - stroke / 2 - 2, C = 2 * Math.PI * R, gap = tot ? 2.5 : 0;
+  let acc = 0, arcs = "";
+  for (const k of keys) {
+    const x = seg[k] || 0;
+    if (!x) continue;
+    const len = (x / tot) * C, vis = Math.max(len - gap, 1.5);
+    const col = k === "late" ? "#DE5A72" : OUT[k].c;
+    arcs += `<circle data-k="${k === "rej2" ? "rej" : k}" cx="${size / 2}" cy="${size / 2}" r="${R}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-dasharray="${vis.toFixed(2)} ${(C + 10).toFixed(2)}" stroke-dashoffset="${(-acc - gap / 2).toFixed(2)}" ${k === "late" ? 'stroke-dasharray-x="1"' : ""} data-tip="${esc(`${OUT[k].l} · ${fn(x)} · ${pc((x / tot) * 100)}`)}" style="transition:opacity .15s"/>`;
+    acc += len;
+  }
+  return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size / 2}" cy="${size / 2}" r="${R}" fill="none" stroke="rgba(16,24,40,.06)" stroke-width="${stroke}"/><g transform="rotate(-90 ${size / 2} ${size / 2})">${arcs}</g></svg>${center ? `<div class="rc">${center}</div>` : ""}`;
+}
+
+function waffle(keys, seg, cells) {
+  const tot = keys.reduce((s, k) => s + (seg[k] || 0), 0);
+  // largest remainder to `cells` squares (100 for a period, one per order for a day)
+  const exact = keys.map(k => ((seg[k] || 0) / tot) * cells);
+  const base = exact.map(Math.floor);
+  let left = cells - base.reduce((a, b) => a + b, 0);
+  exact.map((v, i) => [v - base[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { base[i]++; left--; } });
+  const cols = cells === 100 ? 10 : Math.max(6, Math.min(12, Math.ceil(Math.sqrt(cells * 1.6))));
+  const cell = cells === 100 ? 16 : 18;
+  let h = "";
+  keys.forEach((k, i) => { for (let j = 0; j < base[i]; j++) h += `<i data-k="${k === "rej2" ? "rej" : k}" style="--c:${OUT[k].c}" data-tip="${esc(`${OUT[k].l} · ${fn(seg[k])}`)}"></i>`; });
+  return `<div class="waf" style="--cols:${cols};--cell:${cell}px;--g:3px">${h}</div>`;
+}
+
+/* one column under the bar: label, count first, % small, arrow, one hint */
+function col(k, n, total, d, hint, extra = "") {
+  const o = OUT[k];
+  const key = k === "rej2" ? "rej" : k;
+  const zero = n === 0 ? " zero" : "";
+  return `<div class="col${zero}${extra}" data-k="${key}"><div class="lbl">${dot(k)}${o.l}</div><div class="val"><b>${fn(n)}</b>${total ? `<small>${pc((n / total) * 100)}</small>` : ""}${trend(d, o.upGood)}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
+}
+function li(k, n, total, d, hint, extra = "") {
+  const o = OUT[k];
+  const key = k === "rej2" ? "rej" : k;
+  return `<div class="li${extra}" data-k="${key}"><div><div class="lbl">${dot(k)}${o.l}</div>${hint ? `<span class="h">${hint}</span>` : ""}</div><div class="n">${fn(n)}</div><div class="p">${total ? pc((n / total) * 100) : ""}</div><div class="d">${trend(d, o.upGood)}</div></div>`;
+}
+
+/* ── the period overview (Performance › Équipe, Performance › Commandes) ─ */
+const K5 = ["del", "ret", "rej", "junk", "pend"];
+function periodChart(P) {
+  const t = P.total;
+  if (S.chart === "1")
+    return `${obar(K5, P.seg, t)}<div class="cols">${K5.map(k => col(k, P.seg[k], t, P.tr[k], P.hint[k])).join("")}</div>`;
+  if (S.chart === "2")
+    return `<div class="blist">${K5.map(k => `<div class="row" data-k="${k}"><div class="bl">${dot(k)}${OUT[k].l}</div><div class="bt"><i style="width:${((P.seg[k] / t) * 100).toFixed(1)}%;--c:${OUT[k].c}" data-tip="${esc(`${OUT[k].l} · ${fn(P.seg[k])}`)}"></i></div><div class="bn">${fn(P.seg[k])}</div><div class="bp">${pc((P.seg[k] / t) * 100)}</div><div class="bd">${trend(P.tr[k], OUT[k].upGood)}</div></div>`).join("")}</div>`;
+  const list = `<div class="llist">${K5.map(k => li(k, P.seg[k], t, P.tr[k], P.hint[k])).join("")}</div>`;
+  if (S.chart === "3")
+    return `<div class="duo"><div class="ringwrap">${ring(K5, P.seg, 184, 12, `<b>${fn(P.seg.del)}</b><span>livrées</span><em>${pc((P.seg.del / t) * 100)}</em>`)}</div>${list}</div>`;
+  return `<div class="duo">${waffle(K5, P.seg, 100)}${list}</div>`;
+}
+
+function teamOverview() {
+  const P = TEAM;
+  return `<section class="card ov" data-ov>
+    <div class="ov-top"><h2>Ce que sont devenues les commandes</h2><span class="meta">${fn(P.total)} commandes attribuées · 6 sept. → 5 oct.</span></div>
+    <p class="lede">Sur ${fn(P.total)} commandes attribuées, <span class="n">${fn(P.seg.del)}</span> ont été livrées.</p>
+    <div class="lede-s">${trend(P.tr.del, true)}<span>contre les 30 jours d'avant · 7 août → 5 sept.</span></div>
+    ${periodChart(P)}
+  </section>`;
+}
+function ordersOverview() {
+  const P = ORD;
+  return `<section class="card ov" data-ov>
+    <div class="ov-top"><h2>Où vont les commandes reçues</h2><span class="meta">Libye · 97 % ont leur issue finale</span></div>
+    <p class="lede">Sur ${fn(P.total)} commandes reçues, <span class="n">${fn(P.seg.del)}</span> arrivent chez le client.</p>
+    <div class="lede-s">${trend(P.tr.del, true)}<span>contre les 30 jours d'avant (924 commandes)</span></div>
+    ${periodChart(P)}
+  </section>`;
+}
+
+/* ── today's work (Salle de contrôle) ─────────────────────────────────── */
+const KW = ["up", "rej2", "prog", "todo", "late"];
+function roomOverview() {
+  const s = ROOM.seg, t = ROOM.total, done = s.up + s.rej2, hand = s.prog + s.todo + s.late;
+  const hints = { up: "taux 33 %", rej2: "taux 67 %", prog: "appelées, pas finies", todo: "jamais appelées", late: "la plus vieille : 2 j · Amira" };
+  let chart;
+  if (S.chart === "1") {
+    const w = (done / t) * 100;
+    chart = `<div class="split"><span>Fait <b>${done}</b></span><span style="width:${(100 - w).toFixed(1)}%">En main <b>${hand}</b></span></div>${obar(KW, s, t)}<div class="cols">${KW.map(k => col(k, s[k], 0, null, hints[k], k === "late" && s.late ? " alert" : "")).join("")}</div>`;
+  } else if (S.chart === "2") {
+    chart = `<div class="blist">${KW.map(k => `<div class="row ${k === "late" && s[k] ? "alert" : ""}" data-k="${k === "rej2" ? "rej" : k}"><div class="bl">${dot(k)}${OUT[k].l}</div><div class="bt"><i style="width:${((s[k] / t) * 100).toFixed(1)}%;--c:${OUT[k].c};${k === "late" ? "background:var(--o-late)" : ""}"></i></div><div class="bn">${fn(s[k])}</div><div class="bp">${pc((s[k] / t) * 100)}</div><div class="bd"></div></div>`).join("")}</div>`;
+  } else {
+    const list = `<div class="llist">${KW.map(k => li(k, s[k], 0, null, hints[k], k === "late" && s.late ? " alert" : "")).join("")}</div>`;
+    chart = S.chart === "3"
+      ? `<div class="duo"><div class="ringwrap">${ring(KW, s, 184, 12, `<b>${done}</b><span>faites</span><em>${hand} en main</em>`)}</div>${list}</div>`
+      : `<div class="duo">${waffle(KW, s, t)}${list}</div>`;
+  }
+  return `<section class="card ov" data-ov>
+    <div class="room">
+      <div class="main">
+        <div class="ov-top"><h2>Le travail du jour</h2><span class="meta">${t} commandes · faites ou en main</span></div>
+        <p class="lede"><span class="n">${done}</span> faites, ${hand} encore en main.</p>
+        ${chart}
+      </div>
+      <div class="side">
+        <div class="fig"><div class="lbl">${ic("users")}Agents actifs</div><div class="val"><b>0</b><small>/ 3</small></div><div class="hint warn">2 en retard · 1 arrêt tôt</div></div>
+        <div class="fig"><div class="lbl">${ic("inbox")}Reçues</div><div class="val"><b>8</b></div><div class="hint">dernière à 11:45</div></div>
+        <div class="fig"><div class="lbl">${ic("truck")}Livrées</div><div class="val"><b>1</b></div><div class="hint">colis livrés ce jour</div></div>
+      </div>
+    </div>
+  </section>`;
+}
+
+/* ── agent cards ─────────────────────────────────────────────────────── */
+function liveCard(p) {
+  const s = p.seg;
+  const visual = S.card === "a"
+    ? `<div class="ag-v"><b>${p.done}</b><span>faites</span><small>· ${p.hand} en main</small></div>${obar(KW, s, null, "sm")}`
+    : `<div class="ag-ring">${ring(KW, s, 148, 9, `<b>${p.done}</b><span>faites</span><em>${p.hand} en main</em>`)}</div>`;
+  const names = ["Assignées", "Uploadées", "Rejetées", "Tentatives"];
+  const state = p.ok
+    ? `<div class="state">${ic("check")}Tout appelé à temps <small>· rien n'attend > 2 h</small></div>`
+    : `<div class="state bad">${ic("clock")}8 non appelées > 2 h <small style="color:inherit;opacity:.8">· la plus vieille depuis 2 j</small></div>`;
+  return `<article class="card ag" data-ov>
+    <div class="ag-h">${av(p)}<div class="ag-n"><b>${p.name}</b><span class="${p.warn ? "warn" : ""}">${p.line}</span></div><button class="wa" data-tip="Écrire sur WhatsApp">${ic("msg")}</button></div>
+    ${visual}
+    <div class="mini">${p.mini.map((v, i) => `<div><small>${names[i]}</small><b class="${v ? "" : "z"}">${v}</b></div>`).join("")}</div>
+    ${state}
+  </article>`;
+}
+function rankCard(p, i) {
+  const s = p.seg, t = p.n;
+  const visual = S.card === "a"
+    ? `<div class="ag-v"><b>${fn(s.del)}</b><span>livrées</span><small>${pc((s.del / t) * 100)}</small>${trend(p.tr, true)}</div>${obar(K5, s, t, "sm")}`
+    : `<div class="ag-ring">${ring(K5, s, 148, 9, `<b>${fn(s.del)}</b><span>livrées · ${pc((s.del / t) * 100)}</span>`)}</div><div style="display:flex;justify-content:center;margin-top:2px">${trend(p.tr, true)}</div>`;
+  const c = p.tone === "junk" ? "var(--o-junk)" : "var(--o-rej)";
+  return `<article class="card ag" data-ov>
+    <div class="ag-h">${av(p)}<div class="ag-n"><b>${p.name}</b><span>${fn(p.n)} attribuées · ${p.days} j</span></div><span class="rank" data-tip="${i + 1}${i ? "e" : "re"} au taux de livraison">${i + 1}</span></div>
+    ${visual}
+    <div class="ag-c">${["ret", "rej", "junk"].map(k => `<span data-k="${k}">${dot(k, true)}<b>${fn(s[k])}</b>${OUT[k].l.toLowerCase()}</span>`).join("")}</div>
+    <div class="leak">
+      <div class="eyebrow">Sa plus grosse fuite</div>
+      <div class="lk"><b>${p.leak}</b><em>${fn(p.lk)}</em></div>
+      <div class="cmp" style="--c:${c}"><span>elle</span><div class="bt"><i style="width:${p.her}%"></i></div><b>${p.her} %</b><span>les autres</span><div class="bt rest"><i style="width:${p.rest}%"></i></div><b>${p.rest} %</b></div>
+      <div class="say">${ic("say")}<div>${p.say}<small>à lui dire</small></div></div>
+    </div>
+    <div class="more">Ses 3 fuites ${ic("down")}</div>
+  </article>`;
+}
+
+/* ── the page ─────────────────────────────────────────────────────────── */
+function render() {
+  document.body.dataset.fond = S.fond;
+  const leg = (keys) => `<div class="legend">${keys.map(k => `<span>${dot(k)}${OUT[k].l}</span>`).join("")}</div>`;
+  document.getElementById("page").innerHTML = `
+    <div class="where">1 · Salle de contrôle <code>/team</code></div>
+    <header class="ph"><div><div class="crumb">Équipe<i>/</i>Salle de contrôle</div><h1>Salle de contrôle</h1><div class="sub">Libye · lundi 5 octobre <span class="livechip"><i></i>En direct · 17:32</span></div></div><div class="ctl"><span class="on">Aujourd'hui</span><span>Hier</span></div></header>
+    ${roomOverview()}
+    <div class="sec"><div><h2>Agents · aujourd'hui</h2><div class="meta">fait aujourd'hui · reste en main · cliquez une carte pour sa fiche</div></div>${leg(KW)}</div>
+    <div class="cards" style="--n:3">${LIVE.map(liveCard).join("")}</div>
+    <div class="dorm">${ic("ban")}3 comptes sans appel depuis plus de 7 jours ${DORM.map(d => `<span class="chip">${av(d)}${d.name}${d.tag ? ` <span class="tag">${d.tag}</span>` : ""}</span>`).join("")}</div>
+
+    <div class="where">2 · Performance › Équipe <code>/team/performance</code></div>
+    <header class="ph"><div><div class="crumb">Performance<i>/</i>Équipe</div><h1>Performance équipe</h1><div class="sub">Libye · 1 441 commandes attribuées · 6 sept. → 5 oct.</div></div><div class="ctl"><span class="on">30 jours</span><span>7 jours</span><span>Ce mois</span><span>Personnalisé</span></div></header>
+    ${teamOverview()}
+    <div class="sec"><div><h2>Classement</h2><div class="meta">rangées au taux de livraison · à partir de 30 commandes</div></div>${leg(K5)}</div>
+    <div class="cards" style="--n:4">${RANK.map(rankCard).join("")}</div>
+
+    <div class="where">3 · Performance › Commandes <code>/performance/orders</code></div>
+    <header class="ph"><div><div class="crumb">Performance<i>/</i>Commandes</div><h1>Performance des commandes</h1><div class="sub">Libye · 1 535 commandes reçues, suivies jusqu'à aujourd'hui</div></div><div class="ctl"><span class="on">30 derniers jours · 6 sept. → 5 oct.</span></div></header>
+    ${ordersOverview()}
+  `;
+  const seg = (id, map, cur, key) => {
+    document.getElementById(id).innerHTML = Object.entries(map).map(([k, l]) => `<button class="${k === cur ? "on" : ""}" data-set="${key}:${k}">${k === "1" || k === "a" ? '<span class="star">★</span>' : ""}${l}<kbd>${key === "fond" ? "F" : k.toUpperCase()}</kbd></button>`).join("");
+  };
+  seg("s-chart", CHARTS, S.chart, "chart");
+  seg("s-card", CARDS, S.card, "card");
+  seg("s-fond", { aurore: "Accueil (aurore)", uni: "Uni" }, S.fond, "fond");
+  document.getElementById("why").innerHTML = `<span>${WHY[S.chart]}</span><span>${WHYC[S.card]}</span><span style="color:#7F858F">★ = ma recommandation</span>`;
+  const q = new URLSearchParams({ chart: S.chart, card: S.card, fond: S.fond });
+  history.replaceState(null, "", `?${q}`);
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-set]");
+  if (!b) return;
+  const [k, v] = b.dataset.set.split(":");
+  S[k] = v;
+  render();
+});
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (["1", "2", "3", "4"].includes(k)) S.chart = k;
+  else if (k === "a" || k === "b") S.card = k;
+  else if (k === "f") S.fond = S.fond === "aurore" ? "uni" : "aurore";
+  else return;
+  render();
+});
+/* hover: tooltip + light one outcome inside its card */
+const tip = document.getElementById("tip");
+document.addEventListener("mouseover", e => {
+  const host = e.target.closest?.("[data-ov]");
+  document.querySelectorAll("[data-hl]").forEach(n => { if (n !== host) delete n.dataset.hl; });
+  const k = e.target.closest?.("[data-k]");
+  if (host) { if (k && host.contains(k)) host.dataset.hl = k.dataset.k; else delete host.dataset.hl; }
+  const t = e.target.closest?.("[data-tip]");
+  if (t) { tip.textContent = t.dataset.tip; tip.classList.add("on"); } else tip.classList.remove("on");
+});
+document.addEventListener("mousemove", e => {
+  if (!tip.classList.contains("on")) return;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 14, y = e.clientY - h - 12;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+  if (y < 8) y = e.clientY + 18;
+  tip.style.left = `${x}px`;
+  tip.style.top = `${y}px`;
+});
+render();
+</script>
+</body>
+</html>

@@ -98,12 +98,12 @@ function FunnelBar({ r, max }: { r: Counts; max: number }) {
   );
 }
 
-function Score({ score, trend, tip }: { score: number | null; trend: number | null; tip: string }) {
+/** Delivered per assigned, as a plain percentage (Aurore calme: no « /100 »). */
+function Score({ score, trend, tip, fmt }: { score: number | null; trend: number | null; tip: string; fmt: RoomFormat }) {
   return (
     <div className="r6-score">
       <div className="r6-sv">
-        <b>{score === null ? "—" : Math.round(score)}</b>
-        <small>/100</small>
+        <b>{score === null ? "—" : fmt.pct(Math.round(score))}</b>
       </div>
       <Trend v={trend} tip={tip} />
     </div>
@@ -203,7 +203,7 @@ export function FunnelCard({ view, period, today, fmt, title, meta, due, balance
             <div role="cell" className="r6-n r6-c-num"><span className="r6-val">{fmt.num(tm.uploaded)}</span><span className="r6-sub2">{fmt.pct(tm.upl)}</span></div>
             <div role="cell" className="r6-n r6-c-num"><span className="r6-val">{fmt.num(tm.delivered)}</span><span className="r6-sub2">{fmt.pct(tm.dlv)}</span></div>
             {nums(tm.assigned, tm.uploaded, tm.delivered)}
-            <div role="cell" className="r6-n r6-c-score"><Score score={tm.score} trend={tm.trend} tip={trendTip(tm.prevScore)} /></div>
+            <div role="cell" className="r6-n r6-c-score"><Score score={tm.score} trend={tm.trend} tip={trendTip(tm.prevScore)} fmt={fmt} /></div>
             <div role="cell" className="r6-c-bal" />
           </div>
 
@@ -297,7 +297,7 @@ function Row({ r, max, fmt, bal, canPay, sel, tip, onSelect, onPay, nums }: {
       </div>
       {nums}
       <div role="cell" className="r6-n r6-c-score">
-        {r.scored ? <Score score={r.score} trend={r.trend} tip={tip} /> : <span className="r6-val r6-dim">—</span>}
+        {r.scored ? <Score score={r.score} trend={r.trend} tip={tip} fmt={fmt} /> : <span className="r6-val r6-dim">—</span>}
       </div>
       <div role="cell" className="r6-n r6-c-bal">
         <div className="r6-balc">

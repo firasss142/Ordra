@@ -101,8 +101,8 @@ export function PerformanceOrders({ marketId, marketName, locale, tz }: { market
   // A click outside an open picker or popover closes it.
   const onClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (dp && !target.closest(".dp, .dbtn, .dchip, .cmpseg")) setDp(null);
-    if (pop && !target.closest(".picker, .addb, .cmpseg")) setPop(null);
+    if (dp && !target.closest(".dp, .dbtn, .dchip, .cmpmenu")) setDp(null);
+    if (pop && !target.closest(".picker, .fb, .cmpmenu")) setPop(null);
   };
 
   const ctx: PerfCtx | null = useMemo(() => {

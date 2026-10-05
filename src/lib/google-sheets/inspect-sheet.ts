@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { getAuthClient, sheetRange } from "./client";
+import { getAuthClient, sheetRange, cleanHeader, LAST_COLUMN } from "./client";
 
 /**
  * A look at a sheet before it becomes a shop.
@@ -31,11 +31,14 @@ export function getServiceAccountEmail(): string | null {
   }
 }
 
-const norm = (h: string) => h.trim().toLowerCase();
+const norm = (h: string) => cleanHeader(h).toLowerCase();
 
-export function missingHeaders(headers: string[], required: readonly string[]): string[] {
+/** Required columns absent from `headers`; an any-of group is reported as "A / B". */
+export function missingHeaders(headers: string[], required: readonly (string | readonly string[])[]): string[] {
   const have = new Set(headers.map(norm));
-  return required.filter((r) => !have.has(norm(r)));
+  return required
+    .filter((r) => !(typeof r === "string" ? [r] : r).some((name) => have.has(norm(name))))
+    .map((r) => (typeof r === "string" ? r : r.join(" / ")));
 }
 
 export function classifySheetError(err: unknown): SheetProblem {
@@ -57,9 +60,9 @@ export async function inspectSheet(params: { spreadsheetId: string; sheetName: s
   const sheets = google.sheets({ version: "v4", auth: getAuthClient() });
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: params.spreadsheetId,
-    range: sheetRange(params.sheetName, "A1:Z"),
+    range: sheetRange(params.sheetName, `A1:${LAST_COLUMN}`),
   });
   const rows = (res.data.values ?? []) as unknown[][];
-  const headers = (rows[0] ?? []).map((h) => String(h ?? "").trim());
+  const headers = (rows[0] ?? []).map(cleanHeader);
   return { headers, dataRowCount: Math.max(rows.length - 1, 0) };
 }
