@@ -529,6 +529,7 @@ export function ProductEditV6({
       ) : (
         <ProductVariantsEditor
           productId={product.id}
+          productName={product.name}
           variants={variants}
           currencySymbol={unit}
           initialDraftKind={variantDraft ?? undefined}

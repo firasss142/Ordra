@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CONTROL, cx } from "./form-chrome";
+import { useStockAdjust } from "./useStockAdjust";
 
 /**
  * Authoring for the two variant axes.
@@ -27,7 +28,13 @@ import { CONTROL, cx } from "./form-chrome";
  * every one writes an `inventory_log` row; an editable field on this form would
  * be a sixth, leaving a balance with nothing to explain it in a ledger that is
  * append-only by trigger. The number is shown because it is the thing you want
- * to see before retiring a size — and the caption says where to change it.
+ * to see before retiring a size. « Ajuster » opens the stock dialog, which goes
+ * through `adjust_product_stock` (entry point 2) and so leaves its ledger line.
+ *
+ * DELETING A SIZE THAT HOLDS UNITS opens that same dialog, pre-filled to clear
+ * it. The server refuses such a delete (the units would stay in the market
+ * total with nothing left to say which size they were), and a message asking the
+ * author to "solder it first" with no way to do so was a dead end.
  */
 
 export type VariantKind = "attribute" | "pack";
@@ -47,6 +54,8 @@ export interface EditorVariant {
 
 interface Props {
   productId: string;
+  /** Names the product in the stock dialog's title. */
+  productName?: string;
   variants: EditorVariant[];
   /** markets.currency symbol. Absent → amounts render bare. */
   currencySymbol?: string;
@@ -88,6 +97,7 @@ const ROW_CLS =
 
 export function ProductVariantsEditor({
   productId,
+  productName = "",
   variants,
   currencySymbol,
   onChanged,
@@ -108,13 +118,42 @@ export function ProductVariantsEditor({
   const attributes = variants.filter((v) => v.kind === "attribute");
   const packs = variants.filter((v) => v.kind === "pack");
 
+  const { openStock, modal: stockModal } = useStockAdjust((done) => {
+    // Opened to clear a size before deleting it (it carries a reason) vs a plain correction.
+    setNotice(done.hint ? t("cleared") : t("adjusted"));
+    onChanged();
+  });
+
+  /** The stock dialog on one size; with `clear`, pre-filled to bring it to zero. */
+  function adjustStock(v: { id: string; label: string }, held: number, clear: boolean) {
+    const sizes = variants
+      .filter((x) => x.kind === "attribute" && x.is_active)
+      .map((x) => ({ id: x.id, label: x.label, current_stock: x.current_stock }));
+    // A size the screen shows at 0 but the server knows at 9 is not in `sizes` with the right figure.
+    const options = sizes.some((x) => x.id === v.id)
+      ? sizes.map((x) => (x.id === v.id ? { ...x, current_stock: held } : x))
+      : [...sizes, { id: v.id, label: v.label, current_stock: held }];
+    openStock(productId, productName, {
+      variants: options,
+      variantId: v.id,
+      lockVariant: clear,
+      ...(clear
+        ? {
+            change: -held,
+            note: t("clearNote", { label: v.label }),
+            hint: t("stockHint", { label: v.label, count: held }),
+          }
+        : {}),
+    });
+  }
+
   /**
    * One place for every write. The server's own message is surfaced verbatim
    * when it sends one — "SKU already in use" tells the author what to do;
    * a generic failure notice does not, and this form's most likely error is
    * exactly that shared SKU namespace.
    */
-  async function send(url: string, init: RequestInit): Promise<unknown | null> {
+  async function send(url: string, init: RequestInit, pendingId?: string): Promise<unknown | null> {
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -124,9 +163,16 @@ export function ProductVariantsEditor({
         ...init,
       });
       const body = (await res.json().catch(() => null)) as
-        | { error?: string }
+        | { error?: string; code?: string; current_stock?: number }
         | null;
       if (!res.ok) {
+        // The screen was behind: the size holds units it did not know about. Do
+        // not echo the refusal; open the gesture that fixes it, with the real figure.
+        if (body?.code === "variant_has_stock" && typeof body.current_stock === "number" && pendingId) {
+          const v = variants.find((x) => x.id === pendingId);
+          if (v) adjustStock(v, body.current_stock, true);
+          return null;
+        }
         setError(body?.error ?? t("errors.generic"));
         return null;
       }
@@ -179,9 +225,11 @@ export function ProductVariantsEditor({
   }
 
   async function deleteVariant(v: EditorVariant) {
-    const body = (await send(`/api/products/${productId}/variants/${v.id}`, {
-      method: "DELETE",
-    })) as { deleted?: boolean; retired?: boolean } | null;
+    const body = (await send(
+      `/api/products/${productId}/variants/${v.id}`,
+      { method: "DELETE" },
+      v.id,
+    )) as { deleted?: boolean; retired?: boolean } | null;
     setPendingDelete(null);
     if (!body) return;
     // Retired is not deleted. Saying "deleted" and then rendering the row again,
@@ -299,6 +347,16 @@ export function ProductVariantsEditor({
             </p>
           </div>
         )}
+        {v.kind === "attribute" && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => adjustStock(v, v.current_stock, false)}
+            className="rounded-lg border border-line px-3 py-2 text-[12.5px] text-ink-secondary sm:self-end"
+          >
+            {t("actions.adjust")}
+          </button>
+        )}
 
         <div className="flex items-center gap-2 pb-0.5">
           {!v.is_active && (
@@ -329,7 +387,11 @@ export function ProductVariantsEditor({
               type="button"
               data-action="delete"
               disabled={busy}
-              onClick={() => setPendingDelete(v.id)}
+              onClick={() =>
+                v.kind === "attribute" && v.current_stock > 0
+                  ? adjustStock(v, v.current_stock, true)
+                  : setPendingDelete(v.id)
+              }
               className="rounded-lg border border-line px-3 py-2 text-[12.5px] text-ink-secondary"
             >
               {t("actions.delete")}
@@ -496,6 +558,8 @@ export function ProductVariantsEditor({
         {packs.map(renderRow)}
         {draft?.kind === "pack" ? renderDraft() : addButton("pack")}
       </section>
+
+      {stockModal}
 
       {error && (
         <p role="alert" className="text-[12.5px] text-status-critical">

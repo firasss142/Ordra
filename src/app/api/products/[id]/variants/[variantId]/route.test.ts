@@ -174,6 +174,33 @@ describe("DELETE — franche si libre, en douceur si l'histoire s'y réfère", (
     expect((await res.json()).error).toMatch(/stock/i);
   });
 
+  /*
+   * Le refus porte les chiffres : l'écran ne doit pas deviner combien d'unités
+   * il faut solder, ni retomber sur un message à recopier.
+   */
+  test("le refus dit combien d'unités il faut solder", async () => {
+    wire({ id: "v-1", product_id: "p-1", kind: "attribute", current_stock: 12, damaged_return_count: 0 });
+    const res = await DELETE(deleteReq(), params);
+    expect(await res.json()).toMatchObject({ code: "variant_has_stock", current_stock: 12 });
+  });
+
+  /*
+   * `damaged_return_count` est un compteur d'unités déjà sorties du stock
+   * vendable (retours cassés, dépréciations). Aucun écran ni aucune RPC ne peut
+   * le ramener à zéro : le compter comme « du stock à solder » rendait la
+   * variante indéfiniment impossible à supprimer, sans remède.
+   */
+  test("des retours cassés passés ne bloquent pas la suppression", async () => {
+    wire({ id: "v-1", product_id: "p-1", kind: "attribute", current_stock: 0, damaged_return_count: 4 })
+      .mockReturnValueOnce(chain({ data: [], count: 0 }))
+      .mockReturnValueOnce(chain({ data: [], count: 0 }))
+      .mockReturnValueOnce(chain({ data: [], count: 0 }))
+      .mockReturnValueOnce(chain({ data: [], count: 0 }))
+      .mockReturnValueOnce(chain({ data: null }));
+    const res = await DELETE(deleteReq(), params);
+    expect(res.status).toBe(200);
+  });
+
   test("404 quand la variante n'est pas celle de ce produit", async () => {
     wire(null);
     const res = await DELETE(deleteReq(), params);

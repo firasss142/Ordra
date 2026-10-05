@@ -1847,7 +1847,14 @@
       "apply": "Appliquer",
       "saving": "Enregistrement…",
       "errorQuantity": "La quantité doit être un entier non nul.",
-      "errorNote": "La note est obligatoire."
+      "errorNote": "La note est obligatoire.",
+      "subtitle": "Chaque correction laisse une ligne au registre, avec votre note.",
+      "variantLabel": "Taille concernée",
+      "variantWhole": "Produit entier (non ventilé)",
+      "variantOption": "{label} — {stock} en stock",
+      "zeroOut": "Solder à zéro",
+      "currentLabel": "Stock de la taille",
+      "errorForbidden": "Seul un super admin peut corriger le stock."
     },
     "stockReasons": {
       "manual_adjustment": "Ajustement manuel",
@@ -1893,12 +1900,14 @@
           "quantity": "Unités par palier",
           "stock": "Stock"
         },
-        "stockReadOnly": "Le stock se corrige depuis Stock & inventaire, jamais ici : chaque mouvement laisse une ligne au registre.",
+        "stockReadOnly": "Le stock se corrige avec « Ajuster » : chaque mouvement laisse une ligne au registre.",
         "actions": {
           "save": "Enregistrer",
           "cancel": "Annuler",
           "delete": "Supprimer",
-          "confirmDelete": "Supprimer cette variante ?"
+          "confirmDelete": "Supprimer cette variante ?",
+          "adjust": "Ajuster",
+          "clearStock": "Solder le stock"
         },
         "errors": {
           "labelRequired": "Le nom est obligatoire.",
@@ -1909,7 +1918,11 @@
           "done": "Variante retirée du catalogue : des commandes s'y réfèrent, son historique reste lisible.",
           "badge": "Retirée"
         },
-        "deleted": "Variante supprimée."
+        "deleted": "Variante supprimée.",
+        "stockHint": "« {label} » porte encore {count} unités. Soldez-les pour pouvoir la supprimer — chaque unité retirée laisse une ligne au registre.",
+        "clearNote": "Solde avant suppression de la variante « {label} »",
+        "cleared": "Stock soldé. Vous pouvez maintenant supprimer la variante.",
+        "adjusted": "Stock corrigé."
       }
     },
     "archiveModal": {
