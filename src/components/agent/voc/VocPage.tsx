@@ -10,6 +10,7 @@ import { isEditableTarget } from "@/lib/dom";
 import { marketParts } from "@/components/orders/commandes/ui";
 import { useFeedbackCapture } from "@/components/feedback/FeedbackCaptureProvider";
 import { APill, Ic, Thumb, useAgentPhone } from "@/components/agent/shared";
+import { useAutoPage } from "@/components/agent/useAutoPage";
 import type { FeedbackTopic, MyFeedbackRow } from "@/types/feedback";
 import { VCAT, VST } from "./vocab";
 
@@ -58,6 +59,7 @@ export function VocPage({ marketId }: { marketId: string | null }) {
         || (r.product?.name ?? "").toLowerCase().includes(low)),
     );
   }, [all, cat, moms, q, topicLabel]);
+  const { shown: page, more } = useAutoPage(shown, `${cat}|${[...moms].join(",")}|${q}`);
 
   const when = useCallback((iso: string) => {
     const now = new Date();
@@ -131,7 +133,7 @@ export function VocPage({ marketId }: { marketId: string | null }) {
         {error ? <div className="err">{t("error")}</div> : null}
         <div className="cards">
           {rows && !shown.length ? empty : null}
-          {shown.map((r) => (
+          {page.map((r) => (
             <div key={r.id} className="vcard" data-testid="voc-card">
               <div className="pc1">{catPill(r)}<span className="tm">{when(r.created_at)}</span></div>
               {quote(r)}
@@ -140,6 +142,7 @@ export function VocPage({ marketId }: { marketId: string | null }) {
             </div>
           ))}
         </div>
+        {more}
       </>
     );
   }
@@ -170,7 +173,7 @@ export function VocPage({ marketId }: { marketId: string | null }) {
         <div className="rows">
           {!rows && !error ? [0, 1, 2, 3].map((i) => <div key={i} className="sk-row" />) : null}
           {rows && !shown.length ? empty : null}
-          {shown.map((r) => (
+          {page.map((r) => (
             <div key={r.id} className="row vr" role="row" data-testid="voc-row">
               <span className="tm" role="cell">{when(r.created_at)}</span>
               <span role="cell">{catPill(r)}</span>
@@ -190,6 +193,7 @@ export function VocPage({ marketId }: { marketId: string | null }) {
             </div>
           ))}
         </div>
+        {more}
         <div className="lfoot">{t("count", { shown: shown.length, total: all.length })}</div>
       </section>
     </>

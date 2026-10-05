@@ -308,7 +308,7 @@ export function buildSuggestions(
           status: l.status,
           amount: null,
           currency: null,
-          href: `/${locale}/leads/${l.id}`,
+          href: `/${locale}/leads?open=${l.id}`,
         } satisfies SuggestionRow,
         score: rank({ title: l.customer_name ?? "", phones: [l.customer_phone ?? ""] }, q),
       };

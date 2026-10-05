@@ -12,9 +12,27 @@
 .agt.agt-layer{min-height:0;background:none}
 /* a layer drawn inside another surface's flow (the managers' panel): tokens only, no box */
 .agt.agt-inline{display:contents}
-.agt .agt-main{padding:22px 28px 120px}
+.agt .agt-main{padding:20px 24px 120px}
+/* owner 2026-10-05: the pages take the screen, with a margin — not the prototype's 1400px column */
+.agt .page{max-width:1880px}
 .agt .tip{position:fixed}
-.agt .thumb img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.agt .thumb img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:none;object-fit:cover;border-radius:inherit}
+/* the row's tags are icons (the words are their tooltip) */
+.agt .tg.ico{width:22px;padding:0;justify-content:center}
+/* the activity cell: one line of icon + number chips, never wider than its column */
+.agt .actv.one{display:flex;align-items:center;min-width:0}
+.agt .chips{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow:hidden}
+.agt .chips > *{flex:none}
+.agt .chips > .pl{flex:0 1 auto;min-width:0}
+.agt .chipm .num{font-variant-numeric:tabular-nums}
+.agt .carlogo{width:24px;height:24px;border-radius:7px;flex:none;display:inline-grid;place-items:center;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 1px rgba(15,23,40,.1);font-size:11px;font-weight:800;color:var(--ink-2)}
+.agt .carlogo img{width:100%;height:100%;object-fit:contain;display:block;max-width:none}
+/* the order beside the list: under the band, its own height, its own scroll */
+@media (min-width:1024px){
+  .agt .cmd .odp-side{top:calc(var(--ahh) + 12px);max-height:calc(100vh - var(--ahh) - 24px);margin-inline-end:0}
+}
+/* automatic pagination: the next rows load as this line scrolls into view */
+.agt .autopage{display:flex;justify-content:center;padding:12px;border-top:1px solid var(--line);background:#fff}
 .agt .sk{border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh)}
 .agt .sk-row{height:64px;border-top:1px solid var(--line);background:linear-gradient(90deg,#fff,#F8F9FC,#fff)}
 .agt .err{padding:12px 16px;border-radius:14px;background:var(--bad-bg);color:var(--bad);font-size:13px;font-weight:700;border:1px solid #FECDCA}
@@ -49,3 +67,14 @@
   .agt .tip.toast{bottom:96px}
   .agt .bulk{display:none}
 }
+.agt .split.open .qh,.agt .split.open .qr{grid-template-columns:40px minmax(190px,1fr) 168px 104px 100px}
+@media (max-width:1560px){ .agt .split.open .chips .sec{display:none} }
+@media (max-width:1320px){ .agt .split.open .qh,.agt .split.open .qr{grid-template-columns:36px minmax(170px,1fr) 128px 84px 92px} }
+.agt .sres.on{background:#EEF4FF;box-shadow:inset 0 0 0 1px #C7D7FE}
+/* the search stays in the band at every desktop width — narrower, never hidden (the prototype hid it under 1220px) */
+@media (max-width:1220px) and (min-width:768px){ .agt .gs{display:flex;width:150px} .agt .gs .kbd2{display:none} }
+.agt .gs .kbd2{flex:none}
+.agt .gs input[type=search]{appearance:none;-webkit-appearance:none}
+/* with an order open the page ends where the order ends: the bottom margin of the page would
+   otherwise scroll the sticky order up under the band once the list runs out */
+@media (min-width:1024px){ .agt .agt-main:has(.split.open){padding-bottom:12px} }

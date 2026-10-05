@@ -38,8 +38,6 @@ function useSessionExpired() {
 
 export function AgentHeader({ user }: { user: AuthUser }) {
   const t = useTranslations("agent");
-  const pathname = usePathname() ?? "";
-  const tab = agentTabOf(pathname);
   const market = useMarketWord(user);
   const live = useBroadcastConnected(user.market_id ? [ordersTopic(user.market_id)] : []);
   const expired = useSessionExpired();
@@ -59,8 +57,8 @@ export function AgentHeader({ user }: { user: AuthUser }) {
         ) : null}
         <AgentNav user={user} variant="desk" />
         <span className="sp" />
-        {/* The queue has its own field, bound to the same query: one search on screen, not two. */}
-        {tab === "orders" ? null : <AgentSearchDesk />}
+        {/* On every tab (owner, 2026-10-05): the market search. Commandes' own field filters its list. */}
+        <AgentSearchDesk />
         <AgentAvail live={live} variant="desk" />
         <AgentBell agentId={user.id} />
         <AgentMe user={user} marketWord={market} />

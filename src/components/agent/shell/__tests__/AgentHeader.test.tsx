@@ -68,9 +68,9 @@ describe("AgentHeader — one glass band: the word, the five tabs, then search �
     expect(links.map((a) => a.getAttribute("href"))).toEqual(["/fr/queue", "/fr/leads", "/fr/delivery", "/fr/commissions", "/fr/feedback"]);
   });
 
-  it("shows no header search on Commandes — the queue has its own field, bound to the same query", () => {
+  it("shows the market search on Commandes too — on every tab", () => {
     renderHeader();
-    expect(screen.queryByPlaceholderText("Rechercher dans le marché…")).toBeNull();
+    expect(screen.getByPlaceholderText("Rechercher dans le marché…")).toBeInTheDocument();
   });
 
   it("shows the market search on the other tabs", () => {

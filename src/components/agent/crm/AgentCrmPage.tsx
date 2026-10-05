@@ -14,8 +14,9 @@ import "@/components/agent/agent.css";
 import "@/components/agent/agent-app.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { APill, Ic, useAgentPhone, useAgentToast, useTip } from "@/components/agent/shared";
+import { useAutoPage } from "@/components/agent/useAutoPage";
 import { fetcher } from "@/lib/swr-config";
 import { marketTimezone } from "@/lib/markets";
 import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
@@ -57,12 +58,18 @@ export function AgentCrmPage({ marketId, locale }: { marketId: string | null; lo
   const [tile, setTile] = useState<Tile>("all");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  // ?open=<id> — a result picked in the header's search lands on its own row.
+  const openParam = useSearchParams()?.get("open") ?? null;
+  useEffect(() => {
+    if (openParam) setOpenId(openParam);
+  }, [openParam]);
   const [tray, setTray] = useState<{ id: string; preset: "no" | null } | null>(null);
   const [newLead, setNewLead] = useState(false);
   const [waFor, setWaFor] = useState<ProspectRow | null>(null);
 
   const all = useMemo(() => data?.rows ?? [], [data]);
   const rows = useMemo(() => filterLeads(all, tile, query, now), [all, tile, query, now]);
+  const { shown: pageRows, more } = useAutoPage(rows, `${tile}|${query}`);
   const counts = useMemo(() => countBuckets(all), [all]);
   const sel = all.find((r) => r.id === openId) ?? null;
 
@@ -279,9 +286,10 @@ export function AgentCrmPage({ marketId, locale }: { marketId: string | null; lo
         {failure}
         <section className="list">
           <div className="rows" role="list" aria-label={t("title")} aria-busy={loading}>
-            {rows.map((r) => <PhoneRow key={r.id} row={r} w={w} now={now} onOpen={() => setOpenId(r.id)} onCall={called} />)}
+            {pageRows.map((r) => <PhoneRow key={r.id} row={r} w={w} now={now} onOpen={() => setOpenId(r.id)} onCall={called} />)}
             {!loading && rows.length === 0 ? empty : null}
           </div>
+          {more}
         </section>
         {truncated}
         {sel ? (
@@ -347,12 +355,13 @@ export function AgentCrmPage({ marketId, locale }: { marketId: string | null; lo
               <span>{t("cols.who")}</span><span>{t("cols.sit")}</span><span>{t("cols.action")}</span><span className="e">{t("cols.value")}</span>
             </div>
             <div className="rows" role="list" aria-label={t("title")}>
-              {rows.map((r) => (
+              {pageRows.map((r) => (
                 <DeskRow key={r.id} row={r} w={w} now={now} open={r.id === openId}
                   onOpen={() => { setOpenId(r.id); setTray(null); }} onCall={called} onOrder={openOrder} onWhatsApp={whatsapp} />
               ))}
               {rows.length === 0 ? empty : null}
             </div>
+            {more}
             {truncated}
           </section>
           {sel ? (
