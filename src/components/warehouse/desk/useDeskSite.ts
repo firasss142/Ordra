@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
+import { useLocale } from "next-intl";
 import { jsonFetcher } from "@/lib/fetchers";
 import type { WarehouseSitesResponse } from "@/app/api/warehouse/sites/route";
 import type { DeskSite } from "./ui";
@@ -22,7 +23,12 @@ export function useDeskSite() {
     revalidateOnFocus: false,
   });
 
-  const sites: DeskSite[] = useMemo(() => (data?.sites ?? []).map((s) => ({ id: s.id, name: s.name })), [data]);
+  const locale = useLocale();
+  // The reader's language, not the market's: a French desk says « Tripoli ».
+  const sites: DeskSite[] = useMemo(
+    () => (data?.sites ?? []).map((s) => ({ id: s.id, name: (locale === "ar" ? s.nameAr : s.nameFr) || s.name })),
+    [data, locale],
+  );
   const requested = search.get("warehouse_id");
   const siteId = requested && (!data || sites.some((s) => s.id === requested)) ? requested : null;
 

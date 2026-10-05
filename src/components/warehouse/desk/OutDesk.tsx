@@ -167,7 +167,10 @@ export function OutDesk({
   };
 
   /* ── the driver ───────────────────────────────────────────────────── */
-  const shownSites = (pickup?.sites ?? []).filter((s) => !siteId || s.warehouseId === siteId);
+  const shownSites = (pickup?.sites ?? [])
+    .filter((s) => !siteId || s.warehouseId === siteId)
+    // The reader's spelling of the building, as on the switch beside it.
+    .map((s) => ({ ...s, name: (locale === "ar" ? s.nameAr : s.nameFr) || s.name }));
   const pressPickup = async (s: PickupSiteState) => {
     if (!window.confirm(to("pickupConfirm", { site: s.name }))) return;
     const res = await fetch("/api/warehouse/pickup", {
