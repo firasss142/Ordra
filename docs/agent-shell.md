@@ -20,8 +20,9 @@ The prototype is the spec: class names, words and reading order are its own.
 ## Rules worth knowing
 
 - A page returns the **children of `.page`**; the shell supplies the band, the phone top and the toast provider.
-- One search on screen: on Commandes the page's own field (bound to the same `QueueSearchContext` query);
-  the band's market search shows on the other four tabs.
+- **One search, in the band, on every tab** (since 2026-10-05, third round): the page field on Commandes is gone. The
+  band writes the shell's `QueueSearchContext` query; its drop answers on every tab, and Commandes also filters its
+  list by it. Esc closes the drop (the list stays filtered), a second Esc clears; changing tab clears.
 - The three meters count since the **market's** midnight (`/api/agent/stats` now uses `marketDayStartUtc`;
   it used the server's, i.e. UTC, before) and say so: « confirmées · aujourd'hui », « traitées · aujourd'hui »,
   « dans votre file ».
@@ -37,9 +38,29 @@ The prototype is the spec: class names, words and reading order are its own.
   - A parcel with a carrier shows the carrier's **logo** (`carriers.logo_url`, else the brand file) beside its status.
   - Pages take the screen (`.page` max 1880px, 24px gutter), not the prototype's 1400px column.
   - Every list pages **automatically** (`components/agent/useAutoPage.tsx`): 40 rows, the next 40 as the end comes into view.
-  - The header's market search is on **every tab**, with its own query (it never filters Commandes); `/` focuses it off
-    Commandes, ↑ ↓ Enter pick, Esc clears then closes. Results land on their row: `?openOrderId=`, `/delivery?open=`, `/leads?open=`.
+  - The header's market search is on **every tab** (third round: it is now the only one, see above); `/` focuses it,
+    ↑ ↓ Enter pick. Results land on their row: `?openOrderId=`, `/delivery?open=`, `/leads?open=`.
   - The open order sticks under the band (`top: --ahh + 12px`), and the page ends where it ends.
   - The Commandes tab stays mounted behind the others, so off Commandes its keys stand down and its open order closes.
   - « Envoyer » never fails silently: no carrier chosen (no « meilleur choix » without a quote), uncovered city, still
     loading — each says so. The Darb form renders in a portal, above the band.
+- **Owner review, 2026-10-05 (third round):**
+  - **The agent's order reads top-down**: who (name, phone, record, call) → what (the articles, always shown, with the
+    total) → « Où livrer » (city, address, note, store; the carrier once there is one). Tracking, history and messages
+    are a folded strip at the bottom (click again to fold). Gone from the agent's view: the total row (the articles end on
+    it), the agent row (it is the reader), « pas encore envoyée », the duplicate missing-city note, the keys row (the
+    queue's « ? » lists them). The managers' drawer is unchanged — the split is `agentMode` in `OrderDetailPanel/index.tsx`.
+  - **Scrolling the open column** (`components/agent/useFitColumn.ts`, Commandes, Livraison, CRM): until the page reaches
+    where the column sticks, the column is as tall as the room under it, so its buttons are always on screen; its own
+    scroll hands the wheel back to the page at its ends (`overscroll-behavior: auto` on desktop — `contain` trapped it).
+  - **Take over an order from the search**: a colleague's (or an unassigned) order found in the search opens its preview
+    with « Prendre la commande » → `POST /api/agent/orders/[id]/take` → `assign_order` as the agent (history: « Pris en
+    charge par l'agent (recherche) », actor_type agent) → the order is the agent's, full panel. Refused for settled orders
+    (delivered, returned, cancelled, deleted) and while the owner has it open (presence lock, 409). RLS is not widened.
+    The commission follows the ledger's own rules (confirmation by whoever confirms; upload/delivery as the ledger says).
+  - The activity column for settled rows is the carrier logo + **one icon and at most one word** (`agentQueue.short.*`);
+    a rejection is its group's icon alone, the sub-reason in the tooltip.
+  - Livraison: the journal and the messages start **folded**; the journal loads when opened and shows 10 lines at a time.
+  - Band: plain tabs with one soft green pill, a wider search, quiet icon buttons, availability on one line (its detail in
+    the tooltip). Tiles: icon · label over its hint · the count at the end; the chosen one has a green edge.
+  - The band sits under the app's sheets (z 35), so a sheet's title never slides under it.

@@ -181,7 +181,8 @@ describe("OrderDetailPanel — the agent's four endings (agent-shell-v2)", () =>
     for (const [k, w] of [["1", "Pas de réponse"], ["2", "Confirmer"], ["3", "Refuser"], ["4", "Rappeler"]]) {
       expect(foot).toHaveTextContent(`${k}${w}`);
     }
-    expect(document.querySelector(".keys")).toHaveTextContent("issue de l'appel");
+    // The keys sit on the buttons; the full list is the queue's « ? » (no hint row under them).
+    expect(document.querySelector(".keys")).toBeNull();
   });
 
   it("opens the rejection INSIDE the order on key 3 — no dialog — and Escape closes the step, then the order", () => {

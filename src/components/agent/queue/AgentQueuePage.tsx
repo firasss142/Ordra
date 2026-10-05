@@ -18,7 +18,6 @@ import { useQueueSearch } from "@/context/queue-search";
 import { useFeedbackCapture } from "@/components/feedback/FeedbackCaptureProvider";
 import { useOrderLocks } from "@/hooks/useOrderLocks";
 import { useSlaMinutes } from "@/hooks/useSlaMinutes";
-import { useAgentMarketSearch } from "@/hooks/useAgentMarketSearch";
 import { isEditableTarget } from "@/lib/dom";
 import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import { searchOrders } from "@/lib/queue/search";
@@ -30,8 +29,9 @@ import { agentTabOf } from "@/components/agent/shell/AgentNav";
 import { toQueueOrder } from "@/lib/agent-queue/to-queue-order";
 import { Ic, useAgentPhone, useAgentToast, useTip, useWhen } from "@/components/agent/shared";
 import { useAutoPage } from "@/components/agent/useAutoPage";
+import { useFitColumn } from "@/components/agent/useFitColumn";
 import type { QueueOrder } from "@/types/queue";
-import { DeskRow, MarketRows, PhoneRow, ageLong, type RowCtx } from "./QueueRows";
+import { DeskRow, PhoneRow, ageLong, type RowCtx } from "./QueueRows";
 import { Q_BUCKETS, CLOSED_KEYS, bucketOfStatus, closedKeyOf, isCallbackDue, queueRank, tileHint, type ClosedKey, type QBucket } from "./model";
 import "@/components/agent/agent.css";
 import "@/components/agent/agent-app.css";
@@ -92,7 +92,8 @@ export function AgentQueuePage() {
   const [bucket, setBucket] = useState<QBucket>(() => bucketParam(searchParams.get("bucket")));
   const [sub, setSub] = useState<Sub>("all");
   const [att, setAtt] = useState(0);
-  const { query, setQuery, setResultCount, inputRef } = useQueueSearch();
+  // The band's one search (AgentSearch) writes this query; the list filters by it.
+  const { query, setQuery, setResultCount } = useQueueSearch();
   const q = useDebounce(query, 200).trim();
   const searching = q.length > 0;
 
@@ -204,9 +205,6 @@ export function AgentQueuePage() {
     if (q.length >= 2) pushRecentSearch(q);
   }, [q]);
 
-  // The market search: the agent's own orders first, then the rest of the market, read-only.
-  const market = useAgentMarketSearch(query, searching && q.length >= 3);
-  const marketRows = useMemo(() => (q.length >= 3 ? market.rows.filter((r) => r.owner !== "me" && !r.archived).slice(0, 6) : []), [market.rows, q]);
 
   // ── selection, focus, the open order ──────────────────────────────────────
   const [openId, setOpenId] = useState<string | null>(null);
@@ -259,6 +257,9 @@ export function AgentQueuePage() {
     return () => window.removeEventListener(AGENT_NEW_ORDER_EVENT, onNew);
   }, []);
 
+  // The order column never hangs its buttons below the screen (see useFitColumn).
+  useFitColumn(".agt .odp-side", openId !== null && !phone, openId);
+
   // Automatic pagination: 40 rows, then 40 more as the list's end comes into view.
   const { shown, more } = useAutoPage(rows, `${bucket}|${sub}|${att}|${q}`);
 
@@ -284,11 +285,6 @@ export function AgentQueuePage() {
         return;
       }
       if (s.layered) return;
-      if (e.key === "/") {
-        e.preventDefault();
-        inputRef.current?.focus();
-        return;
-      }
       if (e.key === "Escape" && !s.openId) {
         setSel((p) => (p.size ? new Set() : p));
         return;
@@ -310,7 +306,7 @@ export function AgentQueuePage() {
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [inputRef, open]);
+  }, [open]);
 
   // ── an ending was recorded: refresh, and carry a bulk run on ───────────────
   const onOutcomeDone = useCallback(
@@ -387,7 +383,6 @@ export function AgentQueuePage() {
           <button key={k} type="button" className={`wt h-${alarm ? "red" : BUCKET_META[k].hue}${on ? " on" : ""}${alarm ? " alarm" : ""}${n ? "" : " zero"}`} aria-pressed={on} onClick={() => pickBucket(k)}>
             <span className="hold"><Ic n={alarm ? "clock" : BUCKET_META[k].icon} /></span>
             <span className="wt-t">
-              <b className="num">{n.toLocaleString("fr-FR")}</b>
               <span>{t(`buckets.${k}`)}</span>
               <small>
                 {hint.key === "newOldest" ? t("hints.newOldest", { age: ageLong(t, hint.min) })
@@ -396,6 +391,8 @@ export function AgentQueuePage() {
                   : t(`hints.${hint.key}`)}
               </small>
             </span>
+            {/* The count at the end, on the label's line: « Nouvelles ………… 6 ». */}
+            <b className="num">{n.toLocaleString("fr-FR")}</b>
           </button>
         );
       })}
@@ -468,7 +465,7 @@ export function AgentQueuePage() {
   const overlays = (
     <>
       <CreateOrderModal isOpen={createOpen} onClose={() => setCreateOpen(false)} role="agent" userMarketId={marketId ?? ""} onCreated={() => mutate()} />
-      {viewId ? <OrderPreviewSheet orderId={viewId} onClose={() => setViewId(null)} onOpenOwn={(id: string) => { setViewId(null); open(id); }} /> : null}
+      {viewId ? <OrderPreviewSheet orderId={viewId} onClose={() => setViewId(null)} onOpenOwn={(id: string) => { setViewId(null); open(id); }} onTaken={() => { void mutate(); }} /> : null}
       {sheet ? (
         <CallResultSheet order={sheet.o} maxAttempts={maxAttempts} marketId={marketId ?? ""} initialStep={sheet.step} onClose={() => setSheet(null)} onDone={onOutcomeDone} />
       ) : null}
@@ -482,10 +479,6 @@ export function AgentQueuePage() {
       <div style={{ display: "contents" }}>
         {reconnecting}
         {tiles}
-        <label className="srch">
-          <Ic n="search" />
-          <input ref={inputRef as React.Ref<HTMLInputElement>} id="q" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search.phonePlaceholder")} autoComplete="off" />
-        </label>
         {subs ? <div className="hscroll">{subs}</div> : null}
         <section className="list">
           <div className="rows">
@@ -495,7 +488,6 @@ export function AgentQueuePage() {
           </div>
           {more}
         </section>
-        <MarketRows rows={marketRows} ctx={ctx} onView={setViewId} />
         {openId ? (
           <OrderDetailPanel
             key={openId}
@@ -544,30 +536,17 @@ export function AgentQueuePage() {
       {reconnecting}
       {tiles}
       <div className="tools">
-        <label className="srch">
-          <Ic n="search" />
-          <input
-            ref={inputRef as React.Ref<HTMLInputElement>}
-            id="q"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("search.placeholder")}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          {query ? (
-            <button type="button" className="mini" aria-label={t("search.clear")} onClick={() => setQuery("")}><Ic n="x" /></button>
-          ) : (
-            <span className="kbd2">/</span>
-          )}
-        </label>
         <span className="count">
           {searching
             ? t.rich("search.countSearch", { n: rows.length, b: (c) => <b>{c}</b> })
             : t.rich("search.count", { n: rows.length, b: (c) => <b>{c}</b> })}
-          {searching && marketRows.length ? t.rich("search.countElsewhere", { m: marketRows.length, b: (c) => <b>{c}</b> }) : null}
         </span>
+        {searching ? (
+          <button type="button" className="btn2" onClick={() => setQuery("")}>
+            <Ic n="x" />
+            {t("search.clear")}
+          </button>
+        ) : null}
         <span className="sortd">
           <Ic n={bucket === "closed" && !searching ? "clock" : "spark"} />
           {bucket === "closed" && !searching ? t("search.recent") : t("search.urgent")}
@@ -604,7 +583,6 @@ export function AgentQueuePage() {
             {more}
             <div className="lfoot"><span className="kbd2">F</span>{t("vocFoot")}</div>
           </section>
-          <MarketRows rows={marketRows} ctx={ctx} onView={setViewId} />
         </div>
         {openId ? (
           <OrderDetailPanel

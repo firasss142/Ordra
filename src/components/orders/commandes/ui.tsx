@@ -89,7 +89,7 @@ export interface PillOrder {
 }
 
 /** The status icon the pill draws, per StatusIconName (lib/orders/status-presentation). */
-const STATUS_ICON: Record<string, string> = {
+export const STATUS_ICON: Record<string, string> = {
   waiting: "clock", assigned: "user", unverified: "help", calling: "phone", callback: "clock", scheduled: "cal",
   confirmed: "check", uploaded: "upload", scanned: "scan", atCarrier: "truck", outForDelivery: "route", delayed: "clock",
   returning: "back", dispatched: "truck", deposit: "pkg", inTransit: "truck", delivered: "check", received: "back",

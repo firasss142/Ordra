@@ -1,5 +1,6 @@
 "use client";
 
+import { useFitColumn } from "@/components/agent/useFitColumn";
 import "@/components/agent/agent.css";
 import "@/components/agent/agent-app.css";
 
@@ -83,6 +84,7 @@ export function AgentDeliveryView(props: AgentDeliveryViewProps) {
   const [menu, setMenu] = useState<Menu>(null);
   const [showStalled, setShowStalled] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  useFitColumn(".agt .pcol", openId !== null && !phone, openId);
   // ?open=<id> — a result picked in the header's search lands on its own row.
   const openParam = useSearchParams()?.get("open") ?? null;
   useEffect(() => {

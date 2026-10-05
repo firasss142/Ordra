@@ -514,7 +514,8 @@ export function OrderDetailPanel({
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   // Articles opens by default — it is the section that changes most.
-  const [tab, setTab] = useState<PanelTab>(initialTab ?? "items");
+  // The agent's panel opens with its strip folded (null); the manager's on « Articles ».
+  const [tab, setTab] = useState<PanelTab | null>(initialTab ?? (role === "agent" ? null : "items"));
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -1421,7 +1422,7 @@ export function OrderDetailPanel({
           {isLoading && !order && <div className="odp-msg">{t("loading")}</div>}
           {errorMessage && <div className="odp-msg bad">{errorMessage}</div>}
 
-          {order && (
+          {order && !agentMode && (
             /* The one scroll region: client, facts, the tab strip (sticky) and
                the pane all scroll together, as in the prototype. */
             <div className="dr-body" data-testid="panel-scroll">
@@ -1607,6 +1608,196 @@ export function OrderDetailPanel({
             </div>
           )}
 
+          {/* The agent's reading order (owner, 2026-10-05 « too dense »): who, what they ordered,
+              where it goes — then tracking, history and messages folded in one strip. */}
+          {order && agentMode && (
+            <div className="dr-body agb" data-testid="panel-scroll">
+              <div ref={nameFieldRef}>
+                <CustomerHero
+                  name={order.customer_name}
+                  phone={order.customer_phone}
+                  phone2={order.customer_phone_2}
+                  terminal={TERMINAL_STATUSES.has(order.status)}
+                  reliability={reliability}
+                  canEdit={canEdit}
+                  onCommitName={(v) => runCommit({ customer_name: v })}
+                  onCommitPhone={(v) => runCommit({ customer_phone: v.trim() })}
+                  onCommitPhone2={(v) => runCommit({ customer_phone_2: v })}
+                  onCopyPhone={() => {
+                    void handleCopyPhone();
+                  }}
+                  phoneCopied={phoneCopied}
+                  whatsappState={whatsappState}
+                  whatsappUnread={whatsappUnread}
+                  onWhatsApp={() => setTab("messages")}
+                  validatePhone={(v) => {
+                    const trimmed = v.trim();
+                    if (trimmed === "") return t("invalidPhone");
+                    if (isLibyaOrder && !isValidLibyanPhone(trimmed)) return t("invalidPhone");
+                    return null;
+                  }}
+                />
+              </div>
+
+              <section className="agsec" aria-label={t("tabItems")}>
+
+                {/* Product must-know + catalogue mismatches. */}
+                <ProductBriefBanner
+                  brief={productSheet.data?.product?.agent_brief ?? null}
+                  tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
+                  checks={productSheet.data?.checks ?? []}
+                  onOpenSheet={() => openProductSheet()}
+                />
+                <OrderItemsCard
+                  items={orderItems}
+                  currentProductId={order.product_id}
+                  products={productsData?.data ?? []}
+                  variantOptions={variantOptions}
+                  loadProducts={loadProducts}
+                  deliveryFee={order.delivery_fee ?? 0}
+                  cardPayment={order.card_payment}
+                  grandTotal={order.total_price}
+                  displayCurrency={displayCurrency}
+                  canEdit={canEdit}
+                  isLibyaOrder={isLibyaOrder}
+                  onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
+                  onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
+                  onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
+                  onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
+                  onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
+                  onDeleteItem={(itemId) => runItemDelete(itemId)}
+                  onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
+                  onOpenProductSheet={(productId) => openProductSheet(productId)}
+                  renderAddProduct={() => (
+                    <>
+                      <AddProductTrigger
+                        orderId={order.id}
+                        marketId={order.market_id}
+                        currentItemIds={orderItems.map((it) => it.product_id)}
+                        open={addProductOpen}
+                        onOpenChange={setAddProductOpen}
+                        onAdded={() => {}}
+                        label={t("addProduct")}
+                      />
+                      {/* The basket split: the same customer ordered another
+                          product separately. The merge panel decides whether
+                          the market has merging on and lists the candidates. */}
+                      <button type="button" className="btn2" onClick={() => setMergeOpen(true)}>
+                        <Ic n="merge" />
+                        {tMerge("action")}
+                      </button>
+                    </>
+                  )}
+                />
+                            </section>
+              <section className="agsec" aria-label={t("secWhere")}>
+                <h3 className="agh">{t("secWhere")}</h3>
+              <OrderFacts
+                agentView
+                total={order.total_price}
+                currencyCode={displayCurrency}
+                // Same list the receipt renders, so the count and the receipt agree.
+                itemCount={orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0)}
+                city={order.customer_city}
+                address={order.customer_address}
+                note={order.customer_note}
+                agent={order.assigned_to ? { id: order.assigned_to, name: order.assigned_agent_name ?? "—" } : null}
+                carrierName={assignedCarrierName}
+                store={store}
+                canEdit={canEdit}
+                isLibyaOrder={isLibyaOrder}
+                darbDestinations={darbHasIds ? darbDestinations : []}
+                darbDestinationId={order.darb_destination_id ?? null}
+                loadCities={loadCities}
+                onCommitAddress={(v) => runCommit({ customer_address: v })}
+                onCommitCity={(id) => runCommit({ city_id: id })}
+                onCommitDarbDestination={(id) => runCommit({ darb_destination_id: id })}
+                onCommitNote={(v) => runCommit({ customer_note: v })}
+              />
+
+              </section>
+              <PanelTabs active={tab} onChange={(k) => setTab((cur) => (cur === k ? null : k))} agentView showMessages={whatsappKnown} messagesCount={whatsappUnread} />
+
+              <div role="tabpanel" hidden={tab !== "shipping"} className="pane">
+                {order.tracking_number ? (
+                  <div className="trk h-teal">
+                    <span className="hold">
+                      <Ic n="truck" />
+                    </span>
+                    <div>
+                      <small>{t("trackingOf", { carrier: assignedCarrierName ?? "—" })}</small>
+                      <b>{order.tracking_number}</b>
+                    </div>
+                    <button type="button" className="mini" onClick={() => void copyTracking()} aria-label={t("copyTracking")}>
+                      <Ic n="copy" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="reco h-teal">
+                    <span className="hold">
+                      <Ic n="truck" />
+                    </span>
+                    <div>
+                      <b>{t("notAtCarrier")}</b>
+                      <small>{cityMissing ? t("recoNoCity") : t("trackingPending")}</small>
+                    </div>
+                  </div>
+                )}
+                <TrackingBarcode
+                  value={order.tracking_number}
+                  onDelete={canDeleteCarrierBarcode ? handleDeleteCarrierBarcode : undefined}
+                />
+                {/* Ordra's own reading of the parcel's progress first; the
+                    carrier blocks below say what the carrier portal last said. */}
+                <TrackingSection orderId={order.id} status={order.status} marketId={order.market_id} />
+                <DexpressStatusSection orderId={order.id} enabled={dexpressEligible} role={role} />
+                <DarbStatusSection orderId={order.id} enabled={darbEligible} />
+              </div>
+
+              <div role="tabpanel" hidden={tab !== "history"} className="pane">
+                <HistoryTimeline entries={order.history} historyLocale={locale === "ar" ? "ar" : "fr"} />
+              </div>
+
+              {whatsappKnown && (
+                <div role="tabpanel" hidden={tab !== "messages"} className="pane msgs">
+                  <div className="odp-thread">
+                    <MessageThread
+                      messages={whatsappThread.thread?.messages ?? []}
+                      conversation={whatsappThread.thread?.conversation ?? null}
+                      onRetry={whatsappActive ? (m) => void whatsappThread.retry(m) : undefined}
+                    />
+                  </div>
+                  <WhatsAppComposer
+                    className="sticky bottom-0"
+                    target={{ order_id: order.id }}
+                    thread={whatsappThread.thread}
+                    loadError={Boolean(whatsappThread.error)}
+                    fallbackHref={whatsappFallbackHref}
+                    templates={whatsappTemplates}
+                    variables={resolveOrderVariables({
+                      order_number: order.external_id,
+                      customer_name: order.customer_name,
+                      customer_address: order.customer_address,
+                      customer_city: order.customer_city,
+                      product_name: order.product_name,
+                      total_price: order.total_price,
+                      currency: displayCurrency,
+                      tracking_number: order.tracking_number,
+                      carrier_name: assignedCarrierName,
+                      agent_name: order.assigned_agent_name ?? null,
+                    })}
+                    defaultLanguage={isLibyaOrder ? "ar" : "fr"}
+                    templateSet="agent"
+                    onThreadChanged={() => void whatsappThread.mutate()}
+                    onCall={() => {
+                      window.location.href = `tel:${order.customer_phone}`;
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* The agent: the result line, the notes, then the step or the four endings. */}
           {order && agentMode && (
             <AgentOrderEndings
@@ -1624,7 +1815,8 @@ export function OrderDetailPanel({
               status={order.status}
               phone={agentPhone}
               covered={agentCovered}
-              notes={agentNoteList}
+              // The missing city is said once, on its own red line in « Où livrer », with its fix.
+              notes={agentNoteList.filter((n) => n.kind !== "noCity")}
               twin={agentTwin}
               callbackAt={order.callback_scheduled_at}
               dispatchAt={order.scheduled_dispatch_at}

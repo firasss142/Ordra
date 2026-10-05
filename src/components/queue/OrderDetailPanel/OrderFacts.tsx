@@ -36,6 +36,12 @@ interface Props {
   onCommitCity: (cityId: string) => void;
   onCommitDarbDestination: (destinationId: number) => void;
   onCommitNote: (v: string | null) => void;
+  /**
+   * The agent's panel (owner, 2026-10-05 « too dense »): only where the parcel goes and what is
+   * known about it. The total is the articles' own last line, the agent is the reader, and « not
+   * sent yet » says nothing — those rows go; the carrier shows once there is one.
+   */
+  agentView?: boolean;
 }
 
 /**
@@ -63,6 +69,7 @@ export function OrderFacts({
   onCommitCity,
   onCommitDarbDestination,
   onCommitNote,
+  agentView = false,
 }: Props) {
   const t = useTranslations("orders.detail");
   const tRow = useTranslations("commandes.row");
@@ -98,7 +105,7 @@ export function OrderFacts({
   );
 
   return (
-    <dl className="facts">
+    <dl className={agentView ? "facts agfacts" : "facts"}>
       <dt>{t("factCity")}</dt>
       <dd data-field="city">
         {cityText ? (
@@ -150,28 +157,36 @@ export function OrderFacts({
         </>
       )}
 
-      <dt>{t("factTotal")}</dt>
-      <dd>
-        <span>
-          {(Number(total) || 0).toFixed(2)} {currencyCode}
-        </span>
-        <span className="q">· {t("factItemsCount", { n: itemCount })}</span>
-      </dd>
+      {agentView ? null : (
+        <>
+          <dt>{t("factTotal")}</dt>
+          <dd>
+            <span>
+              {(Number(total) || 0).toFixed(2)} {currencyCode}
+            </span>
+            <span className="q">· {t("factItemsCount", { n: itemCount })}</span>
+          </dd>
 
-      <dt>{t("factAgent")}</dt>
-      <dd>
-        {agent ? (
-          <span className="who">
-            <Avatar id={agent.id} name={agent.name} />
-            <span>{agent.name}</span>
-          </span>
-        ) : (
-          <span className="q">{tRow("unassigned")}</span>
-        )}
-      </dd>
+          <dt>{t("factAgent")}</dt>
+          <dd>
+            {agent ? (
+              <span className="who">
+                <Avatar id={agent.id} name={agent.name} />
+                <span>{agent.name}</span>
+              </span>
+            ) : (
+              <span className="q">{tRow("unassigned")}</span>
+            )}
+          </dd>
+        </>
+      )}
 
-      <dt>{t("factCarrier")}</dt>
-      <dd>{carrierName ? <span>{carrierName}</span> : <span className="q">{t("carrierNotSent")}</span>}</dd>
+      {agentView && !carrierName ? null : (
+        <>
+          <dt>{t("factCarrier")}</dt>
+          <dd>{carrierName ? <span>{carrierName}</span> : <span className="q">{t("carrierNotSent")}</span>}</dd>
+        </>
+      )}
 
       <dt>{t("factStore")}</dt>
       <dd>
