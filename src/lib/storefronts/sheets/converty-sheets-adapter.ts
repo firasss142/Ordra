@@ -38,7 +38,12 @@ const SKIPPED_STATUSES = new Set(["deleted"]);
 
 export class ConvertySheetsAdapter implements SheetsRowAdapter {
   readonly platform = "converty";
-  readonly requiredHeaders = ["QR Code", "Phone", "Total Price", "Products"] as const;
+  /**
+   * Converty exports in two layouts: « Products » holding "Name x 2" (the Libya
+   * account), or « Product » holding the bare name with the count in
+   * « Quantity » (the Tunisia dermatology account). Either one is a product column.
+   */
+  readonly requiredHeaders = ["QR Code", "Phone", "Total Price", ["Products", "Product"]] as const;
 
   /**
    * Converty's Status column is `pending` | `abandoned` | `deleted`. Only
@@ -73,7 +78,7 @@ export class ConvertySheetsAdapter implements SheetsRowAdapter {
     }
 
     const { productName, quantity } = parseProducts(
-      row["Products"] ?? "",
+      row["Products"] || row["Product"] || "",
       row["Quantity"] ?? ""
     );
 

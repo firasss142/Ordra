@@ -180,7 +180,7 @@ describe("POST /api/storefronts — a Converty account through Google Sheets", (
     mockInspect.mockResolvedValue({ headers: ["Order", "Phone"], dataRowCount: 10 });
     const res = await POST(post(sheetBody()));
     expect(res.status).toBe(422);
-    expect(await res.json()).toMatchObject({ code: "missing_columns", columns: ["QR Code", "Total Price", "Products"] });
+    expect(await res.json()).toMatchObject({ code: "missing_columns", columns: ["QR Code", "Total Price", "Products / Product"] });
   });
 
   test("says which columns it did read, so a wrong tab is visible at a glance", async () => {
