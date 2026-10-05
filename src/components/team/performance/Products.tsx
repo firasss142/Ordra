@@ -5,11 +5,12 @@
 import type { CSSProperties } from "react";
 import { Av, Ic, useTp } from "./ui";
 
-const RAMP = ["#E6F9EE", "#C4F1D8", "#97E4BC", "#63D49A", "#36BE7C", "#1EA266", "#118553", "#0B6A43", "#064E33"];
+// Aurore calme: one soft green ramp ending on the delivered hue's deep step, not near-black.
+const RAMP = ["#F1F9F4", "#E1F2E8", "#CDEAD9", "#B3DEC6", "#93CFAE", "#72BF95", "#4DAE7E", "#3A9A6B", "#2C7F57"];
 /** Green deepens with livrées pour 100, 0 → 40. */
 function tileStyle(v: number): CSSProperties {
   const i = Math.max(0, Math.min(RAMP.length - 1, Math.round((v / 40) * (RAMP.length - 1))));
-  return { background: RAMP[i], color: i >= 4 ? "#fff" : "var(--ink)" };
+  return { background: RAMP[i], color: i >= 6 ? "#fff" : "var(--ink)" };
 }
 const ARABIC = /[؀-ۿ]/;
 

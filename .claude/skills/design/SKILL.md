@@ -2,7 +2,8 @@
 name: design
 description: >
   Ordra's product UI design skill — the « Aurore » language (soft pastel aurora ground, frosted-glass
-  cards, huge 800-weight numbers, colour that always means one thing, waffles/rings/pill bars, the
+  cards, colour that always means one thing, and since 2026-10-05 the calm register — thin marks,
+  700-weight counts first, one bar per outcome, thin rings, no waffles/halos/entrance motion — the
   dark sidebar and brand green #15803D unchanged). Use it for ANY screen, page, component, drawer,
   modal, table, dashboard, chart, KPI tile, prototype or redesign inside Ordra (everything under
   src/ — orders, agent queue, delivery, warehouse/Entrepôt, finances, products, team, Accès,
@@ -60,20 +61,23 @@ before touching the rest.
    **chrome** (brand green `#15803D` — where you are, what you press) · **status / outcome** ·
    **identity** (an agent's own colour, a role, a carrier account) · **severity**
    (good / warn / bad). Never colour alone: the word or figure is always written beside it.
-3. **Colourful, not loud.** Saturated hues in *marks* (bars, ring segments, squares, avatars),
-   washed tints (6–15 %) in *surfaces*, near-black text.
+3. **Colourful, not loud (« Aurore calme », 2026-10-05).** Colour only on thin *marks* (10px
+   bars, 9px rings, 8px dots, avatars) in the VALIDATED calm steps of design-system §2.4; white
+   surfaces, no halos, near-black text that never wears a data colour. Counts first, share
+   small, never « /100 »; each figure written once.
 4. **Light, living ground; the sidebar is the only dark surface.** The aurora is painted once by
    the shell; cards float on it as frosted glass.
 5. **One entity, one card.** Overview (3–6 numbers) → one card per agent / carrier / product →
    drawer for detail → a table to compare. Never mix entities in one chart.
-6. **Every chart answers a named question** — waffle (what is today made of), ring (how far is
-   she), pill bar (where did they go), heat tile (which is weak). Tooltip on every mark; legend
-   hover highlights its marks and dims the rest.
+6. **Every chart answers a named question** — one bar per outcome, `OutcomeRows` (what did
+   they become / what is today made of), thin ring (how far is she), pill bar (where did they
+   go), soft heat tile (which is weak). The waffle is retired. Tooltip on every mark; hovering a
+   row highlights it and dims the rest. Run `validate_palette.js` on any new palette.
 7. **Hierarchy by weight and size, never by greying below AA.** Lightest *text* grey `#667085`
    (5.0:1); `#8A94A6` is for icons, axes, disabled only.
-8. **Motion explains, once** — cards rise, squares pop, rings sweep, bars grow, staggered, in the
-   first second; hover lifts what you can click; the live dot is the only loop; all off under
-   `prefers-reduced-motion`.
+8. **Calm motion** — no entrance choreography (no rising cards, popping squares, sweeping
+   rings); hover changes a border or a wash, never lifts; drawers slide; the live dot is the
+   only loop.
 9. **Two densities** (§1.1): *showcase* pages (monitoring, analytics, finance, products, team) use
    the full scale; *workbench* pages (orders, agent queue, delivery, warehouse bench, settings
    forms) keep ground, glass, type, radii and colours but put **no glass and no entrance motion on

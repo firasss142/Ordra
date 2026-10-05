@@ -105,19 +105,18 @@ describe("Salle de contrôle — the day", () => {
     expect(cellOf("Agents actifs")).toHaveTextContent("1 sans appel");
     expect(cellOf("Reçues")).toHaveTextContent("103");
     expect(cellOf("Reçues")).toHaveTextContent("dernière à 17:00");
-    expect(cellOf("Uploadées")).toHaveTextContent("13");
-    expect(cellOf("Uploadées")).toHaveTextContent("taux 50 %");
     expect(cellOf("Livrées")).toHaveTextContent("6");
-    const unc = cellOf("Non appelées > 2 h");
-    expect(unc).toHaveTextContent("1");
-    expect(unc).toHaveTextContent("4 h 06 au plus · tasnim");
   });
 
-  it("the day's work as a waffle: one square per order, done or still in hand", () => {
+  it("the day's work as one bar per kind, on one scale — done, then still in hand (Aurore calme)", () => {
     mount();
-    expect(screen.getByRole("img", { name: /13 uploadées/ })).toHaveAccessibleName(
-      "13 uploadées, 13 rejetées, 1 en cours, 1 à appeler, 1 non appelées > 2 h",
-    );
+    const rows = within(screen.getByRole("list", { name: "Le travail du jour" })).getAllByRole("listitem");
+    expect(rows.map((r) => r.querySelector("b")!.textContent)).toEqual(["Uploadées", "Rejetées", "En cours", "À appeler", "Non appelées > 2 h"]);
+    expect(rows.map((r) => r.querySelector(".obr-n")!.textContent)).toEqual(["13", "13", "1", "1", "1"]);
+    expect(rows[0]).toHaveTextContent("taux 50 %");
+    expect(rows[4]).toHaveTextContent("4 h 06 au plus · tasnim");
+    expect(rows[4]).toHaveClass("alert");
+    expect(document.querySelector(".r6-waffle")).toBeNull();
     expect(screen.getByText("Le travail du jour")).toBeInTheDocument();
     expect(screen.getByText("29 commandes · faites ou en main")).toBeInTheDocument();
   });
@@ -179,7 +178,7 @@ describe("Salle de contrôle — the agents over a period", () => {
     const table = screen.getByRole("table");
     const rows = within(table).getAllByRole("row").slice(2);
     expect(rows[0]).toHaveTextContent("tasnim");
-    expect(rows[0]).toHaveTextContent("26/100");
+    expect(rows[0]).toHaveTextContent("26 %");
     expect(within(rows[0]).getByLabelText(/^\+3/)).toBeInTheDocument();
     expect(rows[0]).toHaveTextContent("1"); // her medal
     expect(rows[0]).toHaveTextContent("payé le 26 sept.");

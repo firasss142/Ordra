@@ -4974,7 +4974,7 @@
         "cUploadedSub": "des assignées",
         "cDelivered": "Livrées",
         "cDeliveredSub": "des colis finis",
-        "cScore": "Livrées / 100",
+        "cScore": "Taux de livraison",
         "cScoreSub": "vs période d'avant",
         "cScoreSubMonth": "vs mois d'avant",
         "cBalance": "Solde",
@@ -5076,9 +5076,6 @@
         "title": "Le travail du jour",
         "meta": "{n, plural, one {# commande} other {# commandes}} · faites ou en main",
         "metaPast": "{n, plural, one {# commande finie} other {# commandes finies}} ce jour-là",
-        "grpDone": "Fait aujourd'hui",
-        "grpDonePast": "Fait ce jour-là",
-        "grpHand": "Reste en main",
         "up": "uploadées",
         "rej": "rejetées",
         "prog": "en cours",
@@ -5093,7 +5090,21 @@
           "prog": "En cours (déjà appelée)",
           "todo": "À appeler",
           "late": "Non appelée > {h} h"
-        }
+        },
+        "rows": {
+          "up": "Uploadées",
+          "rej": "Rejetées",
+          "prog": "En cours",
+          "todo": "À appeler",
+          "late": "Non appelées > {h} h"
+        },
+        "hint": {
+          "prog": "appelées, pas finies",
+          "todo": "pas encore appelées",
+          "lateOk": "rien n'attend plus de {h} h"
+        },
+        "lede": "<b>{done} faites</b>, {hand} encore en main.",
+        "ledePast": "<b>{done} faites</b> ce jour-là."
       },
       "cards": {
         "band": "Agents · aujourd'hui",
@@ -9009,10 +9020,6 @@
       "allOrders": "Toutes les commandes",
       "nProducts": "{n} produits",
       "nAgents": "{n} agents",
-      "chooseProducts": "Choisir des produits",
-      "chooseAgents": "Choisir des agents",
-      "edit": "Modifier",
-      "cmpNo": "Non",
       "cmpP": "Autres produits",
       "cmpA": "Autres agents",
       "cmpD": "Autres dates",
@@ -9034,7 +9041,14 @@
       "agRow": "{nf} traitées · {del} livrées sur 100",
       "agRowFew": "{nf} traitées · trop peu pour comparer",
       "clear": "Effacer",
-      "ok": "OK"
+      "ok": "OK",
+      "cmpHintP": "Mêmes dates, d’autres produits",
+      "cmpHintA": "Mêmes dates, d’autres agents",
+      "cmpHintD": "Même sélection, d’autres dates",
+      "vs": "contre",
+      "stopCmp": "Arrêter la comparaison",
+      "stop": "Arrêter",
+      "clearOne": "Retirer ce filtre : {f}"
     },
     "o": {
       "del": "Livrées",
@@ -9065,25 +9079,23 @@
       "prev": "{prev} : {v}"
     },
     "hero": {
-      "tooFew": "{n, plural, one {{nf} commande reçue} other {{nf} commandes reçues}} sur cette période — trop peu pour parler « sur 100 ». Voir « À regarder » ci-dessous.",
+      "tooFew": "{n, plural, one {{nf} commande reçue} other {{nf} commandes reçues}} sur cette période — trop peu pour juger. Voir « À regarder » ci-dessous.",
       "none": "Aucune commande reçue sur cette période. Voir « À regarder » ci-dessous.",
-      "hlAll": "Sur 100 commandes reçues{by}, <em>{del} arrivent</em> chez le client.",
-      "hlSel": "Sur 100 commandes « {p} »{by}, <em>{del} arrivent</em> chez le client.",
+      "hlAll": "Sur {n} commandes reçues{by}, <em>{del} arrivent</em> chez le client.",
+      "hlSel": "Sur {n} commandes « {p} »{by}, <em>{del} arrivent</em> chez le client.",
       "by": " traitées par {a}",
       "versus": "contre {prev}",
       "versusN": "contre {prev} ({nf} commandes)",
       "bLine": "B · {label} : {del} sur 100",
-      "subDel": "{nf} commandes",
-      "subRet": "{nf} colis · {pct} des uploadées",
-      "subRej": "{nf} · dont {autre} « Autre »",
-      "subJunk": "{nf} · pas commandé, doublon…",
-      "pend": "{n} en cours",
-      "pendWhat": "— en appel, à uploader ou en route",
-      "waffle": "Sur 100 commandes reçues : {list}",
-      "cell": "{o} · {n} sur 100",
-      "cellB": "B · {o} · {n} sur 100",
       "stTip": "{o} = {def}",
-      "bFew": "{nf} commandes — trop peu."
+      "bFew": "{nf} commandes — trop peu.",
+      "rows": "Ce que sont devenues les commandes",
+      "hDel": "arrivées chez le client",
+      "hRet": "{pct} des uploadées",
+      "hRej": "dont {autre} « Autre »",
+      "hJunk": "pas commandé, doublon…",
+      "hPend": "en appel, à uploader ou en route",
+      "bVs": "B : {n} sur 100"
     },
     "money": {
       "title": "L’argent",
@@ -9355,18 +9367,17 @@
     },
     "ov": {
       "empty": "Aucune commande attribuée sur cette période.",
-      "subDel": "{n, plural, one {{nf} commande} other {{nf} commandes}}",
-      "subRet": "{n} colis · {pct} des colis partis",
-      "subRej": "{n} · dont {autre} « Autre »",
-      "subJunk": "{n} · pas commandé, doublon…",
-      "cellTip": "{label} · {n} sur 100",
-      "aria": "Sur 100 commandes : {list}",
-      "title": "Sur 100 commandes attribuées",
+      "title": "Ce que sont devenues les commandes",
       "meta": "{n} commandes · {range}",
-      "pend": "{n} en cours",
-      "pendWhere": "— dans leur file ou en route",
       "arrows": "flèches : contre {prev}",
-      "young": "Les colis de moins de 14 jours ne sont pas tous revenus : « Retournées » va encore monter. Tendance masquée."
+      "young": "Les colis de moins de 14 jours ne sont pas tous revenus : « Retournées » va encore monter. Tendance masquée.",
+      "lede": "Sur {n} commandes attribuées, <b>{d} ont été livrées</b>.",
+      "versus": "contre {prev}",
+      "hDel": "colis remis au client",
+      "hRet": "{pct} des colis partis",
+      "hRej": "dont {autre} « Autre »",
+      "hJunk": "pas commandé, doublon…",
+      "hPend": "dans leur file ou en route"
     },
     "rank": {
       "title": "Classement",
@@ -9387,7 +9398,8 @@
       "leak": "Sa plus grosse fuite",
       "noLeak": "Rien au-dessus des autres",
       "open": "Ses 3 fuites",
-      "close": "Fermer"
+      "close": "Fermer",
+      "ringSub": "livrées · {pct}"
     },
     "leak": {
       "autre": "Motif « Autre »",

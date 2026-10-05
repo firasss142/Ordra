@@ -12,10 +12,10 @@ import type { RoomFormat } from "./useRoomFormat";
 
 const R = 66;
 const C = 2 * Math.PI * R;
-const GAP = 3.2;
+const GAP = 2.5;
 
 /** Her ring: what she finished, then what she still holds, in the waffle's colours. */
-function Ring({ seg, n, tipOf }: { seg: Partial<DayWork>; n: number; tipOf: (k: keyof DayWork, x: number) => string }) {
+function Ring({ seg, tipOf }: { seg: Partial<DayWork>; tipOf: (k: keyof DayWork, x: number) => string }) {
   const tot = WORK.reduce((s, k) => s + (seg[k] ?? 0), 0);
   let acc = 0;
   const arcs = WORK.flatMap((k) => {
@@ -42,15 +42,8 @@ function Ring({ seg, n, tipOf }: { seg: Partial<DayWork>; n: number; tipOf: (k: 
   return (
     <svg className="r6-ringsvg" viewBox="0 0 168 168" aria-hidden="true">
       <circle className="r6-ringtrack" cx="84" cy="84" r={R} />
-      <defs>
-        <mask id={`r6-m${n}`} maskUnits="userSpaceOnUse" x="0" y="0" width="168" height="168">
-          <circle className="r6-sweep" cx="84" cy="84" r={R} transform="rotate(-90 84 84)" style={{ "--n": n } as CSSProperties} />
-        </mask>
-      </defs>
-      <g mask={`url(#r6-m${n})`}>
-        <g className="r6-segs" transform="rotate(-90 84 84)">
-          {arcs}
-        </g>
+      <g className="r6-segs" transform="rotate(-90 84 84)">
+        {arcs}
       </g>
     </svg>
   );
@@ -143,7 +136,7 @@ function Card({ r, view, fmt, market, n, selected, onSelect }: { r: AgentDayRow;
         <WhatsAppButton phone={r.phone} market={market} />
       </div>
       <div className="r6-ag-ring">
-        <Ring seg={seg} n={n} tipOf={(k, x) => t("tip", { k: one(k), n: x })} />
+        <Ring seg={seg} tipOf={(k, x) => t("tip", { k: one(k), n: x })} />
         <div className="r6-rc">
           <b>{done}</b>
           <div className="r6-l">{t("done")}</div>

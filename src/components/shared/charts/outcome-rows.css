@@ -1,0 +1,52 @@
+/*
+ * OutcomeRows — one bar per outcome on one scale (Aurore calme, 2026-10-05).
+ * px on purpose (root font 14px). Inherits its page's font and ink.
+ */
+.obr{list-style:none;margin:0;padding:0;display:grid;--obr-ink:#101828;--obr-ink2:#475467;--obr-ink3:#667085;--obr-line:rgba(16,24,40,.07);--obr-track:rgba(16,24,40,.06)}
+.obr-r{border-top:1px solid var(--obr-line);transition:opacity .15s}
+.obr-r:first-child{border-top:0}
+.obr-in{display:grid;grid-template-columns:minmax(150px,210px) minmax(0,1fr) 64px 0 58px;align-items:center;gap:16px;width:100%;padding:10px 0;text-align:start;font:inherit;color:inherit;background:none;border:0}
+.obr[data-pct] .obr-in{grid-template-columns:minmax(150px,210px) minmax(0,1fr) 64px 44px 58px}
+/* doubled class: page resets like `.pco button{padding:0}` must not flatten the rows */
+.obr .obr-in{padding:10px 0}
+button.obr-in{cursor:pointer;border-radius:10px}
+button.obr-in:hover .obr-t{background:rgba(16,24,40,.09)}
+.obr-l{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.obr-dot{width:8px;height:8px;border-radius:50%;background:var(--obr-c);flex:none;margin-top:6px}
+.obr-l b{display:block;font-size:13.5px;font-weight:600;color:var(--obr-ink2);line-height:1.35;white-space:nowrap}
+.obr-l small{display:block;font-size:12px;font-weight:500;color:var(--obr-ink3);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obr-t{display:block;height:10px;border-radius:99px;background:var(--obr-track);overflow:hidden}
+.obr-t i{display:block;height:100%;border-radius:99px;background:var(--obr-c);min-width:0}
+.obr-r:not([data-zero]) .obr-t i{min-width:4px}
+.obr-n{font-size:17px;font-weight:700;letter-spacing:-.02em;text-align:end;color:var(--obr-ink);white-space:nowrap}
+.obr-p{font-size:13px;font-weight:600;color:var(--obr-ink3);text-align:end;white-space:nowrap}
+.obr-d{display:flex;justify-content:flex-end}
+.obr-r[data-zero] .obr-n{color:#D0D5DD}
+.obr-r.alert .obr-n{color:#B42318}
+.obr-r.alert .obr-l small{color:#B42318;font-weight:600}
+/* hover one row: it stays, the others recede (the page sets data-hl on an ancestor) */
+[data-hl] .obr-r{opacity:.4}
+[data-hl] .obr-r:hover{opacity:1}
+@media (max-width:760px){
+  .obr-in,.obr[data-pct] .obr-in{grid-template-columns:minmax(0,1fr) 54px 40px 50px;row-gap:6px}
+  .obr-t{grid-column:1/-1;grid-row:2}
+}
+
+/* ── modern finish (owner, 2026-10-05 evening: "the card feel, on the rest") ─────
+ * Bars a touch thicker with a soft sheen of their own hue, the share as a quiet pill,
+ * a row that lights up under the pointer, the count a weight heavier. */
+.obr .obr-in{padding:11px 10px;margin-inline:-10px;width:calc(100% + 20px);border-radius:12px;transition:background .15s}
+.obr-r:hover .obr-in{background:color-mix(in srgb,var(--obr-c) 7%,transparent)}
+.obr-t{height:12px}
+.obr-t i{background:linear-gradient(90deg,var(--obr-c),color-mix(in srgb,var(--obr-c) 72%,#fff));box-shadow:0 2px 8px color-mix(in srgb,var(--obr-c) 30%,transparent)}
+.obr-n{font-size:18px;font-weight:800;letter-spacing:-.025em}
+.obr-p{justify-self:end;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--obr-c) 12%,#fff);color:var(--obr-ink2);font-size:12px}
+.obr-r[data-zero] .obr-p{background:rgba(16,24,40,.04);color:#98A2B3}
+.obr-l b{color:var(--obr-ink)}
+.obr-dot{box-shadow:0 0 0 3px color-mix(in srgb,var(--obr-c) 18%,transparent)}
+[data-hl] .obr-r{opacity:1}
+/* the overdue hatch is a gradient, not a colour: color-mix() on it is invalid, so it keeps its own fill */
+.obr-r[data-k=late] .obr-t i{background:var(--obr-c);box-shadow:none}
+.obr-r[data-k=late] .obr-dot{box-shadow:0 0 0 3px #FDE4E8}
+.obr-r[data-k=late] .obr-p{background:#FEF3F2}
+.obr-r[data-k=late]:hover .obr-in{background:rgba(222,90,114,.06)}
