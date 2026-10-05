@@ -33,9 +33,12 @@ export function getServiceAccountEmail(): string | null {
 
 const norm = (h: string) => cleanHeader(h).toLowerCase();
 
-export function missingHeaders(headers: string[], required: readonly string[]): string[] {
+/** Required columns absent from `headers`; an any-of group is reported as "A / B". */
+export function missingHeaders(headers: string[], required: readonly (string | readonly string[])[]): string[] {
   const have = new Set(headers.map(norm));
-  return required.filter((r) => !have.has(norm(r)));
+  return required
+    .filter((r) => !(typeof r === "string" ? [r] : r).some((name) => have.has(norm(name))))
+    .map((r) => (typeof r === "string" ? r : r.join(" / ")));
 }
 
 export function classifySheetError(err: unknown): SheetProblem {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ConvertySheetsAdapter, MISSING_CUSTOMER_NAME } from "./converty-sheets-adapter";
 import { PayloadMappingError } from "@/lib/storefronts/errors";
+import { missingHeaders } from "@/lib/google-sheets/inspect-sheet";
 
 const adapter = new ConvertySheetsAdapter();
 
@@ -137,6 +138,33 @@ describe("ConvertySheetsAdapter", () => {
       const result = adapter.mapRow({ ...baseRow, "Phone": "914009883" });
       expect(typeof result.customer_phone).toBe("string");
       expect(result.customer_phone).toBe("914009883");
+    });
+  });
+
+  /*
+   * Converty has two export layouts. The Libya account writes « Products »
+   * ("Name x 2"); the Tunisia dermatology account (2026-10-05, 695 rows) writes
+   * « Product » with the bare name and the count in « Quantity », plus a « SKU »
+   * column. Refusing the second as « not a Converty export » blocked a real shop.
+   */
+  describe("the « Product » layout (singular, quantity in its own column)", () => {
+    const { Products: _drop, ...noProducts } = baseRow;
+    void _drop;
+    const singular = { ...noProducts, "Product": "BIOLISSE – Lotion corporelle au Rétinol", "Quantity": "2", "Total Price": "69" };
+
+    it("reads the product name and the Quantity column", () => {
+      const r = adapter.mapRow(singular);
+      expect(r.product_name).toBe("BIOLISSE – Lotion corporelle au Rétinol");
+      expect(r.quantity).toBe(2);
+      expect(r.unit_price).toBe(34.5);
+    });
+
+    it("is accepted at connection time", () => {
+      expect(missingHeaders(Object.keys(singular), adapter.requiredHeaders)).toEqual([]);
+    });
+
+    it("a sheet with neither column names both in the refusal", () => {
+      expect(missingHeaders(["QR Code", "Phone", "Total Price"], adapter.requiredHeaders)).toEqual(["Products / Product"]);
     });
   });
 
