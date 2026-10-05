@@ -45,3 +45,19 @@ one search line, one list, detail in a floating drawer. No KPI tiles that repeat
 2. Then Arabic + the agent phone shell (`entrepot-agent-v1.html`, opaque ground).
 3. React: one screen per commit in this worktree; delete the duplicated console/mobile components rather
    than restyling them; px units (14 px root).
+
+## Built — 2026-10-05 (branch feat/entrepot-aurore, 6 commits, not pushed)
+Owner: "follow the prototype and make the actual changes". Desk only; the agent phone shell is unchanged.
+- `src/components/warehouse/desk/` — the prototype's stylesheet scoped under `.ent` (px, 14 px root), shared
+  primitives, and one component per screen: TodayDesk, OutDesk, ReturnsDesk, ReceiveDesk (+ ArrivalDrawer,
+  SettleDrawer), StockDesk (products, product drawer, Journal), CountDesk. 27 tests.
+- New page `/warehouse/receive`; sidebar gains « Recevoir »; `stock?tab=receptions` redirects there for the desk.
+- No migration. Additive API changes: returns route gives building + days at Darb and `?state=way`;
+  sites/pickup routes expose `nameFr`/`nameAr` (a French desk says « Tripoli »).
+- Bugs found and fixed: the Journal ignored `arrival`/`arrival_correction` (every dock arrival invisible);
+  the history API rejected `kind=reception|count` (400 — the live Journal's two chips were empty).
+- Deviations, on purpose: Rentrer's « Ce que Darb a noté » column → « Valeur » (Darb sends no reason);
+  an unexplained invoice gap offers « Réclamer » / « Accepter » instead of a dead end; no « Annuler en lot »
+  for set-aside parcels (no such action exists — links to Commandes); Journal has no building switch
+  (the API cannot filter by building); settled receptions open the existing full sheet (payments, reversal).
+- Removed: BenchConsole, PreparationConsole, ScannedTable, ScanStation, ReturnsConsole.
