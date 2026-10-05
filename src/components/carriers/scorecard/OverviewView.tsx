@@ -158,7 +158,7 @@ function BriefCard({
         className="flex flex-col overflow-hidden rounded-[14px] border border-tr-line-2 bg-white transition-[border-color,box-shadow] duration-150 group-hover:border-tr-line-strong group-hover:shadow-[0_1px_2px_rgba(16,24,40,.04),0_6px_18px_rgba(16,24,40,.07)]"
       >
         <div className="flex min-h-[78px] items-center gap-[13px] bg-[var(--c)] px-[20px] py-[16px] text-white">
-          <CarrierLogo code={card.code} name={title} />
+          <CarrierLogo logoUrl={card.logo_url} code={card.code} name={title} />
           <div className="flex min-w-0 flex-col">
             <b id={`brief-${card.id}`} className="text-[20px] font-[650] leading-[1.2] tracking-[-.01em]">{title}</b>
             <span className="text-[12.5px] opacity-[.86]">{carrierSubtitle(card, marketCode, t)}</span>
@@ -239,7 +239,7 @@ function EmptyState({
           {cards.map((c, i) => (
             <article key={c.id} style={{ "--c": accentFor(c, i) } as CSSProperties} className="overflow-hidden rounded-[14px] border border-tr-line-2 bg-white">
               <div className="flex min-h-[78px] items-center gap-[13px] bg-[var(--c)] px-[20px] py-[16px] text-white opacity-[.55]">
-                <CarrierLogo code={c.code} name={carrierTitle(c, locale)} />
+                <CarrierLogo logoUrl={c.logo_url} code={c.code} name={carrierTitle(c, locale)} />
                 <div className="flex min-w-0 flex-col">
                   <b className="text-[20px] font-[650] leading-[1.2]">{carrierTitle(c, locale)}</b>
                   <span className="text-[12.5px] opacity-[.86]">{carrierSubtitle(c, marketCode, t)}</span>

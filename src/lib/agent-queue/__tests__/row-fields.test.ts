@@ -12,9 +12,10 @@ describe("QUEUE_ROW_SELECT", () => {
       "product:products!orders_product_id_fkey(image_url, name)",
     );
     // The carrier embed also brings the account colour and its warehouse city:
-    // the queue names a Darb account by city in its colour (Transporteurs, 2026-10-03).
+    // the queue names a Darb account by city in its colour (Transporteurs, 2026-10-03),
+    // and its uploaded logo when it has one (2026-10-05).
     expect(QUEUE_ROW_SELECT).toContain(
-      "carrier:carriers!orders_carrier_id_fkey(code, name, accent_color, warehouse:warehouses!carriers_warehouse_id_fkey(name_fr, name_ar))",
+      "carrier:carriers!orders_carrier_id_fkey(code, name, accent_color, logo_url, warehouse:warehouses!carriers_warehouse_id_fkey(name_fr, name_ar))",
     );
   });
 

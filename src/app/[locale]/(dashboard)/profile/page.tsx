@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/context/auth";
+import { useMyPhoto } from "@/hooks/useMyPhoto";
+import { Avatar } from "@/components/ui/Avatar";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -24,6 +28,8 @@ interface FormState {
 
 export default function ProfilePage() {
   const { user, loading } = useAuth();
+  const t = useTranslations("photo");
+  const setMyPhoto = useMyPhoto();
 
   const [form, setForm] = useState<FormState>({
     currentPassword: "",
@@ -120,6 +126,36 @@ export default function ProfilePage() {
       >
         Mon profil
       </h1>
+
+      {/* Photo card — every role sets their own face here */}
+      <section
+        aria-labelledby="profile-photo-title"
+        style={{
+          backgroundColor: "white",
+          border: "1px solid #E1E3E5",
+          borderRadius: "0.5rem",
+          padding: 24,
+          marginBottom: 24,
+          maxWidth: 560,
+        }}
+      >
+        <h2
+          id="profile-photo-title"
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: "#1A1A1A",
+            margin: "0 0 20px 0",
+            paddingBottom: 12,
+            borderBottom: "1px solid #E1E3E5",
+          }}
+        >
+          {t("profileTitle")}
+        </h2>
+        <PhotoPicker hasPhoto={!!user.avatar_url} onChange={setMyPhoto}>
+          <Avatar user={user} size={72} />
+        </PhotoPicker>
+      </section>
 
       {/* Profile info card */}
       <div

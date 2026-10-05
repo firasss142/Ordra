@@ -54,7 +54,7 @@ async function handleGET(req: NextRequest) {
   const { data, error } = await supabase
     .from("storefronts")
     .select(
-      "id, market_id, platform, name, config, webhook_secret, is_active, created_at, updated_at, last_webhook_received_at, last_webhook_status, last_webhook_error, webhook_failure_count, auth_mode"
+      "id, market_id, platform, name, config, webhook_secret, is_active, created_at, updated_at, last_webhook_received_at, last_webhook_status, last_webhook_error, webhook_failure_count, auth_mode, accent_color, logo_url"
     )
     .eq("market_id", marketId);
 

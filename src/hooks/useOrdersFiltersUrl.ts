@@ -9,7 +9,7 @@ import {
 } from "@/lib/orders/list-filters";
 
 /** URL params carried alongside filters but not part of the filter model. */
-const PASSTHROUGH_PARAM_KEYS = ["open", "view"] as const;
+const PASSTHROUGH_PARAM_KEYS = ["open"] as const;
 
 export function useOrdersFiltersUrl() {
   const pathname = usePathname();
@@ -23,7 +23,7 @@ export function useOrdersFiltersUrl() {
   const setFilters = useCallback(
     (next: OrderListFilters) => {
       const params = filtersToSearchParams(next);
-      // Preserve UI-only params (detail panel deep-link, view mode) that live
+      // Preserve UI-only params (the detail panel's deep link) that live
       // outside the filter model — they must survive filter changes but never
       // enter SWR keys or the export URL.
       for (const key of PASSTHROUGH_PARAM_KEYS) {

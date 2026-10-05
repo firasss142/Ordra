@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { marketDayBounds } from "@/lib/dates/market-day";
-import { resolveArchiveStatuses } from "@/lib/orders/archive-scope";
-import { applySearch } from "@/lib/orders/search-query";
+import { listQuerySchema } from "@/lib/orders/list-filters";
+import { applyOrderListFilters } from "@/lib/orders/list-query";
+import { loadListContext } from "@/lib/orders/list-context";
 import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
@@ -73,63 +73,15 @@ async function handleGET(req: NextRequest) {
     .from("orders")
     .select("id, created_at, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, status, assigned_to, product:products!orders_product_id_fkey(name)");
 
-  if (marketId) {
-    query = query.eq("market_id", marketId);
-  }
-
-  const status = req.nextUrl.searchParams.get("status");
-  const isArchive = req.nextUrl.searchParams.get("scope") === "archive";
-
-  const includeDeleted =
-    req.nextUrl.searchParams.get("include_deleted") === "1" ||
-    req.nextUrl.searchParams.get("include_deleted") === "true";
-
-  // Mirrors /api/orders/list exactly, so the CSV is the rows the operator was
-  // looking at. `scope=archive` is the terminal-status view and consumes
-  // `status` itself; `include_deleted` stays the orders-list "Afficher
-  // supprimées" checkbox, which exports ONLY soft-deleted orders when on.
-  if (isArchive) {
-    query = query.in("status", resolveArchiveStatuses(status));
-  } else if (includeDeleted) {
-    query = query.eq("status", "deleted");
-  } else {
-    query = query.neq("status", "deleted");
-  }
-
-  if (status && !isArchive) {
-    const list = status.split(",").map((s) => s.trim()).filter(Boolean);
-    if (list.length === 1) query = query.eq("status", list[0]);
-    else if (list.length > 1) query = query.in("status", list);
-  }
-
-  // Same parser as the list route, so the CSV is exactly the rows the operator
-  // was looking at when they pressed Export.
-  query = applySearch(query, req.nextUrl.searchParams.get("q") ?? undefined);
-
-  const rejectionReason = req.nextUrl.searchParams.get("rejection_reason");
-  if (rejectionReason) query = query.eq("rejection_reason", rejectionReason);
-
-  const carrierId = req.nextUrl.searchParams.get("carrier_id");
-  if (carrierId) query = query.eq("carrier_id", carrierId);
-
-  const agentId = req.nextUrl.searchParams.get("agent_id");
-  if (agentId) query = query.eq("assigned_to", agentId);
-
-  const productId = req.nextUrl.searchParams.get("product_id");
-  if (productId) query = query.eq("product_id", productId);
-
-  const city = req.nextUrl.searchParams.get("city");
-  if (city) query = query.eq("customer_city", city);
-
-  // Calendar dates name the market's local day; created_at is UTC. Same
-  // boundary as /api/orders/list, so the CSV is the rows the operator saw.
-  const window = marketDayBounds(
-    req.nextUrl.searchParams.get("date_from"),
-    req.nextUrl.searchParams.get("date_to"),
-    marketId || null,
-  );
-  if (window.fromIso) query = query.gte("created_at", window.fromIso);
-  if (window.toIso) query = query.lte("created_at", window.toIso);
+  // The list's own filters (lib/orders/list-query), so the CSV is exactly the
+  // rows the operator was looking at when they pressed Exporter.
+  // market_id is resolved above (and checked); the schema reads the filters.
+  const { market_id: _market, ...filterParams } = Object.fromEntries(req.nextUrl.searchParams.entries());
+  void _market;
+  const parsed = listQuerySchema.safeParse(filterParams);
+  if (!parsed.success) return NextResponse.json({ error: "Invalid query" }, { status: 400 });
+  const ctx = await loadListContext(supabase, parsed.data, marketId || null);
+  query = applyOrderListFilters(query, parsed.data, ctx);
 
   const { data, error } = await query
     .order("created_at", { ascending: false })

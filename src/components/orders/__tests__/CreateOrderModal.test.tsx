@@ -34,6 +34,12 @@ const VARIANTS = [
   { id: "v1", product_id: "p1", label: "1 لتر", quantity: 1, display_price: 25.5, is_active: true },
   { id: "v2", product_id: "p1", label: "2 لتر", quantity: 2, display_price: 48, is_active: true },
 ];
+// Two shops in the market; the older one is what the server would fall back to.
+const STOREFRONTS = [
+  { id: "s2", market_id: "m-ly", name: "Maison LY", platform: "shopify", is_active: true, created_at: "2026-05-01T00:00:00Z" },
+  { id: "s1", market_id: "m-ly", name: "Zitouna", platform: "easy_orders", is_active: true, created_at: "2026-01-01T00:00:00Z" },
+  { id: "s0", market_id: "m-ly", name: "Fermée", platform: "shopify", is_active: false, created_at: "2025-01-01T00:00:00Z" },
+];
 // Darb Assabil (city, area) pairs — the Libya destination list.
 const DESTINATIONS = [
   { id: 80, city: "طرابلس", area: "جنزور" },
@@ -55,6 +61,7 @@ function mockFetch() {
     if (u.startsWith("/api/markets")) return json({ data: MARKETS });
     if (u.startsWith("/api/products/search")) return json({ data: PRODUCTS });
     if (u.includes("/variants")) return json({ data: VARIANTS });
+    if (u.startsWith("/api/storefronts")) return json({ data: STOREFRONTS });
     if (u.startsWith("/api/darb/destinations")) return json({ destinations: DESTINATIONS });
     if (u.startsWith("/api/customers/lookup")) return json({ data: customerLookup });
     return json({ data: [] });
@@ -159,7 +166,8 @@ describe("CreateOrderModal", () => {
     await user.click(screen.getByRole("button", { name: /augmenter la quantité/i }));
     expect(screen.getByRole("spinbutton", { name: /^quantité$/i })).toHaveValue(3);
 
-    await user.click(await screen.findByRole("button", { name: "1 لتر" }));
+    // Produit and Variante sit side by side; the variant is a plain select.
+    await user.selectOptions(await screen.findByRole("combobox", { name: /^variante/i }), "v1");
 
     expect(screen.getByRole("spinbutton", { name: /^quantité$/i })).toHaveValue(3);
     // 3 × 25,500 — the figure the panel shows is the one that gets saved.
@@ -174,13 +182,51 @@ describe("CreateOrderModal", () => {
     await user.click(await screen.findByRole("option", { name: /Biovera/ }));
 
     await user.click(screen.getByRole("button", { name: /modifier le total/i }));
-    const totalInput = screen.getByLabelText(/prix total/i);
+    const totalInput = screen.getByLabelText(/total saisi/i);
     await user.clear(totalInput);
     await user.type(totalInput, "40");
 
     // A discount is stated on screen rather than left for someone to spot in
     // the numbers later.
     expect(screen.getByText(/total modifié/i)).toBeInTheDocument();
+    // The green box shows the figure that will be saved.
+    expect(screen.getByText(/40[.,]000/)).toBeInTheDocument();
+
+    // And the computed figure can be restored.
+    await user.click(screen.getByRole("button", { name: /rétablir le calcul/i }));
+    expect(screen.queryByLabelText(/total saisi/i)).toBeNull();
+    expect(screen.getByRole("button", { name: /modifier le total/i })).toBeInTheDocument();
+  });
+
+  test("is a drawer titled « Créer une commande » with a Client and a Commande section", async () => {
+    renderModal();
+    const dialog = await screen.findByRole("dialog", { name: /créer une commande/i });
+    expect(within(dialog).getByRole("heading", { name: /^client$/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: /^commande$/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /^annuler$/i })).toBeInTheDocument();
+  });
+
+  test("the Boutique defaults to the market's oldest active shop, and is sent", async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    const shop = await screen.findByRole("combobox", { name: /^boutique/i });
+    await waitFor(() => expect(shop).toHaveValue("s1"));
+    // A closed shop is not offered.
+    expect(within(shop).queryByRole("option", { name: /fermée/i })).toBeNull();
+    await user.selectOptions(shop, "s2");
+
+    await user.type(screen.getByLabelText(/téléphone/i), "915489053");
+    await user.type(screen.getByLabelText(/nom du client/i), "لطفي");
+    await user.click(screen.getByRole("button", { name: /rechercher une ville/i }));
+    await user.click(await screen.findByRole("option", { name: /اجدابيا/ }));
+    await user.type(screen.getByLabelText(/adresse/i), "شارع النصر");
+    await user.click(screen.getByRole("button", { name: /choisir un produit/i }));
+    await user.click(await screen.findByRole("option", { name: /Biovera/ }));
+    await user.click(screen.getByRole("button", { name: /créer la commande/i }));
+
+    await waitFor(() => expect(postBody).not.toBeNull());
+    expect(postBody).toMatchObject({ storefront_id: "s2", darb_destination_id: 83 });
   });
 
   test("sends the typed quantity and only sends a total when it was overridden", async () => {

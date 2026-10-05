@@ -1,0 +1,98 @@
+/*
+ * « Nouvelle commande » — what the form needs beyond the prototype's own classes
+ * (commandes/commandes.css, which this file never edits). Everything is scoped under
+ * `.cmd.co-root`; px on purpose (the root font is 14px, see root-font-14px-rem-trap).
+ */
+
+/* The wrapper only carries the tokens; it takes no room of its own. The drawer starts at
+   the top of the window (the prototype's 45px is its demo bar) and stays under the
+   app's floating panels — the Darb destination list is portalled to <body> at z 70. */
+.cmd.co-root{display:contents;--pbh:0px}
+.cmd.co-root .scrim{z-index:40}
+.cmd.co-root .drawer{z-index:50}
+.cmd.co-root .drawer:focus{outline:0}
+.cmd.co-root .co-body{padding-bottom:18px}
+.cmd.co-root .co-foot{padding-bottom:max(14px, env(safe-area-inset-bottom))}
+.cmd.co-root .fa:disabled{opacity:.5;cursor:not-allowed}
+.cmd.co-root .fa.pri:disabled:hover{background:var(--brand)}
+.cmd.co-root .xbtn:disabled{opacity:.5}
+
+.cmd.co-root .co-hint{font-size:12.5px;font-weight:600;color:var(--ink-3);line-height:1.45}
+.cmd.co-root .inp::placeholder{color:#98A2B3;font-weight:500}
+.cmd.co-root .inp:disabled{background:#F2F4F7;color:var(--ink-3);cursor:not-allowed}
+.cmd.co-root select.inp{padding-inline-end:8px;cursor:pointer}
+.cmd.co-root select.inp:disabled{cursor:not-allowed}
+
+/* numbers: no spinners, figures line up */
+.cmd.co-root .co-num,.cmd.co-root .co-num-txt,.cmd.co-root .co-qty{font-variant-numeric:tabular-nums}
+.cmd.co-root input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.cmd.co-root input[type=number]::-webkit-inner-spin-button,
+.cmd.co-root input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* the stepper's middle is a typable number styled as the prototype's <span> */
+.cmd.co-root .step .co-qty{flex:1;min-width:0;border:0;border-inline:1px solid #EAECF0;background:transparent;text-align:center;font-weight:800;font-size:14px;outline:0}
+.cmd.co-root .step button:disabled{opacity:.4}
+.cmd.co-root .step button:disabled:hover{background:none}
+
+/* « Total saisi » carries « Rétablir le calcul » on its label row */
+.cmd.co-root .co-lblrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cmd.co-root .co-over{justify-self:start}
+.cmd.co-root .lnk:disabled{color:var(--ink-4);cursor:not-allowed;text-decoration:none}
+
+/* dropdown triggers (product, Tunisian city) drawn as an .inp */
+.cmd.co-root .co-dd{position:relative;min-width:0}
+.cmd.co-root .co-trig{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:start}
+.cmd.co-root .co-trig > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd.co-root .co-trig .ic{width:14px;height:14px;color:var(--ink-3)}
+.cmd.co-root .co-trig.on{border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,128,61,.14)}
+.cmd.co-root .co-ph{color:#98A2B3}
+.cmd.co-root .co-menu{position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:30;width:100%;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 46px rgba(20,25,60,.16);overflow:hidden;animation:cmd-drop .14s ease-out}
+.cmd.co-root .co-menu-wide{width:max(100%, 320px);max-width:calc(100vw - 40px)}
+.cmd.co-root .co-menu-q{display:flex;align-items:center;gap:8px;margin:8px;height:34px;padding:0 10px;border-radius:9px;background:#F2F4F7}
+.cmd.co-root .co-menu-q .ic{width:14px;height:14px;color:var(--ink-3)}
+.cmd.co-root .co-menu-q input{flex:1;min-width:0;border:0;background:transparent;outline:0;font-size:13px}
+.cmd.co-root .co-menu-list{max-height:240px;overflow-y:auto;padding:0 4px 4px}
+.cmd.co-root .co-menu-empty{padding:12px 10px;font-size:12.5px;color:var(--ink-3)}
+.cmd.co-root .co-opt{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:9px;text-align:start;font-size:13.5px;font-weight:600}
+.cmd.co-root .co-opt:hover{background:#F2F4F7}
+.cmd.co-root .co-opt.on{background:var(--brand-wash);color:var(--brand-hover)}
+.cmd.co-root .co-opt-ck{width:16px;display:grid;place-items:center;color:var(--brand)}
+.cmd.co-root .co-opt-ck .ic{width:13px;height:13px;stroke-width:2.6}
+.cmd.co-root .co-opt-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd.co-root .co-opt-p{flex:none;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* the chosen product, in the field */
+.cmd.co-root .co-prod{display:flex;align-items:center;gap:8px;padding:0 4px 0 8px}
+[dir=rtl] .cmd.co-root .co-prod{padding:0 8px 0 4px}
+.cmd.co-root .co-prod-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:13.5px}
+.cmd.co-root .co-prod-p{flex:none;font-size:12px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.cmd.co-root .co-x{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;color:var(--ink-3)}
+.cmd.co-root .co-x:hover{background:var(--flat-bg);color:var(--ink)}
+.cmd.co-root .co-x .ic{width:14px;height:14px}
+
+/* the shared Darb destination picker, dressed as an .inp */
+/* `.cmd button` resets border and padding, which would strip the picker's Tailwind ones */
+.cmd.co-root .co-pick button[aria-haspopup]{height:40px;border:1px solid #D0D5DD;border-radius:11px;background:#fff;font-size:14px;padding-inline:12px 36px}
+.cmd.co-root .co-pick button[aria-haspopup]:has(~ button){padding-inline-end:60px}
+.cmd.co-root .co-pick button[aria-haspopup][aria-expanded=true]{border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,128,61,.14)}
+
+/* we have sold to this number before */
+.cmd.co-root .co-known{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--pb);border:1px solid var(--pd)}
+.cmd.co-root .co-known-av{width:36px;height:36px;flex:none;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--pi)}
+.cmd.co-root .co-known-tx{flex:1;min-width:0;display:grid;gap:2px}
+.cmd.co-root .co-known-tx b{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;overflow:hidden;white-space:nowrap}
+.cmd.co-root .co-known-tx b .ic{width:13px;height:13px;color:var(--pi);stroke-width:2.6}
+.cmd.co-root .co-known-tx small{font-size:12px;font-weight:600;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd.co-root .co-use{flex:none;height:32px;padding:0 12px;border-radius:9px;background:#fff;border:1px solid #D0D5DD;font-size:12.5px;font-weight:700}
+.cmd.co-root .co-use:hover{background:#F9FAFB}
+
+/* a refused submission */
+.cmd.co-root .co-err{display:flex;align-items:flex-start;gap:8px;margin:14px 20px 0;padding:10px 12px;border-radius:12px;background:var(--pb);border:1px solid var(--pd);color:var(--pi);font-size:13px;font-weight:700;line-height:1.45}
+.cmd.co-root .co-err .ic{width:15px;height:15px;margin-top:1px}
+
+/* phones: product and variant stack once the half-columns get too narrow */
+@media (max-width:520px){
+  .cmd.co-root .fs{margin:12px 12px 0}
+  .cmd.co-root .co-err{margin:12px 12px 0}
+  .cmd.co-root .two.co-pv{grid-template-columns:1fr}
+}

@@ -19,3 +19,13 @@ describe("getCarrierLogo", () => {
     expect(getCarrierLogo(undefined)).toBeNull();
   });
 });
+
+describe("getCarrierLogo — an uploaded logo first", () => {
+  test("prefers the account's own upload over the brand file", () => {
+    expect(getCarrierLogo("darb_assabil", "https://cdn/x.png")).toBe("https://cdn/x.png");
+  });
+  test("falls back to the brand file, then to nothing", () => {
+    expect(getCarrierLogo("darb_assabil", null)).toBe("/darb-assabil-logo.png");
+    expect(getCarrierLogo("unknown", undefined)).toBeNull();
+  });
+});

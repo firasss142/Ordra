@@ -7,10 +7,14 @@ import { fetcher } from "@/lib/swr-config";
 import type { PortfolioPayload } from "@/lib/investors/portfolio-summary";
 import type { AuthUser } from "@/types";
 import { PORTFOLIO_KEY } from "./PortfolioClient";
+import { Avatar } from "@/components/ui/Avatar";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
+import { useMyPhoto } from "@/hooks/useMyPhoto";
 
 export function AccountClient({ user, locale }: { user: AuthUser; locale: string }) {
   const t = useTranslations("investor.account");
   const router = useRouter();
+  const setMyPhoto = useMyPhoto();
   const { data } = useSWR<{ data: PortfolioPayload }>(PORTFOLIO_KEY, fetcher);
   const p = data?.data;
   async function signOut() { await fetch("/api/auth/logout", { method: "POST" }); router.push(`/${locale}/login`); router.refresh(); }
@@ -25,6 +29,11 @@ export function AccountClient({ user, locale }: { user: AuthUser; locale: string
   return (
     <div className="flex flex-col gap-3.5">
       <h1 className="m-0 text-[17px] font-semibold tracking-[-0.01em]">{t("title")}</h1>
+      <section className="rounded-[10px] border border-oms-border bg-oms-surface p-3.5">
+        <PhotoPicker hasPhoto={!!user.avatar_url} onChange={setMyPhoto}>
+          <Avatar user={user} size={56} />
+        </PhotoPicker>
+      </section>
       <section className="rounded-[10px] border border-oms-border bg-oms-surface px-3.5 py-1">
         <dl className="m-0 divide-y divide-oms-border text-[13px]">
           {rows.map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-2.5"><dt className="text-oms-ink-2">{k}</dt><dd className="m-0 text-end font-semibold">{v}</dd></div>)}

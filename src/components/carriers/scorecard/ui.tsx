@@ -106,8 +106,8 @@ export function CardHead({ title, pill }: { title: ReactNode; pill?: ReactNode }
 }
 
 /** The carrier logo on a white chip; a carrier without one gets its initial in its colour. */
-export function CarrierLogo({ code, name, size = 44, radius = 12 }: { code: string; name: string; size?: number; radius?: number }) {
-  const src = getCarrierLogo(code);
+export function CarrierLogo({ code, name, logoUrl, size = 44, radius = 12 }: { code: string; name: string; /** The account's own upload, which wins over the brand file. */ logoUrl?: string | null; size?: number; radius?: number }) {
+  const src = getCarrierLogo(code, logoUrl);
   return (
     <span
       aria-hidden
@@ -115,8 +115,8 @@ export function CarrierLogo({ code, name, size = 44, radius = 12 }: { code: stri
       style={{ width: size, height: size, borderRadius: radius }}
     >
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- static brand asset, sized by its chip
-        <img src={src} alt="" className={`h-full w-full ${code === "darb_assabil" ? "object-cover" : "object-contain"}`} />
+        // eslint-disable-next-line @next/next/no-img-element -- brand asset or upload, sized by its chip
+        <img src={src} alt="" className={`h-full w-full ${code === "darb_assabil" && !logoUrl ? "object-cover" : "object-contain"}`} />
       ) : (
         <span className="text-[19px] font-bold text-[var(--c)]">{name.trim().charAt(0).toUpperCase()}</span>
       )}

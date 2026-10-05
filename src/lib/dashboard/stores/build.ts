@@ -36,6 +36,8 @@ export interface StoreRow {
   sheet_error: string | null;
   first_order_at: string | null;
   last_order_at: string | null;
+  /** Uploaded logo (public URL), read from storefronts beside the RPC. */
+  logo_url?: string | null;
 }
 
 export interface BuildInput {
@@ -72,7 +74,8 @@ export function summ(bks: readonly Bk[]): Summ {
   const p = {} as Summ["p"];
   for (const k of OUTCOMES) p[k] = 0;
   for (const b of Object.keys(c) as Bk[]) p[GROUP[b]] += c[b];
-  for (const k of OUTCOMES) p[k] = n ? (p[k] / n) * 100 : 0;
+  const k = { ...p };
+  for (const o of OUTCOMES) p[o] = n ? (p[o] / n) * 100 : 0;
   const up = c.d + c.f + c.r + c.b;
   const rejAll = c.x + c.j;
   return {
@@ -85,6 +88,7 @@ export function summ(bks: readonly Bk[]): Summ {
     up,
     conf: up + rejAll ? (up / (up + rejAll)) * 100 : null,
     final: n ? (1 - (c.c + c.u + c.r) / n) * 100 : 0,
+    k,
     r100: round100(p),
     p,
   };
@@ -189,6 +193,7 @@ export function buildStoreDash(inp: BuildInput): StoreDashView {
       platform: pf.key,
       sheets: pf.sheets,
       hue: hueOf(s.accent_color),
+      logo: s.logo_url ?? null,
       n: a.n,
       prevN: p.n,
       share: sA.n ? (a.n / sA.n) * 100 : 0,

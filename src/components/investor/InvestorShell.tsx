@@ -9,6 +9,7 @@ import { Activity, Bell, CreditCard, Home, User as UserIcon } from "lucide-react
 import { fetcher } from "@/lib/swr-config";
 import type { AuthUser } from "@/types";
 import { dateTimeShort, money } from "@/lib/investors/ui-format";
+import { Avatar } from "@/components/ui/Avatar";
 
 /**
  * Investor portal shell — mobile-first (bottom tabs < sm, top nav ≥ sm), no
@@ -60,7 +61,11 @@ export function InvestorShell({ user, locale, children }: { user: AuthUser; loca
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50 focus:rounded focus:bg-oms-surface focus:px-3 focus:py-2">{t("skip")}</a>
       <div className="mx-auto w-full max-w-[440px] px-3.5 pb-24 pt-3 sm:max-w-[760px] sm:pb-10">
         <header className="mb-3 flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-oms-ink-1 text-[12.5px] font-bold text-white">{initials}</div>
+          {user.avatar_url ? (
+            <Avatar user={user} size={36} />
+          ) : (
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-oms-ink-1 text-[12.5px] font-bold text-white">{initials}</div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] font-semibold tracking-[-0.01em]">{user.full_name ?? user.email}</div>
             <div className="text-[11.5px] text-oms-ink-3">{t("portfolio")}</div>

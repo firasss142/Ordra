@@ -87,6 +87,8 @@ export interface ScorecardCarrier {
   name: string;
   code: string;
   accent_color: string | null;
+  /** Uploaded logo, merged by the API route (not the RPC); null = brand file. */
+  logo_url?: string | null;
   /** The warehouse city when one carrier runs several accounts (Darb). */
   account_label: { fr: string; ar: string | null } | null;
   first_upload_at: string | null;
@@ -106,6 +108,7 @@ export interface ScorecardDormant {
   name: string;
   code: string;
   accent_color: string | null;
+  logo_url?: string | null;
   last_upload_at: string | null;
   open: number;
 }

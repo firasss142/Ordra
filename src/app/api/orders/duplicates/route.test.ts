@@ -10,6 +10,14 @@ vi.mock("@/lib/supabase/server", () => ({
   createAdminClient: vi.fn().mockReturnValue({}),
 }));
 
+const mockReadDismissed = vi.fn();
+vi.mock("@/lib/duplicate-orders/dismissals", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/duplicate-orders/dismissals")>(
+    "@/lib/duplicate-orders/dismissals",
+  );
+  return { ...actual, readDismissed: (...a: unknown[]) => mockReadDismissed(...a) };
+});
+
 vi.mock("@/lib/auth/actor", () => ({
   getActor: (...args: unknown[]) => mockGetActor(...args),
 }));
@@ -63,6 +71,7 @@ beforeEach(() => {
   mockGetWindow.mockResolvedValue(24);
   mockGetAutoselect.mockResolvedValue(1);
   mockRpc.mockResolvedValue({ data: [], error: null });
+  mockReadDismissed.mockResolvedValue(new Set());
 });
 
 describe("GET /api/orders/duplicates", () => {
@@ -165,5 +174,18 @@ describe("GET /api/orders/duplicates", () => {
     mockGetActor.mockResolvedValue({ actor: AGENT });
     const res = await GET(req());
     expect(res.status).toBe(200);
+  });
+
+  test("a group dismissed as « Pas un doublon » is not returned", async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        { group_key: "g1", member_count: 2, members: [memberRow({ id: "a" }), memberRow({ id: "b" })] },
+        { group_key: "g2", member_count: 2, members: [memberRow({ id: "c" }), memberRow({ id: "d" })] },
+      ],
+      error: null,
+    });
+    mockReadDismissed.mockResolvedValue(new Set(["a", "b"]));
+    const body = await (await GET(req())).json();
+    expect(body.data.groups.map((g: { key: string }) => g.key)).toEqual(["g2"]);
   });
 });

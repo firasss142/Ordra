@@ -25,6 +25,8 @@ export interface QueueOrder {
   carrier_name: string | null;
   /** The account's colour (carriers.accent_color) — the solid city pill. */
   carrier_accent_color?: string | null;
+  /** The account's uploaded logo (carriers.logo_url); wins over the brand file. */
+  carrier_logo_url?: string | null;
   /** The account's city, set only for a carrier that runs several accounts (Darb Tripoli / Benghazi). */
   carrier_account_label?: { fr: string; ar: string | null } | null;
   total_price: number;
@@ -55,6 +57,11 @@ export interface QueueOrder {
   prior_order_count: number;
   prior_lead_count: number;
   prior_rejected_count: number;
+  /** Earlier orders of this customer that were delivered / returned (customer-history enrichment). */
+  prior_delivered_count?: number;
+  prior_returned_count?: number;
+  /** The human order reference (#41207). */
+  external_id?: string | null;
   last_known_address: string | null;
   /** The rejection *group*. The specific reason is `rejection_subreason`. */
   rejection_reason: string | null;

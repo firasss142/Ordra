@@ -168,6 +168,8 @@ export interface AgentStatement {
     count: number;
     est: number;
     est_likely: number | null;
+    /** added by /api/agent/commissions (lib/calculations/commission-likely): rate × delivery rate, per parcel */
+    likely_each?: number | null;
     stages: Record<StatementStage, number>;
     rows: StatementWayRow[];
   };

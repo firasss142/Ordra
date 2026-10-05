@@ -13,7 +13,8 @@ import { marketIdToCode, marketTimezone } from "@/lib/markets";
 import { shouldRefreshWorklist } from "@/lib/delivery/worklist";
 import type { DeliveryScorecard, WorklistResponse } from "@/lib/delivery/types";
 import type { Role } from "@/types";
-import { DeliveryWorklistView } from "./DeliveryWorklistView";
+import { AgentDeliveryView } from "@/components/agent/delivery/AgentDeliveryView";
+import { useAgentToast } from "@/components/agent/shared";
 
 /** How long a burst of order events waits before one refetch. */
 const COALESCE_MS = 400;
@@ -21,12 +22,14 @@ const COALESCE_MS = 400;
 /**
  * Data side of "Suivi livraison": the worklist, the agent's scorecard, the
  * action queue with its undo window, and live refresh from the
- * `orders:market:<id>` topic. Everything visual is DeliveryWorklistView.
+ * `orders:market:<id>` topic. Everything visual is AgentDeliveryView (the Aurore agent shell,
+ * prototypes/agent-shell-v2.html § 4 Livraison); its toasts are the shell's.
  */
 export function DeliveryWorklistClient({
   role, viewerId, marketId, locale,
 }: { role: Role; viewerId: string; marketId: string | null; locale: string }) {
-  const t = useTranslations("delivery");
+  const t = useTranslations("agentDelivery");
+  const toast = useAgentToast();
   const scope = useMarketScope();
   const market = role === "super_admin" ? scope.marketId : marketId;
   const { active: whatsappActive, known: whatsappKnown } = useWhatsAppAvailability(market);
@@ -37,7 +40,7 @@ export function DeliveryWorklistClient({
   // once asked we keep asking — the key changes, SWR refetches, and the
   // previous rows stay on screen while it does.
   const [withDone, setWithDone] = useState(false);
-  // The bare key is deliberate: AgentNavTabs prefetches and badges from
+  // The bare key is deliberate: AgentNav prefetches and badges from
   // exactly "/api/delivery/worklist", and SWR shares one request only when the
   // strings match. A query string is added only once there is something to add.
   const params = new URLSearchParams({
@@ -56,13 +59,7 @@ export function DeliveryWorklistClient({
     revalidateOnFocus: false,
   });
 
-  const [notice, setNotice] = useState<"undone" | "failed" | null>(null);
-  const queue = useDeliveryActionQueue({ worklistKey: key, onFailed: () => setNotice("failed") });
-  useEffect(() => {
-    if (!notice) return;
-    const id = setTimeout(() => setNotice(null), 3200);
-    return () => clearTimeout(id);
-  }, [notice]);
+  const queue = useDeliveryActionQueue({ worklistKey: key, onFailed: () => toast(t("toast.failed")) });
 
   // Durations and "Aujourd'hui" are relative; a minute's resolution is enough.
   const [now, setNow] = useState(() => Date.now());
@@ -86,16 +83,15 @@ export function DeliveryWorklistClient({
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   if (!market) {
-    return <div className="mx-auto max-w-[1480px] px-5 py-16 text-center text-[15px] text-[#6B7280]">{t("selectMarket")}</div>;
+    return <div className="empty"><b>{t("selectMarket")}</b></div>;
   }
 
   return (
-    <DeliveryWorklistView
+    <AgentDeliveryView
       rows={data?.rows ?? null}
       error={Boolean(error)}
       onRetry={() => void mutate()}
       scorecard={score?.data ?? null}
-      role={role}
       marketCode={marketIdToCode(market) ?? "tn"}
       marketId={market}
       whatsappActive={whatsappActive}
@@ -103,12 +99,11 @@ export function DeliveryWorklistClient({
       tz={marketTimezone(market)}
       locale={locale}
       now={now}
-      pending={queue.pending}
-      notice={notice}
-      onQueue={(row, body) => { setNotice(null); queue.queue(row, body); }}
-      onUndo={() => { queue.undo(); setNotice("undone"); }}
-      onDismissNotice={() => setNotice(null)}
+      doneLoaded={withDone}
       onNeedDone={() => setWithDone(true)}
+      pending={queue.pending}
+      onQueue={queue.queue}
+      onUndo={queue.undo}
     />
   );
 }

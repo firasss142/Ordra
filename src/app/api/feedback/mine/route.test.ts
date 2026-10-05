@@ -20,8 +20,10 @@ beforeEach(() => {
   setTestActor({ id: "agent-1", role: "agent", market_id: LY });
   fake = makeFakeSupabase({
     customer_feedback: [
-      { id: "a", created_by: "agent-1", created_at: "2026-09-28T10:00:00Z", category: "objection", topic_id: "t-card", body: "قال اريد الدفع بالبطاقة", moment: "call", status: null, deleted_at: null, product: { id: "p", name: "P", image_url: null } },
-      { id: "b", created_by: "agent-1", created_at: "2026-09-29T10:00:00Z", category: "reclamation", topic_id: null, body: "حاجزه", moment: "after", status: "open", deleted_at: null, product: null },
+      { id: "a", created_by: "agent-1", created_at: "2026-09-28T10:00:00Z", category: "objection", topic_id: "t-card", body: "قال اريد الدفع بالبطاقة", moment: "call", status: null, deleted_at: null, product: { id: "p", name: "P", image_url: null },
+        order: { id: "o-1234567890", external_id: "39508", customer_name: "فاطمة المقريف" }, customer: { name: "Fatma" } },
+      { id: "b", created_by: "agent-1", created_at: "2026-09-29T10:00:00Z", category: "reclamation", topic_id: null, body: "حاجزه", moment: "after", status: "open", deleted_at: null, product: null,
+        order: null, customer: { name: "سالم" } },
       { id: "c", created_by: "agent-1", created_at: "2026-09-30T10:00:00Z", category: "suggestion", topic_id: null, body: "undone", moment: "call", status: null, deleted_at: "2026-09-30T10:00:03Z", product: null },
       { id: "d", created_by: "agent-2", created_at: "2026-09-30T11:00:00Z", category: "objection", topic_id: null, body: "not mine", moment: "call", status: null, deleted_at: null, product: null },
     ],
@@ -37,7 +39,13 @@ describe("GET /api/feedback/mine — « Mes retours »", () => {
     expect(data[1]).toEqual({
       id: "a", created_at: "2026-09-28T10:00:00Z", category: "objection", topic_id: "t-card",
       body: "قال اريد الدفع بالبطاقة", moment: "call", status: null, product: { id: "p", name: "P", image_url: null },
+      customer_name: "فاطمة المقريف", order_ref: "39508",
     });
+  });
+
+  test("with no order, the customer's own name and no reference", async () => {
+    const { data } = await (await get()).json();
+    expect(data[0]).toMatchObject({ id: "b", customer_name: "سالم", order_ref: null });
   });
 
   test("the warehouse has no feedback tab", async () => {

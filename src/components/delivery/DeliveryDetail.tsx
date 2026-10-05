@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Calendar, CalendarCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, MapPin, MinusCircle, MoreHorizontal, NotebookPen, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
+import { Calendar, CalendarCheck, CheckCircle2, FileText, MapPin, MinusCircle, MoreHorizontal, NotebookPen, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
 import { DeliveryMessages } from "./DeliveryMessages";
-import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
+import { Chip, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
   call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
@@ -222,157 +222,6 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, marketId = n
       <DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} waStatus={row.wa_last?.status ?? null} />
       {(whatsappActive || whatsappKnown) && marketId && (
         <DeliveryMessages orderId={row.order_id} marketId={marketId} onOpenSheet={() => onWhatsApp(row)} />
-      )}
-    </div>
-  );
-}
-
-/** Mobile full-screen detail. */
-export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onLogAction, onWhatsApp, onDialed }: Props & { onBack: () => void }) {
-  const t = useTranslations("delivery");
-  const label = useSituationLabel();
-  const s = situationOf(row, now);
-  const m = moveFor(row, now);
-  const Icon = MOVE_ICON[m.kind];
-  const done = row.bucket === "done";
-  const dial = m.dial ?? row.customer_phone;
-  const item = row.items[0];
-  const Back = locale === "ar" ? ChevronRight : ChevronLeft;
-  const Forward = locale === "ar" ? ChevronLeft : ChevronRight;
-  const [logOpen, setLogOpen] = useState(false);
-  // Same rule as the row's edge: the tint follows the situation, so the block
-  // and the chip on the same screen never claim two different colours.
-  const tone = s.tone;
-  const createdShort = row.created_at
-    ? new Intl.DateTimeFormat("en-GB", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-        .format(new Date(row.created_at)).replace(", ", " · ")
-    : "—";
-  const block = "mb-2.5 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3.5";
-  const kv = "flex items-center justify-between gap-3 py-[7px] text-[14px]";
-  // The "recommended" pill marks the number the move dials; a branch or
-  // courier call recommends neither of the customer's numbers.
-  const recommended = m.kind === "call2" ? 2 : m.kind === "call" || m.kind === "before" ? 1 : 0;
-  // The named courier's own number first, the Darb account's switchboard as
-  // the fallback — the same order the desktop panel dials in.
-  const courierPhone = row.handler_phone ?? row.handler_account_phone;
-  const phones: [string, boolean][] = [];
-  if (row.customer_phone) phones.push([row.customer_phone, recommended === 1]);
-  if (row.customer_phone_2) phones.push([row.customer_phone_2, recommended === 2]);
-
-  return (
-    <div className={`fixed inset-0 z-[60] flex flex-col bg-[#F5F6F8] text-start lg:hidden ${locale === "ar" ? "font-cairo" : ""}`}>
-      <div className="relative flex h-[52px] shrink-0 items-center justify-center border-b border-[#E5E7EB] bg-white text-[17px] font-bold">
-        <button type="button" onClick={onBack} aria-label={t("detail.back")} className="absolute start-2.5 grid h-9 w-9 place-items-center"><Back size={22} aria-hidden /></button>
-        {t("detail.title")}
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-36 pt-2.5">
-        <div className={block}>
-          <div className="flex items-start justify-between gap-3">
-            <ProductThumb src={item?.image_url} alt={item?.product_name ?? ""} size={52} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-[20px] font-bold [unicode-bidi:plaintext]">{row.customer_name}</span>
-                <Ltr className="text-[13.5px] text-[#6B7280]">#{orderRef(row)}</Ltr>
-              </div>
-              <div className="mt-1 flex items-center gap-1.5 text-[13.5px] text-[#6B7280]"><MapPin size={15} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</div>
-              {item && <div className="mt-0.5 flex items-center gap-1.5 text-[13.5px] text-[#6B7280]"><Package size={15} aria-hidden />{item.product_name}{item.variant_label ? ` · ${item.variant_label}` : ""}</div>}
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              <Money amount={row.total_price} market={market} locale={locale} className="text-[22px] font-bold leading-none" />
-              <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
-            </div>
-          </div>
-        </div>
-
-        <button type="button" onClick={() => (m.whatsapp ? onWhatsApp(row) : onLogAction(row))}
-          data-situation-tint
-          className={`${block} ${EDGE} ${TONE[tone].edge} flex w-full items-center gap-3 text-start ${done ? "" : TONE[tone].soft}`}>
-          <span className="grid h-10 w-10 shrink-0 place-items-center text-[#111827]"><Icon size={24} aria-hidden /></span>
-          <span className="min-w-0">
-            <small className="block text-[13px] text-[#6B7280]">{t("detail.suggested")}</small>
-            <b className="block text-[17px] font-bold">{t(`moves.${m.kind}`)}</b>
-            <span className="mt-px block text-[13px] text-[#6B7280]">{t(`why.${m.kind}`)}</span>
-          </span>
-          <Forward size={20} className="ms-auto shrink-0 text-[#6B7280]" aria-hidden />
-        </button>
-
-        <div className={block}>
-          <h3 className="mb-1 flex items-center gap-2 text-[15px] font-bold"><User size={18} aria-hidden />{t("detail.clientInfo")}</h3>
-          {phones.map(([ph, recommended], i) => (
-            <div key={ph} className={kv}>
-              <span className="text-[#6B7280]">{i === 0 ? t("detail.phone1") : t("detail.phone2")}</span>
-              <span className="flex items-center gap-2">
-                {recommended && !done && <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[12px] font-semibold text-[#15803D]">{t("detail.recommendedPill")}</span>}
-                <a href={`tel:${ph}`} onClick={() => onDialed(row)} className={recommended ? "text-[16px] font-bold" : "font-medium"}><Ltr>{formatPhone(ph)}</Ltr></a>
-              </span>
-            </div>
-          ))}
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.city")}</span><span className="text-end font-medium [unicode-bidi:plaintext]">{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span></div>
-        </div>
-
-        <div className={block}>
-          <h3 className="mb-1 flex items-center gap-2 text-[15px] font-bold"><Truck size={18} aria-hidden />{t("detail.deliveryInfo")}</h3>
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.carrierLabel")}</span><span className="font-medium">{row.carrier_name ?? "—"}</span></div>
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.courier")}</span><span className="font-medium [unicode-bidi:plaintext]">{row.handler_name ?? "—"}</span></div>
-          {/* The courier's number is the whole point of this block on a phone:
-              the agent reads it to call the person actually holding the parcel.
-              It was missing here while the desktop panel had it. */}
-          {courierPhone && (
-            <div className={kv}>
-              <span className="text-[#6B7280]">{t("detail.courierPhone")}</span>
-              <a href={`tel:${courierPhone}`} onClick={() => onDialed(row)} className="font-medium"><Ltr>{formatPhone(courierPhone)}</Ltr></a>
-            </div>
-          )}
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.status")}</span><Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip></div>
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.createdAt")}</span><Ltr className="font-medium">{createdShort}</Ltr></div>
-          {/* A remark is a sentence, not a value, so it breaks the label/value
-              grid on purpose — squeezed into the right column it would truncate
-              exactly where the reason lives. */}
-          {row.latest_remark && (
-            <div className="mt-2 border-t border-[#F3F4F6] pt-2">
-              <span className="text-[13px] text-[#6B7280]">{t("detail.carrierNote")}</span>
-              <p className="mt-1 rounded-lg bg-[#F3F4F6] px-2.5 py-2 text-[13.5px] text-[#374151] [unicode-bidi:plaintext]">« {row.latest_remark} »</p>
-            </div>
-          )}
-          {!row.carrier_name && !row.handler_name && (
-            <p className="py-[7px] text-[14px] text-[#6B7280]">{t("detail.notYet")}</p>
-          )}
-          {!done && courierPhone && (
-            <a href={`tel:${courierPhone}`} onClick={() => onDialed(row)} className={`mt-2 h-10 w-full text-[14px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
-              <Phone size={16} aria-hidden />{t("detail.callCourier")}
-            </a>
-          )}
-        </div>
-
-        <div className={block}>
-          <button type="button" aria-expanded={logOpen} onClick={() => setLogOpen((v) => !v)} className="flex w-full items-center gap-2 text-[15px] font-bold">
-            <Clock size={18} aria-hidden />{t("detail.history")}
-            <ChevronDown size={20} aria-hidden className={`ms-auto text-[#6B7280] ${logOpen ? "rotate-180" : ""}`} />
-          </button>
-          {logOpen && <div className="mt-2"><DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} compact /></div>}
-        </div>
-      </div>
-
-      {!done && (
-        <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2 border-t border-[#E5E7EB] bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-          {m.whatsapp || !dial ? (
-            <button type="button" onClick={() => onWhatsApp(row)} className={`h-12 w-full text-[16px] ${PRIMARY_BTN}`}>
-              <WhatsAppIcon size={20} />{t("moves.wa")}
-            </button>
-          ) : (
-            <a href={`tel:${dial}`} onClick={() => onDialed(row)} className={`h-12 w-full text-[16px] ${PRIMARY_BTN}`}>
-              <Phone size={19} aria-hidden />{t("detail.callShort")} <Ltr>{formatPhone(dial)}</Ltr>
-            </a>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => onLogAction(row)} className={`h-11 text-[14.5px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
-              <PenLine size={17} aria-hidden />{t("detail.logShort")}
-            </button>
-            <button type="button" onClick={() => onWhatsApp(row)} className={`h-11 text-[14.5px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
-              <WhatsAppIcon size={19} className="text-[#15803D]" />{t("detail.whatsapp")}
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

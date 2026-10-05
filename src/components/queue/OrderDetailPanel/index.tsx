@@ -1,51 +1,37 @@
 "use client";
 
 /**
- * ─── How to redesign this panel without rewriting it ─────────────────────
+ * The order panel — one panel for everyone (prototypes/commandes-v4.html, the
+ * drawer). Managers open it over /orders ("overlay": the prototype's drawer);
+ * agents open it beside the call queue ("side": a sticky card on a desktop,
+ * the whole screen on a phone). Same content, same behaviour, either way.
  *
  * This file is the orchestrator: state, handlers, data fetching. The visual
- * layer lives in sibling files — each one is replaceable in isolation.
+ * layer lives in the sibling files, top to bottom as the prototype draws it:
  *
- *   PanelHeader.tsx       — sticky header (status badge + id + close)
- *   CustomerHero.tsx      — name + phone capsule + city chip
- *   AlertBanners.tsx      — edit-blocked / callback / dispatch banners
- *   CustomerCard.tsx      — address + city + note
- *   OrderItemsCard.tsx    — collapsible receipt + line items + total
- *   HistoryTimeline.tsx   — collapsible status-change timeline
- *   ActionFooter.tsx      — primary CTA + overflow menu
- *   SectionCard.tsx       — shared white card shell (label + icon header)
- *   usePrimaryAction.ts   — pure resolver: (status, role, ...) → CTA + overflow
+ *   PanelHeader.tsx       — .dr-top: status pill · reçue … · late chip · #ref · ×
+ *   CustomerHero.tsx      — .pc: name, WhatsApp + Appeler, phone, reliability, 2nd phone
+ *   OrderFacts.tsx        — .facts: Ville, Adresse, Note, Total, Agent, Transporteur, Boutique
+ *   PanelTabs.tsx         — .tabwrap: Articles · Livraison · Historique · Messages
+ *   OrderItemsCard.tsx    — the Articles pane (.line, .pane-acts, .tot)
+ *   TrackingSection.tsx   — the Livraison pane's step list (.tl)
+ *   HistoryTimeline.tsx   — the Historique pane (.tl)
+ *   AlertBanners.tsx      — .notes: one short line per problem, above the footer
+ *   ActionFooter.tsx      — .dr-foot: the buttons per status, ⋯ for the rest
+ *   usePrimaryAction.ts   — pure resolver: (status, role, ...) → which actions exist
  *
- * To ship a new look:
- *   1. Build the new visual as `<Name>V2.tsx` next to the original.
- *   2. Swap the import in this file. Props stay the same → no orchestrator
- *      changes. If a prop shape needs to evolve, update both implementations.
- *   3. For an A/B rollout, gate behind a feature flag here and keep both.
- *
- * For a wholesale rework:
- *   - Tokens live in tailwind.config.ts (shadow-panel-elevated,
- *     surface.elevated) and docs/design-system.md §4.9–4.10.
- *   - Modal/drawer primitive: src/components/ui/Sheet.tsx (placement="end"
- *     for drawer, "center" for modal). Use this rather than ad-hoc overlays.
- *   - Overflow menu primitive: src/components/ui/Menu.tsx (portaled,
- *     flip-up aware, destructive item support).
- *
- * The footer's action map (state → primary CTA + overflow) is data-driven
- * by `resolvePanelActions` in usePrimaryAction.ts. Changing which action
- * shows when never requires touching the JSX — just edit the resolver and
- * its tests (__tests__/usePrimaryAction.test.ts).
+ * Styles: commandes.css (the prototype's classes, scoped under .cmd) and
+ * panel.css (the side card, the phone layout). The root carries `.cmd`.
  *
  * Callers import from "@/components/queue/OrderDetailPanel" (a re-export
  * shim at ../OrderDetailPanel.tsx). Don't rename this `OrderDetailPanel`
  * export — the shim depends on it.
- * ─────────────────────────────────────────────────────────────────────────
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
-import { Plus, AlertTriangle, Merge } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { panelShellClasses, type PanelVariant } from "./shell";
 import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from "@/lib/order-permissions";
@@ -76,15 +62,13 @@ import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
 import { compareCarriers } from "@/lib/carriers/carrier-comparison";
 import { CarrierComparisonCard } from "../CarrierComparisonCard";
 import type { Role } from "@/types";
-import { PanelBackBar } from "./PanelBackBar";
 import { PanelHeader } from "./PanelHeader";
 import { CustomerHero } from "./CustomerHero";
 import { ActionFooter } from "./ActionFooter";
-import { CustomerCard } from "./CustomerCard";
 import { OrderItemsCard } from "./OrderItemsCard";
 import { MergeOrderPanel } from "@/components/orders/merge/MergeOrderPanel";
 import { HistoryTimeline } from "./HistoryTimeline";
-import { AlertBanners } from "./AlertBanners";
+import { AlertBanners, panelNotes, type ExtraNote } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
 import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
@@ -104,6 +88,18 @@ import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useRegisterFeedbackContext } from "@/components/feedback/FeedbackCaptureProvider";
 import { PanelFeedbackButton } from "@/components/feedback/PanelFeedbackButton";
 import { TypingActivityProvider } from "@/components/ui/typing-activity";
+import { Ic, type StoreInfo } from "@/components/orders/commandes/ui";
+import { useRejectionBadge } from "@/hooks/useRejectionBadge";
+import { reliabilityChip, type HistoryInput, type ReliabilityChip } from "@/lib/orders/row-signals";
+import { useAgentPhone } from "@/components/agent/shared";
+import { AgentOrderEndings } from "@/components/agent/queue/outcome/AgentOrderEndings";
+import { ManagerEndings } from "@/components/agent/queue/outcome/ManagerEndings";
+import { AgentSla, AttemptPill, VoiceButton } from "@/components/agent/queue/outcome/AgentTop";
+import { agentNotes, twinOf, type OutcomeDone, type Tray } from "@/components/agent/queue/outcome/outcome-model";
+import { CALLING_STATUSES } from "@/lib/orders/row-signals";
+import { useWhen } from "@/components/orders/commandes/ui";
+import "@/components/orders/commandes/commandes.css";
+import "./panel.css";
 
 const ScheduleDispatchModal = dynamic(
   () => import("../ScheduleDispatchModal").then((m) => m.ScheduleDispatchModal),
@@ -197,6 +193,10 @@ interface OrderDetail {
   scheduled_dispatch_at: string | null;
   scheduled_dispatch_auto: boolean | null;
   scheduled_dispatch_carrier_id: string | null;
+  rejection_reason?: string | null;
+  rejection_subreason?: string | null;
+  rejection_note?: string | null;
+  storefront_id?: string | null;
   history: HistoryEntry[];
   order_items: OrderItem[];
 }
@@ -238,23 +238,13 @@ const TERMINAL_STATUSES = new Set([
 ]);
 
 
-export interface CallTerminatedContext {
-  orderId: string;
-  status: string;
-  marketId: string;
-  attemptsCount: number;
-  /**
-   * Which step the post-call sheet should open on. Set when the footer already
-   * knows how the call ended, so the agent is not asked the same question
-   * twice. Omitted means the full outcome picker.
-   */
-  flow?: "option_select" | "reject_flow" | "callback_expanded" | "confirm_now" | "no_answer_now";
-}
-
 interface OrderDetailPanelProps {
   orderId: string | null;
   onClose: () => void;
-  onCallTerminated: (orderId: string, ctx?: CallTerminatedContext) => void;
+  /** Fired after every recorded call result (any role), so the page refreshes and a bulk run moves on. */
+  onOutcomeDone?: (r: OutcomeDone) => void;
+  /** role="agent": open straight on a step (the queue row's truck opens « send »). */
+  initialTray?: Tray;
   onReturnToPool?: () => Promise<void>;
   role?: Role;
   userId?: string;
@@ -308,92 +298,9 @@ function useIsPhone(): boolean {
   return phone;
 }
 
-/**
- * Subtle per-section color so cards are easy to tell apart at a glance.
- * Intentionally faint (tinted header strip + matching title), never bold —
- * the content surface stays white per the design system.
- */
-type SectionAccent = "neutral" | "client" | "order" | "note" | "history" | "fulfillment";
-
-// Phase 2 — section accents removed. Every variant collapses to the pure
-// white treatment (bg-surface-card + border-line-subtle + muted label).
-// SECTION_ACCENT survives only because the legacy in-file SectionCard helper
-// reads from it; the fulfillment block (Phase 3 extraction) is the last
-// consumer. New code uses ./OrderDetailPanel/SectionCard instead.
-const SECTION_ACCENT: Record<
-  SectionAccent,
-  { body: string; border: string; title: string; dot: string }
-> = {
-  neutral: { body: "bg-surface-card", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  client: { body: "bg-surface-card", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  order: { body: "bg-surface-card", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  note: { body: "bg-surface-card", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  history: { body: "bg-surface-card", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  fulfillment: { body: "bg-surface-card", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-};
-
-function SectionCard({
-  title,
-  children,
-  className = "",
-  accent = "neutral",
-}: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-  accent?: SectionAccent;
-}) {
-  const tone = SECTION_ACCENT[accent];
-  return (
-    <section
-      className={[
-        "border rounded-card overflow-hidden",
-        tone.body,
-        tone.border,
-        className,
-      ].join(" ")}
-    >
-      <div className="flex items-center gap-2 px-5 pt-3 pb-1">
-        <span
-          aria-hidden="true"
-          className={["w-1.5 h-1.5 rounded-full flex-shrink-0", tone.dot].join(" ")}
-        />
-        <h3
-          className={[
-            "text-[10px] font-semibold uppercase tracking-[0.1em]",
-            tone.title,
-          ].join(" ")}
-        >
-          {title}
-        </h3>
-      </div>
-      <div className="px-5 pb-2 pt-1 flex flex-col">{children}</div>
-    </section>
-  );
-}
-
-/** A single read/edit row inside SectionCard */
-function FieldRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-baseline gap-4 py-2.5 border-b border-line-subtle last:border-0">
-      <span className="w-[88px] flex-shrink-0 text-[12px] font-medium text-ink-muted leading-[1.4]">
-        {label}
-      </span>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
-
 export function OrderDetailPanel({
   orderId,
   onClose,
-  onCallTerminated,
   onReturnToPool,
   role,
   userId,
@@ -404,7 +311,13 @@ export function OrderDetailPanel({
   variant = "overlay",
   initialTab,
   covered = false,
+  onOutcomeDone,
+  initialTray,
 }: OrderDetailPanelProps) {
+  // The agent's panel (prototypes/agent-shell-v2.html `agentPanel`): the same order, with
+  // the four call endings inside it instead of the manager's footer.
+  const agentMode = role === "agent";
+  const agentPhone = useAgentPhone();
   const t = useTranslations("orders.detail");
 
   // On a phone the panel covers the queue. Without this, a drag on its header
@@ -542,21 +455,45 @@ export function OrderDetailPanel({
   const { detail: customerHistory } = useCustomerHistory("order", order?.id ?? null, Boolean(order));
   const customerStats = customerHistory?.stats ?? null;
 
-  const slaMinutes = useSlaMinutes(order?.market_id ?? null);
+  // « À risque » / « Fiable » / « Nouveau client » reads the customer's record
+  // BEFORE this order. A row from the orders list already carries it (prior_*
+  // counts); a queue row does not, so the panel falls back to the history it
+  // fetches — which excludes the open order too (get_customer_history_detail).
+  const reliability: ReliabilityChip | null = useMemo(() => {
+    const row = fallbackOrder as HistoryInput | null | undefined;
+    if (row && typeof row.prior_order_count === "number") return reliabilityChip(row);
+    if (!customerStats) return null;
+    return reliabilityChip({
+      prior_order_count: customerStats.total_orders,
+      prior_delivered_count: customerStats.delivered_count,
+      prior_returned_count: customerStats.returned_count,
+      prior_rejected_count: customerStats.rejected_count,
+    });
+  }, [fallbackOrder, customerStats]);
 
-  // When the call actually landed, so the SLA chip can freeze at the time it
-  // took rather than keep counting. The history is append-only, so the first
-  // arrival at `confirmed` is the real one even if the order was later
-  // reopened and re-confirmed.
-  const confirmedAt = useMemo(() => {
-    const entries = order?.history ?? [];
-    let earliest: string | null = null;
-    for (const entry of entries) {
-      if (entry.to_status !== "confirmed") continue;
-      if (earliest === null || entry.created_at < earliest) earliest = entry.created_at;
-    }
-    return earliest;
-  }, [order?.history]);
+  // A rejected order's pill names the sub-reason with its group's icon.
+  const rejectionBadge = useRejectionBadge(order?.market_id ?? null);
+
+  // The store the order came from — name, colour dot, platform.
+  const { data: storesData } = useSWR<{ data: StoreInfo[] }>(
+    order ? `/api/storefronts?market_id=${order.market_id}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
+  );
+  const store = order?.storefront_id
+    ? storesData?.data?.find((st) => st.id === order.storefront_id)
+    : undefined;
+
+  const slaMinutes = useSlaMinutes(order?.market_id ?? null);
+  const agentWhen = useWhen(order?.market_id ?? null, locale);
+  const agentDone = useCallback(
+    (r: OutcomeDone) => {
+      void mutate();
+      onOutcomeDone?.(r);
+    },
+    [mutate, onOutcomeDone],
+  );
+
 
   const assignedCarrierName = order?.carrier_id
     ? carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.name ?? null
@@ -841,13 +778,14 @@ export function OrderDetailPanel({
           input.focus();
           input.select();
         }
-      } else if (e.key === "Escape") {
+      } else if (e.key === "Escape" && !agentMode) {
+        // The agent's endings own Escape: the open step first, then the order.
         onClose();
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, canEdit, onClose, productSheetOpen, layered]);
+  }, [order, canEdit, onClose, productSheetOpen, layered, agentMode]);
 
   if (orderId === null) return null;
 
@@ -1095,10 +1033,6 @@ export function OrderDetailPanel({
       },
     ];
   }, [order]);
-  // The timeline's chrome follows the interface language. Forcing it to the
-  // market's language put an Arabic log inside an otherwise French panel.
-  // Agent-authored note text is stored as written and is unaffected.
-  const historyLocale = locale;
 
   async function handleUploadToCarrier(carrierId: string) {
     if (!orderId) return;
@@ -1206,8 +1140,8 @@ export function OrderDetailPanel({
     }
   }
 
-  async function handleCancelSchedule() {
-    if (!orderId) return;
+  async function handleCancelSchedule(): Promise<boolean> {
+    if (!orderId) return false;
     setCancelingSchedule(true);
     try {
       const res = await fetch(`/api/orders/${orderId}/transition`, {
@@ -1220,6 +1154,7 @@ export function OrderDetailPanel({
       });
       if (res.ok) {
         await mutate();
+        return true;
       } else {
         // This used to be swallowed entirely: a failed cancel just stopped the
         // spinner and left the schedule on screen. The common failure is a lost
@@ -1229,6 +1164,7 @@ export function OrderDetailPanel({
         const failure = readActionFailure(res.status, body);
         if (failure.conflict) await mutate();
         setSaveError(failure.message ?? t("inlineSaveError"));
+        return false;
       }
     } finally {
       setCancelingSchedule(false);
@@ -1253,32 +1189,13 @@ export function OrderDetailPanel({
     (kind: PanelActionKind) => {
       if (!order || !orderId) return;
       switch (kind) {
+        // The call results never reach here: AgentEndings / ManagerEndings run them inside the order.
         case "endCall":
         case "changeStatus":
         case "rescheduleCallback":
         case "confirm":
         case "callback":
         case "reject":
-          onCallTerminated(orderId, {
-            orderId,
-            status: order.status,
-            marketId: order.market_id,
-            attemptsCount: order.attempts_count ?? 0,
-            // Each of the four buttons names its ending, so each carries the
-            // agent straight to it — nothing re-asks the question the button
-            // just answered. `rescheduleCallback` deliberately lands on the
-            // callback step; only `changeStatus` opens the plain picker.
-            flow:
-              kind === "confirm"
-                ? "confirm_now"
-                : kind === "endCall"
-                  ? "no_answer_now"
-                  : kind === "reject"
-                    ? "reject_flow"
-                    : kind === "callback" || kind === "rescheduleCallback"
-                      ? "callback_expanded"
-                      : undefined,
-          });
           return;
         case "uploadToCarrier":
         case "uploadNow":
@@ -1317,7 +1234,6 @@ export function OrderDetailPanel({
     [
       order,
       orderId,
-      onCallTerminated,
       handleCancelSchedule,
       handleReturnToPool,
       handleDeleteCarrierBarcode,
@@ -1328,138 +1244,201 @@ export function OrderDetailPanel({
 
   const shell = panelShellClasses(variant);
 
-  /**
-   * Take the agent to the city field. It lives in the Livraison tab, so the
-   * tab has to change before the field can be scrolled to — and the frame in
-   * between is why this waits: `scrollIntoView` on a `hidden` panel goes
-   * nowhere.
-   */
-  function resolveCity() {
-    setTab("shipping");
-    requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>('[data-field="city"]')
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
+  const cityMissing = order !== null && !order.customer_city?.trim() && !order.darb_destination_id;
+  const outOfStock =
+    order !== null &&
+    orderItems.some((it) => {
+      const p = productsData?.data?.find((x) => x.id === it.product_id);
+      return p !== undefined && p.current_stock <= 0;
     });
+  const fallbackFlags = (fallbackOrder ?? {}) as { is_potential_duplicate?: boolean | null; has_uploaded_sibling?: boolean | null };
+  const notes = order
+    ? panelNotes({
+        status: order.status,
+        cityMissing,
+        outOfStock,
+        dupShipped: Boolean(fallbackFlags.is_potential_duplicate && fallbackFlags.has_uploaded_sibling),
+        editBlocked: !canEdit,
+        callbackScheduledAt: order.callback_scheduled_at,
+        dispatchScheduledAt: order.scheduled_dispatch_at,
+      })
+    : [];
+
+  // The panel's own feedback, as lines in the same stack as the notices.
+  const extraNotes: ExtraNote[] = [];
+  if (reopenWarning) extraNotes.push({ key: "reopen", hue: "amber", icon: "alert", text: t("reopenWarning"), alert: true });
+  if (uploadFeedback?.kind === "success")
+    extraNotes.push({ key: "upload", hue: "green", icon: "check", text: t("uploadCarrierSuccess", { tracking: uploadFeedback.tracking }) });
+  if (uploadFeedback?.kind === "error")
+    extraNotes.push({ key: "upload", hue: "red", icon: "alert", text: t("uploadCarrierError", { error: uploadFeedback.message }), alert: true });
+  if (recoverError) extraNotes.push({ key: "recover", hue: "red", icon: "alert", text: recoverError, alert: true });
+  if (deleteFeedback)
+    extraNotes.push(
+      deleteFeedback.kind === "success"
+        ? { key: "delete", hue: "green", icon: "check", text: t("deleteBarcodeSuccess") }
+        : { key: "delete", hue: deleteFeedback.kind === "warning" ? "amber" : "red", icon: "alert", text: deleteFeedback.message, alert: true },
+    );
+  if (saveError) extraNotes.push({ key: "save", hue: "red", icon: "alert", text: saveError, alert: true });
+
+  const reference = order?.external_id ?? order?.id ?? orderId ?? "";
+
+  // ── the agent's endings (role="agent") ──
+  const agentTwin = agentMode ? twinOf(fallbackOrder as Parameters<typeof twinOf>[0]) : null;
+  const agentMax = maxCallAttempts ?? Number.POSITIVE_INFINITY;
+  const agentAttempts = order?.attempts_count ?? 0;
+  const confirmedAt = order?.history?.find((h) => h.to_status === "confirmed")?.created_at ?? null;
+  const agentNoteList =
+    agentMode && order
+      ? agentNotes({
+          status: order.status,
+          attempts: agentAttempts,
+          maxAttempts: agentMax,
+          outOfStock,
+          twin: agentTwin,
+          cityMissing,
+          editBlocked: !canEdit,
+          callbackAt: order.callback_scheduled_at,
+          dispatchAt: order.scheduled_dispatch_at,
+          now: new Date(),
+        })
+      : [];
+  const agentCovered =
+    layered || productSheetOpen || reopenModalOpen || mergeOpen || addProductOpen || wasTakenOver || dexpressModalOpen || darbAssabilModalOpen || scheduleDispatchOpen || uploadOpen;
+  const agentPhoneShell = agentMode && agentPhone;
+
+  async function copyTracking() {
+    if (!order?.tracking_number) return;
+    try {
+      await navigator.clipboard.writeText(order.tracking_number);
+    } catch {
+      /* clipboard denied — the number is still on screen */
+    }
   }
 
   return (
     // Every InlineField below reports keystrokes through this, so the presence
     // "is typing" bubble reacts to the typing rather than to the save.
     <TypingActivityProvider onActivity={noteTyping}>
-      {/* Overlay — only in the slide-over variant. Beside the list there is no
-          scrim: the point is that the queue stays readable. */}
-      {shell.overlay && (
-        <div
-          className={shell.overlay}
-          onClick={(e) => {
-            // Only close on a direct click on the overlay surface itself —
-            // portaled overflow menus and centered sheets bubble through here.
-            if (e.target === e.currentTarget) onClose();
-          }}
-        />
-      )}
-
-      {/* Panel */}
-      <div className={shell.panel}>
-        {wasTakenOver && (
-          <OrderTakeoverScreen
-            releasedByName={takenOverBy}
-            onDismiss={() => {
-              setWasTakenOver(false);
-              onClose();
+      <div className={shell.root}>
+        {/* Scrim — only over the orders page. Beside the queue there is none:
+            the point is that the list stays readable. */}
+        {shell.overlay && (
+          <div
+            className={shell.overlay}
+            onClick={(e) => {
+              // Only a click on the scrim itself — portaled menus bubble through here.
+              if (e.target === e.currentTarget) onClose();
             }}
           />
         )}
 
-        {/* ── Back bar, phone only ─────────────────────────────── */}
-        <PanelBackBar
-          name={order?.customer_name ?? ""}
-          locale={locale}
-          onClose={onClose}
-        />
+        <aside
+          className={agentPhoneShell ? `${shell.panel} mpanel` : shell.panel}
+          role={variant === "overlay" ? "dialog" : undefined}
+          aria-label={t("panelAria", { ref: reference })}
+        >
+          {/* The phone's back bar (prototype `phoneOverlay`): ← and the customer's name. */}
+          {agentPhoneShell ? (
+            <div className="mback">
+              <button type="button" className="xbtn" onClick={onClose} aria-label={t("close")}>
+                <Ic n="left" className="flip" />
+              </button>
+              <b dir="auto">{order?.customer_name ?? ""}</b>
+            </div>
+          ) : null}
+          {wasTakenOver && (
+            <OrderTakeoverScreen
+              releasedByName={takenOverBy}
+              onDismiss={() => {
+                setWasTakenOver(false);
+                onClose();
+              }}
+            />
+          )}
 
-        {/* ── Sticky header ─────────────────────────────────────── */}
-        <PanelHeader
-          // The storefront number is what a customer quotes and what a carrier
-          // search box expects; the UUID is only a fallback.
-          reference={order?.external_id ?? order?.id ?? orderId ?? ""}
-          createdAt={order?.created_at ?? new Date().toISOString()}
-          status={order?.status ?? "pending"}
-          locale={locale}
-          statusLabel={
-            order
-              ? ts(order.status as Parameters<typeof ts>[0])
-              : ts("pending")
-          }
-          slaMinutes={slaMinutes}
-          confirmedAt={confirmedAt}
-          attemptsCount={order?.attempts_count}
-          maxAttempts={maxCallAttempts}
-          saveFlash={saveFlash}
-          presenceRows={orderId ? othersOn(orderId) : undefined}
-          feedbackSlot={feedback.enabled && orderId ? <PanelFeedbackButton orderId={orderId} /> : undefined}
-          carrierDeletedChip={
-            order?.carrier_barcode_deleted_at && !order.tracking_number
-              ? {
-                  label: t("carrierBarcodeDeletedBadge", {
-                    carrier:
-                      order.carrier_barcode_deleted_carrier_code ?? "carrier",
-                  }),
-                  tooltip: t("carrierBarcodeDeletedTooltip", {
-                    date: new Date(
-                      order.carrier_barcode_deleted_at,
-                    ).toLocaleDateString(locale === "ar" ? "ar" : "fr"),
-                  }),
-                }
-              : null
-          }
-          onClose={onClose}
-        />
+          <PanelHeader
+            // The storefront number is what a customer quotes and what a carrier
+            // search box expects; the UUID is only a fallback.
+            reference={reference}
+            marketId={order?.market_id ?? null}
+            createdAt={order?.created_at ?? new Date().toISOString()}
+            pill={{
+              status: order?.status ?? "pending",
+              attempts_count: order?.attempts_count,
+              callback_scheduled_at: order?.callback_scheduled_at,
+              rejection_reason: order?.rejection_reason,
+              rejection_subreason: order?.rejection_subreason,
+              rejection_note: order?.rejection_note,
+            }}
+            maxAttempts={maxCallAttempts}
+            rejection={rejectionBadge}
+            locale={locale}
+            slaMinutes={slaMinutes}
+            saveFlash={saveFlash}
+            presenceRows={orderId ? othersOn(orderId) : undefined}
+            feedbackSlot={
+              agentMode && orderId ? (
+                <VoiceButton orderId={orderId} />
+              ) : feedback.enabled && orderId ? (
+                <PanelFeedbackButton orderId={orderId} />
+              ) : undefined
+            }
+            agentTop={
+              agentMode && order
+                ? {
+                    pill: order.status.startsWith("attempt_") ? (
+                      <AttemptPill status={order.status} attempts={order.attempts_count} max={maxCallAttempts} />
+                    ) : null,
+                    sla: (
+                      <AgentSla
+                        status={order.status}
+                        createdAt={order.created_at}
+                        confirmedAt={confirmedAt}
+                        callbackAt={order.callback_scheduled_at}
+                        slaMinutes={slaMinutes}
+                        now={new Date()}
+                      />
+                    ),
+                    showClose: !agentPhoneShell,
+                  }
+                : undefined
+            }
+            carrierDeletedChip={
+              order?.carrier_barcode_deleted_at && !order.tracking_number
+                ? {
+                    label: t("carrierBarcodeDeletedBadge", {
+                      carrier: order.carrier_barcode_deleted_carrier_code ?? "carrier",
+                    }),
+                    tooltip: t("carrierBarcodeDeletedTooltip", {
+                      date: new Date(order.carrier_barcode_deleted_at).toLocaleDateString(locale === "ar" ? "ar" : "fr"),
+                    }),
+                  }
+                : null
+            }
+            onClose={onClose}
+          />
 
-        {/* Loading / error */}
-        {isLoading && !order && (
-          <div className="flex-1 py-16 text-center text-[13px] text-oms-ink-2">{t("loading")}</div>
-        )}
-        {errorMessage && (
-          <div className="flex-1 py-16 text-center text-[13px] text-oms-bad">{errorMessage}</div>
-        )}
+          {isLoading && !order && <div className="odp-msg">{t("loading")}</div>}
+          {errorMessage && <div className="odp-msg bad">{errorMessage}</div>}
 
-        {order && (
-          /* Desktop: a plain column — the masthead stays put and only the
-             tab panels scroll, as before.
-             Phone: this is the ONE scroll region. The masthead was a capped
-             scroll box of its own above a second one for the receipt: on an
-             iPhone SE that left the receipt 18px, and a drag on the name
-             scrolled a box whose edges nobody could see. The tab strip pins
-             to the top of this region instead, and the name and number are
-             one flick away. */
-          <div
-            data-testid="panel-scroll"
-            className="flex min-h-0 flex-1 flex-col max-lg:overflow-y-auto max-lg:overscroll-contain"
-          >
-            {/* ── Masthead: identity, money, blockers ─────────────────
-                On a desktop, deliberately outside the scroll region. An
-                agent mid-call must be able to read the name and number back
-                while scrolling a long receipt. max-h is a backstop only — it
-                should never engage now that the carrier blocks live in the
-                Livraison tab. */}
-            <div className="flex flex-shrink-0 flex-col lg:max-h-[50%] lg:overflow-y-auto">
-              {/* ── Customer hero ── */}
+          {order && (
+            /* The one scroll region: client, facts, the tab strip (sticky) and
+               the pane all scroll together, as in the prototype. */
+            <div className="dr-body" data-testid="panel-scroll">
               <div ref={nameFieldRef}>
                 <CustomerHero
                   name={order.customer_name}
                   phone={order.customer_phone}
                   phone2={order.customer_phone_2}
                   terminal={TERMINAL_STATUSES.has(order.status)}
-                  reliability={customerStats}
+                  reliability={reliability}
                   canEdit={canEdit}
-                  isLibyaOrder={isLibyaOrder}
                   onCommitName={(v) => runCommit({ customer_name: v })}
                   onCommitPhone={(v) => runCommit({ customer_phone: v.trim() })}
                   onCommitPhone2={(v) => runCommit({ customer_phone_2: v })}
-                  onCopyPhone={() => { void handleCopyPhone(); }}
+                  onCopyPhone={() => {
+                    void handleCopyPhone();
+                  }}
                   phoneCopied={phoneCopied}
                   whatsappState={whatsappState}
                   whatsappUnread={whatsappUnread}
@@ -1467,287 +1446,244 @@ export function OrderDetailPanel({
                   validatePhone={(v) => {
                     const trimmed = v.trim();
                     if (trimmed === "") return t("invalidPhone");
-                    if (isLibyaOrder && !isValidLibyanPhone(trimmed))
-                      return t("invalidPhone");
+                    if (isLibyaOrder && !isValidLibyanPhone(trimmed)) return t("invalidPhone");
                     return null;
                   }}
                 />
               </div>
 
-              {/* ── The four facts checked before anything else ──
-                  On a phone the Messages tab needs the height: the prototype
-                  drops the grid there. */}
-              <div className={tab === "messages" ? "max-lg:hidden" : undefined}>
               <OrderFacts
                 total={order.total_price}
                 currencyCode={displayCurrency}
+                // Same list the receipt renders, so the count and the receipt agree.
+                itemCount={orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0)}
                 city={order.customer_city}
                 address={order.customer_address}
-                // Same list the receipt renders, so the count and the receipt
-                // can never disagree.
-                itemCount={orderItems.length}
-                agentName={order.assigned_agent_name ?? null}
+                note={order.customer_note}
+                agent={order.assigned_to ? { id: order.assigned_to, name: order.assigned_agent_name ?? "—" } : null}
                 carrierName={assignedCarrierName}
-                onResolveCity={canEdit ? resolveCity : undefined}
+                store={store}
+                canEdit={canEdit}
+                isLibyaOrder={isLibyaOrder}
+                darbDestinations={darbHasIds ? darbDestinations : []}
+                darbDestinationId={order.darb_destination_id ?? null}
+                loadCities={loadCities}
+                onCommitAddress={(v) => runCommit({ customer_address: v })}
+                onCommitCity={(id) => runCommit({ city_id: id })}
+                onCommitDarbDestination={(id) => runCommit({ darb_destination_id: id })}
+                onCommitNote={(v) => runCommit({ customer_note: v })}
               />
+
+              <PanelTabs active={tab} onChange={setTab} showMessages={whatsappKnown} messagesCount={whatsappUnread} />
+
+              <div role="tabpanel" hidden={tab !== "items"} className="pane">
+                {/* Product must-know + catalogue mismatches. */}
+                <ProductBriefBanner
+                  brief={productSheet.data?.product?.agent_brief ?? null}
+                  tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
+                  checks={productSheet.data?.checks ?? []}
+                  onOpenSheet={() => openProductSheet()}
+                />
+                <OrderItemsCard
+                  items={orderItems}
+                  currentProductId={order.product_id}
+                  products={productsData?.data ?? []}
+                  variantOptions={variantOptions}
+                  loadProducts={loadProducts}
+                  deliveryFee={order.delivery_fee ?? 0}
+                  cardPayment={order.card_payment}
+                  grandTotal={order.total_price}
+                  displayCurrency={displayCurrency}
+                  canEdit={canEdit}
+                  isLibyaOrder={isLibyaOrder}
+                  onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
+                  onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
+                  onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
+                  onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
+                  onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
+                  onDeleteItem={(itemId) => runItemDelete(itemId)}
+                  onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
+                  onOpenProductSheet={(productId) => openProductSheet(productId)}
+                  renderAddProduct={() => (
+                    <>
+                      <AddProductTrigger
+                        orderId={order.id}
+                        marketId={order.market_id}
+                        currentItemIds={orderItems.map((it) => it.product_id)}
+                        open={addProductOpen}
+                        onOpenChange={setAddProductOpen}
+                        onAdded={() => {}}
+                        label={t("addProduct")}
+                      />
+                      {/* The basket split: the same customer ordered another
+                          product separately. The merge panel decides whether
+                          the market has merging on and lists the candidates. */}
+                      <button type="button" className="btn2" onClick={() => setMergeOpen(true)}>
+                        <Ic n="merge" />
+                        {tMerge("action")}
+                      </button>
+                    </>
+                  )}
+                />
               </div>
 
-            </div>
-
-            <PanelTabs
-              active={tab}
-              onChange={setTab}
-              historyCount={order.history?.length ?? 0}
-              showMessages={whatsappKnown}
-              messagesCount={whatsappUnread}
-            />
-
-            {/* ── The only scrolling region on a desktop ──────────── */}
-            <div className="flex flex-1 flex-col lg:min-h-0 lg:overflow-y-auto">
-                <div role="tabpanel" hidden={tab !== "items"}>
-                  <div className="flex flex-col">
-                  {/* ── Product must-know + catalogue mismatches ── */}
-                  <div className="empty:hidden [&>*]:mx-[18px] [&>*]:mt-3 max-lg:[&>*]:mx-3.5">
-                  <ProductBriefBanner
-                    brief={productSheet.data?.product?.agent_brief ?? null}
-                    tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
-                    checks={productSheet.data?.checks ?? []}
-                    onOpenSheet={() => openProductSheet()}
-                  />
-                  </div>
-
-                  <OrderItemsCard
-                        items={orderItems}
-                        currentProductId={order.product_id}
-                        products={productsData?.data ?? []}
-                        variantOptions={variantOptions}
-                        loadProducts={loadProducts}
-                        deliveryFee={order.delivery_fee ?? 0}
-                        cardPayment={order.card_payment}
-                        grandTotal={order.total_price}
-                        displayCurrency={displayCurrency}
-                        canEdit={canEdit}
-                        isLibyaOrder={isLibyaOrder}
-                        saveError={saveError}
-                        onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
-                        onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
-                        onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
-                        onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
-                        onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
-                        onDeleteItem={(itemId) => runItemDelete(itemId)}
-                        onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
-                        onOpenProductSheet={(productId) => openProductSheet(productId)}
-                        renderAddProduct={() => (
-                          <>
-                            <AddProductTrigger
-                              orderId={order.id}
-                              marketId={order.market_id}
-                              currentItemIds={orderItems.map((it) => it.product_id)}
-                              open={addProductOpen}
-                              onOpenChange={setAddProductOpen}
-                              onAdded={() => {}}
-                              label={t("addProduct")}
-                            />
-                            {/*
-                              The basket split: the same customer ordered another
-                              product separately. The panel itself decides whether
-                              the market has merging switched on, and lists the
-                              candidates — so this is just the way in.
-                            */}
-                            {canEdit && (
-                              <button
-                                type="button"
-                                onClick={() => setMergeOpen(true)}
-                                className="flex h-[38px] w-full items-center justify-center gap-2 rounded-[8px] border border-oms-border-strong bg-oms-surface text-[14px] font-semibold text-oms-ink-1 transition-colors duration-fast hover:bg-oms-sunken"
-                              >
-                                <Merge size={16} strokeWidth={2} aria-hidden="true" />
-                                {tMerge("action")}
-                              </button>
-                            )}
-                          </>
-                        )}
-                  />
-                  </div>
-                </div>
-
-                <div role="tabpanel" hidden={tab !== "shipping"}>
-                  <div className="flex flex-col gap-3 p-[18px] max-lg:p-3.5">
-                  {/* Delivery facts — address, city, carrier, tracking, note */}
-                  <CustomerCard
-                    address={order.customer_address}
-                    city={order.customer_city}
-                    note={order.customer_note}
-                    carrierName={assignedCarrierName}
-                    trackingNumber={order.tracking_number}
-                    canEdit={canEdit}
-                    isLibyaOrder={isLibyaOrder}
-                    darbDestinations={darbHasIds ? darbDestinations : []}
-                    darbDestinationId={order.darb_destination_id ?? null}
-                    loadCities={loadCities}
-                    onCommitAddress={(v) => runCommit({ customer_address: v })}
-                    onCommitCity={(id) => runCommit({ city_id: id })}
-                    onCommitDarbDestination={(id) => runCommit({ darb_destination_id: id })}
-                    onCommitNote={(v) => runCommit({ customer_note: v })}
-                    saveError={saveError}
-                  />
-
-                  {/* Carrier-side detail lives with the delivery it describes,
-                      not above the customer's name where it used to sit. */}
-                  {deleteFeedback && (
-                    <div
-                      role={deleteFeedback.kind === "success" ? "status" : "alert"}
-                      className={[
-                        "rounded-[10px] border px-3 py-2 text-[12px]",
-                        deleteFeedback.kind === "success"
-                          ? "border-oms-ok/25 bg-oms-ok-bg text-oms-ok"
-                          : deleteFeedback.kind === "warning"
-                            ? "border-oms-warn/25 bg-oms-warn-bg text-oms-warn"
-                            : "border-oms-bad/25 bg-oms-bad-bg text-oms-bad",
-                      ].join(" ")}
-                    >
-                      {deleteFeedback.kind === "success"
-                        ? t("deleteBarcodeSuccess")
-                        : deleteFeedback.message}
+              <div role="tabpanel" hidden={tab !== "shipping"} className="pane">
+                {order.tracking_number ? (
+                  <div className="trk h-teal">
+                    <span className="hold">
+                      <Ic n="truck" />
+                    </span>
+                    <div>
+                      <small>{t("trackingOf", { carrier: assignedCarrierName ?? "—" })}</small>
+                      <b>{order.tracking_number}</b>
                     </div>
-                  )}
-                  <TrackingBarcode
-                    value={order.tracking_number}
-                    onDelete={
-                      canDeleteCarrierBarcode ? handleDeleteCarrierBarcode : undefined
-                    }
-                  />
-                  {/* OMS-side progress first: where the parcel is and how long
-                      each leg took. The carrier blocks below say whatever the
-                      carrier portal last said, which is a different question. */}
-                  <TrackingSection orderId={order.id} status={order.status} />
-
-                  <DexpressStatusSection
-                    orderId={order.id}
-                    enabled={dexpressEligible}
-                    role={role}
-                  />
-                  <DarbStatusSection orderId={order.id} enabled={darbEligible} />
-
+                    <button type="button" className="mini" onClick={() => void copyTracking()} aria-label={t("copyTracking")}>
+                      <Ic n="copy" />
+                    </button>
                   </div>
-                </div>
-
-                <div role="tabpanel" hidden={tab !== "history"}>
-                  <div className="flex flex-col gap-3 p-[18px] max-lg:p-3.5">
-                    <HistoryTimeline
-                      entries={order.history}
-                      historyLocale={historyLocale === "ar" ? "ar" : "fr"}
-                    />
-                  </div>
-                </div>
-
-                {whatsappKnown && (
-                  <div role="tabpanel" hidden={tab !== "messages"} className="flex min-h-full flex-col bg-[#F9FAFB]">
-                    <div className="flex-1">
-                      <MessageThread
-                        messages={whatsappThread.thread?.messages ?? []}
-                        conversation={whatsappThread.thread?.conversation ?? null}
-                        onRetry={whatsappActive ? (m) => void whatsappThread.retry(m) : undefined}
-                      />
+                ) : (
+                  <div className="reco h-teal">
+                    <span className="hold">
+                      <Ic n="truck" />
+                    </span>
+                    <div>
+                      <b>{t("notAtCarrier")}</b>
+                      <small>{cityMissing ? t("recoNoCity") : t("trackingPending")}</small>
                     </div>
-                    <WhatsAppComposer
-                      className="sticky bottom-0"
-                      target={{ order_id: order.id }}
-                      thread={whatsappThread.thread}
-                      loadError={Boolean(whatsappThread.error)}
-                      fallbackHref={whatsappFallbackHref}
-                      templates={whatsappTemplates}
-                      variables={resolveOrderVariables({
-                        order_number: order.external_id,
-                        customer_name: order.customer_name,
-                        customer_address: order.customer_address,
-                        customer_city: order.customer_city,
-                        product_name: order.product_name,
-                        total_price: order.total_price,
-                        currency: displayCurrency,
-                        tracking_number: order.tracking_number,
-                        carrier_name: assignedCarrierName,
-                        agent_name: order.assigned_agent_name ?? null,
-                      })}
-                      defaultLanguage={isLibyaOrder ? "ar" : "fr"}
-                      templateSet="agent"
-                      onThreadChanged={() => void whatsappThread.mutate()}
-                      onCall={() => {
-                        window.location.href = `tel:${order.customer_phone}`;
-                      }}
-                    />
                   </div>
                 )}
+                <TrackingBarcode
+                  value={order.tracking_number}
+                  onDelete={canDeleteCarrierBarcode ? handleDeleteCarrierBarcode : undefined}
+                />
+                {/* Ordra's own reading of the parcel's progress first; the
+                    carrier blocks below say what the carrier portal last said. */}
+                <TrackingSection orderId={order.id} status={order.status} marketId={order.market_id} />
+                <DexpressStatusSection orderId={order.id} enabled={dexpressEligible} role={role} />
+                <DarbStatusSection orderId={order.id} enabled={darbEligible} />
+              </div>
 
+              <div role="tabpanel" hidden={tab !== "history"} className="pane">
+                <HistoryTimeline entries={order.history} historyLocale={locale === "ar" ? "ar" : "fr"} />
+              </div>
+
+              {whatsappKnown && (
+                <div role="tabpanel" hidden={tab !== "messages"} className="pane msgs">
+                  <div className="odp-thread">
+                    <MessageThread
+                      messages={whatsappThread.thread?.messages ?? []}
+                      conversation={whatsappThread.thread?.conversation ?? null}
+                      onRetry={whatsappActive ? (m) => void whatsappThread.retry(m) : undefined}
+                    />
+                  </div>
+                  <WhatsAppComposer
+                    className="sticky bottom-0"
+                    target={{ order_id: order.id }}
+                    thread={whatsappThread.thread}
+                    loadError={Boolean(whatsappThread.error)}
+                    fallbackHref={whatsappFallbackHref}
+                    templates={whatsappTemplates}
+                    variables={resolveOrderVariables({
+                      order_number: order.external_id,
+                      customer_name: order.customer_name,
+                      customer_address: order.customer_address,
+                      customer_city: order.customer_city,
+                      product_name: order.product_name,
+                      total_price: order.total_price,
+                      currency: displayCurrency,
+                      tracking_number: order.tracking_number,
+                      carrier_name: assignedCarrierName,
+                      agent_name: order.assigned_agent_name ?? null,
+                    })}
+                    defaultLanguage={isLibyaOrder ? "ar" : "fr"}
+                    templateSet="agent"
+                    onThreadChanged={() => void whatsappThread.mutate()}
+                    onCall={() => {
+                      window.location.href = `tel:${order.customer_phone}`;
+                    }}
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── Reopen warning ─────────────────────────────────────── */}
-        {reopenWarning && (
-          <div className="flex-shrink-0 flex items-start gap-2 px-4 py-2.5 bg-status-warningBg border-t border-status-warning/30 text-[12px] text-status-warning">
-            <AlertTriangle size={13} strokeWidth={2} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <span>{t("reopenWarning")}</span>
-          </div>
-        )}
-
-        {/* ── Upload feedback strip ──────────────────────────────── */}
-        {uploadFeedback && (
-          <div
-            role="status"
-            className={[
-              "flex-shrink-0 mx-4 mt-2 rounded-card px-3 py-2 text-[12px] border",
-              uploadFeedback.kind === "success"
-                ? "bg-status-successBg border-status-success/30 text-status-success"
-                : "bg-status-criticalBg border-status-critical/30 text-status-critical",
-            ].join(" ")}
-          >
-            {uploadFeedback.kind === "success"
-              ? t("uploadCarrierSuccess", { tracking: uploadFeedback.tracking })
-              : t("uploadCarrierError", { error: uploadFeedback.message })}
-          </div>
-        )}
-
-        {/* ── Recover error strip ────────────────────────────────── */}
-        {recoverError && (
-          <div
-            role="alert"
-            className="flex-shrink-0 mx-4 mt-2 rounded-card px-3 py-2 text-[12px] border bg-status-criticalBg border-status-critical/30 text-status-critical"
-          >
-            {recoverError}
-          </div>
-        )}
-
-        {/* ── Blockers, directly above the buttons they block ──────
-            They used to sit under the facts grid, three scroll-lengths from
-            the footer. A warning about why the shipment cannot go out belongs
-            next to the control that would send it, not at the top of a panel
-            the agent has already scrolled past. */}
-        {order && (
-          <div className="flex-shrink-0">
-            <AlertBanners
-              locale={locale === "ar" ? "ar" : "fr"}
-              editBlocked={!canEdit && !canReopen}
-              callbackScheduledAt={
-                order.status === "callback_scheduled" ? order.callback_scheduled_at : null
-              }
-              dispatchScheduledAt={isDispatchScheduled ? order.scheduled_dispatch_at : null}
-              dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
-              cancelingSchedule={cancelingSchedule}
+          {/* The agent: the result line, the notes, then the step or the four endings. */}
+          {order && agentMode && (
+            <AgentOrderEndings
+              order={{
+                id: order.id,
+                status: order.status,
+                marketId: order.market_id,
+                attempts: agentAttempts,
+                currency: order.currency,
+                twin: agentTwin,
+              }}
+              maxAttempts={agentMax}
+              initialTray={initialTray ?? null}
+              onDone={agentDone}
+              status={order.status}
+              phone={agentPhone}
+              covered={agentCovered}
+              notes={agentNoteList}
+              twin={agentTwin}
+              callbackAt={order.callback_scheduled_at}
+              dispatchAt={order.scheduled_dispatch_at}
+              extra={extraNotes}
+              canReopen={panelActions.primary.kind === "reopen"}
+              canDeleteBarcode={canDeleteCarrierBarcode}
+              canReturnToPool={canReturnToPool}
+              pending={reopening || returningToPool || cancelingSchedule || recovering}
+              echo={{
+                name: order.customer_name,
+                phone: order.customer_phone,
+                productName: orderItems[0]?.product_name ?? order.product_name,
+                imageUrl: null,
+                quantity: orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0),
+                total: order.total_price,
+              }}
+              when={(iso) => agentWhen(iso)}
+              onClose={onClose}
+              onReopen={() => setReopenModalOpen(true)}
+              onDeleteBarcode={() => void handleDeleteCarrierBarcode()}
               onCancelSchedule={handleCancelSchedule}
+              onReturnToPool={() => void handleReturnToPool()}
             />
-          </div>
-        )}
+          )}
 
-        {/* ── Action footer ──────────────────────────────────────── */}
-        {order && (
-          <ActionFooter
-            actions={panelActions}
-            primaryPending={reopening || returningToPool || cancelingSchedule || recovering}
-            onInvoke={invokeAction}
-            showNavHint={variant === "side"}
-            feedbackHint={feedback.enabled}
-          />
-        )}
+          {/* The manager: their own footer, with the agent's steps for the call results (no more PostCallActionSheet). */}
+          {order && !agentMode && (
+            <ManagerEndings
+              order={{ id: order.id, status: order.status, marketId: order.market_id, attempts: order.attempts_count ?? 0, currency: order.currency, twin: null }}
+              maxAttempts={maxCallAttempts ?? Number.POSITIVE_INFINITY}
+              phone={agentPhone}
+              locale={locale}
+              echo={{
+                name: order.customer_name,
+                phone: order.customer_phone,
+                productName: orderItems[0]?.product_name ?? order.product_name,
+                imageUrl: null,
+                quantity: orderItems.reduce((n, it) => n + (Number(it.quantity) || 0), 0),
+                total: order.total_price,
+              }}
+              actions={panelActions}
+              pending={reopening || returningToPool || cancelingSchedule || recovering}
+              banners={
+                <AlertBanners
+                  notes={notes}
+                  extra={extraNotes}
+                  marketId={order.market_id}
+                  callbackScheduledAt={order.callback_scheduled_at}
+                  dispatchScheduledAt={order.scheduled_dispatch_at}
+                  dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
+                />
+              }
+              showNavHint={variant === "side"}
+              feedbackHint={feedback.enabled}
+              onDone={agentDone}
+              onInvoke={invokeAction}
+            />
+          )}
+        </aside>
       </div>
 
       {scheduleDispatchOpen && order && (
@@ -2017,11 +1953,10 @@ function AddProductTrigger({
         onClick={() => onOpenChange(!open)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        // One of the two ways to change what was ordered; they read as a pair
-        // under the receipt, at the capture's width and weight.
-        className="flex h-[38px] w-full items-center justify-center gap-2 rounded-[8px] border border-oms-border-strong bg-oms-surface text-[14px] font-semibold text-oms-ink-1 transition-colors duration-fast hover:bg-oms-sunken"
+        // One of the two ways to change what was ordered (prototype .pane-acts).
+        className="btn2"
       >
-        <Plus size={16} strokeWidth={2} aria-hidden="true" />
+        <Ic n="plus" />
         {label}
       </button>
       {open && (

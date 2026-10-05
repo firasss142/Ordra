@@ -71,7 +71,7 @@ export function CompareView({ scorecard, locale, marketCode, period, now, onPeri
   const chip = (c: ScorecardCarrier, color: string, name: string, side: "a" | "b") => (
     <div style={{ "--c": color } as CSSProperties}
       className={`flex min-w-0 items-center gap-[11px] rounded-[12px] bg-[var(--c)] px-[14px] py-[11px] text-white ${side === "a" ? "min-[900px]:flex-row-reverse min-[900px]:text-end" : ""}`}>
-      <CarrierLogo code={c.code} name={name} size={36} radius={10} />
+      <CarrierLogo logoUrl={c.logo_url} code={c.code} name={name} size={36} radius={10} />
       <div className="min-w-0">
         <b className="block text-[16px] font-[650] leading-[1.2]">{name}</b>
         <span className="text-[12px] opacity-[.88]">{t("city.colis", { n: fmtInt(locale, c.period.sent) })} · {carrierSubtitle(c, marketCode, t)}</span>

@@ -148,7 +148,15 @@ export function CodeChip({ code, active = false }: { code: string; active?: bool
 }
 
 /** Shop / carrier / site mark: a neutral 30px square. */
-export function Mark({ children, size = 30 }: { children: ReactNode; size?: number }) {
+export function Mark({ children, size = 30, src }: { children: ReactNode; size?: number; /** An uploaded logo; the letters/icon stay the fallback. */ src?: string | null }) {
+  if (src) {
+    return (
+      <span style={{ width: size, height: size }} className="grid flex-none place-items-center overflow-hidden rounded-[7px] border border-line-subtle bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element -- no images.remotePatterns configured */}
+        <img src={src} alt="" className="h-full w-full object-contain" />
+      </span>
+    );
+  }
   return (
     <span
       style={{ width: size, height: size }}

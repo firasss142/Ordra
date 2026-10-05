@@ -11,6 +11,8 @@ export interface ShopRow {
   platform: string;
   is_active: boolean;
   auth_mode?: string | null;
+  /** Uploaded logo (public URL); null = the platform's two letters. */
+  logo_url?: string | null;
   /** For a Google Sheets shop: `{ spreadsheet_id, sheet_name }`. */
   config?: Record<string, unknown> | null;
 }

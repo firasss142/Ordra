@@ -131,6 +131,11 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
     show({ message: t("warehouse.saved") });
   };
 
+  const setPhoto = async (u: UserWithStats, dataUrl: string | null) => {
+    // Throws on failure: the picker shows the error under the photo.
+    await ws.updateAvatar(u.id, dataUrl);
+  };
+
   const ctx: RowContext = {
     now,
     showMarket: admin,
@@ -231,6 +236,7 @@ export function UsersPageClient({ user }: { user: AuthUser }) {
           onClose={closeFile}
           onAction={(action) => void act(openUser, action)}
           onSetWarehouse={(wid) => setWarehouse(openUser, wid)}
+          onSetPhoto={(dataUrl) => setPhoto(openUser, dataUrl)}
         />
       )}
 

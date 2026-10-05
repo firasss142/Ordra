@@ -3,7 +3,7 @@ import {
   Archive,
   BarChart3,
   Boxes,
-  CopyCheck,
+  Repeat,
   Filter,
   HandCoins,
   Headset,
@@ -106,7 +106,7 @@ export const NAV_GROUPS: readonly NavGroupDef[] = [
     items: [
       { key: "orders", href: "orders", icon: Inbox, prefetchRoute: "orders", badge: "unassigned" },
       { key: "archived", href: "orders/archive", icon: Archive, prefetchRoute: "orders" },
-      { key: "duplicates", href: "orders/duplicates", icon: CopyCheck, prefetchRoute: "orders" },
+      { key: "duplicates", href: "orders/duplicates", icon: Repeat, prefetchRoute: "orders" },
     ],
   },
   {
