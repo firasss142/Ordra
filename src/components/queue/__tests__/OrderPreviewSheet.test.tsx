@@ -74,7 +74,7 @@ describe("OrderPreviewSheet", () => {
   it("says why it is read-only and whose order it is", async () => {
     respond(200, { data: preview() });
     renderSheet();
-    expect(await screen.findByText(/cette commande n'est pas dans votre file/)).toBeDefined();
+    expect(await screen.findByText(/n'est pas dans votre file/)).toBeDefined();
     expect(screen.getByText("Chez Walid")).toBeDefined();
     expect(screen.getAllByText("Lecture seule").length).toBeGreaterThan(0);
   });
@@ -98,14 +98,14 @@ describe("OrderPreviewSheet", () => {
     expect(items[1].textContent).toContain("Système");
   });
 
-  it("has nothing to edit and no action but copying the reference", async () => {
+  it("has nothing to edit — its actions are copying the reference and taking the order", async () => {
     respond(200, { data: preview() });
     renderSheet();
     await screen.findByText("Hèla Ben Salah");
     const dialog = screen.getByRole("dialog");
     expect(dialog.querySelectorAll("input, textarea, select")).toHaveLength(0);
     const buttons = within(dialog).getAllByRole("button").map((b) => b.textContent?.trim() || b.getAttribute("aria-label"));
-    expect(buttons.sort()).toEqual(["Copier la référence", "Fermer", "Fermer"].sort());
+    expect(buttons.sort()).toEqual(["Copier la référence", "Fermer", "Fermer", "Prendre la commande"].sort());
   });
 
   it("copies the reference for the manager", async () => {

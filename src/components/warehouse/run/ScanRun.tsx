@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
 import { jsonFetcher } from "@/lib/fetchers";
+import { zoneLabels } from "@/lib/carriers/darb-zones";
 import { bucketize, type Bucket, type RunMode, type RunRow } from "@/lib/warehouse/scan-buckets";
 import { useElapsed } from "@/hooks/useElapsed";
 import { RollBand } from "./RollBand";
@@ -13,6 +13,7 @@ import { RunSetup } from "./RunSetup";
 import { RunParcel } from "./RunParcel";
 import { RunScanner } from "./RunScanner";
 import { RunSummary, type RunTally } from "./RunSummary";
+import { DeskPage, Ic, Pill, Thumb } from "@/components/warehouse/desk/ui";
 
 /**
  * A scan run: decide once what you are holding, then work the batch.
@@ -30,10 +31,16 @@ import { RunSummary, type RunTally } from "./RunSummary";
  * WHAT IT REFUSES TO DO. No streaks, no personal bests, no score. The figures
  * on the summary are the four the run actually measured. A warehouse screen
  * that invents a number is one an agent stops believing, and this one carries
- * an act that moves stock.
+ * an act that moves stock. The track under the header is the same honesty
+ * drawn: one mark per parcel of the batch, green once it has left.
+ *
+ * Aurore since 2026-10-05 (the desk's .ent kit), one centred column on every
+ * screen: it is a sequence of single questions, not a dashboard.
  */
 
 const QUEUE_KEY = "/api/warehouse/to-label?limit=200";
+/** Past this many parcels the track is a bar: forty marks still read, a hundred do not. */
+const TRACK_MARKS_MAX = 40;
 const STATE_KEY = "wh.run";
 const MODE_KEY = "wh.run.mode";
 
@@ -84,6 +91,7 @@ export function ScanRun({
   currency,
   initialOrders,
   siteName,
+  siteId = null,
   siteUnassigned,
   initialRoll,
 }: {
@@ -92,6 +100,8 @@ export function ScanRun({
   currency: string;
   initialOrders: RunRow[];
   siteName?: string | null;
+  /** The building chosen on Sortir; the run keeps to its parcels. */
+  siteId?: string | null;
   siteUnassigned?: boolean;
   /**
    * The roll chosen with « Commencer » on Sortir (`?roll=#hex`). The agent has
@@ -103,7 +113,7 @@ export function ScanRun({
   const t = useTranslations("warehouse.run");
   const router = useRouter();
 
-  const { data, mutate } = useSWR<QueuePage>(QUEUE_KEY, jsonFetcher, {
+  const { data, mutate } = useSWR<QueuePage>(`${QUEUE_KEY}${siteId ? `&warehouse_id=${siteId}` : ""}`, jsonFetcher, {
     fallbackData: { orders: initialOrders },
     revalidateOnFocus: true,
   });
@@ -237,8 +247,11 @@ export function ScanRun({
   const inQueue = current ? queue.findIndex((r) => r.id === current.id) : -1;
   // A parcel already bound is no longer IN the queue but is still the one being
   // read, so it counts as the position just past the ones that remain.
-  const position = current ? (inQueue >= 0 ? inQueue + 1 : queue.length + 1) : 0;
-  const total = Math.max(queue.length, position);
+  // A parcel just bound has left the queue but is still the one on screen: it
+  // stays at the front until the agent moves on, or the counter would jump to
+  // « 16 / 16 » while they read the sticker number.
+  const position = current ? (inQueue >= 0 ? inQueue + 1 : 1) : 0;
+  const total = inQueue >= 0 ? Math.max(queue.length, position) : queue.length + 1;
 
   useEffect(() => {
     // Before the restore lands the state is still the empty default; writing it
@@ -370,8 +383,8 @@ export function ScanRun({
 
   const exit = useCallback(() => {
     writeState(null);
-    router.push(`/${locale}/warehouse/out`);
-  }, [router, locale]);
+    router.push(`/${locale}/warehouse/out${siteId ? `?warehouse_id=${siteId}` : ""}`);
+  }, [router, locale, siteId]);
 
   const changeMode = useCallback(() => {
     setBucketKey(null);
@@ -393,25 +406,25 @@ export function ScanRun({
    * be shown both warehouses' parcels and refused at every scan; the screen
    * names the reason rather than offering a camera that cannot work.
    */
+  const nextUp = current ? queue.filter((r) => r.id !== current.id && !skipped.includes(r.id))[0] ?? null : null;
+
   if (siteUnassigned) {
     return (
-      <div className="px-4 py-4">
+      <RunFrame>
         <RunChrome onExit={exit} title={t("title")} />
-        <div
-          data-testid="wh-run-no-site"
-          className="mt-4 rounded-[14px] border border-wm-card-edge bg-wm-card px-4 py-6 text-center"
-        >
-          <p className="text-[16px] font-bold text-wm-ink">{t("noSiteTitle")}</p>
-          <p className="mt-2 text-[14px] leading-relaxed text-wm-ink-2">{t("noSiteBody")}</p>
+        <div data-testid="wh-run-no-site" className="card empty run-empty">
+          <Ic n="alert" />
+          <b>{t("noSiteTitle")}</b>
+          <span>{t("noSiteBody")}</span>
         </div>
-      </div>
+      </RunFrame>
     );
   }
 
   if (done && bucket) {
     return (
-      <div>
-        <RunChrome onExit={exit} title={t("title")} subtitle={siteName ?? undefined} />
+      <RunFrame>
+        <RunChrome onExit={exit} title={bucketTitle(bucket)} hex={bucket.hex} subtitle={siteName ?? undefined} tally={tally} />
         <RunSummary
           tally={tally}
           duration={elapsed}
@@ -420,114 +433,175 @@ export function ScanRun({
           onChangeMode={changeMode}
           onExit={exit}
         />
-      </div>
+      </RunFrame>
     );
   }
 
   if (!bucket || !current) {
     return (
-      <div>
+      <RunFrame>
         <RunChrome onExit={exit} title={t("title")} subtitle={siteName ?? undefined} />
         {live.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[15px] text-wm-ink-2">{t("empty")}</p>
+          <div className="card empty run-empty">
+            <Ic n="check" />
+            <b>{t("empty")}</b>
+            <button type="button" className="btn" onClick={exit}>{t("backToBench")}</button>
+          </div>
         ) : (
           <RunSetup market={market} mode={mode} buckets={buckets} onMode={pickMode} onPick={pickBucket} />
         )}
-      </div>
+      </RunFrame>
     );
   }
 
   return (
-    <div>
+    <RunFrame>
       <RunChrome
         onExit={exit}
-        title={bucket.kind === "mixed" ? t("mixed") : bucket.label || t("title")}
+        title={bucketTitle(bucket)}
+        hex={bucket.hex}
+        image={bucket.kind === "product" ? bucket.imageUrl : null}
+        seed={bucket.key}
         subtitle={siteName ?? undefined}
         progress={t("progress", { done: position, total })}
         progressLabel={t("progressLabel", { done: position, total })}
         elapsed={t("elapsed", { time: elapsed })}
         tally={tally}
+        track={{ bound: tally.bound, total: tally.bound + queue.length, at: inQueue >= 0 ? tally.bound + inQueue + 1 : tally.bound }}
+        onChangeMode={changeMode}
       />
 
-      <div className="mx-auto w-full max-w-[640px] px-4 pb-8">
-        {market === "ly" ? (
-          <div className="mb-3">
-            <RollBand zone={current.zone} />
-          </div>
-        ) : null}
+      {market === "ly" ? <RollBand zone={current.zone} /> : null}
 
-        {armed ? (
-          <RunScanner
-            market={market}
-            row={current}
-            hex={market === "ly" ? current.zone.colorHex : null}
-            onBound={onBound}
-            onUnresolved={onUnresolved}
-            onNext={advance}
-            onSkip={skip}
-          />
-        ) : (
-          <RunParcel row={current} currency={currency} onConfirm={() => setArmed(true)} onSkip={skip} />
-        )}
-      </div>
-    </div>
+      {armed ? (
+        <RunScanner
+          market={market}
+          row={current}
+          hex={market === "ly" ? current.zone.colorHex : null}
+          onBound={onBound}
+          onUnresolved={onUnresolved}
+          onNext={advance}
+          onSkip={skip}
+        />
+      ) : (
+        <RunParcel row={current} currency={currency} next={nextUp} onConfirm={() => setArmed(true)} onSkip={skip} />
+      )}
+    </RunFrame>
+  );
+
+  function bucketTitle(b: Bucket): string {
+    if (b.kind === "mixed") return t("mixed");
+    if (b.kind === "zone_unknown") return market === "ly" ? t("unknownZone") : t("unknownZoneTn");
+    if (b.kind === "zone" && b.hex) return t("rollTitle", { colour: zoneLabels(b.hex, locale).colour ?? b.label });
+    return b.label || t("title");
+  }
+}
+
+/** The run's page: the desk's aurora, one centred column. */
+function RunFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <DeskPage>
+      <div className="run">{children}</div>
+    </DeskPage>
   );
 }
 
-/** The run's own chrome: it replaces the shell, so it carries the way out. */
+/** The run's own header: the way out, what is in hand, where the batch stands. */
 function RunChrome({
   onExit,
   title,
+  hex,
+  image,
+  seed,
   subtitle,
   progress,
   progressLabel,
   elapsed,
   tally,
+  track,
+  onChangeMode,
 }: {
   onExit: () => void;
   title: string;
+  hex?: string | null;
+  image?: string | null;
+  seed?: string;
   subtitle?: string;
   progress?: string;
   progressLabel?: string;
   elapsed?: string;
   tally?: RunTally;
+  /** Parcels bound so far, the batch size, and the 1-based position in hand. */
+  track?: { bound: number; total: number; at: number };
+  onChangeMode?: () => void;
 }) {
   const t = useTranslations("warehouse.run");
   return (
-    <header className="sticky top-0 z-10 border-b border-wm-card-edge bg-wm-ground/95 px-3 py-2 backdrop-blur">
-      <div className="mx-auto w-full max-w-[640px]">
-      <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          onClick={onExit}
-          aria-label={t("exit")}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-wm-card-edge bg-wm-card text-wm-ink-2"
-        >
-          <X size={20} aria-hidden="true" />
+    <header className="card run-h">
+      <div className="rh-top">
+        <button type="button" className="kb rh-x" onClick={onExit} aria-label={t("exit")}>
+          <Ic n="x" />
         </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-bold leading-tight text-wm-ink">
-            <bdi>{title}</bdi>
-          </p>
-          {subtitle ? <p className="truncate text-[12.5px] text-wm-ink-2">{subtitle}</p> : null}
+        {hex ? (
+          <i className="sw sm" style={{ "--c": hex } as React.CSSProperties} aria-hidden="true" />
+        ) : seed && image !== undefined ? (
+          <Thumb seed={seed} image={image} />
+        ) : (
+          <span className="hold j-out rh-ic"><Ic n="scan" /></span>
+        )}
+        <div className="rh-t">
+          {/* The eyebrow names the run only when the title names the batch. */}
+          {title !== t("title") || subtitle ? (
+            <span className="eb2">
+              {title !== t("title") ? t("title") : null}
+              {title !== t("title") && subtitle ? " · " : null}
+              {subtitle ? <bdi>{subtitle}</bdi> : null}
+            </span>
+          ) : null}
+          <b><bdi>{title}</bdi></b>
         </div>
         {progress ? (
-          <div className="shrink-0 text-end">
-            <p data-testid="wh-run-progress" aria-label={progressLabel} className="text-[17px] font-bold leading-none tabular-nums text-wm-ink">
-              {progress}
-            </p>
-            {elapsed ? <p className="mt-0.5 text-[12px] tabular-nums text-wm-ink-3">{elapsed}</p> : null}
+          <div className="rh-p">
+            <b data-testid="wh-run-progress" aria-label={progressLabel} className="num">{progress}</b>
+            {elapsed ? <small className="num">{elapsed}</small> : null}
           </div>
         ) : null}
       </div>
+      {track ? <Track {...track} /> : null}
       {tally ? (
-        <p data-testid="wh-run-tally" className="mt-1.5 flex flex-wrap gap-x-3 text-[12px] text-wm-ink-2">
-          <span className="text-wh-ok">{t("tallyBound", { n: tally.bound })}</span>
-          {tally.refused > 0 ? <span className="text-wh-bad">{t("tallyRefused", { n: tally.refused })}</span> : null}
-          {tally.skipped > 0 ? <span>{t("tallySkipped", { n: tally.skipped })}</span> : null}
-        </p>
+        <div className="rh-tally">
+          <span data-testid="wh-run-tally" style={{ display: "contents" }}>
+            <Pill hue="h-green" icon="check">{t("tallyBound", { n: tally.bound })}</Pill>
+            {tally.refused > 0 ? <Pill hue="h-red" icon="x">{t("tallyRefused", { n: tally.refused })}</Pill> : null}
+            {tally.skipped > 0 ? <Pill hue="h-neutral" icon="right">{t("tallySkipped", { n: tally.skipped })}</Pill> : null}
+          </span>
+          {onChangeMode ? (
+            <button type="button" className="rh-change" onClick={onChangeMode}>
+              <Ic n="list" />
+              {t("changeMode")}
+            </button>
+          ) : null}
+        </div>
       ) : null}
-      </div>
     </header>
+  );
+}
+
+/** One mark per parcel: left, in hand, still to come. A bar past forty. */
+function Track({ bound, total, at }: { bound: number; total: number; at: number }) {
+  if (total <= 0) return null;
+  if (total > TRACK_MARKS_MAX) {
+    return (
+      <div className="bar run-bar" aria-hidden="true">
+        <i style={{ width: `${Math.round((bound / total) * 100)}%` }} />
+      </div>
+    );
+  }
+  return (
+    <div className="track" aria-hidden="true">
+      {Array.from({ length: total }, (_, i) => (
+        <i key={i} className={i < bound ? "ok" : i === at - 1 ? "now" : ""} />
+      ))}
+    </div>
   );
 }

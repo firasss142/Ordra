@@ -34,7 +34,7 @@ export function AgentAvail({ live, variant }: { live: boolean; variant: "desk" |
   }
   const sub = !on ? t("offSub") : stale ? t("staleSub") : live ? t("onSub") : t("reconnectSub");
   return (
-    <button type="button" className={`avl${on ? " on" : ""}`} role="switch" aria-checked={on} aria-busy={pending} aria-label={t("aria")} onClick={flip} disabled={pending}>
+    <button type="button" className={`avl${on ? " on" : ""}${stale || (on && !live) ? " warn" : ""}`} role="switch" aria-checked={on} aria-busy={pending} aria-label={t("aria")} title={sub} onClick={flip} disabled={pending}>
       <span className={`tog${on ? " on" : ""}`} />
       <span className="avt">
         <b>{word}</b>

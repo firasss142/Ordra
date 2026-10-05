@@ -28,7 +28,7 @@ describe("visibleNav", () => {
       top: ["pulse"],
       groups: [
         ["commandes", ["orders", "archived", "duplicates"]],
-        ["logistique", ["warehouseToday", "warehouseOut", "warehouseReturns", "warehouseStock"]],
+        ["logistique", ["warehouseToday", "warehouseOut", "warehouseReturns", "warehouseReceive", "warehouseStock"]],
         ["livraison", ["deliveryWorklist"]],
         ["performance", ["perfOrders", "perfTeam", "perfDelivery"]],
         ["finances", ["pnl", "productsMargins", "stockInventory", "purchases", "adSpend", "investors"]],
@@ -94,6 +94,7 @@ describe("isNavItemActive", () => {
   it("keeps an item active on the sub-pages it declares", () => {
     expect(isNavItemActive(item("warehouseOut"), "fr", "/fr/warehouse/scan", "")).toBe(true);
     expect(isNavItemActive(item("warehouseStock"), "fr", "/fr/warehouse/count", "")).toBe(true);
+    expect(isNavItemActive(item("warehouseReceive"), "fr", "/fr/warehouse/receive", "")).toBe(true);
     expect(isNavItemActive(item("messages"), "fr", "/fr/messages/templates", "")).toBe(true);
     expect(isNavItemActive(item("reglages"), "fr", "/fr/system/settings/delivery", "")).toBe(true);
   });

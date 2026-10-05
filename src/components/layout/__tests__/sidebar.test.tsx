@@ -137,6 +137,7 @@ describe("Sidebar — what each role sees", () => {
       "/fr/warehouse",
       "/fr/warehouse/out",
       "/fr/warehouse/returns",
+      "/fr/warehouse/receive",
       "/fr/warehouse/stock",
     ]);
   });

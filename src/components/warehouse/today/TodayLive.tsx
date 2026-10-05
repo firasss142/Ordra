@@ -5,7 +5,7 @@ import { jsonFetcher } from "@/lib/fetchers";
 import type { TodayResponse } from "@/app/api/warehouse/today/route";
 import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
 import { TodayHome } from "./TodayHome";
-import { TodayDesk } from "./TodayDesk";
+import { TodayDesk } from "@/components/warehouse/desk/TodayDesk";
 
 /**
  * « Aujourd'hui », live. The server paints the first frame with the same
@@ -19,6 +19,9 @@ export function TodayLive({
   dateLabel,
   warehouseId,
   showPickup,
+  marketCode = null,
+  marketId = null,
+  today = "",
 }: {
   initial: TodayResponse;
   variant: "agent" | "desk";
@@ -28,6 +31,10 @@ export function TodayLive({
   warehouseId: string | null;
   /** The driver switch exists only where Darb collects (Libya). */
   showPickup: boolean;
+  marketCode?: "ly" | "tn" | null;
+  marketId?: string | null;
+  /** The market's local date, YYYY-MM-DD. */
+  today?: string;
 }) {
   const key = `/api/warehouse/today${warehouseId && variant === "desk" ? `?warehouse_id=${warehouseId}` : ""}`;
   const { data } = useSWR<TodayResponse>(key, jsonFetcher, {
@@ -48,12 +55,16 @@ export function TodayLive({
     );
   }
   if (payload.siteUnassigned) return null;
+  // The desk says whether the driver came on each building's card; the switch
+  // itself lives on Sortir only (prototypes/entrepot-desk-v1.html).
   return (
     <TodayDesk
       data={payload}
       locale={locale}
       dateLabel={dateLabel}
-      pickup={showPickup ? <PickupSwitch variant="console" /> : undefined}
+      marketCode={marketCode}
+      marketId={marketId}
+      today={today}
     />
   );
 }

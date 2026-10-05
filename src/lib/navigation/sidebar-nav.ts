@@ -15,6 +15,7 @@ import {
   MessageSquareQuote,
   PackageCheck,
   PackageOpen,
+  PackagePlus,
   PackageSearch,
   Percent,
   PhoneCall,
@@ -118,14 +119,17 @@ export const NAV_GROUPS: readonly NavGroupDef[] = [
     ],
   },
   {
-    // The warehouse day (plans/entrepot-day-loop-redesign.md): Aujourd'hui is the
-    // four jobs; Sortir and Rentrer are worked from; Recevoir and Compter live in Stock.
+    // The warehouse day (plans/entrepot-aurore-redesign.md): Aujourd'hui is the
+    // four jobs; Sortir, Rentrer and Recevoir are worked from; Compter and the
+    // Journal live in Stock. Recevoir was a tab hidden in Stock until 2026-10-05 —
+    // and no reception had ever been settled.
     id: "logistique",
     icon: Warehouse,
     items: [
       { key: "warehouseToday", href: "warehouse", icon: Sun, prefetchRoute: "warehouse" },
       { key: "warehouseOut", href: "warehouse/out", icon: PackageSearch, prefetchRoute: "warehouse", activeOn: ["warehouse/scan"] },
       { key: "warehouseReturns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
+      { key: "warehouseReceive", href: "warehouse/receive", icon: PackagePlus, prefetchRoute: "warehouse" },
       { key: "warehouseStock", href: "warehouse/stock", icon: Boxes, prefetchRoute: "warehouse", activeOn: ["warehouse/stock", "warehouse/count"] },
     ],
   },

@@ -69,7 +69,9 @@ function WarehouseManagerShell({
         currentPath={pathname}
         className="wh-console bg-wh-bg"
         mainClassName="bg-wh-bg"
-        style={{ "--sb-main-pt": "12px" } as React.CSSProperties}
+        // The Aurore desk pages (components/warehouse/desk) paint their own
+        // ground and padding from the very top of the frame.
+        style={{ "--sb-main-pt": "0px" } as React.CSSProperties}
       >
         {children}
       </SidebarFrame>

@@ -11,11 +11,12 @@ import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import { attachProductImages } from "@/lib/warehouse/product-images";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { enrichReturns, type ReturnFacts } from "@/lib/warehouse/returns-enrich";
 
 export const dynamic = "force-dynamic";
 
 export interface ReturnsQueuePage {
-  orders: WarehouseOrderRow[];
+  orders: Array<WarehouseOrderRow & ReturnFacts>;
   nextCursor: string | null;
 }
 
@@ -35,28 +36,72 @@ async function handleGET(req: NextRequest) {
   // it disagreed on screen: "0 dans la file" over fifty Tunisian rows.
   const { marketId: marketScope } = resolveWarehouseScope(req, actor);
 
+  /*
+   * `state=way`: parcels Darb is still bringing back (`returning`) — not
+   * receivable yet, but the desk shows them so a manager knows what is coming.
+   * Default: what Darb holds for us (`to_be_returned`), the receivable queue.
+   */
+  const way = req.nextUrl.searchParams.get("state") === "way";
+  const warehouseId = req.nextUrl.searchParams.get("warehouse_id");
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_to_be_returned_orders", {
-    p_market_id: marketScope,
-    p_limit: limit + 1,
-    p_cursor_created_at: cursor?.timestamp ?? null,
-    p_cursor_id: cursor?.id ?? null,
-  });
 
-  if (error) {
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
+  let raw: Array<Omit<WarehouseOrderRow, "current_stock" | "low_stock_threshold">>;
+  if (way) {
+    let q = supabase
+      .from("orders")
+      .select(
+        "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug",
+      )
+      .eq("status", "returning")
+      .is("archived_at", null)
+      .order("created_at", { ascending: true })
+      .limit(limit + 1);
+    if (marketScope) q = q.eq("market_id", marketScope);
+    const { data, error } = await q;
+    if (error) return NextResponse.json({ error: "db_error" }, { status: 500 });
+    raw = (data ?? []) as unknown as typeof raw;
+  } else {
+    const { data, error } = await supabase.rpc("get_to_be_returned_orders", {
+      p_market_id: marketScope,
+      p_limit: limit + 1,
+      p_cursor_created_at: cursor?.timestamp ?? null,
+      p_cursor_id: cursor?.id ?? null,
+    });
+    if (error) {
+      return NextResponse.json({ error: "db_error" }, { status: 500 });
+    }
+    raw = (data ?? []) as typeof raw;
   }
 
-  const raw = (data ?? []) as Array<
-    Omit<WarehouseOrderRow, "current_stock" | "low_stock_threshold">
-  >;
   const { rows, nextCursor } = buildQueuePageMeta(raw, limit);
-  const pictured = await attachProductImages(supabase, rows);
-  const orders: WarehouseOrderRow[] = pictured.map((o) => ({
+
+  // The building and since when Darb has held it: two reads beside the RPC,
+  // joined in returns-enrich.ts. Neither existed on the row.
+  const ids = rows.map((r) => r.id);
+  const [{ data: meta }, { data: hist }] = ids.length
+    ? await Promise.all([
+        supabase.from("orders").select("id, warehouse_id").in("id", ids),
+        supabase
+          .from("order_history")
+          .select("order_id, created_at")
+          .in("order_id", ids)
+          .eq("status_to", way ? "returning" : "to_be_returned"),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const enriched = enrichReturns(
+    rows,
+    (meta ?? []) as Array<{ id: string; warehouse_id: string | null }>,
+    (hist ?? []) as Array<{ order_id: string; created_at: string }>,
+    new Date(),
+    warehouseId,
+  );
+
+  const pictured = await attachProductImages(supabase, enriched);
+  const orders = pictured.map((o) => ({
     ...o,
     current_stock: null,
     low_stock_threshold: null,
-  }));
+  })) as ReturnsQueuePage["orders"];
 
   const body: ReturnsQueuePage = { orders, nextCursor };
   return NextResponse.json(body, {

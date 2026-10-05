@@ -11,8 +11,9 @@ import {
 } from "react";
 
 /**
- * Shares the agent queue search query between the navbar search bar (rendered
- * in the Topbar) and the QueuePage that does the filtering. Both live under
+ * The agent shell's ONE search query (owner, 2026-10-05: « one unified search bar across all
+ * the agent pages »): the band's field writes it, its drop answers it on every tab, and on
+ * Commandes the list filters by it too. Both live under
  * AgentDashboardShell, so a small context avoids prop-drilling through the
  * shell → tabs container → page chain.
  */
@@ -55,16 +56,17 @@ export function QueueSearchProvider({ children }: { children: ReactNode }) {
 export function useQueueSearch(): QueueSearchContextValue {
   const ctx = useContext(QueueSearchContext);
   const fallbackRef = useRef<HTMLInputElement | null>(null);
-  // Hooks must run unconditionally; keep a stable fallback object.
+  // Without a provider the field still types (its own local query); hooks run unconditionally.
+  const [fallbackQuery, setFallbackQuery] = useState("");
   const fallback = useMemo<QueueSearchContextValue>(
     () => ({
-      query: "",
-      setQuery: noop,
+      query: fallbackQuery,
+      setQuery: setFallbackQuery,
       resultCount: 0,
       setResultCount: noop,
       inputRef: fallbackRef,
     }),
-    [],
+    [fallbackQuery],
   );
   return ctx ?? fallback;
 }
