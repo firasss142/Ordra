@@ -1,10 +1,10 @@
 import type { Role } from "@/types";
 
 /**
- * Gate for the FINANCES section: the P&L, stock-inventory, and ad-spend pages
- * AND their market-level APIs (/api/finance/pnl, /api/finance/stock, /api/ad-spend*,
- * /api/inventory/position). Super-admin only — matches the sidebar's
- * canViewFinances visibility so the page, sidebar, and API agree.
+ * Gate for the owner-only Finances pages: P&L, Stock & inventaire and Dépenses
+ * pub, AND their market-level APIs (/api/finance/pnl, /api/finance/stock,
+ * /api/ad-spend*). Super-admin only — matches the sidebar's visibility so the
+ * page, sidebar, and API agree. Achats has its own gate (canUsePurchases).
  */
 export function canViewFinanceSection(role: Role): boolean {
   return role === "super_admin";
