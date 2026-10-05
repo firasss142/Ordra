@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStoreDash, type BuildInput, type StoreRow } from "../build";
+import { buildStoreDash, summ, type BuildInput, type StoreRow } from "../build";
 import { resolveDashWindow } from "../period";
 import type { StoreOrder } from "../facts";
 
@@ -108,5 +108,21 @@ describe("buildStoreDash", () => {
   it("the owner gets each store's paid amount", () => {
     const v = buildStoreDash(input({ A: [ord({ bk: "d", price: 210 }), ord({ bk: "f", price: 90 })] }));
     expect(v.stores[0].paid).toBe(210);
+  });
+
+  it("a store card carries the shop's uploaded logo, or null for its initials", () => {
+    const v = buildStoreDash(
+      input({ stores: [store("a", { logo_url: "https://x/a.png" }), store("b")], A: [ord({}), ord({ store: "b" })] }),
+    );
+    expect(v.stores.find((s) => s.id === "a")?.logo).toBe("https://x/a.png");
+    expect(v.stores.find((s) => s.id === "b")?.logo).toBeNull();
+  });
+});
+
+describe("summ", () => {
+  it("counts each outcome as parcels, beside its share — the page leads with the count", () => {
+    const s = summ(["d", "d", "f", "x", "j", "c", "u"]);
+    expect(s.k).toEqual({ del: 2, ret: 1, rej: 1, junk: 1, pend: 2 });
+    expect(Object.values(s.k).reduce((a, b) => a + b, 0)).toBe(s.n);
   });
 });

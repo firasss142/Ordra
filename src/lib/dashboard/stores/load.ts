@@ -44,7 +44,7 @@ export async function loadStoreDash(
       ? supabase.rpc("get_product_cohort", { p_market_id: marketId, p_from: from, p_to: to, p_tz: tz, p_product_id: null })
       : Promise.resolve({ data: null, error: null });
 
-  const [aRes, pRes, marketRes, prodRes, caRes, cpRes] = await Promise.all([
+  const [aRes, pRes, marketRes, prodRes, caRes, cpRes, logoRes] = await Promise.all([
     rpc(w0.from, w0.to),
     rpc(w0.pf, w0.pt),
     supabase.from("markets").select("currency").eq("id", marketId).maybeSingle(),
@@ -54,11 +54,14 @@ export async function loadStoreDash(
       .eq("market_id", marketId),
     cohort(w0.from, w0.to),
     cohort(w0.pf, w0.pt),
+    supabase.from("storefronts").select("id, logo_url").eq("market_id", marketId),
   ]);
   const err = aRes.error ?? pRes.error ?? prodRes.error ?? caRes.error ?? cpRes.error;
   if (err) throw new LoadError(String((err as { message?: string }).message ?? err));
 
   const a = (aRes.data ?? {}) as Payload;
+  // A missing logo is cosmetic: the card falls back to the initials, so a failed read is not an error.
+  const logos = new Map(((logoRes.data ?? []) as { id: string; logo_url: string | null }[]).map((r) => [r.id, r.logo_url]));
   const first = a.first_order_at ? localDay(a.first_order_at, tz) : today;
   const window = resolveDashWindow(state.period, state.from, state.to, today, first);
   const inWindow = (d: string) => d >= window.from && d <= window.to;
@@ -115,7 +118,7 @@ export async function loadStoreDash(
     window,
     A,
     P,
-    stores: (a.stores ?? []).map((s) => ({ ...s, webhook_failure_count: Number(s.webhook_failure_count) || 0, sheet_failures: Number(s.sheet_failures) || 0 })),
+    stores: (a.stores ?? []).map((s) => ({ ...s, logo_url: logos.get(s.id) ?? null, webhook_failure_count: Number(s.webhook_failure_count) || 0, sheet_failures: Number(s.sheet_failures) || 0 })),
     daily,
     ads,
     productNames,

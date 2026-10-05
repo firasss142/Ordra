@@ -1,29 +1,18 @@
 "use client";
 
-// The blocks of Accueil, in the prototype's order and with its markup
-// (prototypes/dashboard-v2.html: header · banner · allStores · storesBlock ·
-// quietRow · defs). Every figure arrives computed from the API.
+// The blocks of Accueil, calm version (2026-10-05): a header with the doors to
+// Performance, one summary card (two hero figures — orders received and the
+// revenue cashed — rounded bars of orders received, what 100 of them became, the
+// profit) and one light card per store. Every figure arrives
+// computed from the API; the page only draws.
 
-import { useId, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import Link from "next/link";
 import { OUTCOMES, type Outcome } from "@/lib/performance/orders/facts";
-import type { FlowCol, StoreCard as Card } from "@/lib/dashboard/stores/view";
+import { toBars } from "@/lib/dashboard/stores/bars";
+import type { FlowCol, StoreCard as Card, Summ } from "@/lib/dashboard/stores/view";
 import { DateButton, type DpState } from "./Dates";
-import {
-  Ic,
-  MoneyVal,
-  NB,
-  PLATFORM_GLYPH,
-  TrendPct,
-  TrendPts,
-  glue,
-  hueVars,
-  initials,
-  moneyText,
-  useHome,
-} from "./ui";
-
-export type Sort = "cmd" | "liv" | "paye";
+import { Ic, MoneyVal, NB, StoreLogo, TrendPct, TrendPts, hueVars, moneyText, useHome } from "./ui";
 
 // ── header ──────────────────────────────────────────────────────────────────
 
@@ -42,73 +31,155 @@ export function Header({ dp, setDp }: { dp: DpState | null; setDp: (d: DpState |
               : t.rich("head.subRange", { market: c.marketName, from: f.day(v.window.from), to: f.day(v.window.to), b: (ch) => <b>{ch}</b> })}
           </span>
           {v.A.n > 0 && !c.isToday && (
-            <span className={`pill${ok ? "" : " warn"}`} data-tip={t("head.finalTip")}>
-              <Ic n={ok ? "check" : "clock"} />
+            <span className={`fin${ok ? "" : " warn"}`} data-tip={t("head.finalTip")}>
+              <i />
               {t("head.final", { pct: f.pct(v.A.final) })}
             </span>
           )}
         </div>
       </div>
-      <DateButton dp={dp} setDp={setDp} />
+      <div className="ph-r">
+        <nav className="doors">
+          <Link className="door" href={c.href("performance/orders")}>
+            <Ic n="funnel" />
+            {t("all.doorOrders")}
+          </Link>
+          <Link className="door" href={c.href("team/performance")}>
+            <Ic n="team" />
+            {t("all.doorTeam")}
+          </Link>
+          <Link className="door" href={c.href("carriers")}>
+            <Ic n="route" />
+            {t("all.doorDelivery")}
+          </Link>
+        </nav>
+        <DateButton dp={dp} setDp={setDp} />
+      </div>
     </header>
   );
 }
 
-// ── banner: a market-wide fact that explains the cards below it ──────────────
 
-export function Banner() {
+// ── the bars of orders received ─────────────────────────────────────────────
+
+/** Orders received: rounded bars by day (by week beyond 45 days, by hour today), the current one in full colour, a dashed average. */
+function BarChart({ cols, compact }: { cols: FlowCol[]; compact?: boolean }) {
   const c = useHome();
-  const a = c.view.ads;
-  if (!a) return null;
+  const { t, f } = c;
+  const b = toBars(cols);
+  const max = Math.max(1, b.max);
+  const lab = (k: string) => (c.isToday ? t("all.hour", { h: k }) : f.day(k));
+  const tip = (x: (typeof b.bars)[number]) =>
+    x.fut
+      ? t("all.colFuture", { label: lab(x.from) })
+      : b.weekly
+        ? t("all.weekTip", { from: f.day(x.from), to: f.day(x.to), n: x.n })
+        : t("all.pointTip", { label: lab(x.from), n: x.n });
+  const name = compact ? t("card.hoursL") : c.isToday ? t("all.curveToday") : b.weekly ? t("all.chartWeeks") : t("all.curveRange");
+  const every = b.bars.length <= 10 ? 1 : c.isToday ? 3 : Math.ceil(b.bars.length / 6);
+  const unit = c.isToday ? t("all.unitHour") : b.weekly ? t("all.unitWeek") : t("all.unitDay");
+  const avg = f.n(b.avg, b.avg < 10 ? 1 : 0);
+  const grid = { gridTemplateColumns: `repeat(${b.bars.length},minmax(0,1fr))`, "--gap": `${b.bars.length <= 10 ? 18 : b.bars.length <= 31 ? 6 : 3}px` } as CSSProperties;
   return (
-    <div className="banner">
-      <span className="bi">
-        <Ic n="mega" />
-      </span>
-      <div>
-        <b>{c.t("banner.title", { day: c.f.day(a.since) })}</b>
-        <p>{glue(c.t("banner.body", { ccy: c.f.sym, days: a.days, n: a.todayOrders }))}</p>
+    <div className={`chart${compact ? " compact" : ""}`} role="img" aria-label={name}>
+      <div className="plot">
+        {b.avg > 0 && !compact && (
+          <div className="avg" style={{ bottom: `${((b.avg / max) * 100).toFixed(2)}%` }} data-tip={t("all.avgTip", { n: avg, unit })}>
+            <span>{t("all.avg", { n: avg })}</span>
+          </div>
+        )}
+        <div className="bars" style={grid}>
+          {b.bars.map((x, j) => (
+            <div key={x.from} className={`bc${j === b.hot ? " hot" : ""}${x.fut ? " fut" : ""}`} data-tip={tip(x)}>
+              {j === b.hot && !x.fut && <em>{f.n(x.n)}</em>}
+              <i style={{ height: x.fut ? undefined : `${Math.max(x.n ? 2 : 0, (x.n / max) * 100).toFixed(2)}%` }} />
+            </div>
+          ))}
+        </div>
       </div>
-      {c.owner && (
-        <Link className="btn2" href={c.href("finance/ad-spend")}>
-          {c.t("banner.open")} <Ic n="ext" />
-        </Link>
-      )}
+      <div className="xl" style={grid}>
+        {b.bars.map((x, j) => (
+          <span key={x.from}>{j % every === 0 || j === b.bars.length - 1 ? (b.weekly ? f.day(x.from) : lab(x.from)) : ""}</span>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ── 1 · all stores ──────────────────────────────────────────────────────────
+// ── what the orders became ──────────────────────────────────────────────────
 
-const pctS = (f: ReturnType<typeof useHome>["f"], v: number) => (v < 1 ? `< 1${NB}%` : f.pct(v));
+type Outcomes = Pick<Summ, "k" | "r100">;
 
-function Tile({ cls = "", icon, label, tr, children, sub }: { cls?: string; icon: React.ReactNode; label: string; tr?: React.ReactNode; children: React.ReactNode; sub: string }) {
+/** Count first, share second: « 147 livrées (18 %) » — never « sur 100 ». */
+function outcomeWords(t: ReturnType<typeof useHome>["t"], f: ReturnType<typeof useHome>["f"], s: Outcomes, keys: readonly Outcome[]) {
+  return keys.map((k) => t("out.item", { n: f.n(s.k[k] ?? 0), o: t(`ol.${k}`), pct: f.pct(s.r100[k] ?? 0) })).join(" · ");
+}
+
+export function OutcomeBar({ s }: { s: Outcomes }) {
+  const { t, f } = useHome();
+  const shown = OUTCOMES.filter((k) => s.k[k] > 0);
   return (
-    <div className={`st sm ${cls}`}>
-      <div className="st-h">
-        {icon}
+    <>
+      <div className="obar" role="img" aria-label={`${t("out.title")} : ${outcomeWords(t, f, s, OUTCOMES)}`}>
+        {shown.map((k) => (
+          <i key={k} className={`k-${k}`} style={{ flexGrow: s.k[k], flexBasis: 0 }} data-tip={outcomeWords(t, f, s, [k])} />
+        ))}
+      </div>
+      <div className="oleg">
+        {shown.map((k) => (
+          <span key={k} className={`k-${k}`}>
+            <i />
+            <b>{f.n(s.k[k])}</b>
+            {t(`ol.${k}`)}
+            <small>{f.pct(s.r100[k])}</small>
+          </span>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ── 1 · the summary card ────────────────────────────────────────────────────
+
+function Cell({ label, tr, children, hint }: { label: string; tr?: React.ReactNode; children: React.ReactNode; hint?: React.ReactNode }) {
+  return (
+    <div>
+      <div className="lbl">
         {label}
         {tr}
       </div>
-      <div className="st-n">{children}</div>
-      <div className="st-s">{sub}</div>
+      <div className="val">{children}</div>
+      {hint && <div className="hint">{hint}</div>}
     </div>
   );
 }
 
-export function AllStores({ pop, setPop, onGo }: { pop: boolean; setPop: (o: boolean) => void; onGo: (id: string) => void }) {
+/** One of the two figures the page leads with. */
+function Hero({ icon, tone, label, tr, children, hint }: { icon: string; tone: string; label: string; tr?: React.ReactNode; children: React.ReactNode; hint: React.ReactNode }) {
+  return (
+    <div className={`hero ${tone}`}>
+      <span className="hi">
+        <Ic n={icon} />
+      </span>
+      <div>
+        <div className="hl">{label}</div>
+        <div className="hn">
+          <b>{children}</b>
+          {tr}
+        </div>
+        <div className="meta">{hint}</div>
+      </div>
+    </div>
+  );
+}
+
+export function Summary({ pop, setPop }: { pop: boolean; setPop: (o: boolean) => void }) {
   const c = useHome();
   const { view: v, t, f } = c;
   const A = v.A;
   if (!A.n) {
     return (
       <section className="card sum">
-        <div className="sum-h">
-          <div>
-            <h2>{t("all.title")}</h2>
-            <div className="meta">{t("all.connected", { market: c.marketName, n: v.connected })}</div>
-          </div>
-        </div>
         <div className="empty">
           {c.isToday ? t("all.emptyToday", { market: c.marketName }) : t("all.emptyRange", { market: c.marketName, from: f.day(v.window.from), to: f.day(v.window.to) })}
           <small>
@@ -119,164 +190,82 @@ export function AllStores({ pop, setPop, onGo }: { pop: boolean; setPop: (o: boo
       </section>
     );
   }
-  const rows = v.stores;
-  const max = Math.max(1, ...rows.map((x) => x.n));
   const perDay = A.n / v.window.len;
-  const sw = (k: Outcome) => <span className={`sw k-${k}`} />;
-  const m = v.money;
+  const m = c.isToday ? null : v.money;
+  const conf = <>{A.conf == null ? "—" : f.n(Math.round(A.conf))}<small>{NB}%</small></>;
 
-  let sec: React.ReactNode;
+  let cells: React.ReactNode[];
   if (c.isToday) {
-    sec = (
-      <>
-        <Tile icon={<Ic n="phone" />} label={t("tile.confirmed")} sub={t("tile.confirmedToday", { up: f.n(A.up), dec: f.n(A.up + A.rejAll) })}>
-          <b>{A.conf == null ? "—" : f.n(Math.round(A.conf))}</b>
-          <small>{NB}%</small>
-        </Tile>
-        <Tile icon={<Ic n="clock" />} label={t("tile.toCall")} sub={t("tile.toCallSub")}>
-          <b>{f.n(A.calling)}</b>
-        </Tile>
-        <Tile cls="k-rej" icon={sw("rej")} label={t("tile.rejected")} sub={t("tile.rejectedSub", { n: f.n(A.never) })}>
-          <b>{f.n(A.rejAll)}</b>
-        </Tile>
-      </>
-    );
+    cells = [
+      <Cell key="conf" label={t("tile.confirmed")}>{conf}</Cell>,
+      <Cell key="call" label={t("tile.toCall")} hint={t("tile.toCallSub")}>{f.n(A.calling)}</Cell>,
+      <Cell key="rej" label={t("tile.rejected")}>{f.n(A.rejAll)}</Cell>,
+    ];
   } else if (c.owner && m) {
-    sec = (
-      <>
-        <Tile cls="k-del" icon={sw("del")} label={t("tile.delivered")} tr={<TrendPts now={A.p.del} prev={v.P.p.del} upGood ok={v.comparable} />} sub={t("tile.deliveredSub", { n: f.n(A.d) })}>
-          <b>{A.r100.del}</b>
-          <small>/100</small>
-        </Tile>
-        <Tile icon={<Ic n="coins" />} label={t("tile.paid")} tr={<TrendPct now={m.cur.paid} prev={m.prev?.paid ?? null} ok={v.comparable} fmt={(x) => moneyText(f, x)} />} sub={t("tile.paidSub", { n: f.n(A.d) })}>
-          <b>
-            <MoneyVal v={m.cur.paid} />
-          </b>
-        </Tile>
-        <div className={`st sm${m.cur.profit < 0 ? " neg" : ""}`}>
-          <div className="st-h">
-            <Ic n="trend" />
-            {t("tile.profit")}
-            <TrendPct now={m.cur.profit} prev={m.prev?.profit ?? null} ok={v.comparable && (m.prev?.profit ?? 0) > 0} fmt={(x) => moneyText(f, x)} />
-          </div>
-          <div className="st-n">
-            <b>
-              <MoneyVal v={m.cur.profit} />
-            </b>
-          </div>
-          <button type="button" className="why" data-pop="profit" onClick={() => setPop(!pop)} aria-expanded={pop}>
-            <Ic n="info" />
-            {t("tile.why")}
-          </button>
-          {pop && <ProfitPop />}
+    cells = [
+      <div key="profit" className="money">
+        <div className="lbl">
+          {t("tile.profit")}
+          <TrendPct now={m.cur.profit} prev={m.prev?.profit ?? null} ok={v.comparable && (m.prev?.profit ?? 0) > 0} fmt={(x) => moneyText(f, x)} />
         </div>
-      </>
-    );
+        <div className={`val${m.cur.profit < 0 ? " neg" : ""}`}>
+          <MoneyVal v={m.cur.profit} />
+        </div>
+        <button type="button" className="why" data-pop="profit" onClick={() => setPop(!pop)} aria-expanded={pop}>
+          <Ic n="info" />
+          {t("tile.why")}
+        </button>
+        {pop && <ProfitPop />}
+      </div>,
+    ];
   } else {
-    sec = (
-      <>
-        <Tile cls="k-del" icon={sw("del")} label={t("tile.delivered")} tr={<TrendPts now={A.p.del} prev={v.P.p.del} upGood ok={v.comparable} />} sub={t("tile.deliveredSub", { n: f.n(A.d) })}>
-          <b>{A.r100.del}</b>
-          <small>/100</small>
-        </Tile>
-        <Tile icon={<Ic n="phone" />} label={t("tile.confirmed")} tr={<TrendPts now={A.conf ?? 0} prev={v.P.conf ?? 0} upGood ok={v.comparable} />} sub={t("tile.confirmedSub")}>
-          <b>{A.conf == null ? "—" : f.n(Math.round(A.conf))}</b>
-          <small>{NB}%</small>
-        </Tile>
-        <Tile cls="k-ret" icon={sw("ret")} label={t("tile.returned")} tr={<TrendPts now={A.p.ret} prev={v.P.p.ret} upGood={false} ok={v.comparable} />} sub={t("tile.returnedSub", { n: f.n(A.ret) })}>
-          <b>{A.r100.ret}</b>
-          <small>/100</small>
-        </Tile>
-      </>
-    );
+    cells = [
+      <Cell key="conf" label={t("tile.confirmed")} tr={<TrendPts now={A.conf ?? 0} prev={v.P.conf ?? 0} upGood ok={v.comparable} />} hint={t("tile.confirmedSub")}>
+        {conf}
+      </Cell>,
+    ];
   }
 
   return (
-    <section className="card sum" id="mix">
-      <div className="sum-top">
-        <div className="tot">
-          <span className="eyebrow">{t("all.eyebrow")}</span>
-          <div className="tot-n">
-            <b>{f.n(A.n)}</b>
-            <TrendPct now={A.n} prev={v.P.n} ok={v.countOk} fmt={(x) => f.n(x)} />
-          </div>
-          <div className="meta">
-            {c.isToday
-              ? t("all.metaToday", { time: c.hm(v.nowMin), n: f.n(v.P.n) })
-              : t("all.metaRange", { perDay: f.n(perDay, perDay < 10 ? 1 : 0), n: rows.length })}
-          </div>
-          <div className="slist">
-            {rows.map((x) => (
-              <button key={x.id} type="button" className="srow" data-store={x.id} onClick={() => onGo(x.id)} style={hueVars(x.hue)}>
-                <i className="sq" />
-                <span className="sn">{x.name}</span>
-                <span className="sbar">
-                  <i style={{ width: `${Math.max(2, (x.n / max) * 100).toFixed(1)}%` }} />
-                </span>
-                <b>{f.n(x.n)}</b>
-                <small>{pctS(f, x.share)}</small>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flow">
-          <div className="flow-h">
-            <span className="eyebrow">{c.isToday ? t("all.flowToday") : t("all.flowRange")}</span>
-            <div className="doors">
-              <Link className="door" href={c.href("performance/orders")}>
-                <Ic n="funnel" />
-                {t("all.doorOrders")}
-              </Link>
-              <Link className="door" href={c.href("team/performance")}>
-                <Ic n="team" />
-                {t("all.doorTeam")}
-              </Link>
-              <Link className="door" href={c.href("carriers")}>
-                <Ic n="route" />
-                {t("all.doorDelivery")}
-              </Link>
-            </div>
-          </div>
-          <Columns cols={v.flow} multi />
-        </div>
+    <section className="card sum">
+      <div className="heroes">
+        <Hero
+          icon="box"
+          tone="o"
+          label={t("all.eyebrow")}
+          tr={<TrendPct now={A.n} prev={v.P.n} ok={v.countOk} fmt={(x) => f.n(x)} />}
+          hint={c.isToday ? t("period.todayRange", { day: f.day(v.today), time: c.hm(v.nowMin) }) : t("all.perDay", { n: f.n(perDay, perDay < 10 ? 1 : 0) })}
+        >
+          {f.n(A.n)}
+        </Hero>
+        {c.owner && m && (
+          <Hero
+            icon="cash"
+            tone="ca"
+            label={t("tile.paid")}
+            tr={<TrendPct now={m.cur.paid} prev={m.prev?.paid ?? null} ok={v.comparable} fmt={(x) => moneyText(f, x)} />}
+            hint={t("tile.paidSub", { n: f.n(A.d) })}
+          >
+            <MoneyVal v={m.cur.paid} />
+          </Hero>
+        )}
       </div>
-      <div className="t3">{sec}</div>
+      <BarChart cols={v.flow} />
+      <div className="sum-bot" style={{ "--cells": c.isToday ? 2 : cells.length } as CSSProperties}>
+        {c.isToday ? (
+          cells[0]
+        ) : (
+          <div>
+            <div className="lbl">
+              {t("out.title")}
+              <TrendPts now={A.p.del} prev={v.P.p.del} upGood ok={v.comparable} />
+            </div>
+            <OutcomeBar s={A} />
+          </div>
+        )}
+        {c.isToday ? cells.slice(1) : cells}
+      </div>
     </section>
-  );
-}
-
-/** The arrival of orders, stacked by store — hour by hour today, day by day otherwise (prototype `columns`). */
-export function Columns({ cols, multi }: { cols: FlowCol[]; multi: boolean }) {
-  const c = useHome();
-  const { t, f, view } = c;
-  const hue = new Map(view.stores.map((s) => [s.id, s]));
-  const mx = Math.max(1, ...cols.map((x) => x.tot));
-  const lab = (k: string) => (c.isToday ? t("all.hour", { h: k }) : f.day(k));
-  const step = c.isToday ? 3 : Math.ceil(cols.length / 7);
-  const g = { gridTemplateColumns: `repeat(${cols.length},minmax(0,1fr))` };
-  return (
-    <>
-      <div className="cols" style={g}>
-        {cols.map((col) => {
-          const tip = col.fut
-            ? t("all.colFuture", { label: lab(col.k) })
-            : t("all.colTip", { label: lab(col.k), n: col.tot }) + (multi ? col.by.map(([id, n]) => ` · ${hue.get(id)?.name ?? ""} ${f.n(n)}`).join("") : "");
-          return (
-            <div key={col.k} className={`col${col.fut ? " fut" : ""}${col.now ? " now" : ""}`} data-tip={tip}>
-              {col.by.map(([id, n]) => {
-                const s = hue.get(id);
-                return <i key={id} data-store={id} style={{ ...(s ? hueVars(s.hue) : {}), height: `${((n / mx) * 100).toFixed(2)}%` }} />;
-              })}
-            </div>
-          );
-        })}
-      </div>
-      <div className="clab" style={g}>
-        {cols.map((col, j) => (
-          <span key={col.k}>{j % step === 0 ? lab(col.k) : ""}</span>
-        ))}
-      </div>
-    </>
   );
 }
 
@@ -316,55 +305,49 @@ function ProfitPop() {
 
 // ── 2 · one card per store ──────────────────────────────────────────────────
 
-function Ring({ r100 }: { r100: Record<Outcome, number> }) {
-  const { t } = useHome();
-  const id = useId().replace(/:/g, "");
-  const Rr = 66;
-  const Cc = 2 * Math.PI * Rr;
-  const gap = 3.2;
-  const tot = OUTCOMES.reduce((s, k) => s + (r100[k] || 0), 0);
+/** The ring of what the store's orders became, soft colours, the delivered count in its middle. */
+function Ring({ s }: { s: Outcomes }) {
+  const { t, f } = useHome();
+  const R = 64;
+  const C = 2 * Math.PI * R;
+  const gap = 4;
+  const tot = OUTCOMES.reduce((a, k) => a + (s.k[k] || 0), 0) || 1;
   let acc = 0;
   const segs = OUTCOMES.map((k) => {
-    const x = r100[k] || 0;
+    const x = s.k[k] || 0;
     if (!x) return null;
-    const len = (x / tot) * Cc;
-    const vis = tot === x ? Cc : Math.max(len - gap, 1.2);
-    const off = -acc - (tot === x ? 0 : gap / 2);
+    const len = (x / tot) * C;
+    const whole = x === tot;
+    const vis = whole ? C : Math.max(len - gap, 1.5);
+    const off = -acc - (whole ? 0 : gap / 2);
     acc += len;
     return (
       <circle
         key={k}
         className={`sg k-${k}`}
-        cx="84"
-        cy="84"
-        r={Rr}
-        strokeDasharray={`${vis.toFixed(2)} ${(Cc + 10).toFixed(2)}`}
+        cx="80"
+        cy="80"
+        r={R}
+        strokeDasharray={`${vis.toFixed(2)} ${(C + 10).toFixed(2)}`}
         strokeDashoffset={off.toFixed(2)}
-        data-tip={t("card.ringTip", { o: t(`o.${k}`), n: x, def: t(`odef.${k}`) })}
+        data-tip={t("card.ringTip", { o: t(`o.${k}`), n: f.n(x), pct: f.pct(s.r100[k]) })}
       />
     );
   });
   return (
-    <svg className="ringsvg" viewBox="0 0 168 168" aria-hidden="true">
-      <circle className="ringtrack" cx="84" cy="84" r={Rr} />
-      <defs>
-        <mask id={`m${id}`} maskUnits="userSpaceOnUse" x="0" y="0" width="168" height="168">
-          <circle className="sweep" cx="84" cy="84" r={Rr} transform="rotate(-90 84 84)" />
-        </mask>
-      </defs>
-      <g mask={`url(#m${id})`}>
-        <g className="segs" transform="rotate(-90 84 84)">
-          {segs}
-        </g>
-      </g>
+    <svg className="ringsvg" viewBox="0 0 160 160" role="img" aria-label={outcomeWords(t, f, s, OUTCOMES)}>
+      <circle className="ringtrack" cx="80" cy="80" r={R} />
+      <g transform="rotate(-90 80 80)">{segs}</g>
     </svg>
   );
 }
 
+/** The card's footer: a soft box, a tinted icon, a few words, the detail underneath. */
 function Note({ x }: { x: Card }) {
   const c = useHome();
   const { t, f } = c;
   const n = x.note;
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
   const box = (k: string, icon: string, title: string, sub: string, act?: React.ReactNode) => (
     <div className={`note ${k}`}>
       <span className="ni">
@@ -377,7 +360,6 @@ function Note({ x }: { x: Card }) {
       {act}
     </div>
   );
-  const stop = (e: React.MouseEvent) => e.stopPropagation();
   switch (n.kind) {
     case "broken": {
       const since = n.broken.since;
@@ -391,7 +373,7 @@ function Note({ x }: { x: Card }) {
         "plug",
         title,
         t("note.brokenSub", { n: n.broken.n }),
-        <Link className="act" href={c.href("system/connections")} onClick={stop} title={n.broken.msg || undefined}>
+        <Link className="act" href={c.href("system/connections")} onClick={stop}>
           {t("note.brokenAct")}
         </Link>,
       );
@@ -428,96 +410,84 @@ function Note({ x }: { x: Card }) {
   }
 }
 
+/** Today: the store's orders hour by hour, the same bars as the summary, smaller. */
+function HourBars({ x }: { x: Card }) {
+  const c = useHome();
+  const nowH = Math.floor(c.view.nowMin / 60);
+  const cols: FlowCol[] = (x.hours ?? []).map((tot, h) => ({ k: String(h), tot, by: [], fut: h > nowH, now: h === nowH }));
+  return (
+    <div className="sc-hours">
+      <BarChart cols={cols} compact />
+    </div>
+  );
+}
+
 function StoreCard({ x, n, onOpen }: { x: Card; n: number; onOpen: (id: string) => void }) {
   const c = useHome();
   const { t, f } = c;
   const a = x.a;
   const early = a.n < 30;
   const pfName = t(`platform.${x.platform}`);
-  const cell = (l: string, v: React.ReactNode, e: string, z: boolean) => (
+  const at = x.lastAt ? (c.dayOf(x.lastAt) === c.view.today ? t("card.atToday", { time: c.timeOf(x.lastAt) }) : t("card.atDay", { day: f.day(c.dayOf(x.lastAt)), time: c.timeOf(x.lastAt) })) : "";
+  const open = () => onOpen(x.id);
+  const cell = (l: string, v: React.ReactNode, e: string, zero: boolean) => (
     <div>
       <small>{l}</small>
-      <b className={z ? "z" : ""}>{v}</b>
+      <b className={zero ? "z" : ""}>{v}</b>
       <em>{e}</em>
     </div>
   );
+  const conf = a.conf == null ? "—" : f.pct(Math.round(a.conf));
+
   let vis: React.ReactNode;
-  if (c.isToday) {
-    const cols: FlowCol[] = (x.hours ?? []).map((tot, h) => ({
-      k: String(h),
-      tot,
-      by: tot ? [[x.id, tot]] : [],
-      fut: h > Math.floor(c.view.nowMin / 60),
-      now: h === Math.floor(c.view.nowMin / 60),
-    }));
-    vis = (
-      <div className="sc-hours">
-        <Columns cols={cols} multi={false} />
-      </div>
-    );
-  } else {
+  if (c.isToday) vis = <HourBars x={x} />;
+  else if (early)
     vis = (
       <div className="sc-ring">
-        {early ? (
-          <>
-            <svg className="ringsvg" viewBox="0 0 168 168" aria-hidden="true">
-              <circle className="ringtrack dash" cx="84" cy="84" r="66" />
-            </svg>
-            <div className="rc early">
-              <div className="l">{t("card.earlyL")}</div>
-              <div className="h">{t("card.earlyH")}</div>
-            </div>
-          </>
-        ) : (
-          <>
-            <Ring r100={a.r100} />
-            <div className="rc">
-              <div className="big">
-                <b>{a.r100.del}</b>
-                <small>/100</small>
-              </div>
-              <div className="l">{t("card.ringL")}</div>
-              <TrendPts now={a.p.del} prev={x.prev?.p.del ?? null} upGood ok={x.comparable} />
-            </div>
-          </>
-        )}
+        <svg className="ringsvg" viewBox="0 0 160 160" aria-hidden="true">
+          <circle className="ringtrack dash" cx="80" cy="80" r="64" />
+        </svg>
+        <div className="rc early">
+          <div className="l">{t("card.earlyL")}</div>
+          <div className="h">{t("card.earlyH")}</div>
+        </div>
       </div>
     );
-  }
-  const prods = x.products;
+  else
+    vis = (
+      <div className="sc-ring">
+        <Ring s={a} />
+        <div className="rc">
+          <b>{f.n(a.k.del)}</b>
+          <div className="l">{t("card.ringL")}</div>
+          <div className="p">
+            {f.pct(a.r100.del)}
+            <TrendPts now={a.p.del} prev={x.prev?.p.del ?? null} upGood ok={x.comparable} />
+          </div>
+        </div>
+      </div>
+    );
+
   const mini = c.isToday ? (
     <>
-      {cell(t("card.confirmed"), a.conf == null ? "—" : f.pct(Math.round(a.conf)), t("card.confirmedToday", { n: f.n(a.up) }), a.conf == null)}
+      {cell(t("card.confirmed"), conf, t("card.confirmedSub"), a.conf == null)}
       {cell(t("card.toCall"), f.n(a.calling), t("card.toCallSub"), !a.calling)}
-      {cell(t("card.rejected"), f.n(a.rejAll), t("card.rejectedSub", { n: f.n(a.never) }), !a.rejAll)}
+      {cell(t("card.rejected"), f.n(a.rejAll), t("card.rejectedSub"), !a.rejAll)}
     </>
   ) : (
     <>
-      {cell(t("card.confirmed"), a.conf == null ? "—" : f.pct(Math.round(a.conf)), t("card.confirmedSub"), !a.conf)}
-      {cell(t("card.delivered"), f.n(a.d), t("card.deliveredSub"), !a.d)}
-      {c.owner
-        ? cell(t("card.paid"), <MoneyVal v={x.paid ?? 0} small />, t("card.paidSub"), !x.paid)
-        : cell(
-            t("card.returned"),
-            early ? (
-              f.n(a.ret)
-            ) : (
-              <>
-                {a.r100.ret}
-                <span className="ccy">/100</span>
-              </>
-            ),
-            t("card.returnedSub", { n: f.n(a.ret) }),
-            !a.ret,
-          )}
+      {/* the owner reads the money first; a manager has no money, so rejections close the row */}
+      {c.owner && cell(t("card.paid"), <MoneyVal v={x.paid ?? 0} small />, t("card.paidSub", { n: f.n(a.d) }), !x.paid)}
+      {cell(t("card.confirmed"), conf, t("card.confirmedSub"), !a.conf)}
+      {cell(t("card.returned"), f.n(a.k.ret), t("card.returnedSub"), !a.k.ret)}
+      {!c.owner && cell(t("card.rejected"), f.n(a.rejAll), t("card.rejectedSub"), !a.rejAll)}
     </>
   );
-  const at = x.lastAt ? (c.dayOf(x.lastAt) === c.view.today ? t("card.atToday", { time: c.timeOf(x.lastAt) }) : t("card.atDay", { day: f.day(c.dayOf(x.lastAt)), time: c.timeOf(x.lastAt) })) : "";
-  const open = () => onOpen(x.id);
+
+  const prods = x.products;
   return (
     <article
-      className="sc"
-      data-store={x.id}
+      className="card sc"
       data-card={x.id}
       role="button"
       tabIndex={0}
@@ -532,20 +502,16 @@ function StoreCard({ x, n, onOpen }: { x: Card; n: number; onOpen: (id: string) 
       }}
     >
       <div className="sc-h">
-        <span className="sav">
-          {initials(x.name)}
-          {x.dot && <i className={`dot${x.dot === "idle" ? "" : ` ${x.dot}`}`} />}
-        </span>
+        <StoreLogo name={x.name} logo={x.logo} platform={x.platform} />
         <div className="sc-n">
           <b>{x.name}</b>
-          <span className="pfl" data-tip={x.sheets ? t("card.viaSheets", { platform: pfName }) : pfName}>
-            <i className="pg">{PLATFORM_GLYPH[x.platform]}</i>
-            <span>{pfName}</span>
+          <span className="pfl" data-tip={x.sheets ? t("card.viaSheets", { platform: pfName }) : undefined}>
+            {pfName}
           </span>
         </div>
         {x.lastAt && (
-          <span className={`fresh${x.alarm ? " quiet" : ""}`} data-tip={t("card.freshTip", { at })}>
-            <Ic n="clock" />
+          <span className={`fresh${x.alarm ? " quiet" : x.dot === "live" ? " live" : ""}`} data-tip={t("card.freshTip", { at })}>
+            <i />
             {c.ago(x.lastAt)}
           </span>
         )}
@@ -554,38 +520,28 @@ function StoreCard({ x, n, onOpen }: { x: Card; n: number; onOpen: (id: string) 
         <b>{f.n(a.n)}</b>
         <span>
           {t("card.received", { n: a.n })}
-          <small>{t("card.share", { pct: pctS(f, x.share) })}</small>
+          <small>{t("card.share", { pct: f.pct(Math.round(x.share)) })}</small>
         </span>
         <TrendPct now={a.n} prev={x.prevN} ok={c.view.countOk} fmt={(v) => f.n(v)} />
       </div>
       <div className="sc-share">
         <i style={{ width: `${Math.max(1.5, x.share).toFixed(1)}%` }} />
       </div>
-      <div className="prods">
-        {prods.length === 1 ? (
-          <>
-            <span className="pc">
+      {prods.length > 0 && (
+        <div className="prods">
+          {prods.slice(0, 2).map((p) => (
+            <span key={p} className="pc" data-tip={p}>
               <Ic n="tag" />
-              {prods[0]}
+              <span>{p}</span>
             </span>
-            <span className="meta">{t("card.unique")}</span>
-          </>
-        ) : (
-          <>
-            {prods.slice(0, 2).map((p) => (
-              <span key={p} className="pc">
-                <Ic n="tag" />
-                {p}
-              </span>
-            ))}
-            {prods.length > 2 && (
-              <span className="pc more" data-tip={prods.slice(2).join(" · ")}>
-                +{prods.length - 2}
-              </span>
-            )}
-          </>
-        )}
-      </div>
+          ))}
+          {prods.length > 2 && (
+            <span className="pc more" data-tip={prods.slice(2).join(" · ")}>
+              +{prods.length - 2}
+            </span>
+          )}
+        </div>
+      )}
       {vis}
       <div className="mini">{mini}</div>
       <Note x={x} />
@@ -593,95 +549,22 @@ function StoreCard({ x, n, onOpen }: { x: Card; n: number; onOpen: (id: string) 
   );
 }
 
-export function StoresBlock({ sort, setSort, onOpen }: { sort: Sort; setSort: (s: Sort) => void; onOpen: (id: string) => void }) {
+export function StoresBlock({ onOpen }: { onOpen: (id: string) => void }) {
   const c = useHome();
   const { view: v, t } = c;
-  if (!v.stores.length) return <QuietRow alone />;
-  const s: Sort = !c.owner && sort === "paye" ? "cmd" : sort;
-  const key = (x: Card) => (s === "liv" ? (x.n >= 30 ? x.a.p.del : -1) : s === "paye" ? (x.paid ?? 0) : x.n);
-  const rows = [...v.stores].sort((a, b) => key(b) - key(a) || b.n - a.n);
-  const sorts: [Sort, string][] = [
-    ["cmd", t("stores.sortCmd")],
-    ["liv", t("stores.sortLiv")],
-    ...(c.owner ? ([["paye", t("stores.sortPaye")]] as [Sort, string][]) : []),
-  ];
+  if (!v.stores.length) return null;
+  const rows = [...v.stores].sort((a, b) => b.n - a.n);
   return (
     <section>
       <div className="sec-h">
-        <div>
-          <h2>{t("stores.title")}</h2>
-          <div className="meta">{c.isToday ? t("stores.metaToday") : t("stores.metaRange")}</div>
-        </div>
-        <div className="rt">
-          {!c.isToday && (
-            <div className="legend">
-              {OUTCOMES.map((k) => (
-                <span key={k}>
-                  <i className={`sw k-${k}`} />
-                  {t(`o.${k}`)}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="seg" role="tablist" aria-label={t("stores.sort")}>
-            <span>{t("stores.sort")}</span>
-            {sorts.map(([k, l]) => (
-              <button key={k} type="button" role="tab" aria-selected={s === k} className={s === k ? "on" : ""} onClick={() => setSort(k)}>
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
+        <h2>{t("stores.title")}</h2>
+        <div className="meta">{t("stores.meta")}</div>
       </div>
-      <div className="cards" id="cards">
+      <div className="cards">
         {rows.map((x, n) => (
           <StoreCard key={x.id} x={x} n={n} onOpen={onOpen} />
         ))}
       </div>
-      <QuietRow alone={false} />
     </section>
-  );
-}
-
-// ── 3 · stores with nothing in the period — one line, not empty cards ────────
-
-function QuietRow({ alone }: { alone: boolean }) {
-  const c = useHome();
-  const { view: v, t, f } = c;
-  const add = c.owner ? (
-    <Link className="qchip qadd" href={c.href("system/connections")}>
-      <Ic n="plus" />
-      {t("quiet.add")}
-    </Link>
-  ) : null;
-  if (!v.quiet.length) return add ? <div className="quiet">{add}</div> : null;
-  return (
-    <div className="quiet" style={alone ? { marginTop: 0 } : undefined}>
-      <Ic n="moon" />
-      <span>{t("quiet.line", { n: v.quiet.length })}</span>
-      {v.quiet.map((q) => (
-        <Link key={q.id} className="qchip" style={hueVars("slate")} href={c.href("system/connections")}>
-          <span className="sav">{initials(q.name)}</span>
-          <span>
-            <b>{q.name}</b>
-            <small>{q.lastDay ? t("quiet.last", { day: f.day(q.lastDay) }) : q.notYet ? t("quiet.notYet") : t("quiet.never")}</small>
-          </span>
-          <i className="pg" data-tip={t(`platform.${q.platform}`)}>
-            {PLATFORM_GLYPH[q.platform]}
-          </i>
-        </Link>
-      ))}
-      {add}
-    </div>
-  );
-}
-
-export function Defs() {
-  const { t } = useHome();
-  return (
-    <details className="defs">
-      <summary>{t("defs.summary")}</summary>
-      <div>{t.rich("defs.body", { b: (ch) => <b>{ch}</b> })}</div>
-    </details>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-// Accueil « vos boutiques » (prototypes/dashboard-v2.html, plans/dashboard-redesign.md).
+// Accueil « vos boutiques », calm version (2026-10-05; first built from prototypes/dashboard-v2.html).
 //
-// The page's state lives in its URL (?period=…&from=&to=&sort=); every figure
+// The page's state lives in its URL (?period=…&from=&to=); every figure
 // comes computed from GET /api/dashboard/stores — nothing is counted, and no
 // price is summed, in the browser. SWR keeps the previous figures on screen
 // while another period loads.
@@ -15,22 +15,20 @@ import { jsonFetcher } from "@/lib/fetchers";
 import { parseDashState, type DashState } from "@/lib/dashboard/stores/period";
 import type { StoreDashView } from "@/lib/dashboard/stores/view";
 import { type DpState } from "./Dates";
-import { AllStores, Banner, Defs, Header, StoresBlock, type Sort } from "./Blocks";
+import { Header, StoresBlock, Summary } from "./Blocks";
 import { HomeProvider, glue, makeFmt, type HomeCtx, type Loc } from "./ui";
+import { HomeSkeleton } from "./HomeSkeleton";
 import "./store-dashboard.css";
 
-function stateToParams(s: DashState, sort: Sort): URLSearchParams {
+function stateToParams(s: DashState): URLSearchParams {
   const q = new URLSearchParams();
   if (s.period !== "today") q.set("period", s.period);
   if (s.period === "custom" && s.from && s.to) {
     q.set("from", s.from);
     q.set("to", s.to);
   }
-  if (sort !== "cmd") q.set("sort", sort);
   return q;
 }
-
-const SORTS: readonly Sort[] = ["cmd", "liv", "paye"];
 
 export function StoreDashboard({
   marketId,
@@ -49,33 +47,25 @@ export function StoreDashboard({
   const router = useRouter();
   const sp = useSearchParams();
   const [state, setLocal] = useState<DashState>(() => parseDashState(new URLSearchParams(sp.toString())));
-  const [sort, setSortLocal] = useState<Sort>(() => {
-    const s = sp.get("sort");
-    return (SORTS as readonly string[]).includes(s ?? "") ? (s as Sort) : "cmd";
-  });
   const [dp, setDp] = useState<DpState | null>(null);
   const [pop, setPop] = useState(false);
   const loc: Loc = locale === "ar" ? "ar" : "fr";
 
-  const writeUrl = useCallback((s: DashState, so: Sort) => {
-    const q = stateToParams(s, so).toString();
+  const writeUrl = useCallback((s: DashState) => {
+    const q = stateToParams(s).toString();
     window.history.replaceState(null, "", `${window.location.pathname}${q ? `?${q}` : ""}`);
   }, []);
   const setState = useCallback(
     (next: DashState) => {
       setLocal(next);
       setPop(false);
-      writeUrl(next, sort);
+      writeUrl(next);
     },
-    [sort, writeUrl],
+    [writeUrl],
   );
-  const setSort = (s: Sort) => {
-    setSortLocal(s);
-    writeUrl(state, s);
-  };
 
   const query = useMemo(() => {
-    const q = stateToParams(state, "cmd");
+    const q = stateToParams(state);
     q.set("market_id", marketId);
     return q.toString();
   }, [state, marketId]);
@@ -85,26 +75,10 @@ export function StoreDashboard({
     refreshInterval: state.period === "today" ? 60_000 : 0,
   });
 
-  // ── tooltips + « hover a store anywhere, it lights up in both places » ──
+  // ── tooltips ──
   const tipRef = useRef<HTMLDivElement>(null);
   const onOver = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    const st = target.closest?.("#mix [data-store], .sc[data-store]") as HTMLElement | null;
-    const key = st?.dataset.store ?? null;
-    const fromMix = !!st?.closest("#mix");
-    const cards = document.getElementById("cards");
-    const mix = document.getElementById("mix");
-    if (cards) {
-      if (key && fromMix) cards.dataset.hl = key;
-      else delete cards.dataset.hl;
-    }
-    if (mix) {
-      if (key) mix.dataset.hl = key;
-      else delete mix.dataset.hl;
-    }
-    document.querySelectorAll<HTMLElement>(".sdb .sc").forEach((el) => el.classList.toggle("hl", !!key && el.dataset.store === key));
-    document.querySelectorAll<HTMLElement>("#mix [data-store]").forEach((el) => el.classList.toggle("hl", !!key && el.dataset.store === key));
-
     const tip = tipRef.current;
     if (!tip) return;
     const el = target.closest?.("[data-tip]") as HTMLElement | null;
@@ -211,14 +185,6 @@ export function StoreDashboard({
     [router, locale, state],
   );
 
-  const goTo = (id: string) => {
-    const card = document.querySelector<HTMLElement>(`.sdb [data-card="${CSS.escape(id)}"]`);
-    if (!card) return;
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.add("flash");
-    setTimeout(() => card.classList.remove("flash"), 1400);
-  };
-
   if (!ctx) {
     return (
       <div className="sdb">
@@ -226,13 +192,10 @@ export function StoreDashboard({
           {error ? (
             <div className="err">{t("head.error")}</div>
           ) : (
-            <>
-              <div className="sk" style={{ height: 70, background: "transparent", border: 0, boxShadow: "none" }} aria-busy="true">
-                <span className="meta">{t("head.loading")}</span>
-              </div>
-              <div className="sk" style={{ height: 380 }} />
-              <div className="sk" style={{ height: 520 }} />
-            </>
+            <div role="status" aria-busy="true" style={{ display: "contents" }}>
+              <span className="sr-only">{t("head.loading")}</span>
+              <HomeSkeleton />
+            </div>
           )}
         </div>
       </div>
@@ -245,10 +208,8 @@ export function StoreDashboard({
         <div className={`page${isLoading ? " loading" : ""}`}>
           <Header dp={dp} setDp={setDp} />
           {error && <div className="err">{t("head.error")}</div>}
-          <Banner />
-          <AllStores pop={pop} setPop={setPop} onGo={goTo} />
-          <StoresBlock sort={sort} setSort={setSort} onOpen={openStore} />
-          <Defs />
+          <Summary pop={pop} setPop={setPop} />
+          <StoresBlock onOpen={openStore} />
         </div>
         <div className="tip" ref={tipRef} />
       </div>

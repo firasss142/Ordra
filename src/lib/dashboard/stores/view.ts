@@ -24,6 +24,8 @@ export interface Summ {
   conf: number | null;
   /** Share with a final result, % */
   final: number;
+  /** Each outcome as a count of orders (adds up to n). */
+  k: Record<Outcome, number>;
   /** Each outcome per 100, whole cells adding up to 100. */
   r100: Record<Outcome, number>;
   /** Raw per-100 values (the arrows compare whole numbers of these). */
@@ -38,6 +40,8 @@ export interface StoreCard {
   platform: PlatformKey;
   sheets: boolean;
   hue: Hue;
+  /** The shop's uploaded logo; null = its initials. */
+  logo: string | null;
   n: number;
   prevN: number;
   /** Share of the market's orders, % */
