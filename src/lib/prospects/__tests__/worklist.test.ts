@@ -167,13 +167,13 @@ describe("countBuckets and sumBuckets", () => {
 
   test("counts every bucket and the total", () => {
     expect(countBuckets(rows)).toEqual({
-      all: 4, hot: 2, callback: 1, retry: 0, campaign: 0, winback: 0, converted: 1,
+      all: 4, hot: 2, callback: 1, retry: 0, recover: 0, rebuy: 0, campaign: 0, winback: 0, converted: 1,
     });
   });
 
   test("sums the potential value, treating a lead with no product as worth nothing rather than skipping it", () => {
     expect(sumBuckets(rows)).toEqual({
-      all: 445, hot: 350, callback: 0, retry: 0, campaign: 0, winback: 0, converted: 95,
+      all: 445, hot: 350, callback: 0, retry: 0, recover: 0, rebuy: 0, campaign: 0, winback: 0, converted: 95,
     });
   });
 });
@@ -206,7 +206,7 @@ describe("sortWorklist", () => {
   });
 
   test("BUCKET_ORDER drives the ordering, so the two never drift apart", () => {
-    expect(BUCKET_ORDER).toEqual(["hot", "callback", "retry", "campaign", "winback", "converted"]);
+    expect(BUCKET_ORDER).toEqual(["hot", "callback", "retry", "recover", "rebuy", "campaign", "winback", "converted"]);
   });
 });
 
@@ -246,5 +246,27 @@ describe("applyOutcome", () => {
     const before = row({ status: "assigned" });
     applyOutcome(before, { kind: "no_answer" }, NOW);
     expect(before.status).toBe("assigned");
+  });
+});
+
+describe("bucketOf — the recovery desk's automatic sources (2026-10-06)", () => {
+  const base = { status: "assigned", created_at: "2026-10-01T08:00:00Z", callback_scheduled_at: null, campaign_id: null, converted_order_id: null, source_order_id: "o1" } as const;
+  const now = Date.parse("2026-10-06T10:00:00Z");
+
+  test("an untouched won-back rejection is « recover », not a missed call", () => {
+    expect(bucketOf({ ...base, source: "rejected_order" } as never, now)).toBe("recover");
+  });
+  test("an untouched past buyer is « rebuy »", () => {
+    expect(bucketOf({ ...base, source: "repeat_buyer" } as never, now)).toBe("rebuy");
+  });
+  test("once called, they behave like any other prospect", () => {
+    expect(bucketOf({ ...base, source: "rejected_order", status: "attempt_1" } as never, now)).toBe("retry");
+    expect(bucketOf({ ...base, source: "repeat_buyer", callback_scheduled_at: "2026-10-06T12:00:00Z" } as never, now)).toBe("callback");
+    expect(bucketOf({ ...base, source: "repeat_buyer", converted_order_id: "o9" } as never, now)).toBe("converted");
+  });
+  test("counts the two new buckets", () => {
+    const c = countBuckets([{ bucket: "recover" }, { bucket: "rebuy" }, { bucket: "rebuy" }] as never);
+    expect(c.recover).toBe(1);
+    expect(c.rebuy).toBe(2);
   });
 });

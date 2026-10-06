@@ -17,7 +17,8 @@
  */
 
 /** Order outcomes an audience can be drawn from. */
-export type OutcomeStatus = "delivered" | "returned" | "rejected";
+/** Libya never reaches `returned`: its return path is returning → to_be_returned → returned. */
+export type OutcomeStatus = "delivered" | "returned" | "rejected" | "returning" | "to_be_returned";
 
 /** `rejection_reason` in the database — all nine live values. */
 export type RejectionReason =
@@ -31,7 +32,8 @@ export type Condition =
   | { kind: "period"; mode: "preset" | "custom"; days: number; from: string; to: string }
   /** How long ago the customer last ordered, in days. */
   | { kind: "recency"; from: number; to: number }
-  | { kind: "product"; productIds: string[] }
+  /** `windows`: a product dated on its own window instead of the period (2026-10-06). */
+  | { kind: "product"; productIds: string[]; windows?: { productId: string; from: string; to: string }[] }
   /** Order value at or above this amount, market currency. */
   | { kind: "basket"; min: number }
   | { kind: "orderCount"; op: "gte" | "eq" | "lte"; n: number }
@@ -40,6 +42,8 @@ export type Condition =
   | { kind: "returns"; mode: "none" | "any" | "rateAtMost"; rate: number }
   /** Why the order was rejected. Needs a losing outcome to mean anything. */
   | { kind: "reason"; reasons: RejectionReason[] }
+  /** Why, precisely: `orders.rejection_subreason` (rejection_reason_configs keys). */
+  | { kind: "subreason"; subreasons: string[] }
   /** Customers whose last order a given agent handled. */
   | { kind: "agent"; agentIds: string[] }
   /** Guard: skip customers who ordered within this many days. */
@@ -48,6 +52,8 @@ export type Condition =
   | { kind: "notInCampaign"; days: number }
   /** Guard: skip customers already closed as "not interested". */
   | { kind: "notLostNotInterested" }
+  /** Guard: skip customers who ordered again after the outcome the audience is built on. */
+  | { kind: "noOrderAfterOutcome" }
   /** Cap the audience, keeping the most relevant by this sort. */
   | { kind: "limit"; sort: "oldest" | "newest" | "basket"; n: number };
 
@@ -60,8 +66,8 @@ export type ConditionKind = Condition["kind"];
  */
 export const CONDITION_KINDS: ConditionKind[] = [
   "outcome", "period", "recency", "product", "orderCount", "basket", "city",
-  "returns", "reason", "agent", "notOrderedSince", "notInCampaign",
-  "notLostNotInterested", "limit",
+  "returns", "reason", "subreason", "agent", "notOrderedSince", "notInCampaign",
+  "notLostNotInterested", "noOrderAfterOutcome", "limit",
 ];
 
 /**
@@ -73,8 +79,8 @@ export const FIXED_KINDS: ConditionKind[] = ["outcome", "period"];
 /** Which group a condition belongs to in the "add a condition" menu. */
 export const CONDITION_GROUP: Record<ConditionKind, "orders" | "customer" | "guard" | "size"> = {
   outcome: "orders", period: "orders", recency: "orders", product: "orders", basket: "orders",
-  orderCount: "customer", city: "customer", returns: "customer", reason: "customer", agent: "customer",
-  notOrderedSince: "guard", notInCampaign: "guard", notLostNotInterested: "guard",
+  orderCount: "customer", city: "customer", returns: "customer", reason: "customer", subreason: "customer", agent: "customer",
+  notOrderedSince: "guard", notInCampaign: "guard", notLostNotInterested: "guard", noOrderAfterOutcome: "guard",
   limit: "size",
 };
 
@@ -93,6 +99,8 @@ export function defaultCondition(kind: ConditionKind, now: number = Date.now()):
     case "city": return { kind, cities: [] };
     case "returns": return { kind, mode: "none", rate: 20 };
     case "reason": return { kind, reasons: ["refus_client", "injoignable"] };
+    case "subreason": return { kind, subreasons: ["changement_avis"] };
+    case "noOrderAfterOutcome": return { kind };
     case "agent": return { kind, agentIds: [] };
     case "notOrderedSince": return { kind, days: 30 };
     case "notInCampaign": return { kind, days: 60 };
@@ -167,6 +175,8 @@ export interface CampaignFilter {
   product_id?: string | null;
   city?: string | null;
   product_ids?: string[];
+  product_windows?: { product_id: string; from: string; to: string }[];
+  rejection_subreasons?: string[];
   cities?: string[];
   recency_days?: { from: number; to: number };
   basket_min?: number;
@@ -178,6 +188,7 @@ export interface CampaignFilter {
     not_ordered_days?: number;
     not_in_campaign_days?: number;
     not_lost_not_interested?: boolean;
+    no_order_after_outcome?: boolean;
   };
   limit?: { sort: "oldest" | "newest" | "basket"; n: number };
   /** Whether the period was a preset or hand-picked dates. Display only. */
@@ -204,6 +215,7 @@ export function toFilterJson(conditions: Condition[]): CampaignFilter {
         // The 2026-06-15 RPC reads a single product; keep it in step so a
         // campaign stays meaningful to code that has not been updated.
         json.product_id = c.productIds.length === 1 ? c.productIds[0] : null;
+        if (c.windows?.length) json.product_windows = c.windows.map((w) => ({ product_id: w.productId, from: w.from, to: w.to }));
         break;
       case "basket": json.basket_min = c.min; break;
       case "orderCount": json.order_count = { op: c.op, n: c.n }; break;
@@ -213,10 +225,12 @@ export function toFilterJson(conditions: Condition[]): CampaignFilter {
         break;
       case "returns": json.returns = { mode: c.mode, rate: c.rate }; break;
       case "reason": json.rejection_reasons = c.reasons; break;
+      case "subreason": json.rejection_subreasons = c.subreasons; break;
       case "agent": json.agent_ids = c.agentIds; break;
       case "notOrderedSince": guards.not_ordered_days = c.days; break;
       case "notInCampaign": guards.not_in_campaign_days = c.days; break;
       case "notLostNotInterested": guards.not_lost_not_interested = true; break;
+      case "noOrderAfterOutcome": guards.no_order_after_outcome = true; break;
       case "limit": json.limit = { sort: c.sort, n: c.n }; break;
     }
   }
@@ -248,7 +262,10 @@ export function fromFilterJson(json: CampaignFilter, now: number = Date.now()): 
 
   // `product_ids` is the composer's; `product_id` is what old rows carry.
   const productIds = json.product_ids ?? (json.product_id ? [json.product_id] : null);
-  if (productIds) cs.push({ kind: "product", productIds });
+  if (productIds) {
+    const windows = json.product_windows?.map((w) => ({ productId: w.product_id, from: w.from, to: w.to }));
+    cs.push(windows?.length ? { kind: "product", productIds, windows } : { kind: "product", productIds });
+  }
 
   if (json.order_count) cs.push({ kind: "orderCount", ...json.order_count });
   if (json.basket_min !== undefined) cs.push({ kind: "basket", min: json.basket_min });
@@ -258,12 +275,14 @@ export function fromFilterJson(json: CampaignFilter, now: number = Date.now()): 
 
   if (json.returns) cs.push({ kind: "returns", ...json.returns });
   if (json.rejection_reasons) cs.push({ kind: "reason", reasons: json.rejection_reasons });
+  if (json.rejection_subreasons) cs.push({ kind: "subreason", subreasons: json.rejection_subreasons });
   if (json.agent_ids) cs.push({ kind: "agent", agentIds: json.agent_ids });
 
   const g = json.guards;
   if (g?.not_ordered_days !== undefined) cs.push({ kind: "notOrderedSince", days: g.not_ordered_days });
   if (g?.not_in_campaign_days !== undefined) cs.push({ kind: "notInCampaign", days: g.not_in_campaign_days });
   if (g?.not_lost_not_interested) cs.push({ kind: "notLostNotInterested" });
+  if (g?.no_order_after_outcome) cs.push({ kind: "noOrderAfterOutcome" });
 
   if (json.limit) cs.push({ kind: "limit", ...json.limit });
 
@@ -309,6 +328,7 @@ export function validateConditions(conditions: Condition[]): ConditionError[] {
         break;
       case "product":
         if (c.productIds.length === 0) errors.push({ kind: "product", code: "empty" });
+        if (c.windows?.some((w) => !c.productIds.includes(w.productId))) errors.push({ kind: "product", code: "windowOrphan" });
         break;
       case "city":
         if (c.cities.length === 0) errors.push({ kind: "city", code: "empty" });
@@ -322,6 +342,12 @@ export function validateConditions(conditions: Condition[]): ConditionError[] {
         const losing = outcome?.kind === "outcome"
           && outcome.statuses.some((s) => s === "rejected" || s === "returned");
         if (!losing) errors.push({ kind: "reason", code: "needsLosingOutcome" });
+        break;
+      }
+      case "subreason": {
+        if (c.subreasons.length === 0) { errors.push({ kind: "subreason", code: "empty" }); break; }
+        const losing = outcome?.kind === "outcome" && outcome.statuses.includes("rejected");
+        if (!losing) errors.push({ kind: "subreason", code: "needsLosingOutcome" });
         break;
       }
       case "basket":

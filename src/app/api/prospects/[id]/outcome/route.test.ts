@@ -70,6 +70,15 @@ describe("POST /api/prospects/[id]/outcome", () => {
     expect((await post({ kind: "no_answer" })).status).toBe(403);
   });
 
+  test("a prospect already brought back cannot be closed as lost (audit 2026-10-05, #12)", async () => {
+    as("m", "market_manager", LY);
+    mockSingle.mockResolvedValue({ data: { id: LEAD, market_id: LY, status: "won", assigned_to: "a1", converted_order_id: "o1" }, error: null });
+    expect((await post({ kind: "lost", reason: "price" })).status).toBe(409);
+    mockSingle.mockResolvedValue({ data: { id: LEAD, market_id: LY, status: "qualified", assigned_to: "a1", converted_order_id: "o1" }, error: null });
+    expect((await post({ kind: "lost", reason: "price" })).status).toBe(409);
+    expect(mockUpdateEq).not.toHaveBeenCalled();
+  });
+
   test("an unknown outcome is a 400, not a silent no-op", async () => {
     as("a1", "agent", LY);
     expect((await post({ kind: "teleported" })).status).toBe(400);
