@@ -17,6 +17,8 @@ vi.mock("next/link", () => ({
   ),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("swr", () => ({ default: () => ({ data: undefined, mutate: vi.fn() }) }));
+vi.mock("@/hooks/useWhatsAppTemplates", () => ({ useWhatsAppTemplates: () => ({ templates: [], isLoading: false, mutate: vi.fn() }) }));
 const scope = vi.hoisted(() => ({ marketId: null as string | null }));
 vi.mock("@/context/market-scope", () => ({ useMarketScope: () => ({ marketId: scope.marketId, scope: "all", marketCode: null, setScope: vi.fn() }) }));
 const inbox = vi.hoisted(() => ({ args: [] as unknown[], counts: { orphans: 3, all: 27 } as { orphans: number; all: number } | null }));
@@ -38,8 +40,10 @@ vi.mock("@/hooks/useWhatsAppAvailability", () => ({
 import { MessagesPageClient } from "../MessagesPageClient";
 
 /**
- * Clients › Messages — prototype `messages`: the crumb, the way to the
- * templates, both tab counts, and the list beside a ~460 px conversation.
+ * Clients › Messages in Aurore calme — prototypes/voix-du-client-et-messages-v2.html
+ * (page=messages): the crumb, the « Conversations · Modèles » switch with the
+ * count of conversations to hand over, the dormant card while the number is
+ * not connected (the real state on prod), the three-column inbox once it is.
  */
 const TN = "00000000-0000-0000-0000-000000000001";
 const LY = "00000000-0000-0000-0000-000000000002";
@@ -61,36 +65,57 @@ beforeEach(() => {
 });
 
 describe("MessagesPageClient", () => {
-  it("has the crumb, the title, and the switch to Modèles (reachable without a config)", () => {
+  it("has the crumb, the title, the sub line and the switch to Modèles", () => {
     render(<MessagesPageClient user={user("market_manager", TN)} locale="fr" />);
     const top = screen.getByTestId("messages-header");
-    expect(within(top).getByText("Clients › Messages")).toBeInTheDocument();
-    expect(within(top).getByRole("heading", { name: "Messages" })).toBeInTheDocument();
+    expect(top.querySelector(".crumb")).toHaveTextContent("Clients/Messages");
+    expect(within(top).getByRole("heading", { level: 1, name: "Messages" })).toBeInTheDocument();
+    expect(within(top).getByText(/répondre, puis confier à la bonne commande/)).toBeInTheDocument();
     expect(within(top).getByRole("link", { name: "Modèles" })).toHaveAttribute("href", "/fr/messages/templates");
-    expect(within(top).getByRole("link", { name: "Conversations" })).toHaveAttribute("aria-current", "page");
+    const convs = within(top).getByRole("link", { name: /Conversations/ });
+    expect(convs).toHaveAttribute("aria-current", "page");
+    expect(convs).toHaveTextContent("3");
   });
 
-  it("shows both tab counts from the inbox", () => {
+  it("connected: the inbox with its three tabs and their counts", () => {
     render(<MessagesPageClient user={user("market_manager", TN)} locale="fr" />);
-    expect(screen.getByRole("tab", { name: /À rattacher/ })).toHaveTextContent("3");
+    expect(screen.getByRole("tab", { name: /À confier/ })).toHaveTextContent("3");
+    expect(screen.getByRole("tab", { name: /Non lus/ })).toHaveTextContent("0");
     expect(screen.getByRole("tab", { name: /Toutes/ })).toHaveTextContent("27");
+    expect(screen.queryByText("WhatsApp n'est pas encore connecté")).not.toBeInTheDocument();
   });
 
-  it("lays the list beside a ~460 px conversation panel", () => {
-    render(<MessagesPageClient user={user("market_manager", TN)} locale="fr" />);
-    expect(screen.getByTestId("messages-grid").className).toMatch(/lg:grid-cols-\[minmax\(0,1fr\)_460px\]/);
-  });
-
-  it("explains a market that is not connected, and still shows the page", () => {
+  it("not connected: the dormant card instead of the inbox; a manager is told only a super admin connects", () => {
     availability.connected = false;
     render(<MessagesPageClient user={user("market_manager", TN)} locale="fr" />);
-    expect(screen.getByText(/WhatsApp n'est pas connecté pour ce marché/)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /À rattacher/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "WhatsApp n'est pas encore connecté" })).toBeInTheDocument();
+    expect(screen.getByText("Ce que cette page fera")).toBeInTheDocument();
+    expect(screen.getByText("Les clients écrivent")).toBeInTheDocument();
+    expect(screen.getByText("Pour connecter")).toBeInTheDocument();
+    expect(screen.getByText("Compte Meta Business vérifié")).toBeInTheDocument();
+    expect(screen.getByText("Seul un super admin peut relier le numéro.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ouvrir Connexions/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /À confier/ })).not.toBeInTheDocument();
+    // No count on the switch while nothing can arrive.
+    expect(within(screen.getByTestId("messages-header")).getByRole("link", { name: "Conversations" })).toBeInTheDocument();
   });
 
-  it("a super_admin reads the market chosen in the sidebar", () => {
+  it("not connected: a super_admin gets « Ouvrir Connexions » to the WhatsApp settings", () => {
+    availability.connected = false;
+    scope.marketId = LY;
+    render(<MessagesPageClient user={user("super_admin", null)} locale="fr" />);
+    expect(screen.getByRole("link", { name: /Ouvrir Connexions/ })).toHaveAttribute("href", "/fr/system/settings/whatsapp");
+  });
+
+  it("a super_admin reads the market chosen in the sidebar, every conversation at once", () => {
     scope.marketId = LY;
     render(<MessagesPageClient user={user("super_admin", null)} locale="fr" />);
     expect(inbox.args[0]).toBe(LY);
+    expect(inbox.args[1]).toBe("all");
+  });
+
+  it("a super_admin on « all markets » is asked to pick one", () => {
+    render(<MessagesPageClient user={user("super_admin", null)} locale="fr" />);
+    expect(screen.getByText("Choisissez un marché pour voir ses conversations.")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 -- Voix du client — customer_feedback, feedback_topics, customer_feedback_events
--- (plans/voix-du-client.md, migrations 20261002120000…120200).
+-- (plans/voix-du-client.md, migrations 20261002120000…120200 ; v2 : 20261006120000).
 --
 -- CE QUE CE FICHIER PROUVE
 --   1. Privilèges : anon n'exécute aucune RPC et ne lit rien ; authenticated n'écrit jamais
@@ -9,14 +9,14 @@
 --      s'ouvre « open », les autres n'ont pas de statut.
 --   3. Isolation : un agent n'écrit pas dans l'autre marché ; un manager de l'autre marché
 --      ne lit rien ; un entrepôt ne crée rien ; le sujet doit être de la bonne catégorie.
---   4. Validation par le responsable : garder / ignorer, réservés aux managers du marché.
+--   4. Écarter / remettre, changer la raison, « Notre réponse » : managers du marché seulement.
 --   5. Cycle de la réclamation : prendre en charge → résolue → rouvrir, et rien pour un agent.
 --   6. Le journal des événements est en écriture seule.
 --   7. Annuler (5 s) : l'auteur seulement.
---   8. Les remarques du livreur deviennent des suggestions — une seule par colis, jamais pour
---      « لا يرد ».
---   9. L'import des notes « Autre » : les mots-clés, la date de l'historique, idempotent.
---  10. feedback_cube : ce qui est à valider ou ignoré ne compte pas.
+--   8. Les remarques du livreur entrent directement (une réclamation s'ouvre) — une seule par
+--      colis, jamais pour « لا يرد ».
+--   9. « Garder dans Voix du client » (source whatsapp) : un responsable seulement.
+--  10. feedback_cube : ce qui est écarté ne compte pas.
 
 \set ON_ERROR_STOP on
 \i _helpers.sql
@@ -96,8 +96,10 @@ DECLARE
 BEGIN
   FOREACH f IN ARRAY ARRAY[
     'public.create_customer_feedback(text, text, uuid, uuid, uuid, uuid, text, uuid)',
-    'public.keep_customer_feedback(uuid[])',
-    'public.ignore_customer_feedback(uuid[])',
+    'public.discard_customer_feedback(uuid[])',
+    'public.restore_customer_feedback(uuid[])',
+    'public.set_customer_feedback_topic(uuid[], uuid)',
+    'public.set_feedback_topic_response(uuid, text)',
     'public.set_feedback_complaint_status(uuid, text)',
     'public.delete_customer_feedback(uuid)',
     'public.feedback_cube(uuid, date, date, text)'
@@ -105,12 +107,12 @@ BEGIN
     PERFORM pg_temp.ok(NOT has_function_privilege('anon', f, 'EXECUTE'), 'anon n''exécute pas ' || f);
     PERFORM pg_temp.ok(has_function_privilege('authenticated', f, 'EXECUTE'), 'authenticated exécute ' || f);
   END LOOP;
-  FOREACH f IN ARRAY ARRAY[
-    'public.feedback_import_autre_notes()',
-    'public.feedback_suggest_from_shipment(uuid)'
-  ] LOOP
+  FOREACH f IN ARRAY ARRAY['public.feedback_suggest_from_shipment(uuid)'] LOOP
     PERFORM pg_temp.ok(NOT has_function_privilege('anon', f, 'EXECUTE'), 'anon n''exécute pas ' || f);
     PERFORM pg_temp.ok(NOT has_function_privilege('authenticated', f, 'EXECUTE'), 'authenticated n''exécute pas ' || f);
+  END LOOP;
+  FOREACH f IN ARRAY ARRAY['keep_customer_feedback(uuid[])', 'ignore_customer_feedback(uuid[])', 'feedback_import_autre_notes()'] LOOP
+    PERFORM pg_temp.ok(to_regprocedure('public.' || f) IS NULL, 'la file « à valider » n''existe plus : ' || f);
   END LOOP;
   FOREACH f IN ARRAY ARRAY['public.customer_feedback','public.feedback_topics','public.customer_feedback_events'] LOOP
     PERFORM pg_temp.ok(NOT has_table_privilege('anon', f, 'SELECT'), 'anon ne lit pas ' || f);
@@ -212,37 +214,114 @@ BEGIN
 END $t3$;
 
 \echo ''
-\echo '── 4. Garder / ignorer ────────────────────────────────────────────────'
+\echo '── 4. Écarter / remettre ──────────────────────────────────────────────'
 DO $t4$
 DECLARE
   v_id  UUID := gen_random_uuid();
   v_id2 UUID := gen_random_uuid();
-  v_r   customer_feedback;
 BEGIN
-  -- Deux suggestions à valider, comme l'import et le livreur les écrivent.
-  INSERT INTO customer_feedback (id, market_id, category, moment, body, source, needs_review, order_id, product_id)
-  VALUES (v_id,  '00000000-0000-0000-0000-000000000002', 'reclamation', 'door', 'مش نفس لي في نت', 'courier', TRUE, current_setting('r.o7')::UUID, current_setting('r.p')::UUID),
-         (v_id2, '00000000-0000-0000-0000-000000000002', 'objection', 'call', 'قال سعره غالي', 'import', TRUE, current_setting('r.o6')::UUID, current_setting('r.p')::UUID);
+  -- Une remarque du livreur et une ancienne note importée, comme elles existent en base.
+  INSERT INTO customer_feedback (id, market_id, category, moment, body, source, status, order_id, product_id)
+  VALUES (v_id,  '00000000-0000-0000-0000-000000000002', 'reclamation', 'door', 'مش نفس لي في نت', 'courier', 'open', current_setting('r.o7')::UUID, current_setting('r.p')::UUID),
+         (v_id2, '00000000-0000-0000-0000-000000000002', 'objection', 'call', 'قال سعره غالي', 'import', NULL, current_setting('r.o6')::UUID, current_setting('r.p')::UUID);
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.a1'), 'role', 'authenticated')::TEXT, TRUE);
-  PERFORM pg_temp.eq(pg_temp.err(format('SELECT keep_customer_feedback(ARRAY[%L::UUID])', v_id)), '42501', 'un agent ne valide pas');
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT discard_customer_feedback(ARRAY[%L::UUID])', v_id)), '42501', 'un agent n''écarte pas');
   PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mmtn'), 'role', 'authenticated')::TEXT, TRUE);
-  PERFORM pg_temp.eq(keep_customer_feedback(ARRAY[v_id]), 0, 'le manager tunisien ne valide rien en Libye');
+  PERFORM pg_temp.eq(discard_customer_feedback(ARRAY[v_id, v_id2]), 0, 'le manager tunisien n''écarte rien en Libye');
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
-  PERFORM pg_temp.eq(keep_customer_feedback(ARRAY[v_id]), 1, 'le manager libyen garde la suggestion');
-  SELECT * INTO v_r FROM customer_feedback WHERE id = v_id;
-  PERFORM pg_temp.ok(NOT v_r.needs_review, 'elle n''est plus à valider');
-  PERFORM pg_temp.eq(v_r.status, 'open', 'une réclamation gardée s''ouvre');
-  PERFORM pg_temp.eq(v_r.reviewed_by, current_setting('r.mm')::UUID, 'qui l''a gardée');
-  PERFORM pg_temp.eq(keep_customer_feedback(ARRAY[v_id]), 0, 'garder deux fois ne fait rien');
+  PERFORM pg_temp.eq(discard_customer_feedback(ARRAY[v_id, v_id2]), 2, 'le manager libyen écarte les deux d''un geste');
+  PERFORM pg_temp.ok((SELECT bool_and(deleted_at IS NOT NULL AND deleted_by = current_setting('r.mm')::UUID) FROM customer_feedback WHERE id IN (v_id, v_id2)),
+    'écarté = supprimé en douceur, et par qui');
+  PERFORM pg_temp.eq((SELECT count(*)::INT FROM customer_feedback_events WHERE feedback_id IN (v_id, v_id2) AND kind = 'discarded'), 2, 'deux événements « discarded »');
+  PERFORM pg_temp.eq(discard_customer_feedback(ARRAY[v_id]), 0, 'écarter deux fois ne fait rien');
 
-  PERFORM pg_temp.eq(ignore_customer_feedback(ARRAY[v_id2]), 1, 'le manager ignore l''autre');
-  PERFORM pg_temp.ok((SELECT deleted_at IS NOT NULL FROM customer_feedback WHERE id = v_id2), 'ignorée = supprimée en douceur');
-  PERFORM pg_temp.eq((SELECT count(*)::INT FROM customer_feedback_events WHERE feedback_id = v_id2 AND kind = 'ignored'), 1, 'un événement « ignored »');
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mmtn'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(restore_customer_feedback(ARRAY[v_id, v_id2]), 0, 'le manager tunisien ne remet rien en Libye');
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(restore_customer_feedback(ARRAY[v_id, v_id2]), 2, '« Annuler » remet les deux');
+  PERFORM pg_temp.ok((SELECT bool_and(deleted_at IS NULL AND deleted_by IS NULL) FROM customer_feedback WHERE id IN (v_id, v_id2)), 'ils comptent de nouveau');
+  PERFORM pg_temp.eq((SELECT count(*)::INT FROM customer_feedback_events WHERE feedback_id IN (v_id, v_id2) AND kind = 'restored'), 2, 'deux événements « restored »');
+  PERFORM pg_temp.eq(restore_customer_feedback(ARRAY[v_id]), 0, 'remettre un retour vivant ne fait rien');
+
+  -- L'import reste écarté pour de bon : le cube ne doit plus le voir (section 10).
+  PERFORM discard_customer_feedback(ARRAY[v_id2]);
   PERFORM set_config('r.fk', v_id::TEXT, FALSE);
   PERFORM set_config('request.jwt.claims', '', TRUE);
 END $t4$;
+
+\echo ''
+\echo '── 4b. Changer la raison ──────────────────────────────────────────────'
+DO $t4b$
+DECLARE
+  v_ly       UUID := '00000000-0000-0000-0000-000000000002';
+  v_exp      UUID := (SELECT id FROM feedback_topics WHERE market_id = '00000000-0000-0000-0000-000000000002' AND key = 'expensive');
+  v_version  UUID := (SELECT id FROM feedback_topics WHERE market_id = '00000000-0000-0000-0000-000000000002' AND key = 'version');
+  v_never    UUID := (SELECT id FROM feedback_topics WHERE market_id = '00000000-0000-0000-0000-000000000002' AND key = 'never');
+  v_tnexp    UUID := (SELECT id FROM feedback_topics WHERE market_id = '00000000-0000-0000-0000-000000000001' AND key = 'expensive');
+  v_f1       UUID := current_setting('r.f1')::UUID;
+  v_r        customer_feedback;
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.a1'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_customer_feedback_topic(ARRAY[%L::UUID], %L::UUID)', v_f1, v_exp)), '42501', 'un agent ne change pas la raison');
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(set_customer_feedback_topic(ARRAY[v_f1], v_exp), 1, 'carte → trop cher');
+  SELECT * INTO v_r FROM customer_feedback WHERE id = v_f1;
+  PERFORM pg_temp.eq(v_r.topic_id, v_exp, 'la raison a changé');
+  PERFORM pg_temp.eq(v_r.category::TEXT, 'objection', 'toujours une objection');
+  PERFORM pg_temp.eq((SELECT count(*)::INT FROM customer_feedback_events WHERE feedback_id = v_f1 AND kind = 'topic'), 1, 'un événement « topic »');
+  PERFORM pg_temp.eq(set_customer_feedback_topic(ARRAY[v_f1], v_exp), 0, 'la même raison deux fois ne fait rien');
+
+  PERFORM pg_temp.eq(set_customer_feedback_topic(ARRAY[v_f1], v_version), 1, 'vers une raison de suggestion');
+  PERFORM pg_temp.eq((SELECT category::TEXT FROM customer_feedback WHERE id = v_f1), 'suggestion', 'la catégorie suit la raison');
+
+  PERFORM pg_temp.eq(set_customer_feedback_topic(ARRAY[v_f1], NULL), 1, '« Sans raison »');
+  SELECT * INTO v_r FROM customer_feedback WHERE id = v_f1;
+  PERFORM pg_temp.ok(v_r.topic_id IS NULL, 'plus de raison : à vérifier');
+  PERFORM pg_temp.eq(v_r.category::TEXT, 'suggestion', 'la catégorie reste');
+
+  PERFORM pg_temp.eq(set_customer_feedback_topic(ARRAY[current_setting('r.f2')::UUID], v_exp), 0, 'une réclamation ne change pas de raison ici');
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_customer_feedback_topic(ARRAY[%L::UUID], %L::UUID)', v_f1, v_never)), '22023',
+    'une raison de réclamation est refusée');
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_customer_feedback_topic(ARRAY[%L::UUID], %L::UUID)', v_f1, v_tnexp)), '42501',
+    'une raison de l''autre marché est refusée');
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mmtn'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(set_customer_feedback_topic(ARRAY[v_f1], v_tnexp), 0, 'le manager tunisien ne touche pas un retour libyen');
+
+  -- f1 redevient « carte » pour la suite.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM set_customer_feedback_topic(ARRAY[v_f1], (SELECT id FROM feedback_topics WHERE market_id = v_ly AND key = 'card'));
+  PERFORM pg_temp.eq((SELECT category::TEXT FROM customer_feedback WHERE id = v_f1), 'objection', 'retour à l''objection');
+  PERFORM set_config('request.jwt.claims', '', TRUE);
+END $t4b$;
+
+\echo ''
+\echo '── 4c. Notre réponse ──────────────────────────────────────────────────'
+DO $t4c$
+DECLARE
+  v_cash  UUID := (SELECT id FROM feedback_topics WHERE market_id = '00000000-0000-0000-0000-000000000002' AND key = 'nocash');
+  v_t     feedback_topics;
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.a1'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_feedback_topic_response(%L::UUID, %L)', v_cash, 'x')), '42501', 'un agent n''écrit pas la réponse');
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mmtn'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_feedback_topic_response(%L::UUID, %L)', v_cash, 'x')), '42501', 'ni le manager de l''autre marché');
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM set_feedback_topic_response(v_cash, '  Rappeler le 1er du mois.  ');
+  SELECT * INTO v_t FROM feedback_topics WHERE id = v_cash;
+  PERFORM pg_temp.eq(v_t.response, 'Rappeler le 1er du mois.', 'la réponse est gardée, sans les espaces');
+  PERFORM pg_temp.ok(v_t.response_by = current_setting('r.mm')::UUID AND v_t.response_at IS NOT NULL, 'par qui et quand');
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_feedback_topic_response(%L::UUID, %L)', v_cash, repeat('x', 501))), '22023', 'plus de 500 caractères : refusé');
+  PERFORM set_feedback_topic_response(v_cash, '   ');
+  SELECT * INTO v_t FROM feedback_topics WHERE id = v_cash;
+  PERFORM pg_temp.ok(v_t.response IS NULL AND v_t.response_by IS NULL AND v_t.response_at IS NULL, 'un texte vide efface la réponse');
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT set_feedback_topic_response(%L::UUID, %L)', gen_random_uuid(), 'x')), 'P0002', 'raison inconnue');
+  PERFORM set_config('request.jwt.claims', '', TRUE);
+END $t4c$;
 
 \echo ''
 \echo '── 5. Cycle de la réclamation ─────────────────────────────────────────'
@@ -284,7 +363,7 @@ BEGIN
   PERFORM pg_temp.eq(pg_temp.err(format(
     'INSERT INTO customer_feedback (market_id, category, moment, body, source) VALUES (%L, %L, %L, %L, %L)',
     '00000000-0000-0000-0000-000000000002', 'reclamation', 'call', 'x', 'agent')), '23514',
-    'une réclamation validée sans statut viole la contrainte');
+    'une réclamation sans statut viole la contrainte');
   PERFORM pg_temp.eq(pg_temp.err(format(
     'INSERT INTO customer_feedback (market_id, category, moment, body, source, status) VALUES (%L, %L, %L, %L, %L, %L)',
     '00000000-0000-0000-0000-000000000002', 'objection', 'call', 'x', 'agent', 'open')), '23514',
@@ -310,6 +389,9 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.a1'), 'role', 'authenticated')::TEXT, TRUE);
   PERFORM delete_customer_feedback(current_setting('r.f5')::UUID);
   PERFORM pg_temp.ok((SELECT deleted_at IS NOT NULL FROM customer_feedback WHERE id = current_setting('r.f5')::UUID), 'l''auteur annule sa saisie');
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(restore_customer_feedback(ARRAY[current_setting('r.f5')::UUID]), 0,
+    '« Annuler » du responsable ne ressuscite pas une saisie annulée par son auteur');
   PERFORM set_config('request.jwt.claims', '', TRUE);
 
   UPDATE customer_feedback SET created_at = now() - interval '1 hour' WHERE id = current_setting('r.f1')::UUID;
@@ -320,7 +402,7 @@ BEGIN
 END $t7$;
 
 \echo ''
-\echo '── 8. Remarques du livreur → suggestions ──────────────────────────────'
+\echo '── 8. Remarques du livreur → retours ──────────────────────────────────'
 DO $t8$
 DECLARE
   v_s1 UUID := gen_random_uuid();
@@ -331,12 +413,12 @@ BEGIN
   INSERT INTO darb_shipments (id, darb_id, order_id, latest_remark, latest_remark_at, remark_class, remark_class_source)
   VALUES (v_s1, 'SQLTEST-' || v_s1, current_setting('r.o7')::UUID, '  قال مش نفس لي في نت ', now() - interval '3 days', 'wrong_item', 'latest_remark');
   SELECT * INTO v_r FROM customer_feedback WHERE courier_shipment_id = v_s1;
-  PERFORM pg_temp.ok(v_r.id IS NOT NULL, 'un colis « pas conforme » crée une suggestion');
+  PERFORM pg_temp.ok(v_r.id IS NOT NULL, 'un colis « pas conforme » crée un retour');
   PERFORM pg_temp.eq(v_r.source, 'courier', 'source livreur');
-  PERFORM pg_temp.ok(v_r.needs_review, 'à valider par le responsable');
+  PERFORM pg_temp.ok(NOT v_r.needs_review, 'elle compte tout de suite, sans file à valider');
   PERFORM pg_temp.eq(v_r.category::TEXT, 'reclamation', 'wrong_item → réclamation');
   PERFORM pg_temp.eq((SELECT key FROM feedback_topics WHERE id = v_r.topic_id), 'nonconform', '… non conforme');
-  PERFORM pg_temp.ok(v_r.status IS NULL, 'pas de statut tant qu''elle est à valider');
+  PERFORM pg_temp.eq(v_r.status, 'open', 'la réclamation s''ouvre');
   PERFORM pg_temp.eq(v_r.moment::TEXT, 'door', 'annulée après expédition → à la porte');
   PERFORM pg_temp.eq(v_r.body, 'قال مش نفس لي في نت', 'les mots du livreur');
   PERFORM pg_temp.ok(abs(extract(epoch FROM v_r.created_at - (now() - interval '3 days'))) < 2, 'datée de la remarque');
@@ -359,32 +441,18 @@ BEGIN
 END $t8$;
 
 \echo ''
-\echo '── 9. Import des notes « Autre » ──────────────────────────────────────'
+\echo '── 9. « Garder dans Voix du client » depuis WhatsApp ──────────────────'
 DO $t9$
 DECLARE
-  v_n   INT;
-  v_r   customer_feedback;
-  v_at  TIMESTAMPTZ := now() - interval '20 days';
+  v_id UUID;
 BEGIN
-  UPDATE orders SET rejection_reason = 'autre', rejection_note = 'قال اريد الدفع بالبطاقة' WHERE id = current_setting('r.o5')::UUID;
-  UPDATE orders SET rejection_reason = 'autre', rejection_note = 'لم أطلب شيئا' WHERE id = current_setting('r.o6')::UUID;
-  INSERT INTO order_history (order_id, market_id, status_from, status_to, actor_id, actor_type, created_at)
-  VALUES (current_setting('r.o5')::UUID, '00000000-0000-0000-0000-000000000002', 'pending', 'rejected', current_setting('r.a2')::UUID, 'agent', v_at),
-         (current_setting('r.o6')::UUID, '00000000-0000-0000-0000-000000000002', 'pending', 'rejected', current_setting('r.a2')::UUID, 'agent', v_at);
-
-  -- o6 a déjà une ligne import ignorée (section 4) : elle ne revient pas, et « لم أطلب » n'est pas un retour.
-  v_n := feedback_import_autre_notes();
-  SELECT * INTO v_r FROM customer_feedback WHERE order_id = current_setting('r.o5')::UUID AND source = 'import';
-  PERFORM pg_temp.ok(v_r.id IS NOT NULL, '« بالبطاقة » est importée');
-  PERFORM pg_temp.eq(v_r.category::TEXT, 'objection', '… en objection');
-  PERFORM pg_temp.eq((SELECT key FROM feedback_topics WHERE id = v_r.topic_id), 'card', '… carte ou virement');
-  PERFORM pg_temp.ok(v_r.needs_review, '… à valider');
-  PERFORM pg_temp.eq(v_r.created_by, current_setting('r.a2')::UUID, '… l''auteur est l''agent qui a refusé');
-  PERFORM pg_temp.ok(abs(extract(epoch FROM v_r.created_at - v_at)) < 1, '… datée par l''historique, pas par updated_at');
-  PERFORM pg_temp.eq(v_r.moment::TEXT, 'call', '… pendant l''appel');
-  PERFORM pg_temp.eq((SELECT count(*)::INT FROM customer_feedback WHERE order_id = current_setting('r.o6')::UUID AND source = 'import' AND deleted_at IS NULL), 0,
-    '« لم أطلب » n''est pas importée');
-  PERFORM pg_temp.eq(feedback_import_autre_notes(), 0, 'relancer l''import n''ajoute rien');
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.a1'), 'role', 'authenticated')::TEXT, TRUE);
+  PERFORM pg_temp.eq(pg_temp.err(format('SELECT create_customer_feedback(%L, %L, NULL, NULL, NULL, NULL, %L)', 'suggestion', 'x', 'whatsapp')), '42501',
+    'un agent ne garde pas un message WhatsApp');
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
+  v_id := create_customer_feedback('suggestion', 'عندكم المصحف برواية قالون؟', NULL, NULL, NULL, NULL, 'whatsapp');
+  PERFORM pg_temp.eq((SELECT source FROM customer_feedback WHERE id = v_id), 'whatsapp', 'le manager le garde, source whatsapp');
+  PERFORM set_config('request.jwt.claims', '', TRUE);
 END $t9$;
 
 \echo ''
@@ -397,9 +465,9 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mm'), 'role', 'authenticated')::TEXT, TRUE);
   SELECT coalesce(sum(n), 0)::INT INTO v_n FROM feedback_cube('00000000-0000-0000-0000-000000000002', current_date - 400, current_date + 1, 'Africa/Tripoli')
   WHERE product_id = current_setting('r.p')::UUID;
-  -- f1 objection, f2 réclamation, o3 objection, o4 suggestion, fk gardée = 5 ; f5 annulée (sans produit de toute façon),
-  -- l'ignorée, la courier v_s2 et l'import à valider ne comptent pas.
-  PERFORM pg_temp.eq(v_n, 5, 'le cube compte ce qui est validé et vivant');
+  -- f1, f2, o3, o4 = 4 ; fk (remise) = 5 ; les deux remarques du livreur (v_s1, v_s2) = 7.
+  -- L'import écarté ne compte pas ; f5 et le message WhatsApp n'ont pas de produit.
+  PERFORM pg_temp.eq(v_n, 7, 'le cube compte tout ce qui n''est pas écarté');
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', current_setting('r.mmtn'), 'role', 'authenticated')::TEXT, TRUE);
   SELECT coalesce(sum(n), 0)::INT INTO v_n FROM feedback_cube('00000000-0000-0000-0000-000000000002', current_date - 400, current_date + 1, 'Africa/Tripoli');

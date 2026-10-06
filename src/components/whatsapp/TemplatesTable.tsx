@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import Link from "next/link";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Image as ImageIcon, Info, Loader2, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { AlertTriangle, Clock, Image as ImageIcon, Info, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { useWhatsAppAvailability } from "@/hooks/useWhatsAppAvailability";
@@ -12,7 +12,9 @@ import { LIFECYCLE_EVENT_KEYS } from "@/lib/whatsapp/types";
 
 /**
  * Modèles WhatsApp — what Meta approved, and which event each one serves.
- * Prototype: prototypes/whatsapp-manager-v1.html?screen=modeles.
+ * Look: prototypes/voix-du-client-et-messages-v2.html (`templates()`), styled by
+ * the Messages page's messages.css (`.wam`); the drawer keeps the earlier
+ * whatsapp-manager-v1 design.
  *
  * The event select is the one write here besides Meta's own actions; the
  * rest is reading Meta's state (status, rejection reason, the components
@@ -72,11 +74,8 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   UNKNOWN: "neutral",
 };
 const KNOWN_LANG = new Set(["fr", "ar", "en"]);
-const KNOWN_CATEGORY = new Set(["UTILITY", "MARKETING", "AUTHENTICATION"]);
 const KNOWN_VARS = new Set(["name", "carrier", "tracking", "amount", "order_ref", "courier", "address", "product", "discount", "city", "agent"]);
 
-const btnCls =
-  "inline-flex items-center gap-1.5 rounded-[6px] border border-line-strong bg-surface-card px-3 py-2 text-[13.5px] font-medium text-ink-primary hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50";
 const btnPrimaryCls =
   "inline-flex items-center gap-1.5 rounded-[6px] border border-brand bg-brand px-3 py-2 text-[13.5px] font-medium text-white hover:bg-brand-hover transition-colors duration-fast disabled:opacity-50";
 const btnDangerCls =
@@ -94,18 +93,8 @@ function useLabels() {
       t,
       tCommon,
       lang: (l: string) => (KNOWN_LANG.has(l) ? tCommon(`language.${l}`) : l),
-      category: (c: string) => (KNOWN_CATEGORY.has(c) ? t(`category.${c}`) : c),
       status: (s: string) => t(`status.${STATUS_TONE[s] ? s : "UNKNOWN"}`),
       variable: (v: string) => (KNOWN_VARS.has(v) ? t(`vars.${v}`) : v),
-      relative: (iso: string | null) => {
-        if (!iso) return tCommon("never");
-        const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-        if (m < 1) return tCommon("ago.now");
-        if (m < 60) return tCommon("ago.m", { n: m });
-        const h = Math.round(m / 60);
-        if (h < 48) return tCommon("ago.h", { n: h });
-        return tCommon("ago.d", { n: Math.round(h / 24) });
-      },
     }),
     [t, tCommon],
   );
@@ -311,24 +300,19 @@ function TemplateDrawer({
   );
 }
 
-/** One market pill with its template count (SWR dedupes the active market's request with the table's). */
+/** One market in the switch, with its template count (SWR dedupes the active market's request with the table's). */
 function MarketPill({ market, label, active, onPick }: { market: Market; label: string; active: boolean; onPick: () => void }) {
   const { data } = useSWR<{ data: TemplateRow[] }>(templatesKey(market.id), fetcher, { revalidateOnFocus: false });
   const count = data?.data?.length;
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onPick}
-      className={`inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[13.5px] ${
-        active ? "bg-surface-card font-semibold text-ink-primary ring-1 ring-line" : "font-medium text-ink-secondary hover:text-ink-primary"
-      }`}
-    >
+    <button type="button" aria-pressed={active} onClick={onPick} className={active ? "on" : undefined}>
       {label}
-      {count !== undefined && <b className="tabular-nums">{count}</b>}
+      {count !== undefined && <span className="n num">{count}</span>}
     </button>
   );
 }
+
+const STATE_CLASS: Record<string, string> = { APPROVED: "done", PENDING: "prog", PAUSED: "prog", REJECTED: "open" };
 
 export interface TemplatesTableProps {
   markets: Market[];
@@ -339,11 +323,17 @@ export interface TemplatesTableProps {
   canDelete?: boolean;
   /** Where to connect the number; null hides the link (a manager cannot connect). */
   connectionsHref?: string | null;
-  /** The page's top bar: receives sync + create so they sit there, as in the prototype. */
-  renderHeader?: (actions: ReactNode) => ReactNode;
 }
 
-export function TemplatesTable({ markets, initialMarketId, readOnly = false, canDelete = false, connectionsHref = null, renderHeader }: TemplatesTableProps) {
+/**
+ * The Modèles card (prototype `templates()`, `.tbl-card`): the title and what
+ * a template is, « Synchroniser avec Meta » and « Créer les modèles Ordra »,
+ * the market switch for a super_admin, the offline note while the number is
+ * not connected, then Modèle · Envoyé quand · Langue · État. Rendered inside
+ * the page's `.wam` root, whose stylesheet carries the look. A row opens the
+ * drawer (preview, JSON sent to Meta, resubmit, delete).
+ */
+export function TemplatesTable({ markets, initialMarketId, readOnly = false, canDelete = false, connectionsHref = null }: TemplatesTableProps) {
   const L = useLabels();
   const { t, tCommon } = L;
   const tMarkets = useTranslations("nav.markets");
@@ -435,95 +425,79 @@ export function TemplatesTable({ markets, initialMarketId, readOnly = false, can
   );
 
   const closeDrawer = useCallback(() => setOpenId(null), []);
-
-  const actions = (
-    <>
-      <button type="button" className={btnCls} onClick={() => post("sync")} disabled={busy !== null || notConnected}>
-        {busy === "sync" ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <RefreshCw size={14} strokeWidth={1.8} aria-hidden />}
-        {t("sync")}
-      </button>
-      <button type="button" className={btnPrimaryCls} onClick={() => post("catalogue")} disabled={busy !== null || notConnected}>
-        {busy === "catalogue" ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Plus size={14} strokeWidth={2.2} aria-hidden />}
-        {t("create")}
-      </button>
-    </>
-  );
-
-  const cols = ["name", "lang", "category", "status", "event", "vars", "sync"] as const;
+  const eventLabel = (r: TemplateRow) =>
+    r.source === "campaign" ? (r.campaign_name ? t("campaignChip", { name: r.campaign_name }) : t("event.campaign")) : r.event_key ? t(`event.${r.event_key}`) : t("event.none");
 
   return (
-    <div className="flex flex-col gap-3">
-      {renderHeader ? renderHeader(actions) : <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>}
-
-      {markets.length > 1 && (
-        <div role="group" aria-label={t("marketGroup")} className="inline-flex w-fit gap-1 rounded-[8px] bg-status-neutralBg p-[3px]">
-          {markets.map((m) => (
-            <MarketPill
-              key={m.id}
-              market={m}
-              label={labelOf(m)}
-              active={m.id === marketId}
-              onPick={() => {
-                setMarketId(m.id);
-                setOpenId(null);
-                setError(null);
-              }}
-            />
-          ))}
+    <section className="card tbl-card">
+      <div className="stools">
+        <div>
+          <div className="ttl">{t("title")}</div>
+          <div className="meta">{t("sub")}</div>
         </div>
-      )}
-
-      {notConnected ? (
-        <div role="status" className="flex items-start gap-2.5 rounded-[8px] border border-[#F5E1A4] bg-status-warningBg px-3 py-2.5 text-[13px] leading-[1.45] text-[#7A5B00]">
-          <AlertTriangle size={16} className="mt-px flex-none" aria-hidden />
-          <div>
-            {connectionsHref ? t("notConnected") : t("notConnectedManager")}
-            {connectionsHref && (
-              <>
-                {" "}
-                <Link href={connectionsHref} className="font-semibold underline underline-offset-2">
-                  {tCommon("goToConnections")}
-                </Link>
-              </>
-            )}
+        <span style={{ flex: 1 }} />
+        {markets.length > 1 && (
+          <div role="group" aria-label={t("marketGroup")} className="mini">
+            {markets.map((m) => (
+              <MarketPill
+                key={m.id}
+                market={m}
+                label={labelOf(m)}
+                active={m.id === marketId}
+                onPick={() => {
+                  setMarketId(m.id);
+                  setOpenId(null);
+                  setError(null);
+                }}
+              />
+            ))}
           </div>
-        </div>
-      ) : (
-        <div className="flex items-start gap-2.5 rounded-[8px] border border-[#C9DBF5] bg-prod-info-bg px-3 py-2.5 text-[13px] leading-[1.45] text-[#1F4F94]">
-          <Info size={16} className="mt-px flex-none" aria-hidden />
-          <div>{t("info")}</div>
+        )}
+        <button type="button" className="btn sec" onClick={() => post("sync")} disabled={busy !== null || notConnected}>
+          {busy === "sync" ? <Loader2 className="ic animate-spin" aria-hidden /> : <Clock className="ic" strokeWidth={1.9} aria-hidden />}
+          {t("sync")}
+        </button>
+        <button type="button" className="btn pri" onClick={() => post("catalogue")} disabled={busy !== null || notConnected}>
+          {busy === "catalogue" ? <Loader2 className="ic animate-spin" aria-hidden /> : <Plus className="ic" strokeWidth={2.2} aria-hidden />}
+          {t("create")}
+        </button>
+      </div>
+
+      {notConnected && (
+        <div role="status" className="offline">
+          <Info className="ic" strokeWidth={1.9} aria-hidden />
+          {t("offline")}
+          {connectionsHref && <Link href={connectionsHref}>{tCommon("goToConnections")}</Link>}
         </div>
       )}
 
       {error && (
-        <p role="alert" className="m-0 flex items-start gap-2 rounded-[8px] border border-[#F5C6BC] bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical">
-          <AlertTriangle size={15} className="mt-px flex-none" aria-hidden />
+        <p role="alert" className="offline err">
+          <AlertTriangle className="ic" strokeWidth={1.9} aria-hidden />
           {error}
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-[8px] border border-line-subtle bg-surface-card">
-        <table className="w-full border-collapse text-[13.5px]">
+      <div className={`tblwrap ${notConnected || error ? "gap" : ""}`}>
+        <table>
           <thead>
             <tr>
-              {cols.map((c) => (
-                <th key={c} className="whitespace-nowrap border-b border-line-subtle bg-surface-sunken px-3 py-2 text-start text-[12px] font-semibold text-ink-secondary">
-                  {t(`cols.${c}`)}
-                </th>
+              {(["name", "when", "lang", "state"] as const).map((c) => (
+                <th key={c}>{t(`cols.${c}`)}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-ink-secondary">
+                <td colSpan={4} className="empty">
                   {tCommon("loading")}
                 </td>
               </tr>
             )}
             {!isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-ink-secondary">
+                <td colSpan={4} className="empty">
                   {t("empty")} {notConnected ? "" : t("emptyHint")}
                 </td>
               </tr>
@@ -531,42 +505,22 @@ export function TemplatesTable({ markets, initialMarketId, readOnly = false, can
             {rows.map((r) => {
               const mappable = (r.language === "ar" || r.language === "fr") && r.source !== "campaign";
               return (
-                <tr
-                  key={r.id}
-                  aria-selected={r.id === openId}
-                  onClick={() => setOpenId(r.id)}
-                  className={`cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-hover ${r.id === openId ? "bg-brand-bg" : ""}`}
-                >
-                  <td className="px-3 py-[9px]">
-                    <span className="font-mono text-[12.5px]" dir="ltr">
+                <tr key={r.id} aria-selected={r.id === openId} onClick={() => setOpenId(r.id)} className={`r ${r.id === openId ? "peek" : ""}`}>
+                  <td>
+                    <code className="tpl" dir="ltr">
                       {r.name}
-                    </span>
+                    </code>
                     {r.header_format === "IMAGE" && (
-                      <span className="ms-1.5 inline-flex items-center rounded-pill bg-status-neutralBg px-1.5 py-0.5 align-middle text-ink-secondary" title={t("imageHeader")}>
-                        <ImageIcon size={12} aria-label={t("imageHeader")} />
+                      <span className="tag" style={{ marginInlineStart: 6, verticalAlign: "middle" }} title={t("imageHeader")}>
+                        <ImageIcon className="ic" aria-label={t("imageHeader")} />
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-[9px]">{L.lang(r.language)}</td>
-                  <td className="px-3 py-[9px]">{L.category(r.category)}</td>
-                  <td className="px-3 py-[9px]">
-                    <Badge tone={statusTone(r.status)} dot>
-                      {L.status(r.status)}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-[9px]" onClick={(e) => e.stopPropagation()}>
-                    {r.source === "campaign" ? (
-                      <span className="inline-flex items-center rounded-pill bg-status-neutralBg px-2.5 py-0.5 text-[12px] font-semibold text-ink-primary">
-                        {r.campaign_name ? t("campaignChip", { name: r.campaign_name }) : t("event.campaign")}
-                      </span>
+                  <td style={{ fontWeight: 600 }} onClick={(e) => !readOnly && mappable && e.stopPropagation()}>
+                    {readOnly || !mappable ? (
+                      eventLabel(r)
                     ) : (
-                      <select
-                        aria-label={t("eventAria", { name: r.name, lang: r.language })}
-                        value={r.event_key ?? ""}
-                        disabled={readOnly || !mappable}
-                        onChange={(e) => setEvent(r, e.target.value)}
-                        className={`min-w-[150px] rounded-[6px] border border-line bg-surface-card px-2 py-[5px] text-[13px] ${r.event_key ? "text-ink-primary" : "text-ink-secondary"} disabled:opacity-60`}
-                      >
+                      <select aria-label={t("eventAria", { name: r.name, lang: r.language })} value={r.event_key ?? ""} onChange={(e) => setEvent(r, e.target.value)} className="evsel">
                         <option value="">{t("event.none")}</option>
                         {LIFECYCLE_EVENT_KEYS.map((k) => (
                           <option key={k} value={k}>
@@ -576,8 +530,13 @@ export function TemplatesTable({ markets, initialMarketId, readOnly = false, can
                       </select>
                     )}
                   </td>
-                  <td className="px-3 py-[9px] text-[12.5px] text-ink-secondary">{r.variables.length > 0 ? r.variables.map(L.variable).join(", ") : "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-[9px] text-[12.5px] text-ink-secondary">{L.relative(r.synced_at)}</td>
+                  <td className="meta">{L.lang(r.language)}</td>
+                  <td>
+                    <span className={`st ${STATE_CLASS[r.status] ?? "imp"}`}>
+                      <i />
+                      {L.status(r.status)}
+                    </span>
+                  </td>
                 </tr>
               );
             })}
@@ -597,7 +556,6 @@ export function TemplatesTable({ markets, initialMarketId, readOnly = false, can
           onDelete={() => remove(open)}
         />
       )}
-    </div>
+    </section>
   );
 }
-

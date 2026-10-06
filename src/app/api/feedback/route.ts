@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
-import { canCaptureFeedback } from "@/lib/role-permissions";
+import { canCaptureFeedback, canManageFeedback } from "@/lib/role-permissions";
 import { FEEDBACK_BODY_MAX, isFeedbackCategory } from "@/lib/feedback/taxonomy";
 import { isUuid, rpcErrorResponse } from "@/lib/feedback/api";
 import { withRouteErrors } from "@/lib/journal/route-errors";
@@ -18,6 +18,9 @@ const optionalUuid = (v: unknown): string | null | false =>
  * order (else the customer, else the agent), the customer and product from the order, and
  * the MOMENT from the order's status at this instant. A `moment` in the body is ignored —
  * the client never decides it.
+ *
+ * `source: "whatsapp"` is « Garder dans Voix du client » from the Messages inbox — a manager
+ * only. Any other source in the body is ignored: the F key writes « agent ».
  */
 async function handlePOST(req: NextRequest) {
   const result = await getActor(req);
@@ -44,6 +47,9 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
 
+  const whatsapp = raw.source === "whatsapp";
+  if (whatsapp && !canManageFeedback(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const supabase = await createClient();
   const { data: id, error } = await supabase.rpc("create_customer_feedback", {
     p_category: raw.category,
@@ -52,7 +58,7 @@ async function handlePOST(req: NextRequest) {
     p_order_id: order,
     p_customer_id: customer,
     p_product_id: product,
-    p_source: "agent",
+    p_source: whatsapp ? "whatsapp" : "agent",
     // Only a super_admin's market is taken from the request; the RPC ignores it for anyone else.
     p_market_id: actor.role === "super_admin" ? market : null,
   });
