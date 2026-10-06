@@ -22,6 +22,15 @@ export function xdeliveryPickupKey(warehouseId: string): string {
   return `${XDELIVERY_PICKUP_KEY_PREFIX}${warehouseId}`;
 }
 
+/** carrier_event_log rows of the pickup request carry raw_body.kind = this. */
+export const PICKUP_LOG_KIND = "pickup_request";
+/** One per account per tick that asked for ≥ 1 parcel; raw_body.count says how many. */
+export const PICKUP_REQUESTED = "pickup_requested";
+/** One per parcel, with its order_id: when that parcel was asked for. */
+export const PICKUP_MARKED = "pickup_marked";
+/** The account has no portal email/password, so nothing can be asked. */
+export const NO_PORTAL_LOGIN = "no_portal_login";
+
 /**
  * Both directions are the warehouse agent's: they see the parcels and the
  * driver. Confined to their own building; unassigned never means unrestricted.
@@ -54,8 +63,8 @@ export interface PickupDeps {
     findParcels: (barcodes: string[]) => Promise<PortalParcel[]>;
     requestPickup: (ids: string[]) => Promise<void>;
   };
-  /** Records slug PENDING so the next tick does not ask again. */
-  markRequested: (orderId: string) => Promise<void>;
+  /** Records slug PENDING so the next tick does not ask again, and logs when. */
+  markRequested: (orderId: string, carrierId: string) => Promise<void>;
   log: (entry: { carrierId: string; reason: string; count?: number }) => Promise<void>;
 }
 
@@ -83,7 +92,7 @@ export async function requestPendingPickups(deps: PickupDeps): Promise<PickupRun
 
     if (!account.login) {
       out.errors++;
-      await deps.log({ carrierId: account.carrierId, reason: "no_portal_login", count: awaiting.length });
+      await deps.log({ carrierId: account.carrierId, reason: NO_PORTAL_LOGIN, count: awaiting.length });
       continue;
     }
 
@@ -91,15 +100,20 @@ export async function requestPendingPickups(deps: PickupDeps): Promise<PickupRun
       const portal = deps.portalFor(account.login);
       const known = await portal.findParcels(awaiting.map((a) => a.barcode));
       const toRequest = known.filter((p) => p.status === "CREATED");
-      await portal.requestPickup(toRequest.map((p) => p.id));
-      out.requested += toRequest.length;
+      // An empty manifest is still a manifest on their side: never post one.
+      if (toRequest.length > 0) {
+        await portal.requestPickup(toRequest.map((p) => p.id));
+        out.requested += toRequest.length;
+      }
 
       // Asked now, or already asked (PENDING or further) by someone on their portal.
       const done = new Set(known.map((p) => p.barcode));
       for (const a of awaiting) {
-        if (done.has(a.barcode)) await deps.markRequested(a.orderId);
+        if (done.has(a.barcode)) await deps.markRequested(a.orderId, account.carrierId);
       }
-      await deps.log({ carrierId: account.carrierId, reason: "pickup_requested", count: toRequest.length });
+      if (toRequest.length > 0) {
+        await deps.log({ carrierId: account.carrierId, reason: PICKUP_REQUESTED, count: toRequest.length });
+      }
     } catch (err) {
       out.errors++;
       await deps.log({

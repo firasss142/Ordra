@@ -9,6 +9,15 @@ import { CALLING_STATUSES } from "@/lib/orders/row-signals";
 export type Tray = "reject" | "callback" | "send" | "schedule";
 
 /** What a recorded ending reports to the page (the queue contract). */
+/** A carrier that asks its own questions in its own form before the upload. */
+export type CarrierForm = "darb" | "xdelivery";
+
+export function carrierFormFor(code: string): CarrierForm | null {
+  if (code === "darb_assabil") return "darb";
+  if (code === "xdelivery") return "xdelivery";
+  return null;
+}
+
 export interface OutcomeDone {
   action: "attempt" | "confirmed" | "rejected" | "callback" | "deleted";
   newStatus: string;

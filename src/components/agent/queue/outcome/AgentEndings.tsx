@@ -15,7 +15,7 @@ import { Ic } from "@/components/agent/shared";
 import { isEditableTarget } from "@/lib/dom";
 import { CALLING_STATUSES } from "@/lib/orders/row-signals";
 import { OutcomeTray } from "./OutcomeTray";
-import { DarbStep, OutcomeSheet, type SheetEcho } from "./OutcomeSheet";
+import { DarbStep, OutcomeSheet, XDeliveryStep, type SheetEcho } from "./OutcomeSheet";
 import type { AgentNote, Twin } from "./outcome-model";
 import type { OutcomeFlow } from "./useOutcomeFlow";
 
@@ -69,7 +69,7 @@ export function AgentEndings(p: AgentEndingsProps) {
     const h = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape") {
-        if (flow.send.darbOpen) return;
+        if (flow.send.darbOpen || flow.send.xdOpen) return;
         if (menu) setMenu(false);
         else if (flow.tray) flow.dismiss();
         else p.onClose();
@@ -260,6 +260,7 @@ export function AgentEndings(p: AgentEndingsProps) {
         <>
           <OutcomeTray flow={flow} />
           <DarbStep flow={flow} />
+          <XDeliveryStep flow={flow} />
         </>
       ) : (
         <>

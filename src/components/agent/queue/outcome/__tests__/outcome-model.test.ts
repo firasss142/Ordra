@@ -3,6 +3,7 @@ import {
   agentNotes,
   ageParts,
   callbackSlots,
+  carrierFormFor,
   deliveryDelay,
   groupIcon,
   slaChip,
@@ -11,6 +12,21 @@ import {
 } from "../outcome-model";
 
 const at = (s: string) => new Date(s);
+
+describe("carrierFormFor — which carriers ask their own questions before the upload", () => {
+  it("Darb opens its form (service, area, options)", () => {
+    expect(carrierFormFor("darb_assabil")).toBe("darb");
+  });
+
+  it("X-Delivery opens its form (governorate, optional delegation)", () => {
+    expect(carrierFormFor("xdelivery")).toBe("xdelivery");
+  });
+
+  it("the others upload straight from the card", () => {
+    expect(carrierFormFor("navex")).toBeNull();
+    expect(carrierFormFor("dexpress")).toBeNull();
+  });
+});
 
 describe("callbackSlots — plan decision 5: +2 h · Ce soir 19:00 · Demain 11:00 / 14:00 / 18:00", () => {
   it("offers the five quick picks in the afternoon", () => {

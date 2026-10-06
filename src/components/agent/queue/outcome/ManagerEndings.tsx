@@ -18,7 +18,7 @@ import { ActionFooter } from "@/components/queue/OrderDetailPanel/ActionFooter";
 import type { PanelActionKind, PanelActions } from "@/components/queue/OrderDetailPanel/types";
 import { useOutcomeFlow, type OutcomeOrder } from "./useOutcomeFlow";
 import { OutcomeTray } from "./OutcomeTray";
-import { DarbStep, OutcomeSheet, type SheetEcho } from "./OutcomeSheet";
+import { DarbStep, OutcomeSheet, XDeliveryStep, type SheetEcho } from "./OutcomeSheet";
 import type { OutcomeDone } from "./outcome-model";
 import "@/components/agent/agent.css";
 import "@/components/agent/agent-app.css";
@@ -50,7 +50,7 @@ export function ManagerEndings(p: ManagerEndingsProps) {
   useEffect(() => {
     if (!flow.tray) return;
     const h = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || flow.send.darbOpen) return;
+      if (e.key !== "Escape" || flow.send.darbOpen || flow.send.xdOpen) return;
       e.stopImmediatePropagation();
       flow.dismiss();
     };
@@ -102,6 +102,7 @@ export function ManagerEndings(p: ManagerEndingsProps) {
         <>
           <OutcomeTray flow={flow} />
           <DarbStep flow={flow} />
+          <XDeliveryStep flow={flow} />
         </>
       ) : (
         <>

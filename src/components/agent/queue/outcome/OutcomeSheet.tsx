@@ -20,6 +20,10 @@ const DarbAssabilDispatchModal = dynamic(
   () => import("@/components/queue/DarbAssabilDispatchModal").then((m) => m.DarbAssabilDispatchModal),
   { ssr: false },
 );
+const XDeliveryDispatchModal = dynamic(
+  () => import("@/components/queue/XDeliveryDispatchModal").then((m) => m.XDeliveryDispatchModal),
+  { ssr: false },
+);
 
 export interface SheetEcho {
   name: string;
@@ -54,6 +58,27 @@ export function DarbStep({ flow }: { flow: OutcomeFlow }) {
   );
 }
 
+/** X-Delivery asks the governorate and an optional delegation (prototypes/xdelivery-v1.html). */
+export function XDeliveryStep({ flow }: { flow: OutcomeFlow }) {
+  const s = flow.send;
+  const card = s.carriers.selectedCard;
+  if (!s.xdOpen || !card) return null;
+  const o = s.carriers.order;
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <XDeliveryDispatchModal
+      orderId={flow.order.id}
+      carrierId={card.id}
+      customerName={o?.customer_name ?? null}
+      customerCity={o?.customer_city ?? null}
+      totalPrice={o?.total_price ?? null}
+      onClose={s.closeXd}
+      onSuccess={s.onXdSuccess}
+    />,
+    document.body,
+  );
+}
+
 export function OutcomeSheet({ flow, echo, onClose }: { flow: OutcomeFlow; echo: SheetEcho; onClose: () => void }) {
   const t = useTranslations("agentOutcome");
   const step = flow.tray;
@@ -65,7 +90,7 @@ export function OutcomeSheet({ flow, echo, onClose }: { flow: OutcomeFlow; echo:
   // Escape steps back out of a step first, then closes the sheet (prototype keydown).
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || flow.send.darbOpen) return;
+      if (e.key !== "Escape" || flow.send.darbOpen || flow.send.xdOpen) return;
       e.stopPropagation();
       if (flow.tray) flow.dismiss();
       else onClose();
@@ -143,6 +168,7 @@ export function OutcomeSheet({ flow, echo, onClose }: { flow: OutcomeFlow; echo:
         )}
       </div>
       <DarbStep flow={flow} />
+      <XDeliveryStep flow={flow} />
     </>
   );
 }

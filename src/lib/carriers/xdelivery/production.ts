@@ -13,7 +13,14 @@ import type { OpenXDeliveryParcel, PromoteResult, XDeliveryPollDeps, XDeliverySy
 import { decrypt } from "@/lib/crypto";
 import { isPickupDisabledNow } from "../pickup-window";
 import { XDeliveryPortal } from "./portal";
-import { xdeliveryPickupKey, type PickupAccount, type PickupDeps } from "./pickup";
+import {
+  PICKUP_LOG_KIND,
+  PICKUP_MARKED,
+  PICKUP_REQUESTED,
+  xdeliveryPickupKey,
+  type PickupAccount,
+  type PickupDeps,
+} from "./pickup";
 
 /**
  * Statuses worth asking about. `to_be_returned` is left out: the carrier side
@@ -197,12 +204,25 @@ export function buildXDeliveryPickupDeps(admin: SupabaseClient): PickupDeps {
 
     portalFor: (login) => new XDeliveryPortal(login),
 
-    markRequested: async (orderId) => {
+    markRequested: async (orderId, carrierId) => {
       await sync.promote({
         orderId,
         target: null,
         slug: "PENDING",
         note: "X-Delivery: demande d'enlèvement envoyée",
+      });
+      // The parcel's own row is the bench's « Demandé 14:20 »: synced_at moves on every
+      // poll, so it cannot say when the request went.
+      await admin.from("carrier_event_log").insert({
+        carrier_code: "xdelivery",
+        source: "cron",
+        carrier_id: carrierId,
+        market_id: marketOf.get(carrierId) ?? null,
+        order_id: orderId,
+        carrier_status_raw: "PENDING",
+        outcome: "processed",
+        outcome_reason: PICKUP_MARKED,
+        raw_body: { kind: PICKUP_LOG_KIND },
       });
     },
 
@@ -212,9 +232,9 @@ export function buildXDeliveryPickupDeps(admin: SupabaseClient): PickupDeps {
         source: "cron",
         carrier_id: carrierId,
         market_id: marketOf.get(carrierId) ?? null,
-        outcome: reason === "pickup_requested" ? "processed" : "error",
+        outcome: reason === PICKUP_REQUESTED ? "processed" : "error",
         outcome_reason: reason,
-        raw_body: { kind: "pickup_request", count: count ?? 0 },
+        raw_body: { kind: PICKUP_LOG_KIND, count: count ?? 0 },
       });
     },
   };

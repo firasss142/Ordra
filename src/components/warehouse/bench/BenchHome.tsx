@@ -15,6 +15,7 @@ import { ScannedList } from "./ScannedList";
 import { BenchCard } from "./BenchCard";
 import { ScanSheet } from "./ScanSheet";
 import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
+import { XDeliveryPickupCard } from "@/components/warehouse/pickup/XDeliveryPickupCard";
 
 /**
  * The bench: the agent's home screen.
@@ -300,6 +301,11 @@ export function BenchHome({
           />
         </span>
       </div>
+
+      {/* X-Delivery asks for its driver itself, from the scans; the agent only says
+          whether it should (prototypes/xdelivery-v1.html). Nothing renders until a
+          Tunisian site has an X-Delivery account. */}
+      {market === "tn" ? <XDeliveryPickupCard className="mt-3" /> : null}
 
       <SegmentedTabs
         className="mt-3.5"

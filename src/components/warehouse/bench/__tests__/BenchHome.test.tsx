@@ -35,6 +35,11 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Its own SWR + route; here only where it mounts matters.
+vi.mock("@/components/warehouse/pickup/XDeliveryPickupCard", () => ({
+  XDeliveryPickupCard: () => <div data-testid="xd-pickup-card" />,
+}));
+
 vi.mock("@/components/warehouse/QrScanner", () => ({
   QrScanner: ({ onScan }: { onScan: (v: string) => void }) => (
     <button type="button" data-testid="qr-scanner" onClick={() => onScan("7700001")} />
@@ -67,6 +72,20 @@ beforeEach(() => {
   respond(200, { stock_after: 574 });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+describe("BenchHome — the X-Delivery pickup card (prototypes/xdelivery-v1.html)", () => {
+  it("is on the Tunisian bench, under the figure", () => {
+    renderHome([row({ customer_city: "Sousse", zone: UNKNOWN })], "tn", "fr");
+    const card = screen.getByTestId("xd-pickup-card");
+    // DOCUMENT_POSITION_FOLLOWING: the card comes after the hero figure.
+    expect(screen.getByTestId("wh-bench-hero").compareDocumentPosition(card) & 4).toBeTruthy();
+  });
+
+  it("is never on the Libyan bench", () => {
+    renderHome();
+    expect(screen.queryByTestId("xd-pickup-card")).toBeNull();
+  });
+});
 
 describe("BenchHome — what waits, by roll", () => {
   it("is « Sortir », the first job of the day", () => {

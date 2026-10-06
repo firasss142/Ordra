@@ -46,7 +46,8 @@ export const DEFAULT_DELEGATION: Readonly<Record<string, string>> = {
   Zaghouan: "Zaghouan",
 };
 
-function fold(s: string): string {
+/** Case-, accent- and punctuation-blind form of a place name, for matching. */
+export function fold(s: string): string {
   return s
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")

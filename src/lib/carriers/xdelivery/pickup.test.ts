@@ -129,6 +129,28 @@ describe("requestPendingPickups", () => {
     expect(d.log).toHaveBeenCalledWith(expect.objectContaining({ reason: expect.stringContaining("401") }));
   });
 
+  it("every parcel already PENDING → no empty manifest is posted, the parcels are still marked", async () => {
+    const requestPickup = vi.fn();
+    const { d, marked } = deps({
+      portalFor: vi.fn(() => ({
+        findParcels: vi.fn(async (barcodes: string[]) =>
+          barcodes.map((b) => ({ barcode: b, id: `id-${b}`, status: "PENDING" })),
+        ),
+        requestPickup,
+      })),
+    });
+    const r = await requestPendingPickups(d);
+    expect(requestPickup).not.toHaveBeenCalled();
+    expect(marked).toEqual(["o1", "o2"]);
+    expect(r.requested).toBe(0);
+  });
+
+  it("marks each parcel against its account, so the bench can say when it was asked", async () => {
+    const { d } = deps();
+    await requestPendingPickups(d);
+    expect(d.markRequested).toHaveBeenCalledWith("o1", "A");
+  });
+
   it("nothing awaiting → no sign-in at all", async () => {
     const { d } = deps({ listAwaiting: vi.fn(async () => []) });
     await requestPendingPickups(d);
