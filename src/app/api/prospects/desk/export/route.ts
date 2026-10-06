@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const MAX_ROWS = 5000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const EXPORT_COLUMNS = ["name", "phone", "city", "source", "why", "product", "value", "agent", "state", "age", "order", "created"] as const;
+const EXPORT_COLUMNS = ["name", "phone", "city", "source", "why", "product", "value", "agent", "state", "age", "order", "created"] as const;
 type Col = (typeof EXPORT_COLUMNS)[number];
 const DEFAULT_COLUMNS: Col[] = ["name", "phone", "city", "source", "why", "product", "value", "agent", "state", "age"];
 
