@@ -7299,8 +7299,9 @@
       "vsPrev": "Période d'avant : {n}",
       "new": "nouveau",
       "minis": {
-        "open": "{n, plural, one {ouverte} other {ouvertes}}",
-        "noReason": "sans raison"
+        "noReason": "sans raison",
+        "openOne": "ouverte",
+        "openMany": "ouvertes"
       },
       "views": {
         "all": "Tout",

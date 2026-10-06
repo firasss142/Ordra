@@ -146,7 +146,7 @@ export function SheetView({ overview, rows, total, view, group, closed, selected
               <div className="lbl"><span className="dot" />{tf(`catPlural.${c}`)}</div>
               <div className="v">
                 {c === "reclamation" ? (
-                  <><b className="num">{overview.complaints.open}</b><small>{t("minis.open", { n: overview.complaints.open })}</small></>
+                  <><b className="num">{overview.complaints.open}</b><small>{t(overview.complaints.open === 1 ? "minis.openOne" : "minis.openMany")}</small></>
                 ) : (
                   <><b className="num">{k.count}</b><small>{pct(k.count, overview.total, locale)}</small></>
                 )}
