@@ -75,7 +75,7 @@ export function MergeOrderPanel({
   const tStatuses = useTranslations("orders.statuses");
 
   const { data } = useSWR<{
-    data: { enabled: boolean; window_hours: number; candidates: MergeCandidate[] };
+    data: { enabled: boolean; window_hours: number; candidates: MergeCandidate[]; card_surcharge_pct?: number };
   }>(open ? `/api/orders/${survivor.id}/merge-candidates` : null, fetcher, {
     revalidateOnFocus: false,
   });
@@ -105,8 +105,9 @@ export function MergeOrderPanel({
         marketCode: survivor.market_code,
         dexpressStateId: survivor.dexpress_state_id,
       }),
+      surchargePct: data?.data.card_surcharge_pct,
     });
-  }, [picked, survivor]);
+  }, [picked, survivor, data]);
 
   const reset = () => {
     setPicked(null);

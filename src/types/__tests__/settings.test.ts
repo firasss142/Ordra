@@ -680,3 +680,27 @@ describe("isValidMarketSettings — auto_archive_after_days (Archivées « Range
     expect(isValidMarketSettings({ ...DEFAULT_MARKET_SETTINGS, auto_archive_after_days: 366 })).toBe(false);
   });
 });
+
+describe("business rules made editable on 2026-10-06", () => {
+  const base = { ...DEFAULT_MARKET_SETTINGS };
+  it("are known keys, with the defaults the code used when they were hard-coded", () => {
+    for (const k of ["card_surcharge_pct", "max_lead_attempts", "lead_hot_window_minutes"] as const) {
+      expect(MARKET_SETTINGS_KEYS).toContain(k);
+    }
+    expect(DEFAULT_MARKET_SETTINGS.card_surcharge_pct).toBe(10);
+    expect(DEFAULT_MARKET_SETTINGS.max_lead_attempts).toBe(3);
+    expect(DEFAULT_MARKET_SETTINGS.lead_hot_window_minutes).toBe(60);
+  });
+  it("card surcharge: 0 to 50 %", () => {
+    expect(isValidMarketSettings({ ...base, card_surcharge_pct: 0 })).toBe(true);
+    expect(isValidMarketSettings({ ...base, card_surcharge_pct: 12.5 })).toBe(true);
+    expect(isValidMarketSettings({ ...base, card_surcharge_pct: 51 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, card_surcharge_pct: -1 })).toBe(false);
+  });
+  it("prospect attempts 1–10, hot window 5 min to 7 days", () => {
+    expect(isValidMarketSettings({ ...base, max_lead_attempts: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, max_lead_attempts: 11 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, lead_hot_window_minutes: 4 })).toBe(false);
+    expect(isValidMarketSettings({ ...base, lead_hot_window_minutes: 10080 })).toBe(true);
+  });
+});

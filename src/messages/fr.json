@@ -7310,6 +7310,14 @@
       "ads": {
         "label": "Publicité",
         "subtitle": "Les comptes publicitaires Meta dont Ordra lit les dépenses, et le taux de change utilisé."
+      },
+      "prospects": {
+        "label": "Prospects",
+        "subtitle": "Combien de fois on rappelle un prospect, et combien de temps il reste en haut de la liste."
+      },
+      "monitoring": {
+        "label": "Surveillance",
+        "subtitle": "À partir de quand Journaux signale un problème. Ces règles valent pour tous les marchés."
       }
     },
     "scope": {
@@ -7470,6 +7478,22 @@
         "label": "Colis en retard",
         "unit": "jours",
         "help": "Transporteurs : un colis en route depuis {n} jours après le ramassage est en retard."
+      },
+      "max_lead_attempts": {
+        "label": "Appels avant d’abandonner un prospect",
+        "unit": "appels",
+        "help": "Au {n}ᵉ appel sans réponse, le prospect est classé injoignable."
+      },
+      "lead_hot_window_minutes": {
+        "label": "Prospect « chaud »",
+        "unit": "min",
+        "helpMinutes": "Un nouveau prospect reste en haut de la liste pendant {n} min : c’est là qu’il répond le mieux.",
+        "helpHours": "Un nouveau prospect reste en haut de la liste pendant {n} h : c’est là qu’il répond le mieux."
+      },
+      "card_surcharge_pct": {
+        "label": "Majoration paiement par carte",
+        "unit": "%",
+        "help": "Un client qui paie par carte paie {n} % de plus sur les produits, jamais sur la livraison. Ne s’applique pas aux transporteurs qui encaissent la carte eux-mêmes (Darb)."
       }
     },
     "orders": {
@@ -7478,7 +7502,9 @@
       "dupTitle": "Doublons et fusion",
       "dupDesc": "Ce qui se passe quand un même client commande plusieurs fois.",
       "archiveTitle": "Archivage",
-      "archiveDesc": "Ranger les commandes terminées pour alléger les listes."
+      "archiveDesc": "Ranger les commandes terminées pour alléger les listes.",
+      "cardTitle": "Paiement par carte",
+      "cardDesc": "Le transporteur retient une part quand le client paie en ligne ; la majoration la compense."
     },
     "markets": {
       "colMarket": "Marché",
@@ -7832,7 +7858,7 @@
           "invalid_sheet": "Collez le lien de la feuille Google et le nom de l’onglet.",
           "no_access": "Ordra ne peut pas ouvrir cette feuille. Partagez-la avec {email}, puis réessayez.",
           "no_tab": "Aucun onglet « {tab} » dans cette feuille. Vérifiez le nom exact.",
-          "missing_columns": "Ce n’est pas un export Converty : il manque {columns}. Colonnes lues dans l’onglet : {found}. Vérifiez que l’onglet est le bon.",
+          "missing_columns": "Ce n’est pas un export Converty : il manque {columns}. Colonnes lues dans l’onglet : {found}. Vérifiez que l’onglet est le bon.",
           "already_connected": "Cette feuille et cet onglet sont déjà reliés à une boutique."
         },
         "sync": "Lecture de la feuille",
@@ -8046,6 +8072,112 @@
       "pick": "Choisir un agent",
       "add": "Ajouter",
       "remove": "Retirer {name}"
+    },
+    "menuGroups": {
+      "sales": "Ventes",
+      "shipping": "Expédition",
+      "growth": "Clients et publicité",
+      "system": "Système"
+    },
+    "prospects": {
+      "title": "Rappels des prospects",
+      "desc": "Les clients qui n’ont pas encore commandé, appelés depuis la liste Prospects."
+    },
+    "monitoring": {
+      "intro": "Ordra vérifie toutes les 5 minutes que tout fonctionne. Ici, vous choisissez à partir de quand un problème apparaît dans Journaux. Une règle éteinte ne signale plus rien.",
+      "off": "Éteinte : Ordra ne surveille plus cela, et le problème ouvert se ferme.",
+      "outOfRange": "{rule} : entre {min} et {max}, en nombre entier.",
+      "saveFailed": "« {rule} » n’a pas pu être enregistré.",
+      "notReadyTitle": "La mise à jour de la base de données manque",
+      "notReady": "Les seuils ne sont pas encore disponibles : la mise à jour qui les crée n’a pas été appliquée. Journaux continue avec les valeurs par défaut.",
+      "units": {
+        "times": "fois",
+        "minutes": "min",
+        "hours": "h",
+        "days": "jours",
+        "people": "pers.",
+        "rows": "lignes"
+      },
+      "groups": {
+        "carriers": {
+          "title": "Transporteurs et services",
+          "desc": "Darb, Navex, WhatsApp et Meta : quand ils ne répondent plus comme prévu."
+        },
+        "shops": {
+          "title": "Boutiques et publicité",
+          "desc": "Les commandes qui devraient arriver et n’arrivent pas."
+        },
+        "jobs": {
+          "title": "Tâches automatiques",
+          "desc": "Ce qu’Ordra fait seul en arrière-plan : synchronisations, archivage, envois programmés."
+        },
+        "app": {
+          "title": "Ordra lui-même",
+          "desc": "Les erreurs du serveur et les pages qui plantent chez quelqu’un."
+        },
+        "security": {
+          "title": "Sécurité",
+          "desc": "Les tentatives de connexion et les grosses sorties de données."
+        }
+      },
+      "rules": {
+        "connection_silent": {
+          "label": "Synchronisation Darb silencieuse",
+          "help": "Un problème s’ouvre quand un compte Darb actif ne s’est pas synchronisé depuis {minutes} min."
+        },
+        "carrier_stuck": {
+          "label": "Statuts refusés par Ordra",
+          "help": "Un problème s’ouvre quand un transporteur envoie un statut qu’Ordra ne connaît pas ou refuse ; il se ferme après {hours} h sans nouveau cas."
+        },
+        "carrier_inactive": {
+          "label": "Transporteur coupé avec des colis dehors",
+          "help": "Signale les colis restés chez un transporteur désactivé, et compte ceux sans nouvelles depuis {stale_days} jours."
+        },
+        "upload_failing": {
+          "label": "Envois refusés",
+          "help": "Un problème s’ouvre après {count} envois refusés en {minutes} min, pour un même transporteur et un même motif."
+        },
+        "external_failing": {
+          "label": "Service extérieur en échec",
+          "help": "Un problème s’ouvre quand Darb, Navex, Meta ou WhatsApp répond {count} fois par une erreur en {minutes} min."
+        },
+        "whatsapp_down": {
+          "label": "Numéro WhatsApp coupé",
+          "help": "Un problème s’ouvre dès que Meta met le numéro en pause ou lui retire son accès."
+        },
+        "import_rows": {
+          "label": "Lignes d’import refusées",
+          "help": "Un problème s’ouvre quand des lignes d’une feuille restent refusées plus de {hours} h."
+        },
+        "ads_no_orders": {
+          "label": "Publicité sans commandes",
+          "help": "Un problème s’ouvre quand la publicité dépense mais qu’aucune commande n’arrive depuis {hours} h."
+        },
+        "job_failing": {
+          "label": "Tâche en échec",
+          "help": "Un problème s’ouvre après {failures} échecs d’affilée d’une même tâche."
+        },
+        "job_hanging": {
+          "label": "Tâche bloquée",
+          "help": "Un problème s’ouvre quand une tâche reste bloquée {count} fois en {days} jours, même si les autres passages réussissent."
+        },
+        "server_error": {
+          "label": "Erreur du serveur Ordra",
+          "help": "Un problème s’ouvre quand la même erreur revient {count} fois en {hours} h."
+        },
+        "browser_error": {
+          "label": "Page qui plante",
+          "help": "Un problème s’ouvre quand une page plante {count} fois, ou chez {users} personnes, en {hours} h."
+        },
+        "login_failures": {
+          "label": "Mots de passe refusés",
+          "help": "Un problème s’ouvre après {count} mots de passe faux sur un même compte en {minutes} min."
+        },
+        "large_export": {
+          "label": "Gros export",
+          "help": "Signale tout export de plus de {rows} lignes."
+        }
+      }
     }
   },
   "journaux": {

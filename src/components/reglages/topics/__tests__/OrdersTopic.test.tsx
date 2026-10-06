@@ -112,3 +112,31 @@ describe("Réglages › Commandes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("Réglages › Commandes › Paiement par carte", () => {
+  const admin: AuthUser = { ...manager, id: "a", role: "super_admin", market_id: null };
+
+  it("shows a manager the card surcharge as a value, never an input: it is money", () => {
+    mount();
+    const row = screen.getByText("Majoration paiement par carte").closest("[data-testid='setting-row']") as HTMLElement;
+    expect(within(row).queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(within(row).getByText("10")).toBeInTheDocument();
+  });
+
+  it("lets the administrator change it, and the help restates the rate", async () => {
+    render(
+      <ReglagesFormProvider>
+        <SaveBar />
+        <OrdersTopic user={admin} marketId={LY} marketCode="ly" />
+      </ReglagesFormProvider>,
+    );
+    const input = screen.getByRole("spinbutton", { name: "Majoration paiement par carte" });
+    expect(input).toHaveValue(10);
+    await userEvent.clear(input);
+    await userEvent.type(input, "8");
+    expect(screen.getByText(/paie 8 % de plus sur les produits/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ card_surcharge_pct: 8 });
+  });
+});

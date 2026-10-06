@@ -14,7 +14,7 @@ import { RgButton } from "../kit/RgButton";
 import { TopicSkeleton } from "../kit/TopicSkeleton";
 
 /**
- * Réglages › Commandes — calls, duplicates and archiving. What is left of the
+ * Réglages › Commandes — calls, duplicates, card payment and archiving. What is left of the
  * old « Opérations » once the 13 settings no code reads are hidden
  * (plans/reglages-redesign.md). A market manager edits all of it.
  */
@@ -22,7 +22,7 @@ export function OrdersTopic({ user, marketId }: TopicProps) {
   const t = useTranslations("reglages");
   const form = useMarketSettingsForm(marketId);
   const editable = canEditArea(user.role, "orders");
-  if (!form.loaded) return <TopicSkeleton cards={3} />;
+  if (!form.loaded) return <TopicSkeleton cards={4} />;
 
   const field = (key: string) => ({ label: t(`fields.${key}.label`), unit: t(`fields.${key}.unit`) });
 
@@ -82,6 +82,20 @@ export function OrdersTopic({ user, marketId }: TopicProps) {
           max={168}
           editable={editable}
           help={(n) => (n === 0 ? t("fields.merge_window_hours.helpZero") : t("fields.merge_window_hours.help", { n }))}
+        />
+      </SettingsCard>
+
+      <SettingsCard title={t("orders.cardTitle")} description={t("orders.cardDesc")}>
+        <NumberSetting
+          form={form}
+          marketId={marketId}
+          settingKey="card_surcharge_pct"
+          {...field("card_surcharge_pct")}
+          min={0}
+          max={50}
+          step={0.5}
+          editable={canEditArea(user.role, "money")}
+          help={(n) => t("fields.card_surcharge_pct.help", { n })}
         />
       </SettingsCard>
 

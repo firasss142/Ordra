@@ -12,10 +12,12 @@ import { WarehousesTopic } from "./topics/WarehousesTopic";
 import { DeliveryTopic } from "./topics/DeliveryTopic";
 import { WhatsAppTopic } from "./topics/WhatsAppTopic";
 import { AdsTopic } from "./topics/AdsTopic";
+import { ProspectsTopic } from "./topics/ProspectsTopic";
+import { MonitoringTopic } from "./topics/MonitoringTopic";
 
 export interface TopicProps {
   user: AuthUser;
-  /** The market being set; "" only on Marchés, which covers every market. */
+  /** The market being set; "" only on Marchés and Surveillance, which cover every market. */
   marketId: string;
   marketCode: MarketCode | null;
 }
@@ -40,5 +42,9 @@ export function TopicBody({ topic, ...props }: TopicProps & { topic: TopicId }) 
       return <WhatsAppTopic {...props} />;
     case "ads":
       return <AdsTopic {...props} />;
+    case "prospects":
+      return <ProspectsTopic {...props} />;
+    case "monitoring":
+      return <MonitoringTopic {...props} />;
   }
 }

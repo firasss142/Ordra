@@ -11,6 +11,9 @@
 // the card fee on its own side (allowCardPayment), so inflating the subtotal would double-bill
 // the customer. There, card_payment is expressed on the dispatch payload, not the price.
 //
+// The rate is the market's `card_surcharge_pct` setting (Réglages › Commandes, default
+// 10) — callers resolve it with getCardSurchargePct(); omitting it keeps the old 10 %.
+//
 // Rounds to millimes (3 decimals) to match orders.total_price NUMERIC(10,3) and the rounding
 // used by every server recompute path.
 export function computeOrderTotal(
@@ -18,9 +21,10 @@ export function computeOrderTotal(
   deliveryFee: number,
   cardPayment: boolean,
   applyCardSurcharge: boolean = true,
+  surchargePct: number = 10,
 ): number {
   const adjustedSubtotal =
-    cardPayment && applyCardSurcharge ? subtotal * 1.1 : subtotal;
+    cardPayment && applyCardSurcharge ? subtotal * (1 + surchargePct / 100) : subtotal;
   return Math.round((adjustedSubtotal + (deliveryFee ?? 0)) * 1000) / 1000;
 }
 
