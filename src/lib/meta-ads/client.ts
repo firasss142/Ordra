@@ -27,6 +27,7 @@
  */
 
 import type { MetaInsightsRow } from "./insights";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 /** Current pinned Graph version. See the header on why this is not floating. */
 const DEFAULT_GRAPH_VERSION = "v26.0";
@@ -256,7 +257,7 @@ async function getJson(
   // a URL is recorded by Meta's edge, by any egress proxy, and by anything that
   // captures outbound request URLs for telemetry — and this one has spending
   // authority on a live ad account. Graph accepts Bearer auth on every endpoint.
-  const response = await fetch(url, {
+  const response = await monitoredFetch("meta", "sync")(url, {
     method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
     signal: requestSignal(signal),

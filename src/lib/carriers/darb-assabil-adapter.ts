@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { CarrierDispatchError, CarrierConfigError } from "./errors";
 import { toLibyanE164 } from "./phone";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 /**
  * Darb Assabil (v2.sabil.ly) — Libyan COD logistics platform.
@@ -648,7 +649,7 @@ async function deleteJson(
   url: string,
   headers: Record<string, string>
 ): Promise<{ status: number; body: unknown }> {
-  const response = await fetch(url, {
+  const response = await monitoredFetch("darb_assabil", "void")(url, {
     method: "DELETE",
     headers,
     signal: AbortSignal.timeout(15000),

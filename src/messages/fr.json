@@ -8198,6 +8198,30 @@
         "impact": "lignes",
         "what": "Les exports de plus de 1 000 lignes sont signalés pendant 24 heures.",
         "todo1": "Vérifier que l’export était prévu."
+      },
+      "external_failing": {
+        "title": "{name} : {n, plural, one {# appel échoué} other {# appels échoués}} en 1 h",
+        "line": "{reason}",
+        "impact": "échecs en 1 h",
+        "what": "Ordra parle à {name} en arrière-plan. Depuis une heure, {name} répond par une erreur.",
+        "todo1": "Suivre « Que faire » ci-dessus.",
+        "todo2": "Le problème se ferme seul après une heure sans échec."
+      },
+      "browser_error": {
+        "title": "La page {page} plante",
+        "line": "{reason}",
+        "impact": "plantages en 24 h",
+        "what": "Cette page s’est arrêtée dans le navigateur de {users, plural, one {# personne} other {# personnes}}. Elle a vu l’écran « Cette page a rencontré un problème ».",
+        "todo1": "Suivre « Que faire » ci-dessus.",
+        "todo2": "Le problème se ferme seul après 24 heures sans plantage."
+      },
+      "job_hanging": {
+        "title": "« {job} » reste bloqué",
+        "line": "{n, plural, one {# passage abandonné} other {# passages abandonnés}} en 7 jours : il ne finit pas et s’arrête au bout de 30 minutes.",
+        "impact": "blocages en 7 jours",
+        "what": "Cette tâche démarre normalement mais ne se termine pas. Les autres passages réussissent, c’est pourquoi rien ne l’avait signalé : le travail de ces passages-là n’est pas fait.",
+        "todo1": "Regarder l’heure des blocages : s’ils tombent toujours à la même heure, une autre tâche lourde tourne en même temps.",
+        "todo2": "Le problème se ferme seul après 7 jours sans blocage."
       }
     },
     "tiles": {
@@ -8708,6 +8732,110 @@
       "team_shift_overrides": "Horaires par agent",
       "carrier_delivery_target_pct": "Objectif de livraison",
       "carrier_late_days": "Colis en retard"
+    },
+    "explain": {
+      "cause": {
+        "bad_value": {
+          "why": "Ordra a envoyé à la base une valeur vide ou mal formée — le plus souvent un identifiant que l’écran n’a pas fourni (un marché, une commande).",
+          "fix": "Repérer l’écran qui déclenche l’erreur : il appelle Ordra sans choisir ce qu’il faut. C’est un correctif de code."
+        },
+        "duplicate": {
+          "why": "Ordra a voulu créer quelque chose qui existe déjà (même référence, même numéro).",
+          "fix": "Vérifier si l’élément existe déjà. Si l’action se répète seule, c’est un double envoi à corriger."
+        },
+        "missing_link": {
+          "why": "L’action pointe vers un élément qui n’existe pas ou plus : supprimé, ou d’un autre marché.",
+          "fix": "Retrouver l’élément dans « Détail technique » et vérifier qu’il n’a pas été supprimé."
+        },
+        "missing_field": {
+          "why": "Une information obligatoire manquait au moment d’enregistrer.",
+          "fix": "Compléter l’information. Si l’écran ne la demande pas, c’est un correctif de code."
+        },
+        "rule_check": {
+          "why": "La base a refusé une valeur qui ne respecte pas une règle d’Ordra (statut, motif ou montant hors limites).",
+          "fix": "Lire la règle refusée dans « Détail technique » : souvent un statut ou un motif que le code ne connaît pas encore."
+        },
+        "no_permission": {
+          "why": "La personne, ou le serveur, n’a pas le droit de faire cette action ici.",
+          "fix": "Vérifier le rôle et le marché de la personne dans Accès. Si son rôle devrait suffire, un droit manque côté base."
+        },
+        "schema_mismatch": {
+          "why": "Le code d’Ordra attend une colonne, une table ou une fonction que la base n’a pas encore : une mise à jour SQL n’a pas été appliquée en production.",
+          "fix": "Coller la migration SQL manquante dans Supabase (celle de la dernière mise en ligne). L’erreur s’arrête aussitôt."
+        },
+        "db_slow": {
+          "why": "La requête a pris trop de temps et la base l’a arrêtée.",
+          "fix": "Si cela se répète, la requête doit être optimisée (index manquant, ou trop de lignes lues)."
+        },
+        "conflict": {
+          "why": "Deux actions ont modifié la même chose au même instant ; la base en a annulé une.",
+          "fix": "Réessayer suffit en général. Si c’est fréquent, deux tâches se marchent dessus."
+        },
+        "no_row": {
+          "why": "Ordra cherchait exactement un élément et en a trouvé zéro, ou plusieurs.",
+          "fix": "L’élément a peut-être été supprimé ou dupliqué : vérifier dans « Détail technique »."
+        },
+        "business_rule": {
+          "why": "Une règle métier d’Ordra a refusé l’action (par exemple stock insuffisant ou statut interdit).",
+          "fix": "Lire le message exact dans « Détail technique » : il dit quelle règle bloque."
+        },
+        "db_unreachable": {
+          "why": "Le serveur n’a pas pu joindre la base de données (coupure réseau ou base saturée).",
+          "fix": "Vérifier l’état de Supabase. Si c’est passager, cela se règle seul."
+        },
+        "db_other": {
+          "why": "La base a renvoyé une erreur peu courante.",
+          "fix": "Transmettre le code et le message de « Détail technique » à l’équipe technique."
+        },
+        "ext_timeout": {
+          "why": "{target} n’a pas répondu à temps.",
+          "fix": "Souvent passager chez {target}. Si cela dure plus d’une heure, contacter leur support."
+        },
+        "ext_credentials": {
+          "why": "{target} refuse nos identifiants : la clé a expiré, a été changée ou n’a plus les droits.",
+          "fix": "Renouveler la clé de {target} dans Réglages, puis tester la connexion."
+        },
+        "ext_rate_limit": {
+          "why": "Ordra envoie trop de demandes à {target}, qui le freine.",
+          "fix": "Attendre : cela repart seul. Si c’est permanent, espacer les synchronisations."
+        },
+        "ext_not_found": {
+          "why": "{target} ne trouve pas ce qu’Ordra demande (colis, compte ou adresse d’API inconnus).",
+          "fix": "Vérifier le numéro de suivi, ou l’adresse d’API configurée pour {target}."
+        },
+        "ext_refused": {
+          "why": "{target} a refusé les données envoyées (champ manquant ou format invalide).",
+          "fix": "Lire la réponse de {target} dans « Détail technique » : elle dit quel champ corriger."
+        },
+        "ext_down": {
+          "why": "{target} est en panne ou a une erreur de son côté.",
+          "fix": "Rien à corriger chez nous. Attendre, et prévenir {target} si cela dure."
+        },
+        "ext_network": {
+          "why": "Le serveur n’a pas pu joindre {target} (adresse introuvable ou connexion coupée).",
+          "fix": "Vérifier l’adresse d’API de {target}. Si elle est bonne, c’est une coupure passagère."
+        },
+        "code_missing_data": {
+          "why": "Le code d’Ordra a lu une donnée absente : une valeur vide là où il attendait quelque chose.",
+          "fix": "Correctif de code : transmettre le fichier et la ligne de « Détail technique » à l’équipe technique."
+        },
+        "code_bug": {
+          "why": "Une erreur dans le code d’Ordra a interrompu l’action.",
+          "fix": "Transmettre le message de « Détail technique » à l’équipe technique."
+        },
+        "unknown": {
+          "why": "Ordra ne sait pas pourquoi : ces erreurs ont été enregistrées avant le suivi des causes.",
+          "fix": "Les prochaines occurrences diront leur cause. Revenir ici à la prochaine."
+        }
+      },
+      "why": "Pourquoi",
+      "fix": "Que faire",
+      "tech": "Détail technique",
+      "techWhere": "Où",
+      "techCode": "Code",
+      "techMessage": "Message",
+      "techPage": "Page",
+      "techFile": "Fichier"
     }
   },
   "carrierScorecard": {
@@ -11517,5 +11645,11 @@
     },
     "claimDone": "Litige résolu",
     "writeError": "L'enregistrement a échoué : {msg}"
+  },
+  "errorScreen": {
+    "title": "Cette page a rencontré un problème",
+    "body": "L’erreur a été signalée automatiquement. Vous pouvez réessayer ; si elle revient, rien n’est perdu de ce qui était déjà enregistré.",
+    "retry": "Réessayer",
+    "home": "Retour à l’accueil"
   }
 }

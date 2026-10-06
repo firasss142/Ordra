@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { resolveGovernorate } from "./governorates";
 import { CarrierDispatchError } from "./errors";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 export class NavexAdapter implements CarrierAdapter {
   formatPayload(
@@ -154,7 +155,7 @@ export class NavexAdapter implements CarrierAdapter {
     const body = `colis=${encodeURIComponent(trackingNumber)}`;
 
     try {
-      const response = await fetch(url, {
+      const response = await monitoredFetch("navex", "void")(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body,
