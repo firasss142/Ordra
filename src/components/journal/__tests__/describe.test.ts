@@ -265,3 +265,34 @@ describe("schedules", () => {
     expect(plain(scheduleLabel("0 3 * * *", t, f))).toBe("chaque jour, 05:00");
   });
 });
+
+describe("error rows say why (journal v2)", () => {
+  test("a server error row carries its cause instead of the code alone", () => {
+    const d = describeFeed(
+      item({ family: "sec", kind: "app.error", severity: "fail", params: { route: "/api/cities", method: "GET", status: 500, source: "server", cause_kind: "db", cause_code: "22P02", cause_target: "cities" } }),
+      t as never,
+      f,
+    );
+    expect(plain(d.sub)).toContain("valeur vide ou mal formée");
+  });
+
+  test("a row recorded before causes keeps the old line", () => {
+    const d = describeFeed(item({ family: "sec", kind: "app.error", severity: "fail", params: { route: "/api/x", method: "GET", status: 500 } }), t as never, f);
+    expect(plain(d.sub)).toBe("1 fois · code 500");
+  });
+
+  test("a browser crash names the page", () => {
+    const d = describeFeed(
+      item({ family: "sec", kind: "app.error", severity: "fail", params: { route: "/orders", method: "BROWSER", status: 0, source: "browser", page: "/fr/orders", cause_kind: "code", cause_code: "TypeError", cause_detail: "Cannot read properties of undefined (reading 'x')" } }),
+      t as never,
+      f,
+    );
+    expect(plain(d.title)).toBe("Une page a planté · /orders");
+    expect(plain(d.sub)).toContain("une donnée absente");
+  });
+
+  test("a failed call to Meta is named Meta, not « meta »", () => {
+    const d = describeFeed(item({ family: "ext", kind: "carrier.sync_failed", severity: "fail", params: { carrier: "meta", status: "refused" } }), t as never, f);
+    expect(plain(d.title)).toBe("Synchronisation avec Meta en échec");
+  });
+});

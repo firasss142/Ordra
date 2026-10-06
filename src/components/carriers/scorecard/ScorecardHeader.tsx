@@ -10,18 +10,13 @@ import { btn } from "./ui";
 export function PeriodSegment({ period, onChange }: { period: ScorecardPeriodDays; onChange: (p: ScorecardPeriodDays) => void }) {
   const t = useTranslations("carrierScorecard");
   return (
-    <div role="group" aria-label={t("periodAria")} className="inline-flex items-center gap-[2px] rounded-[10px] bg-tr-seg p-[3px]">
+    <div role="group" aria-label={t("periodAria")} className="tsc-seg">
       {SCORECARD_PERIODS.map((p) => (
         <button
           key={p}
           type="button"
           aria-pressed={period === p}
           onClick={() => onChange(p)}
-          className={`h-[28px] min-w-[48px] rounded-[8px] px-[12px] text-[13px] ${
-            period === p
-              ? "bg-white font-semibold text-tr-ink-1 shadow-[0_1px_2px_rgba(16,24,40,.08)]"
-              : "font-medium text-tr-ink-2 hover:text-tr-ink-1"
-          }`}
         >
           {t(`periods.${p}`)}
         </button>
@@ -33,7 +28,7 @@ export function PeriodSegment({ period, onChange }: { period: ScorecardPeriodDay
 export function BackLink({ href }: { href: string }) {
   const t = useTranslations("carrierScorecard");
   return (
-    <Link href={href} className="inline-flex h-[32px] items-center gap-[6px] rounded-[9px] pe-[10px] ps-[6px] text-[13.5px] font-semibold text-tr-ink-2 hover:bg-white hover:text-tr-ink-1">
+    <Link href={href} className="tsc-btn tsc-btn--back">
       <ArrowLeft size={16} aria-hidden className="rtl:-scale-x-100" />
       {t("back")}
     </Link>
@@ -49,13 +44,13 @@ export function ScorecardSub({
   const from = new Date(to.getTime() - days * 86_400_000);
   const age = lastSyncAt ? syncAge(lastSyncAt, now) : null;
   return (
-    <div className="mt-[3px] flex flex-wrap items-center gap-[8px] text-[13px] text-tr-ink-2">
+    <div className="mt-[8px] flex flex-wrap items-center gap-[10px] text-[13.5px] font-medium text-tr-ink-3">
       <span>
         {marketCode === "ly" || marketCode === "tn" ? t(`markets.${marketCode}`) : marketCode} · {fmtDate(locale, from.toISOString())} – {fmtDate(locale, to.toISOString())}
       </span>
       {withSync && age ? (
         <span className="inline-flex items-center gap-[6px] text-tr-ink-3">
-          <i aria-hidden className="h-[7px] w-[7px] rounded-full bg-[#16A34A] shadow-[0_0_0_3px_rgba(22,163,74,.16)]" />
+          <i aria-hidden className="tsc-live" />
           {t("sync", { age: t(`ago.${age.unit}`, { n: age.n }) })}
         </span>
       ) : null}
@@ -70,5 +65,16 @@ export function CompareLink({ href }: { href: string }) {
       <ArrowLeftRight size={15} aria-hidden />
       {t("compare")}
     </Link>
+  );
+}
+
+/** « Performance › Livraison » — where the page sits in the sidebar. */
+export function ScorecardCrumb() {
+  const t = useTranslations("carrierScorecard");
+  const nav = useTranslations("nav");
+  return (
+    <nav aria-label={t("crumbLabel")} className="tsc-crumb">
+      {nav("sections.performance")} <i aria-hidden>›</i> {nav("items.perfDelivery")}
+    </nav>
   );
 }

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getMergeWindowHours } from "@/lib/orders/merge-window";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { getCardSurchargePct } from "@/lib/calculations/card-surcharge";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,9 @@ async function handleGET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  // The preview total must use the same card rate the merge itself will.
+  const cardSurchargePct = await getCardSurchargePct(supabase, order.market_id);
+  return NextResponse.json({ data: { ...(data as object), card_surcharge_pct: cardSurchargePct } });
 }
 
 export const GET = withRouteErrors("/api/orders/[id]/merge-candidates", "GET", handleGET);

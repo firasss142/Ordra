@@ -9,21 +9,34 @@ import type { Role } from "@/types";
  * plans/reglages-redesign.md · prototypes/reglages-v2.html
  */
 export const TOPIC_IDS = [
-  "markets",
   "shops",
   "orders",
   "rejections",
+  "prospects",
   "team",
   "warehouses",
   "delivery",
   "whatsapp",
   "ads",
+  "markets",
+  "monitoring",
 ] as const;
 
 export type TopicId = (typeof TOPIC_IDS)[number];
 
-/** Topics only the super_admin sees: cross-market identity and ad accounts. */
-const SUPER_ADMIN_ONLY: ReadonlySet<TopicId> = new Set(["markets", "ads"]);
+/**
+ * The menu in four short sections (2026-10-06): what is set daily first, the
+ * system last. Eleven flat entries were one long list to scan.
+ */
+export const MENU_GROUPS: { id: "sales" | "shipping" | "growth" | "system"; topics: TopicId[] }[] = [
+  { id: "sales", topics: ["shops", "orders", "rejections", "prospects", "team"] },
+  { id: "shipping", topics: ["warehouses", "delivery"] },
+  { id: "growth", topics: ["whatsapp", "ads"] },
+  { id: "system", topics: ["markets", "monitoring"] },
+];
+
+/** Topics only the super_admin sees: cross-market identity, ad accounts, the journal's thresholds. */
+const SUPER_ADMIN_ONLY: ReadonlySet<TopicId> = new Set(["markets", "ads", "monitoring"]);
 
 export function topicsFor(role: Role): TopicId[] {
   if (role === "super_admin") return [...TOPIC_IDS];
@@ -39,9 +52,9 @@ export function defaultTopic(role: Role): TopicId {
   return topicsFor(role)[0] ?? "shops";
 }
 
-/** Marchés is the one topic about every market at once. */
+/** Marchés and Surveillance are about every market at once. */
 export function isMarketScoped(id: TopicId): boolean {
-  return id !== "markets";
+  return id !== "markets" && id !== "monitoring";
 }
 
 /**
@@ -62,7 +75,11 @@ export type EditArea =
   | "risk"
   | "board"
   | "whatsapp"
-  | "ads";
+  | "ads"
+  | "prospects"
+  /** The card surcharge: money, administrator only. */
+  | "money"
+  | "monitoring";
 
 const MANAGER_AREAS: ReadonlySet<EditArea> = new Set([
   "orders",
@@ -71,6 +88,7 @@ const MANAGER_AREAS: ReadonlySet<EditArea> = new Set([
   "risk",
   "board",
   "matching",
+  "prospects",
 ]);
 
 export function canEditArea(role: Role, area: EditArea): boolean {
@@ -108,6 +126,9 @@ export const MANAGER_EDITABLE_SETTING_KEYS: ReadonlySet<string> = new Set([
   "carrier_stall_days",
   "delivery_first_action_hours",
   "delivery_done_window_hours",
+  // Prospects (20261006120200)
+  "max_lead_attempts",
+  "lead_hot_window_minutes",
 ]);
 
 /** Old Système › Connexions tabs, for bookmarks and deep links. */

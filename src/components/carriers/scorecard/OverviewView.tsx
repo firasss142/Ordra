@@ -10,8 +10,8 @@ import {
 import type { Scorecard, ScorecardCarrier, ScorecardPeriodDays } from "@/lib/carriers/scorecard/types";
 import { WeeklyBars } from "./charts";
 import { carrierShort, carrierSubtitle } from "./labels";
-import { CompareLink, PeriodSegment, ScorecardSub } from "./ScorecardHeader";
-import { btnSmGhost, CarrierLogo, Card, Num, NowTag, RATE_TONE, SectionLabel, StatusLine, TrendChip } from "./ui";
+import { CompareLink, PeriodSegment, ScorecardCrumb, ScorecardSub } from "./ScorecardHeader";
+import { btn, btnSmGhost, CarrierLogo, Card, Num, NowTag, RATE_TONE, SectionLabel, StatusLine, TrendChip } from "./ui";
 import type { CSSProperties } from "react";
 
 export interface OverviewViewProps {
@@ -35,9 +35,10 @@ export function OverviewView(props: OverviewViewProps) {
 
   return (
     <div className="flex flex-col gap-[16px]">
-      <div className="flex min-h-[44px] flex-wrap items-center justify-between gap-[14px]">
+      <div className="mb-[6px] flex min-h-[44px] flex-wrap items-end justify-between gap-[14px]">
         <div>
-          <h1 className="text-[24px] font-[650] leading-[1.2] tracking-[-.02em] text-tr-ink-1">{t("title")}</h1>
+          <ScorecardCrumb />
+          <h1 className="tsc-h1">{t("title")}</h1>
           <ScorecardSub marketCode={marketCode} locale={locale} generatedAt={scorecard.generated_at} days={scorecard.days}
             lastSyncAt={scorecard.last_sync_at} now={now} withSync />
         </div>
@@ -66,7 +67,7 @@ export function OverviewView(props: OverviewViewProps) {
       {scorecard.dormant.length ? (
         <div role="region" aria-label={t("dormantLabel")} className="flex flex-col gap-[8px]">
           {scorecard.dormant.map((d) => (
-            <div key={d.id} className="flex items-center gap-[10px] rounded-[12px] border border-dashed border-tr-line-strong px-[16px] py-[12px] text-[13px] text-tr-ink-2">
+            <div key={d.id} className="tsc-dormant flex items-center gap-[10px] px-[16px] py-[12px] text-[13px] text-tr-ink-2">
               <Archive size={16} aria-hidden className="text-tr-ink-3" />
               <span>
                 {t("dormant", { name: d.name, month: d.last_upload_at ? fmtMonth(locale, d.last_upload_at) : "—", n: d.open })}
@@ -95,9 +96,9 @@ function OverviewStrip({ scorecard, locale }: { scorecard: Scorecard; locale: st
   const unscanned = rv.reduce((a, r) => a + r.unscanned, 0), older = rv.reduce((a, r) => a + r.olderThan7, 0);
   const target = fmtPct(locale, scorecard.settings.target_pct);
 
-  const cell = "flex min-w-0 flex-col gap-[5px] border-tr-line-2 px-[20px] py-[18px]";
-  const lb = "flex items-center text-[13px] font-medium text-tr-ink-2";
-  const v = "text-[30px] font-[650] leading-[1.15] tracking-[-.03em] text-tr-ink-1";
+  const cell = "flex min-w-0 flex-col gap-[6px] border-tr-line-2 px-[22px] py-[20px]";
+  const lb = "flex items-center text-[13px] font-semibold text-tr-ink-2";
+  const v = "tsc-fig text-[32px] leading-[1.1]";
   const sb = "flex flex-wrap items-center gap-[6px] text-[12.5px] text-tr-ink-3";
   return (
     <Card label={t("secOverview")}>
@@ -146,25 +147,25 @@ function BriefCard({
   const opened = card.first_upload_at && Date.parse(card.first_upload_at) > Date.parse(card.weeks[card.weeks.length - 8]?.week ?? "1970-01-01")
     ? t("opened", { date: fmtDate(locale, card.first_upload_at) }) : "";
 
-  const pl = "flex min-w-0 flex-col gap-[5px] border-tr-line-2 px-[18px] py-[16px]";
-  const lb = "flex items-center text-[12.5px] font-medium text-tr-ink-2";
-  const v = "text-[32px] font-[650] leading-[1.1] tracking-[-.03em] text-tr-ink-1";
+  const pl = "flex min-w-0 flex-col gap-[5px] border-[color-mix(in_srgb,var(--c)_14%,transparent)] px-[18px] py-[16px]";
+  const lb = "flex items-center text-[12.5px] font-semibold text-tr-ink-2";
+  const v = "tsc-fig text-[32px] leading-[1.1]";
   const cx = "flex flex-wrap items-center gap-[5px] text-[12px] text-tr-ink-3";
   return (
-    <Link href={href} className="group block rounded-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+    <Link href={href} className="group block rounded-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
       <article
         aria-labelledby={`brief-${card.id}`}
         style={{ "--c": color } as CSSProperties}
-        className="flex flex-col overflow-hidden rounded-[14px] border border-tr-line-2 bg-white transition-[border-color,box-shadow] duration-150 group-hover:border-tr-line-strong group-hover:shadow-[0_1px_2px_rgba(16,24,40,.04),0_6px_18px_rgba(16,24,40,.07)]"
+        className="tsc-entity flex flex-col"
       >
-        <div className="flex min-h-[78px] items-center gap-[13px] bg-[var(--c)] px-[20px] py-[16px] text-white">
+        <div className="tsc-band flex min-h-[80px] items-center gap-[13px] px-[20px] py-[16px]">
           <CarrierLogo logoUrl={card.logo_url} code={card.code} name={title} />
           <div className="flex min-w-0 flex-col">
-            <b id={`brief-${card.id}`} className="text-[20px] font-[650] leading-[1.2] tracking-[-.01em]">{title}</b>
+            <b id={`brief-${card.id}`} className="text-[20px] font-[800] leading-[1.2] tracking-[-.02em]">{title}</b>
             <span className="text-[12.5px] opacity-[.86]">{carrierSubtitle(card, marketCode, t)}</span>
           </div>
           <div className="ms-auto hidden text-end leading-[1.2] min-[560px]:block">
-            <b className="block text-[20px] font-[650]"><Num>{fmtInt(locale, card.period.sent)}</Num></b>
+            <b className="block text-[20px] font-[800] tracking-[-.02em]"><Num>{fmtInt(locale, card.period.sent)}</Num></b>
             <span className="text-[12px] opacity-[.86]">{t("colisPeriod", { period: t(`periods.${period}`) })}</span>
           </div>
         </div>
@@ -173,8 +174,8 @@ function BriefCard({
           <div className={pl}>
             <span className={lb}>{t("pDel")}</span>
             <span className={v}><Num>{fmtPct(locale, rate)}</Num></span>
-            <div className="relative mb-[2px] mt-[4px] h-[6px] rounded-full bg-tr-well">
-              <b className="absolute inset-y-0 start-0 rounded-full bg-[var(--c)]" style={{ width: `${Math.min(100, rate ?? 0)}%` }} />
+            <div className="relative mb-[2px] mt-[4px] h-[7px] rounded-full bg-[color-mix(in_srgb,var(--c)_12%,transparent)]">
+              <b className="tsc-fill absolute inset-y-0 start-0 rounded-full" style={{ width: `${Math.min(100, rate ?? 0)}%` }} />
               <span className="absolute -bottom-[4px] -top-[4px] w-[2px] rounded-[2px] bg-tr-ink-1" style={{ insetInlineStart: `calc(${target}% - 1px)` }}
                 title={t("targetIs", { target: fmtPct(locale, target) })} />
             </div>
@@ -197,14 +198,14 @@ function BriefCard({
           </div>
         </div>
 
-        <div className="border-t border-tr-line-2 px-[20px] pb-[6px] pt-[14px]">
-          <div className="mb-[2px] text-[12px] font-medium text-tr-ink-3">{t("weeks8")}</div>
+        <div className="border-t border-[color-mix(in_srgb,var(--c)_14%,transparent)] px-[20px] pb-[6px] pt-[14px]">
+          <div className="mb-[2px] text-[12px] font-semibold text-tr-ink-3">{t("weeks8")}</div>
           <WeeklyBars rows={weeks} color={color} target={target} locale={locale} carrierName={title} />
         </div>
 
-        <div className="flex items-center justify-between gap-[10px] border-t border-tr-line-2 px-[20px] py-[12px] text-[12.5px] text-tr-ink-3">
+        <div className="flex items-center justify-between gap-[10px] border-t border-[color-mix(in_srgb,var(--c)_14%,transparent)] px-[20px] py-[12px] text-[12.5px] text-tr-ink-3">
           <span>{opened}</span>
-          <span className="inline-flex items-center gap-[5px] text-[13px] font-semibold text-tr-ink-2 group-hover:text-tr-ink-1">
+          <span className="tsc-open inline-flex items-center gap-[5px] text-[13px] font-bold">
             {t("open")}
             <ArrowRight size={15} aria-hidden className="rtl:-scale-x-100" />
           </span>
@@ -222,13 +223,13 @@ function EmptyState({
     <>
       <Card>
         <div className="flex flex-col items-center gap-[8px] px-[24px] py-[44px] text-center text-tr-ink-2">
-          <span className="mb-[4px] grid h-[44px] w-[44px] place-items-center rounded-[12px] bg-tr-well text-tr-ink-3"><Truck size={20} aria-hidden /></span>
-          <h3 className="text-[16px] font-semibold text-tr-ink-1">{t("empty.title")}</h3>
+          <span className="mb-[4px] grid h-[44px] w-[44px] place-items-center rounded-[13px] bg-tr-well text-tr-ink-3"><Truck size={20} aria-hidden /></span>
+          <h3 className="text-[17px] font-[800] tracking-[-.015em] text-tr-ink-1">{t("empty.title")}</h3>
           <p className="max-w-[460px] text-[13.5px]">
             {noCarrier ? t("empty.noCarrier") : marketCode === "ly" || marketCode === "tn" ? t(`empty.${marketCode}`) : t("empty.other")}
           </p>
           {period !== 90 && !noCarrier ? (
-            <button type="button" className="mt-[4px] inline-flex h-[34px] items-center rounded-[9px] border border-tr-line bg-white px-[13px] text-[13px] font-semibold text-tr-ink-1 hover:bg-tr-hover" onClick={() => onPeriodChange(90)}>
+            <button type="button" className={`${btn} mt-[4px]`} onClick={() => onPeriodChange(90)}>
               {t("empty.see90")}
             </button>
           ) : null}
@@ -237,8 +238,8 @@ function EmptyState({
       {cards.length ? (
         <div className="grid grid-cols-1 gap-[16px] min-[900px]:grid-cols-2">
           {cards.map((c, i) => (
-            <article key={c.id} style={{ "--c": accentFor(c, i) } as CSSProperties} className="overflow-hidden rounded-[14px] border border-tr-line-2 bg-white">
-              <div className="flex min-h-[78px] items-center gap-[13px] bg-[var(--c)] px-[20px] py-[16px] text-white opacity-[.55]">
+            <article key={c.id} style={{ "--c": accentFor(c, i) } as CSSProperties} className="tsc-entity is-idle">
+              <div className="tsc-band flex min-h-[80px] items-center gap-[13px] px-[20px] py-[16px]">
                 <CarrierLogo logoUrl={c.logo_url} code={c.code} name={carrierTitle(c, locale)} />
                 <div className="flex min-w-0 flex-col">
                   <b className="text-[20px] font-[650] leading-[1.2]">{carrierTitle(c, locale)}</b>

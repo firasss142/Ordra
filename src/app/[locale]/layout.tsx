@@ -8,6 +8,7 @@ import "../globals.css";
 import { AuthProvider } from "@/context/auth";
 import { MarketScopeProvider } from "@/context/market-scope";
 import { PresenceTracker } from "@/components/layout/PresenceTracker";
+import { ClientErrorReporter } from "@/components/journal/ClientErrorReporter";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -109,6 +110,7 @@ export default async function LocaleLayout({
                       {skipLinkLabel}
                     </a>
                     <PresenceTracker />
+                    {initialUser && <ClientErrorReporter />}
                     {children}
                   </RealtimeProvider>
                 </ToastProvider>

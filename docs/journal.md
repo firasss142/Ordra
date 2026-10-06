@@ -137,3 +137,62 @@ The one-off fold collapses `carrier_event_log`'s repeats (≈ 900 000 rows). Aft
   On the local image (CLI 2.48.3), **any** « permission denied for function » crashes the backend, so anon refusals are proven with `has_function_privilege`, not by calling.
 - `src/lib/journal/__tests__/routes-are-wrapped.test.ts` fails if a route exports an unwrapped handler.
 - The screen: `src/components/journal/__tests__/` and `src/app/api/admin/journal/route.test.ts`.
+
+## 6. v2 — detect everything, say why (2026-10-06)
+
+Plan: `plans/journal-detection-and-settings-v2.md`. Three migrations, `20261006120000…120200`.
+
+**The cause of an error.** The real failure is recorded next to the answer.
+- How: every route runs inside a request context (`src/lib/journal/request-context.ts`).
+- What feeds it:
+  - **The Supabase clients**: `capturingFetch` notes any PostgREST answer ≥ 400 (code, message, table or `rpc:<fn>`).
+  - **`monitoredFetch`**: notes an outside service's failure.
+  - **`console.error`**: notes anything a route logs inside the request.
+- What is kept: on a 500, `withRouteErrors` keeps the strongest cause (db > external > code) in `app_errors.cause_*`.
+- Why it matters: 179 routes answer « Internal server error ». Before v2, that sentence was all the journal ever knew.
+
+**Outside services.** `monitoredFetch(system, operation)` wraps the Darb, Navex, Dexpress, Meta and WhatsApp clients.
+- **Failures only** go to `integration_calls`. Polls would write about 20k success rows a day.
+- **Throttled**: one row per minute, per system + operation + code, per instance.
+- **Uploads are not wrapped**: `performDispatch` already records them, and R6 counts them.
+
+**Browser crashes.**
+- `src/app/[locale]/error.tsx` and `global-error.tsx` catch a crashed page.
+- `ClientErrorReporter` catches uncaught errors and rejections. It keeps our own origin only, at most 5 per page load.
+- Reports go to `POST /api/journal/browser-error` and are stored as `app_errors.source = 'browser'`.
+- The route drops extension errors, « ResizeObserver » and aborted requests.
+
+**New rules.**
+
+| rule | opens when |
+|---|---|
+| `external_failing` | an outside service fails ≥ N times in M minutes (any operation except upload) |
+| `browser_error` | one page and message crashes ≥ N times, or for ≥ U people, in H hours |
+| `job_hanging` | a job is reaped as « abandonné » ≥ N times in D days, even with successes in between |
+
+**Thresholds are settings.**
+- Where: `journal_rule_settings`, edited at Réglages › Surveillance (super_admin). There is a switch per rule.
+- Defaults are the old hard-coded values.
+- A rule switched off closes its problem at the next pass.
+- `journal_rule_num()` falls back to the default on a missing, zero or non-numeric value.
+
+**Pourquoi / Que faire.**
+- `src/lib/journal/explain.ts` maps a cause to one of 23 keys under `journaux.explain.cause.*`. Inputs are the SQLSTATE class, the PostgREST code, the outside HTTP status, a timeout or a network error.
+- The card shows « Pourquoi ».
+- The panel shows « Pourquoi », then the fix as step 1 of « Que faire », then the cause in « Détails techniques ».
+
+**Aperçu.**
+- Two problem lists: « À régler maintenant » (critical) and « À surveiller » (warning).
+- From 3 problems of one rule, they fold into a single card. A list shows 6 lines, then « Voir plus ».
+- Systems:
+  - red tiles stay visible;
+  - amber tiles fold into « N systèmes à vérifier »;
+  - healthy tiles fold into « N systèmes sans problème ».
+- Muted problems are folded.
+
+**Patch-in-place.**
+- `journal_feed()`, `merge_orders()` and `get_prospect_console()` are patched by replacing one exact string in their live definition.
+- The patch refuses to run if that string is not found exactly once.
+- Why: rewriting a 600-line function for five keys would risk the other sources.
+
+Tests: `supabase/tests/journal_v2_test.sql`, `settings_business_rules_test.sql`.

@@ -6,14 +6,20 @@ import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 30;
 
+/**
+ * Per carrier over the last 30 days, read from get_carrier_delivery_performance —
+ * the ONE outcome definition (carrier_parcel_outcome): a Darb parcel cancelled
+ * after pickup is a failure, not a parcel that never happened. The route used to
+ * count only `returned` on order_history, which put Darb at 92–100 % (truth ~52 %).
+ */
 export interface CarrierPerfRow {
   carrier_id: string;
   delivered: number;
-  returned: number;
+  failed: number;
   delivery_rate_30d: number | null;
+  /** Median hours from pickup (or upload) to delivered. */
   median_transit_hours: number | null;
   sample_size: number;
 }
@@ -22,13 +28,12 @@ export interface CarrierPerfResponse {
   data: CarrierPerfRow[];
 }
 
-function median(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+interface RpcRow {
+  carrier_id: string;
+  delivered: number | string;
+  failed: number | string;
+  median_transit_hours: number | string | null;
+  sample_size: number | string;
 }
 
 async function handleGET(req: NextRequest) {
@@ -51,88 +56,27 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: "market_id required" }, { status: 400 });
   }
 
-  const cutoffIso = new Date(Date.now() - WINDOW_DAYS * DAY_MS).toISOString();
-
-  // Pull history rows for terminal fulfillment transitions within the window,
-  // joined with orders for carrier_id + market filter + dispatched-at.
-  const { data: histRows, error: histErr } = await supabase
-    .from("order_history")
-    .select(
-      "order_id, status_to, created_at, orders!inner(carrier_id, market_id)"
-    )
-    .in("status_to", ["delivered", "returned"])
-    .gte("created_at", cutoffIso)
-    .eq("market_id", marketId);
-
-  if (histErr) {
+  const { data: rows, error } = await supabase.rpc("get_carrier_delivery_performance", {
+    p_market_id: marketId,
+    p_days: WINDOW_DAYS,
+  });
+  if (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  type Row = {
-    order_id: string;
-    status_to: "delivered" | "returned";
-    created_at: string;
-    orders:
-      | { carrier_id: string | null; market_id: string }
-      | { carrier_id: string | null; market_id: string }[]
-      | null;
-  };
-  const rows = (histRows ?? []) as Row[];
-
-  // Collect dispatched timestamps for the same orders to compute transit time.
-  const orderIds = Array.from(new Set(rows.map((r) => r.order_id)));
-  const dispatchedAt = new Map<string, number>();
-  if (orderIds.length > 0) {
-    const { data: dispRows } = await supabase
-      .from("order_history")
-      .select("order_id, created_at, status_to")
-      .in("order_id", orderIds)
-      .eq("status_to", "dispatched");
-    type DR = { order_id: string; created_at: string; status_to: string };
-    for (const d of ((dispRows ?? []) as DR[])) {
-      const ts = new Date(d.created_at).getTime();
-      const prev = dispatchedAt.get(d.order_id);
-      if (prev === undefined || ts < prev) dispatchedAt.set(d.order_id, ts);
-    }
-  }
-
-  const perCarrier = new Map<
-    string,
-    { delivered: number; returned: number; transitHours: number[] }
-  >();
-
-  for (const r of rows) {
-    const rel = Array.isArray(r.orders) ? r.orders[0] : r.orders;
-    const carrierId = rel?.carrier_id;
-    if (!carrierId) continue;
-    let bucket = perCarrier.get(carrierId);
-    if (!bucket) {
-      bucket = { delivered: 0, returned: 0, transitHours: [] };
-      perCarrier.set(carrierId, bucket);
-    }
-    if (r.status_to === "delivered") bucket.delivered += 1;
-    else bucket.returned += 1;
-
-    const dispTs = dispatchedAt.get(r.order_id);
-    if (dispTs !== undefined) {
-      const endTs = new Date(r.created_at).getTime();
-      const hours = (endTs - dispTs) / (60 * 60 * 1000);
-      if (hours >= 0) bucket.transitHours.push(hours);
-    }
-  }
-
-  const data: CarrierPerfRow[] = [];
-  for (const [carrier_id, b] of perCarrier) {
-    const total = b.delivered + b.returned;
-    data.push({
-      carrier_id,
-      delivered: b.delivered,
-      returned: b.returned,
-      delivery_rate_30d: total > 0 ? b.delivered / total : null,
-      median_transit_hours: median(b.transitHours),
-      sample_size: total,
-    });
-  }
+  const data: CarrierPerfRow[] = ((rows ?? []) as RpcRow[]).map((r) => {
+    const delivered = Number(r.delivered);
+    const failed = Number(r.failed);
+    const total = delivered + failed;
+    return {
+      carrier_id: r.carrier_id,
+      delivered,
+      failed,
+      delivery_rate_30d: total > 0 ? delivered / total : null,
+      median_transit_hours: r.median_transit_hours == null ? null : Number(r.median_transit_hours),
+      sample_size: Number(r.sample_size),
+    };
+  });
 
   const body: CarrierPerfResponse = { data };
   return NextResponse.json(body);

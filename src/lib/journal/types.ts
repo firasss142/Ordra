@@ -51,7 +51,10 @@ export type IssueRule =
   | "ads_no_orders"
   | "server_error"
   | "login_failures"
-  | "large_export";
+  | "large_export"
+  | "external_failing"
+  | "browser_error"
+  | "job_hanging";
 
 export interface Issue {
   id: string;

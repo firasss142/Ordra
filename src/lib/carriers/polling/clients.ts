@@ -1,4 +1,5 @@
 import { decrypt } from "@/lib/crypto";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 export interface CarrierRowForPoll {
   api_credentials: string | null;
@@ -42,7 +43,7 @@ export async function fetchNavexStatus(
   const base = row.api_endpoint || "https://app.navex.tn/api";
   const url = buildNavexStatusUrl(base, token);
 
-  const response = await fetch(url, {
+  const response = await monitoredFetch("navex", "poll")(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `code=${encodeURIComponent(trackingNumber)}`,
