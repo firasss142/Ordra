@@ -87,8 +87,18 @@ stays in the schema, unwritten.
   as late (not at the carrier) — a separate clean-up.
 - Darb cities are Arabic only (`to_city`); `city-names.ts` gives the French names.
 
-## Follow-up (PR 2)
+## Every rate is this rate (PR 2, 2026-10-06)
 
-Point `get_dashboard_health`, the Connexions health badge, `/api/carriers/performance`
-(« meilleur choix »), `refresh_delivery_zone_stats` and `get_carrier_true_cost` at
-`carrier_parcel_outcome`, so every delivery rate in Ordra is the same number.
+Migration `20261006090000_carrier_rates_from_parcel_outcome` repoints the remaining readers at
+`carrier_parcel_outcome`:
+- `get_carrier_true_cost` — the Darb « meilleur choix » tie-break. `returned` now holds the FAILED
+  count; a failure costs `order_carrier_cost.effective_return_fee` (0 for Darb — owner: « in Libya,
+  failures cost nothing »; the flat return fee elsewhere). Now also refuses another market's caller.
+- `get_carrier_delivery_performance` (new) — what `/api/carriers/performance` returns (agent carrier
+  picker, Réglages › Livraison). Field `returned` renamed `failed`; transit = pickup → delivered.
+- `refresh_delivery_zone_stats` — the /delivery « Zone difficile » rate.
+
+Not repointed: `get_dashboard_health` has had no reader since the Accueil rebuild — drop it.
+**Expect « Zone difficile » to start firing** in Libya: measured on prod 2026-10-06, 4 of the 6
+zones with ≥ 20 parcels sit under the 60 % threshold (0 before). The threshold is
+`zone_low_delivery_rate_pct` in Réglages.
