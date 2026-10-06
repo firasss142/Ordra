@@ -3,6 +3,12 @@
 The pre-order half of Clients → Prospects, rebuilt on 2026-09-14/15 from
 `prototypes/prospects-v3.html` in the language of « Suivi livraison ».
 
+> **2026-10-06: the manager half is replaced** by the recovery desk —
+> docs/prospects-recovery.md. §5 below describes the console it replaced
+> (deleted, with `get_prospect_console`'s route). Agents gained two buckets,
+> `recover` (an untouched won-back rejection) and `rebuy` (an untouched past
+> buyer); without them both fell into « retry » and read as missed calls.
+>
 > **Status (2026-09-15): both halves are live at `/[locale]/leads`.**
 > Agents get the worklist; market_manager and super_admin get the console —
 > four KPIs, the pipeline table, campaign funnels and the agent roster.

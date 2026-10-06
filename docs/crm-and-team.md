@@ -51,6 +51,9 @@ that belongs to the delivery engine — see `docs/delivery-worklist.md`. The sid
 > distribution (decision 33) does not exist either, so the 1 982 campaign leads have
 > no `assigned_to` and no agent sees them yet.
 
+> **2026-10-06:** the manager console is now the recovery desk — docs/prospects-recovery.md.
+> `components/crm/` (the kanban) and its dead API routes are deleted.
+
 ### Relances (follow-ups)
 
 `order_follow_ups` + `order_follow_up_entries`, enum `follow_up_status` (open →

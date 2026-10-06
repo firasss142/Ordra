@@ -34,12 +34,7 @@ vi.mock("@/components/agent/queue/AgentQueuePage", () => ({
   },
 }));
 
-vi.mock("@/components/crm/AgentLeadsQueue", () => ({
-  AgentLeadsQueue: () => {
-    useEffect(() => { leadsMounted(); }, []);
-    return <div data-testid="leads-tab">leads</div>;
-  },
-}));
+// AgentLeadsQueue was deleted with the old CRM (2026-10-06); nothing can mount it any more.
 
 const user = {
   id: "u1",

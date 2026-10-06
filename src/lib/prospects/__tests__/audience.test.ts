@@ -240,3 +240,61 @@ describe("what the composer refuses to send", () => {
     expect(errors).toContainEqual(expect.objectContaining({ kind: "limit" }));
   });
 });
+
+describe("audience v2 — the recovery desk's additions (2026-10-06)", () => {
+  test("Libya's return path statuses round-trip", () => {
+    const cs: Condition[] = [
+      { kind: "outcome", statuses: ["returning", "to_be_returned", "returned"] },
+      { kind: "period", mode: "custom", days: 60, from: "2026-08-01", to: "2026-10-01" },
+    ];
+    const json = toFilterJson(cs);
+    expect(json.order_statuses).toEqual(["returning", "to_be_returned", "returned"]);
+    expect(fromFilterJson(json)[0]).toEqual(cs[0]);
+  });
+
+  test("rejection sub-reasons are their own condition and need a losing outcome", () => {
+    const cs: Condition[] = [
+      { kind: "outcome", statuses: ["rejected"] },
+      { kind: "period", mode: "preset", days: 30, from: "2026-09-06", to: "2026-10-06" },
+      { kind: "subreason", subreasons: ["changement_avis", "prix_eleve"] },
+    ];
+    const json = toFilterJson(cs);
+    expect(json.rejection_subreasons).toEqual(["changement_avis", "prix_eleve"]);
+    expect(fromFilterJson(json)).toContainEqual(cs[2]);
+    expect(validateConditions(cs)).toEqual([]);
+    expect(validateConditions([{ kind: "outcome", statuses: ["delivered"] }, cs[1], cs[2]])).toContainEqual({ kind: "subreason", code: "needsLosingOutcome" });
+    expect(validateConditions([cs[0], cs[1], { kind: "subreason", subreasons: [] }])).toContainEqual({ kind: "subreason", code: "empty" });
+  });
+
+  test("a product may carry its own window", () => {
+    const cs: Condition[] = [
+      { kind: "outcome", statuses: ["delivered"] },
+      { kind: "period", mode: "custom", days: 150, from: "2026-04-09", to: "2026-09-06" },
+      { kind: "product", productIds: ["p1", "p2"], windows: [{ productId: "p2", from: "2026-08-01", to: "2026-09-01" }] },
+    ];
+    const json = toFilterJson(cs);
+    expect(json.product_ids).toEqual(["p1", "p2"]);
+    expect(json.product_windows).toEqual([{ product_id: "p2", from: "2026-08-01", to: "2026-09-01" }]);
+    expect(fromFilterJson(json)).toContainEqual(cs[2]);
+  });
+
+  test("a window on a product that is not selected is refused", () => {
+    const errs = validateConditions([
+      { kind: "outcome", statuses: ["delivered"] },
+      { kind: "period", mode: "preset", days: 90, from: "2026-07-08", to: "2026-10-06" },
+      { kind: "product", productIds: ["p1"], windows: [{ productId: "p9", from: "2026-08-01", to: "2026-09-01" }] },
+    ]);
+    expect(errs).toContainEqual({ kind: "product", code: "windowOrphan" });
+  });
+
+  test("« no order after the outcome » is a guard that round-trips", () => {
+    const cs: Condition[] = [
+      { kind: "outcome", statuses: ["delivered"] },
+      { kind: "period", mode: "preset", days: 90, from: "2026-07-08", to: "2026-10-06" },
+      { kind: "noOrderAfterOutcome" },
+    ];
+    const json = toFilterJson(cs);
+    expect(json.guards).toEqual({ no_order_after_outcome: true });
+    expect(fromFilterJson(json)).toContainEqual({ kind: "noOrderAfterOutcome" });
+  });
+});

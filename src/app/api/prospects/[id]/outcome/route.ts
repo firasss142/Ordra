@@ -46,7 +46,7 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
 
   const { data: lead, error: readError } = await supabase
     .from("leads")
-    .select("id, market_id, status, assigned_to")
+    .select("id, market_id, status, assigned_to, converted_order_id")
     .eq("id", params.id)
     .single();
 
@@ -61,6 +61,12 @@ async function handlePOST(req: NextRequest, { params }: { params: { id: string }
   }
   if (actor.role === "agent" && lead.assigned_to !== actor.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // A prospect that brought an order back is done: recording a call on it, or
+  // closing it as lost, would rewrite a win (audit 2026-10-05, #12).
+  if (lead.status === "won" || (lead as { converted_order_id?: string | null }).converted_order_id) {
+    return NextResponse.json({ error: "already_converted" }, { status: 409 });
   }
 
   const from = lead.status as LeadStatus;

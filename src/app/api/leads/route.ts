@@ -1,97 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canViewLeads, canCreateLead } from "@/lib/lead-permissions";
-import { CREATABLE_LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus } from "@/types/lead";
+import { canCreateLead } from "@/lib/lead-permissions";
+import { CREATABLE_LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus, type CreatableLeadSource } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
-async function handleGET(req: NextRequest) {
-  const supabase = await createClient();
-
-  const actorResult = await getActor(req);
-  if ("response" in actorResult) return actorResult.response;
-  const { actor } = actorResult;
-  const role = actor.role;
-  const actorMarketId = actor.market_id ?? "";
-
-  const marketId =
-    role === "super_admin"
-      ? req.nextUrl.searchParams.get("market_id") ?? ""
-      : actorMarketId;
-
-  if (marketId && !canViewLeads(role, marketId, actorMarketId)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const page = Math.max(1, parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10));
-  const limit = Math.min(
-    100,
-    Math.max(1, parseInt(req.nextUrl.searchParams.get("limit") ?? "50", 10))
-  );
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
-
-  let query = supabase.from("leads").select("*", { count: "exact" });
-
-  if (marketId) query = query.eq("market_id", marketId);
-  if (role === "agent") query = query.eq("assigned_to", actor.id);
-
-  const status = req.nextUrl.searchParams.get("status");
-  const statusesParam = req.nextUrl.searchParams.get("statuses");
-  const statuses = statusesParam
-    ? statusesParam
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
-  const invalidStatus = [...statuses, ...(status ? [status] : [])].find(
-    (s) => !LEAD_STATUSES.includes(s as LeadStatus)
-  );
-  if (invalidStatus) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-  }
-  if (statuses.length > 0) {
-    query = query.in("status", statuses as LeadStatus[]);
-  } else if (status) {
-    query = query.eq("status", status);
-  }
-
-  const source = req.nextUrl.searchParams.get("source");
-  if (source) query = query.eq("source", source);
-
-  const assignedTo = req.nextUrl.searchParams.get("agent_id");
-  if (assignedTo) query = query.eq("assigned_to", assignedTo);
-
-  const dateFrom = req.nextUrl.searchParams.get("date_from");
-  if (dateFrom) query = query.gte("created_at", dateFrom);
-
-  const dateTo = req.nextUrl.searchParams.get("date_to");
-  if (dateTo) query = query.lte("created_at", dateTo);
-
-  const campaignId = req.nextUrl.searchParams.get("campaign_id");
-  if (campaignId) query = query.eq("campaign_id", campaignId);
-
-  if (req.nextUrl.searchParams.get("hot_only") === "true") {
-    query = query.eq("is_hot", true);
-  }
-
-  if (req.nextUrl.searchParams.get("has_duplicate") === "true") {
-    query = query.eq("has_duplicate", true);
-  }
-
-  const { data, error, count } = await query
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-
-  return NextResponse.json({
-    data: data ?? [],
-    pagination: { page, limit, total: count ?? 0 },
-  });
-}
+/*
+ * No GET since 2026-10-06. Its only caller was the old CRM kanban (useLeads,
+ * deleted), and it filtered on `leads.is_hot` / `has_duplicate`, which do not
+ * exist — every such request was a 500. The desk lists through
+ * /api/prospects/desk/list; agents through /api/prospects/worklist.
+ */
 
 async function handlePOST(req: NextRequest) {
   const supabase = await createClient();
@@ -127,7 +48,7 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign" | "winback">)) {
+  if (!CREATABLE_LEAD_SOURCES.includes(source as CreatableLeadSource)) {
     return NextResponse.json({ error: "Invalid source" }, { status: 400 });
   }
 
@@ -186,5 +107,4 @@ async function handlePOST(req: NextRequest) {
   return NextResponse.json({ data: lead }, { status: 201 });
 }
 
-export const GET = withRouteErrors("/api/leads", "GET", handleGET);
 export const POST = withRouteErrors("/api/leads", "POST", handlePOST);

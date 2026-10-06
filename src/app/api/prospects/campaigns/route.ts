@@ -46,6 +46,7 @@ interface Body {
   market_id?: string;
   name?: string;
   offer?: string | null;
+  offer_product_ids?: unknown;
   conditions?: Condition[];
   channel?: string;
   wa_message?: string | null;
@@ -160,6 +161,8 @@ async function handlePOST(req: NextRequest) {
       name,
       filter_json: filter,
       offer: body.offer?.trim() || null,
+      // What the list proposes: one or several products (owner, 2026-10-06). Only real ids survive.
+      offer_product_ids: offerProductIds(body.offer_product_ids),
       script_fr: body.script_fr?.trim() || null,
       script_ar: body.script_ar?.trim() || null,
       channel,
@@ -248,6 +251,11 @@ async function handlePOST(req: NextRequest) {
     inserted: result.inserted ?? 0,
     skipped: result.skipped ?? 0,
   });
+}
+
+function offerProductIds(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return [...new Set(v.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)))].slice(0, 50);
 }
 
 function numberOrNull(v: unknown): number | null {
