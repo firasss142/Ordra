@@ -6,14 +6,12 @@ import {
   fetchNavexStatus as fetchNavexStatusImpl,
   type CarrierRowForPoll,
 } from "./clients";
-import { applyFulfillmentTransition } from "@/lib/orders/fulfillment";
 
 const OPEN_STATUSES: OrderStatus[] = [
   "dispatched",
   "deposit",
   "in_transit",
   "unverified",
-  "to_be_returned",
 ];
 
 export interface OpenOrderForPoll {
@@ -25,11 +23,11 @@ export interface OpenOrderForPoll {
   api_endpoint: string | null;
 }
 
-export interface ApplyFulfillmentInput {
+export interface PromoteInput {
   orderId: string;
   newStatus: OrderStatus;
-  isDamaged: boolean;
-  note: string;
+  /** Navex's own word, kept on the order and in its history. */
+  etat: string;
 }
 
 export interface LogEntry {
@@ -46,7 +44,8 @@ export interface LogEntry {
 export interface PollerDeps {
   fetchOpenOrders: () => Promise<OpenOrderForPoll[]>;
   fetchNavexStatus: (tracking: string, row: CarrierRowForPoll) => Promise<unknown>;
-  applyFulfillment: (input: ApplyFulfillmentInput) => Promise<void>;
+  /** Moves the order forward only; `promoted: false` when it is not a step forward. */
+  promote: (input: PromoteInput) => Promise<{ promoted: boolean }>;
   writeLog: (entry: LogEntry) => Promise<void>;
 }
 
@@ -122,11 +121,10 @@ async function pollNavex(
       }
 
       try {
-        await deps.applyFulfillment({
+        const { promoted } = await deps.promote({
           orderId: order.order_id,
           newStatus: mapping.statusTo,
-          isDamaged: mapping.isDamaged,
-          note: mapping.note,
+          etat: parsed.etat,
         });
         await deps.writeLog({
           carrier_code: "navex",
@@ -134,11 +132,13 @@ async function pollNavex(
           tracking_number: order.tracking_number,
           carrier_status_raw: parsed.etat,
           order_id: order.order_id,
-          outcome: "processed",
-          outcome_reason: null,
+          // Not a step forward (same status, or Navex lagging behind us): normal, not an error.
+          outcome: promoted ? "processed" : "ignored",
+          outcome_reason: promoted ? null : `not_forward:${order.status}`,
           raw_body: raw,
         });
-        processed++;
+        if (promoted) processed++;
+        else ignored++;
       } catch (err) {
         await deps.writeLog({
           carrier_code: "navex",
@@ -234,11 +234,14 @@ export function buildProductionDeps(admin: SupabaseClient): PollerDeps {
 
     fetchNavexStatus: fetchNavexStatusImpl,
 
-    applyFulfillment: async ({ orderId, newStatus, isDamaged, note }) => {
-      await applyFulfillmentTransition(admin, orderId, newStatus, null, {
-        isDamaged,
-        note,
+    promote: async ({ orderId, newStatus, etat }) => {
+      const { data, error } = await admin.rpc("promote_navex_status", {
+        p_order_id: orderId,
+        p_target: newStatus,
+        p_etat: etat,
       });
+      if (error) throw new Error(error.message);
+      return { promoted: Boolean((data as { promoted?: boolean } | null)?.promoted) };
     },
 
     writeLog: async (entry) => {
