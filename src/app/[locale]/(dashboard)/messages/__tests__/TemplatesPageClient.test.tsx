@@ -20,6 +20,9 @@ vi.mock("next/link", () => ({
   ),
 }));
 const scope = vi.hoisted(() => ({ marketId: null as string | null }));
+vi.mock("@/hooks/useOrphanConversations", () => ({
+  useOrphanConversations: () => ({ conversations: [], counts: { orphans: 4, all: 9 }, isLoading: false, mutate: vi.fn() }),
+}));
 vi.mock("@/context/market-scope", () => ({ useMarketScope: () => ({ marketId: scope.marketId, scope: "all", marketCode: null, setScope: vi.fn() }) }));
 
 import { ToastProvider } from "@/components/ui/Toast";
@@ -71,14 +74,15 @@ function mount(role: "super_admin" | "market_manager", markets = MARKETS) {
 }
 
 describe("TemplatesPageClient", () => {
-  it("has the prototype's top bar: Clients › Messages, the title, sync + create, and the switch back to Conversations", () => {
+  it("has the Messages header with Modèles active, and the templates card with sync", () => {
     mount("super_admin");
     const top = screen.getByTestId("messages-header");
-    expect(within(top).getByText("Clients › Messages")).toBeInTheDocument();
-    expect(within(top).getByRole("heading", { name: "Modèles WhatsApp" })).toBeInTheDocument();
-    expect(within(top).getByRole("button", { name: /Synchroniser depuis Meta/ })).toBeInTheDocument();
-    expect(within(top).getByRole("link", { name: "Conversations" })).toHaveAttribute("href", "/fr/messages");
+    expect(top.querySelector(".crumb")).toHaveTextContent("Clients/Messages");
+    expect(within(top).getByRole("heading", { level: 1, name: "Messages" })).toBeInTheDocument();
+    expect(within(top).getByRole("link", { name: /Conversations/ })).toHaveAttribute("href", "/fr/messages");
+    expect(within(top).getByRole("link", { name: /Conversations/ })).toHaveTextContent("4");
     expect(within(top).getByRole("link", { name: "Modèles" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: /Synchroniser avec Meta/ })).toBeInTheDocument();
   });
 
   it("a super_admin not connected is sent to Connexions › Services", () => {
@@ -87,11 +91,11 @@ describe("TemplatesPageClient", () => {
     expect(screen.getByRole("link", { name: "Ouvrir Réglages › WhatsApp" })).toHaveAttribute("href", "/fr/system/settings/whatsapp");
   });
 
-  it("a market_manager reads: no link to connect, event selects disabled", () => {
+  it("a market_manager reads: no link to connect, no event select", () => {
     connected = false;
     mount("market_manager", [MARKETS[0]]);
     expect(screen.queryByRole("link", { name: "Ouvrir Réglages › WhatsApp" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Un administrateur relie le numéro/)).toBeInTheDocument();
+    expect(screen.getByText(/ces modèles seront soumis à Meta/)).toBeInTheDocument();
   });
 
   it("opens on the market chosen in the sidebar for a super_admin", () => {

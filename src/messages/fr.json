@@ -7347,8 +7347,6 @@
   },
   "whatsappAdmin": {
     "common": {
-      "readOnly": "Lecture seule — les identifiants et les réglages sont modifiés par un super_admin.",
-      "never": "jamais",
       "loading": "Chargement…",
       "close": "Fermer",
       "ago": {
@@ -7370,33 +7368,25 @@
       "switchLabel": "Messages WhatsApp"
     },
     "templates": {
-      "title": "Modèles WhatsApp",
-      "sub": "Ce que Meta a approuvé, et quel événement chaque modèle sert",
-      "sync": "Synchroniser depuis Meta",
+      "title": "Modèles",
+      "sub": "Les messages pré-approuvés par Meta, seuls autorisés après 24 h sans réponse du client.",
+      "sync": "Synchroniser avec Meta",
       "create": "Créer les modèles Ordra",
-      "info": "« Créer les modèles Ordra » soumet le catalogue en un clic, en arabe et en français, et associe chaque modèle à son événement. Meta approuve en général en quelques minutes, jusqu'à 24 h sur un compte neuf.",
+      "offline": "WhatsApp n'est pas connecté : ces modèles seront soumis à Meta dès que le numéro sera relié.",
       "cols": {
         "name": "Modèle",
+        "when": "Envoyé quand",
         "lang": "Langue",
-        "category": "Catégorie",
-        "status": "Statut",
-        "event": "Événement",
-        "vars": "Variables",
-        "sync": "Synchro"
-      },
-      "category": {
-        "UTILITY": "Utilitaire",
-        "MARKETING": "Marketing",
-        "AUTHENTICATION": "Authentification"
+        "state": "État"
       },
       "status": {
         "APPROVED": "Approuvé",
-        "PENDING": "En attente",
+        "PENDING": "En attente de Meta",
         "REJECTED": "Refusé",
         "PAUSED": "Suspendu",
         "DISABLED": "Désactivé",
         "DELETED": "Supprimé",
-        "DRAFT": "Brouillon",
+        "DRAFT": "Pas encore soumis",
         "UNKNOWN": "Inconnu"
       },
       "event": {
@@ -7427,8 +7417,6 @@
       "marketGroup": "Marché",
       "empty": "Aucun modèle pour ce marché.",
       "emptyHint": "« Créer les modèles Ordra » soumet le catalogue complet.",
-      "notConnected": "WhatsApp n'est pas connecté pour ce marché : Meta ne détient encore aucun modèle, rien ne peut être synchronisé ni créé.",
-      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un administrateur relie le numéro dans Réglages › WhatsApp.",
       "synced": "Synchronisé · {total} modèles, {updated} mis à jour",
       "syncedNew": "{n} nouveaux",
       "syncedGone": "{n} disparus",
@@ -7449,36 +7437,107 @@
         "dialog": "Modèle {name}"
       }
     },
+    "dormant": {
+      "title": "WhatsApp n'est pas encore connecté",
+      "lead": "Quand le numéro de la boutique sera relié, les clients pourront vous écrire et leurs messages arriveront ici. Pour l'instant, aucun message ne peut arriver.",
+      "willTitle": "Ce que cette page fera",
+      "will": {
+        "write": {
+          "title": "Les clients écrivent",
+          "sub": "Chaque message arrive ici, le plus ancien en attente en premier."
+        },
+        "attach": {
+          "title": "Vous confiez la conversation",
+          "sub": "À la commande du client : l'agent qui la suit prend le relais."
+        },
+        "auto": {
+          "title": "Les messages de suivi partent seuls",
+          "sub": "Commande confirmée, colis en route, colis livré."
+        }
+      },
+      "stepsTitle": "Pour connecter",
+      "steps": {
+        "meta": {
+          "title": "Compte Meta Business vérifié",
+          "sub": "Chez Meta, avec les documents de la société."
+        },
+        "link": {
+          "title": "Numéro relié dans Ordra",
+          "sub": "Système › Connexions › WhatsApp."
+        },
+        "test": {
+          "title": "Premier message test",
+          "sub": "Ordra vérifie que l'envoi et la réception marchent."
+        }
+      },
+      "openConn": "Ouvrir Connexions",
+      "onlySa": "Seul un super admin peut relier le numéro."
+    },
     "inbox": {
       "title": "Messages",
-      "sub": "Conversations WhatsApp sans commande ni prospect rattaché",
+      "sub": "Les messages WhatsApp des clients : répondre, puis confier à la bonne commande.",
+      "pickMarket": "Choisissez un marché pour voir ses conversations.",
+      "search": "Nom ou numéro…",
       "tabs": {
-        "orphans": "À rattacher",
+        "orphans": "À confier",
+        "unread": "Non lus",
         "all": "Toutes"
       },
       "empty": {
-        "orphans": "Aucune conversation à rattacher.",
-        "all": "Aucune conversation."
+        "orphans": "Aucune conversation à confier.",
+        "unread": "Aucun message non lu.",
+        "all": "Aucune conversation.",
+        "search": "Aucune conversation ne correspond."
       },
+      "waits": "attend · {t}",
+      "dur": {
+        "m": "{n} min",
+        "h": "{n} h",
+        "d": "{n} j"
+      },
+      "tagWindowClosed": "fenêtre fermée",
+      "tagAttached": "Confiée",
+      "tagKept": "Suggestion",
       "pick": "Choisissez une conversation.",
-      "pickMarket": "Choisissez un marché pour voir ses conversations.",
-      "notConnected": "WhatsApp n'est pas connecté pour ce marché : aucun message n'arrive ici tant que le numéro n'est pas relié.",
-      "anchoredOrder": "Rattachée à une commande",
-      "anchoredLead": "Rattachée à un prospect",
-      "alreadyAnchored": "Cette conversation est déjà rattachée.",
-      "claimRefused": "Rattachement refusé.",
-      "leadRefused": "Création du prospect refusée.",
-      "placeholder": "Répondre au client…",
-      "attach": {
-        "label": "Rattacher à",
-        "placeholder": "Chercher une commande ou un prospect par nom ou numéro…",
+      "wOpen": "Réponse libre jusqu'à {time}",
+      "wOpenTomorrow": "Réponse libre jusqu'à demain {time}",
+      "wClosed": "Fenêtre fermée — modèle uniquement",
+      "closedBar": "Plus de 24 h depuis le dernier message du client.",
+      "autoBy": "Message automatique",
+      "place": "Répondre au client…",
+      "tpl": "Modèle",
+      "send": "Envoyer",
+      "sending": "Envoi…",
+      "sendTpl": "Envoyer un modèle",
+      "sendFailed": "Non envoyé · {reason}",
+      "who": {
+        "title": "Qui est-ce ?",
+        "looking": "Recherche des commandes de ce numéro…",
+        "never": "Ce numéro n'a jamais commandé ni répondu à une campagne.",
+        "ordered": "A déjà commandé avec ce numéro",
+        "attachTo": "Confier à la commande {ref}",
+        "attachHint": "L'agent qui suit cette commande la reçoit dans sa file, avec la cloche.",
+        "attached": "Confiée à la commande {ref}. Elle quitte « À confier ».",
+        "attachedLead": "Confiée au prospect. Elle quitte « À confier ».",
+        "anchoredOrder": "Confiée à une commande.",
+        "anchoredLead": "Confiée à un prospect.",
+        "openOrder": "Ouvrir la commande",
+        "openLead": "Ouvrir le prospect",
         "createLead": "Créer un prospect",
+        "leadHint": "Un agent rappellera ce client depuis Prospects.",
+        "other": "Chercher une autre commande…",
         "searching": "Recherche…",
         "none": "Aucun résultat.",
         "order": "commande",
         "lead": "prospect",
         "noName": "(sans nom)",
-        "action": "Rattacher à"
+        "keep": "Garder dans Voix du client",
+        "keepHint": "Ce message dit quelque chose sur nos produits ? Gardez-le : il apparaîtra dans les raisons.",
+        "kept": "Gardé dans Voix du client · Suggestion",
+        "keepRefused": "Le message n'a pas pu être gardé.",
+        "alreadyAnchored": "Cette conversation est déjà confiée.",
+        "claimRefused": "Le rattachement a été refusé.",
+        "leadRefused": "Création du prospect refusée."
       }
     }
   },
@@ -7591,84 +7650,141 @@
       "yesterday": "Hier",
       "error": "Impossible de charger vos retours."
     },
-    "manager": {
-      "allProducts": "Tous les produits",
-      "allAgents": "Tous les agents",
-      "presets": {
-        "today": "Aujourd'hui",
-        "yest": "Hier",
-        "d7": "7 derniers jours",
-        "d30": "30 derniers jours",
-        "month": "Ce mois-ci",
-        "last": "Mois dernier",
-        "all": "Depuis le début"
+    "voice": {
+      "crumb": "Clients",
+      "sub": "Ce que les clients disent aux agents et aux livreurs — pour savoir quoi corriger.",
+      "tabs": {
+        "sheet": "Feuille",
+        "reasons": "Raisons"
       },
-      "quick": {
-        "today": "Aujourd'hui",
-        "d7": "7 j",
-        "d30": "30 j"
-      },
-      "vsPrev": "vs période précédente",
-      "days": "{n, plural, one {# jour} other {# jours}}",
-      "apply": "Appliquer",
-      "cancel": "Annuler",
-      "pickEnd": "Choisissez la fin",
-      "prevMonth": "Mois précédent",
-      "nextMonth": "Mois suivant",
-      "weekdays": "L,M,M,J,V,S,D",
-      "openLate": "{open} ouvertes · <b>{late} > 48 h</b>",
-      "open": "{open} ouvertes",
-      "ofTotal": "{p} % des retours",
-      "topics": "Top sujets",
-      "topicsSub": "Cliquez pour filtrer",
-      "mixOf": "{n, plural, one {# retour} other {# retours}}",
-      "byAgent": "Saisies par agent",
-      "noEntry": "aucune saisie",
-      "low": "faible",
-      "lateAlert": "{n, plural, one {<b>#</b> réclamation sans réponse depuis plus de 48 h} other {<b>#</b> réclamations sans réponse depuis plus de 48 h}}",
-      "reviewAlert": "{n, plural, one {<b>#</b> retour à valider} other {<b>#</b> retours à valider}}",
-      "cols": {
-        "date": "Date",
-        "category": "Catégorie",
-        "topic": "Sujet",
-        "says": "Le client dit",
+      "filters": {
+        "period": "Période",
         "product": "Produit",
-        "agent": "Agent",
-        "status": "Statut"
+        "by": "Saisi par",
+        "all": "Tous",
+        "darb": "Livreur Darb",
+        "clear": "Retirer le filtre",
+        "presets": {
+          "today": "Aujourd'hui",
+          "yest": "Hier",
+          "d7": "7 derniers jours",
+          "d30": "30 derniers jours",
+          "month": "Ce mois-ci",
+          "last": "Le mois dernier",
+          "all": "Depuis le début"
+        },
+        "custom": "{from} → {to}"
       },
-      "more": "Voir {n} de plus",
-      "none": "Aucun retour pour ce filtre.",
-      "filters": "Filtres :",
-      "clear": "Effacer",
-      "removeFilter": "Retirer le filtre",
-      "lateChip": "Réclamations > 48 h",
-      "keep": "Garder",
-      "ignore": "Ignorer",
-      "reviewing": "À valider",
-      "back": "Retour",
+      "lede": "Sur <b>{total}</b> retours, <b>{obj}</b> expliquent pourquoi ils n'achètent pas. La 1re raison : <b>{reason}</b>.",
+      "ledeNoReason": "Sur <b>{total}</b> retours, <b>{obj}</b> expliquent pourquoi ils n'achètent pas.",
+      "ledeEmpty": "Aucun retour sur cette période.",
+      "todoOpen": "{n, plural, one {<b>#</b> réclamation ouverte} other {<b>#</b> réclamations ouvertes}}",
+      "todoCheck": "<b>{n}</b> à vérifier",
+      "compared": "{period} · comparé aux {days, plural, one {# jour} other {# jours}} d'avant",
+      "notCompared": "{period}",
+      "hLose": "Pourquoi ils n'achètent pas",
+      "hLoseSub": "{n, plural, one {# objection} other {# objections}} · cliquez une raison pour lire les clients.",
+      "hWant": "Ce qu'ils aimeraient trouver",
+      "hWantSub": "{n, plural, one {# suggestion} other {# suggestions}}.",
+      "noReasons": "Aucune raison donnée sur cette période.",
+      "said": "Ce que disent les clients",
+      "seeAll": "Voir les {n} dans la feuille",
+      "mostlyOn": "Surtout sur",
+      "ourAnswer": "Notre réponse",
+      "writeAnswer": "Écrire notre réponse",
+      "answerPlaceholder": "Ex. ne pas rejeter : programmer un rappel le 1er du mois, quand les salaires tombent.",
+      "editAnswer": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "gone": "Plus mentionné ces {days, plural, one {# jour} other {# jours}} : {list}",
+      "saidTo": "dit à {who} · {moment}",
+      "courier": "livreur Darb",
+      "someone": "un agent",
+      "momentLong": {
+        "call": "pendant l'appel",
+        "door": "à la porte",
+        "transit": "en route",
+        "after": "après la livraison"
+      },
+      "momentShort": {
+        "call": "Appel",
+        "door": "Porte",
+        "transit": "En route",
+        "after": "Après"
+      },
+      "vsPrev": "Période d'avant : {n}",
+      "new": "nouveau",
+      "minis": {
+        "noReason": "sans raison",
+        "openOne": "ouverte",
+        "openMany": "ouvertes"
+      },
+      "views": {
+        "all": "Tout",
+        "check": "À vérifier"
+      },
+      "group": {
+        "label": "Grouper par",
+        "reason": "Raison",
+        "product": "Produit",
+        "none": "Rien"
+      },
+      "cols": {
+        "select": "Sélectionner",
+        "date": "Date",
+        "says": "Le client dit",
+        "reason": "Raison",
+        "product": "Produit",
+        "moment": "Moment",
+        "by": "Saisi par",
+        "state": "État"
+      },
+      "noReason": "Sans raison",
+      "toCheck": "à vérifier",
+      "imported": "importé",
+      "noProduct": "Sans produit",
+      "more": "+ {n} autres",
+      "empty": "Rien sur cette période.",
+      "truncated": "Les {shown} plus récents sur {total}.",
+      "bulk": {
+        "selected": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+        "discard": "Écarter",
+        "changeReason": "Changer la raison",
+        "cancel": "Annuler",
+        "discarded": "{n, plural, one {# écarté — il ne compte plus.} other {# écartés — ils ne comptent plus.}}",
+        "moved": "{n, plural, =0 {Aucun retour déplacé (les réclamations gardent leur raison).} one {# retour déplacé.} other {# retours déplacés.}}",
+        "undo": "Annuler"
+      },
+      "status": {
+        "open": "Ouverte",
+        "in_progress": "En cours",
+        "resolved": "Résolue"
+      },
+      "take": "Je m'en occupe",
+      "resolve": "Résolue",
+      "reopen": "Rouvrir",
       "drawer": {
         "customer": "Client",
-        "phone": "Téléphone",
         "order": "Commande",
         "product": "Produit",
-        "agent": "Saisi par",
-        "when": "Date",
-        "status": "Statut",
-        "owner": "Responsable"
+        "moment": "Moment",
+        "by": "Saisi par",
+        "source": "Source",
+        "reason": "Raison",
+        "close": "Fermer"
       },
-      "actions": {
-        "take": "Prendre en charge",
-        "resolve": "Marquer résolue",
-        "reopen": "Rouvrir"
+      "source": {
+        "import": "Ancienne note « Autre » importée",
+        "rejection": "Note de rejet",
+        "courier": "Remarque du livreur Darb",
+        "agent": "Touche F de l'agent",
+        "delivery": "Onglet Livraison de l'agent",
+        "whatsapp": "Message WhatsApp gardé"
       },
-      "darb": "livreur Darb",
-      "newTopic": "nouveau",
-      "daysShort": "{n} j",
-      "selectMarket": "Choisissez un marché pour voir la voix de ses clients.",
+      "selectMarket": "Choisissez un marché dans la barre latérale pour voir sa voix du client.",
       "error": "Impossible de charger la voix du client.",
       "retry": "Réessayer",
-      "actionFailed": "L'action a échoué. Réessayez.",
-      "productTabs": "Produits"
+      "actionFailed": "L'action n'a pas abouti. Réessayez."
     }
   },
   "reglages": {

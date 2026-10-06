@@ -369,7 +369,8 @@ entry has not meant deleting its page — check before assuming a route is dead.
   dans la recherche partagée (migration à appliquer AVANT le déploiement):
   docs/agent-market-search.md + plans/agent-market-search.md
 - Voix du client — feedback by category and moment, the F key, courier/import feeds, the
-  manager page: docs/customer-voice.md + plans/voix-du-client.md
+  manager page (la feuille + Raisons, « Écarter », « Notre réponse », no validation queue since
+  2026-10-06): docs/customer-voice.md + plans/voix-du-client-et-messages-redesign.md
 - Journaux — the journal system (audit_events + its trigger, integration_calls, app_errors,
   job_runs, the 11 problem rules of journal_detect, the read functions, retention, how to
   add an audited table or an explicit event): docs/journal.md + plans/journaux-redesign.md

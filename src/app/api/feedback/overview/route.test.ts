@@ -15,6 +15,13 @@ import { setTestActor, resetTestActor } from "@/test/helpers/actorMock";
 const LY = "00000000-0000-0000-0000-000000000002";
 const get = (q = "") => GET(new NextRequest(new URL(`/api/feedback/overview${q}`, "http://localhost")));
 
+const fb = (id: string, over: Record<string, unknown>) => ({
+  id, market_id: LY, created_at: "2026-09-20T09:00:00Z", deleted_at: null, category: "objection", status: null,
+  product_id: "q", topic_id: "nocash", body: `body ${id}`, moment: "call", source: "import", created_by: "rania",
+  author: { full_name: "Rania" },
+  ...over,
+});
+
 let cubeArgs: Record<string, unknown> = {};
 beforeEach(() => {
   vi.useFakeTimers();
@@ -24,13 +31,15 @@ beforeEach(() => {
   setTestActor({ id: "mm", role: "market_manager", market_id: LY });
   fake = makeFakeSupabase({
     customer_feedback: [
-      { id: "first", market_id: LY, created_at: "2026-05-21T09:00:00Z", needs_review: false, deleted_at: null, category: "objection", status: null, product_id: "bm" },
-      { id: "late", market_id: LY, created_at: "2026-09-26T09:00:00Z", needs_review: false, deleted_at: null, category: "reclamation", status: "open", product_id: "bm" },
-      { id: "fresh", market_id: LY, created_at: "2026-09-30T07:00:00Z", needs_review: false, deleted_at: null, category: "reclamation", status: "in_progress", product_id: "q" },
-      { id: "done", market_id: LY, created_at: "2026-09-01T07:00:00Z", needs_review: false, deleted_at: null, category: "reclamation", status: "resolved", product_id: "q" },
-      { id: "rev1", market_id: LY, created_at: "2026-09-29T07:00:00Z", needs_review: true, deleted_at: null, category: "reclamation", status: null, product_id: "bs" },
-      { id: "rev2", market_id: LY, created_at: "2026-06-01T07:00:00Z", needs_review: true, deleted_at: null, category: "objection", status: null, product_id: "q" },
-      { id: "ignored", market_id: LY, created_at: "2026-06-01T07:00:00Z", needs_review: true, deleted_at: "2026-06-02T00:00:00Z", category: "objection", status: null, product_id: "q" },
+      fb("first", { created_at: "2026-05-21T09:00:00Z" }),
+      fb("late", { created_at: "2026-09-26T09:00:00Z", category: "reclamation", status: "open", product_id: "bm", topic_id: null }),
+      fb("fresh", { created_at: "2026-09-29T07:00:00Z", category: "reclamation", status: "in_progress", product_id: "q", topic_id: null }),
+      fb("done", { created_at: "2026-09-01T07:00:00Z", category: "reclamation", status: "resolved", product_id: "q", topic_id: null }),
+      fb("q1", { created_at: "2026-09-28T07:00:00Z" }),
+      fb("q2", { created_at: "2026-09-29T07:00:00Z", source: "courier", created_by: null, author: null, body: "قال معنديش فلوس" }),
+      fb("q3", { created_at: "2026-09-27T07:00:00Z" }),
+      fb("q4", { created_at: "2026-09-25T07:00:00Z" }),
+      fb("gone", { created_at: "2026-09-29T07:00:00Z", deleted_at: "2026-09-29T08:00:00Z" }),
     ],
     products: [
       { id: "bs", market_id: LY, name: "دميه ملاكمه حجم صغير", image_url: "img-bs", is_active: true, deleted_at: null },
@@ -38,20 +47,25 @@ beforeEach(() => {
       { id: "q", market_id: LY, name: "القرآن تدبر وعمل", image_url: "img-q", is_active: true, deleted_at: null },
       { id: "xx", market_id: LY, name: "XX", image_url: null, is_active: false, deleted_at: null },
     ],
-    feedback_topics: [{ id: "nocash", market_id: LY, category: "objection", key: "nocash", label_fr: "Pas de cash maintenant", label_ar: "لا يملك المبلغ الآن", sort_order: 1, is_active: true }],
+    feedback_topics: [
+      { id: "nocash", market_id: LY, category: "objection", key: "nocash", label_fr: "Pas de cash maintenant", label_ar: "لا يملك المبلغ الآن", sort_order: 1, is_active: true, response: "Rappeler le 1er du mois." },
+      { id: "delivery", market_id: LY, category: "objection", key: "delivery", label_fr: "Livraison", label_ar: "التوصيل", sort_order: 5, is_active: true, response: null },
+    ],
     users: [
-      { id: "tasnim", full_name: "tasnim", role: "agent", market_id: LY, is_active: true, deleted_at: null },
-      { id: "salima", full_name: "salima", role: "agent", market_id: LY, is_active: true, deleted_at: null },
-      { id: "gone", full_name: "gone", role: "agent", market_id: LY, is_active: false, deleted_at: null },
+      { id: "rania", full_name: "Rania", role: "agent", market_id: LY, is_active: true, deleted_at: null },
+      { id: "sara", full_name: "Sara", role: "agent", market_id: LY, is_active: true, deleted_at: null },
+      { id: "old", full_name: "Old", role: "agent", market_id: LY, is_active: false, deleted_at: null },
       { id: "mm", full_name: "Manager LY", role: "market_manager", market_id: LY, is_active: true, deleted_at: null },
     ],
   });
   fake.rpcs.feedback_cube = (a) => {
     cubeArgs = a;
     return [
-      { day: "2026-09-26", category: "reclamation", topic_id: null, product_id: "bm", created_by: "tasnim", source: "agent", n: 1 },
-      { day: "2026-09-30", category: "objection", topic_id: "nocash", product_id: "q", created_by: "tasnim", source: "agent", n: 3 },
-      { day: "2026-08-20", category: "objection", topic_id: "nocash", product_id: "q", created_by: "tasnim", source: "agent", n: 1 },
+      { day: "2026-09-26", category: "reclamation", topic_id: null, product_id: "bm", created_by: null, source: "courier", n: 1 },
+      { day: "2026-09-29", category: "objection", topic_id: "nocash", product_id: "q", created_by: "rania", source: "agent", n: 3 },
+      { day: "2026-09-29", category: "objection", topic_id: null, product_id: "q", created_by: "rania", source: "agent", n: 2 },
+      { day: "2026-08-20", category: "objection", topic_id: "nocash", product_id: "q", created_by: "rania", source: "agent", n: 1 },
+      { day: "2026-08-21", category: "objection", topic_id: "delivery", product_id: "q", created_by: "rania", source: "agent", n: 2 },
     ];
   };
 });
@@ -64,28 +78,44 @@ describe("GET /api/feedback/overview", () => {
     const { data } = await res.json();
     expect(data).toMatchObject({ today: "2026-09-30", first: "2026-05-21", from: "2026-09-01", to: "2026-09-30", preset: "d30", hasPrev: true });
     expect(cubeArgs).toEqual({ p_market_id: LY, p_from: "2026-08-02", p_to: "2026-09-30", p_tz: "Africa/Tripoli" });
-    expect(data.kpis.find((k: { category: string }) => k.category === "objection")).toMatchObject({ count: 3, prev: 1 });
+    expect(data.total).toBe(6);
+    expect(data.kpis).toEqual([
+      { category: "objection", count: 5, prev: 3 },
+      { category: "suggestion", count: 0, prev: 0 },
+      { category: "reclamation", count: 1, prev: 0 },
+    ]);
+    expect(data.toCheck).toBe(2);
   });
 
-  test("families fold the sizes; an inactive product with nothing in range has no tab", async () => {
+  test("reasons carry the response, the products and the newest three quotes", async () => {
+    const { data } = await (await get()).json();
+    expect(data.reasons).toHaveLength(1);
+    const cash = data.reasons[0];
+    expect(cash).toMatchObject({ topicId: "nocash", count: 3, prev: 1, response: "Rappeler le 1er du mois." });
+    expect(cash.products).toEqual([{ id: "q", label: "القرآن تدبر وعمل", imageUrl: "img-q", count: 3 }]);
+    // Newest first, discarded rows never quoted; the courier has no author.
+    expect(cash.quotes.map((q: { id: string }) => q.id)).toEqual(["q2", "q1", "q3"]);
+    expect(cash.quotes[0]).toEqual({ id: "q2", body: "قال معنديش فلوس", moment: "call", source: "courier", author: null });
+    expect(cash.quotes[1].author).toBe("Rania");
+    expect(data.gone.map((g: { topicId: string }) => g.topicId)).toEqual(["delivery"]);
+  });
+
+  test("families fold the sizes; topics come with their response", async () => {
     const { data } = await (await get()).json();
     expect(data.families.map((f: { id: string; productIds: string[] }) => [f.id, f.productIds])).toEqual([["q", ["q"]], ["bs", ["bs", "bm"]]]);
-    expect(data.tabs.byFamily).toEqual([{ id: "q", count: 3 }, { id: "bs", count: 1 }]);
+    expect(data.topics.find((t: { id: string }) => t.id === "nocash").response).toBe("Rappeler le 1er du mois.");
   });
 
-  test("open complaints, late ones (> 48 h) and the review queue — whatever the period", async () => {
+  test("open complaints whatever the period — the first one to open from « 1 réclamation ouverte »", async () => {
     const { data } = await (await get("?from=2026-09-30&to=2026-09-30")).json();
-    expect(data.complaints).toEqual({ open: 2, late: 1 });
-    expect(data.review).toBe(2);
+    expect(data.complaints).toEqual({ open: 2, firstOpenId: "late" });
     const bag = await (await get("?family=bs")).json();
-    expect(bag.data.complaints).toEqual({ open: 1, late: 1 });
-    expect(bag.data.review).toBe(1);
+    expect(bag.data.complaints).toEqual({ open: 1, firstOpenId: "late" });
   });
 
   test("agents: the market's active agents only", async () => {
     const { data } = await (await get()).json();
-    expect(data.agents).toEqual([{ id: "tasnim", name: "tasnim" }, { id: "salima", name: "salima" }]);
-    expect(data.byAgent.map((a: { id: string; count: number }) => [a.id, a.count])).toEqual([["tasnim", 4], ["salima", 0]]);
+    expect(data.agents).toEqual([{ id: "rania", name: "Rania" }, { id: "sara", name: "Sara" }]);
   });
 
   test("a range starting on the first day has nothing to compare with", async () => {

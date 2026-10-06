@@ -81,4 +81,17 @@ describe("POST /api/feedback", () => {
     fake.rpcs.create_customer_feedback = () => { throw Object.assign(new Error("order_not_found"), { code: "P0002" }); };
     expect((await post({ category: "objection", body: "x", order_id: ORDER })).status).toBe(404);
   });
+
+  test("« Garder dans Voix du client » from Messages: source whatsapp, managers only", async () => {
+    let args: Record<string, unknown> = {};
+    fake.rpcs.create_customer_feedback = (a) => { args = a; return NEW_ID; };
+    setTestActor({ id: "mm", role: "market_manager", market_id: LY });
+    expect((await post({ category: "suggestion", body: "عندكم برواية قالون؟", source: "whatsapp" })).status).toBe(201);
+    expect(args.p_source).toBe("whatsapp");
+    setTestActor({ role: "agent", market_id: LY });
+    expect((await post({ category: "suggestion", body: "x", source: "whatsapp" })).status).toBe(403);
+    // Anything else an agent sends as a source is ignored: the F key writes « agent ».
+    await post({ category: "suggestion", body: "x", source: "courier" });
+    expect(args.p_source).toBe("agent");
+  });
 });

@@ -8,13 +8,14 @@ import type { FeedbackTopic } from "@/types/feedback";
 /**
  * The visual vocabulary of « Voix du client », shared by the agent's capture window, the
  * reject and delivery offers, « Mes retours » and the manager page. Values are the
- * prototypes' (voix-du-client-agent-v2 / manager-v6): each category has a background, an ink
- * and a dot — the only colour on these screens besides status.
+ * prototypes': each category has a background, an ink and a dot — the only colour on these
+ * screens besides status. Since 2026-10-06 the dots are the calm steps of the manager page
+ * (prototypes/voix-du-client-et-messages-v2.html, --c-rec/--c-obj/--c-sug), inks ≥ 4.5:1.
  */
 export const CATEGORY_TONE: Record<FeedbackCategory, { bg: string; ink: string; dot: string }> = {
-  reclamation: { bg: "#FEE2E2", ink: "#991B1B", dot: "#EF4444" },
-  objection: { bg: "#FEF3C7", ink: "#92400E", dot: "#F59E0B" },
-  suggestion: { bg: "#DCFCE7", ink: "#166534", dot: "#22C55E" },
+  reclamation: { bg: "#FCE9EC", ink: "#A3263A", dot: "#E46A7B" },
+  objection: { bg: "#FCF1DE", ink: "#8A5410", dot: "#E9A23B" },
+  suggestion: { bg: "#E6F4EC", ink: "#1E6B45", dot: "#4DAE7E" },
 };
 
 export const MOMENT_ICON: Record<FeedbackMoment, LucideIcon> = {

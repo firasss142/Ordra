@@ -17,7 +17,7 @@ export type FeedbackMoment = (typeof FEEDBACK_MOMENTS)[number];
 export const COMPLAINT_STATUSES = ["open", "in_progress", "resolved"] as const;
 export type ComplaintStatus = (typeof COMPLAINT_STATUSES)[number];
 
-export const FEEDBACK_SOURCES = ["agent", "rejection", "delivery", "courier", "import"] as const;
+export const FEEDBACK_SOURCES = ["agent", "rejection", "delivery", "courier", "import", "whatsapp"] as const;
 export type FeedbackSource = (typeof FEEDBACK_SOURCES)[number];
 
 /** CHECK customer_feedback_body_length. */
