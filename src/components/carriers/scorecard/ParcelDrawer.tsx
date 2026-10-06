@@ -50,7 +50,7 @@ export function ParcelDrawer({
   };
   /** Whole days elapsed, as the prototype writes them: « 8 j ». */
   const days = (n: number | null) => (n == null ? "—" : t("late.days", { n: fmtInt(locale, Math.floor(n)) }));
-  const th = "whitespace-nowrap border-b border-tr-line-2 px-[8px] pb-[8px] pt-[10px] text-start text-[11.5px] font-semibold text-tr-ink-3";
+  const th = "whitespace-nowrap border-b border-tr-line-2 px-[8px] pb-[8px] pt-[12px] text-start text-[12px] font-semibold text-tr-ink-3";
   const td = "border-b border-tr-line-2 px-[8px] py-[10px] align-middle";
   const ref = (p: ScorecardParcel) => (
     <span className="font-mono text-[12.5px] font-semibold"><Num>{p.tracking_number ?? t("drawer.noRef")}</Num></span>
@@ -122,16 +122,16 @@ export function ParcelDrawer({
 
   const loadingState = kind !== "cities" && (isLoading || error || parcels.length === 0);
   return (
-    <Sheet open onClose={onClose} width="w-full sm:w-[540px]" ariaLabelledBy="scorecard-drawer-title">
-      <div className="flex items-center gap-[12px] border-b border-tr-line-2 px-[20px] py-[16px]" style={{ "--c": color } as CSSProperties}>
-        <span aria-hidden className="h-[12px] w-[12px] flex-none rounded-[4px] bg-[var(--c)]" />
-        <h2 id="scorecard-drawer-title" className="text-[16px] font-[650] text-tr-ink-1">{title}</h2>
+    <Sheet open onClose={onClose} width="tsc-drawer w-full sm:w-[540px]" ariaLabelledBy="scorecard-drawer-title">
+      <div className="flex items-center gap-[12px] border-b border-tr-line-2 px-[24px] py-[20px]" style={{ "--c": color } as CSSProperties}>
+        <span aria-hidden className="h-[12px] w-[12px] flex-none rounded-[4px] bg-[var(--c)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--c)_18%,transparent)]" />
+        <h2 id="scorecard-drawer-title" className="text-[19px] font-[800] tracking-[-.02em] text-tr-ink-1">{title}</h2>
         <button type="button" onClick={onClose} aria-label={t("drawer.close")}
-          className="ms-auto grid h-[32px] w-[32px] place-items-center rounded-[8px] text-tr-ink-2 hover:bg-tr-well">
+          className="ms-auto grid h-[34px] w-[34px] place-items-center rounded-[10px] border border-white/95 bg-white/70 text-tr-ink-2 hover:bg-white">
           <X size={18} aria-hidden />
         </button>
       </div>
-      <div className="flex-1 overflow-auto px-[20px] pb-[20px] pt-[6px]">
+      <div className="flex-1 overflow-auto px-[24px] pb-[20px] pt-[6px]">
         {loadingState ? (
           <p className="py-[24px] text-center text-[13px] text-tr-ink-3">
             {isLoading ? t("drawer.loading") : error ? t("drawer.error") : t("drawer.empty")}
@@ -144,7 +144,7 @@ export function ParcelDrawer({
         )}
       </div>
       {kind === "late" && parcels.length ? (
-        <div className="flex gap-[8px] border-t border-tr-line-2 px-[20px] py-[14px]">
+        <div className="flex gap-[8px] border-t border-tr-line-2 px-[24px] py-[14px]">
           <button type="button" className={btnSmPri}
             onClick={() => onCopy(parcels.map((p) => p.tracking_number).filter((r): r is string => !!r))}>
             <Copy size={15} aria-hidden />{t("late.copyFor", { carrier: card ? carrierShort(card, locale, t) : name })}
@@ -152,7 +152,7 @@ export function ParcelDrawer({
         </div>
       ) : null}
       {kind === "returns" ? (
-        <div className="flex gap-[8px] border-t border-tr-line-2 px-[20px] py-[14px]">
+        <div className="flex gap-[8px] border-t border-tr-line-2 px-[24px] py-[14px]">
           <Link href={returnsBenchHref} className={btnSmPri}><ScanLine size={15} aria-hidden />{t("ret.openBench")}</Link>
         </div>
       ) : null}

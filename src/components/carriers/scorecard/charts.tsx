@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { fmtInt, fmtPct, fmtWeek } from "@/lib/carriers/scorecard/format";
 import type { WeekRow } from "@/lib/carriers/scorecard/view-model";
@@ -13,12 +13,13 @@ import { useElementWidth } from "./ui";
  * Transcribed from drawCols / drawLines in prototypes/transporteurs-v2.html.
  */
 
-const INK_1 = "#15171A";
-const INK_2 = "#5A5F66";
-const INK_3 = "#80868C";
-const GRID = "#EEF0F2";
-const AXIS = "#D2D5D9";
-const MUTED = "#9AA0A6";
+// The house ink ramp and hairlines (docs/design-system.md §2.3, « Aurore calme »).
+const INK_1 = "#101828";
+const INK_2 = "#475467";
+const INK_3 = "#667085";
+const GRID = "rgba(15,23,40,.06)";
+const AXIS = "rgba(15,23,40,.16)";
+const MUTED = "#98A2B3";
 
 const svgPct = (locale: string, v: number) => (locale === "ar" ? `${Math.round(v)}%` : `${Math.round(v)} %`);
 
@@ -29,7 +30,7 @@ function Tip({ tip }: { tip: TipState | null }) {
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-20 min-w-[170px] max-w-[280px] rounded-[10px] border border-tr-line bg-white px-[11px] py-[9px] text-[12.5px] text-tr-ink-2 shadow-[0_12px_32px_rgba(16,24,40,.16)]"
+      className="tsc-tip pointer-events-none absolute z-20 min-w-[170px] max-w-[280px] px-[12px] py-[10px] text-[12.5px] font-medium text-tr-ink-2"
       style={{ left: tip.x, top: tip.y }}
     >
       {tip.content}
@@ -76,9 +77,11 @@ export function WeeklyBars({
   const base = padT + ih;
   const every = big ? (step < 46 ? 2 : 1) : 99;
 
+  const gid = `wb-${useId().replace(/:/g, "")}`;
+
   const tipFor = (w: WeekRow) => (
     <>
-      <div className="mb-[5px] text-[12px] font-[650] text-tr-ink-1">{carrierName} · {t("weekOf", { date: fmtWeek(locale, w.week) })}</div>
+      <div className="mb-[5px] text-[12px] font-bold text-tr-ink-1">{carrierName} · {t("weekOf", { date: fmtWeek(locale, w.week) })}</div>
       <TipRow swatch={color} label={t("wDelivered")} value={w.rate == null ? "—" : fmtPct(locale, w.rate)} />
       <TipRow label={t("wSent")} value={fmtInt(locale, w.sent)} />
       <TipRow label={t("wDelivered")} value={fmtInt(locale, w.delivered)} />
@@ -94,6 +97,12 @@ export function WeeklyBars({
     <div ref={ref} className="relative" onMouseLeave={() => setTip(null)}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${carrierName} · ${t("weeks8")}`}
         style={{ direction: ar ? "rtl" : "ltr", display: "block", overflow: "visible" }}>
+        <defs>
+          <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor={color} />
+            <stop offset="1" stopColor={color} stopOpacity={0.72} />
+          </linearGradient>
+        </defs>
         {big
           ? [0, 25, 50, 75, 100].map((v) => (
               <g key={v}>
@@ -117,9 +126,9 @@ export function WeeklyBars({
               <>
                 {w.provisional
                   ? <path d={d} fill={color} fillOpacity={0.28} stroke={color} strokeWidth={1.3} strokeDasharray="3 2.5" />
-                  : <path d={d} fill={color} />}
+                  : <path d={d} fill={`url(#${gid})`} />}
                 <text x={X(cx)} y={top - 7} textAnchor="middle" stroke="#fff" strokeWidth={3.5} paintOrder="stroke" strokeLinejoin="round"
-                  fontSize={big ? 11.5 : 10.5} fontWeight={big || last ? 650 : 500} fill={w.provisional ? INK_3 : big || last ? INK_1 : INK_2}>
+                  fontSize={big ? 11.5 : 10.5} fontWeight={big || last ? 700 : 600} fill={w.provisional ? INK_3 : big || last ? INK_1 : INK_2}>
                   {w.provisional ? "~" : ""}{svgPct(locale, w.rate)}
                 </text>
               </>
@@ -187,7 +196,7 @@ export function WeeklyLines({ series, target, locale }: { series: LineSeries[]; 
 
   const tipFor = (i: number) => (
     <>
-      <div className="mb-[5px] text-[12px] font-[650] text-tr-ink-1">{t("weekOf", { date: fmtWeek(locale, series[0].rows[i].week) })}</div>
+      <div className="mb-[5px] text-[12px] font-bold text-tr-ink-1">{t("weekOf", { date: fmtWeek(locale, series[0].rows[i].week) })}</div>
       {series.map((s, si) => {
         const r = s.rows[i];
         return <TipRow key={s.id} swatch={s.color} round={si === 0} label={s.name}
@@ -231,7 +240,7 @@ export function WeeklyLines({ series, target, locale }: { series: LineSeries[]; 
         ))}
         {padR > 60 ? ends.map((e) => (
           <text key={e.s.id} x={X(xi(e.i) + 10)} y={e.yy + 4} textAnchor="start" stroke="#fff" strokeWidth={3.5} paintOrder="stroke" strokeLinejoin="round"
-            fontSize={11.5} fontWeight={650} fill={INK_1}>
+            fontSize={11.5} fontWeight={700} fill={INK_1}>
             {e.s.name} {e.prov ? "~" : ""}{svgPct(locale, e.v)}
           </text>
         )) : null}

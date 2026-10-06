@@ -8711,6 +8711,7 @@
     }
   },
   "carrierScorecard": {
+    "crumbLabel": "مسار التنقل",
     "title": "شركات التوصيل",
     "sync": "آخر مزامنة قبل {age}",
     "syncNever": "لم تتم المزامنة بعد",

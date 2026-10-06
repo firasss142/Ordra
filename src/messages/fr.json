@@ -8711,6 +8711,7 @@
     }
   },
   "carrierScorecard": {
+    "crumbLabel": "Fil d'Ariane",
     "title": "Transporteurs",
     "sync": "Synchro il y a {age}",
     "syncNever": "Pas encore synchronisé",

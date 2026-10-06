@@ -44,10 +44,10 @@ export function CompareView({ scorecard, locale, marketCode, period, now, onPeri
   const cs = scorecard.carriers;
 
   const header = (
-    <div className="flex min-h-[44px] flex-wrap items-center justify-between gap-[14px]">
+    <div className="mb-[6px] flex min-h-[44px] flex-wrap items-end justify-between gap-[14px]">
       <div>
         <BackLink href={overviewHref} />
-        <h1 className="mt-[6px] text-[24px] font-[650] leading-[1.2] tracking-[-.02em] text-tr-ink-1">{t("cmp.title")}</h1>
+        <h1 className="tsc-h1 mt-[6px]">{t("cmp.title")}</h1>
         <ScorecardSub marketCode={marketCode} locale={locale} generatedAt={scorecard.generated_at} days={scorecard.days}
           lastSyncAt={scorecard.last_sync_at} now={now} withSync={false} />
       </div>
@@ -70,10 +70,10 @@ export function CompareView({ scorecard, locale, marketCode, period, now, onPeri
 
   const chip = (c: ScorecardCarrier, color: string, name: string, side: "a" | "b") => (
     <div style={{ "--c": color } as CSSProperties}
-      className={`flex min-w-0 items-center gap-[11px] rounded-[12px] bg-[var(--c)] px-[14px] py-[11px] text-white ${side === "a" ? "min-[900px]:flex-row-reverse min-[900px]:text-end" : ""}`}>
+      className={`tsc-band is-chip flex min-w-0 items-center gap-[11px] px-[14px] py-[12px] ${side === "a" ? "min-[900px]:flex-row-reverse min-[900px]:text-end" : ""}`}>
       <CarrierLogo logoUrl={c.logo_url} code={c.code} name={name} size={36} radius={10} />
       <div className="min-w-0">
-        <b className="block text-[16px] font-[650] leading-[1.2]">{name}</b>
+        <b className="block text-[16px] font-[800] leading-[1.2] tracking-[-.015em]">{name}</b>
         <span className="text-[12px] opacity-[.88]">{t("city.colis", { n: fmtInt(locale, c.period.sent) })} · {carrierSubtitle(c, marketCode, t)}</span>
       </div>
     </div>
@@ -82,12 +82,12 @@ export function CompareView({ scorecard, locale, marketCode, period, now, onPeri
   const side = (v: number | null, win: boolean, color: string, s: "a" | "b") => (
     <div style={{ "--c": color } as CSSProperties}
       className={`flex min-w-0 items-center gap-[10px] ${s === "a" ? "min-[900px]:flex-row-reverse" : ""}`}>
-      <span className="relative h-[14px] min-w-0 flex-1 before:absolute before:inset-0 before:rounded-[4px] before:bg-tr-well">
-        <b className={`absolute inset-y-0 rounded-[4px] bg-[var(--c)] ${s === "a" ? "start-0 min-[900px]:end-0 min-[900px]:start-auto" : "start-0"}`}
+      <span className="relative h-[12px] min-w-0 flex-1 before:absolute before:inset-0 before:rounded-full before:bg-[color-mix(in_srgb,var(--c)_12%,transparent)]">
+        <b className={`absolute inset-y-0 rounded-full bg-[var(--c)] ${s === "a" ? "start-0 min-[900px]:end-0 min-[900px]:start-auto" : "start-0"}`}
           style={{ width: `${v ?? 0}%` }} />
       </span>
       <span title={win ? t("cmp.best") : undefined}
-        className={`inline-flex min-w-[64px] items-center gap-[4px] text-[15px] tabular-nums ${s === "a" ? "min-[900px]:justify-end" : ""} ${win ? "font-bold text-tr-ink-1" : "font-medium text-tr-ink-2"}`}>
+        className={`inline-flex min-w-[64px] items-center gap-[4px] text-[15px] tabular-nums ${s === "a" ? "min-[900px]:justify-end" : ""} ${win ? "font-[800] text-tr-ink-1" : "font-semibold text-tr-ink-2"}`}>
         {v == null ? <span className="text-[12.5px] font-normal text-tr-ink-3">{t("cmp.na")}</span> : <Num>{fmtPct(locale, v)}</Num>}
         {win ? <Check size={15} strokeWidth={2.6} aria-hidden className="text-tr-ok" /> : null}
       </span>
@@ -147,11 +147,11 @@ export function CompareView({ scorecard, locale, marketCode, period, now, onPeri
                 <span className="inline-flex items-center gap-[7px]">{shape(0, ca)}{na}</span>
                 <span className="inline-flex items-center gap-[7px]">{shape(1, cb)}{nb}</span>
                 <span className="inline-flex items-center gap-[7px]">
-                  <svg width="18" height="4" viewBox="0 0 18 4" aria-hidden><line x1="0" y1="2" x2="18" y2="2" stroke="#15171A" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+                  <svg width="18" height="4" viewBox="0 0 18 4" aria-hidden><line x1="0" y1="2" x2="18" y2="2" stroke="#101828" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
                   {t("targetLabel", { target: fmtPct(locale, target) })}
                 </span>
                 <span className="inline-flex items-center gap-[7px]">
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><circle cx="6" cy="6" r="4.2" fill="#fff" stroke="#7E848B" strokeWidth="1.8" /></svg>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><circle cx="6" cy="6" r="4.2" fill="#fff" stroke="#667085" strokeWidth="1.8" /></svg>
                   {t("cmp.inProgress")}
                 </span>
               </div>
@@ -183,8 +183,8 @@ export function CompareView({ scorecard, locale, marketCode, period, now, onPeri
                         <div className="truncate font-medium text-tr-ink-1">{label}</div>
                         <div className="relative h-[30px]" title={tip}>
                           {[25, 50, 75].map((v) => <span key={v} className="absolute inset-y-0 w-px bg-tr-line-2" style={{ insetInlineStart: `${v}%` }} />)}
-                          <span className="absolute -bottom-[2px] -top-[2px] w-0 border-s-[1.5px] border-dashed border-[#6B7177]" style={{ insetInlineStart: `${target}%` }} />
-                          <span className="absolute top-1/2 -mt-[2px] h-[4px] rounded-[2px] bg-[#D5D8DC]" style={{ insetInlineStart: `${lo}%`, width: `${hi - lo}%` }} />
+                          <span className="absolute -bottom-[2px] -top-[2px] w-0 border-s-[1.5px] border-dashed border-tr-ink-3" style={{ insetInlineStart: `${target}%` }} />
+                          <span className="absolute top-1/2 -mt-[2px] h-[4px] rounded-[2px] bg-tr-bar" style={{ insetInlineStart: `${lo}%`, width: `${hi - lo}%` }} />
                           <span className="absolute top-1/2 h-[15px] w-[15px] -ms-[7.5px] rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(16,24,40,.12)]"
                             style={{ insetInlineStart: `${r.a.rate}%`, background: ca, marginTop: near ? -12 : -7.5 }} />
                           <span className="absolute top-1/2 h-[15px] w-[15px] -ms-[7.5px] rounded-[3px] border-2 border-white shadow-[0_0_0_1px_rgba(16,24,40,.12)]"

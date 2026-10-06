@@ -13,7 +13,7 @@ import { carrierShort } from "./labels";
 import { OverviewView } from "./OverviewView";
 import { ParcelDrawer } from "./ParcelDrawer";
 import { BackLink } from "./ScorecardHeader";
-import { Card } from "./ui";
+import { btn, Card } from "./ui";
 
 export type ScorecardScreen = "overview" | "carrier" | "compare";
 
@@ -74,18 +74,19 @@ export function CarrierScorecardWorkspace({
   if (!scorecard) {
     if (error && !isLoading) {
       return (
-        <Card>
-          <div className="flex flex-col items-center gap-[10px] px-[24px] py-[40px] text-center text-[13.5px] text-tr-ink-2">
-            <p>{t("error")}</p>
-            <button type="button" onClick={() => mutate()}
-              className="inline-flex h-[34px] items-center rounded-[9px] border border-tr-line bg-white px-[13px] text-[13px] font-semibold text-tr-ink-1 hover:bg-tr-hover">
-              {t("retry")}
-            </button>
-          </div>
-        </Card>
+        <ScorecardShell>
+          <Card>
+            <div className="flex flex-col items-center gap-[10px] px-[24px] py-[40px] text-center text-[13.5px] text-tr-ink-2">
+              <p>{t("error")}</p>
+              <button type="button" onClick={() => mutate()} className={btn}>
+                {t("retry")}
+              </button>
+            </div>
+          </Card>
+        </ScorecardShell>
       );
     }
-    return <ScorecardSkeleton />;
+    return <ScorecardShell><ScorecardSkeleton /></ScorecardShell>;
   }
 
   const findCard = (id: string) => scorecard.carriers.find((c) => c.id === id) ?? null;
@@ -95,9 +96,9 @@ export function CarrierScorecardWorkspace({
   const drawerColor = drawer
     ? (() => {
         const i = scorecard.carriers.findIndex((c) => c.id === drawer.carrierId);
-        return i >= 0 ? accentFor(scorecard.carriers[i], i) : "#9AA0A6";
+        return i >= 0 ? accentFor(scorecard.carriers[i], i) : "#98A2B3";
       })()
-    : "#9AA0A6";
+    : "#98A2B3";
 
   let body: React.ReactNode;
   if (screen === "carrier") {
@@ -137,7 +138,7 @@ export function CarrierScorecardWorkspace({
   }
 
   return (
-    <>
+    <ScorecardShell>
       {body}
       {drawer && drawerCarrier ? (
         <ParcelDrawer
@@ -148,25 +149,37 @@ export function CarrierScorecardWorkspace({
         />
       ) : null}
       {toast ? (
-        <div role="status" className="fixed bottom-[24px] left-1/2 z-[60] max-w-[90vw] -translate-x-1/2 rounded-[10px] bg-[#1F2328] px-[16px] py-[10px] text-[13px] text-white">
+        <div role="status" className="tsc-toast fixed bottom-[24px] left-1/2 z-[60] max-w-[90vw] -translate-x-1/2 px-[16px] py-[10px] text-[13px] font-semibold">
           {toast}
         </div>
       ) : null}
-    </>
+    </ScorecardShell>
+  );
+}
+
+/** The page's own ground — the aurora, like Performance › Commandes and › Équipe. */
+export function ScorecardShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="tsc">
+      <div className="tsc-page">{children}</div>
+    </div>
   );
 }
 
 export function ScorecardSkeleton() {
-  const block = "animate-pulse rounded-[8px] bg-[#ECEEF0]";
+  const block = "tsc-sk";
   return (
     <div aria-busy="true" className="flex flex-col gap-[16px]">
-      <div className="flex min-h-[44px] items-center justify-between">
-        <div className={`${block} h-[26px] w-[180px]`} />
-        <div className={`${block} h-[34px] w-[220px]`} />
+      <div className="flex min-h-[64px] items-end justify-between">
+        <div className="flex flex-col gap-[10px]">
+          <div className={`${block} h-[12px] w-[140px]`} />
+          <div className={`${block} h-[28px] w-[200px]`} />
+        </div>
+        <div className={`${block} h-[38px] w-[230px] !rounded-[12px]`} />
       </div>
-      <div className="grid grid-cols-1 overflow-hidden rounded-[14px] border border-tr-line-2 bg-white min-[900px]:grid-cols-4">
+      <div className="tsc-card grid grid-cols-1 min-[900px]:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col gap-[8px] px-[20px] py-[18px]">
+          <div key={i} className="flex flex-col gap-[8px] px-[22px] py-[20px]">
             <div className={`${block} h-[12px] w-[45%]`} />
             <div className={`${block} h-[28px] w-[38%]`} />
             <div className={`${block} h-[10px] w-[60%]`} />
@@ -175,8 +188,8 @@ export function ScorecardSkeleton() {
       </div>
       <div className="grid grid-cols-1 gap-[16px] min-[900px]:grid-cols-2">
         {[0, 1].map((i) => (
-          <div key={i} className="overflow-hidden rounded-[14px] border border-tr-line-2 bg-white">
-            <div className="h-[78px] animate-pulse bg-[#E6E8EB]" />
+          <div key={i} className="tsc-card overflow-hidden">
+            <div className="tsc-sk h-[78px] !rounded-none" />
             <div className="grid grid-cols-3 gap-[12px] p-[18px]">
               {[0, 1, 2].map((j) => <div key={j} className={`${block} h-[60px]`} />)}
             </div>
@@ -187,4 +200,3 @@ export function ScorecardSkeleton() {
     </div>
   );
 }
-

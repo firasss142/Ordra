@@ -2,6 +2,8 @@
 
 `/carriers` answers one question, read daily on desktop: **is each carrier doing its job?**
 Spec: `prototypes/transporteurs-v2.html` (approved 2026-10-03, « follow it exactly »).
+Look: « Aurore calme » since 2026-10-06 (`carriers.css`, scoped `.tsc`, as Performance ›
+Commandes / Équipe) — the prototype's layout and numbers are unchanged; only the surfaces moved.
 Plan and decisions: `plans/transporteurs.md`.
 
 ## Screens

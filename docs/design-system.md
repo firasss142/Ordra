@@ -679,8 +679,12 @@ decides when. This table is the checklist for that migration and must shrink, no
 **« Aurore calme » status (2026-10-05).** In the calm register: `/team` (`.r6` block of
 `globals.css`, « Aurore calme » sub-block), `/team/performance` (`team-performance.css`, last
 block), `/performance/orders` (`performance-orders.css`, last block), and the shared
-`OutcomeRows`, and Accès (`/users`, `src/components/admin/access/acces.css`, 2026-10-05). Not yet calm: Accueil (`store-dashboard.css` still ships the pastels that fail
-the validator — move it to §2.4's steps), Transporteurs, Produits, Entrepôt, the agent shell.
+`OutcomeRows`, and Accès (`/users`, `src/components/admin/access/acces.css`, 2026-10-05), and Performance ›
+Livraison (`/carriers`, `src/components/carriers/scorecard/carriers.css` under `.tsc`, 2026-10-06 —
+restyle only: same screens and numbers; the `--tr-*` names are repointed to the house values inside
+`.tsc`, the full colour band per account stays and gains a sheen, the card under it a wash in its
+hue). Not yet calm: Accueil (`store-dashboard.css` still ships the pastels that fail
+the validator — move it to §2.4's steps), Produits, Entrepôt, the agent shell.
 On the two Performance pages the lower blocks were restyled, not redesigned: « Les plus
 grosses fuites », « Par produit » and « Par agent » still print « /100 » figures — convert them
 to counts first when they are next touched.
