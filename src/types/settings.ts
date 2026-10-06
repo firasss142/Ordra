@@ -217,6 +217,15 @@ export interface MarketSettings {
   team_idle_minutes?: number;
   /** A first call later than the planned start + this many minutes reads « en retard ». */
   team_late_minutes?: number;
+  /**
+   * Online-card surcharge on the product subtotal, in % (order-total.ts). Was
+   * `* 1.1` in code until 2026-10-06. Money: super_admin only.
+   */
+  card_surcharge_pct?: number;
+  /** Calls to a prospect before it is closed as unreachable (api/leads/[id]/attempt). */
+  max_lead_attempts?: number;
+  /** A prospect younger than this is « chaud » in the worklist and the console. */
+  lead_hot_window_minutes?: number;
   /** Agents whose hours differ from the team's: agent id → { start, end } ("HH:MM"). */
   team_shift_overrides?: Record<string, { start: string; end: string }>;
 
@@ -328,6 +337,10 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   team_call_delay_hours: 2,
   team_idle_minutes: 30,
   team_late_minutes: 15,
+  // Business rules that lived in code until 2026-10-06 — same values.
+  card_surcharge_pct: 10,
+  max_lead_attempts: 3,
+  lead_hot_window_minutes: 60,
   // WhatsApp: everything off until a manager decides otherwise.
   whatsapp_lifecycle_enabled: false,
   whatsapp_event_could_not_reach: false,
@@ -399,6 +412,9 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "team_call_delay_hours",
   "team_idle_minutes",
   "team_late_minutes",
+  "card_surcharge_pct",
+  "max_lead_attempts",
+  "lead_hot_window_minutes",
   "team_shift_overrides",
   "whatsapp_lifecycle_enabled",
   "whatsapp_event_could_not_reach",
@@ -626,6 +642,11 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (!isValidOptionalInt(s.team_idle_minutes, 5, 240)) return false;
   if (!isValidOptionalInt(s.team_late_minutes, 0, 120)) return false;
   if (s.team_shift_overrides !== undefined && !isValidShiftOverrides(s.team_shift_overrides)) return false;
+
+  // Règles métier (2026-10-06)
+  if (!isValidOptionalNumber(s.card_surcharge_pct, 0, 50)) return false;
+  if (!isValidOptionalInt(s.max_lead_attempts, 1, 10)) return false;
+  if (!isValidOptionalInt(s.lead_hot_window_minutes, 5, 10_080)) return false;
 
   // WhatsApp
   for (const key of [

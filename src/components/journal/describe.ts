@@ -1,5 +1,6 @@
 import type { FeedItem, Issue, SystemTile, TraceEvent, Trace } from "@/lib/journal/types";
 import type { Fmt } from "./format";
+import { explainIssue, systemName } from "@/lib/journal/explain";
 
 /**
  * Turns journal rows (keys + params) into sentences, through the `journaux`
@@ -25,6 +26,9 @@ const CARRIER_CODES: Record<string, string> = {
   navex: "Navex",
   dexpress: "Dexpress",
   cosmos: "Cosmos",
+  meta: "Meta",
+  whatsapp: "WhatsApp",
+  google_sheets: "Google Sheets",
 };
 export function carrierName(v: unknown): string {
   const c = s(v);
@@ -223,11 +227,14 @@ export function describeFeed(item: FeedItem, t: Tr, f: Fmt): Line {
       return { title: t("kinds.darb.rates"), sub: p.count != null ? t("kinds.darb.ratesSub", { n: f.num(p.count) }) : undefined };
     case "job":
       return { title: t("kinds.job.failed", { job: jobLabel(p.job, t) }), sub: series ?? (s(p.message) || undefined) };
-    case "app":
+    case "app": {
+      const why = p.cause_kind ? whyOf({ rule: p.source === "browser" ? "browser_error" : "server_error", params: p }, t)?.why : undefined;
+      if (p.source === "browser") return { title: t("kinds.app.browser", { page: s(p.route) || "/" }), sub: why };
       return {
         title: t("kinds.app.error", { area: areaOf(p.route, t), verb: verbOf(p.method, t) }),
-        sub: t("kinds.app.sub", { n: count, status: s(p.status) }),
+        sub: why ?? t("kinds.app.sub", { n: count, status: s(p.status) }),
       };
+    }
     case "issue": {
       const title = describeIssue(issueFromFeed(item), t, f).title;
       return { title: t(rest === "resolved" ? "kinds.issue.resolved" : "kinds.issue.opened", { title }) };
@@ -264,6 +271,13 @@ export interface IssueText {
   line: string;
   /** [figure, label] — the one number on the card. */
   impact: [string, string];
+}
+
+/** « Pourquoi », in one sentence, for the rules explained by a recorded cause (explain.ts). */
+export function whyOf(i: Pick<Issue, "rule" | "params">, t: Tr): { why: string; fix: string } | null {
+  const e = explainIssue(i.rule, i.params ?? {});
+  if (!e) return null;
+  return { why: t(`explain.${e.why.key}`, e.why.params), fix: t(`explain.${e.fix.key}`, e.fix.params) };
 }
 
 export function describeIssue(i: Issue, t: Tr, f: Fmt): IssueText {
@@ -313,8 +327,27 @@ export function describeIssue(i: Issue, t: Tr, f: Fmt): IssueText {
     case "server_error":
       return {
         title: t(`${k}.title`, { area: areaOf(p.route, t), verb: verbOf(p.method, t) }),
-        line: t(`${k}.line`, { n, last: f.relative(s(p.last) || i.last_seen) }),
+        // the cause, not « Internal server error » (journal v2, 2026-10-06)
+        line: whyOf(i, t)?.why ?? t(`${k}.line`, { n, last: f.relative(s(p.last) || i.last_seen) }),
         impact: [f.num(n), t(`${k}.impact`)],
+      };
+    case "external_failing":
+      return {
+        title: t(`${k}.title`, { name: systemName(p.system), n }),
+        line: whyOf(i, t)?.why ?? firstLine(p.message),
+        impact: [f.num(n), t(`${k}.impact`)],
+      };
+    case "browser_error":
+      return {
+        title: t(`${k}.title`, { page: s(p.page) || "/" }),
+        line: whyOf(i, t)?.why ?? firstLine(p.message),
+        impact: [f.num(n), t(`${k}.impact`)],
+      };
+    case "job_hanging":
+      return {
+        title: t(`${k}.title`, { job: jobLabel(p.job, t) }),
+        line: t(`${k}.line`, { n: Number(p.n ?? n) }),
+        impact: [f.num(p.n ?? n), t(`${k}.impact`)],
       };
     case "login_failures":
       return { title: t(`${k}.title`, { n, account: s(p.account) }), line: t(`${k}.line`), impact: [f.num(n), t(`${k}.impact`)] };

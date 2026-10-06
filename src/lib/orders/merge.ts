@@ -168,6 +168,8 @@ export function previewMergeTotal(input: {
   deliveryFee: number;
   cardPayment: boolean;
   applyCardSurcharge: boolean;
+  /** The market's card_surcharge_pct, sent by /merge-candidates. */
+  surchargePct?: number;
 }): { subtotal: number; deliveryFee: number; total: number; quantity: number } {
   const lines = [...input.survivorLines, ...input.absorbedLines];
   const subtotal = lines.reduce(
@@ -180,6 +182,7 @@ export function previewMergeTotal(input: {
     input.deliveryFee,
     input.cardPayment,
     input.applyCardSurcharge,
+    input.surchargePct,
   );
   return {
     subtotal: Math.round(subtotal * 1000) / 1000,

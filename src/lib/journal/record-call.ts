@@ -11,7 +11,18 @@
  */
 import { redact } from "./app-errors";
 
-export type IntegrationOperation = "upload" | "void" | "bind" | "verify" | "quote" | "stock_read" | "send" | "test";
+export type IntegrationOperation =
+  | "upload"
+  | "void"
+  | "bind"
+  | "verify"
+  | "quote"
+  | "stock_read"
+  | "send"
+  | "test"
+  | "poll"
+  | "sync"
+  | "read";
 export type IntegrationCallStatus = "ok" | "error" | "timeout" | "refused";
 
 export interface IntegrationCallInput {

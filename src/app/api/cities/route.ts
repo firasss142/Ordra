@@ -17,6 +17,11 @@ async function handleGET(req: NextRequest) {
       ? (req.nextUrl.searchParams.get("market_id") ?? actor.market_id ?? "")
       : (actor.market_id ?? "");
 
+  // A super_admin on « Tous les marchés » has no market: there is no city list
+  // to give, and `market_id = ''` is a Postgres error (720 of them on prod by
+  // 2026-10-06). Answer an empty list instead of asking.
+  if (!marketId) return NextResponse.json({ data: [] });
+
   const q = req.nextUrl.searchParams.get("q");
 
   let query = supabase

@@ -9,6 +9,7 @@ import {
   refreshExpiry,
   type DexpressSession,
 } from "./session-store";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2h, matches the cookie's Max-Age
@@ -295,7 +296,7 @@ export class DexpressClient {
     init: RequestInit
   ): Promise<Response> {
     try {
-      return await fetch(url, {
+      return await monitoredFetch("dexpress", "read")(url, {
         ...init,
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });

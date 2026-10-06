@@ -7,6 +7,7 @@ import type { Role } from "@/types";
 import type { OrderItem } from "@/types/order-items";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { getCardSurchargePct, DEFAULT_CARD_SURCHARGE_PCT } from "@/lib/calculations/card-surcharge";
 
 type OrderItemInsert = Omit<OrderItem, "id" | "created_at" | "updated_at">;
 
@@ -180,6 +181,8 @@ async function handlePOST(
     itemsSubtotal,
     Number(order.delivery_fee ?? 0),
     Boolean(order.card_payment),
+    true,
+    order.card_payment ? await getCardSurchargePct(supabase, order.market_id) : DEFAULT_CARD_SURCHARGE_PCT,
   );
 
   const { data: updatedOrderRows, error: updateError } = await supabase
