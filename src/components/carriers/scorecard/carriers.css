@@ -1,0 +1,102 @@
+/*
+ * Performance › Livraison (/carriers) in « Aurore calme » — docs/design-system.md, the same
+ * register as /performance/orders (.pco) and /team/performance (.tpf). Scoped under .tsc;
+ * px on purpose (root font 14px). The screens, numbers and layout are the approved
+ * prototypes/transporteurs-v2.html: only the look moved. The components still read the
+ * --tr-* names, so this block repoints them to the house values; the carrier account colour
+ * stays data (carriers.accent_color), handed to a card as --c.
+ */
+.tsc{
+  --f:var(--font-sans),"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  /* inks, lines, wells — the house ramp (§2.3) */
+  --tr-ink-1:#101828; --tr-ink-2:#475467; --tr-ink-3:#667085; --tr-ink-4:#C9CED7;
+  --tr-line:rgba(15,23,40,.10); --tr-line-2:rgba(15,23,40,.07); --tr-line-strong:rgba(15,23,40,.18);
+  --tr-well:rgba(15,23,40,.06); --tr-seg:rgba(255,255,255,.7); --tr-sunken:rgba(16,24,40,.025); --tr-hover:#fff;
+  /* severity (§2.4): ink on tint ≥ 4.98:1, dots/fills below */
+  --tr-ok:#12B76A; --tr-ok-ink:#067647;
+  --tr-warn:#F79009; --tr-warn-ink:#B54708;
+  --tr-bad:#E8385A; --tr-bad-ink:#C01048; --tr-bad-bg:#FFE4E8;
+  --tr-bar:#D0D5DD; --tr-bar-dark:#475467;
+  /* surfaces */
+  --card:rgba(255,255,255,.86); --card-bd:rgba(16,24,40,.06); --r:20px; --r-in:16px;
+  --card-sh:inset 0 1px 0 #fff,0 1px 2px rgba(16,24,40,.05),0 12px 32px rgba(42,52,110,.07);
+  --card-sh-hover:inset 0 1px 0 #fff,0 1px 2px rgba(16,24,40,.05),0 18px 40px rgba(42,52,110,.11);
+  --blur:blur(16px) saturate(140%);
+  min-height:100vh;padding:28px 36px 90px;color:var(--tr-ink-1);font:500 14px/1.45 var(--f);-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(58% 40% at 2% 0%,#D3DBFF 0%,transparent 72%),
+    radial-gradient(48% 36% at 100% 0%,#FAD3EC 0%,transparent 72%),
+    radial-gradient(56% 46% at 98% 100%,#C6F2DA 0%,transparent 72%),
+    radial-gradient(52% 46% at 0% 100%,#FFE6B3 0%,transparent 72%),
+    radial-gradient(40% 30% at 50% 50%,#EDE7FF 0%,transparent 80%),
+    #F6F7FB;
+  background-attachment:fixed}
+[dir=rtl] .tsc{--f:var(--font-sans-arabic),var(--font-sans),system-ui,sans-serif}
+.tsc *{box-sizing:border-box}
+.tsc :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.tsc-page{max-width:1200px;margin:0 auto}
+@media (max-width:760px){.tsc{padding:16px 14px 40px}}
+
+/* ── header ── */
+.tsc-crumb{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--tr-ink-3)}
+.tsc-crumb i{font-style:normal;color:var(--tr-ink-4)}
+.tsc-h1{font-size:26px;font-weight:700;letter-spacing:-.025em;line-height:1.15;color:var(--tr-ink-1)}
+.tsc-seg{display:inline-flex;align-items:center;gap:2px;padding:3px;border-radius:12px;background:var(--tr-seg);border:1px solid var(--card-bd);box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.tsc-seg button{height:30px;min-width:50px;padding:0 13px;border-radius:9px;font-size:13px;font-weight:600;color:var(--tr-ink-2)}
+.tsc-seg button:hover{color:var(--tr-ink-1)}
+.tsc-seg button[aria-pressed=true]{background:#fff;color:var(--tr-ink-1);font-weight:700;box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.tsc-live{width:7px;height:7px;border-radius:50%;background:var(--tr-ok);box-shadow:0 0 0 3px rgba(18,183,106,.16);flex:none}
+
+/* ── buttons (§4.3) ── */
+.tsc-btn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;height:36px;padding:0 14px;border-radius:11px;font-size:13px;font-weight:700;color:var(--tr-ink-1);background:rgba(255,255,255,.88);border:1px solid rgba(15,23,40,.09);transition:background .15s,box-shadow .15s,border-color .15s}
+.tsc-btn:hover{background:#fff;box-shadow:0 4px 14px rgba(42,52,110,.10)}
+.tsc-btn--sm{height:32px;padding:0 12px;border-radius:10px;font-size:12.5px}
+.tsc-btn--pri{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 1px 2px rgba(16,24,40,.08),0 6px 16px rgba(21,128,61,.22)}
+.tsc-btn--pri:hover{background:var(--brand-hover);box-shadow:0 1px 2px rgba(16,24,40,.08),0 6px 16px rgba(21,128,61,.22)}
+.tsc-btn--ghost{background:transparent;border-color:transparent;color:var(--tr-ink-2)}
+.tsc-btn--ghost:hover{background:rgba(16,24,40,.04);box-shadow:none;color:var(--tr-ink-1)}
+.tsc-btn:disabled{opacity:.4;cursor:default;box-shadow:none}
+.tsc-btn--back{height:32px;padding:0 10px 0 6px;font-size:13.5px;color:var(--tr-ink-2);background:transparent;border-color:transparent}
+.tsc-btn--back:hover{color:var(--tr-ink-1)}
+
+/* ── cards (§4.2, calm) ── */
+.tsc-card{position:relative;min-width:0;background:var(--card);border:1px solid var(--card-bd);border-radius:var(--r);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.tsc-chead{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--tr-ink-1)}
+.tsc-pill{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;height:24px;padding:0 10px;border-radius:99px;font-size:12px;font-weight:700;color:var(--tr-ink-2);background:rgba(16,24,40,.045)}
+.tsc-sec{display:flex;align-items:center;gap:10px;margin:8px 2px -4px;font-size:12.5px;font-weight:700;color:var(--tr-ink-3)}
+.tsc-sec::after{content:"";height:1px;flex:1;background:var(--tr-line-2)}
+.tsc-fig{font-weight:800;letter-spacing:-.035em;color:var(--tr-ink-1)}
+.tsc-note{border-radius:12px;background:#FFF8EB}
+.tsc-quiet{border-radius:14px;background:var(--tr-sunken)}
+
+/* ── a carrier account: its colour with presence (§4.2 entity card) ──
+ * The full band per account stays (owner, 2026-10-03); it gains depth — a sheen from its
+ * own hue to a deeper step, a soft light at the top-start — and the card under it a wash,
+ * a hairline and a shadow tinted in that hue. White text on the band stays ≥ 4.5:1: the
+ * gradient only darkens. */
+.tsc-band{position:relative;isolation:isolate;overflow:hidden;color:#fff;background:linear-gradient(120deg,var(--c) 0%,color-mix(in srgb,var(--c) 80%,#000) 100%)}
+.tsc-band::before{content:"";position:absolute;z-index:-1;width:320px;height:320px;border-radius:50%;top:-190px;inset-inline-start:-90px;background:radial-gradient(circle,rgba(255,255,255,.22),transparent 68%);pointer-events:none}
+.tsc-band.is-hero{border-radius:var(--r);box-shadow:0 1px 2px rgba(16,24,40,.06),0 16px 36px color-mix(in srgb,var(--c) 26%,transparent)}
+.tsc-band.is-chip{border-radius:14px;box-shadow:0 8px 20px color-mix(in srgb,var(--c) 22%,transparent)}
+.tsc-entity{overflow:hidden;border-radius:var(--r);border:1px solid color-mix(in srgb,var(--c) 20%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--c) 7%,#fff) 0,rgba(255,255,255,.94) 190px);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(16,24,40,.05),0 12px 30px color-mix(in srgb,var(--c) 12%,transparent);transition:transform .2s,box-shadow .2s,border-color .2s}
+a:hover > .tsc-entity{transform:translateY(-2px);border-color:color-mix(in srgb,var(--c) 34%,transparent);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(16,24,40,.05),0 18px 40px color-mix(in srgb,var(--c) 20%,transparent)}
+.tsc-entity .tsc-open{color:color-mix(in srgb,var(--c) 70%,#101828)}
+.tsc-entity.is-idle .tsc-band{opacity:.55}
+@media (prefers-reduced-motion:reduce){a:hover > .tsc-entity{transform:none}}
+
+/* bars and their tracks: thin, rounded, the account hue with a soft sheen */
+.tsc-fill{background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 72%,#fff))}
+[dir=rtl] .tsc-fill{background:linear-gradient(270deg,var(--c),color-mix(in srgb,var(--c) 72%,#fff))}
+
+/* ── chart tooltip, toast, empty, skeleton ── */
+.tsc-tip{border-radius:12px;background:rgba(255,255,255,.97);border:1px solid rgba(16,24,40,.08);box-shadow:0 20px 52px rgba(42,52,110,.18)}
+.tsc-toast{border-radius:12px;background:#101828;color:#fff;box-shadow:0 12px 30px rgba(0,0,0,.22)}
+.tsc-dormant{border-radius:var(--r-in);border:1.5px dashed var(--tr-ink-4);background:rgba(255,255,255,.5)}
+.tsc-sk{animation:tsc-pulse 1.4s ease-in-out infinite;border-radius:8px;background:rgba(16,24,40,.06)}
+@keyframes tsc-pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.tsc-sk{animation:none}}
+
+/* ── the parcel drawer: a floating glass panel (§4.9) over a blurred scrim ── */
+.tsc .tsc-drawer{top:12px;bottom:12px;inset-inline-end:12px;height:auto;width:min(540px,calc(100vw - 24px));border-radius:24px;border:1px solid rgba(255,255,255,.9);background:rgba(250,251,255,.93);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);box-shadow:0 30px 80px rgba(20,25,60,.22);font-family:var(--f)}
+.tsc div:has(+ .tsc-drawer){background:rgba(15,23,40,.22);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.tsc-drawer table tbody tr:hover td{background:rgba(16,24,40,.025)}

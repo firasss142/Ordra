@@ -7,6 +7,7 @@ import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
 import { fmtPoints } from "@/lib/carriers/scorecard/format";
 import { rateTrend, type RateStatus, type Tone } from "@/lib/carriers/scorecard/view-model";
 import type { ScorecardPeriod } from "@/lib/carriers/scorecard/types";
+import "./carriers.css";
 
 /**
  * Pieces shared by the three Transporteurs screens, sized in px from the
@@ -47,7 +48,7 @@ export function NowTag() {
   const t = useTranslations("carrierScorecard");
   return (
     <span className="ms-[6px] inline-flex items-center gap-[5px] text-[11px] font-semibold text-tr-ink-3">
-      <i aria-hidden className="h-[6px] w-[6px] rounded-full bg-[#16A34A]" />
+      <i aria-hidden className="h-[6px] w-[6px] rounded-full bg-tr-ok" />
       {t("now")}
     </span>
   );
@@ -56,8 +57,8 @@ export function NowTag() {
 /** The grey pill at the end of a card head: « 30 j », « 90 j », « maintenant ». */
 export function Pill({ children, live = false }: { children: ReactNode; live?: boolean }) {
   return (
-    <span className="ms-auto inline-flex items-center gap-[5px] whitespace-nowrap rounded-full bg-tr-well px-[9px] py-[3px] text-[11.5px] font-semibold text-tr-ink-3">
-      {live ? <i aria-hidden className="h-[6px] w-[6px] rounded-full bg-[#16A34A]" /> : null}
+    <span className="tsc-pill ms-auto">
+      {live ? <i aria-hidden className="tsc-live !h-[6px] !w-[6px]" /> : null}
       {children}
     </span>
   );
@@ -74,7 +75,7 @@ export function Num({ children, className = "" }: { children: ReactNode; classNa
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-[2px] -mb-[6px] mt-[6px] flex items-center gap-[10px] text-[11.5px] font-[650] uppercase tracking-[.09em] text-tr-ink-3 after:h-px after:flex-1 after:bg-tr-line-2 rtl:text-[13px] rtl:normal-case rtl:tracking-normal">
+    <div className="tsc-sec">
       {children}
     </div>
   );
@@ -88,7 +89,7 @@ export function Card({ children, className = "", style, label }: { children: Rea
   return (
     <CardTitleId.Provider value={id}>
       <section style={style} aria-labelledby={label ? undefined : id} aria-label={label}
-        className={`min-w-0 rounded-[14px] border border-tr-line-2 bg-white ${className}`}>
+        className={`tsc-card ${className}`}>
         {children}
       </section>
     </CardTitleId.Provider>
@@ -98,8 +99,8 @@ export function Card({ children, className = "", style, label }: { children: Rea
 export function CardHead({ title, pill }: { title: ReactNode; pill?: ReactNode }) {
   const id = useContext(CardTitleId);
   return (
-    <div className="flex items-center gap-[8px] px-[20px] pt-[16px]">
-      <h3 id={id} className="text-[15px] font-semibold tracking-[-.005em] text-tr-ink-1">{title}</h3>
+    <div className="flex items-center gap-[8px] px-[22px] pt-[20px]">
+      <h3 id={id} className="tsc-chead">{title}</h3>
       {pill}
     </div>
   );
@@ -111,7 +112,7 @@ export function CarrierLogo({ code, name, logoUrl, size = 44, radius = 12 }: { c
   return (
     <span
       aria-hidden
-      className="grid flex-none place-items-center overflow-hidden bg-white shadow-[0_0_0_2px_rgba(255,255,255,.9)]"
+      className="grid flex-none place-items-center overflow-hidden bg-white shadow-[0_0_0_2px_rgba(255,255,255,.9),0_6px_16px_rgba(16,24,40,.18)]"
       style={{ width: size, height: size, borderRadius: radius }}
     >
       {src ? (
@@ -131,12 +132,12 @@ export function TrendChip({ period, locale, periodLong }: { period: ScorecardPer
   if (!tr) return null;
   const vs = t("vs", { period: periodLong });
   if (tr.kind === "flat") {
-    return <span title={vs} className="inline-flex items-center gap-[3px] font-semibold text-tr-ink-2">{t("flat")}</span>;
+    return <span title={vs} className="inline-flex h-[20px] items-center gap-[3px] whitespace-nowrap rounded-full bg-[rgba(15,23,40,.05)] px-[9px] text-[11.5px] font-bold text-tr-ink-2">{t("flat")}</span>;
   }
   const Icon = tr.kind === "up" ? ArrowUp : ArrowDown;
   return (
-    <span title={vs} className={`inline-flex items-center gap-[3px] font-semibold ${tr.kind === "up" ? "text-tr-ok-ink" : "text-tr-bad-ink"}`}>
-      <Icon size={13} strokeWidth={2.2} aria-hidden />
+    <span title={vs} className={`inline-flex h-[20px] items-center gap-[3px] whitespace-nowrap rounded-full pe-[8px] ps-[6px] text-[11.5px] font-bold ${tr.kind === "up" ? "bg-[#DCFAE6] text-tr-ok-ink" : "bg-tr-bad-bg text-tr-bad-ink"}`}>
+      <Icon size={12} strokeWidth={2.8} aria-hidden />
       <Num>{t(tr.kind, { points: fmtPoints(locale, tr.points) })}</Num>
     </span>
   );
@@ -159,11 +160,8 @@ export function useElementWidth<T extends HTMLElement>(fallback: number) {
   return { ref, width };
 }
 
-export const btn =
-  "inline-flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-[9px] border border-tr-line bg-white px-[13px] text-[13px] font-semibold text-tr-ink-1 hover:border-tr-line-strong hover:bg-tr-hover";
-export const btnSm =
-  "inline-flex h-[30px] items-center gap-[7px] whitespace-nowrap rounded-[8px] border border-tr-line bg-white px-[11px] text-[12.5px] font-semibold text-tr-ink-1 hover:border-tr-line-strong hover:bg-tr-hover";
-export const btnSmPri =
-  "inline-flex h-[30px] items-center gap-[7px] whitespace-nowrap rounded-[8px] border border-brand bg-brand px-[11px] text-[12.5px] font-semibold text-white hover:bg-brand-hover";
-export const btnSmGhost =
-  "inline-flex h-[30px] items-center gap-[7px] whitespace-nowrap rounded-[8px] border border-transparent px-[11px] text-[12.5px] font-semibold text-tr-ink-2 hover:bg-tr-well hover:text-tr-ink-1";
+/** Buttons in Aurore (§4.3) — glass secondary, brand primary; the look lives in carriers.css. */
+export const btn = "tsc-btn";
+export const btnSm = "tsc-btn tsc-btn--sm";
+export const btnSmPri = "tsc-btn tsc-btn--sm tsc-btn--pri";
+export const btnSmGhost = "tsc-btn tsc-btn--sm tsc-btn--ghost";
