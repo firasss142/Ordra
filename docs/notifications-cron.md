@@ -21,6 +21,7 @@ because Vercel's Hobby plan caps crons at once per day. **There are 14 active jo
 | `investor-rollup-nightly` | `41 2 * * *` | Full investor rollup |
 | `whatsapp-outbox-1min` | `* * * * *` | Drains `whatsapp_outbox` through `POST /api/cron/whatsapp-outbox` (`invoke_whatsapp_outbox()` calls pg_net only when a row is due or stuck, so most ticks cost one indexed EXISTS). Added 2026-09-25 by `20260925130000` — see docs/whatsapp-cloud-api.md |
 | `agent-availability-reset-hourly` | `22 * * * *` | Sets every agent to not-ready at their market's local midnight, returning untouched orders to the pool. Hourly because Tunisia (UTC+1) and Libya (UTC+2) do not cross midnight together; it acts only inside the first hour of the local day and is idempotent per market per day |
+| `prospects-daily-tick-hourly` | `37 * * * *` | Calls `prospects_daily_tick_all()`: per market, inside its configured local hour (`prospect_recovery.dist.hour`, default 09:00) and once a day (`prospect_tick_log`), creates won-back-rejection and past-buyer prospects, closes the reordered and the unreachable, releases untouched files, then fills every agent's file. Added 2026-10-06 by `20261006100200` — see docs/prospects-recovery.md |
 
 The offset minutes (`3-59/10`, `8-59/15`, `4-59/15`, `:07`, `:17`, `:22`, `:41`) are
 deliberate: they keep the heavy jobs from all firing on the same tick. Keep that spread

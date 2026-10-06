@@ -14,12 +14,14 @@ import {
   Truck,
   MessageCircle,
   Megaphone,
+  UserSearch,
+  Activity,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { useMarketScope } from "@/context/market-scope";
 import { marketIdToCode, type MarketCode } from "@/lib/markets";
-import { isMarketScoped, topicsFor, type TopicId } from "@/lib/reglages/topics";
+import { isMarketScoped, MENU_GROUPS, topicsFor, type TopicId } from "@/lib/reglages/topics";
 import type { AuthUser } from "@/types";
 import { ReglagesFormProvider, useReglagesForm } from "./form-context";
 import { SaveBar } from "./kit/SaveBar";
@@ -38,6 +40,8 @@ const ICONS: Record<TopicId, LucideIcon> = {
   delivery: Truck,
   whatsapp: MessageCircle,
   ads: Megaphone,
+  prospects: UserSearch,
+  monitoring: Activity,
 };
 
 /**
@@ -101,7 +105,7 @@ function Layout({
       <div className="grid items-start gap-[24px] lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-[32px]">
         <aside className="flex flex-col gap-[2px] pt-[2px] lg:sticky lg:top-[12px]">
           <h1 className="m-0 mb-[14px] text-[20px] font-semibold tracking-[-.01em] text-ink-primary">{t("title")}</h1>
-          <div className="mb-[16px]">
+          {isMarketScoped(topic) && <div className="mb-[16px]">
             <div className="mb-[6px] text-[12px] font-medium text-ink-secondary">{t(isSA ? "marketLabel.admin" : "marketLabel.manager")}</div>
             {isSA ? (
               <>
@@ -130,22 +134,33 @@ function Layout({
                 {marketCode ? t(`market.${marketCode}`) : "—"}
               </div>
             )}
-          </div>
-          <nav aria-label={t("title")} className="-mx-[16px] flex gap-[2px] overflow-x-auto px-[16px] lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
-            {topicsFor(user.role).map((id) => {
-              const Icon = ICONS[id];
-              const on = id === topic;
+          </div>}
+          <nav aria-label={t("title")} className="-mx-[16px] flex gap-[2px] overflow-x-auto px-[16px] lg:mx-0 lg:flex-col lg:gap-[14px] lg:overflow-visible lg:px-0">
+            {MENU_GROUPS.map((group) => {
+              const visible = group.topics.filter((id) => topicsFor(user.role).includes(id));
+              if (visible.length === 0) return null;
               return (
-                <Link
-                  key={id}
-                  href={href(id)}
-                  onClick={onNav(id)}
-                  aria-current={on ? "page" : undefined}
-                  className={`flex flex-none items-center gap-[10px] whitespace-nowrap rounded-[8px] border px-[10px] py-[8px] text-[14px] lg:w-full ${on ? "border-line-subtle bg-white font-semibold text-ink-primary" : "border-transparent font-medium text-ink-primary hover:bg-[#EDEEF0]"}`}
-                >
-                  <Icon className={`h-[16px] w-[16px] ${on ? "text-brand" : "text-ink-secondary"}`} aria-hidden />
-                  {t(`topics.${id}.label`)}
-                </Link>
+                <div key={group.id} className="flex flex-none gap-[2px] lg:flex-col">
+                  <h3 className="m-0 hidden px-[10px] pb-[4px] text-[11.5px] font-semibold uppercase tracking-[.06em] text-ink-muted lg:block">
+                    {t(`menuGroups.${group.id}`)}
+                  </h3>
+                  {visible.map((id) => {
+                    const Icon = ICONS[id];
+                    const on = id === topic;
+                    return (
+                      <Link
+                        key={id}
+                        href={href(id)}
+                        onClick={onNav(id)}
+                        aria-current={on ? "page" : undefined}
+                        className={`flex flex-none items-center gap-[10px] whitespace-nowrap rounded-[8px] border px-[10px] py-[7px] text-[14px] lg:w-full ${on ? "border-line-subtle bg-white font-semibold text-ink-primary" : "border-transparent font-medium text-ink-primary hover:bg-[#EDEEF0]"}`}
+                      >
+                        <Icon className={`h-[16px] w-[16px] ${on ? "text-brand" : "text-ink-secondary"}`} aria-hidden />
+                        {t(`topics.${id}.label`)}
+                      </Link>
+                    );
+                  })}
+                </div>
               );
             })}
           </nav>

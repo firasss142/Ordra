@@ -8,6 +8,7 @@
  * one's release cadence.
  */
 import { WhatsAppApiError, redact } from "./errors";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 /** Current pinned Graph version. v26.0 released 29 Jul 2026. */
 export const DEFAULT_GRAPH_VERSION = "v26.0";
@@ -56,7 +57,7 @@ async function run(
 ): Promise<GraphResponse> {
   let response: Response;
   try {
-    response = await fetch(url, { ...init, signal: requestSignal(signal) });
+    response = await monitoredFetch("whatsapp", "send")(url, { ...init, signal: requestSignal(signal) });
   } catch (err) {
     const name = err instanceof Error ? err.name : "";
     if (name === "TimeoutError" || name === "AbortError") {

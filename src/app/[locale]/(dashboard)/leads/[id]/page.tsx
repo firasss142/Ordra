@@ -5,15 +5,12 @@ import { ProspectDetailClient } from "@/components/prospects/detail/ProspectDeta
 export const dynamic = "force-dynamic";
 
 /**
- * /leads/[id] — one prospect, on its own page.
+ * /leads/[id] — one prospect.
  *
- * Rebuilt on 2026-09-15 in the console's visual language. The page it
- * replaced was the last screen still wearing the pre-2026 CRM look: inline
- * styles, its own grey shell, raw status transitions in the history.
- *
- * Every role that can reach « Prospects » gets every action here — log an
- * attempt, qualify, schedule a callback, convert, close, archive. The server
- * still decides what it will accept.
+ *   agent   → the prospect page: the agent shell's « Convertir » lands here
+ *             with ?convert=1 (AgentCrmPage), so the conversion flow lives on.
+ *   manager → the desk (since 2026-10-06 a prospect opens in a drawer on
+ *             /leads): /leads?open=<id>. Notifications and Messages link here.
  */
 export default async function ProspectDetailPage({
   params, searchParams,
@@ -22,6 +19,7 @@ export default async function ProspectDetailPage({
   if (!user) redirect(`/${params.locale}/login`);
   if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
   if (user.role === "investor") redirect(`/${params.locale}/investor`);
+  if (user.role !== "agent") redirect(`/${params.locale}/leads?open=${encodeURIComponent(params.id)}`);
 
   return <ProspectDetailClient leadId={params.id} locale={params.locale} openConvert={searchParams?.convert === "1"} />;
 }

@@ -6,19 +6,26 @@ export interface CarrierStatusMapping {
   isDamaged: boolean;
 }
 
+/**
+ * Navex's word → where Ordra moves the parcel (forward only, see
+ * promote_navex_status, 20261006140000). Never « returned » nor « cancelled »:
+ * a return waits in Entrepôt › Rentrer until the bench scans it (that scan
+ * puts stock back), and cancelling is a manager's act. « Supprime » is left
+ * out on purpose — unknown, so Journaux shows it rather than Ordra guessing.
+ */
 const NAVEX_MAP: Record<string, OrderStatus> = {
   "Au magasin": "deposit",
   "Enleve": "deposit",
   "Rtn depot": "deposit",
   "En cours": "in_transit",
   "Livrer": "delivered",
+  "Livrer Paye": "delivered",
   "Rtn definitif": "to_be_returned",
-  "Rtn client/agence": "returned",
-  "Retour recu": "returned",
-  "Retour paye": "returned",
-  "Retour Expediteur": "returned",
+  "Rtn client/agence": "to_be_returned",
+  "Retour recu": "to_be_returned",
+  "Retour paye": "to_be_returned",
+  "Retour Expediteur": "to_be_returned",
   "A verifier": "unverified",
-  "Supprime": "cancelled",
 };
 
 const NAVEX_IGNORED = new Set([

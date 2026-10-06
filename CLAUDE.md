@@ -280,8 +280,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Salle de contrôle v6 (/team, « Aurore » look + agent colours, §4.25) — the day, the period table, the agent panel, the four RPCs,
   the control-room settings and the bell's three alerts: docs/team-control-room.md +
   plans/team-control-room-v5.md (spec `prototypes/team-v6.html`, untracked)
-- Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
-  trigger, the columns that do not exist): docs/prospects-worklist.md
+- Prospects — the agent worklist (derived buckets, the call outcome, the columns that do
+  not exist): docs/prospects-worklist.md
+- Prospects — the manager desk « récupérer les ventes perdues » (three automatic sources,
+  the daily tick that fills agents' files, « Nouvelle liste » in 3 steps, the lead-RPC
+  security fix): docs/prospects-recovery.md + plans/prospects-recovery.md
 - Distribution des commandes — l'algorithme par pourcentages, la disponibilité
   agent (déclaration + battement de cœur), le drain du pool, la remise à zéro de
   minuit, et ce qui a remplacé `active_agents_only`: docs/order-distribution.md +

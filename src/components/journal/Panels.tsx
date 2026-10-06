@@ -21,6 +21,7 @@ import {
   scheduleLabel,
   settingLabel,
   verbOf,
+  whyOf,
   type Tr,
 } from "./describe";
 import type { Fmt } from "./format";
@@ -63,7 +64,7 @@ export function JournalPanel(props: Props) {
 }
 
 /** Rules whose own steps already say the problem closes by itself. */
-const SAYS_IT_CLOSES = new Set(["job_failing", "connection_silent", "carrier_stuck", "server_error"]);
+const SAYS_IT_CLOSES = new Set(["job_failing", "connection_silent", "carrier_stuck", "server_error", "external_failing", "browser_error", "job_hanging"]);
 
 const sevOf = (i: Pick<Issue, "severity" | "status">): Sev => (i.status === "muted" ? "mute" : i.severity === "critical" ? "fail" : "warn");
 
@@ -85,7 +86,13 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
   const p = issue.params ?? {};
   const k = `rules.${issue.rule}`;
   const str = (v: unknown) => (v == null ? "" : String(v));
-  const todo = ["todo1", "todo2", "todo3"].filter((s) => t.has(`${k}.${s}`)).map((s) => t(`${k}.${s}`));
+  // Rules explained by a recorded cause (server, outside service, browser):
+  // « Pourquoi » comes from the cause, and its fix is the first thing to do.
+  const why = whyOf(issue, t);
+  const todo = [
+    ...(why ? [why.fix] : []),
+    ...["todo1", "todo2", "todo3"].filter((s) => t.has(`${k}.${s}`)).map((s) => t(`${k}.${s}`)),
+  ];
 
   const what = t.has(`${k}.what`)
     ? t(`${k}.what`, {
@@ -125,6 +132,13 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
   if (issue.rule === "job_failing" && p.message) tech.push(<Code key="m">{str(p.message).trim()}</Code>);
   if (issue.rule === "server_error")
     tech.push(<Code key="s">{`${str(p.method)} ${str(p.route)}  →  ${str(p.status)}${p.code ? `\n${str(p.code)} ${str(p.message)}` : p.message ? `\n${str(p.message)}` : ""}`}</Code>);
+  if ((issue.rule === "server_error" || issue.rule === "browser_error") && p.cause_kind)
+    tech.push(
+      <Code key="c">{[`${str(p.cause_kind)} · ${str(p.cause_code)}${p.cause_target ? ` · ${str(p.cause_target)}` : ""}`, str(p.cause_detail)].filter(Boolean).join("\n")}</Code>,
+    );
+  if (issue.rule === "browser_error") tech.push(<Code key="b">{`${str(p.page)}\n${str(p.message)}`}</Code>);
+  if (issue.rule === "external_failing")
+    tech.push(<Code key="x">{`${str(p.system)} · ${str(p.operation)} → ${str(p.http_status ?? p.code)}\n${str(p.message)}`}</Code>);
   if (issue.rule === "upload_failing") tech.push(<Code key="u">{`${str(p.code)}\n${str(p.message)}`}</Code>);
   if (issue.rule === "whatsapp_down" && p.reason) tech.push(<Code key="w">{str(p.reason)}</Code>);
 
@@ -168,6 +182,12 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
     >
       <H4>{t("common.what")}</H4>
       <P>{what}</P>
+      {why && (
+        <>
+          <H4>{t("explain.why")}</H4>
+          <P>{why.why}</P>
+        </>
+      )}
       <H4>{t("common.howMuch")}</H4>
       <Figures items={figures} />
       {issue.rule === "carrier_stuck" && Array.isArray(p.causes) && (p.causes as unknown[]).length > 0 && (

@@ -6,6 +6,7 @@ import { computeOrderTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { getCardSurchargePct, DEFAULT_CARD_SURCHARGE_PCT } from "@/lib/calculations/card-surcharge";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ async function getOrderAndCheckAccess(supabase: Awaited<ReturnType<typeof import
   return { order };
 }
 
-async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, orderId: string, deliveryFee: number, cardPayment: boolean) {
+async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, orderId: string, deliveryFee: number, cardPayment: boolean, surchargePct: number) {
   const { data: allItems } = await supabase
     .from("order_items")
     .select("line_total, quantity")
@@ -41,7 +42,7 @@ async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/
     (sum: number, item: { quantity: number }) => sum + Number(item.quantity),
     0
   );
-  const newTotal = computeOrderTotal(itemsSubtotal, Number(deliveryFee ?? 0), cardPayment);
+  const newTotal = computeOrderTotal(itemsSubtotal, Number(deliveryFee ?? 0), cardPayment, true, surchargePct);
   // This error used to be discarded. If the totals update does not land, the
   // items sum to one figure while orders.total_price keeps another — and
   // CLAUDE.md pins revenue to orders.total_price alone, so a silent divergence
@@ -153,7 +154,13 @@ async function handlePATCH(
   }
 
   try {
-    await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
+    await recomputeTotal(
+      supabase,
+      id,
+      order.delivery_fee as number,
+      Boolean(order.card_payment),
+      order.card_payment ? await getCardSurchargePct(supabase, order.market_id as string) : DEFAULT_CARD_SURCHARGE_PCT,
+    );
   } catch (err) {
     const lockedRes = lockedResponse(err);
     if (lockedRes) return lockedRes;
@@ -204,7 +211,13 @@ async function handleDELETE(
   await supabase.from("order_items").delete().eq("id", itemId);
 
   try {
-    await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
+    await recomputeTotal(
+      supabase,
+      id,
+      order.delivery_fee as number,
+      Boolean(order.card_payment),
+      order.card_payment ? await getCardSurchargePct(supabase, order.market_id as string) : DEFAULT_CARD_SURCHARGE_PCT,
+    );
   } catch (err) {
     const lockedRes = lockedResponse(err);
     if (lockedRes) return lockedRes;

@@ -160,45 +160,214 @@ function OverviewTab({
         </div>
       </div>
 
-      {open.length > 0 && (
-        <section aria-labelledby="jx-tofix" className="mb-[32px]">
-          <h3 id="jx-tofix" className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
-            {t("sections.toFix")}
-          </h3>
-          {open.map((i) => (
-            <ProblemCard key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />
-          ))}
-        </section>
-      )}
+      <ProblemList id="jx-now" title={t("sections.now")} issues={open.filter((i) => i.severity === "critical")} t={t} f={f} onOpen={onOpen} />
+      <ProblemList id="jx-watch" title={t("sections.watch")} issues={open.filter((i) => i.severity !== "critical")} t={t} f={f} onOpen={onOpen} />
 
-      <section aria-labelledby="jx-systems" className="mb-[32px]">
-        <h3 id="jx-systems" className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
-          {t("sections.systems")}
-        </h3>
-        <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
-          {data.systems.map((s) => (
-            <SystemCard
-              key={s.id}
-              tile={s}
-              t={t}
-              f={f}
-              onClick={() => onOpen(s.id === "jobs" ? { type: "jobs" } : s.id === "app" ? { type: "app" } : { type: "tile", id: s.id })}
-            />
+      <SystemsSection systems={data.systems} t={t} f={f} onOpen={onOpen} />
+
+      {muted.length > 0 && <MutedSection issues={muted} t={t} f={f} onOpen={onOpen} />}
+    </>
+  );
+}
+
+/** Same-rule problems fold from this many on: « 30 transporteurs coupés… » is one line, not thirty. */
+const FOLD_FROM = 3;
+/** A section shows this many lines before « Voir plus ». */
+const VISIBLE = 6;
+
+type Line = { kind: "one"; issue: Issue } | { kind: "fold"; rule: Issue["rule"]; issues: Issue[] };
+
+function foldByRule(issues: Issue[]): Line[] {
+  const byRule = new Map<string, Issue[]>();
+  for (const i of issues) byRule.set(i.rule, [...(byRule.get(i.rule) ?? []), i]);
+  const lines: Line[] = [];
+  const done = new Set<string>();
+  for (const i of issues) {
+    const same = byRule.get(i.rule) ?? [];
+    if (same.length >= FOLD_FROM) {
+      if (!done.has(i.rule)) lines.push({ kind: "fold", rule: i.rule, issues: same });
+      done.add(i.rule);
+    } else {
+      lines.push({ kind: "one", issue: i });
+    }
+  }
+  return lines;
+}
+
+function ProblemList({
+  id,
+  title,
+  issues,
+  t,
+  f,
+  onOpen,
+}: {
+  id: string;
+  title: string;
+  issues: Issue[];
+  t: Tr;
+  f: Fmt;
+  onOpen: (p: PanelState) => void;
+}) {
+  const [all, setAll] = useState(false);
+  if (issues.length === 0) return null;
+  const lines = foldByRule(issues);
+  const shown = all ? lines : lines.slice(0, VISIBLE);
+  return (
+    <section aria-labelledby={id} className="mb-[28px]">
+      <h3 id={id} className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
+        {title}
+      </h3>
+      {shown.map((l) =>
+        l.kind === "one" ? (
+          <ProblemCard key={l.issue.id} issue={l.issue} t={t} f={f} onClick={() => onOpen({ type: "issue", id: l.issue.id })} />
+        ) : (
+          <FoldCard key={l.rule} rule={l.rule} issues={l.issues} t={t} f={f} onOpen={onOpen} />
+        ),
+      )}
+      {lines.length > VISIBLE && (
+        <button
+          type="button"
+          onClick={() => setAll((v) => !v)}
+          className="mt-[2px] text-[13.5px] font-semibold text-brand hover:underline"
+        >
+          {all ? t("sections.hideCalm") : t("sections.more", { n: lines.length - VISIBLE })}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function FoldCard({ rule, issues, t, f, onOpen }: { rule: Issue["rule"]; issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+  const [open, setOpen] = useState(false);
+  const sev = issues.some((i) => i.severity === "critical") ? "fail" : "warn";
+  const total = issues.reduce((n, i) => n + Number(i.affected ?? 0), 0);
+  const listId = `jx-fold-${rule}`;
+  return (
+    <div className="mb-[8px] rounded-[12px] border border-line-subtle bg-white">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((v) => !v)}
+        className="grid w-full grid-cols-[10px_minmax(0,1fr)_auto_18px] items-center gap-x-[16px] rounded-[12px] px-[18px] py-[16px] text-start hover:bg-[#F7F7F8]"
+      >
+        <span aria-hidden className={`h-[10px] w-[10px] rounded-full ${sev === "fail" ? "bg-[var(--jx-fail)]" : "bg-[var(--jx-warn)]"}`} />
+        <span className="min-w-0">
+          <h4 className="m-0 text-[15px] font-semibold leading-[1.35] text-ink-primary">{t(`rules.${rule}.fold`, { n: issues.length })}</h4>
+          <p className="m-0 mt-[3px] truncate text-[13.5px] text-ink-secondary">
+            {issues
+              .slice(0, 3)
+              .map((i) => describeIssue(i, t, f).title)
+              .join(" · ")}
+            {issues.length > 3 ? " …" : ""}
+          </p>
+        </span>
+        <span className="whitespace-nowrap text-end">
+          {total > 0 && <b className="block text-[17px] font-[650] tabular-nums text-ink-primary">{f.num(total)}</b>}
+        </span>
+        <span className={`transition-transform ${open ? "rotate-90" : ""}`}>
+          <Chevron />
+        </span>
+      </button>
+      {open && (
+        <div id={listId} className="border-t border-line-subtle px-[10px] pb-[6px] pt-[8px]">
+          {issues.map((i) => (
+            <ProblemCard key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />
           ))}
         </div>
-      </section>
-
-      {muted.length > 0 && (
-        <section aria-labelledby="jx-muted" className="mb-[32px]">
-          <h3 id="jx-muted" className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
-            {t("sections.muted")}
-          </h3>
-          {muted.map((i) => (
-            <ProblemCard key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />
-          ))}
-        </section>
       )}
-    </>
+    </div>
+  );
+}
+
+function SystemsSection({ systems, t, f, onOpen }: { systems: SystemTile[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+  const [showCalm, setShowCalm] = useState(false);
+  const [showWarn, setShowWarn] = useState(false);
+  // Red tiles stay in view; amber ones are already named in « À surveiller ».
+  const attention = systems.filter((s) => s.state === "fail");
+  const warn = systems.filter((s) => s.state === "warn");
+  const calm = systems.filter((s) => s.state !== "fail" && s.state !== "warn");
+  const open = (s: SystemTile) => onOpen(s.id === "jobs" ? { type: "jobs" } : s.id === "app" ? { type: "app" } : { type: "tile", id: s.id });
+  return (
+    <section aria-labelledby="jx-systems" className="mb-[28px]">
+      <h3 id="jx-systems" className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
+        {t("sections.systems")}
+      </h3>
+      {attention.length > 0 && (
+        <div className="mb-[10px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
+          {attention.map((s) => (
+            <SystemCard key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
+          ))}
+        </div>
+      )}
+      {warn.length > 0 && (
+        <div className="mb-[10px]">
+          <button
+            type="button"
+            aria-expanded={showWarn}
+            onClick={() => setShowWarn((v) => !v)}
+            className="flex w-full items-center gap-[10px] rounded-[12px] border border-[var(--jx-warn-line)] bg-white px-[16px] py-[12px] text-start hover:bg-[#F7F7F8]"
+          >
+            <span aria-hidden className="h-[10px] w-[10px] flex-none rounded-full bg-[var(--jx-warn)]" />
+            <span className="flex-1 text-[14px] font-medium text-ink-primary">{t("sections.warnSystems", { n: warn.length })}</span>
+            <span className={`transition-transform ${showWarn ? "rotate-90" : ""}`}>
+              <Chevron />
+            </span>
+          </button>
+          {showWarn && (
+            <div className="mt-[10px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
+              {warn.map((s) => (
+                <SystemCard key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {calm.length > 0 && (
+        <>
+          <button
+            type="button"
+            aria-expanded={showCalm}
+            onClick={() => setShowCalm((v) => !v)}
+            className="flex w-full items-center gap-[10px] rounded-[12px] border border-line-subtle bg-white px-[16px] py-[12px] text-start hover:bg-[#F7F7F8]"
+          >
+            <CheckCircle2 className="h-[18px] w-[18px] flex-none text-[var(--jx-ok)]" aria-hidden />
+            <span className="flex-1 text-[14px] font-medium text-ink-primary">{t("sections.calm", { n: calm.length })}</span>
+            <span className={`transition-transform ${showCalm ? "rotate-90" : ""}`}>
+              <Chevron />
+            </span>
+          </button>
+          {showCalm && (
+            <div className="mt-[10px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
+              {calm.map((s) => (
+                <SystemCard key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function MutedSection({ issues, t, f, onOpen }: { issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section aria-label={t("sections.muted")} className="mb-[28px]">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="mb-[10px] inline-flex items-center gap-[6px] text-[13px] font-semibold text-ink-secondary hover:text-ink-primary"
+      >
+        <span className={`transition-transform ${open ? "rotate-90" : ""}`}>
+          <Chevron />
+        </span>
+        {t("sections.mutedToggle", { n: issues.length })}
+      </button>
+      {open && issues.map((i) => <ProblemCard key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />)}
+    </section>
   );
 }
 

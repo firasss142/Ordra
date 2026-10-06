@@ -1,6 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { capturingFetch } from "@/lib/journal/request-context";
+
+/**
+ * Both server clients fetch through this: a PostgREST error is noted as the
+ * request's cause, so Journaux can say WHY a route answered 500 (the route
+ * itself usually says only « Internal server error »). Resolved per call so
+ * Next's patched fetch is still the one used.
+ */
+const journalFetch = capturingFetch((input, init) => fetch(input, init));
 
 /**
  * Cookie-based server client — for Server Components, Route Handlers, middleware.
@@ -13,6 +22,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: journalFetch },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -57,7 +67,10 @@ export function createAdminClient(options: AdminClientOptions = {}) {
         autoRefreshToken: false,
         persistSession: false,
       },
-      ...(actorId ? { global: { headers: { "x-ordra-actor": actorId } } } : {}),
+      global: {
+        fetch: journalFetch,
+        ...(actorId ? { headers: { "x-ordra-actor": actorId } } : {}),
+      },
     },
   );
 }

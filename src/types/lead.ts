@@ -25,14 +25,23 @@ export const LEAD_SOURCES = [
   // returned. Never creatable by hand, which is why CREATABLE_LEAD_SOURCES
   // filters it out alongside "campaign".
   "winback",
+  // Created by prospects_daily_tick() (2026-10-06): a won-back rejection, and a
+  // past buyer N days after delivery. Never creatable by hand either.
+  "rejected_order",
+  "repeat_buyer",
   "other",
 ] as const;
 
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
+/** Sources only the system writes: a campaign run, a returning parcel, the daily tick. */
+export type SystemLeadSource = "campaign" | "winback" | "rejected_order" | "repeat_buyer";
+export type CreatableLeadSource = Exclude<LeadSource, SystemLeadSource>;
+const SYSTEM_SOURCES: readonly string[] = ["campaign", "winback", "rejected_order", "repeat_buyer"];
+
 export const CREATABLE_LEAD_SOURCES = LEAD_SOURCES.filter(
-  (source) => source !== "campaign" && source !== "winback",
-) as Exclude<LeadSource, "campaign" | "winback">[];
+  (source) => !SYSTEM_SOURCES.includes(source),
+) as CreatableLeadSource[];
 
 export const LEAD_LOST_REASONS = [
   "not_interested",

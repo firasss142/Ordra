@@ -13,7 +13,7 @@ import type { Bucket, ProspectRow } from "./types";
 export type { Bucket } from "./types";
 
 /** The prototype's filter strip, left to right. Also the default sort order. */
-export const BUCKET_ORDER: Bucket[] = ["hot", "callback", "retry", "campaign", "winback", "converted"];
+export const BUCKET_ORDER: Bucket[] = ["hot", "callback", "retry", "recover", "rebuy", "campaign", "winback", "converted"];
 
 /**
  * Decision 31's default for `lead_hot_window_minutes`. A market may set its
@@ -73,6 +73,12 @@ export function bucketOf(
     if (ageMinutes <= hotWindowMinutes) return "hot";
   }
 
+  // The desk's automatic sources, before anyone called (2026-10-06). Without
+  // these two rules an untouched won-back rejection fell through to « retry »
+  // and read as a call already missed.
+  if (attempts === 0 && row.source === "rejected_order") return "recover";
+  if (attempts === 0 && row.source === "repeat_buyer") return "rebuy";
+
   // Untouched campaign stock. 1 982 of ~2 000 production leads are these;
   // they are a list to work through, never an interruption.
   if (row.campaign_id && attempts === 0) return "campaign";
@@ -81,7 +87,7 @@ export function bucketOf(
 }
 
 export function countBuckets(rows: ProspectRow[]): BucketCounts {
-  const counts: BucketCounts = { all: rows.length, hot: 0, callback: 0, retry: 0, campaign: 0, winback: 0, converted: 0 };
+  const counts: BucketCounts = { all: rows.length, hot: 0, callback: 0, retry: 0, recover: 0, rebuy: 0, campaign: 0, winback: 0, converted: 0 };
   for (const r of rows) counts[r.bucket] += 1;
   return counts;
 }
@@ -92,7 +98,7 @@ export function countBuckets(rows: ProspectRow[]): BucketCounts {
  * count and its total always describe the same set of rows.
  */
 export function sumBuckets(rows: ProspectRow[]): BucketCounts {
-  const sums: BucketCounts = { all: 0, hot: 0, callback: 0, retry: 0, campaign: 0, winback: 0, converted: 0 };
+  const sums: BucketCounts = { all: 0, hot: 0, callback: 0, retry: 0, recover: 0, rebuy: 0, campaign: 0, winback: 0, converted: 0 };
   for (const r of rows) {
     const v = r.product_price ?? 0;
     sums.all += v;

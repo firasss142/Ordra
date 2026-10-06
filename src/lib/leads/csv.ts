@@ -1,4 +1,4 @@
-import { CREATABLE_LEAD_SOURCES, type LeadSource } from "@/types/lead";
+import { CREATABLE_LEAD_SOURCES, type LeadSource, type CreatableLeadSource } from "@/types/lead";
 
 export interface ParsedCsvRow {
   customer_name: string;
@@ -102,7 +102,7 @@ export function parseLeadCsv(text: string): CsvValidationResult {
     if (!customer_name) error = "customer_name missing";
     else if (!customer_phone) error = "customer_phone missing";
     else if (!source) error = "source missing";
-    else if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign" | "winback">))
+    else if (!CREATABLE_LEAD_SOURCES.includes(source as CreatableLeadSource))
       error = `invalid source: ${source}`;
 
     rows.push({

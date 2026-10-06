@@ -137,3 +137,57 @@ describe("actorFromCookieHeader", () => {
     expect(actorFromCookieHeader("sb-x-auth-token=base64-!!!")).toBeNull();
   });
 });
+
+describe("withRouteErrors — the real cause behind « Internal server error »", () => {
+  test("a database error seen during the request is attached to the 500", async () => {
+    const { noteCause } = await import("../request-context");
+    const wrapped = withRouteErrors("/api/cities", "GET", async (_r: Request) => {
+      noteCause({ kind: "db", code: "22P02", detail: 'invalid input syntax for type uuid: ""', target: "cities" });
+      return Response.json({ error: "Internal server error" }, { status: 500 });
+    });
+
+    await wrapped(req());
+
+    expect(recordMock.mock.calls[0][0]).toMatchObject({
+      message: "Internal server error",
+      cause: { kind: "db", code: "22P02", detail: 'invalid input syntax for type uuid: ""', target: "cities" },
+    });
+  });
+
+  test("a throw with no earlier cause keeps the thrown error as the cause", async () => {
+    const wrapped = withRouteErrors("/api/x", "POST", async (_r: Request) => {
+      throw Object.assign(new Error("Cannot read properties of undefined (reading 'id')"), { name: "TypeError" });
+    });
+    await expect(wrapped(req())).rejects.toThrow();
+    expect(recordMock.mock.calls[0][0].cause).toMatchObject({
+      kind: "code",
+      code: "TypeError",
+      detail: "Cannot read properties of undefined (reading 'id')",
+    });
+  });
+
+  test("a 500 with no cause at all records cause null", async () => {
+    const wrapped = withRouteErrors("/api/x", "GET", async (_r: Request) => new Response("nope", { status: 502 }));
+    await wrapped(req());
+    expect(recordMock.mock.calls[0][0].cause).toBeNull();
+  });
+
+  test("a successful answer does not leak causes into the next request", async () => {
+    const { noteCause, currentCauses } = await import("../request-context");
+    const ok = withRouteErrors("/api/a", "GET", async (_r: Request) => {
+      noteCause({ kind: "db", code: "PGRST116", detail: "no rows", target: "orders" });
+      return Response.json({});
+    });
+    await ok(req());
+    expect(currentCauses()).toEqual([]);
+    expect(recordMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("fingerprintOf with a cause", () => {
+  test("two different causes on one route are two problems", () => {
+    expect(
+      fingerprintOf({ route: "/api/cities", method: "GET", status: 500, errorCode: null, causeCode: "22P02" }),
+    ).toBe("GET /api/cities 500 22P02");
+  });
+});

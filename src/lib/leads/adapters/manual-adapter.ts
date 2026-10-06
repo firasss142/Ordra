@@ -4,7 +4,7 @@ import type {
   LeadSourceAdapter,
 } from "./types";
 import type { LeadSource } from "@/types/lead";
-import { CREATABLE_LEAD_SOURCES } from "@/types/lead";
+import { CREATABLE_LEAD_SOURCES, type CreatableLeadSource } from "@/types/lead";
 
 // Manual adapter: for leads entered directly by agents/managers.
 // No webhook validation needed; "mapping" is identity-ish.
@@ -23,7 +23,7 @@ export class ManualAdapter implements LeadSourceAdapter {
   mapToInternalLead(payload: unknown): InternalLeadData {
     const p = (payload ?? {}) as Record<string, unknown>;
     const source = (p.source as string) ?? "manual_call";
-    if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign" | "winback">)) {
+    if (!CREATABLE_LEAD_SOURCES.includes(source as CreatableLeadSource)) {
       throw new Error(`Invalid source: ${source}`);
     }
     if (!p.customer_name || !p.customer_phone) {

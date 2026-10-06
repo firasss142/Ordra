@@ -11,6 +11,7 @@ import {
   legacyConnectionsTab,
   legacySettingsTab,
   MANAGER_EDITABLE_SETTING_KEYS,
+  MENU_GROUPS,
 } from "./topics";
 
 /**
@@ -18,26 +19,34 @@ import {
  * (plans/reglages-redesign.md, prototypes/reglages-v2.html).
  */
 describe("Réglages topics", () => {
-  it("lists the nine topics in the order an order travels", () => {
+  it("lists eleven topics, day-to-day selling first and the system last", () => {
     expect(TOPIC_IDS).toEqual([
-      "markets",
       "shops",
       "orders",
       "rejections",
+      "prospects",
       "team",
       "warehouses",
       "delivery",
       "whatsapp",
       "ads",
+      "markets",
+      "monitoring",
     ]);
   });
 
-  it("gives the super_admin every topic and a market_manager neither Marchés nor Publicité", () => {
+  it("groups the menu in four short sections that cover every topic once", () => {
+    expect(MENU_GROUPS.map((g) => g.id)).toEqual(["sales", "shipping", "growth", "system"]);
+    expect(MENU_GROUPS.flatMap((g) => g.topics)).toEqual([...TOPIC_IDS]);
+  });
+
+  it("gives the super_admin every topic and a market_manager neither Marchés, Publicité nor Surveillance", () => {
     expect(topicsFor("super_admin")).toEqual(TOPIC_IDS);
     expect(topicsFor("market_manager")).toEqual([
       "shops",
       "orders",
       "rejections",
+      "prospects",
       "team",
       "warehouses",
       "delivery",
@@ -47,8 +56,8 @@ describe("Réglages topics", () => {
     expect(topicsFor("warehouse_agent")).toEqual([]);
   });
 
-  it("opens Marchés for the super_admin and Boutiques for a manager", () => {
-    expect(defaultTopic("super_admin")).toBe("markets");
+  it("opens Boutiques for everyone: the daily work comes first", () => {
+    expect(defaultTopic("super_admin")).toBe("shops");
     expect(defaultTopic("market_manager")).toBe("shops");
   });
 
@@ -59,19 +68,20 @@ describe("Réglages topics", () => {
     expect(isTopicFor("market_manager", "markets")).toBe(false);
   });
 
-  it("treats every topic but Marchés as belonging to one market", () => {
+  it("treats every topic but Marchés and Surveillance as belonging to one market", () => {
     expect(isMarketScoped("markets")).toBe(false);
-    for (const t of TOPIC_IDS.filter((x) => x !== "markets")) {
+    expect(isMarketScoped("monitoring")).toBe(false);
+    for (const t of TOPIC_IDS.filter((x) => x !== "markets" && x !== "monitoring")) {
       expect(isMarketScoped(t)).toBe(true);
     }
   });
 
   it("lets a manager edit the day-to-day rules only", () => {
-    for (const area of ["orders", "rejections", "team", "risk", "board", "matching"] as const) {
+    for (const area of ["orders", "rejections", "team", "risk", "board", "matching", "prospects"] as const) {
       expect(canEditArea("market_manager", area)).toBe(true);
       expect(canEditArea("super_admin", area)).toBe(true);
     }
-    for (const area of ["markets", "shops", "commissions", "warehouses", "carriers", "whatsapp", "ads"] as const) {
+    for (const area of ["markets", "shops", "commissions", "warehouses", "carriers", "whatsapp", "ads", "money", "monitoring"] as const) {
       expect(canEditArea("market_manager", area)).toBe(false);
       expect(canEditArea("super_admin", area)).toBe(true);
     }
@@ -122,6 +132,8 @@ describe("Réglages topics", () => {
         "carrier_stall_days",
         "delivery_first_action_hours",
         "delivery_done_window_hours",
+        "max_lead_attempts",
+        "lead_hot_window_minutes",
       ].sort(),
     );
   });
@@ -132,7 +144,8 @@ describe("Réglages topics", () => {
     // manager either gets a 500 on a field the page offers, or can write
     // through PostgREST what the page refuses.
     const sql = readFileSync(
-      join(__dirname, "../../../supabase/migrations/20261002150000_settings_manager_daily_rules.sql"),
+      // the latest migration that redefines the two manager policies
+      join(__dirname, "../../../supabase/migrations/20261006120200_settings_business_rules.sql"),
       "utf8",
     ).replace(/--.*$/gm, "");
     const lists = [...sql.matchAll(/key = ANY \(ARRAY\[([^\]]*)\]\)/g)].map((m) =>
