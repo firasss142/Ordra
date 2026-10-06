@@ -81,7 +81,7 @@ that the new ones replace, their tests and dead i18n keys. Migration as paste-re
 Taken as the yes on v2; the two open questions went with the recommendation (owner defers):
 « Notre réponse » column added, courier complaints older than 14 days closed at migration.
 
-- Migration `supabase/migrations/20261006120000_voix_du_client_v2.sql` (paste on prod before
+- Migration `supabase/migrations/20261006150000_voix_du_client_v2.sql` (paste on prod before
   merging): `feedback_topics.response`; needs_review retired (rows flipped, réclamations opened or
   closed if > 14 days, an event says why); new CHECK « a réclamation always has a status »;
   courier trigger writes rows live; RPCs `discard_/restore_customer_feedback`,

@@ -1,5 +1,5 @@
 -- Voix du client — customer_feedback, feedback_topics, customer_feedback_events
--- (plans/voix-du-client.md, migrations 20261002120000…120200 ; v2 : 20261006120000).
+-- (plans/voix-du-client.md, migrations 20261002120000…120200 ; v2 : 20261006150000).
 --
 -- CE QUE CE FICHIER PROUVE
 --   1. Privilèges : anon n'exécute aucune RPC et ne lit rien ; authenticated n'écrit jamais

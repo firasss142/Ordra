@@ -6,7 +6,7 @@ The approved specs are `prototypes/voix-du-client-agent-v2.html` (the agent) and
 `prototypes/voix-du-client-et-messages-v2.html` (the manager page, since 2026-10-06; plan
 `plans/voix-du-client-et-messages-redesign.md`).
 
-## Model (`20261002120000_customer_feedback.sql`, v2 `20261006120000_voix_du_client_v2.sql`)
+## Model (`20261002120000_customer_feedback.sql`, v2 `20261006150000_voix_du_client_v2.sql`)
 
 - Three fixed **categories**, an enum: `reclamation` · `objection` · `suggestion`. Only a
   réclamation has a lifecycle (`open → in_progress → resolved`). The CHECK
