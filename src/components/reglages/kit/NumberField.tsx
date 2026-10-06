@@ -40,7 +40,7 @@ export function NumberField({
 
   return (
     <label
-      className={`inline-flex h-[36px] items-stretch overflow-hidden rounded-[6px] border bg-white focus-within:border-brand focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand ${dirty ? "border-status-warning" : "border-[#D2D5D9]"} ${fill ? "w-full" : ""}`}
+      className={`inline-flex h-[38px] items-stretch overflow-hidden rounded-[11px] border bg-white focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(21,128,61,.12)] ${dirty ? "border-[#F79009]" : "border-[rgba(15,23,40,.12)]"} ${fill ? "w-full" : ""}`}
     >
       {prefix && (
         <span className="flex items-center whitespace-nowrap border-e border-line-subtle bg-surface-sunken px-[10px] text-[13px] text-ink-secondary">
@@ -61,7 +61,7 @@ export function NumberField({
           onChange(e.target.value === "" ? null : Number(e.target.value));
         }}
         style={fill ? undefined : { width }}
-        className={`border-0 bg-transparent px-[10px] text-end text-[14px] tabular-nums text-ink-primary outline-none ${fill ? "min-w-0 flex-1" : ""}`}
+        className={`border-0 bg-transparent px-[10px] text-end text-[14px] font-bold tabular-nums text-ink-primary outline-none ${fill ? "min-w-0 flex-1" : ""}`}
       />
       {unit && (
         <span className="flex items-center whitespace-nowrap border-s border-line-subtle bg-surface-sunken px-[10px] text-[13px] text-ink-secondary">

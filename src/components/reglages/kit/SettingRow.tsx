@@ -31,14 +31,14 @@ export function SettingRow({
     <div
       data-testid={testId}
       data-dirty={dirty ? "true" : undefined}
-      className={`relative grid items-start gap-x-[20px] gap-y-[4px] border-b border-line-subtle px-[16px] py-[14px] last:border-b-0 ${stack ? "grid-cols-[minmax(0,1fr)_32px]" : "grid-cols-[minmax(0,1fr)_auto_32px]"} ${muted ? "opacity-[.55]" : ""} ${sunken ? "bg-surface-sunken" : ""}`}
+      className={`relative grid items-start gap-x-[20px] gap-y-[4px] border-b border-line-subtle px-[18px] py-[15px] last:border-b-0 ${stack ? "grid-cols-[minmax(0,1fr)_32px]" : "grid-cols-[minmax(0,1fr)_auto_32px]"} ${muted ? "opacity-[.55]" : ""} ${sunken ? "bg-surface-sunken" : ""}`}
     >
       <div className="min-w-0">
-        <div className="flex items-center gap-[8px] text-[14px] font-medium text-ink-primary">
+        <div className="flex items-center gap-[8px] text-[14px] font-bold text-ink-primary">
           {label}
-          {dirty && <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-status-warning" />}
+          {dirty && <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-[#F79009]" />}
         </div>
-        {help && <div className="mt-[3px] max-w-[60ch] text-[13px] leading-[1.5] text-ink-secondary">{help}</div>}
+        {help && <div className="mt-[3px] max-w-[60ch] text-[12.5px] font-medium leading-[1.5] text-ink-secondary">{help}</div>}
       </div>
       {!stack && <div className="flex min-h-[36px] items-center justify-end gap-[8px]">{control}</div>}
       <div className="mt-[2px]">{history}</div>

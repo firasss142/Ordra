@@ -9,8 +9,8 @@ export function TopicSkeleton({ cards = 2, rows = 3 }: { cards?: number; rows?: 
   return (
     <div aria-busy="true" aria-live="polite">
       {Array.from({ length: cards }).map((_, c) => (
-        <div key={c} className="mb-[16px] rounded-[10px] border border-line-subtle bg-white">
-          <div className="border-b border-line-subtle px-[16px] py-[14px]">
+        <div key={c} className="rg-card">
+          <div className="border-b border-line-subtle px-[18px] py-[16px]">
             <Skeleton className="h-[18px] w-[220px]" />
             <Skeleton className="mt-[8px] h-[13px] w-[360px] max-w-full" />
           </div>

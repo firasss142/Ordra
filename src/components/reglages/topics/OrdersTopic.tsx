@@ -146,7 +146,7 @@ function RetrySlots({ form, marketId, editable }: { form: MarketSettingsForm; ma
             {slots.map((slot, i) => (
               <span
                 key={i}
-                className={`inline-flex h-[36px] items-center gap-[2px] rounded-[6px] border bg-white pe-[4px] ps-[8px] ${HHMM.test(slot) ? "border-[#D2D5D9]" : "border-status-critical"}`}
+                className={`inline-flex h-[38px] items-center gap-[2px] rounded-[11px] border bg-white pe-[4px] ps-[10px] font-semibold ${HHMM.test(slot) ? "border-[rgba(15,23,40,.12)]" : "border-status-critical"}`}
               >
                 <input
                   type="text"

@@ -266,7 +266,7 @@ export function WhatsAppTopic({ user, marketId, marketCode }: TopicProps) {
         title={t("whatsapp.templatesTitle")}
         description={`${t("whatsapp.templatesDesc")} ${t("whatsapp.templatesCount", { approved: cfg.templates?.approved ?? 0, pending: cfg.templates?.pending ?? 0 })}`}
         end={
-          <Link href={`/${locale}/messages/templates`} className="inline-flex h-[36px] items-center gap-[7px] rounded-[8px] border border-[#D2D5D9] bg-white px-[13px] text-[13.5px] font-medium hover:bg-surface-hover">
+          <Link href={`/${locale}/messages/templates`} className="inline-flex h-[36px] items-center gap-[7px] rounded-[11px] border border-[rgba(15,23,40,.09)] bg-[rgba(255,255,255,.88)] px-[14px] text-[13px] font-bold hover:bg-white">
             {t("whatsapp.templatesLink")}
             <ChevronRight className="h-[15px] w-[15px] rtl:-scale-x-100" aria-hidden />
           </Link>

@@ -196,3 +196,37 @@ Plan: `plans/journal-detection-and-settings-v2.md`. Three migrations, `202610061
 - Why: rewriting a 600-line function for five keys would risk the other sources.
 
 Tests: `supabase/tests/journal_v2_test.sql`, `settings_business_rules_test.sql`.
+
+## 7. One categorisation, in the house language (2026-10-06)
+
+The owner found the page "not organized at all" and asked for it, and Réglages, to match Commandes.
+
+**Six areas of the business**, defined once in `src/lib/journal/categories.ts` and used everywhere on
+the page: Commandes entrantes (`intake`) · Livraison (`carrier`) · Publicité (`ads`) · Messages (`msg`) ·
+Tâches automatiques (`auto`) · Application et sécurité (`app`). An area answers *what part of the business
+is affected*, never *who wrote the row*.
+
+- A problem's area comes from its rule first (`ads_no_orders` is advertising although filed under the
+  shops), then from its `system` prefix (`carrier:` `shop:` `meta` `whatsapp` `jobs` `app`). Unknown → `app`,
+  so nothing disappears.
+- A system's area is its tile `family`. A system « non connecté » (`off`) counts neither as watched nor as
+  healthy, so an area with nothing connected says « Rien de connecté », not « Tout fonctionne ».
+- The history adds **Équipe** (what people did by hand). The feed is still filtered server-side by
+  *family*: `team`, `auto`, `sec` map 1:1; the four outside areas share `ext` and are narrowed on screen
+  (`feedQueryFor`), so a page of 150 rows can show fewer after the filter. No SQL changed.
+
+**Aperçu, top to bottom:** header (live dot, updated time, systems watched, « Retrouver une commande »)
+→ the two tabs as Commandes' soft pill → the verdict sentence → six area tiles (count of open problems,
+state line; click narrows both cards, click again or « Voir toutes les catégories » to clear) → **one
+Problèmes card** grouped by area, urgent areas first, each line with its severity in words (« Urgent » red,
+« À surveiller » amber), same-rule folding from 3 → **one Systèmes card** grouped by area, failing and
+amber systems shown, healthy ones behind one line → muted problems, folded.
+
+**Historique:** Commandes' filter button « Catégorie · … » opening a menu of the seven areas with a hint
+each, the « Problèmes seulement » switch, then days in one glass card. The routine count shows only on
+the unfiltered stream.
+
+**Styling:** the page sits in `.cmd.cmd-page` and reuses Commandes' stylesheet and atoms
+(`.ph .sub .live .tabs .wts .wt .list .pl .tg .fb .menu .mi .btn .btn2`); Journaux-only pieces are in
+`src/components/journal/journal.css` (`jx-*`). Area hues (`jx-c-*`) are identity colours; red and amber are
+kept for severity only.

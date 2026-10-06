@@ -22,13 +22,13 @@ export function ConfirmDialog({
   danger?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[rgba(17,24,39,.36)]" role="presentation">
-      <div role="alertdialog" aria-modal="true" aria-labelledby="rg-confirm-title" className="w-[420px] max-w-[92vw] rounded-[12px] border border-line bg-white shadow-floating">
-        <h3 id="rg-confirm-title" className="m-0 px-[20px] pb-[6px] pt-[16px] text-[16px] font-semibold text-ink-primary">
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-[rgba(15,23,40,.32)] backdrop-blur-[4px]" role="presentation">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="rg-confirm-title" className="w-[420px] max-w-[92vw] rounded-[20px] border border-[rgba(255,255,255,.9)] bg-white shadow-[0_22px_56px_rgba(20,25,60,.24)]">
+        <h3 id="rg-confirm-title" className="m-0 px-[22px] pb-[6px] pt-[20px] text-[17px] font-extrabold text-[#0F1728]">
           {title}
         </h3>
-        <div className="px-[20px] pb-[16px] text-[13.5px] text-ink-secondary">{body}</div>
-        <div className="flex justify-end gap-[8px] rounded-b-[12px] border-t border-line-subtle bg-surface-sunken px-[20px] py-[12px]">
+        <div className="px-[22px] pb-[18px] text-[13.5px] font-medium text-[#475467]">{body}</div>
+        <div className="flex justify-end gap-[8px] rounded-b-[20px] border-t border-[rgba(15,23,40,.07)] bg-[#F8F9FC] px-[20px] py-[12px]">
           <RgButton onClick={onCancel} autoFocus>
             {cancelLabel}
           </RgButton>
