@@ -238,7 +238,7 @@ function BindDrawer({
       }
     >
       <DrawerSection>
-        <label className="mb-[12px] flex h-[36px] items-center gap-[8px] rounded-[8px] border border-[#D2D5D9] bg-white px-[10px]">
+        <label className="mb-[12px] flex h-[40px] items-center gap-[8px] rounded-[11px] border border-[rgba(15,23,40,.12)] bg-white px-[12px] focus-within:border-brand">
           <Search className="h-[16px] w-[16px] text-ink-secondary" aria-hidden />
           <input
             className="flex-1 border-0 bg-transparent outline-none"

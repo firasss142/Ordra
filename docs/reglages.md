@@ -153,3 +153,22 @@ The default topic is Boutiques, for every role. The market switch is hidden on t
 - **Surveillance** (super_admin only): `journal_rule_settings`. See `docs/journal.md` §6.
 
 **Found, not changed (owner's call):** the two item routes apply the card surcharge to Darb card orders, but the order route does not. See the plan.
+
+## v3 — the house language of Commandes (2026-10-06)
+
+Same structure, same behaviour, new skin. The page sits in `.cmd.cmd-page.rg`, imports Commandes'
+stylesheet, and adds `src/components/reglages/reglages.css`:
+
+- **Page header** as on Commandes: H1 « Réglages » 24/800 and, under it, who may change what (the old
+  menu footer, now always visible).
+- **Menu**: one glass card; section names as eyebrows; each topic has an icon square; the current
+  topic is brand wash with a brand icon square. The market switch is Commandes' soft segmented pill.
+- **Topic header** 22/800 with a crumb, the market chip floats as a glass pill.
+- **Cards** (`SettingsCard` → `.rg-card`): 20px radius, glass edge, near-opaque body so forms stay crisp.
+- **Atoms** redrawn in the kit: buttons (`.btn`/`.btn2` look, 11px radius, 700), badges (Commandes'
+  tinted pill with hairline), inputs and number fields (11px radius, brand focus glow), option cards
+  (14px, brand wash when chosen), drawers (20/800 title, eyebrow section heads), the save bar (floating,
+  amber edge), the confirm dialog, the history popover, table heads (eyebrow style).
+- **Token repoint, scoped:** inside `.rg`, the older Tailwind tokens the topic files still use
+  (`text-ink-*`, `border-line-subtle`, `bg-surface-sunken`, `text-status-*`) resolve to the Aurore values.
+  This is the migration design-system §2 plans for the whole app, applied to one page.

@@ -1,23 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import "../orders/commandes/commandes.css";
+import "./journal.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import useSWRInfinite from "swr/infinite";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Search, XCircle } from "lucide-react";
 import { fetcher } from "@/lib/swr-config";
 import { groupSeries } from "@/lib/journal/series";
-import type { FeedItem, FeedPage, Family, Issue, Overview, SystemTile, TileFamily } from "@/lib/journal/types";
+import {
+  CATEGORIES,
+  HISTORY_CATEGORIES,
+  categoryOfIssue,
+  categoryOfRow,
+  feedQueryFor,
+  summarise,
+  type Category,
+  type HistoryCategory,
+} from "@/lib/journal/categories";
+import type { FeedItem, FeedPage, Issue, Overview, SystemTile } from "@/lib/journal/types";
+import { Ic } from "@/components/orders/commandes/ui";
 import { describeFeed, describeIssue, describeTile, type Tr } from "./describe";
 import { makeFmt, type Fmt } from "./format";
-import { Avatar, Chevron, FamilyIcon, Flag, StateLine, type Sev } from "./parts";
+import { AreaIcon, Avatar, StateLine, type Sev } from "./parts";
 import { JournalPanel, type PanelState } from "./Panels";
 
 /**
- * Système › Journaux — prototypes/journaux-v2.html, approved 2026-10-03.
- * Two questions, two tabs: « Aperçu » (does everything work?) and
- * « Historique » (what happened?). Success carries no colour; routine is
- * counted, not listed; the detail lives in the panels.
+ * Système › Journaux, in the house language of Commandes (2026-10-06).
+ *
+ * ONE categorisation for the whole page — six areas of the business
+ * (lib/journal/categories): the overview opens on a verdict and six area tiles,
+ * then one card of problems and one card of systems, both grouped by area; a
+ * tile narrows both cards to its area. The history files every row in the same
+ * areas, plus « Équipe » for what people did by hand.
  */
 export function JournalScreen() {
   const t = useTranslations("journaux") as unknown as Tr;
@@ -33,6 +48,7 @@ export function JournalScreen() {
 
   const overview = useSWR<Overview>("/api/admin/journal/overview", fetcher, { refreshInterval: 60_000 });
   const open = overview.data?.issues.filter((i) => i.status === "open") ?? [];
+  const urgent = open.some((i) => i.severity === "critical");
 
   const selectTab = (next: "overview" | "history") => {
     setTab(next);
@@ -57,49 +73,50 @@ export function JournalScreen() {
   }, [panel]);
 
   return (
-    <div className="mx-auto max-w-[940px] px-[16px] pb-[64px] pt-[30px] md:px-[32px]">
-      <div className="flex flex-wrap items-center gap-[16px]">
-        <h1 className="m-0 text-[24px] font-[650] tracking-[-0.015em] text-ink-primary">{t("title")}</h1>
-        <button
-          type="button"
-          onClick={() => setPanel({ type: "trace" })}
-          className="flex h-[40px] w-full items-center gap-[9px] rounded-[10px] border border-[#D2D5D9] bg-white px-[12px] text-start text-ink-muted hover:border-[#B9BEC4] sm:ms-auto sm:w-[340px]"
-        >
-          <Search className="h-[16px] w-[16px] text-ink-secondary" aria-hidden />
-          <span className="flex-1 text-[14px]">{t("find.placeholder")}</span>
-          <kbd className="rounded-[5px] border border-line bg-surface-sunken px-[6px] font-sans text-[11.5px] text-ink-secondary">/</kbd>
-        </button>
-      </div>
-
-      <div role="tablist" className="mb-[26px] mt-[18px] flex gap-[26px] border-b border-line">
-        {(["overview", "history"] as const).map((k) => (
-          <button
-            key={k}
-            role="tab"
-            type="button"
-            aria-selected={tab === k}
-            onClick={() => selectTab(k)}
-            className={`relative inline-flex items-center gap-[8px] pb-[12px] pt-[10px] text-[15px] ${
-              tab === k
-                ? "font-semibold text-ink-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-[2px] after:rounded-[2px] after:bg-brand"
-                : "font-medium text-ink-secondary"
-            }`}
-          >
-            {t(`tabs.${k}`)}
-            {k === "overview" && open.length > 0 && (
-              <span className="inline-grid h-[20px] min-w-[20px] place-items-center rounded-full bg-[var(--jx-fail-bg)] px-[6px] text-[12px] font-bold text-[var(--jx-fail-ink)]">
-                {open.length}
+    <div className="cmd cmd-page" dir={locale === "ar" ? "rtl" : "ltr"}>
+      <div className="page jx-page">
+        <header className="ph">
+          <div>
+            <h1>{t("title")}</h1>
+            <div className="sub">
+              <span className="live">
+                <i />
+                {t("head.live")}
               </span>
-            )}
-          </button>
-        ))}
-      </div>
+              {overview.data && (
+                <>
+                  <span className="sep" />
+                  {t("head.updated", { time: f.time(overview.data.generated_at) })}
+                  <span className="sep" />
+                  {t("head.watched", { n: overview.data.systems.length })}
+                </>
+              )}
+            </div>
+          </div>
+          <div className="acts">
+            <button type="button" className="btn2 jx-find" onClick={() => setPanel({ type: "trace" })}>
+              <Ic n="search" />
+              <span>{t("find.placeholder")}</span>
+              <kbd className="kbd2">/</kbd>
+            </button>
+          </div>
+        </header>
 
-      {tab === "overview" ? (
-        <OverviewTab data={overview.data} failed={!!overview.error} t={t} f={f} onOpen={setPanel} />
-      ) : (
-        <HistoryTab t={t} f={f} onOpen={setPanel} />
-      )}
+        <div role="tablist" className="tabs jx-tabs">
+          {(["overview", "history"] as const).map((k) => (
+            <button key={k} role="tab" type="button" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => selectTab(k)}>
+              {t(`tabs.${k}`)}
+              {k === "overview" && open.length > 0 && <em className={urgent ? "bad" : ""}>{open.length}</em>}
+            </button>
+          ))}
+        </div>
+
+        {tab === "overview" ? (
+          <OverviewTab data={overview.data} failed={!!overview.error} t={t} f={f} onOpen={setPanel} />
+        ) : (
+          <HistoryTab t={t} f={f} onOpen={setPanel} />
+        )}
+      </div>
 
       {panel && (
         <JournalPanel
@@ -131,51 +148,95 @@ function OverviewTab({
   f: Fmt;
   onOpen: (p: PanelState) => void;
 }) {
-  if (failed && !data) return <p className="text-[14px] text-ink-secondary">{t("verdict.error")}</p>;
+  const [area, setArea] = useState<Category | null>(null);
+  if (failed && !data) return <p className="err">{t("verdict.error")}</p>;
   if (!data) return <OverviewSkeleton />;
 
   const open = data.issues.filter((i) => i.status === "open");
   const muted = data.issues.filter((i) => i.status === "muted");
-  const healthy = data.systems.filter((s) => s.state === "ok" || s.state === "mute" || s.state === "off").length;
+  const healthy = data.systems.filter((s) => s.state !== "fail" && s.state !== "warn").length;
+  const summary = summarise(data.issues, data.systems);
+  const inArea = <X,>(list: X[], of: (x: X) => Category) => (area ? list.filter((x) => of(x) === area) : list);
   const ok = open.length === 0;
 
   return (
     <>
-      <div className="mb-[28px] flex items-center gap-[16px]">
-        <span
-          className={`grid h-[48px] w-[48px] flex-none place-items-center rounded-full ${
-            ok ? "bg-[var(--jx-ok-bg)] text-[var(--jx-ok)]" : "bg-[var(--jx-fail-bg)] text-[var(--jx-fail)]"
-          }`}
-          aria-hidden
-        >
-          {ok ? <CheckCircle2 className="h-[24px] w-[24px]" strokeWidth={2} /> : <XCircle className="h-[24px] w-[24px]" strokeWidth={2} />}
+      <section className="jx-verdict" aria-live="polite">
+        <span className={`hold ${ok ? "ok" : "bad"}`} aria-hidden>
+          <Ic n={ok ? "check" : "alert"} />
         </span>
         <div>
-          <h2 className="m-0 text-[21px] font-[650] tracking-[-0.01em] text-ink-primary">
-            {ok ? t("verdict.ok") : t("verdict.issues", { n: open.length })}
-          </h2>
-          <p className="m-0 mt-[2px] text-[14.5px] text-ink-secondary">
-            {ok ? t("verdict.okSub", { total: data.systems.length }) : t("verdict.issuesSub", { ok: healthy, total: data.systems.length })}
-          </p>
+          <h2>{ok ? t("verdict.ok") : t("verdict.issues", { n: open.length })}</h2>
+          <p>{ok ? t("verdict.okSub", { total: data.systems.length }) : t("verdict.issuesSub", { ok: healthy, total: data.systems.length })}</p>
         </div>
+      </section>
+
+      <div role="group" aria-label={t("filter.label")} className="wts jx-cats">
+        {CATEGORIES.map((c) => (
+          <AreaTile key={c} cat={c} s={summary[c]} on={area === c} t={t} onClick={() => setArea((a) => (a === c ? null : c))} />
+        ))}
       </div>
 
-      <ProblemList id="jx-now" title={t("sections.now")} issues={open.filter((i) => i.severity === "critical")} t={t} f={f} onOpen={onOpen} />
-      <ProblemList id="jx-watch" title={t("sections.watch")} issues={open.filter((i) => i.severity !== "critical")} t={t} f={f} onOpen={onOpen} />
-
-      <SystemsSection systems={data.systems} t={t} f={f} onOpen={onOpen} />
-
-      {muted.length > 0 && <MutedSection issues={muted} t={t} f={f} onOpen={onOpen} />}
+      <ProblemsCard issues={inArea(open, categoryOfIssue)} area={area} t={t} f={f} onOpen={onOpen} onClear={() => setArea(null)} />
+      <SystemsCard systems={inArea(data.systems, (s) => s.family)} area={area} t={t} f={f} onOpen={onOpen} />
+      {muted.length > 0 && <MutedLine issues={inArea(muted, categoryOfIssue)} t={t} f={f} onOpen={onOpen} />}
     </>
+  );
+}
+
+function AreaTile({
+  cat,
+  s,
+  on,
+  t,
+  onClick,
+}: {
+  cat: Category;
+  s: { urgent: number; watch: number; systems: number };
+  on: boolean;
+  t: Tr;
+  onClick: () => void;
+}) {
+  const problems = s.urgent + s.watch;
+  const state =
+    problems > 0 ? (
+      <>
+        {s.urgent > 0 && <em className="bad">{t("catState.urgent", { n: s.urgent })}</em>}
+        {s.urgent > 0 && s.watch > 0 && " · "}
+        {s.watch > 0 && t("catState.watch", { n: s.watch })}
+      </>
+    ) : s.systems === 0 ? (
+      t("catState.none")
+    ) : (
+      t("catState.ok")
+    );
+  return (
+    <button type="button" aria-pressed={on} onClick={onClick} className={`wt jx-c-${cat} ${on ? "on" : ""} ${problems === 0 ? "zero" : ""}`}>
+      <span className="hold">
+        <AreaIcon cat={cat} />
+      </span>
+      <span className="wt-t">
+        <b>{problems}</b>
+        <span>{t(`cats.${cat}.label`)}</span>
+        <small className={problems === 0 && s.systems > 0 ? "ok" : s.urgent === 0 && s.watch > 0 ? "warn" : ""}>{state}</small>
+      </span>
+      {on && (
+        <span className="wt-x" aria-hidden>
+          <Ic n="x" />
+        </span>
+      )}
+    </button>
   );
 }
 
 /** Same-rule problems fold from this many on: « 30 transporteurs coupés… » is one line, not thirty. */
 const FOLD_FROM = 3;
-/** A section shows this many lines before « Voir plus ». */
+/** An area shows this many lines before « Voir plus ». */
 const VISIBLE = 6;
 
 type Line = { kind: "one"; issue: Issue } | { kind: "fold"; rule: Issue["rule"]; issues: Issue[] };
+
+const bySeverity = (a: Issue, b: Issue) => Number(b.severity === "critical") - Number(a.severity === "critical");
 
 function foldByRule(issues: Issue[]): Line[] {
   const byRule = new Map<string, Issue[]>();
@@ -194,86 +255,142 @@ function foldByRule(issues: Issue[]): Line[] {
   return lines;
 }
 
-function ProblemList({
-  id,
-  title,
+/** Areas in their fixed order, the ones with something urgent first. */
+function groupByArea(issues: Issue[]): { cat: Category; issues: Issue[] }[] {
+  const groups = CATEGORIES.map((cat) => ({ cat, issues: issues.filter((i) => categoryOfIssue(i) === cat).sort(bySeverity) })).filter((g) => g.issues.length);
+  return groups.sort((a, b) => Number(b.issues.some((i) => i.severity === "critical")) - Number(a.issues.some((i) => i.severity === "critical")));
+}
+
+function ProblemsCard({
   issues,
+  area,
   t,
   f,
   onOpen,
+  onClear,
 }: {
-  id: string;
-  title: string;
   issues: Issue[];
+  area: Category | null;
   t: Tr;
   f: Fmt;
   onOpen: (p: PanelState) => void;
+  onClear: () => void;
 }) {
-  const [all, setAll] = useState(false);
-  if (issues.length === 0) return null;
-  const lines = foldByRule(issues);
-  const shown = all ? lines : lines.slice(0, VISIBLE);
+  if (issues.length === 0 && !area) return null;
   return (
-    <section aria-labelledby={id} className="mb-[28px]">
-      <h3 id={id} className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
-        {title}
-      </h3>
-      {shown.map((l) =>
-        l.kind === "one" ? (
-          <ProblemCard key={l.issue.id} issue={l.issue} t={t} f={f} onClick={() => onOpen({ type: "issue", id: l.issue.id })} />
+    <section aria-labelledby="jx-problems" className="list jx-card">
+      <div className="jx-ch">
+        <h2 id="jx-problems">{t("problems.title")}</h2>
+        <span className="n">{t("problems.count", { n: issues.length })}</span>
+        <span className="sp" />
+        {area && (
+          <button type="button" className="clearall" onClick={onClear}>
+            {t("filter.clear")}
+          </button>
+        )}
+      </div>
+      <div className="jx-body">
+        {issues.length === 0 && area ? (
+          <div className="jx-none">
+            <Ic n="check" />
+            {t("problems.none", { cat: t(`cats.${area}.label`) })}
+          </div>
         ) : (
-          <FoldCard key={l.rule} rule={l.rule} issues={l.issues} t={t} f={f} onOpen={onOpen} />
-        ),
-      )}
-      {lines.length > VISIBLE && (
-        <button
-          type="button"
-          onClick={() => setAll((v) => !v)}
-          className="mt-[2px] text-[13.5px] font-semibold text-brand hover:underline"
-        >
-          {all ? t("sections.hideCalm") : t("sections.more", { n: lines.length - VISIBLE })}
-        </button>
-      )}
+          groupByArea(issues).map((g) => <ProblemGroup key={g.cat} cat={g.cat} issues={g.issues} t={t} f={f} onOpen={onOpen} />)
+        )}
+      </div>
     </section>
   );
 }
 
-function FoldCard({ rule, issues, t, f, onOpen }: { rule: Issue["rule"]; issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+function GroupHead({ cat, n, t }: { cat: Category; n: number; t: Tr }) {
+  return (
+    <div className={`jx-gh jx-c-${cat}`}>
+      <i className="dotc" aria-hidden />
+      <span>{t(`cats.${cat}.label`)}</span>
+      <span className="gn">{n}</span>
+    </div>
+  );
+}
+
+function ProblemGroup({ cat, issues, t, f, onOpen }: { cat: Category; issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+  const [all, setAll] = useState(false);
+  const lines = foldByRule(issues);
+  const shown = all ? lines : lines.slice(0, VISIBLE);
+  return (
+    <>
+      <GroupHead cat={cat} n={issues.length} t={t} />
+      {shown.map((l) =>
+        l.kind === "one" ? (
+          <ProblemRow key={l.issue.id} issue={l.issue} t={t} f={f} onClick={() => onOpen({ type: "issue", id: l.issue.id })} />
+        ) : (
+          <FoldRow key={l.rule} rule={l.rule} issues={l.issues} t={t} f={f} onOpen={onOpen} />
+        ),
+      )}
+      {lines.length > VISIBLE && (
+        <button type="button" className="jx-more" onClick={() => setAll((v) => !v)}>
+          {all ? t("sections.hideCalm") : t("sections.more", { n: lines.length - VISIBLE })}
+        </button>
+      )}
+    </>
+  );
+}
+
+function SevPill({ issue, t }: { issue: Issue; t: Tr }) {
+  const crit = issue.severity === "critical";
+  return (
+    <span className={`pl ${crit ? "h-red" : "h-amber"}`}>
+      <Ic n={crit ? "alert" : "eye"} />
+      <span>{t(crit ? "sev.urgent" : "sev.watch")}</span>
+    </span>
+  );
+}
+
+function ProblemRow({ issue, t, f, onClick }: { issue: Issue; t: Tr; f: Fmt; onClick: () => void }) {
+  const d = describeIssue(issue, t, f);
+  const muted = issue.status === "muted";
+  return (
+    <button type="button" onClick={onClick} className={`jx-row ${muted ? "muted" : ""}`}>
+      <SevPill issue={issue} t={t} />
+      <div>
+        <h3>{d.title}</h3>
+        <p>{muted && issue.muted_until ? t("common.mutedUntil", { date: f.date(issue.muted_until) }) : d.line}</p>
+      </div>
+      <span className="imp">
+        <b className={issue.severity === "critical" ? "bad" : ""}>{d.impact[0]}</b>
+        <small>{d.impact[1]}</small>
+      </span>
+      <Ic n="right" className="chev" />
+    </button>
+  );
+}
+
+function FoldRow({ rule, issues, t, f, onOpen }: { rule: Issue["rule"]; issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
   const [open, setOpen] = useState(false);
-  const sev = issues.some((i) => i.severity === "critical") ? "fail" : "warn";
   const total = issues.reduce((n, i) => n + Number(i.affected ?? 0), 0);
   const listId = `jx-fold-${rule}`;
+  const worst = issues.find((i) => i.severity === "critical") ?? issues[0];
   return (
-    <div className="mb-[8px] rounded-[12px] border border-line-subtle bg-white">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((v) => !v)}
-        className="grid w-full grid-cols-[10px_minmax(0,1fr)_auto_18px] items-center gap-x-[16px] rounded-[12px] px-[18px] py-[16px] text-start hover:bg-[#F7F7F8]"
-      >
-        <span aria-hidden className={`h-[10px] w-[10px] rounded-full ${sev === "fail" ? "bg-[var(--jx-fail)]" : "bg-[var(--jx-warn)]"}`} />
-        <span className="min-w-0">
-          <h4 className="m-0 text-[15px] font-semibold leading-[1.35] text-ink-primary">{t(`rules.${rule}.fold`, { n: issues.length })}</h4>
-          <p className="m-0 mt-[3px] truncate text-[13.5px] text-ink-secondary">
+    <div className="jx-fold">
+      <button type="button" aria-expanded={open} aria-controls={listId} onClick={() => setOpen((v) => !v)} className="jx-row">
+        <SevPill issue={worst} t={t} />
+        <div>
+          <h3>{t(`rules.${rule}.fold`, { n: issues.length })}</h3>
+          <p>
             {issues
               .slice(0, 3)
               .map((i) => describeIssue(i, t, f).title)
               .join(" · ")}
             {issues.length > 3 ? " …" : ""}
           </p>
-        </span>
-        <span className="whitespace-nowrap text-end">
-          {total > 0 && <b className="block text-[17px] font-[650] tabular-nums text-ink-primary">{f.num(total)}</b>}
-        </span>
-        <span className={`transition-transform ${open ? "rotate-90" : ""}`}>
-          <Chevron />
-        </span>
+        </div>
+        <span className="imp">{total > 0 && <b>{f.num(total)}</b>}</span>
+        <Ic n="right" className={`chev ${open ? "open" : ""}`} />
       </button>
       {open && (
-        <div id={listId} className="border-t border-line-subtle px-[10px] pb-[6px] pt-[8px]">
+        <div id={listId} className="jx-fold-list">
           {issues.map((i) => (
-            <ProblemCard key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />
+            <ProblemRow key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />
           ))}
         </div>
       )}
@@ -281,160 +398,125 @@ function FoldCard({ rule, issues, t, f, onOpen }: { rule: Issue["rule"]; issues:
   );
 }
 
-function SystemsSection({ systems, t, f, onOpen }: { systems: SystemTile[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
-  const [showCalm, setShowCalm] = useState(false);
+function SystemsCard({
+  systems,
+  area,
+  t,
+  f,
+  onOpen,
+}: {
+  systems: SystemTile[];
+  area: Category | null;
+  t: Tr;
+  f: Fmt;
+  onOpen: (p: PanelState) => void;
+}) {
+  const [showOk, setShowOk] = useState(false);
   const [showWarn, setShowWarn] = useState(false);
-  // Red tiles stay in view; amber ones are already named in « À surveiller ».
-  const attention = systems.filter((s) => s.state === "fail");
-  const warn = systems.filter((s) => s.state === "warn");
-  const calm = systems.filter((s) => s.state !== "fail" && s.state !== "warn");
+  // Red systems stay in view; amber ones are already named in Problèmes, so they wait behind one line.
+  const warnCount = systems.filter((s) => s.state === "warn").length;
+  const okCount = systems.filter((s) => s.state !== "fail" && s.state !== "warn").length;
+  const shown = (s: SystemTile) => (s.state === "fail" ? true : s.state === "warn" ? showWarn : showOk);
+  const visible = systems.filter(shown);
   const open = (s: SystemTile) => onOpen(s.id === "jobs" ? { type: "jobs" } : s.id === "app" ? { type: "app" } : { type: "tile", id: s.id });
+  const groups = CATEGORIES.map((cat) => ({ cat, list: visible.filter((s) => s.family === cat).sort((a, b) => rank(a) - rank(b)) })).filter((g) => g.list.length);
   return (
-    <section aria-labelledby="jx-systems" className="mb-[28px]">
-      <h3 id="jx-systems" className="mb-[10px] mt-0 text-[13px] font-semibold text-ink-secondary">
-        {t("sections.systems")}
-      </h3>
-      {attention.length > 0 && (
-        <div className="mb-[10px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
-          {attention.map((s) => (
-            <SystemCard key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
-          ))}
-        </div>
+    <section aria-labelledby="jx-systems" className="list jx-card">
+      <div className="jx-ch">
+        <h2 id="jx-systems">{t("sections.systems")}</h2>
+        <span className="n">{t("systemsCard.ratio", { ok: okCount, total: systems.length })}</span>
+      </div>
+      <div className="jx-body">
+        {systems.length === 0 && area && (
+          <div className="jx-none">
+            <Ic n="info" />
+            {t("systemsCard.none", { cat: t(`cats.${area}.label`) })}
+          </div>
+        )}
+        {groups.map((g) => (
+          <div key={g.cat}>
+            <GroupHead cat={g.cat} n={g.list.length} t={t} />
+            {g.list.map((s) => (
+              <SystemRow key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
+            ))}
+          </div>
+        ))}
+      </div>
+      {warnCount > 0 && (
+        <button type="button" className="jx-more" aria-expanded={showWarn} onClick={() => setShowWarn((v) => !v)}>
+          <i className="jx-dot warn" aria-hidden />
+          {showWarn ? t("systemsCard.hideWarn") : t("sections.warnSystems", { n: warnCount })}
+          <Ic n="right" className={`chev ${showWarn ? "open" : ""}`} />
+        </button>
       )}
-      {warn.length > 0 && (
-        <div className="mb-[10px]">
-          <button
-            type="button"
-            aria-expanded={showWarn}
-            onClick={() => setShowWarn((v) => !v)}
-            className="flex w-full items-center gap-[10px] rounded-[12px] border border-[var(--jx-warn-line)] bg-white px-[16px] py-[12px] text-start hover:bg-[#F7F7F8]"
-          >
-            <span aria-hidden className="h-[10px] w-[10px] flex-none rounded-full bg-[var(--jx-warn)]" />
-            <span className="flex-1 text-[14px] font-medium text-ink-primary">{t("sections.warnSystems", { n: warn.length })}</span>
-            <span className={`transition-transform ${showWarn ? "rotate-90" : ""}`}>
-              <Chevron />
-            </span>
-          </button>
-          {showWarn && (
-            <div className="mt-[10px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
-              {warn.map((s) => (
-                <SystemCard key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      {calm.length > 0 && (
-        <>
-          <button
-            type="button"
-            aria-expanded={showCalm}
-            onClick={() => setShowCalm((v) => !v)}
-            className="flex w-full items-center gap-[10px] rounded-[12px] border border-line-subtle bg-white px-[16px] py-[12px] text-start hover:bg-[#F7F7F8]"
-          >
-            <CheckCircle2 className="h-[18px] w-[18px] flex-none text-[var(--jx-ok)]" aria-hidden />
-            <span className="flex-1 text-[14px] font-medium text-ink-primary">{t("sections.calm", { n: calm.length })}</span>
-            <span className={`transition-transform ${showCalm ? "rotate-90" : ""}`}>
-              <Chevron />
-            </span>
-          </button>
-          {showCalm && (
-            <div className="mt-[10px] grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
-              {calm.map((s) => (
-                <SystemCard key={s.id} tile={s} t={t} f={f} onClick={() => open(s)} />
-              ))}
-            </div>
-          )}
-        </>
+      {okCount > 0 && (
+        <button type="button" className="jx-more" aria-expanded={showOk} onClick={() => setShowOk((v) => !v)}>
+          <Ic n="check" />
+          {showOk ? t("systemsCard.hideOk") : t("systemsCard.showOk", { n: okCount })}
+          <Ic n="right" className={`chev ${showOk ? "open" : ""}`} />
+        </button>
       )}
     </section>
   );
 }
 
-function MutedSection({ issues, t, f, onOpen }: { issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <section aria-label={t("sections.muted")} className="mb-[28px]">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="mb-[10px] inline-flex items-center gap-[6px] text-[13px] font-semibold text-ink-secondary hover:text-ink-primary"
-      >
-        <span className={`transition-transform ${open ? "rotate-90" : ""}`}>
-          <Chevron />
-        </span>
-        {t("sections.mutedToggle", { n: issues.length })}
-      </button>
-      {open && issues.map((i) => <ProblemCard key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />)}
-    </section>
-  );
-}
+const rank = (s: SystemTile) => ({ fail: 0, warn: 1, ok: 2, mute: 3, off: 4 })[s.state] ?? 5;
 
-function ProblemCard({ issue, t, f, onClick }: { issue: Issue; t: Tr; f: Fmt; onClick: () => void }) {
-  const d = describeIssue(issue, t, f);
-  const sev = issue.status === "muted" ? "mute" : issue.severity === "critical" ? "fail" : "warn";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`mb-[8px] grid w-full grid-cols-[10px_minmax(0,1fr)_18px] items-center gap-x-[16px] gap-y-[6px] rounded-[12px] sm:grid-cols-[10px_minmax(0,1fr)_auto_18px] border border-line-subtle bg-white px-[18px] py-[16px] text-start hover:border-line hover:bg-[#F7F7F8] ${
-        sev === "mute" ? "opacity-70" : ""
-      }`}
-    >
-      <span
-        aria-hidden
-        className={`h-[10px] w-[10px] rounded-full ${sev === "fail" ? "bg-[var(--jx-fail)]" : sev === "warn" ? "bg-[var(--jx-warn)]" : "bg-[var(--jx-mute)]"}`}
-      />
-      <span className="min-w-0">
-        <h4 className="m-0 text-[15px] font-semibold leading-[1.35] text-ink-primary">{d.title}</h4>
-        <p className="m-0 mt-[3px] text-[13.5px] text-ink-secondary">
-          {issue.status === "muted" && issue.muted_until ? t("common.mutedUntil", { date: f.date(issue.muted_until) }) : d.line}
-        </p>
-      </span>
-      {/* under the text on a phone, beside it from sm up */}
-      <span className="col-start-2 row-start-2 whitespace-nowrap text-start sm:col-start-auto sm:row-start-auto sm:text-end">
-        <b className={`inline text-[17px] sm:block font-[650] tabular-nums ${sev === "fail" ? "text-[var(--jx-fail-ink)]" : "text-ink-primary"}`}>{d.impact[0]}</b>
-        <span className="ms-[6px] text-[12.5px] text-ink-secondary sm:ms-0">{d.impact[1]}</span>
-      </span>
-      <span className="col-start-3 row-span-2 row-start-1 sm:col-start-auto sm:row-span-1 sm:row-start-auto">
-        <Chevron />
-      </span>
-    </button>
-  );
-}
-
-function SystemCard({ tile, t, f, onClick }: { tile: SystemTile; t: Tr; f: Fmt; onClick: () => void }) {
+function SystemRow({ tile, t, f, onClick }: { tile: SystemTile; t: Tr; f: Fmt; onClick: () => void }) {
   const d = describeTile(tile, t, f);
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-start gap-[12px] rounded-[12px] border bg-white px-[16px] py-[14px] text-start hover:bg-[#F7F7F8] ${
-        tile.state === "fail" ? "border-[var(--jx-fail-line)]" : tile.state === "warn" ? "border-[var(--jx-warn-line)]" : "border-line-subtle hover:border-line"
-      }`}
-    >
-      <FamilyIcon family={tile.family} />
-      <span className="min-w-0 flex-1">
-        <b className="block truncate text-[14px] font-semibold text-ink-primary">{d.name}</b>
-        <small className="mt-[1px] block text-[12.5px] text-ink-secondary">{d.where}</small>
-        <StateLine sev={tile.state as Sev}>{d.state}</StateLine>
-        <small className="mt-[1px] block text-[12.5px] text-ink-secondary">{d.last}</small>
+    <button type="button" onClick={onClick} className={`jx-sys jx-c-${tile.family}`}>
+      <span className="jx-tile" aria-hidden>
+        <AreaIcon cat={tile.family} />
       </span>
+      <span className="min-w-0">
+        <b>{d.name}</b>
+        <small>{d.where}</small>
+      </span>
+      <span className="st">
+        <StateLine sev={tile.state as Sev}>{d.state}</StateLine>
+        <small>{d.last}</small>
+      </span>
+      <Ic n="right" className="chev" />
     </button>
+  );
+}
+
+function MutedLine({ issues, t, f, onOpen }: { issues: Issue[]; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+  const [open, setOpen] = useState(false);
+  if (issues.length === 0) return null;
+  return (
+    <section aria-label={t("sections.muted")}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="jx-mutedbtn">
+        <Ic n="right" className={open ? "open" : ""} />
+        {t("sections.mutedToggle", { n: issues.length })}
+      </button>
+      {open && (
+        <div className="list jx-card" style={{ marginTop: 10 }}>
+          <div className="jx-body">
+            {issues.map((i) => (
+              <ProblemRow key={i.id} issue={i} t={t} f={f} onClick={() => onOpen({ type: "issue", id: i.id })} />
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
 function OverviewSkeleton() {
   return (
-    <div aria-hidden className="animate-pulse">
-      <div className="mb-[28px] flex items-center gap-[16px]">
-        <span className="h-[48px] w-[48px] rounded-full bg-[var(--jx-mute-bg)]" />
-        <span className="h-[22px] w-[240px] rounded-[6px] bg-[var(--jx-mute-bg)]" />
+    <div aria-hidden className="flex flex-col gap-[16px]">
+      <div className="sk h-[78px]" />
+      <div className="wts jx-cats">
+        {CATEGORIES.map((c) => (
+          <div key={c} className="sk h-[76px]" />
+        ))}
       </div>
-      <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }, (_, i) => (
-          <span key={i} className="h-[96px] rounded-[12px] bg-white" />
+      <div className="sk overflow-hidden">
+        <div className="h-[48px]" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="jx-sk" />
         ))}
       </div>
     </div>
@@ -443,18 +525,18 @@ function OverviewSkeleton() {
 
 /* ═════════ Historique ═════════ */
 
-const CHIPS: ("all" | Family)[] = ["all", "ext", "team", "auto", "sec"];
 const PAGE = 150;
 
 function HistoryTab({ t, f, onOpen }: { t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
-  const [family, setFamily] = useState<"all" | Family>("all");
+  const [cat, setCat] = useState<HistoryCategory>("all");
   const [onlyIssues, setOnlyIssues] = useState(false);
+  const query = feedQueryFor(cat);
 
   const keyOf = useCallback(
     (index: number, prev: FeedPage | null) => {
       if (prev && !prev.next) return null;
       const q = new URLSearchParams({ limit: String(PAGE), tz: f.tz });
-      if (family !== "all") q.set("family", family);
+      if (query.family) q.set("family", query.family);
       if (onlyIssues) q.set("only_issues", "1");
       if (index > 0 && prev?.next) {
         q.set("before", prev.next.before);
@@ -462,14 +544,14 @@ function HistoryTab({ t, f, onOpen }: { t: Tr; f: Fmt; onOpen: (p: PanelState) =
       }
       return `/api/admin/journal/feed?${q.toString()}`;
     },
-    [family, onlyIssues, f.tz],
+    [query.family, onlyIssues, f.tz],
   );
   const feed = useSWRInfinite<FeedPage>(keyOf, fetcher, { refreshInterval: 60_000, revalidateFirstPage: true });
   const pages = feed.data ?? [];
   const last = pages[pages.length - 1];
 
   const days = useMemo(() => {
-    const rows = pages.flatMap((p) => p.rows);
+    const rows = pages.flatMap((p) => p.rows).filter((r) => !query.local || categoryOfRow(r) === cat);
     const items = groupSeries(rows, f.dayKey);
     const routine: Record<string, number> = {};
     for (const p of pages) for (const [d, n] of Object.entries(p.routine ?? {})) routine[d] = (routine[d] ?? 0) + n;
@@ -480,78 +562,48 @@ function HistoryTab({ t, f, onOpen }: { t: Tr; f: Fmt; onOpen: (p: PanelState) =
       out[out.length - 1].items.push(it);
     }
     return out;
-  }, [pages, f]);
+  }, [pages, f, query.local, cat]);
 
   const today = f.dayKey(f.now.toISOString());
   const yesterday = f.dayKey(new Date(f.now.getTime() - 86_400_000).toISOString());
   const dayLabel = (d: string) =>
     d === today ? t("feed.today") : d === yesterday ? t("feed.yesterday", { date: f.date(d) }) : f.date(d);
+  // routine passes are syncs and empty imports: only meaningful on the unfiltered stream
+  const showRoutine = !onlyIssues && cat === "all";
 
   return (
     <>
-      <div className="mb-[18px] flex flex-wrap items-center gap-[8px]">
-        {CHIPS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            aria-pressed={family === c}
-            onClick={() => setFamily(c)}
-            className={`h-[34px] rounded-full border px-[14px] text-[13.5px] font-medium ${
-              family === c ? "border-ink-primary bg-ink-primary text-white" : "border-[#D2D5D9] bg-white text-ink-secondary"
-            }`}
-          >
-            {t(`feed.chips.${c}`)}
-          </button>
-        ))}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={onlyIssues}
-          onClick={() => setOnlyIssues((v) => !v)}
-          className="ms-auto inline-flex items-center gap-[8px] text-[13.5px] text-ink-secondary"
-        >
-          <i
-            aria-hidden
-            className={`relative inline-block h-[19px] w-[32px] rounded-full after:absolute after:start-[2px] after:top-[2px] after:h-[15px] after:w-[15px] after:rounded-full after:bg-white after:transition-transform ${
-              onlyIssues ? "bg-brand after:translate-x-[13px] rtl:after:-translate-x-[13px]" : "bg-[#C9CDD2]"
-            }`}
-          />
+      <div className="fl">
+        <CategoryMenu value={cat} onChange={setCat} t={t} />
+        <button type="button" role="switch" aria-checked={onlyIssues} onClick={() => setOnlyIssues((v) => !v)} className="jx-sw">
+          <i aria-hidden />
           {t("feed.onlyIssues")}
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-[12px] border border-line-subtle bg-white">
+      <div className="list">
         {feed.error && !pages.length ? (
-          <p className="m-0 px-[20px] py-[48px] text-center text-[14px] text-ink-secondary">{t("feed.error")}</p>
+          <p className="jx-msg">{t("feed.error")}</p>
         ) : !feed.data ? (
-          <p className="m-0 px-[20px] py-[48px] text-center text-[14px] text-ink-secondary">{t("common.loading")}</p>
+          <p className="jx-msg">{t("common.loading")}</p>
         ) : days.length === 0 ? (
-          <p className="m-0 px-[20px] py-[48px] text-center text-[14px] text-ink-secondary">{t("feed.empty")}</p>
+          <p className="jx-msg">{t("feed.empty")}</p>
         ) : (
           days.map((d) => (
             <div key={d.day}>
-              <div className="px-[20px] pb-[6px] pt-[14px] text-[13px] font-semibold text-ink-secondary">{dayLabel(d.day)}</div>
-              {d.items.map((it, i) => (
-                <FeedLine key={it.id} item={it} first={i === 0} t={t} f={f} onOpen={onOpen} />
+              <div className="jx-day">{dayLabel(d.day)}</div>
+              {d.items.map((it) => (
+                <FeedLine key={it.id} item={it} t={t} f={f} onOpen={onOpen} />
               ))}
-              {d.routine > 0 && !onlyIssues && (
-                <div className="border-t border-line-subtle pb-[12px] pe-[20px] ps-[20px] pt-[9px] text-[13px] text-ink-muted md:ps-[114px]">
-                  {t("feed.routine", { n: d.routine })}
-                </div>
-              )}
+              {d.routine > 0 && showRoutine && <div className="jx-routine">{t("feed.routine", { n: d.routine })}</div>}
             </div>
           ))
         )}
       </div>
 
       {last?.next && (
-        <div className="mt-[14px] text-center">
-          <button
-            type="button"
-            onClick={() => feed.setSize(feed.size + 1)}
-            disabled={feed.isValidating}
-            className="h-[38px] rounded-[8px] border border-[#D2D5D9] bg-white px-[14px] text-[14px] font-medium hover:bg-surface-hover disabled:opacity-60"
-          >
+        <div className="jx-loadmore">
+          <button type="button" className="btn2" onClick={() => feed.setSize(feed.size + 1)} disabled={feed.isValidating}>
             {feed.isValidating ? t("common.loading") : t("feed.more")}
           </button>
         </div>
@@ -560,28 +612,63 @@ function HistoryTab({ t, f, onOpen }: { t: Tr; f: Fmt; onOpen: (p: PanelState) =
   );
 }
 
-function rowFamily(it: FeedItem): TileFamily {
-  const [domain] = it.kind.split(".");
-  if (it.family === "sec") return "app";
-  if (it.family === "auto") return "auto";
-  if (domain === "intake") return "intake";
-  if (domain === "sync" && it.params?.system === "Meta") return "ads";
-  if (domain === "issue") {
-    const rule = String(it.params?.rule ?? "");
-    if (rule === "job_failing") return "auto";
-    if (["import_rows", "ads_no_orders"].includes(rule)) return "intake";
-    if (rule === "whatsapp_down") return "msg";
-    if (["server_error", "login_failures", "large_export"].includes(rule)) return "app";
-  }
-  return "carrier";
+/** Commandes' filter button: says its value, opens a menu of the areas. */
+function CategoryMenu({ value, onChange, t }: { value: HistoryCategory; onChange: (c: HistoryCategory) => void; t: Tr }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  return (
+    <div className="fbw" ref={ref}>
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={`fb ${open ? "open" : ""} ${value !== "all" ? "on" : ""}`}>
+        <Ic n="filter" />
+        {t("filter.label")} · {t(`cats.${value}.label`)}
+        <Ic n="down" className="chev" />
+      </button>
+      {open && (
+        <div role="menu" className="menu">
+          {HISTORY_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === c}
+              className={`mi jx-c-${c} ${value === c ? "on" : ""}`}
+              onClick={() => {
+                onChange(c);
+                setOpen(false);
+              }}
+            >
+              <span className="dotk" aria-hidden />
+              <span className="ml">
+                {t(`cats.${c}.label`)}
+                <small className="jx-mi-hint">{t(`cats.${c}.hint`)}</small>
+              </span>
+              {value === c && <Ic n="check" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function FeedLine({ item, first, t, f, onOpen }: { item: FeedItem; first: boolean; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
+function FeedLine({ item, t, f, onOpen }: { item: FeedItem; t: Tr; f: Fmt; onOpen: (p: PanelState) => void }) {
   const line = describeFeed(item, t, f);
   // An explicit event (sign-in, export) has no before → after to open.
   const empty = item.ref?.startsWith("audit:") && !item.params?.fields;
   const clickable = (!!item.ref && !empty) || item.count > 1;
   const sev = item.severity;
+  const cat = categoryOfRow(item);
   const open = () => onOpen({ type: "item", item });
   return (
     <div
@@ -590,23 +677,23 @@ function FeedLine({ item, first, t, f, onOpen }: { item: FeedItem; first: boolea
       tabIndex={clickable ? 0 : undefined}
       onClick={clickable ? open : undefined}
       onKeyDown={clickable ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open()) : undefined}
-      className={`grid grid-cols-[48px_32px_minmax(0,1fr)_18px] items-center gap-[14px] px-[20px] py-[11px] ${first ? "" : "border-t border-line-subtle"} ${
-        sev === "fail" ? "bg-[var(--jx-fail-bg)]" : sev === "warn" ? "bg-[var(--jx-warn-bg)]" : ""
-      } ${clickable ? (sev === "fail" ? "cursor-pointer hover:bg-[var(--jx-fail-hover)]" : "cursor-pointer hover:bg-[#F7F7F8]") : ""}`}
+      className={`jx-fl ${clickable ? "click" : ""} ${sev ?? ""}`}
     >
-      <span className="text-[13px] tabular-nums text-ink-muted">{f.time(item.at)}</span>
-      {item.family === "team" ? (
+      <time>{f.time(item.at)}</time>
+      {cat === "team" ? (
         <Avatar name={item.actor_name} admin={item.actor_role === "super_admin"} unknown={!item.actor_id && !item.actor_name} />
       ) : (
-        <FamilyIcon family={rowFamily(item)} size={32} gear={item.family === "auto"} />
+        <span className={`jx-tile jx-c-${cat}`} title={t(`cats.${cat}.label`)} aria-hidden>
+          <AreaIcon cat={cat} gear={item.family === "auto"} />
+        </span>
       )}
-      <div className="min-w-0 text-[14.5px] leading-[1.4] text-ink-primary">
+      <div className="tx">
         <span>{line.title}</span>
-        {sev === "fail" && <Flag sev="fail">{t("common.failed")}</Flag>}
-        {sev === "warn" && <Flag sev="warn">{t("common.toCheck")}</Flag>}
-        {line.sub && <small className="mt-[1px] block text-[13px] text-ink-secondary">{line.sub}</small>}
+        {sev === "fail" && <span className="tg h-red">{t("common.failed")}</span>}
+        {sev === "warn" && <span className="tg h-amber">{t("common.toCheck")}</span>}
+        {line.sub && <small>{line.sub}</small>}
       </div>
-      {clickable ? <Chevron /> : <span />}
+      {clickable ? <Ic n="right" className="chev" /> : <span />}
     </div>
   );
 }

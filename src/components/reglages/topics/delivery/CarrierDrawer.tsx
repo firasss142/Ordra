@@ -214,7 +214,7 @@ export function CarrierDrawer({
               if (f.secret && !replacing[f.key]) {
                 return (
                   <Field key={f.key} label={label} help={t("delivery.drawer.secretKept")}>
-                    <div className="flex h-[38px] items-center gap-[6px] rounded-[7px] border border-[#D2D5D9] bg-surface-sunken pe-[4px] ps-[11px]">
+                    <div className="flex h-[40px] items-center gap-[6px] rounded-[11px] border border-[rgba(15,23,40,.12)] bg-surface-sunken pe-[4px] ps-[11px]">
                       <span className="flex-1 font-mono text-[12.5px]">••••••••••••••••</span>
                       <RgButton size="sm" onClick={() => setReplacing((r) => ({ ...r, [f.key]: true }))}>
                         {t("delivery.drawer.replace")}

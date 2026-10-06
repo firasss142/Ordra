@@ -51,7 +51,7 @@ export function CopyBox({ value }: { value: string }) {
   const t = useTranslations("reglages");
   const toast = useToast();
   return (
-    <div className="flex h-[38px] items-center gap-[6px] rounded-[7px] border border-[#D2D5D9] bg-surface-sunken pe-[4px] ps-[11px]">
+    <div className="flex h-[40px] items-center gap-[6px] rounded-[11px] border border-[rgba(15,23,40,.12)] bg-surface-sunken pe-[4px] ps-[11px]">
       <span dir="ltr" className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-ink-primary">
         {value}
       </span>

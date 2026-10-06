@@ -2,47 +2,33 @@
 
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight, Clock, Inbox, Megaphone, MessageCircle, Settings, Shield, Truck, X } from "lucide-react";
+import { ChevronRight, Clock, Inbox, Megaphone, MessageCircle, Settings, Shield, Truck, Users, X } from "lucide-react";
+import type { HistoryCategory } from "@/lib/journal/categories";
 import { Sheet } from "@/components/ui/Sheet";
 import type { TileFamily } from "@/lib/journal/types";
 
 /**
- * Atoms of Journaux, copied from prototypes/journaux-v2.html. Sizes are px on
- * purpose: the root font is 14px, so rem sizes would render 12.5 % small.
- * Colours are the --jx-* tokens (design-system §4.24).
+ * Atoms of Journaux, in the house language of Commandes (2026-10-06): they live
+ * inside `.cmd` and read its tokens (--ink, --line, --good, --bad…). Sizes are px
+ * on purpose: the root font is 14px, so rem sizes would render 12.5 % small.
  */
 
 export type Sev = "ok" | "warn" | "fail" | "mute" | "off";
 
-const FAMILY_ICON: Record<TileFamily, typeof Inbox> = {
+const AREA_ICON: Record<Exclude<HistoryCategory, "all">, typeof Inbox> = {
   intake: Inbox,
   carrier: Truck,
   ads: Megaphone,
   msg: MessageCircle,
   auto: Clock,
   app: Shield,
-};
-const FAMILY_TONE: Record<TileFamily, string> = {
-  intake: "bg-[var(--jx-intake-bg)] text-[var(--jx-intake-ink)]",
-  carrier: "bg-[var(--jx-carrier-bg)] text-[var(--jx-carrier-ink)]",
-  ads: "bg-[var(--jx-ads-bg)] text-[var(--jx-ads-ink)]",
-  msg: "bg-[var(--jx-msg-bg)] text-[var(--jx-msg-ink)]",
-  auto: "bg-[var(--jx-auto-bg)] text-[var(--jx-auto-ink)]",
-  app: "bg-[var(--jx-app-bg)] text-[var(--jx-app-ink)]",
+  team: Users,
 };
 
-/** `.tile` — the soft square that says which family a system or a row is. */
-export function FamilyIcon({ family, size = 34, gear = false }: { family: TileFamily; size?: number; gear?: boolean }) {
-  const Icon = gear ? Settings : FAMILY_ICON[family];
-  return (
-    <span
-      aria-hidden
-      className={`grid flex-none place-items-center ${FAMILY_TONE[family]}`}
-      style={{ width: size, height: size, borderRadius: size > 32 ? 9 : 9 }}
-    >
-      <Icon className="h-[17px] w-[17px]" strokeWidth={2} />
-    </span>
-  );
+/** The icon of an area (lib/journal/categories); its colour comes from the `jx-c-*` around it. */
+export function AreaIcon({ cat, gear = false }: { cat: Exclude<HistoryCategory, "all">; gear?: boolean }) {
+  const Icon = gear ? Settings : AREA_ICON[cat];
+  return <Icon className="h-[17px] w-[17px]" strokeWidth={2} aria-hidden />;
 }
 
 /** `.av` — a person's initials; a dashed ring when nobody is recorded. */
@@ -56,12 +42,12 @@ export function Avatar({ name, admin, unknown }: { name: string | null; admin?: 
   return (
     <span
       aria-hidden
-      className={`grid h-[32px] w-[32px] flex-none place-items-center rounded-full text-[11.5px] font-bold ${
+      className={`grid h-[32px] w-[32px] flex-none place-items-center rounded-full text-[11px] font-extrabold ${
         unknown
-          ? "border-[1.5px] border-dashed border-[#B6BBC1] bg-white text-ink-muted"
+          ? "border-[1.5px] border-dashed border-[#C9CED7] bg-white text-[var(--ink-3)]"
           : admin
-            ? "bg-[#1F2328] text-white"
-            : "bg-[var(--jx-mute-bg)] text-ink-secondary"
+            ? "bg-[#1F2328] text-white shadow-[0_0_0_2px_#fff]"
+            : "bg-[#ECFDF3] text-[#067647] shadow-[inset_0_0_0_1px_#ABEFC6]"
       }`}
     >
       {unknown ? "?" : initials || "?"}
@@ -69,20 +55,14 @@ export function Avatar({ name, admin, unknown }: { name: string | null; admin?: 
   );
 }
 
-const PILL: Record<Sev, string> = {
-  fail: "bg-[var(--jx-fail-bg)] text-[var(--jx-fail-ink)]",
-  warn: "bg-[var(--jx-warn-bg)] text-[var(--jx-warn-ink)]",
-  ok: "bg-[var(--jx-ok-bg)] text-[var(--jx-ok-ink)]",
-  mute: "bg-[var(--jx-mute-bg)] text-ink-secondary",
-  off: "bg-[var(--jx-mute-bg)] text-ink-secondary",
-};
+const PILL_HUE: Record<Sev, string> = { fail: "h-red", warn: "h-amber", ok: "h-green", mute: "h-neutral", off: "h-neutral" };
 
-/** `.pill` — a dot and a word. Colour is never alone. */
+/** Commandes' `.pl` — a dot and a word. Colour is never alone. */
 export function Pill({ sev, children }: { sev: Sev; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-[6px] whitespace-nowrap rounded-full px-[10px] py-[2px] text-[12.5px] font-semibold ${PILL[sev]}`}>
+    <span className={`pl ${PILL_HUE[sev]}`}>
       <i className="inline-block h-[7px] w-[7px] rounded-full bg-current" aria-hidden />
-      {children}
+      <span>{children}</span>
     </span>
   );
 }
@@ -90,48 +70,23 @@ export function Pill({ sev, children }: { sev: Sev; children: ReactNode }) {
 /** `.state` — a tile's status line: dot + word; success stays quiet green. */
 export function StateLine({ sev, children }: { sev: Sev; children: ReactNode }) {
   const tone =
-    sev === "ok"
-      ? "text-[var(--jx-ok-ink)]"
-      : sev === "fail"
-        ? "font-semibold text-[var(--jx-fail-ink)]"
-        : sev === "warn"
-          ? "font-semibold text-[var(--jx-warn-ink)]"
-          : "text-ink-secondary";
+    sev === "ok" ? "text-[var(--good)]" : sev === "fail" ? "font-bold text-[var(--bad)]" : sev === "warn" ? "font-bold text-[var(--warn)]" : "text-[var(--ink-2)]";
   const dot =
     sev === "ok"
-      ? "bg-[var(--jx-ok)]"
+      ? "bg-[var(--live)]"
       : sev === "fail"
-        ? "bg-[var(--jx-fail)]"
+        ? "bg-[#E8385A]"
         : sev === "warn"
-          ? "bg-[var(--jx-warn)]"
+          ? "bg-[#F79009]"
           : sev === "off"
-            ? "bg-white shadow-[inset_0_0_0_1.5px_#B6BBC1]"
-            : "bg-[var(--jx-mute)]";
+            ? "bg-white shadow-[inset_0_0_0_1.5px_#C9CED7]"
+            : "bg-[#C9CED7]";
   return (
-    <span className={`mt-[6px] inline-flex items-center gap-[6px] text-[13px] font-medium ${tone}`}>
+    <span className={`inline-flex items-center gap-[6px] whitespace-nowrap text-[12.5px] font-semibold ${tone}`}>
       <i className={`inline-block h-[8px] w-[8px] rounded-full ${dot}`} aria-hidden />
       {children}
     </span>
   );
-}
-
-/** `.flag` — « Échec » / « À vérifier » after a feed line. */
-export function Flag({ sev, children }: { sev: "fail" | "warn"; children: ReactNode }) {
-  return (
-    <span
-      className={`ms-[6px] inline-block rounded-full bg-white px-[8px] align-[1px] text-[12px] font-semibold ${
-        sev === "fail"
-          ? "text-[var(--jx-fail-ink)] shadow-[inset_0_0_0_1px_var(--jx-fail-line)]"
-          : "text-[var(--jx-warn-ink)] shadow-[inset_0_0_0_1px_var(--jx-warn-line)]"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
-
-export function Chevron() {
-  return <ChevronRight className="h-[16px] w-[16px] text-ink-muted rtl:rotate-180" aria-hidden />;
 }
 
 /** `.dp` — the side panel: title, sub line, scrolling body, footer. */
@@ -154,45 +109,45 @@ export function Panel({
 }) {
   const t = useTranslations("journaux");
   return (
-    <Sheet open={open} onClose={onClose} width={wide ? "w-full sm:w-[640px]" : "w-full sm:w-[540px]"} ariaLabel={typeof title === "string" ? title : undefined}>
-      <header className="flex items-start gap-[12px] px-[26px] pb-[16px] pt-[22px]">
+    <Sheet open={open} onClose={onClose} width={wide ? "w-full sm:w-[640px]" : "w-full sm:w-[560px]"} ariaLabel={typeof title === "string" ? title : undefined}>
+      <header className="flex items-start gap-[12px] border-b border-[var(--line)] px-[24px] pb-[16px] pt-[20px]">
         <div className="min-w-0">
-          <h3 className="m-0 text-[19px] font-[650] leading-[1.3] tracking-[-0.01em] text-ink-primary">{title}</h3>
-          {sub && <div className="mt-[6px] flex flex-wrap items-center gap-[10px] text-[13.5px] text-ink-secondary">{sub}</div>}
+          <h3 className="m-0 text-[20px] font-extrabold leading-[1.25] tracking-[-0.02em] text-[var(--ink)]">{title}</h3>
+          {sub && <div className="mt-[8px] flex flex-wrap items-center gap-[8px] text-[13px] font-medium text-[var(--ink-2)]">{sub}</div>}
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label={t("common.close")}
-          className="ms-auto grid h-[34px] w-[34px] flex-none place-items-center rounded-[8px] border border-line bg-white"
+          className="ms-auto grid h-[32px] w-[32px] flex-none place-items-center rounded-[9px] text-[var(--ink-2)] hover:bg-[var(--flat-bg)]"
         >
           <X className="h-[16px] w-[16px]" aria-hidden />
         </button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-[26px] pb-[24px]">{children}</div>
-      {footer && <footer className="flex items-center gap-[8px] border-t border-line-subtle px-[26px] py-[14px]">{footer}</footer>}
+      <div className="min-h-0 flex-1 overflow-y-auto px-[24px] pb-[24px]">{children}</div>
+      {footer && <footer className="flex flex-wrap items-center gap-[8px] border-t border-[var(--line)] px-[20px] py-[14px]">{footer}</footer>}
     </Sheet>
   );
 }
 
 export function H4({ children }: { children: ReactNode }) {
-  return <h4 className="mb-[8px] mt-[22px] text-[13px] font-semibold text-ink-secondary">{children}</h4>;
+  return <h4 className="mb-[8px] mt-[22px] text-[11px] font-extrabold uppercase tracking-[.08em] text-[var(--ink-3)] rtl:text-[12px] rtl:normal-case rtl:tracking-normal">{children}</h4>;
 }
 
 export function P({ children, small }: { children: ReactNode; small?: boolean }) {
-  return <p className={`m-0 mb-[8px] ${small ? "text-[13px] text-ink-secondary" : "text-[14.5px] leading-[1.6] text-ink-primary"}`}>{children}</p>;
+  return <p className={`m-0 mb-[8px] ${small ? "text-[13px] text-[var(--ink-2)]" : "text-[14px] font-medium leading-[1.6] text-[var(--ink)]"}`}>{children}</p>;
 }
 
 /** `.figs` — the « Combien » numbers. */
 export function Figures({ items }: { items: { value: string; label: string; fail?: boolean }[] }) {
   return (
-    <div className="my-[4px] flex flex-wrap gap-[28px]">
+    <div className="my-[4px] grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-[10px]">
       {items.map((it) => (
-        <div key={it.label}>
-          <b className={`block text-[26px] font-[650] leading-[1.2] tracking-[-0.015em] tabular-nums ${it.fail ? "text-[var(--jx-fail-ink)]" : "text-ink-primary"}`}>
+        <div key={it.label} className="rounded-[14px] border border-[var(--line)] bg-[#F8F9FC] px-[14px] py-[12px]">
+          <b className={`block text-[24px] font-extrabold leading-[1.15] tracking-[-0.025em] tabular-nums ${it.fail ? "text-[var(--bad)]" : "text-[var(--ink)]"}`}>
             {it.value}
           </b>
-          <span className="text-[13px] text-ink-secondary">{it.label}</span>
+          <span className="text-[12.5px] font-semibold text-[var(--ink-3)]">{it.label}</span>
         </div>
       ))}
     </div>
@@ -204,8 +159,8 @@ export function Steps({ items }: { items: string[] }) {
   return (
     <ol className="m-0 list-none p-0">
       {items.map((s, i) => (
-        <li key={i} className="relative pb-[12px] ps-[34px] text-[14.5px] leading-[1.5]">
-          <span className="absolute start-0 top-0 grid h-[22px] w-[22px] place-items-center rounded-full bg-[var(--jx-mute-bg)] text-[12px] font-bold text-ink-secondary">
+        <li key={i} className="relative pb-[12px] ps-[34px] text-[14px] font-medium leading-[1.5]">
+          <span className="absolute start-0 top-0 grid h-[22px] w-[22px] place-items-center rounded-full bg-[var(--brand-wash)] text-[12px] font-extrabold text-[var(--brand)]">
             {i + 1}
           </span>
           {s}
@@ -216,15 +171,15 @@ export function Steps({ items }: { items: string[] }) {
 }
 
 export function Callout({ children }: { children: ReactNode }) {
-  return <div className="mt-[14px] rounded-[10px] bg-[var(--jx-warn-bg)] px-[14px] py-[12px] text-[14px] leading-[1.55] text-[#5C4400]">{children}</div>;
+  return <div className="mt-[14px] rounded-[14px] border border-[#FEDF89] bg-[var(--warn-bg)] px-[14px] py-[12px] text-[13.5px] font-medium leading-[1.55] text-[#7A2E0E]">{children}</div>;
 }
 
 /** `details.tech` — the technical part, folded. */
 export function Tech({ children }: { children: ReactNode }) {
   const t = useTranslations("journaux");
   return (
-    <details className="group mt-[22px] rounded-[10px] border border-line-subtle">
-      <summary className="flex cursor-pointer list-none items-center gap-[8px] px-[14px] py-[11px] text-[13.5px] font-medium text-ink-secondary [&::-webkit-details-marker]:hidden">
+    <details className="group mt-[22px] rounded-[14px] border border-[var(--line)] bg-[#F8F9FC]">
+      <summary className="flex cursor-pointer list-none items-center gap-[8px] px-[14px] py-[11px] text-[13px] font-bold text-[var(--ink-2)] [&::-webkit-details-marker]:hidden">
         <ChevronRight className="h-[16px] w-[16px] transition-transform group-open:rotate-90 rtl:-scale-x-100" aria-hidden />
         {t("common.tech")}
       </summary>
@@ -235,7 +190,7 @@ export function Tech({ children }: { children: ReactNode }) {
 
 export function Code({ children }: { children: ReactNode }) {
   return (
-    <div dir="ltr" className="whitespace-pre-wrap break-words rounded-[8px] border border-line-subtle bg-surface-sunken px-[12px] py-[10px] text-left font-mono text-[12px] leading-[1.6] text-[#374151]">
+    <div dir="ltr" className="whitespace-pre-wrap break-words rounded-[10px] border border-[var(--line)] bg-white px-[12px] py-[10px] text-left font-mono text-[12px] leading-[1.6] text-[#344054]">
       {children}
     </div>
   );
@@ -246,7 +201,7 @@ export function MiniTable({ rows }: { rows: ReactNode[][] }) {
     <table className="w-full border-collapse text-[13.5px]">
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i} className="border-b border-line-subtle last:border-b-0">
+          <tr key={i} className="border-b border-[var(--line)] last:border-b-0">
             {r.map((c, j) => (
               <td key={j} className={`py-[8px] ${j > 0 ? "text-end tabular-nums" : ""}`}>
                 {c}
@@ -260,11 +215,11 @@ export function MiniTable({ rows }: { rows: ReactNode[][] }) {
 }
 
 const BAR: Record<string, string> = {
-  o: "bg-[var(--jx-ok)]",
-  f: "bg-[var(--jx-fail)]",
-  i: "bg-[var(--jx-mute)]",
-  m: "bg-white shadow-[inset_0_0_0_1px_var(--jx-warn-line)]",
-  "-": "bg-[var(--jx-mute-bg)]",
+  o: "bg-[#4DAE7E]",
+  f: "bg-[#E46A7B]",
+  i: "bg-[#DADDE2]",
+  m: "bg-white shadow-[inset_0_0_0_1.5px_#F5B95C]",
+  "-": "bg-[#F2F4F7]",
 };
 
 /** `.ub` — one bar per hour over 48 h; « expected, absent » is hollow, not just another colour. */
@@ -301,13 +256,7 @@ export function Btn({
   href?: string;
   disabled?: boolean;
 }) {
-  const cls = `inline-flex h-[38px] items-center gap-[7px] whitespace-nowrap rounded-[8px] border px-[14px] text-[14px] [&>svg]:h-[15px] [&>svg]:w-[15px] disabled:opacity-60 ${
-    primary
-      ? "border-brand bg-brand font-semibold text-white hover:bg-brand-hover"
-      : quiet
-        ? "border-transparent font-medium text-ink-secondary hover:bg-surface-hover"
-        : "border-[#D2D5D9] bg-white font-medium text-ink-primary hover:bg-surface-hover"
-  }`;
+  const cls = `${primary ? "btn" : "btn2"} [&>svg]:h-[15px] [&>svg]:w-[15px] disabled:opacity-60 ${quiet ? "!border-transparent !bg-transparent !text-[var(--ink-2)] hover:!bg-[var(--flat-bg)]" : ""}`;
   if (href) {
     return (
       <a href={href} className={cls}>

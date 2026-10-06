@@ -1,0 +1,61 @@
+/*
+ * Réglages in the house language of Commandes (2026-10-06). The page sits inside
+ * `.cmd.cmd-page.rg` and reads Commandes' tokens. Two layers:
+ *   1. the page's own surfaces (`rg-*`): the menu card, the topic header, cards;
+ *   2. a scoped repoint of the older semantic Tailwind tokens the forty topic files
+ *      still use (ink-*, line-subtle, surface-sunken) to the Aurore values — the
+ *      migration design-system §2 plans for the whole app, done here for one page.
+ */
+.cmd.rg .text-ink-primary{color:var(--ink)}
+.cmd.rg .text-ink-secondary{color:var(--ink-2)}
+.cmd.rg .text-ink-muted{color:var(--ink-3)}
+.cmd.rg .border-line-subtle,.cmd.rg .border-line{border-color:var(--line)}
+.cmd.rg .bg-surface-sunken{background-color:#F8F9FC}
+.cmd.rg .bg-surface-page{background-color:transparent}
+.cmd.rg .shadow-floating{box-shadow:0 22px 54px rgba(20,25,60,.2)}
+
+.cmd .rg-layout{display:grid;gap:20px;align-items:start}
+@media (min-width:1024px){ .cmd .rg-layout{grid-template-columns:248px minmax(0,1fr);gap:24px} }
+
+/* the menu: one glass card, sections as eyebrows, the current topic in brand wash */
+.cmd .rg-menu{padding:12px;border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+@media (min-width:1024px){ .cmd .rg-menu{position:sticky;top:16px} }
+.cmd .rg-eyebrow{margin:0;padding:0 10px 6px;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+[dir=rtl] .cmd .rg-eyebrow{letter-spacing:0;font-size:12px;text-transform:none}
+.cmd .rg-link{display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap;height:38px;padding:0 10px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.cmd .rg-link:hover{background:rgba(255,255,255,.75);color:var(--ink)}
+.cmd .rg-link .ic-w{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:rgba(15,23,40,.05);color:var(--ink-2)}
+.cmd .rg-link .ic-w svg{width:15px;height:15px}
+.cmd .rg-link[aria-current=page]{background:var(--brand-wash);color:var(--brand-hover);font-weight:800}
+.cmd .rg-link[aria-current=page] .ic-w{background:var(--brand);color:#fff}
+.cmd .rg-foot{margin:10px 6px 2px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;line-height:1.5;color:var(--ink-3);font-weight:500}
+
+.cmd .rg-seg{display:flex;gap:2px;padding:3px;border-radius:12px;background:#F2F4F7}
+.cmd .rg-seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 8px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.cmd .rg-seg button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,23,40,.14)}
+.cmd .rg-label{margin-bottom:6px;padding-inline:4px;font-size:12px;font-weight:700;color:var(--ink-3)}
+
+/* the topic header */
+.cmd .rg-th{display:flex;align-items:flex-start;gap:16px;margin-bottom:16px}
+.cmd .rg-th .crumb{display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.cmd .rg-th h2{margin:2px 0 4px;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.2;color:var(--ink)}
+[dir=rtl] .cmd .rg-th h2{letter-spacing:0}
+.cmd .rg-th p{max-width:64ch;font-size:13.5px;color:var(--ink-2);font-weight:500}
+.cmd .rg-chip{margin-inline-start:auto;display:inline-flex;align-items:center;gap:7px;flex:none;white-space:nowrap;height:32px;padding:0 12px 0 6px;border-radius:99px;background:rgba(255,255,255,.85);border:1px solid var(--card-bd);box-shadow:var(--card-sh);font-size:12.5px;font-weight:700;color:var(--ink)}
+[dir=rtl] .cmd .rg-chip{padding:0 6px 0 12px}
+
+/* a settings card: glass edge, a near-opaque body so forms stay crisp */
+.cmd .rg-card{margin-bottom:16px;border-radius:20px;background:rgba(255,255,255,.88);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.cmd .rg-card > header{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.cmd .rg-card > header h3{margin:0;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.cmd .rg-card > header p{margin:3px 0 0;max-width:72ch;font-size:12.5px;color:var(--ink-2);font-weight:500}
+.cmd .rg-card > .rg-card-foot{display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--line);border-radius:0 0 20px 20px;background:#F8F9FC;font-size:12.5px;color:var(--ink-3);font-weight:600}
+.cmd .rg-card > .rg-card-foot svg{width:14px;height:14px}
+
+.cmd .rg-save{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-radius:16px;background:rgba(255,255,255,.97);border:1px solid #FEDF89;box-shadow:0 18px 46px rgba(42,52,110,.16)}
+[dir=rtl] .cmd .rg-save{padding:8px 16px 8px 8px}
+.cmd.rg .text-status-critical{color:var(--bad)}
+.cmd.rg .text-status-warning{color:var(--warn)}
+.cmd.rg .text-status-success{color:var(--good)}
+.cmd.rg .text-status-action{color:var(--brand)}
+.cmd.rg .bg-status-criticalBg{background-color:var(--bad-bg)}

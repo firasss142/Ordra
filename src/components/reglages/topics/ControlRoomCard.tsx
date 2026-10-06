@@ -47,7 +47,7 @@ function TimeInput({ value, onChange, label, disabled }: { value: string; onChan
         const v = normaliseTime(draft);
         if (HHMM.test(v)) onChange(v);
       }}
-      className={`h-[34px] w-[76px] rounded-[8px] border bg-white px-[10px] text-center text-[14px] tabular-nums text-ink-primary outline-none focus:border-brand disabled:bg-surface-sunken disabled:text-ink-secondary ${bad ? "border-status-critical" : "border-[#D1D5DB]"}`}
+      className={`h-[36px] w-[76px] rounded-[11px] border bg-white font-bold px-[10px] text-center text-[14px] tabular-nums text-ink-primary outline-none focus:border-brand disabled:bg-surface-sunken disabled:text-ink-secondary ${bad ? "border-status-critical" : "border-[#D1D5DB]"}`}
     />
   );
 }
@@ -115,7 +115,7 @@ export function ControlRoomCard({ form, marketId, editable }: { form: MarketSett
                       aria-pressed={on}
                       disabled={!editable}
                       onClick={() => setShift({ days: on ? shift.days.filter((x) => x !== d) : [...shift.days, d].sort((a, b) => a - b) })}
-                      className={`h-[30px] w-[36px] rounded-[7px] border text-[12px] font-semibold ${on ? "border-ink-primary bg-ink-primary text-white" : "border-line bg-white text-ink-muted"} disabled:cursor-default`}
+                      className={`h-[30px] w-[36px] rounded-[9px] border text-[12px] font-bold ${on ? "border-ink-primary bg-ink-primary text-white" : "border-line bg-white text-ink-muted"} disabled:cursor-default`}
                     >
                       {t(`days.d${d}` as "days.d0")}
                     </button>
@@ -152,7 +152,7 @@ export function ControlRoomCard({ form, marketId, editable }: { form: MarketSett
               ))}
               {editable && free.length > 0 && (
                 <div className="mt-[6px] flex items-center gap-[8px]">
-                  <select aria-label={t("pick")} value={pick} onChange={(e) => setPick(e.target.value)} className="h-[32px] rounded-[8px] border border-[#D1D5DB] bg-white px-[8px] text-[13px]">
+                  <select aria-label={t("pick")} value={pick} onChange={(e) => setPick(e.target.value)} className="h-[34px] rounded-[11px] border border-[rgba(15,23,40,.12)] bg-white px-[10px] text-[13px] font-semibold">
                     <option value="">{t("pick")}</option>
                     {free.map((a) => (
                       <option key={a.id} value={a.id}>

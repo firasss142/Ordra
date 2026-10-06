@@ -1,5 +1,7 @@
 "use client";
 
+import "../orders/commandes/commandes.css";
+import "./reglages.css";
 import { useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -56,8 +58,8 @@ export function ReglagesShell({ user, topic }: { user: AuthUser; topic: TopicId 
   const marketId = isSA ? scopeMarketId : user.market_id;
 
   return (
-    <div dir={locale === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-surface-page">
-      <div className="mx-auto max-w-[1180px] px-[16px] pb-[48px] pt-[24px] md:px-[24px]">
+    <div dir={locale === "ar" ? "rtl" : "ltr"} className="cmd cmd-page rg">
+      <div className="page max-w-[1180px]">
         <ReglagesFormProvider key={`${topic}:${marketId ?? "all"}`}>
           <Layout user={user} topic={topic} marketId={marketId} scopeIsAll={isSA && scope === "all"} />
         </ReglagesFormProvider>
@@ -102,14 +104,19 @@ function Layout({
 
   return (
     <>
-      <div className="grid items-start gap-[24px] lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-[32px]">
-        <aside className="flex flex-col gap-[2px] pt-[2px] lg:sticky lg:top-[12px]">
-          <h1 className="m-0 mb-[14px] text-[20px] font-semibold tracking-[-.01em] text-ink-primary">{t("title")}</h1>
-          {isMarketScoped(topic) && <div className="mb-[16px]">
-            <div className="mb-[6px] text-[12px] font-medium text-ink-secondary">{t(isSA ? "marketLabel.admin" : "marketLabel.manager")}</div>
+      <header className="ph mb-[16px]">
+        <div>
+          <h1>{t("title")}</h1>
+          <div className="sub">{t(isSA ? "menuFoot.admin" : "menuFoot.manager")}</div>
+        </div>
+      </header>
+      <div className="rg-layout">
+        <aside className="rg-menu flex flex-col gap-[2px]">
+          {isMarketScoped(topic) && <div className="mb-[14px]">
+            <div className="rg-label">{t(isSA ? "marketLabel.admin" : "marketLabel.manager")}</div>
             {isSA ? (
               <>
-                <div role="group" aria-label={t(isSA ? "marketLabel.admin" : "marketLabel.manager")} className="flex gap-[2px] rounded-[9px] bg-[#E9EAEC] p-[3px]">
+                <div role="group" aria-label={t(isSA ? "marketLabel.admin" : "marketLabel.manager")} className="rg-seg">
                   {(["tn", "ly"] as const).map((code) => {
                     const on = marketCode === code;
                     return (
@@ -118,7 +125,6 @@ function Layout({
                         type="button"
                         aria-pressed={on}
                         onClick={() => !on && pickMarket(code)}
-                        className={`inline-flex flex-1 items-center justify-center gap-[6px] whitespace-nowrap rounded-[7px] px-[8px] py-[6px] text-[13px] ${on ? "bg-white font-semibold text-ink-primary shadow-[0_0_0_1px_#E1E3E5]" : "font-medium text-ink-secondary"}`}
                       >
                         <CodeChip code={code.toUpperCase()} active={on} />
                         {t(`market.${code}`)}
@@ -126,22 +132,22 @@ function Layout({
                     );
                   })}
                 </div>
-                {scopeIsAll && <div className="mt-[6px] text-[12px] text-status-warning">{t("allMarketsHint")}</div>}
+                {scopeIsAll && <div className="mt-[6px] px-[4px] text-[12px] font-semibold text-[var(--warn)]">{t("allMarketsHint")}</div>}
               </>
             ) : (
-              <div className="flex items-center gap-[8px] rounded-[8px] border border-line-subtle bg-white px-[10px] py-[8px] font-semibold">
+              <div className="flex h-[38px] items-center gap-[8px] rounded-[11px] bg-white px-[10px] font-bold shadow-[inset_0_0_0_1px_rgba(15,23,40,.08)]">
                 {marketCode && <CodeChip code={marketCode.toUpperCase()} />}
                 {marketCode ? t(`market.${marketCode}`) : "—"}
               </div>
             )}
           </div>}
-          <nav aria-label={t("title")} className="-mx-[16px] flex gap-[2px] overflow-x-auto px-[16px] lg:mx-0 lg:flex-col lg:gap-[14px] lg:overflow-visible lg:px-0">
+          <nav aria-label={t("title")} className="flex gap-[2px] overflow-x-auto lg:flex-col lg:gap-[14px] lg:overflow-visible">
             {MENU_GROUPS.map((group) => {
               const visible = group.topics.filter((id) => topicsFor(user.role).includes(id));
               if (visible.length === 0) return null;
               return (
                 <div key={group.id} className="flex flex-none gap-[2px] lg:flex-col">
-                  <h3 className="m-0 hidden px-[10px] pb-[4px] text-[11.5px] font-semibold uppercase tracking-[.06em] text-ink-muted lg:block">
+                  <h3 className="rg-eyebrow hidden lg:block">
                     {t(`menuGroups.${group.id}`)}
                   </h3>
                   {visible.map((id) => {
@@ -153,9 +159,11 @@ function Layout({
                         href={href(id)}
                         onClick={onNav(id)}
                         aria-current={on ? "page" : undefined}
-                        className={`flex flex-none items-center gap-[10px] whitespace-nowrap rounded-[8px] border px-[10px] py-[7px] text-[14px] lg:w-full ${on ? "border-line-subtle bg-white font-semibold text-ink-primary" : "border-transparent font-medium text-ink-primary hover:bg-[#EDEEF0]"}`}
+                        className="rg-link lg:w-full"
                       >
-                        <Icon className={`h-[16px] w-[16px] ${on ? "text-brand" : "text-ink-secondary"}`} aria-hidden />
+                        <span className="ic-w">
+                          <Icon aria-hidden />
+                        </span>
                         {t(`topics.${id}.label`)}
                       </Link>
                     );
@@ -164,8 +172,6 @@ function Layout({
               );
             })}
           </nav>
-          <div className="mx-[4px] my-[10px] hidden h-px bg-line lg:block" />
-          <p className="m-0 hidden px-[10px] text-[12px] leading-[1.5] text-ink-secondary lg:block">{t(isSA ? "menuFoot.admin" : "menuFoot.manager")}</p>
         </aside>
 
         <div className="min-w-0">
@@ -197,14 +203,14 @@ function Layout({
 function TopicHeader({ topic, marketCode }: { topic: TopicId; marketCode: MarketCode | null }) {
   const t = useTranslations("reglages");
   return (
-    <div className="mb-[20px] flex items-start gap-[16px]">
+    <div className="rg-th">
       <div className="min-w-0">
-        <div className="flex items-center gap-[4px] text-[13px] text-ink-secondary">
+        <div className="crumb">
           {t("title")}
           <ChevronRight className="h-[13px] w-[13px] rtl:-scale-x-100" aria-hidden />
         </div>
-        <h2 className="m-0 mb-[4px] mt-[2px] text-[20px] font-semibold tracking-[-.01em] text-ink-primary">{t(`topics.${topic}.label`)}</h2>
-        <p className="m-0 max-w-[64ch] text-[14px] text-ink-secondary">{t(`topics.${topic}.subtitle`)}</p>
+        <h2>{t(`topics.${topic}.label`)}</h2>
+        <p>{t(`topics.${topic}.subtitle`)}</p>
       </div>
       {marketCode && <MarketChip code={marketCode} />}
     </div>
@@ -216,7 +222,7 @@ const CURRENCY: Record<MarketCode, string> = { tn: "TND", ly: "LYD" };
 function MarketChip({ code }: { code: MarketCode }) {
   const t = useTranslations("reglages");
   return (
-    <span className="ms-auto inline-flex flex-none items-center gap-[7px] whitespace-nowrap rounded-full border border-line bg-white py-[5px] pe-[11px] ps-[6px] text-[13px] font-semibold text-ink-primary">
+    <span className="rg-chip">
       <CodeChip code={code.toUpperCase()} />
       {t(`market.${code}`)} · {CURRENCY[code]}
     </span>

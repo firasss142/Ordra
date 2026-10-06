@@ -138,7 +138,7 @@ function SharesEditor({ marketId, editable, form }: { marketId: string; editable
 
   return (
     <div className="mt-[14px]">
-      <div className="overflow-hidden rounded-[8px] border border-line-subtle">
+      <div className="overflow-hidden rounded-[14px] border border-line-subtle">
         {agents.map((a) => {
           const v = value(a);
           return (

@@ -15,10 +15,10 @@ export function SaveBar() {
 
   return (
     <div className="sticky top-[68px] z-20 mb-[16px] md:top-[12px]">
-      <div className="flex items-center gap-[10px] rounded-[10px] border border-[#F0DCA4] bg-white py-[8px] pe-[8px] ps-[16px] shadow-[0_0_0_4px_#F6F6F7]">
+      <div className="rg-save">
         <span className="flex min-w-0 flex-col">
-          <span className="flex items-center gap-[9px] text-[14px] font-semibold text-ink-primary">
-            <i aria-hidden className="h-[8px] w-[8px] flex-none rounded-full bg-status-warning" />
+          <span className="flex items-center gap-[9px] text-[14px] font-bold text-ink-primary">
+            <i aria-hidden className="h-[8px] w-[8px] flex-none rounded-full bg-[#F79009]" />
             {dirtyCount === 1 ? t("save.one") : t("save.many", { count: dirtyCount })}
           </span>
           {error && (

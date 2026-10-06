@@ -8989,6 +8989,73 @@
       },
       "why": "Pourquoi",
       "fix": "Que faire"
+    },
+    "cats": {
+      "all": {
+        "label": "Toutes les catégories",
+        "hint": "Tout ce qui s’est passé"
+      },
+      "team": {
+        "label": "Équipe",
+        "hint": "Ce que les personnes ont fait"
+      },
+      "intake": {
+        "label": "Commandes entrantes",
+        "hint": "Boutiques et imports de commandes"
+      },
+      "carrier": {
+        "label": "Livraison",
+        "hint": "Transporteurs et colis"
+      },
+      "ads": {
+        "label": "Publicité",
+        "hint": "Comptes Meta et campagnes"
+      },
+      "msg": {
+        "label": "Messages",
+        "hint": "WhatsApp"
+      },
+      "auto": {
+        "label": "Tâches automatiques",
+        "hint": "Synchronisations et tâches planifiées"
+      },
+      "app": {
+        "label": "Application et sécurité",
+        "hint": "Erreurs, connexions, exports"
+      }
+    },
+    "catState": {
+      "ok": "Tout fonctionne",
+      "none": "Rien de connecté",
+      "urgent": "{n, plural, one {# urgent} other {# urgents}}",
+      "watch": "{n} à surveiller",
+      "systems": "{n, plural, one {# système suivi} other {# systèmes suivis}}"
+    },
+    "head": {
+      "live": "En direct",
+      "updated": "Mis à jour à {time}",
+      "watched": "{n, plural, one {# système suivi} other {# systèmes suivis}}"
+    },
+    "sev": {
+      "urgent": "Urgent",
+      "watch": "À surveiller"
+    },
+    "filter": {
+      "label": "Catégorie",
+      "clear": "Voir toutes les catégories",
+      "only": "Seulement {cat}"
+    },
+    "problems": {
+      "title": "Problèmes",
+      "none": "Rien à régler dans « {cat} ».",
+      "count": "{n, plural, one {# à régler} other {# à régler}}"
+    },
+    "systemsCard": {
+      "ratio": "{ok} sur {total} fonctionnent",
+      "showOk": "{n, plural, one {Afficher le système qui fonctionne} other {Afficher les # systèmes qui fonctionnent}}",
+      "hideOk": "Masquer les systèmes qui fonctionnent",
+      "none": "Aucun système suivi dans « {cat} ».",
+      "hideWarn": "Masquer les systèmes à vérifier"
     }
   },
   "carrierScorecard": {
