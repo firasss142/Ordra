@@ -20,7 +20,8 @@ function Num({ value, onChange, label, min, max, width }: { value: number; onCha
   );
 }
 
-export function RulesSheet({ open, settings, agents, reasonLabel, counts, onClose, onSave }: {
+export function RulesSheet({ open, settings, agents, reasonLabel, counts, onClose, onSave, locale }: {
+  locale: string;
   open: boolean; settings: RecoverySettings | null; agents: AgentCard[]; reasonLabel: (k: string) => string;
   counts: Record<string, number> | null; onClose: () => void; onSave: (s: RecoverySettings) => Promise<string | null>;
 }) {
@@ -77,7 +78,8 @@ export function RulesSheet({ open, settings, agents, reasonLabel, counts, onClos
                 </select></span></div>
               <div className="fld"><span className="n2">{t("cap")} <Num value={d.dist.file_cap} min={1} max={200} label={t("cap")} onChange={(v) => up((s) => ({ ...s, dist: { ...s.dist, file_cap: v } }))} /> {t("cap2")}</span></div>
               <div className="fld"><span className="n2">{t("release")} <Num value={d.dist.release_days} min={1} max={30} label={t("release")} onChange={(v) => up((s) => ({ ...s, dist: { ...s.dist, release_days: v } }))} /> {t("release2")}</span></div>
-              <div className="fld"><span className="n2">{t("tries")} <Num value={d.dist.max_tries} min={1} max={10} label={t("tries")} onChange={(v) => up((s) => ({ ...s, dist: { ...s.dist, max_tries: v } }))} /> {t("tries2")}</span></div>
+              {/* One source of truth: max_lead_attempts, set in Réglages › Prospects. */}
+              <p className="help" style={{ marginTop: 12 }}>{t.rich("triesFrom", { n: d.dist.max_tries, a: (c) => <a className="lnk" href={`/${locale}/system/settings/prospects`}>{c}</a> })}</p>
               <div className="fld" style={{ marginTop: 14, flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <span className="avs">{agents.filter((a) => a.in_rotation).map((a) => <Avatar key={a.id} id={a.id} name={a.name} color={a.color} size={24} />)}</span>
                 <span className="help" style={{ margin: 0 }}>{t("agents")} ({agents.filter((a) => a.in_rotation).length})</span>

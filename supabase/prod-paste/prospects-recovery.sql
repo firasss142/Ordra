@@ -738,8 +738,21 @@ DECLARE
   d      JSONB;
   o      JSONB;
   v_raw  JSONB;
+  v_tries INT := 3;
+  r      JSONB;
 BEGIN
   SELECT code INTO v_code FROM markets WHERE id = p_market_id;
+
+  -- « Après N essais sans réponse » n'a qu'une source : max_lead_attempts,
+  -- réglé dans Réglages › Prospects (20261006120200). La clé dist.max_tries
+  -- est toujours rendue, jamais lue depuis prospect_recovery.
+  BEGIN
+    SELECT nullif(setting_scalar(s.value), '')::int INTO v_tries
+      FROM settings s WHERE s.market_id = p_market_id AND s.key = 'max_lead_attempts';
+  EXCEPTION WHEN OTHERS THEN
+    v_tries := NULL;
+  END;
+  v_tries := least(greatest(coalesce(v_tries, 3), 1), 10);
 
   d := jsonb_build_object(
     'enabled', coalesce(v_code = 'ly', false),
@@ -758,7 +771,7 @@ BEGIN
    WHERE s.market_id = p_market_id AND s.key = 'prospect_recovery';
 
   IF v_raw IS NULL THEN
-    RETURN d;
+    RETURN jsonb_set(d, '{dist,max_tries}', to_jsonb(v_tries));
   END IF;
 
   -- Nue ou enveloppée : setting_scalar rend le texte de l'objet dans les deux cas.
@@ -768,10 +781,10 @@ BEGIN
     o := NULL;
   END;
   IF o IS NULL OR jsonb_typeof(o) <> 'object' THEN
-    RETURN d;
+    RETURN jsonb_set(d, '{dist,max_tries}', to_jsonb(v_tries));
   END IF;
 
-  RETURN jsonb_build_object(
+  r := jsonb_build_object(
     'enabled', CASE WHEN jsonb_typeof(o -> 'enabled') = 'boolean'
                     THEN (o ->> 'enabled')::boolean ELSE (d ->> 'enabled')::boolean END,
     'rej',  (d -> 'rej')  || CASE WHEN jsonb_typeof(o -> 'rej')  = 'object' THEN o -> 'rej'  ELSE '{}'::jsonb END,
@@ -779,6 +792,7 @@ BEGIN
     'old',  (d -> 'old')  || CASE WHEN jsonb_typeof(o -> 'old')  = 'object' THEN o -> 'old'  ELSE '{}'::jsonb END,
     'dist', (d -> 'dist') || CASE WHEN jsonb_typeof(o -> 'dist') = 'object' THEN o -> 'dist' ELSE '{}'::jsonb END
   );
+  RETURN jsonb_set(r, '{dist,max_tries}', to_jsonb(v_tries));
 END;
 $$;
 
@@ -1111,7 +1125,7 @@ BEGIN
   v_delay   := greatest(coalesce((v_s -> 'rej'  ->> 'delay_days')::int, 3), 0);
   v_after   := greatest(coalesce((v_s -> 'old'  ->> 'after_days')::int, 30), 1);
   v_release := greatest(coalesce((v_s -> 'dist' ->> 'release_days')::int, 3), 1);
-  v_tries   := least(greatest(coalesce((v_s -> 'dist' ->> 'max_tries')::int, 3), 1), 3);
+  v_tries   := least(greatest(coalesce((v_s -> 'dist' ->> 'max_tries')::int, 3), 1), 10);
   SELECT coalesce(array_agg(x), '{}') INTO v_subs
     FROM jsonb_array_elements_text(coalesce(v_s -> 'rej' -> 'subreasons', '[]'::jsonb)) x;
   SELECT array_agg(('attempt_' || n)::lead_status) INTO v_attempts

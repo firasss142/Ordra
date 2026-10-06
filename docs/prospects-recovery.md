@@ -39,6 +39,8 @@ order:
 
 1. Create the rejection and past-buyer prospects that are due.
 2. Close the prospects whose customer reordered, and those at `max_tries` attempts (`unreachable`).
+   `max_tries` is **not** a desk setting: it is always `max_lead_attempts` from Réglages ›
+   Prospects (merged from main the same day). The Règles sheet shows it read-only, with a link.
 3. Release the untouched ones: no history for `release_days` days → back to the pool.
 4. **Fill each agent's file** up to `file_cap` (default 15).
    - The cap is on the open file, not on daily additions, so an absent agent does not pile up.

@@ -142,7 +142,7 @@ export function DeskView(p: DeskViewProps) {
       <Scrim on={sheet !== null} onClick={() => setSheet(null)} />
       <ProspectDrawer row={openRow} open={sheet === "drawer"} onClose={() => setSheet(null)} locale={p.locale} tz={p.tz} marketId={p.marketId}
         reasonLabel={p.reasonLabel} onReassign={() => setSheet("reassign")} onCloseLead={() => setSheet("close")} />
-      <RulesSheet open={sheet === "rules"} settings={p.settings} agents={p.view?.agents ?? []} reasonLabel={p.reasonLabel}
+      <RulesSheet locale={p.locale} open={sheet === "rules"} settings={p.settings} agents={p.view?.agents ?? []} reasonLabel={p.reasonLabel}
         counts={Object.fromEntries(p.subreasons.filter((s) => s.count !== undefined).map((s) => [s.key, s.count!]))}
         onClose={() => setSheet(null)} onSave={async (s) => { const e = await p.onSaveRules(s); if (!e) setSheet(null); return e; }} />
       <Wizard open={sheet === "wizard"} onClose={() => setSheet(null)} products={p.products} locale={p.locale} marketId={p.marketId}

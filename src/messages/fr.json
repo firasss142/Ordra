@@ -7048,7 +7048,8 @@
         "save": "Enregistrer",
         "cancel": "Annuler",
         "saved": "Règles enregistrées",
-        "invalid": "Valeur refusée : {field}"
+        "invalid": "Valeur refusée : {field}",
+        "triesFrom": "Après <b>{n}</b> appels sans réponse, le prospect est fermé — réglé dans <a>Réglages › Prospects</a>."
       },
       "wizard": {
         "title": "Nouvelle liste",
