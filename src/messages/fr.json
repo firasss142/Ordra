@@ -8200,7 +8200,14 @@
     "sections": {
       "toFix": "À régler",
       "systems": "Systèmes",
-      "muted": "En sourdine"
+      "muted": "En sourdine",
+      "now": "À régler maintenant",
+      "watch": "À surveiller",
+      "calm": "{n, plural, one {# système sans problème} other {# systèmes sans problème}}",
+      "hideCalm": "Masquer",
+      "more": "{n, plural, one {Voir # problème de plus} other {Voir # problèmes de plus}}",
+      "mutedToggle": "{n, plural, one {# problème en sourdine} other {# problèmes en sourdine}}",
+      "warnSystems": "{n, plural, one {# système à vérifier} other {# systèmes à vérifier}}"
     },
     "common": {
       "close": "Fermer",
@@ -8243,7 +8250,8 @@
         "what": "Cette tâche tourne seule en arrière-plan. Depuis le {since}, elle s’arrête sur une erreur à chaque passage : ce qu’elle devait faire ne se fait plus.",
         "todo1": "Lire l’erreur sous « Détails techniques ».",
         "todo2": "Corriger sa cause (souvent un réglage ou un accès).",
-        "todo3": "Au premier passage réussi, le problème se ferme seul."
+        "todo3": "Au premier passage réussi, le problème se ferme seul.",
+        "fold": "{n} tâches automatiques échouent"
       },
       "connection_silent": {
         "title": "{name} ne se synchronise plus",
@@ -8251,7 +8259,8 @@
         "impact": "sans nouvelles",
         "what": "Ce compte se synchronise d’habitude toutes les 10 minutes. Rien n’est arrivé depuis {last} : les statuts des colis ne bougent plus.",
         "todo1": "Vérifier les identifiants du transporteur dans Réglages.",
-        "todo2": "Le problème se ferme seul à la prochaine synchronisation réussie."
+        "todo2": "Le problème se ferme seul à la prochaine synchronisation réussie.",
+        "fold": "{n} comptes Darb ne se synchronisent plus"
       },
       "carrier_inactive": {
         "title": "{name} est désactivé, {n, plural, one {# colis encore dehors} other {# colis encore dehors}}",
@@ -8262,7 +8271,8 @@
         "noNews": "sans aucune nouvelle depuis 7 jours",
         "value": "de valeur",
         "todo1": "Si c’était voulu : continuer de suivre les colis déjà partis.",
-        "todo2": "Sinon : réactiver le compte dans Réglages › Livraison."
+        "todo2": "Sinon : réactiver le compte dans Réglages › Livraison.",
+        "fold": "{n} transporteurs coupés ont encore des colis"
       },
       "carrier_stuck": {
         "title": "{name} : {n, plural, one {# colis bloqué} other {# colis bloqués}}",
@@ -8275,7 +8285,8 @@
         "refused": "« {to} » refusé depuis « {from} »",
         "parcels": "{n, plural, one {# colis} other {# colis}}",
         "todo1": "Faire reconnaître les statuts inconnus et accepter les transitions refusées.",
-        "todo2": "Au passage suivant, les colis se soldent et le problème se ferme."
+        "todo2": "Au passage suivant, les colis se soldent et le problème se ferme.",
+        "fold": "{n} transporteurs envoient des statuts refusés"
       },
       "import_rows": {
         "title": "{name} : {n, plural, one {# ligne refusée} other {# lignes refusées}} à l’import",
@@ -8283,7 +8294,8 @@
         "impact": "commandes jamais importées",
         "what": "Ces lignes de la feuille n’ont pas pu devenir des commandes. Ordra les a refusées une fois et ne les a jamais retentées.",
         "todo1": "Corriger les lignes dans la feuille source.",
-        "todo2": "Relancer l’import depuis Réglages › Boutiques."
+        "todo2": "Relancer l’import depuis Réglages › Boutiques.",
+        "fold": "{n} boutiques ont des lignes refusées"
       },
       "upload_failing": {
         "title": "Envois chez {system} refusés en série",
@@ -8291,14 +8303,16 @@
         "impact": "refus en 1 h",
         "what": "Le transporteur refuse les commandes qu’on lui envoie. Elles restent « Confirmées » : rien n’est perdu, mais rien ne part.",
         "todo1": "Lire le motif du refus sous « Détails techniques ».",
-        "todo2": "Corriger puis renvoyer : l’essai suivant apparaît dans l’Historique."
+        "todo2": "Corriger puis renvoyer : l’essai suivant apparaît dans l’Historique.",
+        "fold": "{n} séries d’envois refusés"
       },
       "whatsapp_down": {
         "title": "WhatsApp est {status, select, paused {en pause} other {déconnecté}}",
         "line": "Aucun message ne part tant que le numéro n’est pas rétabli.",
         "impact": "numéro",
         "what": "Meta a {status, select, paused {mis le numéro en pause} other {refusé le jeton d’accès}}. Raison donnée : {reason}",
-        "todo1": "Ouvrir Réglages › WhatsApp et refaire le test de connexion."
+        "todo1": "Ouvrir Réglages › WhatsApp et refaire le test de connexion.",
+        "fold": "{n} numéros WhatsApp coupés"
       },
       "ads_no_orders": {
         "title": "{market} : la publicité tourne, aucune commande depuis {hours} h",
@@ -8306,7 +8320,8 @@
         "impact": "dépensés depuis hier",
         "what": "Meta dépense pour ce marché, mais aucune commande n’est arrivée depuis {hours} heures.",
         "todo1": "Vérifier la tuile de la boutique et ses imports.",
-        "todo2": "Si la boutique est en pause, couper aussi la publicité."
+        "todo2": "Si la boutique est en pause, couper aussi la publicité.",
+        "fold": "{n} marchés dépensent sans commandes"
       },
       "server_error": {
         "title": "Erreur serveur répétée · {area} : {verb}",
@@ -8314,7 +8329,8 @@
         "impact": "erreurs en 24 h",
         "what": "Cette action d’Ordra échoue chez nous, pas chez l’utilisateur : le serveur répond par une erreur à chaque essai.",
         "todo1": "Transmettre les détails techniques à l’équipe technique.",
-        "todo2": "Le problème se ferme seul après 24 heures sans erreur."
+        "todo2": "Le problème se ferme seul après 24 heures sans erreur.",
+        "fold": "{n} erreurs du serveur se répètent"
       },
       "login_failures": {
         "title": "{n, plural, one {# échec de connexion} other {# échecs de connexion}} sur {account}",
@@ -8322,30 +8338,34 @@
         "impact": "essais",
         "what": "Quelqu’un essaie d’entrer sur ce compte avec un mauvais mot de passe.",
         "todo1": "Demander à la personne si c’était elle.",
-        "todo2": "Sinon, réinitialiser son mot de passe dans Accès."
+        "todo2": "Sinon, réinitialiser son mot de passe dans Accès.",
+        "fold": "{n} comptes reçoivent de mauvais mots de passe"
       },
       "large_export": {
         "title": "Export de {rows} lignes par {actor}",
         "line": "Un export de cette taille sort des données de clients d’Ordra.",
         "impact": "lignes",
         "what": "Les exports de plus de 1 000 lignes sont signalés pendant 24 heures.",
-        "todo1": "Vérifier que l’export était prévu."
+        "todo1": "Vérifier que l’export était prévu.",
+        "fold": "{n} gros exports"
       },
       "external_failing": {
         "title": "{name} : {n, plural, one {# appel échoué} other {# appels échoués}} en 1 h",
         "line": "{reason}",
         "impact": "échecs en 1 h",
         "what": "Ordra parle à {name} en arrière-plan. Depuis une heure, {name} répond par une erreur.",
-        "todo1": "Suivre « Que faire » ci-dessus.",
-        "todo2": "Le problème se ferme seul après une heure sans échec."
+        "todo1": "Ouvrir la carte du service dans Aperçu pour voir depuis quand il échoue.",
+        "todo2": "Le problème se ferme seul après une heure sans échec.",
+        "fold": "{n} services extérieurs en échec"
       },
       "browser_error": {
         "title": "La page {page} plante",
         "line": "{reason}",
         "impact": "plantages en 24 h",
         "what": "Cette page s’est arrêtée dans le navigateur de {users, plural, one {# personne} other {# personnes}}. Elle a vu l’écran « Cette page a rencontré un problème ».",
-        "todo1": "Suivre « Que faire » ci-dessus.",
-        "todo2": "Le problème se ferme seul après 24 heures sans plantage."
+        "todo1": "Demander à la personne ce qu’elle faisait juste avant : c’est souvent la clé.",
+        "todo2": "Le problème se ferme seul après 24 heures sans plantage.",
+        "fold": "{n} pages plantent"
       },
       "job_hanging": {
         "title": "« {job} » reste bloqué",
@@ -8353,7 +8373,8 @@
         "impact": "blocages en 7 jours",
         "what": "Cette tâche démarre normalement mais ne se termine pas. Les autres passages réussissent, c’est pourquoi rien ne l’avait signalé : le travail de ces passages-là n’est pas fait.",
         "todo1": "Regarder l’heure des blocages : s’ils tombent toujours à la même heure, une autre tâche lourde tourne en même temps.",
-        "todo2": "Le problème se ferme seul après 7 jours sans blocage."
+        "todo2": "Le problème se ferme seul après 7 jours sans blocage.",
+        "fold": "{n} tâches automatiques restent bloquées"
       }
     },
     "tiles": {
@@ -8461,7 +8482,12 @@
         "other": "{count, plural, one {Commande {ref}} other {# commandes}} : {status}",
         "upload_failed": "Envoi chez {carrier} refusé",
         "void_failed": "Annulation chez {carrier} refusée",
-        "call_failed": "Appel à {carrier} en échec"
+        "call_failed": "Appel à {carrier} en échec",
+        "sync_failed": "Synchronisation avec {carrier} en échec",
+        "poll_failed": "Suivi chez {carrier} en échec",
+        "read_failed": "Lecture chez {carrier} en échec",
+        "send_failed": "Envoi par {carrier} en échec",
+        "stock_read_failed": "Lecture du stock chez {carrier} en échec"
       },
       "delivery": {
         "call_customer": "{actor} a appelé {count, plural, one {le client} other {# clients}}",
@@ -8614,7 +8640,8 @@
       },
       "app": {
         "error": "Erreur serveur · {area} : {verb}",
-        "sub": "{n, plural, one {# fois} other {# fois}} · code {status}"
+        "sub": "{n, plural, one {# fois} other {# fois}} · code {status}",
+        "browser": "Une page a planté · {page}"
       },
       "issue": {
         "opened": "Problème ouvert · {title}",
@@ -8877,7 +8904,7 @@
         },
         "missing_link": {
           "why": "L’action pointe vers un élément qui n’existe pas ou plus : supprimé, ou d’un autre marché.",
-          "fix": "Retrouver l’élément dans « Détail technique » et vérifier qu’il n’a pas été supprimé."
+          "fix": "Retrouver l’élément dans « Détails techniques » et vérifier qu’il n’a pas été supprimé."
         },
         "missing_field": {
           "why": "Une information obligatoire manquait au moment d’enregistrer.",
@@ -8885,7 +8912,7 @@
         },
         "rule_check": {
           "why": "La base a refusé une valeur qui ne respecte pas une règle d’Ordra (statut, motif ou montant hors limites).",
-          "fix": "Lire la règle refusée dans « Détail technique » : souvent un statut ou un motif que le code ne connaît pas encore."
+          "fix": "Lire la règle refusée dans « Détails techniques » : souvent un statut ou un motif que le code ne connaît pas encore."
         },
         "no_permission": {
           "why": "La personne, ou le serveur, n’a pas le droit de faire cette action ici.",
@@ -8905,11 +8932,11 @@
         },
         "no_row": {
           "why": "Ordra cherchait exactement un élément et en a trouvé zéro, ou plusieurs.",
-          "fix": "L’élément a peut-être été supprimé ou dupliqué : vérifier dans « Détail technique »."
+          "fix": "L’élément a peut-être été supprimé ou dupliqué : vérifier dans « Détails techniques »."
         },
         "business_rule": {
           "why": "Une règle métier d’Ordra a refusé l’action (par exemple stock insuffisant ou statut interdit).",
-          "fix": "Lire le message exact dans « Détail technique » : il dit quelle règle bloque."
+          "fix": "Lire le message exact dans « Détails techniques » : il dit quelle règle bloque."
         },
         "db_unreachable": {
           "why": "Le serveur n’a pas pu joindre la base de données (coupure réseau ou base saturée).",
@@ -8917,7 +8944,7 @@
         },
         "db_other": {
           "why": "La base a renvoyé une erreur peu courante.",
-          "fix": "Transmettre le code et le message de « Détail technique » à l’équipe technique."
+          "fix": "Transmettre le code et le message de « Détails techniques » à l’équipe technique."
         },
         "ext_timeout": {
           "why": "{target} n’a pas répondu à temps.",
@@ -8937,7 +8964,7 @@
         },
         "ext_refused": {
           "why": "{target} a refusé les données envoyées (champ manquant ou format invalide).",
-          "fix": "Lire la réponse de {target} dans « Détail technique » : elle dit quel champ corriger."
+          "fix": "Lire la réponse de {target} dans « Détails techniques » : elle dit quel champ corriger."
         },
         "ext_down": {
           "why": "{target} est en panne ou a une erreur de son côté.",
@@ -8949,11 +8976,11 @@
         },
         "code_missing_data": {
           "why": "Le code d’Ordra a lu une donnée absente : une valeur vide là où il attendait quelque chose.",
-          "fix": "Correctif de code : transmettre le fichier et la ligne de « Détail technique » à l’équipe technique."
+          "fix": "Correctif de code : transmettre le fichier et la ligne de « Détails techniques » à l’équipe technique."
         },
         "code_bug": {
           "why": "Une erreur dans le code d’Ordra a interrompu l’action.",
-          "fix": "Transmettre le message de « Détail technique » à l’équipe technique."
+          "fix": "Transmettre le message de « Détails techniques » à l’équipe technique."
         },
         "unknown": {
           "why": "Ordra ne sait pas pourquoi : ces erreurs ont été enregistrées avant le suivi des causes.",
@@ -8961,13 +8988,7 @@
         }
       },
       "why": "Pourquoi",
-      "fix": "Que faire",
-      "tech": "Détail technique",
-      "techWhere": "Où",
-      "techCode": "Code",
-      "techMessage": "Message",
-      "techPage": "Page",
-      "techFile": "Fichier"
+      "fix": "Que faire"
     }
   },
   "carrierScorecard": {
