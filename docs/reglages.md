@@ -128,3 +128,28 @@ Old routes redirect to their topic:
   `reglages-parity` and `journaux-parity`.
 - `/settings/integrations` (Meta, duplicated by Publicité) and `/settings/statuses` (Kanban
   columns) are still live and unlinked. Deleting them is the owner's call.
+
+## v2 (2026-10-06)
+
+Plan: `plans/journal-detection-and-settings-v2.md`.
+
+**The menu has four sections** (`MENU_GROUPS`):
+- Ventes: Boutiques, Commandes, Motifs de rejet, Prospects, Équipe
+- Expédition: Entrepôts, Livraison
+- Clients et publicité: WhatsApp, Publicité
+- Système: Marchés, Surveillance
+
+The default topic is Boutiques, for every role. The market switch is hidden on topics that cover all markets.
+
+**New topics and rows:**
+- **Prospects** (a manager may edit):
+  - `max_lead_attempts` (default 3)
+  - `lead_hot_window_minutes` (default 60)
+
+  Both were read by code and editable nowhere. They are added to the RLS whitelist in `20261006120200`, which the Vitest list test now reads.
+- **Commandes › Paiement par carte** (super_admin only, it is money): `card_surcharge_pct` (default 10).
+  - It replaces `* 1.1` in `computeOrderTotal` and in `merge_orders()`.
+  - The server reads it through `getCardSurchargePct()`, which never throws.
+- **Surveillance** (super_admin only): `journal_rule_settings`. See `docs/journal.md` §6.
+
+**Found, not changed (owner's call):** the two item routes apply the card surcharge to Darb card orders, but the order route does not. See the plan.

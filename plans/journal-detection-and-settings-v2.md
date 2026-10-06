@@ -123,3 +123,18 @@ runs in between succeed.
 
 These are in order, in `supabase/migrations/2026100612*`. Every writer swallows a missing
 column, so deploying the app first is safe.
+
+## Found on the way, NOT changed (owner decisions)
+
+1. **Darb card orders and the surcharge.** `PATCH /api/orders/[id]` skips the card surcharge for
+   Darb-bound Libya orders, because Darb collects card payments itself. But
+   `POST /api/orders/[id]/items` and `PATCH|DELETE …/items/[itemId]` always apply it. So editing an
+   item on a Darb card order overcharges the customer by the surcharge. The fix is a small one,
+   but it changes totals, so it is left for the owner to decide.
+2. **Navex « Livrer Paye »** (91 parcels, 5 479 TND never marked delivered) and 48 refused
+   returns. This gets its own PR, next.
+3. **poll-carriers hangs at 04:30 every night.** It was invisible until now; `job_hanging` will
+   open a problem once the SQL is pasted.
+4. **Pre-existing test failures on main**: Dexpress `voidDispatch` supported:false,
+   `webhook-handler` buybox dexpress_state_id, and the Accueil i18n punctuation test. They were
+   left untouched.
