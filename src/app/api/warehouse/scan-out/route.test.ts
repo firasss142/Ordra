@@ -794,3 +794,66 @@ describe("POST /api/warehouse/scan-out — a bind that stuck but did not commit"
     expect(body.sticker_ref).toBe("889201");
   });
 });
+
+/**
+ * The pre-check failing is a refusal, never a pass.
+ *
+ * precheck_scan_out is the only place WRONG_SITE and NO_SITE_ASSIGNED are
+ * enforced before the carrier write. The route read only `data`, so a precheck
+ * that came back as an ERROR (a RAISE, a revoked grant, a timeout) left
+ * `precheck.ok` undefined — and the Darb bind and the scan went through.
+ */
+describe("POST /api/warehouse/scan-out — the pre-check fails closed", () => {
+  function precheckReturns(result: { data: unknown; error: unknown }) {
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve(result)
+        : Promise.resolve({ data: { success: true }, error: null }),
+    );
+  }
+
+  function expectNothingCommitted() {
+    expect(mockBindDarbReference).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalledWith("scan_order_out", expect.anything());
+    expect(mockRpc).not.toHaveBeenCalledWith("record_sticker_bind_state", expect.anything());
+  }
+
+  test("an error carrying the RPC's code is surfaced with that code", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    precheckReturns({
+      data: null,
+      error: { message: "Votre compte n'est rattaché à aucun bâtiment", details: '{"code":"NO_SITE_ASSIGNED"}' },
+    });
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error_code).toBe("NO_SITE_ASSIGNED");
+    expectNothingCommitted();
+  });
+
+  test("an error with no code still stops the scan", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    precheckReturns({
+      data: null,
+      error: { message: "permission denied for function precheck_scan_out" },
+    });
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+    expect(res.ok).toBe(false);
+    expectNothingCommitted();
+  });
+
+  test("a refusal with no code is still a refusal", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    precheckReturns({ data: { ok: false }, error: null });
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+    expect(res.ok).toBe(false);
+    expectNothingCommitted();
+  });
+
+  test("no answer at all is not an answer of yes", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    precheckReturns({ data: null, error: null });
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+    expect(res.ok).toBe(false);
+    expectNothingCommitted();
+  });
+});
