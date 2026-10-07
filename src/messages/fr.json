@@ -2854,6 +2854,8 @@
       "decisionNone": "Aucun colis sélectionné",
       "decisionPicked": "{ref} sélectionné",
       "failed": "Échec de l'enregistrement",
+      "errNoSite": "Votre compte n'est rattaché à aucun entrepôt. Demandez à votre responsable.",
+      "errWrongSite": "Ce colis appartient à un autre entrepôt. Ne le rentrez pas ici.",
       "hours": "{count} h",
       "kpiDepreciated": "Dépréciés",
       "kpiDepreciatedNone": "Aucune perte enregistrée sur 28 j",

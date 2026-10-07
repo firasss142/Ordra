@@ -10,6 +10,23 @@ import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The building refusals scan_return_in raises since 20261007100000, read from
+ * DETAIL = {"code": ...} (PostgREST's `error.details`), never from the prose.
+ * Both are "not yours to touch": 403, and the code lets the screen say which.
+ */
+const SITE_CODES = new Set(["NO_SITE_ASSIGNED", "WRONG_SITE"]);
+
+function siteCode(details: unknown): string | null {
+  if (typeof details !== "string") return null;
+  try {
+    const code = (JSON.parse(details) as { code?: unknown } | null)?.code;
+    return typeof code === "string" && SITE_CODES.has(code) ? code : null;
+  } catch {
+    return null;
+  }
+}
+
 async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -42,6 +59,10 @@ async function handlePOST(req: NextRequest) {
   });
 
   if (error) {
+    const code = siteCode((error as { details?: unknown }).details);
+    if (code) {
+      return NextResponse.json({ error: error.message, error_code: code }, { status: 403 });
+    }
     return NextResponse.json({ error: error.message }, { status: 422 });
   }
 

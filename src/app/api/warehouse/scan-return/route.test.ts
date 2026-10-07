@@ -176,3 +176,37 @@ describe("POST /api/warehouse/scan-return — RPC errors", () => {
     expect(res.status).toBe(422);
   });
 });
+
+/**
+ * The building. Since 20261007100000 scan_return_in refuses an agent with no
+ * building and an agent of the other building, with DETAIL {"code": ...}. The
+ * route turned every RPC error into a bare 422 with French prose, so the agent
+ * could not tell "wrong shelf" from "broken".
+ */
+describe("POST /api/warehouse/scan-return — the building", () => {
+  test.each([
+    ["NO_SITE_ASSIGNED", "Votre compte n'est rattaché à aucun bâtiment"],
+    ["WRONG_SITE", "Ce colis appartient à un autre bâtiment"],
+  ])("%s → 403 with its code", async (code, message) => {
+    authedWarehouse();
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message, details: JSON.stringify({ code }) },
+    });
+    const res = await POST(req({ order_id: "order-1", is_damaged: false }));
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error_code).toBe(code);
+    expect(json.error).toBe(message);
+  });
+
+  test("any other refusal stays a 422", async () => {
+    authedWarehouse();
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Order belongs to a different market", details: null },
+    });
+    const res = await POST(req({ order_id: "order-1", is_damaged: false }));
+    expect(res.status).toBe(422);
+  });
+});

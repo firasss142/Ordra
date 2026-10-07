@@ -9,6 +9,7 @@ import {
 } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { attachProductImages } from "@/lib/warehouse/product-images";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 import { enrichReturns, type ReturnFacts } from "@/lib/warehouse/returns-enrich";
@@ -18,7 +19,14 @@ export const dynamic = "force-dynamic";
 export interface ReturnsQueuePage {
   orders: Array<WarehouseOrderRow & ReturnFacts>;
   nextCursor: string | null;
+  /** A warehouse agent nobody has assigned to a building: the queue is empty on purpose. */
+  siteUnassigned?: boolean;
 }
+
+const RETURN_COLS =
+  "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function handleGET(req: NextRequest) {
   const actorResult = await getActor(req);
@@ -42,22 +50,46 @@ async function handleGET(req: NextRequest) {
    * Default: what Darb holds for us (`to_be_returned`), the receivable queue.
    */
   const way = req.nextUrl.searchParams.get("state") === "way";
-  const warehouseId = req.nextUrl.searchParams.get("warehouse_id");
   const supabase = await createClient();
 
+  /*
+   * The building. A returned parcel goes back on ONE building's shelf, so a
+   * warehouse agent sees only theirs — pinned, never widened from the URL —
+   * and an agent with no building sees nothing (the bench's rule, for the same
+   * reason). A parcel with no building is Darb's to hold, not the agent's.
+   * Managers keep the market view and may narrow it with ?warehouse_id.
+   */
+  const site = await resolveSiteFilter(supabase, {
+    actor,
+    requested: req.nextUrl.searchParams.get("warehouse_id"),
+  });
+  if (site.unassigned) {
+    const empty: ReturnsQueuePage = { orders: [], nextCursor: null, siteUnassigned: true };
+    return NextResponse.json(empty);
+  }
+  const warehouseId = site.warehouseId;
+
   let raw: Array<Omit<WarehouseOrderRow, "current_stock" | "low_stock_threshold">>;
-  if (way) {
+  if (way || warehouseId) {
+    // Filtered IN the query, before the page is cut: the market-wide RPC
+    // below takes no building, and trimming its page afterwards would hand a
+    // Tripoli agent an empty page whenever Benghazi's returns are older.
     let q = supabase
       .from("orders")
-      .select(
-        "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug",
-      )
-      .eq("status", "returning")
-      .is("archived_at", null)
-      .order("created_at", { ascending: true })
-      .limit(limit + 1);
+      .select(RETURN_COLS)
+      .eq("status", way ? "returning" : "to_be_returned")
+      .is("archived_at", null);
     if (marketScope) q = q.eq("market_id", marketScope);
-    const { data, error } = await q;
+    if (warehouseId) q = q.eq("warehouse_id", warehouseId);
+    if (cursor && UUID_RE.test(cursor.id)) {
+      q = q.or(
+        `created_at.gt.${cursor.timestamp},and(created_at.eq.${cursor.timestamp},id.gt.${cursor.id})`,
+      );
+    }
+    const { data, error } = await q
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(limit + 1);
     if (error) return NextResponse.json({ error: "db_error" }, { status: 500 });
     raw = (data ?? []) as unknown as typeof raw;
   } else {
