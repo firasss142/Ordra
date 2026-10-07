@@ -53,12 +53,13 @@ function daysSince(iso: string): number {
 
 export function ReturnsHome({ marketId }: { marketId: string | null }) {
   const t = useTranslations("warehouse.returns2");
+  const tBench = useTranslations("warehouse.bench");
   const tStatus = useTranslations("orders.statuses");
 
   const { data: stats, mutate: mutateStats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", jsonFetcher, {
     revalidateOnFocus: true,
   });
-  const { data: page, error: pageError, mutate } = useSWR<{ orders: WarehouseOrderRow[] }>(
+  const { data: page, error: pageError, mutate } = useSWR<{ orders: WarehouseOrderRow[]; siteUnassigned?: boolean }>(
     `/api/warehouse/returns?limit=100${marketId ? `&market_id=${marketId}` : ""}`,
     jsonFetcher,
     { revalidateOnFocus: true },
@@ -150,9 +151,21 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
           return_photo_url: null,
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; stock_after?: number };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        error_code?: string;
+        stock_after?: number;
+      };
       if (!res.ok) {
-        setFailed(body.error ?? t("failed"));
+        // The two building refusals are named in the agent's language; any
+        // other refusal keeps the server's words.
+        const named =
+          body.error_code === "WRONG_SITE"
+            ? t("errWrongSite")
+            : body.error_code === "NO_SITE_ASSIGNED"
+              ? t("errNoSite")
+              : null;
+        setFailed(named ?? body.error ?? t("failed"));
         return;
       }
       setDone({ text: t("saved"), stockAfter: typeof body.stock_after === "number" ? body.stock_after : null });
@@ -165,6 +178,26 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
 
   const effect = (d: Decision, p: WarehouseOrderRow) =>
     d === "restock" ? t("fxRestock", { n: p.quantity }) : t("fxDamage", { n: p.quantity });
+
+  /*
+   * No building, no returns. A returned parcel goes back on one building's
+   * shelf; an agent nobody has assigned would be refused on every parcel, so
+   * the screen names the reason instead of reading "File vide".
+   */
+  if (page?.siteUnassigned) {
+    return (
+      <div className="job-returns px-4 py-4">
+        <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-wm-ink">{t("title")}</h1>
+        <div
+          data-testid="wh-returns-no-site"
+          className="mt-4 rounded-[14px] border border-wm-card-edge bg-wm-card px-4 py-6 text-center"
+        >
+          <p className="text-[16px] font-bold text-wm-ink">{tBench("noSiteTitle")}</p>
+          <p className="mt-2 text-[14px] leading-relaxed text-wm-ink-2">{tBench("noSiteBody")}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // « Rentrer » — the second job of the day, in its hue.

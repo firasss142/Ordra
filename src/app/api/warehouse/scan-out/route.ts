@@ -289,17 +289,38 @@ async function handlePOST(req: NextRequest) {
   }
 
   // Everything cheap, before the carrier write.
-  const { data: precheckData } = await supabase.rpc("precheck_scan_out", {
+  const { data: precheckData, error: precheckError } = await supabase.rpc("precheck_scan_out", {
     p_order_id: orderId,
     p_actor_id: actor.id,
     p_sticker_ref: stickerRef,
   });
-  const precheck = (precheckData ?? {}) as Precheck;
 
-  if (precheck.ok === false && precheck.code) {
+  // FAIL CLOSED. The pre-check is the only place WRONG_SITE / NO_SITE_ASSIGNED
+  // are enforced before the carrier write. Reading `data` alone turned an error
+  // (a RAISE, a revoked grant, a timeout) into "no objection", and the Darb bind
+  // and the scan went through. An error is a refusal; so is no answer at all.
+  if (precheckError) {
+    const { code, status } =
+      structuredCode((precheckError as { details?: unknown }).details) ??
+      classifyRpcError(precheckError.message);
+    return NextResponse.json(
+      { error_code: code, message: precheckError.message },
+      { status },
+    );
+  }
+  if (!precheckData) {
+    return NextResponse.json(
+      { error_code: "PRECHECK_FAILED", message: "Contrôle préalable indisponible — scan refusé" },
+      { status: 503 },
+    );
+  }
+  const precheck = precheckData as Precheck;
+
+  if (precheck.ok !== true) {
+    const code = precheck.code ?? "PRECHECK_FAILED";
     return NextResponse.json(
       {
-        error_code: precheck.code,
+        error_code: code,
         required_color: precheck.required_color ?? null,
         branch_group: precheck.branch_group ?? null,
         ...(precheck.carrier_status ? { carrier_status: precheck.carrier_status } : {}),
@@ -313,7 +334,7 @@ async function handlePOST(req: NextRequest) {
         ...(precheck.warehouse_id ? { warehouse_id: precheck.warehouse_id } : {}),
         message: "Scan refusé",
       },
-      { status: PRECHECK_STATUS[precheck.code] ?? 409 }
+      { status: PRECHECK_STATUS[code] ?? 409 }
     );
   }
 

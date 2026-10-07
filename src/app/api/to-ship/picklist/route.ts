@@ -78,7 +78,8 @@ async function handlePOST(req: NextRequest) {
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  if (actor.role === "agent") {
+  // The to-ship cockpit is a manager surface (its page turns warehouse agents away).
+  if (actor.role !== "market_manager" && actor.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

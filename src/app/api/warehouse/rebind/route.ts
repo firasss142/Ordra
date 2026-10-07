@@ -10,6 +10,7 @@ import {
   classifyBindState,
 } from "@/lib/carriers/darb-assabil-reference";
 import { isDarbStickerPayload } from "@/lib/preparation/sticker-payload";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,17 @@ export const dynamic = "force-dynamic";
  * With no `sticker_ref` it is a pure re-check: ask Darb what they hold and
  * record it. With one, it rebinds first. Rebinding is idempotent at Darb, so a
  * repeat is harmless.
+ *
+ * WHO MAY. This writes to Darb with admin-decrypted credentials, so it carries
+ * the same guards as the scan it corrects (precheck_scan_out / unscan_order):
+ * a warehouse agent with no building touches nothing (NO_SITE_ASSIGNED), an
+ * agent touches only their own building's parcels (WRONG_SITE — a parcel with
+ * no building is not theirs either), nobody but super_admin crosses markets,
+ * and only a parcel the Scannés list shows — `scanned` or `at_carrier` — can be
+ * rebound. Every refusal happens before the carrier row is even read.
  */
+
+const REBINDABLE_STATUSES = new Set(["scanned", "at_carrier"]);
 
 async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
@@ -60,13 +71,25 @@ async function handlePOST(req: NextRequest) {
   }
 
   const supabase = await createClient();
+
+  const site = await resolveSiteFilter(supabase, { actor, requested: null });
+  if (site.unassigned) {
+    return NextResponse.json(
+      { error_code: "NO_SITE_ASSIGNED", message: "Votre compte n'est rattaché à aucun bâtiment" },
+      { status: 403 },
+    );
+  }
+
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, carrier_id, carrier_extra, tracking_number, carrier_sticker_ref, carriers!orders_carrier_id_fkey(code)",
+      "id, status, market_id, warehouse_id, carrier_id, carrier_extra, tracking_number, carrier_sticker_ref, carriers!orders_carrier_id_fkey(code)",
     )
     .eq("id", orderId)
     .maybeSingle<{
+      status: string;
+      market_id: string | null;
+      warehouse_id: string | null;
       carrier_id: string | null;
       carrier_extra: Record<string, unknown> | null;
       tracking_number: string | null;
@@ -77,6 +100,29 @@ async function handlePOST(req: NextRequest) {
   if (!order || order.carriers?.code !== "darb_assabil") {
     return NextResponse.json(
       { error_code: "NOT_DARB", message: "Seuls les colis Darb Assabil portent un sticker" },
+      { status: 409 },
+    );
+  }
+
+  if (actor.role !== "super_admin" && order.market_id !== actor.market_id) {
+    return NextResponse.json(
+      { error_code: "MARKET_MISMATCH", message: "Ce colis appartient à un autre marché" },
+      { status: 409 },
+    );
+  }
+  if (site.pinned && order.warehouse_id !== site.warehouseId) {
+    return NextResponse.json(
+      { error_code: "WRONG_SITE", message: "Ce colis appartient à un autre bâtiment" },
+      { status: 403 },
+    );
+  }
+  if (!REBINDABLE_STATUSES.has(order.status)) {
+    return NextResponse.json(
+      {
+        error_code: "INVALID_STATUS",
+        message: "Seul un colis déjà scanné peut être relié à nouveau",
+        status: order.status,
+      },
       { status: 409 },
     );
   }
