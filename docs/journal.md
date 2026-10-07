@@ -230,3 +230,31 @@ the unfiltered stream.
 (`.ph .sub .live .tabs .wts .wt .list .pl .tg .fb .menu .mi .btn .btn2`); Journaux-only pieces are in
 `src/components/journal/journal.css` (`jx-*`). Area hues (`jx-c-*`) are identity colours; red and amber are
 kept for severity only.
+
+## 8. Built like Commandes (2026-10-07)
+
+The owner judged §7 still dense and unlike the rest of the product (Accueil, Commandes). The same facts
+appeared three times: a verdict card, six area tiles, then a Problèmes card and a Systèmes card that
+repeated each other, with no column headers and unlabelled figures. The page now has Commandes' exact
+skeleton, top to bottom:
+
+1. **Header**: title, live dot, updated time, systems watched (not-connected ones excluded).
+2. **Four tiles** (Commandes' `.wts`): Urgents · À surveiller · En panne · Fonctionnent. They are
+   shortcuts: the first two open « À régler » filtered by severity, the last two open « Systèmes »
+   filtered by state; a second click clears the filter. They replace the verdict and the six area tiles.
+3. **The search line**: Commandes' field, opening « Retrouver une commande » (`/` still works).
+4. **One filter line**: the three views as soft tabs (À régler · Systèmes · Historique), then
+   « Catégorie » (counts per area; history adds Équipe with hints), then « Gravité » (Toutes · Urgents ·
+   À surveiller · En sourdine — muted problems live here now) or « État » (En panne · À vérifier ·
+   Fonctionnent · Muets ou non connectés) or the « Problèmes seulement » switch; the count at the end.
+5. **One table with column headers** (Commandes' `.list .lh .rows .row`):
+   - À régler — Problème · Catégorie · Gravité · Ampleur · Depuis. Urgent first, then the areas in
+     their fixed order, the API's cost order within. Same-rule problems still fold from 3.
+   - Systèmes — Système · Catégorie · État · Dernier signe. Failing first; 25 rows, then « Afficher
+     les autres ».
+   - Historique — Heure · Événement · Catégorie · Résultat, with day lines; failures carry a red edge.
+
+The category is now a column and a filter instead of a layout. `?tab=systemes|historique` opens a view;
+the server page passes it in, so the server render and hydration agree (a mismatch existed for
+`?tab=historique` before). Sizes collapse below 1220px (category keeps its dot, named in a tooltip) and
+760px (name, state and chevron only).

@@ -17,39 +17,46 @@
 .cmd .rg-layout{display:grid;gap:20px;align-items:start}
 @media (min-width:1024px){ .cmd .rg-layout{grid-template-columns:248px minmax(0,1fr);gap:24px} }
 
-/* the menu: one glass card, sections as eyebrows, the current topic in brand wash */
-.cmd .rg-menu{padding:12px;border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+/* the menu: one glass card, sections as eyebrows; the current topic is a raised white pill, like Commandes' tabs */
+.cmd .rg-menu{padding:10px;border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
 @media (min-width:1024px){ .cmd .rg-menu{position:sticky;top:16px} }
 .cmd .rg-eyebrow{margin:0;padding:0 10px 6px;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
 [dir=rtl] .cmd .rg-eyebrow{letter-spacing:0;font-size:12px;text-transform:none}
 .cmd .rg-link{display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap;height:38px;padding:0 10px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--ink-2)}
-.cmd .rg-link:hover{background:rgba(255,255,255,.75);color:var(--ink)}
+.cmd .rg-link:hover{background:rgba(255,255,255,.7);color:var(--ink)}
 .cmd .rg-link .ic-w{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:rgba(15,23,40,.05);color:var(--ink-2)}
 .cmd .rg-link .ic-w svg{width:15px;height:15px}
-.cmd .rg-link[aria-current=page]{background:var(--brand-wash);color:var(--brand-hover);font-weight:800}
+.cmd .rg-link[aria-current=page]{background:#fff;color:var(--ink);font-weight:800;box-shadow:0 1px 3px rgba(15,23,40,.1),0 6px 16px rgba(42,52,110,.06)}
 .cmd .rg-link[aria-current=page] .ic-w{background:var(--brand);color:#fff}
 .cmd .rg-foot{margin:10px 6px 2px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;line-height:1.5;color:var(--ink-3);font-weight:500}
 
-.cmd .rg-seg{display:flex;gap:2px;padding:3px;border-radius:12px;background:#F2F4F7}
-.cmd .rg-seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 8px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+/* the market, in the page header: Commandes' soft tabs (admin) or Accueil's date button (manager) */
+.cmd .rg-seg{display:flex;gap:2px;padding:4px;border-radius:14px;background:rgba(255,255,255,.6);border:1px solid var(--card-bd);box-shadow:var(--card-sh)}
+.cmd .rg-seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 14px 0 8px;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.cmd .rg-seg button:hover{color:var(--ink)}
+.cmd .rg-mk{display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 16px 0 10px;border-radius:14px;background:rgba(255,255,255,.85);border:1px solid var(--card-bd);box-shadow:var(--card-sh)}
+[dir=rtl] .cmd .rg-mk{padding:0 10px 0 16px}
+.cmd .rg-mk > span{display:grid;line-height:1.2}
+.cmd .rg-mk small{font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.cmd .rg-mk b{font-size:13.5px;font-weight:800;color:var(--ink)}
 .cmd .rg-seg button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,23,40,.14)}
-.cmd .rg-label{margin-bottom:6px;padding-inline:4px;font-size:12px;font-weight:700;color:var(--ink-3)}
 
 /* the topic header */
-.cmd .rg-th{display:flex;align-items:flex-start;gap:16px;margin-bottom:16px}
-.cmd .rg-th .crumb{display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
-.cmd .rg-th h2{margin:2px 0 4px;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.2;color:var(--ink)}
+/* the topic: a section title under the page header, not a second header */
+.cmd .rg-th{margin:4px 0 14px;padding-inline:4px}
+.cmd .rg-th h2{margin:0 0 3px;font-size:18px;font-weight:800;letter-spacing:-.015em;line-height:1.25;color:var(--ink)}
 [dir=rtl] .cmd .rg-th h2{letter-spacing:0}
-.cmd .rg-th p{max-width:64ch;font-size:13.5px;color:var(--ink-2);font-weight:500}
-.cmd .rg-chip{margin-inline-start:auto;display:inline-flex;align-items:center;gap:7px;flex:none;white-space:nowrap;height:32px;padding:0 12px 0 6px;border-radius:99px;background:rgba(255,255,255,.85);border:1px solid var(--card-bd);box-shadow:var(--card-sh);font-size:12.5px;font-weight:700;color:var(--ink)}
-[dir=rtl] .cmd .rg-chip{padding:0 6px 0 12px}
+.cmd .rg-th p{max-width:72ch;font-size:13px;color:var(--ink-3);font-weight:500}
 
-/* a settings card: glass edge, a near-opaque body so forms stay crisp */
-.cmd .rg-card{margin-bottom:16px;border-radius:20px;background:rgba(255,255,255,.88);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
-.cmd .rg-card > header{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+/* a settings card is Commandes' table: a glass head, a white body (forms stay crisp), the same radius */
+.cmd .rg-card{margin-bottom:16px;border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.cmd .rg-card > :not(header){background:#fff}
+.cmd .rg-card > :first-child:not(header){border-start-start-radius:calc(var(--r) - 1px);border-start-end-radius:calc(var(--r) - 1px)}
+.cmd .rg-card > :last-child{border-end-start-radius:calc(var(--r) - 1px);border-end-end-radius:calc(var(--r) - 1px)}
+.cmd .rg-card > header{display:flex;align-items:flex-start;gap:12px;padding:15px 18px 14px;border-bottom:1px solid var(--line)}
 .cmd .rg-card > header h3{margin:0;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
 .cmd .rg-card > header p{margin:3px 0 0;max-width:72ch;font-size:12.5px;color:var(--ink-2);font-weight:500}
-.cmd .rg-card > .rg-card-foot{display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--line);border-radius:0 0 20px 20px;background:#F8F9FC;font-size:12.5px;color:var(--ink-3);font-weight:600}
+.cmd .rg-card > .rg-card-foot{display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--line);background:#F8F9FC !important;font-size:12.5px;color:var(--ink-3);font-weight:600}
 .cmd .rg-card > .rg-card-foot svg{width:14px;height:14px}
 
 .cmd .rg-save{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-radius:16px;background:rgba(255,255,255,.97);border:1px solid #FEDF89;box-shadow:0 18px 46px rgba(42,52,110,.16)}

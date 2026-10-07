@@ -72,7 +72,9 @@ describe("ReglagesShell", () => {
 
   it("shows a manager their own market, fixed, and neither Marchés, Publicité nor Surveillance", () => {
     render(<ReglagesShell user={manager} topic="shops" />);
-    expect(screen.getByText("Votre marché")).toBeInTheDocument();
+    const header = screen.getByRole("heading", { level: 1, name: "Réglages" }).closest("header") as HTMLElement;
+    expect(within(header).getByText("Votre marché")).toBeInTheDocument();
+    expect(within(header).getByText("Libye · LYD")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Tunisie/ })).not.toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Réglages" });
     expect(within(nav).queryByRole("link", { name: "Marchés" })).not.toBeInTheDocument();
@@ -82,10 +84,15 @@ describe("ReglagesShell", () => {
     expect(within(nav).queryByRole("heading", { name: "Système" })).not.toBeInTheDocument();
   });
 
-  it("names the market in the header of a market topic", () => {
+  it("puts the market switch in the page header, beside the one title, like the date on Accueil", () => {
     render(<ReglagesShell user={admin} topic="delivery" />);
-    expect(screen.getByText("Libye · LYD")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Livraison" })).toBeInTheDocument();
+    const header = screen.getByRole("heading", { level: 1, name: "Réglages" }).closest("header") as HTMLElement;
+    const sw = within(header).getByRole("group", { name: "Marché réglé" });
+    expect(within(sw).getByRole("button", { name: /Libye/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(sw).getByRole("button", { name: /Tunisie/ })).toHaveAttribute("aria-pressed", "false");
+    // the topic is a section title under it, not a second page header
+    expect(screen.getByRole("heading", { level: 2, name: "Livraison" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
   it("asks for a market instead of loading forever when the scope is « Tous les marchés »", async () => {

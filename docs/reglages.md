@@ -172,3 +172,15 @@ stylesheet, and adds `src/components/reglages/reglages.css`:
 - **Token repoint, scoped:** inside `.rg`, the older Tailwind tokens the topic files still use
   (`text-ink-*`, `border-line-subtle`, `bg-surface-sunken`, `text-status-*`) resolve to the Aurore values.
   This is the migration design-system §2 plans for the whole app, applied to one page.
+
+## v4 — one header, like Accueil and Commandes (2026-10-07)
+
+v3 restyled the atoms but kept two stacked headers (H1 « Réglages », then a 22px topic title with a
+crumb and a market chip) and a menu whose filled-green current topic copied the dark sidebar.
+
+- **One page header.** The market sits on its right, as Accueil's dates do: Commandes' soft segmented
+  tabs for the administrator (group « Marché réglé »), a two-line pill « Votre marché · Libye · LYD » for a
+  manager. It shows only on market topics. The « Tous les marchés » hint is gone; the scope card already asks.
+- **The topic is a section title** (18/800 and its subtitle) under the header: no crumb, no chip.
+- **Menu**: the current topic is a raised white pill with a brand icon square, Commandes' tab idiom.
+- **Cards are Commandes' table**: glass head (`var(--card)`), white body, the house 22px radius, footer sunken.

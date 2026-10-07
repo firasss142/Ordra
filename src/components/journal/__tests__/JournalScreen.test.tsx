@@ -10,9 +10,9 @@ import type { Overview, FeedRow, Issue, SystemTile } from "@/lib/journal/types";
 
 /**
  * Journaux against a fake of its six routes, with the real intl, toast and SWR
- * providers. What the owner approved in prototypes/journaux-v2.html: a verdict,
- * one card per problem, calm tiles; one stream with five chips; panels that say
- * « Ce qui se passe · Combien · Que faire ».
+ * providers. Since 2026-10-07 the page is built like Commandes: four tiles, three
+ * views (À régler · Systèmes · Historique), one filter line, one table with column
+ * headers; panels still say « Ce qui se passe · Combien · Que faire ».
  */
 
 const NOW = new Date("2026-10-03T14:40:00Z");
@@ -187,62 +187,121 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Aperçu — « est-ce que tout marche ? »", () => {
-  test("a verdict counts the problems; the problem list is one card, grouped by area", async () => {
+const inactive = (n: number): Issue => ({
+  ...ARCHIVE,
+  id: `33333333-3333-4333-8333-33333333333${n}`,
+  rule: "carrier_inactive",
+  severity: "warning",
+  system: `carrier:c-old-${n}`,
+  params: { name: `Ancien compte ${n}`, off_at: "2026-10-01T10:00:00Z", no_news: 1 },
+  affected: 2,
+  amount: 100,
+  currency: "LYD",
+  market: "ly",
+});
+
+const problemRows = (list: HTMLElement) => within(list).getAllByRole("button");
+
+describe("Le haut de page — comme Commandes", () => {
+  test("four tiles sum the page up: urgent, to watch, down, working", async () => {
     renderScreen();
-    expect(await screen.findByRole("heading", { name: "2 choses à régler" })).toBeInTheDocument();
-    const list = screen.getByRole("region", { name: "Problèmes" });
-    const rows = within(list).getAllByRole("button");
+    const sum = await screen.findByRole("group", { name: "Résumé" });
+    await waitFor(() => expect(norm(within(sum).getByRole("button", { name: /Urgents/ }).textContent)).toContain("2"));
+    expect(within(sum).getAllByRole("button")).toHaveLength(4);
+    expect(norm(within(sum).getByRole("button", { name: /À surveiller/ }).textContent)).toContain("0");
+    expect(norm(within(sum).getByRole("button", { name: /En panne/ }).textContent)).toContain("2");
+    const up = within(sum).getByRole("button", { name: /Fonctionnent/ });
+    expect(norm(up.textContent)).toContain("2");
+    // a system that is not connected is neither down nor working
+    expect(norm(up.textContent)).toContain("sur 4 systèmes suivis");
+  });
+
+  test("three views, the first carries the number to fix", async () => {
+    renderScreen();
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((t) => norm(t.textContent).replace(/\d+/g, "").trim())).toEqual(["À régler", "Systèmes", "Historique"]);
+    await waitFor(() => expect(norm(tabs[0].textContent)).toContain("2"));
+  });
+});
+
+describe("À régler — « qu'est-ce qui ne va pas ? »", () => {
+  test("one table with column headers, one row per problem, urgent first", async () => {
+    renderScreen();
+    const list = await screen.findByRole("region", { name: "Problèmes" });
+    for (const h of ["Problème", "Catégorie", "Gravité", "Ampleur", "Depuis"]) expect(within(list).getByText(h)).toBeInTheDocument();
+    const rows = problemRows(list);
     expect(rows).toHaveLength(2);
     expect(norm(rows[0].textContent)).toContain("Navex : 139 colis bloqués");
+    expect(norm(rows[0].textContent)).toContain("Livraison");
     expect(norm(rows[0].textContent)).toContain("Urgent");
-    expect(within(list).getByText(byText("8 211 TND"))).toBeInTheDocument();
+    expect(within(rows[0]).getByText(byText("8 211 TND"))).toBeInTheDocument();
     expect(norm(rows[1].textContent)).toContain("« Archivage des commandes terminées » échoue depuis 43 passages");
-    // each group says which area of the business it is
-    expect(within(list).getByText("Livraison")).toBeInTheDocument();
-    expect(within(list).getByText("Tâches automatiques")).toBeInTheDocument();
+    expect(norm(rows[1].textContent)).toContain("Tâches automatiques");
+    // first seen on 22 August, read on 3 October
+    expect(norm(rows[1].textContent)).toContain("42 j");
+    expect(screen.getByText(byText("2 problèmes"))).toBeInTheDocument();
   });
 
-  test("the tab carries the number of problems", async () => {
+  test("a tile filters by gravity; a second click clears it", async () => {
+    issues = [inactive(1), NAVEX];
     renderScreen();
-    const tab = await screen.findByRole("tab", { name: /Aperçu/ });
-    await waitFor(() => expect(norm(tab.textContent)).toContain("2"));
+    const sum = await screen.findByRole("group", { name: "Résumé" });
+    const watch = within(sum).getByRole("button", { name: /À surveiller/ });
+    await waitFor(() => expect(problemRows(screen.getByRole("region", { name: "Problèmes" }))).toHaveLength(2));
+    fireEvent.click(watch);
+    expect(watch).toHaveAttribute("aria-pressed", "true");
+    const rows = problemRows(screen.getByRole("region", { name: "Problèmes" }));
+    expect(rows).toHaveLength(1);
+    expect(norm(rows[0].textContent)).toContain("Ancien compte 1");
+    expect(screen.getByText(byText("1 problème"))).toBeInTheDocument();
+    fireEvent.click(watch);
+    expect(watch).toHaveAttribute("aria-pressed", "false");
+    expect(problemRows(screen.getByRole("region", { name: "Problèmes" }))).toHaveLength(2);
   });
 
-  test("six area tiles say where the problems are, and one click narrows the page to an area", async () => {
+  test("the category menu says how many problems each area has, and narrows the table", async () => {
     renderScreen();
-    const areas = await screen.findByRole("group", { name: "Catégorie" });
-    const tiles = within(areas).getAllByRole("button");
-    expect(tiles).toHaveLength(6);
-    const delivery = within(areas).getByRole("button", { name: /Livraison/ });
-    expect(norm(delivery.textContent)).toContain("1 urgent");
-    expect(norm(within(areas).getByRole("button", { name: /Messages/ }).textContent)).toContain("Rien de connecté");
-
+    await screen.findByRole("region", { name: "Problèmes" });
+    fireEvent.click(screen.getByRole("button", { name: /Catégorie/ }));
+    const delivery = await screen.findByRole("menuitemradio", { name: /Livraison/ });
+    expect(norm(delivery.textContent)).toContain("1");
     fireEvent.click(delivery);
-    expect(delivery).toHaveAttribute("aria-pressed", "true");
-    const list = screen.getByRole("region", { name: "Problèmes" });
-    expect(within(list).getByRole("button", { name: /Navex/ })).toBeInTheDocument();
-    expect(norm(list.textContent)).not.toContain("Archivage");
-
-    // the card offers the way back; so does the tile itself
-    fireEvent.click(within(list).getByRole("button", { name: "Voir toutes les catégories" }));
-    expect(delivery).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(delivery);
-    fireEvent.click(delivery);
-    expect(within(screen.getByRole("region", { name: "Problèmes" })).getAllByRole("button")).toHaveLength(2);
+    const rows = problemRows(screen.getByRole("region", { name: "Problèmes" }));
+    expect(rows).toHaveLength(1);
+    expect(norm(rows[0].textContent)).toContain("Navex");
+    expect(norm(screen.getByRole("button", { name: /Catégorie/ }).textContent)).toContain("Livraison");
   });
 
-  test("with no problem, it says so, and healthy systems wait behind one line", async () => {
+  test("muted problems leave the table and wait in the Gravité menu", async () => {
+    issues = [{ ...NAVEX, status: "muted", muted_until: "2026-10-10T10:00:00Z" }, ARCHIVE];
+    renderScreen();
+    const list = await screen.findByRole("region", { name: "Problèmes" });
+    await waitFor(() => expect(problemRows(list)).toHaveLength(1));
+    expect(norm(list.textContent)).not.toContain("Navex");
+    fireEvent.click(screen.getByRole("button", { name: /Gravité/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /En sourdine/ }));
+    const rows = problemRows(screen.getByRole("region", { name: "Problèmes" }));
+    expect(rows).toHaveLength(1);
+    expect(norm(rows[0].textContent)).toContain("Navex");
+  });
+
+  test("with no problem, the table says so", async () => {
     issues = [];
     renderScreen();
-    expect(await screen.findByRole("heading", { name: "Tout fonctionne" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Problèmes" })).not.toBeInTheDocument();
-    const systems = screen.getByRole("region", { name: "Systèmes" });
-    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
-    fireEvent.click(within(systems).getByRole("button", { name: /Afficher les 5 systèmes qui fonctionnent/ }));
-    expect(within(systems).getByText("Darb Tripoli")).toBeInTheDocument();
-    expect(within(systems).getByText("Non connecté")).toBeInTheDocument();
-    expect(within(systems).getByText("Toutes réussies")).toBeInTheDocument();
+    expect(await screen.findByText("Rien à régler — tout fonctionne.")).toBeInTheDocument();
+  });
+
+  test("three problems of the same kind fold into one row that opens to the list", async () => {
+    issues = [inactive(1), inactive(2), inactive(3)];
+    renderScreen();
+    const list = await screen.findByRole("region", { name: "Problèmes" });
+    await waitFor(() => expect(problemRows(list)).toHaveLength(1));
+    const fold = within(list).getByRole("button", { name: /3 transporteurs coupés ont encore des colis/ });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute("aria-expanded", "true");
+    expect(problemRows(list)).toHaveLength(4);
+    expect(within(list).getAllByRole("button", { name: /^Ancien compte 2/ })).toHaveLength(1);
   });
 
   test("a problem opens « Ce qui se passe · Combien · Que faire », with its causes", async () => {
@@ -259,46 +318,13 @@ describe("Aperçu — « est-ce que tout marche ? »", () => {
   test("« Ignorer 7 jours » mutes the problem through the API", async () => {
     renderScreen();
     const list = await screen.findByRole("region", { name: "Problèmes" });
-    fireEvent.click(within(list).getByRole("button", { name: /Archivage des commandes terminées/ }));
+    fireEvent.click(await within(list).findByRole("button", { name: /Archivage des commandes terminées/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Ignorer 7 jours" }));
     await waitFor(() =>
       expect(calls).toContainEqual({ method: "POST", url: `/api/admin/journal/issues/${ARCHIVE.id}/mute`, body: { days: 7 } }),
     );
   });
 
-  test("the jobs system opens the list of jobs, with what each did", async () => {
-    renderScreen();
-    const systems = await screen.findByRole("region", { name: "Systèmes" });
-    fireEvent.click(await within(systems).findByRole("button", { name: /Tâches automatiques/ }));
-    const panel = await screen.findByRole("dialog");
-    expect(within(panel).getByText("Archivage des commandes terminées")).toBeInTheDocument();
-    expect(within(panel).getByText("En échec")).toBeInTheDocument();
-    expect(within(panel).getByText("2 changements")).toBeInTheDocument();
-  });
-
-  test("a carrier shows its 48 hours", async () => {
-    renderScreen();
-    const systems = await screen.findByRole("region", { name: "Systèmes" });
-    fireEvent.click(await within(systems).findByRole("button", { name: /systèmes qui fonctionnent/ }));
-    fireEvent.click(await within(systems).findByRole("button", { name: /Darb Tripoli/ }));
-    const panel = await screen.findByRole("dialog");
-    expect(within(panel).getByRole("img", { name: "Les 48 dernières heures" })).toBeInTheDocument();
-  });
-});
-
-describe("Aperçu v2 — clear at a glance (2026-10-06)", () => {
-  const inactive = (n: number): Issue => ({
-    ...ARCHIVE,
-    id: `33333333-3333-4333-8333-33333333333${n}`,
-    rule: "carrier_inactive",
-    severity: "warning",
-    system: `carrier:c-old-${n}`,
-    params: { name: `Ancien compte ${n}`, off_at: "2026-10-01T10:00:00Z", no_news: 1 },
-    affected: 2,
-    amount: 100,
-    currency: "LYD",
-    market: "ly",
-  });
   const CITIES: Issue = {
     ...ARCHIVE,
     id: "44444444-4444-4444-8444-444444444444",
@@ -314,35 +340,11 @@ describe("Aperçu v2 — clear at a glance (2026-10-06)", () => {
     market: null,
   };
 
-  test("each problem says how urgent it is in words; urgent ones come first in their area", async () => {
-    issues = [inactive(1), NAVEX];
-    renderScreen();
-    const list = await screen.findByRole("region", { name: "Problèmes" });
-    const rows = within(list).getAllByRole("button");
-    expect(norm(rows[0].textContent)).toContain("Urgent");
-    expect(norm(rows[0].textContent)).toContain("Navex");
-    expect(norm(rows[1].textContent)).toContain("À surveiller");
-    expect(norm(rows[1].textContent)).toContain("Ancien compte 1");
-  });
-
-  test("three problems of the same kind fold into one line that opens to the list", async () => {
-    issues = [inactive(1), inactive(2), inactive(3)];
-    renderScreen();
-    const list = await screen.findByRole("region", { name: "Problèmes" });
-    expect(within(list).getAllByRole("button")).toHaveLength(1);
-    const fold = within(list).getByRole("button", { name: /3 transporteurs coupés ont encore des colis/ });
-    expect(fold).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(fold);
-    expect(fold).toHaveAttribute("aria-expanded", "true");
-    expect(within(list).getAllByRole("button")).toHaveLength(4);
-    expect(within(list).getByRole("button", { name: /^À surveiller\s*Ancien compte 2/ })).toBeInTheDocument();
-  });
-
-  test("a server error says WHY on its line, not « Internal server error »", async () => {
+  test("a server error says WHY on its row, not « Internal server error »", async () => {
     issues = [CITIES];
     renderScreen();
     const list = await screen.findByRole("region", { name: "Problèmes" });
-    expect(norm(list.textContent)).toContain("Ordra a envoyé à la base une valeur vide ou mal formée");
+    await waitFor(() => expect(norm(list.textContent)).toContain("Ordra a envoyé à la base une valeur vide ou mal formée"));
     expect(norm(list.textContent)).not.toContain("Internal server error");
     expect(within(list).getByText("Application et sécurité")).toBeInTheDocument();
   });
@@ -358,29 +360,61 @@ describe("Aperçu v2 — clear at a glance (2026-10-06)", () => {
     expect(norm(panel.textContent)).toContain("22P02");
     expect(norm(panel.textContent)).toContain("cities");
   });
+});
 
-  test("systems « à vérifier » wait behind their own line: the problem list already names them", async () => {
-    const base = overview([]);
-    const amber = { ...base, systems: base.systems.map((s) => (s.id === "carrier:c-darb" ? { ...s, state: "warn" as const, reason: "issue" } : s)) };
-    vi.mocked(fetch).mockImplementation(async (input) =>
-      String(input).startsWith("/api/admin/journal/overview")
-        ? new Response(JSON.stringify(amber), { status: 200, headers: { "Content-Type": "application/json" } })
-        : new Response("{}", { status: 404 }),
-    );
+describe("Systèmes — « qu'est-ce qui marche ? »", () => {
+  async function openSystems() {
     renderScreen();
-    const systems = await screen.findByRole("region", { name: "Systèmes" });
-    const line = await within(systems).findByRole("button", { name: /1 système à vérifier/ });
-    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
-    fireEvent.click(line);
-    expect(within(systems).getByText("Darb Tripoli")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("tab", { name: "Systèmes" }));
+    const list = await screen.findByRole("region", { name: "Systèmes" });
+    await waitFor(() => expect(within(list).getAllByRole("button")).toHaveLength(5));
+    return list;
+  }
+
+  test("every system in one table, failing first, its state in words", async () => {
+    const list = await openSystems();
+    for (const h of ["Système", "Catégorie", "État", "Dernier signe"]) expect(within(list).getByText(h)).toBeInTheDocument();
+    const rows = within(list).getAllByRole("button");
+    expect(norm(rows[0].textContent)).toContain("En panne");
+    expect(norm(list.textContent)).toContain("Non connecté");
+    expect(screen.getByText(byText("5 systèmes"))).toBeInTheDocument();
   });
 
-  test("failing systems stay visible; the healthy ones are one line", async () => {
+  test("the « En panne » tile opens the failing systems only", async () => {
     renderScreen();
-    const systems = await screen.findByRole("region", { name: "Systèmes" });
-    await waitFor(() => expect(within(systems).getByText("Navex")).toBeInTheDocument());
-    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
-    expect(within(systems).getByRole("button", { name: /Afficher les 3 systèmes qui fonctionnent/ })).toBeInTheDocument();
+    const sum = await screen.findByRole("group", { name: "Résumé" });
+    fireEvent.click(within(sum).getByRole("button", { name: /En panne/ }));
+    expect(screen.getByRole("tab", { name: "Systèmes" })).toHaveAttribute("aria-selected", "true");
+    const list = await screen.findByRole("region", { name: "Systèmes" });
+    await waitFor(() => expect(within(list).getAllByRole("button")).toHaveLength(2));
+    expect(norm(list.textContent)).toContain("Navex");
+    expect(norm(list.textContent)).not.toContain("Darb Tripoli");
+  });
+
+  test("the État menu narrows the table", async () => {
+    const list = await openSystems();
+    fireEvent.click(screen.getByRole("button", { name: /État/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Fonctionnent/ }));
+    const rows = within(list).getAllByRole("button");
+    expect(rows).toHaveLength(2);
+    expect(norm(list.textContent)).toContain("Darb Tripoli");
+    expect(norm(list.textContent)).not.toContain("Navex");
+  });
+
+  test("the jobs system opens the list of jobs, with what each did", async () => {
+    const list = await openSystems();
+    fireEvent.click(within(list).getByRole("button", { name: /^Tâches automatiques/ }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByText("Archivage des commandes terminées")).toBeInTheDocument();
+    expect(within(panel).getByText("En échec")).toBeInTheDocument();
+    expect(within(panel).getByText("2 changements")).toBeInTheDocument();
+  });
+
+  test("a carrier shows its 48 hours", async () => {
+    const list = await openSystems();
+    fireEvent.click(within(list).getByRole("button", { name: /Darb Tripoli/ }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByRole("img", { name: "Les 48 dernières heures" })).toBeInTheDocument();
   });
 });
 
@@ -453,7 +487,7 @@ describe("Historique — « que s'est-il passé ? »", () => {
 describe("Retrouver une commande", () => {
   test("« / » opens the search; one match shows its whole story", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "2 choses à régler" });
+    await screen.findByRole("region", { name: "Problèmes" });
     fireEvent.keyDown(document, { key: "/" });
     const panel = await screen.findByRole("dialog");
     fireEvent.change(within(panel).getByRole("searchbox"), { target: { value: "2165688" } });

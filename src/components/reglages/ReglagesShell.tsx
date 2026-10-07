@@ -18,7 +18,6 @@ import {
   Megaphone,
   UserSearch,
   Activity,
-  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { useMarketScope } from "@/context/market-scope";
@@ -49,19 +48,22 @@ const ICONS: Record<TopicId, LucideIcon> = {
 /**
  * Réglages — one page, a menu of topics on the start side, the topic on the
  * other (prototypes/reglages-v2.html). No tabs: the menu is the only
- * navigation. One save bar for the page.
+ * navigation. One save bar for the page. Since 2026-10-07 it follows Commandes
+ * and Accueil: ONE page header, whose right side holds the market (as Accueil's
+ * holds its dates); the topic is a section title under it; cards are Commandes'
+ * table — a glass head over a white body.
  */
 export function ReglagesShell({ user, topic }: { user: AuthUser; topic: TopicId }) {
   const locale = useLocale();
   const isSA = user.role === "super_admin";
-  const { scope, marketId: scopeMarketId } = useMarketScope();
+  const { marketId: scopeMarketId } = useMarketScope();
   const marketId = isSA ? scopeMarketId : user.market_id;
 
   return (
     <div dir={locale === "ar" ? "rtl" : "ltr"} className="cmd cmd-page rg">
       <div className="page max-w-[1180px]">
         <ReglagesFormProvider key={`${topic}:${marketId ?? "all"}`}>
-          <Layout user={user} topic={topic} marketId={marketId} scopeIsAll={isSA && scope === "all"} />
+          <Layout user={user} topic={topic} marketId={marketId} />
         </ReglagesFormProvider>
       </div>
     </div>
@@ -72,12 +74,10 @@ function Layout({
   user,
   topic,
   marketId,
-  scopeIsAll,
 }: {
   user: AuthUser;
   topic: TopicId;
   marketId: string | null;
-  scopeIsAll: boolean;
 }) {
   const t = useTranslations("reglages");
   const locale = useLocale();
@@ -109,38 +109,34 @@ function Layout({
           <h1>{t("title")}</h1>
           <div className="sub">{t(isSA ? "menuFoot.admin" : "menuFoot.manager")}</div>
         </div>
+        {isMarketScoped(topic) && (
+          <div className="acts">
+            {isSA ? (
+              <div role="group" aria-label={t("marketLabel.admin")} className="rg-seg">
+                {(["tn", "ly"] as const).map((code) => {
+                  const on = marketCode === code;
+                  return (
+                    <button key={code} type="button" aria-pressed={on} onClick={() => !on && pickMarket(code)}>
+                      <CodeChip code={code.toUpperCase()} active={on} />
+                      {t(`market.${code}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className="rg-mk">
+                {marketCode && <CodeChip code={marketCode.toUpperCase()} />}
+                <span>
+                  <small>{t("marketLabel.manager")}</small>
+                  <b>{marketCode ? `${t(`market.${marketCode}`)} · ${CURRENCY[marketCode]}` : "—"}</b>
+                </span>
+              </span>
+            )}
+          </div>
+        )}
       </header>
       <div className="rg-layout">
         <aside className="rg-menu flex flex-col gap-[2px]">
-          {isMarketScoped(topic) && <div className="mb-[14px]">
-            <div className="rg-label">{t(isSA ? "marketLabel.admin" : "marketLabel.manager")}</div>
-            {isSA ? (
-              <>
-                <div role="group" aria-label={t(isSA ? "marketLabel.admin" : "marketLabel.manager")} className="rg-seg">
-                  {(["tn", "ly"] as const).map((code) => {
-                    const on = marketCode === code;
-                    return (
-                      <button
-                        key={code}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => !on && pickMarket(code)}
-                      >
-                        <CodeChip code={code.toUpperCase()} active={on} />
-                        {t(`market.${code}`)}
-                      </button>
-                    );
-                  })}
-                </div>
-                {scopeIsAll && <div className="mt-[6px] px-[4px] text-[12px] font-semibold text-[var(--warn)]">{t("allMarketsHint")}</div>}
-              </>
-            ) : (
-              <div className="flex h-[38px] items-center gap-[8px] rounded-[11px] bg-white px-[10px] font-bold shadow-[inset_0_0_0_1px_rgba(15,23,40,.08)]">
-                {marketCode && <CodeChip code={marketCode.toUpperCase()} />}
-                {marketCode ? t(`market.${marketCode}`) : "—"}
-              </div>
-            )}
-          </div>}
           <nav aria-label={t("title")} className="flex gap-[2px] overflow-x-auto lg:flex-col lg:gap-[14px] lg:overflow-visible">
             {MENU_GROUPS.map((group) => {
               const visible = group.topics.filter((id) => topicsFor(user.role).includes(id));
@@ -176,7 +172,7 @@ function Layout({
 
         <div className="min-w-0">
           <SaveBar />
-          <TopicHeader topic={topic} marketCode={isMarketScoped(topic) ? marketCode : null} />
+          <TopicHeader topic={topic} />
           {needsMarket ? (
             <ScopePrompt onPick={pickMarket} />
           ) : (
@@ -200,34 +196,17 @@ function Layout({
   );
 }
 
-function TopicHeader({ topic, marketCode }: { topic: TopicId; marketCode: MarketCode | null }) {
+function TopicHeader({ topic }: { topic: TopicId }) {
   const t = useTranslations("reglages");
   return (
     <div className="rg-th">
-      <div className="min-w-0">
-        <div className="crumb">
-          {t("title")}
-          <ChevronRight className="h-[13px] w-[13px] rtl:-scale-x-100" aria-hidden />
-        </div>
-        <h2>{t(`topics.${topic}.label`)}</h2>
-        <p>{t(`topics.${topic}.subtitle`)}</p>
-      </div>
-      {marketCode && <MarketChip code={marketCode} />}
+      <h2>{t(`topics.${topic}.label`)}</h2>
+      <p>{t(`topics.${topic}.subtitle`)}</p>
     </div>
   );
 }
 
 const CURRENCY: Record<MarketCode, string> = { tn: "TND", ly: "LYD" };
-
-function MarketChip({ code }: { code: MarketCode }) {
-  const t = useTranslations("reglages");
-  return (
-    <span className="rg-chip">
-      <CodeChip code={code.toUpperCase()} />
-      {t(`market.${code}`)} · {CURRENCY[code]}
-    </span>
-  );
-}
 
 function ScopePrompt({ onPick }: { onPick: (code: MarketCode) => void }) {
   const t = useTranslations("reglages");

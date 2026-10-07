@@ -7261,7 +7261,6 @@
       "admin": "Marché réglé",
       "manager": "Votre marché"
     },
-    "allMarketsHint": "Vous regardez « Tous les marchés ». Choisissez-en un.",
     "menuFoot": {
       "admin": "Chaque modification est enregistrée avec son auteur. Cliquez sur l’horloge d’un réglage pour voir son historique.",
       "manager": "Vous pouvez modifier les règles du quotidien de votre marché. Le reste est réglé par un administrateur."
@@ -8187,27 +8186,15 @@
       "hint": "N° de commande ou de suivi"
     },
     "tabs": {
-      "overview": "Aperçu",
-      "history": "Historique"
+      "overview": "À régler",
+      "history": "Historique",
+      "systems": "Systèmes"
     },
     "verdict": {
-      "ok": "Tout fonctionne",
-      "okSub": "Rien à régler. Les {total} systèmes suivis répondent normalement.",
-      "issues": "{n, plural, one {# chose à régler} other {# choses à régler}}",
-      "issuesSub": "{ok} systèmes sur {total} fonctionnent normalement.",
       "error": "Le journal ne répond pas. Réessayez dans un instant."
     },
     "sections": {
-      "toFix": "À régler",
-      "systems": "Systèmes",
-      "muted": "En sourdine",
-      "now": "À régler maintenant",
-      "watch": "À surveiller",
-      "calm": "{n, plural, one {# système sans problème} other {# systèmes sans problème}}",
-      "hideCalm": "Masquer",
-      "more": "{n, plural, one {Voir # problème de plus} other {Voir # problèmes de plus}}",
-      "mutedToggle": "{n, plural, one {# problème en sourdine} other {# problèmes en sourdine}}",
-      "warnSystems": "{n, plural, one {# système à vérifier} other {# systèmes à vérifier}}"
+      "systems": "Systèmes"
     },
     "common": {
       "close": "Fermer",
@@ -8436,17 +8423,9 @@
       "m": "Attendu, absent"
     },
     "feed": {
-      "chips": {
-        "all": "Tout",
-        "ext": "Systèmes externes",
-        "team": "Équipe",
-        "auto": "Automatique",
-        "sec": "Sécurité et erreurs"
-      },
       "onlyIssues": "Problèmes seulement",
       "empty": "Rien à afficher pour ce filtre.",
       "more": "Afficher plus ancien",
-      "end": "Début du journal.",
       "today": "Aujourd’hui",
       "yesterday": "Hier · {date}",
       "routine": "{n, plural, one {# passage de routine sans changement} other {# passages de routine sans changement}} (synchronisations, imports vides)",
@@ -9024,13 +9003,6 @@
         "hint": "Erreurs, connexions, exports"
       }
     },
-    "catState": {
-      "ok": "Tout fonctionne",
-      "none": "Rien de connecté",
-      "urgent": "{n, plural, one {# urgent} other {# urgents}}",
-      "watch": "{n} à surveiller",
-      "systems": "{n, plural, one {# système suivi} other {# systèmes suivis}}"
-    },
     "head": {
       "live": "En direct",
       "updated": "Mis à jour à {time}",
@@ -9041,21 +9013,64 @@
       "watch": "À surveiller"
     },
     "filter": {
-      "label": "Catégorie",
-      "clear": "Voir toutes les catégories",
-      "only": "Seulement {cat}"
+      "label": "Catégorie"
     },
     "problems": {
-      "title": "Problèmes",
-      "none": "Rien à régler dans « {cat} ».",
-      "count": "{n, plural, one {# à régler} other {# à régler}}"
+      "title": "Problèmes"
     },
-    "systemsCard": {
-      "ratio": "{ok} sur {total} fonctionnent",
-      "showOk": "{n, plural, one {Afficher le système qui fonctionne} other {Afficher les # systèmes qui fonctionnent}}",
-      "hideOk": "Masquer les systèmes qui fonctionnent",
-      "none": "Aucun système suivi dans « {cat} ».",
-      "hideWarn": "Masquer les systèmes à vérifier"
+    "sum": {
+      "label": "Résumé",
+      "urgent": "Urgents",
+      "urgentSub": "à régler maintenant",
+      "watch": "À surveiller",
+      "watchSub": "peuvent attendre",
+      "down": "En panne",
+      "downSub": "sur {total} systèmes suivis",
+      "up": "Fonctionnent",
+      "upSub": "sur {total} systèmes suivis"
+    },
+    "cols": {
+      "problem": "Problème",
+      "category": "Catégorie",
+      "severity": "Gravité",
+      "size": "Ampleur",
+      "since": "Depuis",
+      "system": "Système",
+      "state": "État",
+      "last": "Dernier signe",
+      "time": "Heure",
+      "event": "Événement",
+      "result": "Résultat"
+    },
+    "sevMenu": {
+      "label": "Gravité",
+      "all": "Toutes",
+      "urgent": "Urgents",
+      "watch": "À surveiller",
+      "muted": "En sourdine"
+    },
+    "stateMenu": {
+      "label": "État",
+      "all": "Tous",
+      "fail": "En panne",
+      "warn": "À vérifier",
+      "ok": "Fonctionnent",
+      "other": "Muets ou non connectés"
+    },
+    "count": {
+      "problems": "{n, plural, one {# problème} other {# problèmes}}",
+      "systems": "{n, plural, one {# système} other {# systèmes}}"
+    },
+    "empty": {
+      "none": "Rien à régler — tout fonctionne."
+    },
+    "list": {
+      "more": "{n, plural, one {Afficher le dernier} other {Afficher les # autres}}"
+    },
+    "age": {
+      "min": "{n} min",
+      "h": "{n} h",
+      "d": "{n} j"
     }
   },
   "carrierScorecard": {
