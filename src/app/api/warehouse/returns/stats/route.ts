@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,41 @@ export interface ReturnsStats {
   avgProcessingMinutes: number | null;
   processedSample: number;
   currency: string;
+  /** A warehouse agent with no building: the queue figures are zero on purpose. */
+  siteUnassigned?: boolean;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * The queue figures of one building — what the RPC computes for the market.
+ * A warehouse agent's list shows only their building, so the chip above it
+ * must count the same parcels, not the market's.
+ */
+async function buildingQueue(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  marketId: string | null,
+  warehouseId: string,
+): Promise<{ queueCount: number; queueValue: number; oldestDays: number } | null> {
+  let q = supabase
+    .from("orders")
+    .select("total_price, created_at")
+    .eq("status", "to_be_returned")
+    .is("archived_at", null)
+    .eq("warehouse_id", warehouseId);
+  if (marketId) q = q.eq("market_id", marketId);
+  const { data, error } = await q;
+  if (error) return null;
+  const rows = (data ?? []) as Array<{ total_price: number | null; created_at: string }>;
+  const now = Date.now();
+  return {
+    queueCount: rows.length,
+    queueValue: rows.reduce((sum, r) => sum + Number(r.total_price ?? 0), 0),
+    oldestDays: rows.reduce(
+      (max, r) => Math.max(max, Math.floor((now - new Date(r.created_at).getTime()) / DAY_MS)),
+      0,
+    ),
+  };
 }
 
 async function handleGET(req: NextRequest) {
@@ -51,11 +87,16 @@ async function handleGET(req: NextRequest) {
   const { marketId, currency } = resolveWarehouseScope(req, actor);
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_warehouse_returns_stats", {
-    p_market_id: marketId,
-  });
+  // Managers keep the market's figures; an agent's queue is their building's.
+  const site = await resolveSiteFilter(supabase, { actor, requested: null });
+  const [{ data, error }, ownQueue] = await Promise.all([
+    supabase.rpc("get_warehouse_returns_stats", { p_market_id: marketId }),
+    site.pinned && site.warehouseId
+      ? buildingQueue(supabase, marketId, site.warehouseId)
+      : Promise.resolve(null),
+  ]);
 
-  if (error) {
+  if (error || (site.pinned && site.warehouseId && !ownQueue)) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
@@ -85,6 +126,11 @@ async function handleGET(req: NextRequest) {
     processedSample: Number(d.processed_sample ?? 0),
     currency,
   };
+  if (site.unassigned) {
+    Object.assign(body, { queueCount: 0, queueValue: 0, oldestDays: 0, siteUnassigned: true });
+  } else if (ownQueue) {
+    Object.assign(body, ownQueue);
+  }
 
   return NextResponse.json(body, {
     headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" },

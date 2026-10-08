@@ -2854,6 +2854,8 @@
       "decisionNone": "لم يُحدَّد أي طرد",
       "decisionPicked": "تم تحديد {ref}",
       "failed": "فشل التسجيل",
+      "errNoSite": "حسابك غير مرتبط بأي مستودع. اطلب ذلك من مسؤولك.",
+      "errWrongSite": "هذا الطرد يخص مستودعًا آخر. لا تُدخله هنا.",
       "hours": "{count} س",
       "kpiDepreciated": "المُهلكة",
       "kpiDepreciatedNone": "لا خسائر مسجّلة خلال 28 يوماً",

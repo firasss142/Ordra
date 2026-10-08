@@ -43,14 +43,18 @@ type CarrierRow = {
  *
  * `dry_run: true` returns the eligibility breakdown only (for the UI preview);
  * otherwise it dispatches the eligible orders and returns per-order results.
- * Managers/super_admin only.
+ * Managers/super_admin only — a market_manager only inside their own market.
+ * The admin client bypasses RLS, so the market check below is the ONLY thing
+ * keeping a manager out of another market's orders: the whole batch is refused
+ * (403) if the carrier or any order belongs elsewhere, rather than skipping.
  */
 async function handlePOST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  if (actor.role === "agent") {
+  const isSuperAdmin = actor.role === "super_admin";
+  if (!isSuperAdmin && !(actor.role === "market_manager" && actor.market_id)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -97,6 +101,9 @@ async function handlePOST(req: NextRequest) {
   if (!carrier) {
     return NextResponse.json({ error: "Carrier not found" }, { status: 404 });
   }
+  if (!isSuperAdmin && carrier.market_id !== actor.market_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   if (!carrier.is_active) {
     return NextResponse.json({ error: "Carrier is not active" }, { status: 400 });
   }
@@ -108,6 +115,12 @@ async function handlePOST(req: NextRequest) {
 
   if (ordersError) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+  if (
+    !isSuperAdmin &&
+    ((orderRows as OrderRow[] | null) ?? []).some((o) => o.market_id !== actor.market_id)
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const orderById = new Map<string, OrderRow>(
     ((orderRows as OrderRow[] | null) ?? []).map((o) => [o.id, o]),

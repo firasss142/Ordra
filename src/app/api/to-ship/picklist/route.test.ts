@@ -64,6 +64,20 @@ describe("POST /api/to-ship/picklist", () => {
     expect(res.status).toBe(403);
   });
 
+  // The picklist belongs to the to-ship cockpit, which is a manager surface
+  // (the page now turns warehouse agents away). The route only refused `agent`.
+  test("403 when actor is a warehouse agent or an investor", async () => {
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "w", role: "warehouse_agent", market_id: "m-1" },
+    });
+    expect((await POST(req({ order_ids: ["o-1"], grouping: "city" }))).status).toBe(403);
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "i", role: "investor", market_id: null },
+    });
+    expect((await POST(req({ order_ids: ["o-1"], grouping: "city" }))).status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   test("400 on missing order_ids", async () => {
     const res = await POST(req({ grouping: "city" }));
     expect(res.status).toBe(400);

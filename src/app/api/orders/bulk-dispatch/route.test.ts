@@ -149,8 +149,92 @@ describe("POST /api/orders/bulk-dispatch — carrier guards", () => {
   });
 });
 
+describe("POST /api/orders/bulk-dispatch — who may upload, and which market", () => {
+  // Uploading to a carrier books a real parcel at the carrier. The route said
+  // "Managers/super_admin only" but only turned away role `agent`, so a
+  // warehouse_agent (or an investor) could book a whole market's parcels.
+  test("403 for a warehouse agent, before any DB read", async () => {
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "wa-1", role: "warehouse_agent", market_id: "ly" },
+    });
+    const res = await POST(req({ order_ids: ["o-1"], carrier_id: "c-darb" }));
+    expect(res.status).toBe(403);
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
+    expect(mockPerformDispatch).not.toHaveBeenCalled();
+  });
+
+  test("403 for an investor", async () => {
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "inv-1", role: "investor", market_id: null },
+    });
+    const res = await POST(req({ order_ids: ["o-1"], carrier_id: "c-darb" }));
+    expect(res.status).toBe(403);
+  });
+
+  test("403 for a market manager with no market", async () => {
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "mgr-x", role: "market_manager", market_id: null },
+    });
+    const res = await POST(req({ order_ids: ["o-1"], carrier_id: "c-darb" }));
+    expect(res.status).toBe(403);
+  });
+
+  test("403 when a market manager picks another market's carrier", async () => {
+    setupAdmin({
+      carrier: { ...DARB_CARRIER, market_id: "tn" },
+      orders: [darbOrder({ market_id: "tn" })],
+    });
+    const res = await POST(req({ order_ids: ["o-1"], carrier_id: "c-darb" }));
+    expect(res.status).toBe(403);
+    expect(mockPerformDispatch).not.toHaveBeenCalled();
+  });
+
+  test("403 when any order of the batch is outside the manager's market — nothing is dispatched", async () => {
+    setupAdmin({
+      carrier: DARB_CARRIER,
+      darbService: { service_id: "svc-male" },
+      orders: [
+        darbOrder({ id: "o-1", customer_city: "اجدابيا" }),
+        darbOrder({ id: "o-2", market_id: "tn" }),
+      ],
+    });
+    mockPerformDispatch.mockResolvedValue({ ok: true, trackingNumber: "T-1" });
+    const res = await POST(req({ order_ids: ["o-1", "o-2"], carrier_id: "c-darb" }));
+    expect(res.status).toBe(403);
+    expect(mockPerformDispatch).not.toHaveBeenCalled();
+  });
+
+  test("the same 403 on a dry run — the preview does not leak another market's orders", async () => {
+    setupAdmin({
+      carrier: DARB_CARRIER,
+      orders: [darbOrder({ id: "o-2", market_id: "tn" })],
+    });
+    const res = await POST(req({ order_ids: ["o-2"], carrier_id: "c-darb", dry_run: true }));
+    expect(res.status).toBe(403);
+  });
+
+  test("a super_admin may upload in any market", async () => {
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "sa-1", role: "super_admin", market_id: null },
+    });
+    setupAdmin({
+      carrier: DARB_CARRIER,
+      darbService: { service_id: "svc-male" },
+      orders: [darbOrder({ id: "o-1", customer_city: "اجدابيا" })],
+    });
+    mockPerformDispatch.mockResolvedValue({ ok: true, trackingNumber: "T-1" });
+    const res = await POST(req({ order_ids: ["o-1"], carrier_id: "c-darb" }));
+    expect(res.status).toBe(200);
+    expect(mockPerformDispatch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("POST /api/orders/bulk-dispatch — dry run (preview)", () => {
   test("returns eligible + skipped buckets and never dispatches", async () => {
+    // super_admin: the only role that can hold another market's order in a batch.
+    mockGetActor.mockResolvedValueOnce({
+      actor: { id: "sa-1", role: "super_admin", market_id: null },
+    });
     setupAdmin({
       carrier: DARB_CARRIER,
       darbService: { service_id: "svc-male" },

@@ -39,6 +39,9 @@ export default async function DispatchPage({
 
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
+  // The cockpit uploads whole batches to a carrier — a manager tool, market-wide
+  // and without a site filter. A warehouse agent works the bench instead.
+  if (user.role === "warehouse_agent") redirect(`/${locale}/warehouse`);
 
   const supabase = await createClient();
   const { marketId: scopedMarketId } = await getActiveMarketScope(user);
