@@ -1,5 +1,5 @@
-import { ProductSheetSkeleton } from "@/components/products/v6/skeletons";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function ProductSheetLoading() {
-  return <ProductSheetSkeleton />;
+  return <RouteSkeleton toolbar={false} rows={5} />;
 }

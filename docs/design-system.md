@@ -462,7 +462,18 @@ spent on meaning (a problem surface, an identity halo), not on telling sections 
 
 The shape of the page, never a spinner or "loading…": `--au-track` blocks with the real
 radii (24 card, 16 tile, 99 pill), `animate-pulse`, `aria-hidden`, the group in
-`role="status"`. One skeleton per page, shaped like that page (`PageSkeleton`).
+`role="status"`. One skeleton per page, shaped like that page.
+
+**Route-level (`loading.tsx`) — `RouteSkeleton` only, styled from `globals.css` only.**
+A route's fallback paints the instant a link is clicked, BEFORE the stylesheets that
+route imports have arrived; only the page's own commit waits for them. A fallback that
+borrows a feature stylesheet (`commandes.css`, `products-v6.css`…) paints blank or as bare
+text on a first visit — seen on a production build on 2026-10-08, along with nine routes
+still drawing the pre-Aurore grey skeleton. So every `loading.tsx` renders
+`<RouteSkeleton>` (props: `tiles`, `toolbar`, `body="list"|"cards"`, `ground="plain"`),
+whose `.rsk` block lives in `globals.css`; `src/app/__tests__/loading-boundaries.test.ts`
+fails on anything else. A page's IN-PAGE skeleton (shown while its data loads) is a
+different thing — it renders after the page's CSS and may use the page's stylesheet.
 
 ### 4.13 Inputs, modals, toasts, popovers
 

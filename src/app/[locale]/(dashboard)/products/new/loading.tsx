@@ -1,5 +1,5 @@
-import { ProductEditSkeleton } from "@/components/products/v6/skeletons";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function ProductNewLoading() {
-  return <ProductEditSkeleton />;
+  return <RouteSkeleton tiles={0} toolbar={false} body="cards" cards={2} />;
 }
