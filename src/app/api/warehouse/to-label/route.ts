@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
-import { SCOPE_COOKIE } from "@/lib/auth/market-scope";
-import { isValidScope, scopeToMarketId } from "@/lib/markets";
+import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import {
   buildQueuePageMeta,
   clampQueueLimit,
@@ -109,16 +108,7 @@ async function handleGET(req: NextRequest) {
    * screen whose scan flow is market-specific.
    * An explicit ?market_id wins; otherwise the scope cookie decides.
    */
-  const requested = req.nextUrl.searchParams.get("market_id");
-  const cookieScope = req.cookies.get(SCOPE_COOKIE)?.value;
-  const marketScope =
-    actor.role !== "super_admin"
-      ? (actor.market_id ?? null)
-      : requested && requested !== "all"
-        ? requested
-        : isValidScope(cookieScope)
-          ? scopeToMarketId(cookieScope)
-          : null;
+  const marketScope = resolveWarehouseScope(req, actor).marketId;
 
   /*
    * Which building. An agent is pinned to their own — Libya's two warehouses

@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { SCOPE_COOKIE } from "@/lib/auth/market-scope";
-import { isValidScope, marketIdToCode, scopeToMarketId, type MarketCode } from "@/lib/markets";
+import { SCOPE_COOKIE, scopeFromCookie } from "@/lib/auth/market-scope";
+import { marketIdToCode, scopeToMarketId, type MarketCode } from "@/lib/markets";
 
 /**
  * Which market a warehouse request is about.
@@ -9,7 +9,8 @@ import { isValidScope, marketIdToCode, scopeToMarketId, type MarketCode } from "
  * obey it. The routes used to pass `null` for them, so a super-admin with
  * "Libye" selected saw Tunisian orders on a bench whose scan flow is
  * market-specific. An explicit `?market_id` wins; otherwise the scope cookie
- * decides; a non-super-admin is always pinned to their own market.
+ * decides, read exactly as the pages read it (no cookie = the topbar's default,
+ * not every market); a non-super-admin is always pinned to their own market.
  */
 export interface WarehouseScope {
   marketId: string | null;
@@ -24,16 +25,12 @@ export function resolveWarehouseScope(
   actor: { role: string; market_id: string | null },
 ): WarehouseScope {
   const requested = req.nextUrl.searchParams.get("market_id");
-  const cookieScope = req.cookies.get(SCOPE_COOKIE)?.value;
-
   const marketId =
     actor.role !== "super_admin"
       ? (actor.market_id ?? null)
       : requested && requested !== "all"
         ? requested
-        : isValidScope(cookieScope)
-          ? scopeToMarketId(cookieScope)
-          : null;
+        : scopeToMarketId(scopeFromCookie(req.cookies.get(SCOPE_COOKIE)?.value));
 
   const marketCode = marketIdToCode(marketId);
   return {

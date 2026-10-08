@@ -8,7 +8,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { jsonFetcher } from "@/lib/fetchers";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
 import type { WarehouseHistoryRow } from "@/app/api/warehouse/history/route";
-import { DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pager, Pill, SearchLine, Sec, SiteSeg, StepPager, Thumb, Tile, Tiles, fnum, usePaged, type Hue } from "./ui";
+import { DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pager, Pill, SearchLine, Sec, SiteSeg, StepPager, Thumb, Tile, Tiles, Waiting, fnum, usePaged, type Hue } from "./ui";
 import { PAGE_SIZE } from "@/lib/warehouse/desk";
 import type { IconName } from "./icons";
 import { useDeskSite } from "./useDeskSite";
@@ -123,6 +123,9 @@ function Products({
   const needle = q.trim().toLowerCase();
   const rows = needle ? base.filter((r) => r.name.toLowerCase().includes(needle) || (r.sku ?? "").toLowerCase().includes(needle)) : base;
   const [paged, setPage] = usePaged(rows, `${tile}|${q}|${siteId ?? ""}`);
+  // Before the stock answers, the tiles have no figure — four zeros would be four false statements.
+  const known = !!data || !!error;
+  const n = (v: number) => (known ? v : null);
   const cols = "minmax(240px,1.5fr) 240px 90px 90px 110px 150px";
 
   return (
@@ -139,10 +142,10 @@ function Products({
         }
       />
       <Tiles n={4}>
-        <Tile hue="h-neutral" icon="boxes" n={all.length} label={ts("tileAll")} small={ts("tileAllSub", { n: fnum(all.reduce((s, r) => s + onShelf(r), 0)) })} on={tile === "all"} onClick={() => setTile("all")} />
-        <Tile hue="h-amber" icon="alert" n={low.length} label={ts("tileLow")} small={low.length ? <em className="w">{ts("tileLowSub")}</em> : ts("tileLowNone")} on={tile === "low"} onClick={() => setTile(tile === "low" ? "all" : "low")} />
-        <Tile hue="j-cnt" icon="count" n={nc.length} label={ts("tileNc")} small={siteIds.length > 1 && !siteId ? ts("tileNcSub", { n: pairs }) : ts("tileNcSubOne")} on={tile === "nc"} onClick={() => setTile(tile === "nc" ? "all" : "nc")} />
-        <Tile hue="h-red" icon="alert" n={neg.length} label={ts("tileNeg")} small={neg.length ? <em>{ts("tileNegSub")}</em> : ts("tileNegNone")} on={tile === "neg"} onClick={() => setTile(tile === "neg" ? "all" : "neg")} />
+        <Tile hue="h-neutral" icon="boxes" n={n(all.length)} label={ts("tileAll")} small={ts("tileAllSub", { n: fnum(all.reduce((s, r) => s + onShelf(r), 0)) })} on={tile === "all"} onClick={() => setTile("all")} />
+        <Tile hue="h-amber" icon="alert" n={n(low.length)} label={ts("tileLow")} small={low.length ? <em className="w">{ts("tileLowSub")}</em> : ts("tileLowNone")} on={tile === "low"} onClick={() => setTile(tile === "low" ? "all" : "low")} />
+        <Tile hue="j-cnt" icon="count" n={n(nc.length)} label={ts("tileNc")} small={siteIds.length > 1 && !siteId ? ts("tileNcSub", { n: pairs }) : ts("tileNcSubOne")} on={tile === "nc"} onClick={() => setTile(tile === "nc" ? "all" : "nc")} />
+        <Tile hue="h-red" icon="alert" n={n(neg.length)} label={ts("tileNeg")} small={neg.length ? <em>{ts("tileNegSub")}</em> : ts("tileNegNone")} on={tile === "neg"} onClick={() => setTile(tile === "neg" ? "all" : "neg")} />
       </Tiles>
       <SearchLine value={q} onChange={setQ} placeholder={ts("search")} />
       <div className="list" style={{ "--cols": cols } as React.CSSProperties}>
@@ -158,7 +161,7 @@ function Products({
           {error ? (
             <Empty icon="alert">{t("loadError")}</Empty>
           ) : !data ? (
-            <Empty icon="boxes">…</Empty>
+            <Waiting />
           ) : rows.length === 0 ? (
             <Empty icon="check">{ts("empty")}</Empty>
           ) : (

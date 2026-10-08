@@ -115,7 +115,10 @@ export function SiteSeg({
 
 export type Hue = "h-neutral" | "h-amber" | "h-green" | "h-red" | "h-violet" | "j-out" | "j-ret" | "j-rec" | "j-cnt";
 
-/** A counted tile. It is a filter: pressing it narrows the list under it. */
+/**
+ * A counted tile. It is a filter: pressing it narrows the list under it.
+ * `n={null}` while its figure is on its way — a zero would be a claim the desk cannot make yet.
+ */
 export function Tile({
   hue,
   icon,
@@ -127,23 +130,46 @@ export function Tile({
 }: {
   hue: Hue;
   icon: IconName;
-  n: number;
+  n: number | null;
   label: ReactNode;
   small?: ReactNode;
   on?: boolean;
   onClick?: () => void;
 }) {
+  const waiting = n === null;
   return (
-    <button type="button" className={`wt ${hue} ${on ? "on" : ""} ${n === 0 ? "zero" : ""}`} aria-pressed={!!on} onClick={onClick}>
+    <button
+      type="button"
+      className={`wt ${hue} ${on ? "on" : ""} ${n === 0 ? "zero" : ""} ${waiting ? "wait" : ""}`}
+      aria-pressed={!!on}
+      aria-busy={waiting || undefined}
+      onClick={onClick}
+    >
       <span className="hold">
         <Ic n={icon} />
       </span>
       <span className="wt-t">
-        <b>{n.toLocaleString("fr-FR").replace(/\s/g, " ")}</b>
+        {waiting ? <b className="skn" aria-hidden="true" /> : <b>{n.toLocaleString("fr-FR").replace(/\s/g, " ")}</b>}
         <span>{label}</span>
-        {small ? <small>{small}</small> : null}
+        {small && !waiting ? <small>{small}</small> : null}
       </span>
     </button>
+  );
+}
+
+/** Stands in for a list's rows until they arrive — instead of its empty state, which would be untrue. */
+export function Waiting({ rows = 6, style }: { rows?: number; style?: React.CSSProperties }) {
+  const t = useTranslations("warehouse.desk");
+  return (
+    <div className="waiting" role="status" aria-busy="true" aria-label={t("loading")} style={style}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="wrow" aria-hidden="true">
+          <span className="skb th" />
+          <span className="skb ln" />
+          <span className="skb ln sh" />
+        </div>
+      ))}
+    </div>
   );
 }
 

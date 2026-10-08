@@ -28,15 +28,22 @@ const row = (id: string, name: string, stock: number, free: number): WarehouseSt
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
+const swr = vi.hoisted(() => ({ loading: false }));
 vi.mock("swr", () => ({
-  default: () => ({
-    data: { rows: [row("a", "القرآن تدبر وعمل", 1000, 924), row("b", "دمية صغيرة", 12, -2)] },
-    error: undefined,
-    isLoading: false,
-    mutate: vi.fn(),
-  }),
+  default: () =>
+    swr.loading
+      ? { data: undefined, error: undefined, isLoading: true, mutate: vi.fn() }
+      : {
+          data: { rows: [row("a", "القرآن تدبر وعمل", 1000, 924), row("b", "دمية صغيرة", 12, -2)] },
+          error: undefined,
+          isLoading: false,
+          mutate: vi.fn(),
+        },
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  swr.loading = false;
+});
 
 /**
  * The stock list on the phone. The segments count the whole catalogue until a
@@ -118,5 +125,13 @@ describe("WarehouseStockClient — links", () => {
     render(<WarehouseStockClient locale="fr" />);
     const [first] = screen.getAllByRole("link", { name: /Mouvements/ });
     expect(first).toHaveAttribute("href", "/fr/warehouse/stock?tab=journal&product=a");
+  });
+
+  // The chips read « 0 · 0 · 0 · 0 » and the card « 0 » for a moment, then 87.
+  it("shows no count while the stock is on its way", () => {
+    swr.loading = true;
+    render(<WarehouseStockClient locale="fr" />);
+    for (const s of screen.getAllByTestId("wh-stock-seg")) expect(s).not.toHaveTextContent(/\d/);
+    expect(screen.getByRole("heading", { level: 2, name: "Stock" }).parentElement).not.toHaveTextContent(/\d/);
   });
 });

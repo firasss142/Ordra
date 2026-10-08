@@ -18,6 +18,15 @@ export interface ActiveMarketScope {
   marketCode: MarketCode | null;
 }
 
+/**
+ * The super-admin's market as the scope cookie says it — the ONE reading of that cookie. Pages
+ * (below) and API routes (lib/warehouse/scope.ts) must agree, or a screen paints one market from
+ * the server and swaps in another from SWR. No cookie, or a bad one: the default, never « all ».
+ */
+export function scopeFromCookie(raw: string | undefined): MarketScope {
+  return isValidScope(raw) ? raw : DEFAULT_SUPER_ADMIN_SCOPE;
+}
+
 export async function getActiveMarketScope(user: AuthUser): Promise<ActiveMarketScope> {
   if (user.role !== "super_admin") {
     const code = marketIdToCode(user.market_id);
@@ -29,8 +38,7 @@ export async function getActiveMarketScope(user: AuthUser): Promise<ActiveMarket
   }
 
   const cookieStore = await cookies();
-  const raw = cookieStore.get(SCOPE_COOKIE)?.value;
-  const scope: MarketScope = isValidScope(raw) ? raw : DEFAULT_SUPER_ADMIN_SCOPE;
+  const scope = scopeFromCookie(cookieStore.get(SCOPE_COOKIE)?.value);
   const marketId = scopeToMarketId(scope);
   return {
     scope,

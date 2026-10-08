@@ -10,7 +10,7 @@ import type { ReturnsQueuePage } from "@/app/api/warehouse/returns/route";
 import type { ReturnsStats } from "@/app/api/warehouse/returns/stats/route";
 import type { WarehouseHistoryRow } from "@/app/api/warehouse/history/route";
 import {
-  DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pager, Pill, SearchLine, Sec, SiteSeg, Tag, Thumb, Tile, Tiles, fnum, usePaged, useToast,
+  DeskHeader, DeskPage, Drawer, Eb, Empty, Ic, LiveSub, Pager, Pill, SearchLine, Sec, SiteSeg, Tag, Thumb, Tile, Tiles, Waiting, fnum, usePaged, useToast,
 } from "./ui";
 import { useDeskSite } from "./useDeskSite";
 
@@ -41,12 +41,12 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
   const currency = market === "ly" ? "LYD" : "TND";
 
   const site = siteId ? `&warehouse_id=${siteId}` : "";
-  const { data: darb, mutate } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?limit=200${site}`, jsonFetcher, {
+  const { data: darb, error: darbError, mutate } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?limit=200${site}`, jsonFetcher, {
     revalidateOnFocus: true,
   });
-  const { data: way } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?state=way&limit=200${site}`, jsonFetcher);
-  const { data: stats, mutate: mutateStats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", jsonFetcher);
-  const { data: hist, mutate: mutateHist } = useSWR<{ rows: WarehouseHistoryRow[] }>(
+  const { data: way, error: wayError } = useSWR<ReturnsQueuePage>(`/api/warehouse/returns?state=way&limit=200${site}`, jsonFetcher);
+  const { data: stats, error: statsError, mutate: mutateStats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", jsonFetcher);
+  const { data: hist, error: histError, mutate: mutateHist } = useSWR<{ rows: WarehouseHistoryRow[] }>(
     `/api/warehouse/history?kind=return&limit=100&date_from=${today}`,
     jsonFetcher,
   );
@@ -59,6 +59,12 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
   const wayRows = useMemo(() => way?.orders ?? [], [way]);
   const doneRows = useMemo(() => (hist?.rows ?? []).filter((r) => r.at.slice(0, 10) >= today), [hist, today]);
   const value = darbRows.reduce((s, r) => s + Number(r.total_price ?? 0), 0);
+
+  // Answered = arrived or failed. Before that the desk shows placeholders, never a zero.
+  const darbIn = !!darb || !!darbError;
+  const wayIn = !!way || !!wayError;
+  const histIn = !!hist || !!histError;
+  const doneN = stats ? stats.doneToday : statsError && histIn ? doneRows.length : null;
 
   const match = (vals: Array<string | null | undefined>) => {
     const n = q.trim().toLowerCase();
@@ -122,7 +128,7 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
         <Tile
           hue="j-ret"
           icon="back"
-          n={darbRows.length}
+          n={darbIn ? darbRows.length : null}
           label={tr("tileDarb")}
           small={value > 0 ? tr.rich("tileDarbSub", { value: fnum(value), currency, em: (c) => <em>{c}</em> }) : tr("tileDarbNone")}
           on={tile === "darb"}
@@ -131,7 +137,7 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
         <Tile
           hue="h-neutral"
           icon="truck"
-          n={wayRows.length}
+          n={wayIn ? wayRows.length : null}
           label={tr("tileWay")}
           small={tr("tileWaySub")}
           on={tile === "way"}
@@ -140,7 +146,7 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
         <Tile
           hue="h-green"
           icon="check"
-          n={stats?.doneToday ?? doneRows.length}
+          n={doneN}
           label={tr("tileDone")}
           small={stats && stats.doneToday > 0 ? tr("tileDoneSub", { n: stats.restockedToday }) : tr("tileDoneNone")}
           on={tile === "done"}
@@ -160,7 +166,9 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
               <span />
             </div>
             <div className="rows">
-              {doneRows.length === 0 ? (
+              {!histIn ? (
+                <Waiting />
+              ) : doneRows.length === 0 ? (
                 <Empty icon="back">{tr("emptyDone")}</Empty>
               ) : (
                 donePage.rows.map((h) => (
@@ -198,7 +206,9 @@ export function ReturnsDesk({ market, dateLabel, today }: { market: "ly" | "tn";
               <span />
             </div>
             <div className="rows">
-              {listed.length === 0 ? (
+              {!(tile === "way" ? wayIn : darbIn) ? (
+                <Waiting />
+              ) : listed.length === 0 ? (
                 <Empty icon="check">{tile === "way" ? tr("emptyWay") : q ? tr("emptyFiltered") : tr("emptyDarb")}</Empty>
               ) : (
                 listPage.rows.map((r) => {

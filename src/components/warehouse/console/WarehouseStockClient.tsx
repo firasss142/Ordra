@@ -53,6 +53,8 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
   const query = filter.q;
 
   const all = useMemo(() => data?.rows ?? [], [data]);
+  // Before the stock answers there are no counts to show — « 0 » then 87 read as a change.
+  const known = !!data || !!error;
 
   /*
    * The search the mockup promises. A picker standing at a shelf knows the
@@ -146,11 +148,15 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
                       : key === "low" && count > 0
                         ? "border-wh-warn-edge bg-wh-warn-bg text-wh-warn"
                         : "border-wh-border bg-wh-surface text-wh-ink-2",
-                  count === 0 && !on ? "opacity-45" : "",
+                  known && count === 0 && !on ? "opacity-45" : "",
                 ].join(" ")}
               >
                 {tf(key)}
-                <b className="tabular-nums">{count}</b>
+                {known ? (
+                  <b className="tabular-nums">{count}</b>
+                ) : (
+                  <b className="inline-block h-[11px] w-[16px] rounded-[4px] bg-wh-sunken" aria-hidden="true" />
+                )}
               </button>
             );
           })}
@@ -198,7 +204,7 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
       </WhKpiGrid>
       </div>
 
-      <WhCard title={t("title")} hint={`${rows.length}`}>
+      <WhCard title={t("title")} hint={known ? `${rows.length}` : undefined}>
         {error ? (
           <p className="px-4 py-8 text-center text-[13px] text-wh-bad">{t("loadError")}</p>
         ) : isLoading ? (

@@ -1682,5 +1682,10 @@ button.sb-mchip { cursor: pointer; }
   .rsk-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .rsk-action{display:none}
 }
-/* inside a shell that already paints the ground and the gutters */
-.agt .rsk,.wh-mobile .rsk{min-height:0;padding:0;background:none}
+/* inside a shell that already paints the ground: the agent band brings its own gutters;
+   the warehouse phone shell does not (its pages carry px-4), so the skeleton keeps 16px and
+   drops the desk's action button */
+.agt .rsk,.wh-mobile .rsk{min-height:0;background:none}
+.agt .rsk{padding:0}
+.wh-mobile .rsk{padding:16px}
+.wh-mobile .rsk-action{display:none}

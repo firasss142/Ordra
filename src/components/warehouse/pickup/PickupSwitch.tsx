@@ -81,12 +81,24 @@ export function PickupSwitch({ variant = "bench", className }: PickupSwitchProps
   );
 
   const sites = data?.sites ?? [];
-  if (isLoading || sites.length === 0) return null;
-
   const bench = variant === "bench";
   const card = bench
     ? "rounded-[14px] border border-wm-card-edge bg-wm-card"
     : "rounded-card border border-border-subtle bg-surface";
+
+  // It sits at the top of the screen: rendering nothing while it loads, then the card, pushed
+  // the whole page down under the agent's thumb. Hold one building's height until it answers.
+  if (isLoading) {
+    return (
+      <div
+        data-testid="wh-pickup-switch-wait"
+        aria-busy="true"
+        aria-hidden="true"
+        className={[card, "h-[88px] animate-pulse motion-reduce:animate-none", className ?? ""].join(" ")}
+      />
+    );
+  }
+  if (sites.length === 0) return null;
   const ink = bench ? "text-wm-ink" : "text-ink-primary";
   const ink2 = bench ? "text-wm-ink-2" : "text-ink-secondary";
 

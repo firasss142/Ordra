@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
-import { SCOPE_COOKIE } from "@/lib/auth/market-scope";
-import { isValidScope, marketIdToCode, scopeToMarketId } from "@/lib/markets";
+import { marketIdToCode } from "@/lib/markets";
+import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { fetchDayLoopRows, marketToday } from "@/lib/warehouse/day-loop-server";
 import { assembleDayLoop, type DayLoopPayload } from "@/lib/warehouse/day-loop-assemble";
@@ -32,18 +32,9 @@ async function handleGET(req: NextRequest) {
 
   const supabase = await createClient();
 
-  // Same rule as the bench: a super-admin follows the topbar's market, everyone
-  // else stays in their own whatever the query says.
-  const requestedMarket = req.nextUrl.searchParams.get("market_id");
-  const cookieScope = req.cookies.get(SCOPE_COOKIE)?.value;
-  const marketId =
-    actor.role !== "super_admin"
-      ? (actor.market_id ?? null)
-      : requestedMarket && requestedMarket !== "all"
-        ? requestedMarket
-        : isValidScope(cookieScope)
-          ? scopeToMarketId(cookieScope)
-          : null;
+  // Same rule as the bench and the page that painted the first frame: a super-admin follows the
+  // topbar's market, everyone else stays in their own whatever the query says.
+  const { marketId } = resolveWarehouseScope(req, actor);
 
   const site = await resolveSiteFilter(supabase, {
     actor,
@@ -55,13 +46,16 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ siteUnassigned: true } satisfies TodayResponse);
   }
 
+  const askedLocale = req.nextUrl.searchParams.get("locale");
+  const readerLocale = askedLocale === "ar" || askedLocale === "fr" ? askedLocale : null;
   const rows = await fetchDayLoopRows(supabase, { marketId });
   const payload = assembleDayLoop(rows, {
     focus: site.warehouseId,
     today: marketToday(marketId),
     // Building names are place names painted on a wall: Libya reads them in
-    // Arabic, as on the stock screen.
-    locale: marketIdToCode(marketId) === "ly" ? "ar" : "fr",
+    // Arabic, as on the stock screen — unless the page says which language it
+    // painted its first frame in (the desk does), so a refresh never renames them.
+    locale: readerLocale ?? (marketIdToCode(marketId) === "ly" ? "ar" : "fr"),
     withManagerViews: actor.role !== "warehouse_agent",
   });
 

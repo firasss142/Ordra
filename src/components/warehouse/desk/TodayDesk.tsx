@@ -230,7 +230,7 @@ export function TodayDesk({
 
       <div className="jobs">
         {jobs.map((j, i) => (
-          <Link key={j.key} href={href(j.path)} data-job={j.key} className={`job ${j.hue}`} style={{ animationDelay: `${i * 60}ms` }}>
+          <Link key={j.key} href={href(j.path)} data-job={j.key} className={`job ${j.hue}`}>
             <div className="job-h">
               <span className="hold">
                 <Ic n={j.icon} />

@@ -10,7 +10,7 @@ import { useReceptions } from "@/hooks/useReceptions";
 import type { ProjectedReception } from "@/lib/receptions/project";
 import type { ProjectedPurchaseOrder } from "@/lib/purchases/orders";
 import { ReceptionSheet } from "@/components/warehouse/receptions/ReceptionSheet";
-import { DeskHeader, DeskPage, Ic, LiveSub, Pager, Pill, SiteSeg, Tag, Thumb, fnum, usePaged, useToast } from "./ui";
+import { DeskHeader, DeskPage, Ic, LiveSub, Pager, Pill, SiteSeg, Tag, Thumb, Waiting, fnum, usePaged, useToast } from "./ui";
 import { useDeskSite } from "./useDeskSite";
 import { ArrivalDrawer } from "./ArrivalDrawer";
 import { SettleDrawer } from "./SettleDrawer";
@@ -46,8 +46,8 @@ export function ReceiveDesk({
   const [toast, showToast] = useToast();
   const currency = market === "ly" ? "LYD" : "TND";
 
-  const { receptions, mutate } = useReceptions({ warehouseId: siteId });
-  const { data: pos, mutate: mutatePos } = useSWR<{ orders?: ProjectedPurchaseOrder[] }>(
+  const { receptions, isLoading: receptionsLoading, error: receptionsError, mutate } = useReceptions({ warehouseId: siteId });
+  const { data: pos, error: posError, mutate: mutatePos } = useSWR<{ orders?: ProjectedPurchaseOrder[] }>(
     marketId ? `/api/purchases/orders?status=open&market_id=${marketId}` : null,
     jsonFetcher,
   );
@@ -66,6 +66,11 @@ export function ReceiveDesk({
   const [openPage, setOpenPage] = usePaged(open, siteId ?? "");
   const [settledPage, setSettledPage] = usePaged(settled, siteId ?? "");
   const settling = settleId ? receptions.find((r) => r.id === settleId) ?? null : null;
+
+  // Answered = arrived or failed. Until then a column shows placeholders: « 0 » and « tout est
+  // soldé » would be claims the desk cannot make yet.
+  const posIn = !marketId || !!pos || !!posError;
+  const receptionsIn = !receptionsLoading || !!receptionsError;
 
   const site = (r: { warehouse_id: string; warehouse_name?: string | null }) => nameOf(r.warehouse_id) ?? r.warehouse_name ?? "—";
   const day = (iso: string | null) =>
@@ -148,10 +153,12 @@ export function ReceiveDesk({
           <div className="sh">
             <span className="hold" style={{ width: 34, height: 34, borderRadius: 11 }}><Ic n="truck" /></span>
             <b id="ent-st1">{tr("stage1")}</b>
-            <span className="n">{enRoute.length}</span>
+            {posIn ? <span className="n">{enRoute.length}</span> : null}
           </div>
           <p>{tr("stage1Sub")}</p>
-          {enRoute.length === 0 ? (
+          {!posIn ? (
+            <Waiting rows={3} />
+          ) : enRoute.length === 0 ? (
             <div className="empty" style={{ background: "none", padding: "22px 10px" }}>{marketId ? tr("stage1Empty") : tr("stage1NoMarket")}</div>
           ) : (
             poPage.rows.map((po) => {
@@ -199,10 +206,12 @@ export function ReceiveDesk({
           <div className="sh">
             <span className="hold" style={{ width: 34, height: 34, borderRadius: 11 }}><Ic n="dock" /></span>
             <b id="ent-st2">{tr("stage2")}</b>
-            <span className="n">{open.length}</span>
+            {receptionsIn ? <span className="n">{open.length}</span> : null}
           </div>
           <p>{tr("stage2Sub")}</p>
-          {open.length === 0 ? (
+          {!receptionsIn ? (
+            <Waiting rows={3} />
+          ) : open.length === 0 ? (
             <div className="empty" style={{ background: "none", padding: "22px 10px" }}><Ic n="check" />{tr("stage2Empty")}</div>
           ) : (
             openPage.rows.map((r: ProjectedReception) => (
@@ -233,10 +242,12 @@ export function ReceiveDesk({
           <div className="sh">
             <span className="hold" style={{ width: 34, height: 34, borderRadius: 11 }}><Ic n="receipt" /></span>
             <b id="ent-st3">{tr("stage3")}</b>
-            <span className="n">{settled.length}</span>
+            {receptionsIn ? <span className="n">{settled.length}</span> : null}
           </div>
           <p>{tr("stage3Sub")}</p>
-          {settled.length === 0 ? (
+          {!receptionsIn ? (
+            <Waiting rows={3} />
+          ) : settled.length === 0 ? (
             <div className="empty" style={{ background: "none", padding: "22px 10px" }}>{tr("stage3Empty")}</div>
           ) : (
             settledPage.rows.map((r) => (

@@ -56,7 +56,7 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
   const tBench = useTranslations("warehouse.bench");
   const tStatus = useTranslations("orders.statuses");
 
-  const { data: stats, mutate: mutateStats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", jsonFetcher, {
+  const { data: stats, error: statsError, mutate: mutateStats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", jsonFetcher, {
     revalidateOnFocus: true,
   });
   const { data: page, error: pageError, mutate } = useSWR<{ orders: WarehouseOrderRow[]; siteUnassigned?: boolean }>(
@@ -199,6 +199,16 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
     );
   }
 
+  // Before anything answers, the chips have no figure — « 0 » then 87 read as a change.
+  const queueN = stats ? stats.queueCount : page ? orders.length : null;
+  const doneN = stats ? stats.doneToday : statsError ? 0 : null;
+  const chipN = (n: number | null) =>
+    n === null ? (
+      <b className="inline-block h-[11px] w-[18px] rounded-[4px] bg-wm-track align-middle" aria-hidden="true" />
+    ) : (
+      <b className="tabular-nums text-wm-ink">{n}</b>
+    );
+
   return (
     // « Rentrer » — the second job of the day, in its hue.
     <div className="job-returns px-4 py-4">
@@ -206,10 +216,10 @@ export function ReturnsHome({ marketId }: { marketId: string | null }) {
         <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-wm-ink">{t("title")}</h1>
         <span className="flex gap-1.5">
           <span data-testid="wh-returns-chip-queue" className="rounded-pill border border-wm-card-edge bg-wm-card px-2.5 py-0.5 text-[13px] text-wm-ink-2">
-            {t("queueChip")} <b className="tabular-nums text-wm-ink">{stats?.queueCount ?? orders.length}</b>
+            {t("queueChip")} {chipN(queueN)}
           </span>
           <span data-testid="wh-returns-chip-done" className="rounded-pill border border-wm-card-edge bg-wm-card px-2.5 py-0.5 text-[13px] text-wm-ink-2">
-            {t("doneChip")} <b className="tabular-nums text-wm-ink">{stats?.doneToday ?? 0}</b>
+            {t("doneChip")} {chipN(doneN)}
           </span>
         </span>
       </div>
