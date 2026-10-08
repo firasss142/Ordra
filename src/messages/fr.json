@@ -10425,7 +10425,7 @@
     },
     "stores": {
       "title": "Vos boutiques",
-      "meta": "Cliquez une boutique pour ouvrir sa performance",
+      "meta": "Cliquez une boutique pour voir ses commandes",
       "metaPhone": "Touchez une boutique pour son détail",
       "cards": "Cartes",
       "list": "Liste",
@@ -10435,9 +10435,9 @@
       "silentLast": "dernière {ago}",
       "silentNever": "aucune commande, jamais",
       "connect": "Connecter une boutique",
-      "perf": "Voir sa performance",
+      "perf": "Voir ses commandes",
       "close": "Fermer",
-      "open": "{name} — ouvrir sa performance"
+      "open": "{name} — voir ses commandes"
     },
     "card": {
       "received": "{n, plural, one {commande reçue} other {commandes reçues}}",
@@ -10512,7 +10512,10 @@
       "best": "Meilleure livraison des boutiques",
       "below": "Livre moins bien que les autres",
       "ok": "Rien à signaler",
-      "vsMarket": "{del} livrées · {mkt} pour l’ensemble"
+      "vsMarket": "{del} livrées · {mkt} pour l’ensemble",
+      "ca": "Chiffre d’affaires · {v}",
+      "caPaid": "dont encaissé {v}",
+      "caSub": "{n, plural, one {sur # commande reçue} other {sur # commandes reçues}}"
     },
     "empty": {
       "wait": "« {store} » attend sa première commande",

@@ -429,6 +429,15 @@ function noteOf(c: ReturnType<typeof useHome>, x: Card): { cls: string; icon: st
         s: t("note.stoppedSub", { recent: f.n(n.stop.recent), days: f.n(n.stop.days), usual: f.n(n.stop.usual) }) + (n.ads ? t("note.stoppedAds") : ""),
       };
     case "unmapped":
+      // The owner reads the store's CA here (2026-10-08); a manager, who sees no money, keeps the orders to link.
+      if (c.owner && x.ca != null) {
+        return {
+          cls: "ca",
+          icon: "cash",
+          b: t("note.ca", { v: moneyText(f, x.ca) }),
+          s: (x.paid ?? 0) > 0 ? t("note.caPaid", { v: moneyText(f, x.paid ?? 0) }) : t("note.caSub", { n: x.n }),
+        };
+      }
       return { cls: "warn", icon: "link", b: t("note.unmapped", { n: n.n }), s: t("note.unmappedSub", { platform: t(`platform.${x.platform}`) }) };
     case "waiting":
       return { cls: "new", icon: "clock", b: t("note.waiting"), s: x.connectedAt ? t("note.waitingSub", { when: c.when(x.connectedAt) }) : "" };
