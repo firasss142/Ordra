@@ -54,8 +54,8 @@ beforeEach(() => {
     },
     [`/api/mappings/unmatched?type=products&market_id=${LY}`]: {
       data: [
-        { id: "o1", storefront_id: "s1", product_name: "Crème Biovera 50 ml", external_variant_id: "4471", external_product_id: "p9", customer_city: null },
-        { id: "o2", storefront_id: "s1", product_name: "Crème Biovera 50 ml", external_variant_id: "4471", external_product_id: "p9", customer_city: null },
+        { id: "o1", created_at: "2026-09-30T09:00:00Z", storefront_id: "s1", product_name: "Crème Biovera 50 ml", external_variant_id: "4471", external_product_id: "p9", customer_city: null },
+        { id: "o2", created_at: "2026-10-01T09:00:00Z", storefront_id: "s1", product_name: "Crème Biovera 50 ml", external_variant_id: "4471", external_product_id: "p9", customer_city: null },
       ],
     },
     [`/api/mappings/unmatched?type=cities&market_id=${LY}`]: { data: [] },
@@ -70,6 +70,7 @@ afterEach(() => vi.useRealTimers());
 
 const mount = (user: AuthUser) => render(<ShopsTopic user={user} marketId={LY} marketCode="ly" />);
 const shopsCard = () => screen.getByRole("heading", { name: "Boutiques" }).closest("section") as HTMLElement;
+const matchCard = () => screen.getByRole("region", { name: "Produits et villes à associer" });
 
 describe("Réglages › Boutiques", () => {
   it("dates each shop from its orders and says which ones fell silent", () => {
@@ -218,16 +219,68 @@ describe("Réglages › Boutiques", () => {
     expect(await within(panel).findByText("a".repeat(48))).toBeInTheDocument();
   });
 
-  it("associates an unknown product: one row per shop and reference, with its waiting orders", async () => {
+  it("lists the shops first and the names to match under them, Produits before Villes", () => {
+    mount(admin);
+    const cards = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(cards.indexOf("Boutiques")).toBeLessThan(cards.indexOf("Produits et villes à associer"));
+    const tabs = within(screen.getByRole("tablist", { name: "Produits et villes à associer" })).getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Produits1", "Villes0"]);
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("proposes Ordra's product for an unknown one and associates it in one click", async () => {
     mount(manager);
-    expect(screen.getByText("Crème Biovera 50 ml")).toBeInTheDocument();
-    expect(screen.getByText(/2 commandes en attente/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Associer" }));
-    const panel = screen.getByRole("dialog");
-    await userEvent.click(within(panel).getByRole("radio", { name: /Crème Biovera — 50 ml/ }));
-    await userEvent.click(within(panel).getByRole("button", { name: "Associer" }));
+    const card = matchCard();
+    const row = within(card).getByText("Crème Biovera 50 ml").closest("tr") as HTMLElement;
+    expect(row).toHaveTextContent("Crème Biovera — 50 ml");
+    expect(row).toHaveTextContent("Nom identique");
+    await userEvent.click(within(row).getByRole("button", { name: "Associer" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/mappings/products", expect.objectContaining({ method: "POST" })));
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ storefront_id: "s1", external_variant_id: "4471", external_product_id: "p9", product_id: "prod-1" });
+  });
+
+  it("« Choisir… » opens the picker on the proposal, and another product can be chosen", async () => {
+    mount(manager);
+    await userEvent.click(within(matchCard()).getByRole("button", { name: "Choisir…" }));
+    const panel = screen.getByRole("dialog");
+    expect(within(panel).getByRole("radio", { name: /Crème Biovera — 50 ml/ })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(panel).getByRole("radio", { name: /Sérum Vitamine C/ }));
+    await userEvent.click(within(panel).getByRole("button", { name: "Associer" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/mappings/products", expect.objectContaining({ method: "POST" })));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).product_id).toBe("prod-2");
+  });
+
+  it("binds every waiting order of every identical city in one click", async () => {
+    swr.byKey[`/api/mappings/unmatched?type=products&market_id=${LY}`] = { data: [] };
+    swr.byKey[`/api/mappings/unmatched?type=cities&market_id=${LY}`] = {
+      data: [
+        ...["c1", "c2", "c3"].map((id) => ({ id, created_at: "2026-03-10T09:00:00Z", storefront_id: "s1", product_name: "x", external_variant_id: null, external_product_id: null, customer_city: "Misrata" })),
+        { id: "c4", created_at: "2026-09-30T09:00:00Z", storefront_id: "s1", product_name: "x", external_variant_id: null, external_product_id: null, customer_city: "Zliten" },
+        { id: "c5", created_at: "2026-09-30T09:00:00Z", storefront_id: "s1", product_name: "x", external_variant_id: null, external_product_id: null, customer_city: "Nowhere" },
+      ],
+    };
+    swr.byKey[`/api/mappings/cities?market_id=${LY}`] = { data: [{ id: 12, city: "Misrata" }, { id: 13, city: "Zliten" }, { id: 14, city: "Tripoli" }] };
+    mount(admin);
+    const card = matchCard();
+    expect(within(card).getByRole("tab", { name: /Villes/ })).toHaveAttribute("aria-selected", "true");
+    expect(within(card).getByText("Nowhere").closest("tr")).toHaveTextContent("Aucune proposition");
+    await userEvent.click(within(card).getByRole("button", { name: /noms identiques/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    const bodies = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body)).sort((a, b) => a.order_id.localeCompare(b.order_id));
+    expect(bodies).toEqual([
+      { order_id: "c1", darb_destination_id: 12 },
+      { order_id: "c2", darb_destination_id: 12 },
+      { order_id: "c3", darb_destination_id: 12 },
+      { order_id: "c4", darb_destination_id: 13 },
+    ]);
+    expect(fetchMock.mock.calls.every((c) => c[0] === "/api/mappings/cities")).toBe(true);
+  });
+
+  it("says so in one line when nothing waits", () => {
+    swr.byKey[`/api/mappings/unmatched?type=products&market_id=${LY}`] = { data: [] };
+    mount(admin);
+    expect(screen.getByText("Tout est associé")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 });
 

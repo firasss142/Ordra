@@ -146,7 +146,7 @@ function RetrySlots({ form, marketId, editable }: { form: MarketSettingsForm; ma
             {slots.map((slot, i) => (
               <span
                 key={i}
-                className={`inline-flex h-[36px] items-center gap-[2px] rounded-[6px] border bg-white pe-[4px] ps-[8px] ${HHMM.test(slot) ? "border-[#D2D5D9]" : "border-status-critical"}`}
+                className={`rg-tchip${HHMM.test(slot) ? "" : " bad"}`}
               >
                 <input
                   type="text"
@@ -156,20 +156,20 @@ function RetrySlots({ form, marketId, editable }: { form: MarketSettingsForm; ma
                   value={slot}
                   aria-label={t("fields.attempt_retry_times.slot", { n: i + 1 })}
                   onChange={(e) => setSlots(slots.map((s, j) => (j === i ? e.target.value : s)))}
-                  className="w-[52px] border-0 bg-transparent text-center text-[14px] tabular-nums outline-none"
+                  className="w-[48px]"
                 />
                 <button
                   type="button"
                   aria-label={t("fields.attempt_retry_times.remove")}
                   onClick={() => setSlots(slots.filter((_, j) => j !== i))}
-                  className="grid h-[24px] w-[24px] place-items-center rounded-[4px] text-ink-secondary hover:bg-surface-selected"
+                  className="x"
                 >
                   <X className="h-[14px] w-[14px]" aria-hidden />
                 </button>
               </span>
             ))}
             {slots.length < 3 && (
-              <RgButton size="sm" onClick={() => setSlots([...slots, nextSlot()])}>
+              <RgButton size="sm" className="rg-tadd" onClick={() => setSlots([...slots, nextSlot()])}>
                 <Plus aria-hidden />
                 {t("fields.attempt_retry_times.add")}
               </RgButton>

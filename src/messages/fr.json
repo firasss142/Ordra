@@ -7791,6 +7791,7 @@
   },
   "reglages": {
     "title": "Réglages",
+    "crumb": "Système",
     "marketLabel": {
       "admin": "Marché réglé",
       "manager": "Votre marché"
@@ -8431,8 +8432,30 @@
       "nothingFound": "Aucun résultat.",
       "done": "Associé",
       "pick": "Choisissez d’abord un élément de la liste.",
-      "productSubtitle": "« {name} » · {shop} · {pending}",
-      "citySubtitle": "« {name} » · {pending}"
+      "allMatchedSub": "Aucune commande n’attend un produit ou une ville.",
+      "waitProducts": "{n, plural, one {commande attend un produit} other {commandes attendent un produit}}",
+      "waitCities": "{n, plural, one {commande attend une ville} other {commandes attendent une ville}}",
+      "oldest": "la plus ancienne depuis le",
+      "acceptSame": "{n, plural, one {Associer le nom identique} other {Associer les # noms identiques}} · {orders, plural, one {# commande} other {# commandes}}",
+      "select": "Sélection",
+      "selectOne": "Sélectionner « {name} »",
+      "colReceived": "Reçu de la boutique",
+      "colOrders": "Commandes",
+      "colSince": "Attend depuis",
+      "colProposal": "Proposition d’Ordra",
+      "same": "Nom identique",
+      "near": "Proche",
+      "noProposal": "Aucune proposition",
+      "choose": "Choisir…",
+      "selected": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+      "acceptSelected": "Associer aux propositions",
+      "doneMany": "{n, plural, one {# nom associé} other {# noms associés}}",
+      "partial": "{ok} sur {n} associés. Réessayez pour le reste.",
+      "since": "depuis le {date}",
+      "bindN": "{n, plural, one {Associer la commande} other {Associer les # commandes}}",
+      "proposed": "Proposé",
+      "allProducts": "Tous les produits",
+      "allDestinations": "Toutes les destinations"
     },
     "whatsapp": {
       "numberTitle": "Numéro WhatsApp",

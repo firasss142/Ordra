@@ -1,0 +1,716 @@
+<!doctype html>
+<!--
+  Réglages — planche v3 (2026-10-08). « Aurore calme », dans la langue de /leads (Prospects)
+  et /feedback (Voix du client) : sol aurore, cartes de verre 20 px, en-tête fil + grand titre,
+  contrôles à droite de l'en-tête, tiroirs flottants, barre sombre en bas pour enregistrer.
+  v2 (prototypes/reglages-v2.html) reste la référence du CONTENU : mêmes sujets, mêmes réglages,
+  mêmes droits. v3 change la forme, et refait « Produits et villes à associer ».
+
+  Ce que le propriétaire compare :
+    topic=shops|orders|team|delivery|rejections   le sujet ouvert (les 6 autres sujets
+                                                   utilisent exactement les mêmes pièces)
+    role=sa|mm          super admin (tout modifiable) ou manager (lecture seule hors quotidien)
+    drawer=none|city|product|shop                  un tiroir ouvert
+    dirty=0|1           une modification en cours → la barre « Enregistrer » apparaît
+    match=pending|empty Tunisie aujourd'hui (317 commandes bloquées) ou tout associé
+    lang=fr|ar          le studio reste LTR, seule la scène est en miroir
+
+  Chiffres « à associer » : Tunisie, base de prod lue le 8 oct. 2026 — 155 commandes attendent
+  une ville (9 noms, la plus ancienne depuis le 10 mars), 162 attendent un produit (8 références,
+  toutes du 5 au 7 oct.). Sfax, Sousse, Monastir, Bizerte, Ariana, Ben Arous et Nabeul existent
+  À L'IDENTIQUE dans la table des villes : 146 commandes se débloquent en un clic.
+  Noms de boutiques, d'agents et de transporteurs INVENTÉS (dépôt public). Noms de produits
+  réécrits.
+  Touches : 1–5 sujet · R rôle · D modification · M à associer · L langue · Échap ferme
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Réglages v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --f:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --fa:"IBM Plex Sans Arabic","Plus Jakarta Sans",system-ui,sans-serif;
+  --ink:#0F1728; --ink-2:#475467; --ink-3:#667085; --quiet:#8A94A6; --ink-4:#C9CED7;
+  --line:rgba(15,23,40,.07); --track:rgba(15,23,40,.06);
+  --card:rgba(255,255,255,.86); --card-bd:rgba(16,24,40,.06); --r:20px;
+  --sh:inset 0 1px 0 rgba(255,255,255,.95),0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(42,52,110,.05);
+  --sh-float:0 20px 52px rgba(42,52,110,.18); --sh-panel:0 30px 80px rgba(42,52,110,.24);
+  --brand:#15803D; --brand-h:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+  --good:#067647; --good-bg:#ECFDF3; --bad:#B42318; --bad-bg:#FEF3F2; --warn:#B54708; --warn-bg:#FFF4E0; --warn-dot:#F79009;
+  --flat:#475467; --flat-bg:#F2F4F7;
+  /* the four menu sections: calm tints, one hue each */
+  --g-sales:#15803D; --g-sales-bg:#E9F6EE;
+  --g-ship:#2E6BD9; --g-ship-bg:#EAF1FD;
+  --g-grow:#7A4BD8; --g-grow-bg:#F2EDFD;
+  --g-sys:#475467; --g-sys-bg:#EEF0F3;
+  --aurore:radial-gradient(58% 40% at 2% 0%,#D3DBFF 0%,transparent 72%),radial-gradient(48% 36% at 100% 0%,#FAD3EC 0%,transparent 72%),
+           radial-gradient(56% 46% at 98% 100%,#C6F2DA 0%,transparent 72%),radial-gradient(52% 46% at 0% 100%,#FFE6B3 0%,transparent 72%),
+           radial-gradient(40% 30% at 50% 50%,#EDE7FF 0%,transparent 80%),#F6F7FB;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:14px/1.45 var(--f);color:var(--ink);-webkit-font-smoothing:antialiased;background:#F6F7FB}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+h1,h2,h3,h4,p{margin:0}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+
+/* ── studio bar (not part of the design) ── */
+.studio{position:relative;z-index:90;background:#0E1013;color:#E6E8EB;padding:10px 20px 11px;display:grid;gap:7px;direction:ltr;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.studio .row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.studio .word{font-weight:800;font-size:15px}
+.studio .word small{font-weight:500;color:#7F858F;font-size:12.5px;margin-inline-start:8px}
+.studio .grp{display:flex;align-items:center;gap:7px}
+.studio .glab{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7F858F}
+.studio .seg{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:#1B1F26}
+.studio .seg button{height:27px;padding:0 10px;border-radius:7px;font-size:12.5px;font-weight:600;color:#B5BAC2;white-space:nowrap}
+.studio .seg button:hover{color:#fff}
+.studio .seg button.on{background:#2A303A;color:#fff}
+.studio .why{font-size:12.5px;color:#B5BAC2;line-height:1.5}
+.studio .why b{color:#fff}
+
+/* ── app shell (sidebar is the live one, simplified) ── */
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+.side{background:#0E1013;color:#C9CDD3;padding:16px 12px;display:flex;flex-direction:column;gap:2px;font-size:13.5px;position:sticky;top:0;height:100vh;overflow:auto}
+.side .brand{padding:4px 8px 14px;color:#fff;font-weight:800;font-size:17px}
+.side .mk{margin:0 2px 14px;padding:9px 10px;border-radius:12px;background:#171A20;border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:9px;font-size:13px;color:#fff;font-weight:600}
+.side .mk i{width:26px;height:26px;border-radius:7px;background:#E70013;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:800}
+.side .mk small{display:block;color:#7F858F;font-weight:500;font-size:11.5px}
+.side .sec{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;color:#C9CDD3;font-weight:500}
+.side .sec .ic{color:#7F858F}
+.side .glab2{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7F858F;padding:14px 10px 4px}
+.side .sec.on{background:rgba(255,255,255,.07);color:#fff;font-weight:700}
+.side .sec.on .ic{color:#fff}
+
+.stage{background:var(--aurore);background-attachment:fixed;min-width:0;position:relative}
+.stage[dir=rtl]{font-family:var(--fa)}
+.page{max-width:1280px;margin:0 auto;padding:26px 32px 120px;display:flex;flex-direction:column;gap:20px}
+
+/* header — the /feedback + /leads header */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.crumb{font-size:12.5px;font-weight:600;color:var(--ink-3);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.crumb .ic{width:12px;height:12px;color:var(--ink-4)}
+[dir=rtl] .crumb .ic{transform:scaleX(-1)}
+.ph h1{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+[dir=rtl] .ph h1{letter-spacing:0}
+.ph .subl{margin-top:7px;font-size:13.5px;color:var(--ink-2);font-weight:500;max-width:68ch}
+.ph .end{display:flex;align-items:center;gap:10px}
+.segc{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.segc button{height:34px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.segc button:hover{color:var(--ink)}
+.segc button.on{background:#fff;color:var(--ink);box-shadow:0 4px 14px rgba(42,52,110,.10)}
+.segc .n{font-size:12px;font-weight:700;color:var(--ink-3)}
+.segc button.on .n{color:var(--ink-2)}
+.cc{display:inline-grid;place-items:center;height:20px;min-width:24px;padding:0 5px;border-radius:6px;font-size:10.5px;font-weight:800;letter-spacing:.04em;background:rgba(15,23,40,.06);color:var(--ink-2)}
+.on .cc{background:var(--brand-bg);color:var(--brand-h)}
+.mchip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 8px;border-radius:12px;background:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.95);font-size:13.5px;font-weight:700;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.mchip small{color:var(--ink-3);font-weight:600}
+
+/* body: rail + content */
+.body{display:grid;grid-template-columns:248px minmax(0,1fr);gap:24px;align-items:start}
+.rail.card{position:sticky;top:18px;padding:10px;display:flex;flex-direction:column;gap:2px}
+.rail h3{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:12px 10px 6px}
+[dir=rtl] .rail h3{letter-spacing:0;text-transform:none;font-size:12px}
+.rail h3:first-child{padding-top:4px}
+.rail a{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:12px;font-size:14px;font-weight:600;color:var(--ink-2);text-decoration:none;cursor:pointer}
+.rail a:hover{background:rgba(255,255,255,.7);color:var(--ink)}
+.rail a.on{background:#fff;color:var(--ink);font-weight:800;box-shadow:0 4px 14px rgba(42,52,110,.10)}
+.rail .ti{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--tb);color:var(--tc);flex:none}
+.rail .ti .ic{width:15px;height:15px}
+.rail a:not(.on) .ti{background:rgba(15,23,40,.045);color:var(--ink-3)}
+.rail .foot{margin:10px 6px 4px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);font-weight:500;line-height:1.5}
+
+.content{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* glass card */
+.card{position:relative;background:var(--card);border:1px solid var(--card-bd);border-radius:var(--r);box-shadow:var(--sh);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);min-width:0}
+.ch{display:flex;align-items:flex-start;gap:16px;padding:20px 24px 16px}
+.ch .tt{min-width:0;flex:1}
+.ch h2{font-size:17px;font-weight:800;letter-spacing:-.015em;display:flex;align-items:center;gap:10px}
+[dir=rtl] .ch h2{letter-spacing:0}
+.ch p{margin-top:4px;font-size:13px;color:var(--ink-3);font-weight:500;max-width:72ch;line-height:1.5}
+.ch .end{display:flex;align-items:center;gap:8px;flex:none}
+.eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+[dir=rtl] .eyebrow{letter-spacing:0;text-transform:none;font-size:12px}
+.lock{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.lock .ic{width:14px;height:14px}
+
+/* one setting */
+.sr{display:grid;grid-template-columns:minmax(0,1fr) auto 34px;gap:20px;align-items:center;padding:16px 24px;border-top:1px solid var(--line)}
+.sr .lb{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sr .hp{margin-top:3px;font-size:13px;color:var(--ink-3);font-weight:500;line-height:1.5;max-width:62ch}
+.sr .hp b{color:var(--ink);font-weight:700}
+.sr.dirty{background:linear-gradient(90deg,rgba(247,144,9,.07),transparent 60%)}
+[dir=rtl] .sr.dirty{background:linear-gradient(270deg,rgba(247,144,9,.07),transparent 60%)}
+.sr .dd{width:7px;height:7px;border-radius:50%;background:var(--warn-dot)}
+.sr.stack{grid-template-columns:minmax(0,1fr) 34px}
+.sr.stack .ctl{grid-column:1/-1}
+.hist{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--quiet)}
+.hist:hover{background:rgba(255,255,255,.8);color:var(--ink)}
+/* stepper */
+.stp{display:inline-flex;align-items:center;height:40px;border-radius:12px;background:#fff;border:1px solid rgba(15,23,40,.10);padding:3px}
+.stp button{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--ink-2)}
+.stp button:hover{background:rgba(15,23,40,.05);color:var(--ink)}
+.stp .v{min-width:54px;text-align:center;font-size:15px;font-weight:800;padding:0 2px}
+.stp .u{font-size:12.5px;font-weight:600;color:var(--ink-3);padding-inline-end:8px;white-space:nowrap}
+.stp.dirty{border-color:color-mix(in srgb,var(--warn-dot) 55%,#fff);box-shadow:0 0 0 3px rgba(247,144,9,.12)}
+.rov{font-size:15px;font-weight:800;white-space:nowrap}
+.rov small{font-size:12.5px;font-weight:600;color:var(--ink-3)}
+/* time chips */
+.times{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tchip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 6px 0 12px;border-radius:11px;background:#fff;border:1px solid rgba(15,23,40,.10);font-weight:800;font-size:14px}
+.tchip button{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--quiet)}
+.tchip button:hover{background:rgba(15,23,40,.05);color:var(--ink)}
+.tadd{height:36px;padding:0 12px;border-radius:11px;border:1px dashed rgba(15,23,40,.22);font-size:13px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.tadd:hover{border-color:var(--brand);color:var(--brand-h)}
+
+/* buttons, pills */
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 15px;border-radius:11px;font-size:14px;font-weight:700;white-space:nowrap;transition:background .15s,box-shadow .15s}
+.btn.pri{background:var(--brand);color:#fff}
+.btn.pri:hover{background:var(--brand-h)}
+.btn.sec{background:rgba(255,255,255,.88);border:1px solid rgba(15,23,40,.09);color:var(--ink)}
+.btn.sec:hover{background:#fff;box-shadow:0 4px 14px rgba(42,52,110,.10)}
+.btn.ghost{color:var(--ink-2)}
+.btn.sm{height:32px;padding:0 12px;font-size:13px;border-radius:9px}
+.btn.sm .ic{width:14px;height:14px}
+.st{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+.st i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.ok{background:var(--good-bg);color:var(--good)}
+.st.warn{background:var(--warn-bg);color:var(--warn)}
+.st.off{background:var(--flat-bg);color:var(--flat)}
+.st.bad{background:var(--bad-bg);color:var(--bad)}
+.sw{width:38px;height:22px;border-radius:999px;background:var(--ink-4);position:relative;flex:none;transition:background .15s;display:inline-block;vertical-align:middle}
+.sw::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:inset-inline-start .15s}
+.sw.on{background:var(--brand)}
+.sw.on::after{inset-inline-start:19px}
+
+/* filter pills (shops) */
+.fl{display:flex;gap:4px;flex-wrap:wrap;padding:0 24px 14px}
+.vw{height:30px;padding:0 12px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;gap:7px}
+.vw:hover{background:rgba(15,23,40,.04);color:var(--ink)}
+.vw.on{background:var(--ink);color:#fff}
+.vw .n{font-weight:600;color:var(--ink-3);font-size:12px}
+.vw.on .n{color:#C9CED7}
+
+/* tables */
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+th{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);text-align:start;padding:10px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);white-space:nowrap;background:rgba(255,255,255,.45)}
+[dir=rtl] th{letter-spacing:0;text-transform:none;font-size:12px}
+th:first-child,td:first-child{padding-inline-start:24px}
+th:last-child,td:last-child{padding-inline-end:24px}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.r{cursor:pointer}
+tbody tr.r:hover td{background:rgba(255,255,255,.75)}
+tbody tr.sel td{background:color-mix(in srgb,var(--brand) 6%,#fff)}
+.end{text-align:end}
+.who{display:flex;align-items:center;gap:11px;min-width:0}
+.who b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who small{display:block;font-size:12.5px;color:var(--ink-3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800;flex:none;background:linear-gradient(140deg,var(--a,#475467),color-mix(in srgb,var(--a,#475467) 70%,#000))}
+.logo.sm{width:24px;height:24px;border-radius:7px;font-size:10px}
+.bar{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.bar .bt{width:70px;height:6px;border-radius:99px;background:var(--track);overflow:hidden}
+.bar .bt i{display:block;height:100%;border-radius:99px;background:var(--c,var(--brand))}
+.bar b{font-weight:800;min-width:28px;text-align:end}
+.muted td{color:var(--ink-3)}
+.muted .who b{color:var(--ink-2)}
+
+/* ═══ matching ═══ */
+.match .ch{padding-bottom:12px}
+.mhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 24px 14px;padding:12px 14px 12px 16px;border-radius:14px;background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.95)}
+[dir=rtl] .mhead{padding:12px 16px 12px 14px}
+.mhead .big{font-size:22px;font-weight:800;letter-spacing:-.03em}
+.mhead .txt{flex:1;min-width:220px;font-size:13.5px;color:var(--ink-2);font-weight:600;line-height:1.4}
+.mhead .txt small{display:block;font-size:12.5px;color:var(--ink-3);font-weight:500}
+.mhead .txt .old{color:var(--warn)}
+.cb{width:18px;height:18px;border-radius:6px;border:1.5px solid rgba(15,23,40,.22);display:grid;place-items:center;background:#fff;flex:none}
+.cb.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.cb .ic{width:12px;height:12px;stroke-width:3}
+.recv b{font-size:14.5px;font-weight:700;unicode-bidi:plaintext}
+.recv b.ar{font-family:var(--fa)}
+.recv b.blank{font-style:italic;color:var(--ink-3);font-weight:600}
+.recv small{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:12px;color:var(--ink-3);font-weight:600}
+.age{font-size:13px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.age.old{color:var(--warn)}
+.age small{display:block;font-size:11.5px;color:var(--ink-3);font-weight:500}
+.prop{display:flex;align-items:center;gap:10px;min-width:0}
+.prop .arr{color:var(--ink-4);flex:none}
+[dir=rtl] .prop .arr{transform:scaleX(-1)}
+.prop .pv{min-width:0}
+.prop .pv b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prop .pv small{display:block;font-size:12px;color:var(--ink-3);font-weight:500;font-family:var(--fa)}
+.conf{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:99px;font-size:11px;font-weight:800;white-space:nowrap;margin-top:3px}
+.conf .ic{width:11px;height:11px;stroke-width:2.8}
+.conf.same{background:var(--good-bg);color:var(--good)}
+.conf.near{background:var(--warn-bg);color:var(--warn)}
+.prop.none{color:var(--ink-3);font-size:13px;font-weight:600}
+.acts{display:flex;gap:6px;justify-content:flex-end}
+.mdone{display:flex;align-items:center;gap:12px;padding:16px 24px}
+.mdone .okc{width:34px;height:34px;border-radius:50%;background:var(--good-bg);color:var(--good);display:grid;place-items:center;flex:none}
+.mdone b{font-size:14.5px;font-weight:800}
+.mdone small{display:block;font-size:13px;color:var(--ink-3);font-weight:500}
+
+/* choice cards (team) */
+.choice{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.choice button{border:1px solid rgba(15,23,40,.09);background:#fff;border-radius:14px;padding:13px;text-align:start;display:flex;flex-direction:column;gap:6px;min-height:104px}
+.choice button .ic{width:20px;height:20px;color:var(--ink-2)}
+.choice button b{font-size:13.5px;font-weight:800;line-height:1.3}
+.choice button small{font-size:12px;color:var(--ink-3);font-weight:500;line-height:1.4}
+.choice button.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand);background:var(--brand-tint)}
+.choice button.on .ic{color:var(--brand)}
+.shares{display:flex;flex-direction:column;gap:2px;margin-top:14px}
+.shr{display:grid;grid-template-columns:minmax(0,1fr) 1.2fr 92px;gap:16px;align-items:center;padding:8px 0}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11.5px;font-weight:800;flex:none;background:linear-gradient(140deg,var(--a5),var(--a7));box-shadow:0 0 0 2px #fff,0 4px 10px color-mix(in srgb,var(--a5) 35%,transparent)}
+.shr .bt{height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+.shr .bt i{display:block;height:100%;border-radius:99px;background:linear-gradient(180deg,color-mix(in srgb,var(--a5) 70%,#fff),var(--a5))}
+.pin{display:inline-flex;align-items:center;height:36px;border-radius:11px;background:#fff;border:1px solid rgba(15,23,40,.10);padding:0 10px;gap:4px;justify-self:end}
+.pin b{width:34px;text-align:end;font-weight:800;font-size:14.5px}
+.pin span{color:var(--ink-3);font-weight:700}
+.total{display:flex;align-items:center;gap:12px;margin-top:10px;padding:11px 14px;border-radius:14px;background:var(--brand-tint);border:1px solid color-mix(in srgb,var(--brand) 18%,transparent);font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.total b{font-size:20px;font-weight:800;color:var(--brand-h)}
+
+/* rejection groups */
+.rg{display:grid;grid-template-columns:22px minmax(0,1fr) auto 80px 34px;gap:14px;align-items:center;padding:12px 24px;border-top:1px solid var(--line)}
+.rg .hd{color:var(--ink-4);cursor:grab}
+.rg b{font-size:14px;font-weight:700}
+.rg small{display:block;font-size:12.5px;color:var(--ink-3);font-weight:500}
+.rbadge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:99px;background:var(--bad-bg);color:var(--bad);font-size:12px;font-weight:700;white-space:nowrap}
+.rbadge .ic{width:12px;height:12px}
+.gico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--bad-bg);color:var(--bad)}
+.gico .ic{width:15px;height:15px}
+.addrow{display:flex;padding:12px 24px 16px;border-top:1px solid var(--line)}
+.lnk{font-size:13px;font-weight:700;color:var(--brand-h);display:inline-flex;align-items:center;gap:6px}
+.lnk:hover{text-decoration:underline}
+
+/* save bar — the dark floating bar of /feedback */
+.savebar{position:fixed;bottom:22px;left:calc(50% + 120px);transform:translateX(-50%);z-index:60;background:#101828;color:#fff;border-radius:16px;padding:8px 8px 8px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh-float);font-size:13.5px;font-weight:600;animation:up .25s cubic-bezier(.2,.8,.2,1)}
+[dir=rtl] .savebar,[dir=rtl].savebar{padding:8px 18px 8px 8px}
+.savebar .dt{width:8px;height:8px;border-radius:50%;background:var(--warn-dot);box-shadow:0 0 0 3px rgba(247,144,9,.25)}
+.savebar .btn.sec{background:#1D2939;border-color:#344054;color:#fff}
+.savebar .btn.sec:hover{background:#344054;box-shadow:none}
+.savebar .btn{height:36px}
+@keyframes up{from{transform:translate(-50%,16px);opacity:0}}
+.bulk{position:fixed;bottom:22px;left:calc(50% + 120px);transform:translateX(-50%);z-index:60;background:#101828;color:#fff;border-radius:16px;padding:8px 8px 8px 18px;display:flex;align-items:center;gap:10px;box-shadow:var(--sh-float);font-size:13.5px;font-weight:600}
+.bulk .btn.ghost{color:#C9CED7}
+
+/* drawer — the floating glass panel of /feedback */
+.scrim{position:fixed;inset:0;background:rgba(15,23,40,.22);backdrop-filter:blur(3px);z-index:95}
+.drawer{position:fixed;top:12px;bottom:12px;inset-inline-end:12px;width:500px;max-width:calc(100vw - 24px);z-index:96;background:rgba(250,251,255,.94);border:1px solid #fff;border-radius:26px;box-shadow:var(--sh-panel);backdrop-filter:blur(24px);display:flex;flex-direction:column;overflow:hidden;animation:sl .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes sl{from{transform:translateX(30px);opacity:0}}
+[dir=rtl] .drawer{animation-name:slr}
+@keyframes slr{from{transform:translateX(-30px);opacity:0}}
+.dh{padding:20px 22px 14px;display:flex;gap:12px;align-items:flex-start}
+.dh .x{margin-inline-start:auto;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.75);border:1px solid #fff;color:var(--ink-2);flex:none}
+.dh h2{font-size:20px;font-weight:800;letter-spacing:-.015em;line-height:1.25;margin-top:5px;unicode-bidi:plaintext}
+.dh .s{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--ink-3);font-weight:600}
+.db{padding:0 16px 16px;overflow:auto;display:flex;flex-direction:column;gap:12px;flex:1}
+.gl{background:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.95);border-radius:16px;padding:14px 16px}
+.srch{display:flex;align-items:center;gap:9px;height:42px;border-radius:12px;background:#fff;border:1px solid rgba(15,23,40,.10);padding:0 12px;color:var(--quiet)}
+.srch input{border:0;outline:0;flex:1;background:transparent;font-size:14px;color:var(--ink)}
+.opt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;cursor:pointer}
+.opt:hover{background:rgba(255,255,255,.9)}
+.opt.on{background:var(--brand-tint);box-shadow:inset 0 0 0 1.5px var(--brand)}
+.opt b{display:block;font-weight:700;font-size:14px}
+.opt small{display:block;font-size:12px;color:var(--ink-3);font-weight:500}
+.rad{width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(15,23,40,.25);background:#fff}
+.opt.on .rad{border-color:var(--brand);background:var(--brand);box-shadow:inset 0 0 0 3px #fff}
+.eff{display:flex;gap:10px;font-size:13px;color:var(--ink-2);font-weight:500;line-height:1.5}
+.eff .ic{color:var(--brand);margin-top:2px}
+.df{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.55)}
+.df .sp{flex:1}
+.facts{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px 12px;font-size:13.5px}
+.facts dt{color:var(--ink-3);font-weight:600}
+.facts dd{margin:0;font-weight:700}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.inp{height:40px;border-radius:11px;border:1px solid rgba(15,23,40,.12);background:#fff;padding:0 12px;font-size:14px;outline:0;width:100%}
+
+@media (max-width:1180px){ .body{grid-template-columns:1fr} .rail{position:static;flex-direction:row;flex-wrap:wrap} .rail h3,.rail .foot{display:none} .choice{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<div class="studio" id="studio"></div>
+<div class="shell">
+  <nav class="side" id="side" dir="ltr"></nav>
+  <main class="stage" id="stage"></main>
+</div>
+
+<script>
+const Q=new URLSearchParams(location.search);
+const S={topic:Q.get('topic')||'shops',role:Q.get('role')||'sa',drawer:Q.get('drawer')||'none',dirty:Q.get('dirty')==='1',match:Q.get('match')||'pending',lang:Q.get('lang')||'fr',mtab:'cities',sel:new Set(),shopF:'all'};
+
+/* ── icons (lucide paths) ── */
+const P={
+ bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+ clip:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+ ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+ users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+ search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+ usersearch:'<circle cx="10" cy="7" r="4"/><path d="M10.3 15H7a4 4 0 0 0-4 4v2"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>',
+ wh:'<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12M6 14h12"/><rect x="6" y="10" width="12" height="12"/>',
+ truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62L18.3 9.38A1 1 0 0 0 17.52 9H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+ msg:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+ mega:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+ globe:'<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+ act:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+ chev:'<path d="m9 18 6-6-6-6"/>',
+ down:'<path d="m6 9 6 6 6-6"/>',
+ clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+ minus:'<path d="M5 12h14"/>', plus:'<path d="M5 12h14M12 5v14"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+ lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+ box:'<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
+ hand:'<path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+ repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+ scale:'<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+ pct:'<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+ grip:'<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>',
+ phoneoff:'<path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><path d="M22 2 2 22"/>',
+ userx:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5M22 8l-5 5"/>',
+ edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+ home:'<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',
+ inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+ cog:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+ wallet:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+ info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'
+};
+const ic=(k,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${P[k]||''}</svg>`;
+
+/* ── words ── */
+const W={
+fr:{
+ sys:'Système', title:'Réglages', tn:'Tunisie', ly:'Libye', marketSet:'Marché réglé',
+ g:{sales:'Ventes',shipping:'Expédition',growth:'Clients et publicité',system:'Système'},
+ t:{shops:['Boutiques','Les boutiques qui envoient leurs commandes à Ordra, et les produits ou villes reçus qu’il faut associer.'],
+    orders:['Commandes','Combien de fois on appelle, quand on rappelle, ce qu’on fait des doublons et quand on range.'],
+    rejections:['Motifs de rejet','Les raisons qu’un agent choisit quand une commande n’aboutit pas.'],
+    prospects:['Prospects','Combien de fois on rappelle un prospect, et combien de temps il reste en haut de la liste.'],
+    team:['Équipe','Comment les commandes sont réparties entre les agents, leurs objectifs et leurs commissions.'],
+    warehouses:['Entrepôts','Les bâtiments d’où partent les colis, et le délai pour réapprovisionner le stock.'],
+    delivery:['Livraison','Les transporteurs et leurs frais, et quand un colis en route mérite un appel.'],
+    whatsapp:['WhatsApp','Le numéro WhatsApp de la marque, et les messages envoyés automatiquement.'],
+    ads:['Publicité','Les comptes Meta dont Ordra lit les dépenses, et le taux de change.'],
+    markets:['Marchés','Les pays où Ordra vend.'], monitoring:['Surveillance','À partir de quand Journaux signale un problème.']},
+ foot:{sa:'Chaque modification est enregistrée avec son auteur. L’horloge d’un réglage montre son historique.',mm:'Vous réglez le quotidien de votre marché. Le reste est réglé par un administrateur.'},
+ ro:'Modifiable par un administrateur',
+ m:{title:'Produits et villes à associer', desc:'Quand une boutique envoie un nom qu’Ordra ne reconnaît pas, la commande attend ici avant d’être confirmée. Une fois associé, le nom est reconnu pour toutes les commandes suivantes.',
+    cities:'Villes', products:'Produits', waitCity:'commandes attendent une ville', waitProd:'commandes attendent un produit',
+    oldest:'la plus ancienne depuis le', acceptSafe:(n,o)=>`Associer les ${n} noms identiques · ${o} commandes`,
+    cRecv:'Reçu de la boutique', cOrders:'Commandes', cAge:'Attend depuis', cProp:'Proposition d’Ordra',
+    same:'Nom identique', near:'Proche', none:'Aucune proposition', blank:'Ville vide',
+    assoc:'Associer', choose:'Choisir…', perOrder:'Par commande',
+    done:'Tout est associé', doneSub:'Aucune commande n’attend un produit ou une ville.',
+    sel:n=>`${n} sélectionnée${n>1?'s':''}`, accept:'Associer aux propositions', cancel:'Annuler', ref:'réf.'},
+ shops:{title:'Boutiques', desc:'Chaque boutique envoie ses commandes à Ordra. Une boutique silencieuse est active mais n’a rien envoyé depuis 14 jours.', add:'Ajouter une boutique',
+    all:'Toutes',ok:'Reçoivent',quiet:'Silencieuses',off:'Désactivées', cShop:'Boutique', cOrders:'Commandes · 30 j', cLast:'Dernière commande', cState:'État', cActive:'Active',
+    sOk:'Reçoit', sQuiet:d=>`Silencieuse · ${d} j`, sOff:'Désactivée'},
+ save:{many:n=>`${n} modifications non enregistrées`, cancel:'Annuler', save:'Enregistrer'},
+ o:{calls:['Appels de confirmation','Combien de fois un agent appelle, et quand une commande sans réponse revient.'],
+    dup:['Doublons et fusion','Ce qui se passe quand un même client commande plusieurs fois.'],
+    card:['Paiement par carte','Le transporteur retient une part quand le client paie en ligne ; la majoration la compense.'],
+    arch:['Archivage','Ranger les commandes terminées pour alléger les listes.']},
+ f:{max:['Nombre maximum d’appels','appels',n=>`Au <b>${n}ᵉ</b> appel sans réponse, la commande est rejetée automatiquement avec le motif « Injoignable ».`],
+    retry:['Heures de rappel','',x=>`Une commande sans réponse revient en haut de la file de l’agent à <b>${x}</b>, dans cet ordre. 3 heures au maximum.`],
+    sla:['Délai de confirmation visé','minutes',n=>`Le compteur d’une commande passe au rouge après <b>${n/60} h</b> d’attente.`],
+    dupw:['Doublon probable','heures',n=>`Si un client recommande dans les <b>${n} h</b>, la nouvelle commande porte le badge « doublon probable ».`],
+    auto:['Pré-sélection sur l’écran Doublons','heures',n=>`Les commandes identiques à moins de <b>${n} h</b> d’écart sont cochées d’avance. 0 = rien n’est coché.`],
+    merge:['Fusion de commandes','heures',n=>`Même client, produits différents, à moins de <b>${n} h</b> : l’agent peut les réunir en un seul colis.`],
+    card:['Majoration paiement par carte','%',n=>`Un client qui paie par carte paie <b>${n} %</b> de plus sur les produits, jamais sur la livraison.`],
+    arch:['Archiver les commandes terminées après','jours',n=>`Une commande terminée depuis <b>${n} jours</b> passe dans « Archivées ». Son statut ne change pas.`],
+    goal:['Commandes traitées par agent et par jour','commandes',()=>'Affiché dans la salle de contrôle et sur la fiche de chaque agent.'],
+    rate:['Taux de confirmation minimum','%',n=>`En dessous de <b>${n} %</b>, le taux d’un agent s’affiche en alerte.`],
+    high:['Montant élevé','TND',n=>`Un colis de <b>${n} TND</b> ou plus est à risque. 0 = désactivé.`],
+    fail:['Client déjà en échec','échecs',n=>`Un client qui a déjà refusé ou renvoyé <b>${n}</b> colis est à risque.`],
+    stall:['Colis immobile','jours',n=>`Un colis sans mouvement chez le transporteur depuis <b>${n} jours</b> remonte dans le suivi.`]},
+ addTime:'Ajouter une heure',
+ team:{dist:['Distribution des commandes','Comment une commande en attente trouve son agent, à chaque distribution automatique.'],
+    algo:[['hand','Manuelle','Un manager affecte chaque commande lui-même.'],['repeat','Tour à tour','Chaque agent disponible reçoit la suivante, à tour de rôle.'],['scale','Selon la charge','La commande va à l’agent qui en a le moins en cours.'],['pct','Par pourcentages','Chaque agent reçoit la part que vous fixez.']],
+    total:'Total', ready:'Prêt — la répartition fait 100 %', goals:['Objectifs','Les cibles affichées dans la salle de contrôle et sur la fiche de chaque agent.']},
+ del:{carriers:['Transporteurs','Les sociétés qui livrent les colis de ce marché, et ce qu’elles facturent.'], add:'Ajouter un transporteur',
+    cC:'Transporteur', cSite:'Site', cFees:'Livraison · retour', cDel:'Livrés · 30 j', cAct:'Actif', risk:['Colis à risque','Un colis à risque est appelé avant le passage du livreur. Ces seuils décident lesquels.']},
+ rej:{intro:'Les cinq groupes sont fixes : ils servent aux statistiques. Dans chaque groupe, ajoutez, renommez, réordonnez ou retirez les motifs précis.', add:'Ajouter un motif', orders:'commandes'},
+ dr:{city:'Associer une ville', prod:'Associer un produit', search:'Chercher une destination', searchP:'Chercher un produit Ordra', proposed:'Proposé', all:'Toutes les destinations', allP:'Tous les produits',
+    effC:n=>`Les <b>${n} commandes</b> en attente reçoivent cette destination et repartent vers la confirmation.`,
+    effP:n=>`Les <b>${n} commandes</b> en attente sont corrigées, et les prochaines commandes de cette boutique avec ce produit seront reconnues seules.`,
+    go:n=>`Associer les ${n} commandes`, cancel:'Annuler', since:'depuis le', shop:'Boutique', ref:'Référence', recv:'Reçu'},
+ shopD:{facts:[['Plateforme','Shopify'],['Compte','maison-douce.myshopify.com'],['Reçoit depuis','12 mars 2026'],['Commandes · 30 j','1 284'],['Dernière commande','aujourd’hui · 14:02']], name:'Nom affiché', save:'Enregistrer', close:'Fermer'}
+},
+ar:{
+ sys:'النظام', title:'الإعدادات', tn:'تونس', ly:'ليبيا', marketSet:'السوق',
+ g:{sales:'المبيعات',shipping:'الشحن',growth:'العملاء والإعلانات',system:'النظام'},
+ t:{shops:['المتاجر','المتاجر التي ترسل طلباتها إلى أوردرا، والمنتجات أو المدن المستلمة التي يجب ربطها.'],
+    orders:['الطلبات','كم مرة نتصل، ومتى نعيد الاتصال، وماذا نفعل بالطلبات المكررة، ومتى نؤرشف.'],
+    rejections:['أسباب الرفض','الأسباب التي يختارها الموظف عندما لا يكتمل الطلب.'],
+    prospects:['العملاء المحتملون','كم مرّة نعاود الاتصال بعميل محتمل.'],
+    team:['الفريق','كيف توزَّع الطلبات على الموظفين، وأهدافهم وعمولاتهم.'],
+    warehouses:['المستودعات','المباني التي تخرج منها الطرود.'],
+    delivery:['التوصيل','شركات الشحن ورسومها، ومتى يستحق طرد في الطريق اتصالاً.'],
+    whatsapp:['واتساب','رقم واتساب الخاص بالعلامة.'], ads:['الإعلانات','حسابات ميتا الإعلانية.'],
+    markets:['الأسواق','البلدان التي يبيع فيها أوردرا.'], monitoring:['المراقبة','متى يُبلغ السجلّ عن مشكلة.']},
+ foot:{sa:'يُسجَّل كل تعديل مع صاحبه. الساعة بجانب الإعداد تعرض سجله.',mm:'يمكنك تعديل القواعد اليومية لسوقك. الباقي يضبطه المسؤول.'},
+ ro:'يعدّله المسؤول فقط',
+ m:{title:'منتجات ومدن يجب ربطها', desc:'عندما يرسل متجر اسماً لا يعرفه أوردرا، ينتظر الطلب هنا قبل تأكيده. بعد الربط، يُعرَف الاسم في كل الطلبات التالية.',
+    cities:'المدن', products:'المنتجات', waitCity:'طلباً تنتظر مدينة', waitProd:'طلباً تنتظر منتجاً',
+    oldest:'أقدمها منذ', acceptSafe:(n,o)=>`ربط الأسماء المطابقة (${n}) · ${o} طلباً`,
+    cRecv:'المستلم من المتجر', cOrders:'الطلبات', cAge:'ينتظر منذ', cProp:'اقتراح أوردرا',
+    same:'اسم مطابق', near:'قريب', none:'لا اقتراح', blank:'مدينة فارغة',
+    assoc:'ربط', choose:'اختيار…', perOrder:'لكل طلب',
+    done:'كل شيء مربوط', doneSub:'لا طلبات تنتظر منتجاً أو مدينة.',
+    sel:n=>`${n} محدد`, accept:'ربط بالاقتراحات', cancel:'إلغاء', ref:'مرجع'},
+ shops:{title:'المتاجر', desc:'يرسل كل متجر طلباته إلى أوردرا. المتجر الصامت مفعّل لكنه لم يرسل شيئاً منذ 14 يوماً.', add:'إضافة متجر',
+    all:'الكل',ok:'تستقبل',quiet:'صامتة',off:'معطّلة', cShop:'المتجر', cOrders:'الطلبات · 30 يوماً', cLast:'آخر طلب', cState:'الحالة', cActive:'مفعّل',
+    sOk:'يستقبل', sQuiet:d=>`صامت · ${d} يوماً`, sOff:'معطّل'},
+ save:{many:n=>`${n} تعديلات غير محفوظة`, cancel:'إلغاء', save:'حفظ'},
+ o:{calls:['مكالمات التأكيد','كم مرة يتصل الموظف، ومتى يعود طلب بلا رد.'], dup:['التكرار والدمج','ماذا يحدث عندما يطلب العميل نفسه عدة مرات.'],
+    card:['الدفع بالبطاقة','يقتطع شركة الشحن جزءاً عند الدفع عبر الإنترنت؛ الزيادة تعوّضه.'], arch:['الأرشفة','ترتيب الطلبات المنتهية لتخفيف القوائم.']},
+ f:{max:['الحد الأقصى للمكالمات','مكالمات',n=>`عند المكالمة <b>${n}</b> بلا رد، يُرفض الطلب تلقائياً بسبب « لا يمكن الوصول إليه ».`],
+    retry:['أوقات إعادة الاتصال','',x=>`يعود الطلب بلا رد إلى أعلى قائمة الموظف عند <b>${x}</b>.`],
+    sla:['مهلة التأكيد المستهدفة','دقيقة',n=>`يتحول العداد إلى الأحمر بعد <b>${n/60} س</b> من الانتظار.`],
+    dupw:['تكرار محتمل','ساعة',n=>`إذا أعاد العميل الطلب خلال <b>${n} س</b>، يحمل الطلب الجديد شارة « تكرار محتمل ».`],
+    auto:['التحديد المسبق في شاشة التكرار','ساعة',n=>`الطلبات المتطابقة بفارق أقل من <b>${n} س</b> تُحدَّد مسبقاً.`],
+    merge:['دمج الطلبات','ساعة',n=>`نفس العميل، منتجات مختلفة، خلال <b>${n} س</b>: يمكن جمعها في طرد واحد.`],
+    card:['زيادة الدفع بالبطاقة','%',n=>`يدفع العميل بالبطاقة <b>${n} %</b> إضافية على المنتجات.`],
+    arch:['أرشفة الطلبات المنتهية بعد','أيام',n=>`ينتقل الطلب المنتهي منذ <b>${n} يوماً</b> إلى « المؤرشفة ».`],
+    goal:['الطلبات المعالجة لكل موظف يومياً','طلبات',()=>'يظهر في غرفة التحكم وعلى بطاقة كل موظف.'],
+    rate:['أدنى نسبة تأكيد','%',n=>`تحت <b>${n} %</b> تظهر نسبة الموظف كتنبيه.`],
+    high:['مبلغ مرتفع','د.ت',n=>`الطرد بقيمة <b>${n}</b> أو أكثر معرّض للخطر.`],
+    fail:['عميل سبق أن فشل','مرات',n=>`العميل الذي رفض أو أعاد <b>${n}</b> طرداً معرّض للخطر.`],
+    stall:['طرد متوقف','أيام',n=>`الطرد بلا حركة منذ <b>${n} أيام</b> يظهر في المتابعة.`]},
+ addTime:'إضافة وقت',
+ team:{dist:['توزيع الطلبات','كيف يجد الطلب المعلق موظفه في كل توزيع تلقائي.'],
+    algo:[['hand','يدوي','يعيّن المدير كل طلب بنفسه.'],['repeat','بالتناوب','كل موظف متاح يأخذ التالي بالدور.'],['scale','حسب العبء','يذهب الطلب للموظف الأقل انشغالاً.'],['pct','بالنسب','يأخذ كل موظف الحصة التي تحددها.']],
+    total:'المجموع', ready:'جاهز — المجموع 100 %', goals:['الأهداف','الأهداف المعروضة في غرفة التحكم.']},
+ del:{carriers:['شركات الشحن','الشركات التي توصل طرود هذا السوق، وما تفرضه.'], add:'إضافة شركة شحن',
+    cC:'شركة الشحن', cSite:'الموقع', cFees:'توصيل · إرجاع', cDel:'المسلَّمة · 30 يوماً', cAct:'مفعّل', risk:['طرود معرضة للخطر','يُتصل بالطرد المعرّض للخطر قبل مرور المندوب.']},
+ rej:{intro:'المجموعات الخمس ثابتة. أضف أو أعد تسمية أو رتّب الأسباب الدقيقة داخل كل مجموعة.', add:'إضافة سبب', orders:'طلبات'},
+ dr:{city:'ربط مدينة', prod:'ربط منتج', search:'ابحث عن وجهة', searchP:'ابحث عن منتج', proposed:'مقترح', all:'كل الوجهات', allP:'كل المنتجات',
+    effC:n=>`تتلقى <b>${n} طلبات</b> المعلقة هذه الوجهة وتعود إلى التأكيد.`, effP:n=>`تُصحَّح <b>${n} طلباً</b> المعلقة، وتُعرَف الطلبات التالية تلقائياً.`,
+    go:n=>`ربط ${n} طلبات`, cancel:'إلغاء', since:'منذ', shop:'المتجر', ref:'المرجع', recv:'المستلم'},
+ shopD:{facts:[['المنصة','Shopify'],['الحساب','maison-douce.myshopify.com'],['يستقبل منذ','12 مارس 2026'],['الطلبات · 30 يوماً','1 284'],['آخر طلب','اليوم · 14:02']], name:'الاسم المعروض', save:'حفظ', close:'إغلاق'}
+}};
+const T=()=>W[S.lang];
+
+/* ── data (see header comment) ── */
+const CITIES=[
+ {k:'sfax',name:'Sfax',n:41,since:'10 mars',ago:'7 mois',old:1,prop:['Sfax','صفاقس'],c:'same'},
+ {k:'sousse',name:'Sousse',n:37,since:'12 mars',ago:'7 mois',old:1,prop:['Sousse','سوسة'],c:'same'},
+ {k:'monastir',name:'Monastir',n:32,since:'11 mars',ago:'7 mois',old:1,prop:['Monastir','المنستير'],c:'same'},
+ {k:'bizerte',name:'Bizerte',n:26,since:'16 mars',ago:'7 mois',old:1,prop:['Bizerte','بنزرت'],c:'same'},
+ {k:'kef',name:'Kef',n:5,since:'5 oct.',ago:'3 jours',old:0,prop:['Le Kef','الكاف'],c:'near'},
+ {k:'ariana',name:'Ariana',n:5,since:'9 avr.',ago:'6 mois',old:1,prop:['Ariana','أريانة'],c:'same'},
+ {k:'benarous',name:'Ben Arous',n:4,since:'27 avr.',ago:'5 mois',old:1,prop:['Ben Arous','بن عروس'],c:'same'},
+ {k:'blank',name:'',n:4,since:'27 avr.',ago:'5 mois',old:1,prop:null},
+ {k:'nabeul',name:'Nabeul',n:1,since:'27 avr.',ago:'5 mois',old:1,prop:['Nabeul','نابل'],c:'same'}];
+const PRODS=[
+ {k:'p1',name:'Stick anti-frottements – Stick au beurre',shop:'Maison Douce',a:'#C2410C',ref:'48213',n:57,since:'5 oct.',ago:'3 jours',prop:['Stick anti-frottements','SKU STK-01'],c:'near'},
+ {k:'p2',name:'Boxer homme en modal – doux et respirant',shop:'Maison Douce',a:'#C2410C',ref:'48377',n:51,since:'5 oct.',ago:'3 jours',prop:['Boxer modal homme','SKU BXR-02'],c:'near'},
+ {k:'p3',name:'Bracelet parfum rechargeable',shop:'Atelier Nour',a:'#7A4BD8',ref:'90114',n:38,since:'5 oct.',ago:'3 jours',prop:['Bracelet parfum rechargeable','SKU BRC-01'],c:'same'},
+ {k:'p4',name:'Stick anti-frottements protecteur et réparateur',shop:'Maison Douce',a:'#C2410C',ref:'48219',n:8,since:'5 oct.',ago:'3 jours',prop:['Stick anti-frottements','SKU STK-01'],c:'near'},
+ {k:'p5',name:'Routine visage hydratation & éclat',shop:'Biovie',a:'#0E9F6E',ref:'7712',n:4,since:'6 oct.',ago:'2 jours',prop:null},
+ {k:'p6',name:'دمية الملاكمة للأطفال القابلة للنفخ',shop:'Petit Monde',a:'#2E6BD9',ref:'3301',n:2,since:'5 oct.',ago:'3 jours',prop:null,ar:1},
+ {k:'p7',name:'Routine anti-cellulite',shop:'Biovie',a:'#0E9F6E',ref:'7719',n:1,since:'7 oct.',ago:'1 jour',prop:null},
+ {k:'p8',name:'Écran solaire SPF 50+',shop:'Biovie',a:'#0E9F6E',ref:'7704',n:1,since:'6 oct.',ago:'2 jours',prop:['Écran solaire SPF 50+','SKU SUN-50'],c:'same'}];
+const SHOPS=[
+ {n:'Maison Douce',p:'Shopify',a:'#C2410C',o:1284,last:'aujourd’hui · 14:02',s:'ok',on:1,w:100},
+ {n:'Atelier Nour',p:'Converty',a:'#7A4BD8',o:612,last:'aujourd’hui · 13:47',s:'ok',on:1,w:48},
+ {n:'Biovie',p:'YouCan',a:'#0E9F6E',o:288,last:'hier · 22:10',s:'ok',on:1,w:22},
+ {n:'Petit Monde',p:'Shopify',a:'#2E6BD9',o:41,last:'18 sept.',s:'quiet',d:20,on:1,w:4},
+ {n:'Lumière Store',p:'WooCommerce',a:'#B42318',o:0,last:'2 juil.',s:'off',on:0,w:0}];
+const AGENTS=[['Amel','#E46A7B','#B4234A',35],['Karim','#2E6BD9','#1D4FA8',25],['Sana','#0E9F6E','#067647',25],['Youssef','#E9A23B','#B54708',15]];
+
+/* ── pieces ── */
+function stepper(v,u,dirty){return `<div class="stp ${dirty?'dirty':''}"><button aria-label="-">${ic('minus')}</button><span class="v num">${v}</span>${u?`<span class="u">${u}</span>`:''}<button aria-label="+">${ic('plus')}</button></div>`}
+function setting(key,v,{dirty=false,edit=true,stack=false,ctl=null}={}){
+  const [lb,u,hp]=T().f[key];
+  const control=ctl??(edit?stepper(v,u,dirty):`<span class="rov num">${v} <small>${u}</small></span>`);
+  return `<div class="sr ${dirty?'dirty':''} ${stack?'stack':''}"><div><div class="lb">${lb}${dirty?'<i class="dd"></i>':''}</div><div class="hp">${hp(v)}</div></div><div class="ctl">${control}</div><button class="hist" title="Historique">${ic('clock')}</button></div>`;
+}
+function card(title,desc,body,end=''){return `<section class="card"><div class="ch"><div class="tt"><h2>${title}</h2>${desc?`<p>${desc}</p>`:''}</div>${end?`<div class="end">${end}</div>`:''}</div>${body}</section>`}
+const lock=()=>`<span class="lock">${ic('lock')}${T().ro}</span>`;
+const sa=()=>S.role==='sa';
+
+/* ── matching ── */
+function matching(){
+  const t=T().m;
+  if(S.match==='empty') return `<section class="card"><div class="mdone"><span class="okc">${ic('check')}</span><div><b>${t.done}</b><small>${t.doneSub}</small></div></div></section>`;
+  const city=S.mtab==='cities', rows=city?CITIES:PRODS, total=rows.reduce((a,r)=>a+r.n,0);
+  const safe=rows.filter(r=>r.c==='same'), safeN=safe.reduce((a,r)=>a+r.n,0);
+  const tabs=`<div class="segc" role="tablist"><button class="${city?'on':''}" data-mtab="cities">${t.cities}<span class="n num">${CITIES.length}</span></button><button class="${!city?'on':''}" data-mtab="products">${t.products}<span class="n num">${PRODS.length}</span></button></div>`;
+  const head=`<div class="mhead"><span class="big num">${total}</span><div class="txt">${city?t.waitCity:t.waitProd}<small>${t.oldest} <span class="${city?'old':''}">${city?'10 mars 2026':'5 oct. 2026'}</span></small></div>${safe.length?`<button class="btn pri sm">${ic('check')}${t.acceptSafe(safe.length,safeN)}</button>`:''}</div>`;
+  const tr=rows.map(r=>{
+    const on=S.sel.has(r.k);
+    const recv=city
+      ? `<div class="recv">${r.name?`<b>${r.name}</b>`:`<b class="blank">${t.blank}</b>`}</div>`
+      : `<div class="who"><span class="logo sm" style="--a:${r.a}">${r.shop[0]}</span><div class="recv"><b class="${r.ar?'ar':''}">${r.name}</b><small>${r.shop} · ${t.ref} ${r.ref}</small></div></div>`;
+    const prop=r.prop
+      ? `<div class="prop"><span class="arr">${ic('arrow')}</span><div class="pv"><b>${r.prop[0]}</b><span class="conf ${r.c}">${r.c==='same'?ic('check'):''}${r.c==='same'?t.same:t.near}</span></div></div>`
+      : `<div class="prop none">${t.none}</div>`;
+    const acts=r.prop
+      ? `<button class="btn pri sm">${t.assoc}</button><button class="btn ghost sm" data-open="${city?'city':'product'}">${t.choose}</button>`
+      : `<button class="btn sec sm" data-open="${city?'city':'product'}">${r.k==='blank'?t.perOrder:t.choose}</button>`;
+    const mx=Math.max(...rows.map(x=>x.n));
+    return `<tr class="${on?'sel':''}"><td style="width:1%"><button class="cb ${on?'on':''}" data-sel="${r.k}" ${r.prop?'':'disabled style="opacity:.35"'}>${on?ic('check'):''}</button></td>
+      <td>${recv}</td>
+      <td class="end"><div class="bar"><span class="bt"><i style="width:${Math.max(6,r.n/mx*100)}%;--c:${r.old?'var(--warn-dot)':'var(--brand)'}"></i></span><b class="num">${r.n}</b></div></td>
+      <td><div class="age ${r.old?'old':''}">${r.since}<small>${r.ago}</small></div></td>
+      <td>${prop}</td><td><div class="acts">${acts}</div></td></tr>`;
+  }).join('');
+  return `<section class="card match"><div class="ch"><div class="tt"><h2>${t.title}</h2><p>${t.desc}</p></div><div class="end">${tabs}</div></div>${head}
+    <table><thead><tr><th></th><th>${t.cRecv}</th><th class="end">${t.cOrders}</th><th>${t.cAge}</th><th>${t.cProp}</th><th></th></tr></thead><tbody>${tr}</tbody></table></section>`;
+}
+
+/* ── topics ── */
+function shops(){
+  const t=T().shops;
+  const cnt={all:SHOPS.length,ok:SHOPS.filter(s=>s.s==='ok').length,quiet:SHOPS.filter(s=>s.s==='quiet').length,off:SHOPS.filter(s=>s.s==='off').length};
+  const fl=`<div class="fl">${['all','ok','quiet','off'].map(k=>`<button class="vw ${S.shopF===k?'on':''}" data-sf="${k}">${t[k]}<span class="n num">${cnt[k]}</span></button>`).join('')}</div>`;
+  const list=SHOPS.filter(s=>S.shopF==='all'||s.s===S.shopF).map(s=>`<tr class="r ${s.on?'':'muted'}" data-open="shop">
+    <td><div class="who"><span class="logo" style="--a:${s.a}">${s.n.split(' ').map(w=>w[0]).join('').slice(0,2)}</span><div><b>${s.n}</b><small>${s.p}</small></div></div></td>
+    <td class="end"><div class="bar"><span class="bt"><i style="width:${s.w}%"></i></span><b class="num">${s.o.toLocaleString('fr-FR')}</b></div></td>
+    <td>${s.last}</td>
+    <td>${s.s==='ok'?`<span class="st ok"><i></i>${t.sOk}</span>`:s.s==='quiet'?`<span class="st warn"><i></i>${t.sQuiet(s.d)}</span>`:`<span class="st off"><i></i>${t.sOff}</span>`}</td>
+    ${sa()?`<td class="end"><span class="sw ${s.on?'on':''}"></span></td>`:''}</tr>`).join('');
+  const table=`${fl}<table><thead><tr><th>${t.cShop}</th><th class="end">${t.cOrders}</th><th>${t.cLast}</th><th>${t.cState}</th>${sa()?`<th class="end">${t.cActive}</th>`:''}</tr></thead><tbody>${list}</tbody></table>`;
+  return matching()+card(t.title,t.desc,table,sa()?`<button class="btn pri">${ic('plus')}${t.add}</button>`:lock());
+}
+function orders(){
+  const o=T().o, d=S.dirty;
+  const retry=`<div class="times"><span class="tchip num">11:00<button>${ic('x')}</button></span><span class="tchip num">15:00<button>${ic('x')}</button></span><button class="tadd">${ic('plus')}${T().addTime}</button></div>`;
+  return card(o.calls[0],o.calls[1],setting('max',d?4:3,{dirty:d})+setting('retry','11:00, 15:00',{ctl:retry})+setting('sla',120))
+   +card(o.dup[0],o.dup[1],setting('dupw',48)+setting('auto',d?12:6,{dirty:d})+setting('merge',24))
+   +card(o.card[0],o.card[1],setting('card',3,{edit:sa()}),sa()?'':lock())
+   +card(o.arch[0],o.arch[1],setting('arch',30));
+}
+function team(){
+  const t=T().team;
+  const choice=`<div class="choice" role="radiogroup">${t.algo.map(([i,l,s],k)=>`<button class="${k===3?'on':''}">${ic(i)}<b>${l}</b><small>${s}</small></button>`).join('')}</div>`;
+  const shares=`<div class="shares">${AGENTS.map(([n,a5,a7,p])=>`<div class="shr"><div class="who"><span class="av" style="--a5:${a5};--a7:${a7}">${n.slice(0,2).toUpperCase()}</span><div><b>${n}</b></div></div><div class="bt" style="--a5:${a5}"><i style="width:${p*2.5}%"></i></div><div class="pin"><b class="num">${p}</b><span>%</span></div></div>`).join('')}</div>
+   <div class="total">${ic('check')}<span>${t.total}</span><b class="num">100 %</b><span>· ${t.ready}</span></div>`;
+  return card(t.dist[0],t.dist[1],`<div style="padding:4px 24px 22px">${choice}${shares}</div>`)
+   +card(t.goals[0],t.goals[1],setting('goal',40)+setting('rate',55));
+}
+function delivery(){
+  const t=T().del;
+  const C=[['Livreo','#2E6BD9','Tunis','8 · 4 TND','71 %',71,1],['Rapid Colis','#C2410C','Tunis','7 · 3,5 TND','64 %',64,1],['Express Sud','#475467','Sfax','9 · 5 TND','—',0,0]];
+  const rows=C.map(([n,a,s,f,r,w,on])=>`<tr class="r ${on?'':'muted'}"><td><div class="who"><span class="logo" style="--a:${a}">${n[0]}</span><div><b>${n}</b></div></div></td><td>${ic('pin')} ${s}</td><td class="num">${f}</td><td class="end"><div class="bar"><span class="bt"><i style="width:${w}%"></i></span><b class="num">${r}</b></div></td>${sa()?`<td class="end"><span class="sw ${on?'on':''}"></span></td>`:''}</tr>`).join('');
+  const table=`<table><thead><tr><th>${t.cC}</th><th>${t.cSite}</th><th>${t.cFees}</th><th class="end">${t.cDel}</th>${sa()?`<th class="end">${t.cAct}</th>`:''}</tr></thead><tbody>${rows}</tbody></table>`;
+  return card(t.carriers[0],t.carriers[1],table,sa()?`<button class="btn sec">${ic('plus')}${t.add}</button>`:lock())
+   +card(t.risk[0],t.risk[1],setting('high',250)+setting('fail',2)+setting('stall',S.dirty?5:4,{dirty:S.dirty}));
+}
+function rejections(){
+  const t=T().rej, fr=S.lang==='fr';
+  const G=[['phoneoff',fr?'Injoignable':'لا يمكن الوصول',[['Ne répond pas','Pas de réponse',412],['Numéro éteint','Éteint',96],['Numéro erroné','Faux numéro',31]]],
+           ['userx',fr?'Refus du client':'رفض العميل',[['A changé d’avis','Changé d’avis',188],['Trop cher','Prix',74],['N’a pas commandé','Pas commandé',22]]]];
+  return `<div class="card" style="padding:14px 20px;display:flex;gap:10px;font-size:13px;color:var(--ink-2);font-weight:500">${ic('info')}<span>${t.intro}</span></div>`+
+   G.map(([i,g,rs])=>card(`<span class="gico">${ic(i)}</span>${g}`,'',rs.map(([l,s,n])=>`<div class="rg"><span class="hd">${ic('grip')}</span><div><b>${l}</b></div><span class="rbadge">${ic(i)}${s}</span><span class="num" style="text-align:end;font-weight:700;color:var(--ink-2)">${n}</span><button class="hist">${ic('edit')}</button></div>`).join('')+`<div class="addrow"><button class="lnk">${ic('plus')}${t.add}</button></div>`,`<span class="lock" style="font-weight:700">${rs.reduce((a,r)=>a+r[2],0)} ${t.orders}</span>`)).join('');
+}
+
+/* ── drawers ── */
+function drawer(){
+  if(S.drawer==='none') return '';
+  const d=T().dr; let h;
+  if(S.drawer==='shop'){
+    const f=T().shopD;
+    h=`<div class="dh"><span class="logo" style="--a:#C2410C">MD</span><div style="min-width:0"><div class="eyebrow">${T().shops.title}</div><h2>Maison Douce</h2><div class="s"><span class="st ok"><i></i>${T().shops.sOk}</span>Shopify</div></div><button class="x" data-close>${ic('x')}</button></div>
+     <div class="db"><div class="gl"><dl class="facts">${f.facts.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl></div>
+     <div class="gl"><div class="fld"><label>${f.name}</label><input class="inp" value="Maison Douce"></div></div></div>
+     <div class="df"><span class="sp"></span><button class="btn sec" data-close>${f.close}</button><button class="btn pri">${f.save}</button></div>`;
+  } else {
+    const city=S.drawer==='city';
+    const r=city?CITIES[4]:PRODS[0];
+    const opts=city?[['Le Kef','الكاف'],['Kélibia','قليبية'],['Kébili','قبلي'],['Kairouan','القيروان'],['Kasserine','القصرين']]:[['Stick anti-frottements','SKU STK-01 · 214 en stock'],['Stick anti-frottements — pack de 2','SKU STK-01 · palier'],['Baume réparateur','SKU BAU-03'],['Boxer modal homme','SKU BXR-02']];
+    h=`<div class="dh"><div style="min-width:0"><div class="eyebrow">${city?d.city:d.prod}</div><h2>« ${r.name} »</h2><div class="s">${city?'':`<span class="logo sm" style="--a:${r.a}">M</span>${r.shop} · ${d.ref} ${r.ref} ·`} <b class="num" style="color:var(--ink)">${r.n}</b> ${T().m.cOrders.toLowerCase()} · ${d.since} ${r.since}</div></div><button class="x" data-close>${ic('x')}</button></div>
+     <div class="db">
+      <label class="srch">${ic('search')}<input placeholder="${city?d.search:d.searchP}"></label>
+      <div class="gl" style="padding:8px"><div class="eyebrow" style="padding:6px 8px 6px">${d.proposed}</div>
+        <div class="opt on"><div><b>${opts[0][0]}</b><small ${city?'style="font-family:var(--fa)"':''}>${opts[0][1]}</small></div><span class="rad"></span></div></div>
+      <div class="gl" style="padding:8px"><div class="eyebrow" style="padding:6px 8px 6px">${city?d.all:d.allP}</div>
+        ${opts.slice(1).map(([a,b])=>`<div class="opt"><div><b>${a}</b><small ${city?'style="font-family:var(--fa)"':''}>${b}</small></div><span class="rad"></span></div>`).join('')}</div>
+      <div class="gl eff">${ic('info')}<span>${city?d.effC(r.n):d.effP(r.n)}</span></div>
+     </div>
+     <div class="df"><span class="sp"></span><button class="btn sec" data-close>${d.cancel}</button><button class="btn pri">${d.go(r.n)}</button></div>`;
+  }
+  return `<div class="scrim" data-close></div><aside class="drawer">${h}</aside>`;
+}
+
+/* ── shell ── */
+const MENU=[['sales',['shops','orders','rejections','prospects','team']],['shipping',['warehouses','delivery']],['growth',['whatsapp','ads']],['system',['markets','monitoring']]];
+const TIC={shops:'bag',orders:'clip',rejections:'ban',prospects:'usersearch',team:'users',warehouses:'wh',delivery:'truck',whatsapp:'msg',ads:'mega',markets:'globe',monitoring:'act'};
+const GC={sales:'--tc:var(--g-sales);--tb:var(--g-sales-bg)',shipping:'--tc:var(--g-ship);--tb:var(--g-ship-bg)',growth:'--tc:var(--g-grow);--tb:var(--g-grow-bg)',system:'--tc:var(--g-sys);--tb:var(--g-sys-bg)'};
+const SA_ONLY=['markets','ads','monitoring'];
+
+function render(){
+  const t=T(), [h1,sub]=t.t[S.topic];
+  const mk=sa()
+    ? `<div class="segc" role="group" aria-label="${t.marketSet}"><button class="on"><span class="cc">TN</span>${t.tn}</button><button><span class="cc">LY</span>${t.ly}</button></div>`
+    : `<span class="mchip"><span class="cc">TN</span>${t.tn} <small>· TND</small></span>`;
+  const rail=MENU.map(([g,ids])=>{const vis=ids.filter(i=>sa()||!SA_ONLY.includes(i)); if(!vis.length) return '';
+    return `<h3>${t.g[g]}</h3>`+vis.map(i=>`<a class="${i===S.topic?'on':''}" data-topic="${i}" style="${GC[g]}"><span class="ti">${ic(TIC[i])}</span>${t.t[i][0]}</a>`).join('');}).join('');
+  const body={shops,orders,team,delivery,rejections}[S.topic];
+  const content=body?body():card(h1,'',`<div style="padding:4px 24px 22px;color:var(--ink-3);font-weight:500">Mêmes pièces que les autres sujets : cartes de verre, lignes de réglage, pas à pas, tiroirs.</div>`);
+  const stage=document.getElementById('stage');
+  stage.dir=S.lang==='ar'?'rtl':'ltr';
+  stage.innerHTML=`<div class="page">
+    <div class="ph"><div><div class="crumb">${t.sys}${ic('chev')}${t.title}</div><h1>${h1}</h1><div class="subl">${sub}</div></div><div class="end">${mk}</div></div>
+    <div class="body"><nav class="rail card">${rail}<div class="foot">${t.foot[S.role]}</div></nav><div class="content">${content}</div></div>
+  </div>
+  ${S.dirty&&!['shops','rejections'].includes(S.topic)?`<div class="savebar" role="status"><i class="dt"></i><span>${t.save.many(2)}</span><button class="btn sec">${t.save.cancel}</button><button class="btn pri">${t.save.save}</button></div>`:''}
+  ${S.sel.size&&S.topic==='shops'?`<div class="bulk"><span>${t.m.sel(S.sel.size)}</span><button class="btn pri sm">${ic('check')}${t.m.accept}</button><button class="btn ghost sm" data-clear>${t.m.cancel}</button></div>`:''}
+  ${drawer()}`;
+  side(); studio();
+}
+function side(){
+  const secs=[['home','Accueil'],['inbox','Commandes'],['box','Entrepôt'],['truck','Livraison'],['act','Performance'],['wallet','Finances'],['users','Clients'],['users','Équipe']];
+  document.getElementById('side').innerHTML=`<div class="brand">Ordra</div><div class="mk"><i>TN</i><div>Tunisie<small>TND · 10:42</small></div></div>${secs.map(([i,l])=>`<div class="sec">${ic(i)}${l}</div>`).join('')}<div class="glab2">Système</div><div class="sec on">${ic('cog')}Réglages</div><div class="sec">${ic('act')}Journaux</div>`;
+}
+function studio(){
+  const seg=(k,opts)=>`<div class="seg">${opts.map(([v,l])=>`<button class="${String(S[k])===String(v)?'on':''}" data-s="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+  document.getElementById('studio').innerHTML=`<div class="row"><span class="word">Réglages v3<small>Aurore calme · langue de Prospects et Voix du client</small></span>
+   <span class="grp"><span class="glab">Sujet</span>${seg('topic',[['shops','Boutiques'],['orders','Commandes'],['team','Équipe'],['delivery','Livraison'],['rejections','Motifs']])}</span>
+   <span class="grp"><span class="glab">Rôle</span>${seg('role',[['sa','Super admin'],['mm','Manager']])}</span>
+   <span class="grp"><span class="glab">Tiroir</span>${seg('drawer',[['none','—'],['city','Ville'],['product','Produit'],['shop','Boutique']])}</span>
+   <span class="grp"><span class="glab">Modif.</span>${seg('dirty',[[false,'Non'],[true,'Oui']])}</span>
+   <span class="grp"><span class="glab">À associer</span>${seg('match',[['pending','317 bloquées'],['empty','Vide']])}</span>
+   <span class="grp"><span class="glab">Langue</span>${seg('lang',[['fr','FR'],['ar','AR']])}</span></div>
+   <div class="why"><b>Ce qui change :</b> sol aurore, grand titre = le sujet, marché à droite de l’en-tête, menu en carte de verre avec une couleur par section, réglages en « pas à pas », barre sombre en bas pour enregistrer, tiroirs flottants. <b>À associer</b> devient une file de travail : Ordra propose le nom correspondant, un clic associe — 146 des 155 commandes bloquées sur une ville ont un nom identique.</div>`;
+}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-s],[data-topic],[data-mtab],[data-sel],[data-open],[data-close],[data-sf],[data-clear]'); if(!b) return;
+  if(b.dataset.s){const k=b.dataset.s,v=b.dataset.v; S[k]=k==='dirty'?v==='true':v;}
+  else if(b.dataset.topic){S.topic=b.dataset.topic;}
+  else if(b.dataset.mtab){S.mtab=b.dataset.mtab;S.sel.clear();}
+  else if(b.dataset.sel){S.sel.has(b.dataset.sel)?S.sel.delete(b.dataset.sel):S.sel.add(b.dataset.sel);}
+  else if(b.dataset.open){S.drawer=b.dataset.open;}
+  else if('close' in b.dataset){S.drawer='none';}
+  else if(b.dataset.sf){S.shopF=b.dataset.sf;}
+  else if('clear' in b.dataset){S.sel.clear();}
+  render();
+});
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input')) return;
+  const tp=['shops','orders','team','delivery','rejections'];
+  if(/^[1-5]$/.test(e.key)) S.topic=tp[+e.key-1];
+  else if(e.key==='r') S.role=S.role==='sa'?'mm':'sa';
+  else if(e.key==='d') S.dirty=!S.dirty;
+  else if(e.key==='m') S.match=S.match==='pending'?'empty':'pending';
+  else if(e.key==='l') S.lang=S.lang==='fr'?'ar':'fr';
+  else if(e.key==='Escape') S.drawer='none';
+  else return;
+  render();
+});
+render();
+</script>
+</body>
+</html>
