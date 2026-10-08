@@ -38,7 +38,17 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json(data as DeliveryBoardResponse);
+  // Each agent's identity colour (users.color) for her card, ring and avatar.
+  // Cosmetic: if the lookup fails, the page falls back to a hue from her id.
+  const board = data as DeliveryBoardResponse;
+  const ids = (board.agents ?? []).map((a) => a.agent_id);
+  const colors = new Map<string, string | null>();
+  if (ids.length > 0) {
+    const { data: users, error: colorError } = await supabase.from("users").select("id, color").in("id", ids);
+    if (colorError) console.error("[api/delivery/board] colours failed", colorError);
+    for (const u of (users ?? []) as { id: string; color: string | null }[]) colors.set(u.id, u.color);
+  }
+  return NextResponse.json({ ...board, agents: (board.agents ?? []).map((a) => ({ ...a, color: colors.get(a.agent_id) ?? null })) });
 }
 
 export const GET = withRouteErrors("/api/delivery/board", "GET", handleGET);
