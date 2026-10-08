@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import fr from "@/messages/fr.json";
 import { buildStoreDash, type BuildInput, type StoreRow } from "@/lib/dashboard/stores/build";
@@ -9,9 +9,10 @@ import type { StoreDashView } from "@/lib/dashboard/stores/view";
 
 let view: StoreDashView;
 let search = "";
+const push = vi.fn();
 vi.mock("swr", () => ({ default: () => ({ data: view, error: undefined, isLoading: false }) }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
   useSearchParams: () => new URLSearchParams(search),
 }));
 
@@ -141,7 +142,7 @@ describe("Accueil v9 — store cards", () => {
     search = "";
     view = make("today", "owner", [store("a")], [ord({ day: TODAY, bk: "c" }), ord({ day: TODAY, bk: "c", tried: true }), ord({ day: TODAY, bk: "u" }), ord({ day: TODAY, bk: "r" }), ord({ day: TODAY, bk: "x" })]);
     show();
-    const a = screen.getByRole("button", { name: /Boutique A — ouvrir/ });
+    const a = screen.getByRole("button", { name: /Boutique A — / });
     const labels = [...a.querySelectorAll(".minis.four .mi")].map((x) => x.firstChild?.textContent);
     expect(labels).toEqual([h.card.wait, h.card.tried, h.card.up, h.card.rej]);
     expect(within(a).getByText(/\+ 1 confirmée, pas encore téléchargée/)).toBeInTheDocument();
@@ -151,12 +152,12 @@ describe("Accueil v9 — store cards", () => {
     search = "period=7d";
     view = make("7d", "owner", [store("a"), store("b")], [...many(30, { bk: "d" }), ...many(5, { store: "b", bk: "d" })]);
     show();
-    const a = screen.getByRole("button", { name: /Boutique A — ouvrir/ });
+    const a = screen.getByRole("button", { name: /Boutique A — / });
     expect(within(a).getByRole("img", { name: /30 livrées/ })).toBeInTheDocument();
     expect(within(a).getByText(h.card.conf)).toBeInTheDocument();
     expect(within(a).getByText(h.card.ret)).toBeInTheDocument();
     expect(within(a).getByText(h.card.paid)).toBeInTheDocument();
-    const b = screen.getByRole("button", { name: /Boutique B — ouvrir/ });
+    const b = screen.getByRole("button", { name: /Boutique B — / });
     expect(within(b).getByText(new RegExp(h.card.early))).toBeInTheDocument();
   });
 
@@ -173,6 +174,34 @@ describe("Accueil v9 — store cards", () => {
     view = make("7d", "owner", [store("a"), store("z")], many(3, {}));
     show();
     expect(screen.getByText(/1 boutique sans commande sur la période/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Boutique Z — ouvrir/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Boutique Z — / })).toBeNull();
+  });
+});
+
+describe("Accueil — card footer and click", () => {
+  it("the owner reads the store's CA where « commandes à relier » used to be", () => {
+    search = "period=7d";
+    view = make("7d", "owner", [store("a")], [...many(3, { bk: "c", unmapped: true, price: 100 }), ord({ bk: "d", price: 250 })]);
+    show();
+    const a = screen.getByRole("button", { name: /Boutique A — / });
+    expect(within(a).queryByText(/à relier/)).toBeNull();
+    expect(a.querySelector(".note.ca")?.textContent).toMatch(/550/);
+    expect(a.querySelector(".note.ca")?.textContent).toMatch(/dont encaissé 250/);
+  });
+
+  it("a manager, who sees no money, still reads the orders to link", () => {
+    search = "period=7d";
+    view = make("7d", "manager", [store("a")], many(3, { bk: "c", unmapped: true }));
+    show();
+    expect(within(screen.getByRole("button", { name: /Boutique A — / })).getByText(/3 commandes à relier/)).toBeInTheDocument();
+  });
+
+  it("a click on a store opens Commandes filtered on that store", () => {
+    search = "";
+    push.mockClear();
+    view = make("today", "owner", [store("a")], many(2, { day: TODAY }));
+    show();
+    fireEvent.click(screen.getByRole("button", { name: /Boutique A — / }));
+    expect(push).toHaveBeenCalledWith("/fr/orders?storefront_id=a");
   });
 });

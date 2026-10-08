@@ -205,21 +205,9 @@ export function StoreDashboard({
     };
   }, [view, state, setState, t, loc, locale, tz, marketName, userName, phone]);
 
-  const perfHref = useCallback(
-    (id: string) => {
-      const q = new URLSearchParams();
-      // Performance › Commandes reads multi-day periods; a day opens on its default.
-      if (state.period !== "today" && state.period !== "yesterday") q.set("period", state.period);
-      if (state.period === "custom" && state.from && state.to) {
-        q.set("from", state.from);
-        q.set("to", state.to);
-      }
-      q.set("boutique", id);
-      return `/${locale}/performance/orders?${q.toString()}`;
-    },
-    [locale, state],
-  );
-  const openStore = useCallback((id: string) => (phone ? setSheet(id) : router.push(perfHref(id))), [phone, router, perfHref]);
+  // A store opens Commandes, filtered on that store.
+  const ordersHref = useCallback((id: string) => `/${locale}/orders?storefront_id=${encodeURIComponent(id)}`, [locale]);
+  const openStore = useCallback((id: string) => (phone ? setSheet(id) : router.push(ordersHref(id))), [phone, router, ordersHref]);
 
   if (!ctx) {
     return (
@@ -282,7 +270,7 @@ export function StoreDashboard({
                   <div className="sc card" style={hueVars(sheetStore.hue)}>
                     <CardBody x={sheetStore} />
                   </div>
-                  <button type="button" className="btn" onClick={() => router.push(perfHref(sheetStore.id))}>
+                  <button type="button" className="btn" onClick={() => router.push(ordersHref(sheetStore.id))}>
                     {t("stores.perf")}
                     <Ic n="arrow" className="flipx" />
                   </button>

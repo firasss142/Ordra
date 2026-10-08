@@ -272,6 +272,8 @@
 .sdb .note.warn .ni{background:var(--warn-bg);color:var(--warn)}
 .sdb .note.warn b{color:#9A5B07}
 .sdb .note.new .ni{background:#EEF2FF;color:#4F5BD5}
+.sdb .note.ca .ni{background:#E7F5EC;color:#2F7A55}
+.sdb .note.ca b{color:#2F7A55}
 .sdb .note.flat .ni{background:rgba(15,23,40,.05);color:var(--ink-3)}
 
 /* list view */
