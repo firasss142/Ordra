@@ -55,7 +55,6 @@ beforeEach(() => {
     products: [{ id: "p1", market_id: LY, name: "Tadabbur", unit_cogs: 50, packing_cost: 2, confirmation_processing_cost: 0 }],
   });
   fake.rpcs.get_store_dashboard = (args) => payload(String(args.p_from));
-  fake.rpcs.get_product_cohort = () => ({ lines: [] });
   setTestActor({ role: "super_admin", market_id: null });
 });
 afterEach(() => vi.useRealTimers());
@@ -75,35 +74,40 @@ describe("GET /api/dashboard/stores", () => {
     expect((await GET(req(""))).status).toBe(400);
   });
 
-  test("today by default: today and yesterday, in the market's days", async () => {
+  test("today by default: one read of the day and the 28 days before, in the market's days, never cached", async () => {
     const spy = vi.fn(fake.rpcs.get_store_dashboard);
     fake.rpcs.get_store_dashboard = spy;
     const res = await GET(req(`market_id=${LY}`));
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
     const calls = spy.mock.calls.map((c) => [c[0].p_from, c[0].p_to, c[0].p_tz]);
-    expect(calls).toContainEqual(["2026-10-04", "2026-10-04", "Africa/Tripoli"]);
-    expect(calls).toContainEqual(["2026-10-03", "2026-10-03", "Africa/Tripoli"]);
+    expect(calls).toEqual([["2026-09-06", "2026-10-04", "Africa/Tripoli"]]);
   });
 
-  test("the owner gets the stores, the quiet line and the money", async () => {
+  test("« Hier » reads yesterday and the 28 days before it", async () => {
+    const spy = vi.fn(fake.rpcs.get_store_dashboard);
+    fake.rpcs.get_store_dashboard = spy;
+    const body = (await (await GET(req(`market_id=${LY}&period=yesterday`))).json()) as StoreDashView;
+    expect(spy.mock.calls.map((c) => [c[0].p_from, c[0].p_to])).toEqual([["2026-09-05", "2026-10-03"]]);
+    expect(body.window.key).toBe("yesterday");
+  });
+
+  test("the owner gets the stores and the CA; a store never ordered from waits for its first", async () => {
     const body = (await (await GET(req(`market_id=${LY}&period=30d`))).json()) as StoreDashView;
     expect(body.role).toBe("owner");
     expect(body.stores[0]).toMatchObject({ id: "s1", name: "Nour Store", platform: "converty", sheets: true, hue: "indigo", products: ["Tadabbur"] });
-    expect(body.quiet.map((q) => q.id)).toEqual(["s2"]);
-    expect(body.money?.cur.paid).toBe(210);
+    expect(body.stores.find((x) => x.id === "s2")?.note.kind).toBe("waiting");
+    expect(body.kpi).toMatchObject({ val: 300, paid: 210 });
   });
 
   test("a manager is pinned to their market and never receives a price", async () => {
     setTestActor({ role: "market_manager", market_id: LY });
     const spy = vi.fn(fake.rpcs.get_store_dashboard);
     fake.rpcs.get_store_dashboard = spy;
-    const cohort = vi.fn(fake.rpcs.get_product_cohort);
-    fake.rpcs.get_product_cohort = cohort;
     const res = await GET(req(`market_id=${TN}&period=30d`));
     expect(res.status).toBe(200);
     expect(spy.mock.calls.every((c) => c[0].p_market_id === LY)).toBe(true);
-    expect(cohort).not.toHaveBeenCalled();
     const text = await res.text();
-    expect(text).not.toMatch(/"paid"|"money":\{|"profit"/);
+    expect(text).not.toMatch(/"(val|ca|paid|prevVal|yVal)":[1-9]/);
   });
 });

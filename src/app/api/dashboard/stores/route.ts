@@ -39,7 +39,7 @@ async function handleGET(req: NextRequest) {
     actor.role === "super_admin",
   );
   return NextResponse.json(buildStoreDash(input), {
-    headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" },
+    headers: { "Cache-Control": "private, no-cache" },
   });
 }
 

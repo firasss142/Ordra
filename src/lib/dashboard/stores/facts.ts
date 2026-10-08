@@ -25,8 +25,12 @@ export interface StoreOrder {
   deliveryCost: number | null;
   returnCost: number;
   unmapped: boolean;
+  /** In calls and already called at least once (attempt_*, callback_scheduled) — « Tentatives ». */
+  tried: boolean;
   products: string[];
 }
+
+const TRIED = new Set(["attempt_1", "attempt_2", "attempt_3", "callback_scheduled"]);
 
 const OUTCOMES = new Set<string>(PARCEL_OUTCOMES);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
@@ -69,7 +73,8 @@ export function normalizeStoreOrders(payload: unknown, tz: string): StoreOrder[]
     const at = str(r.created_at);
     if (!id || !at) continue;
     const outcome = OUTCOMES.has(String(r.outcome)) ? (r.outcome as ParcelOutcome) : null;
-    const bk = bkOf(str(r.status) ?? "pending", outcome, str(r.rejection_reason), str(r.rejection_subreason));
+    const status = str(r.status) ?? "pending";
+    const bk = bkOf(status, outcome, str(r.rejection_reason), str(r.rejection_subreason));
     const doneAt = bk === "d" || bk === "f" ? ms(r.outcome_at) : bk === "x" || bk === "j" || bk === "s" || bk === "b" ? ms(r.decided_at) ?? ms(r.outcome_at) : null;
     const dc = r.delivery_cost;
     out.push({
@@ -85,6 +90,7 @@ export function normalizeStoreOrders(payload: unknown, tz: string): StoreOrder[]
       deliveryCost: dc === null || dc === undefined || dc === "" ? null : Number(dc) || 0,
       returnCost: Number(r.return_cost ?? 0) || 0,
       unmapped: r.unmapped === true,
+      tried: bk === "c" && TRIED.has(status),
       products: lines.get(id) ?? [],
     });
   }
