@@ -1,5 +1,5 @@
-import { CommandesSkeleton } from "@/components/orders/commandes/CommandesSkeleton";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function OrdersLoading() {
-  return <CommandesSkeleton />;
+  return <RouteSkeleton />;
 }

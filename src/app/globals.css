@@ -1636,3 +1636,51 @@ button.sb-mchip { cursor: pointer; }
 .r6-fbar span{background-image:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0))}
 .r6-chipa{box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 12px rgba(42,52,110,.06)}
 .r6-tile .r6-v b{font-weight:800}
+
+/* ══ Route skeleton (components/layout/RouteSkeleton) ═══════════════════════
+   Every route loading.tsx draws this. It lives HERE, not in a feature stylesheet,
+   because a route's fallback paints before the route's own CSS has arrived — a
+   skeleton styled from commandes.css or products-v6.css painted blank or as bare
+   text (seen on a production build, 2026-10-08). Same ground and calm cards as the
+   Aurore pages it stands in for; logical properties, so Arabic mirrors for free. */
+.rsk{--rsk-track:rgba(15,23,40,.06);--rsk-card:rgba(255,255,255,.86);--rsk-bd:rgba(16,24,40,.06);
+  --rsk-sh:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(42,52,110,.05);
+  min-height:100vh;padding:28px 36px 96px;background:
+    radial-gradient(58% 40% at 2% 0%, #D3DBFF 0%, transparent 72%),
+    radial-gradient(48% 36% at 100% 0%, #FAD3EC 0%, transparent 72%),
+    radial-gradient(56% 46% at 98% 100%, #C6F2DA 0%, transparent 72%),
+    radial-gradient(52% 46% at 0% 100%, #FFE6B3 0%, transparent 72%),
+    radial-gradient(40% 30% at 50% 50%, #EDE7FF 0%, transparent 80%),
+    #F6F7FB;
+  background-attachment:fixed}
+.rsk.rsk-plain{background:var(--bg-page)}
+.rsk-page{display:flex;flex-direction:column;gap:18px;animation:rsk-pulse 1.6s ease-in-out infinite}
+.rsk-b{display:block;border-radius:99px;background:var(--rsk-track)}
+.rsk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:4px}
+.rsk-titles{display:flex;flex-direction:column;gap:10px}
+.rsk-crumb{width:120px;height:11px}
+.rsk-title{width:260px;max-width:60vw;height:30px;border-radius:12px}
+.rsk-sub{width:360px;max-width:70vw;height:11px}
+.rsk-action{width:150px;height:40px;border-radius:12px}
+.rsk-card{display:flex;flex-direction:column;gap:10px;padding:18px 20px;border-radius:20px;background:var(--rsk-card);border:1px solid var(--rsk-bd);box-shadow:var(--rsk-sh)}
+.rsk-tiles{display:grid;grid-template-columns:repeat(var(--rsk-n,4),minmax(0,1fr));gap:14px}
+.rsk-dot{width:32px;height:32px;border-radius:10px;flex:none}
+.rsk-num{width:72px;height:22px;border-radius:8px}
+.rsk-cap{width:60%;height:10px}
+.rsk-bar{height:48px;border-radius:16px;background:var(--rsk-card);border:1px solid var(--rsk-bd);box-shadow:var(--rsk-sh)}
+.rsk-list{border-radius:20px;overflow:hidden;background:var(--rsk-card);border:1px solid var(--rsk-bd);box-shadow:var(--rsk-sh)}
+.rsk-row{display:flex;align-items:center;gap:16px;height:64px;padding:0 20px}
+.rsk-row + .rsk-row{border-top:1px solid var(--rsk-bd)}
+.rsk-cell{width:220px;height:12px}
+.rsk-cell.rsk-short{width:96px;margin-inline-start:auto}
+.rsk-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.rsk-card.rsk-tall{min-height:180px}
+@keyframes rsk-pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.rsk-page{animation:none}}
+@media (max-width:760px){
+  .rsk{padding:64px 14px 60px}
+  .rsk-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rsk-action{display:none}
+}
+/* inside a shell that already paints the ground and the gutters */
+.agt .rsk,.wh-mobile .rsk{min-height:0;padding:0;background:none}

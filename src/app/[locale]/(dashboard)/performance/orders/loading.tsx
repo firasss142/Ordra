@@ -1,14 +1,5 @@
-import "@/components/performance/orders/performance-orders.css";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
-/** The page's own ground while the route loads — no layout jump when it fills. */
-export default function Loading() {
-  return (
-    <div className="pco" aria-busy="true">
-      <div className="page">
-        <div className="sk" style={{ height: 70, background: "transparent", border: 0, boxShadow: "none" }} />
-        <div className="sk" style={{ height: 320 }} />
-        <div className="sk" style={{ height: 220 }} />
-      </div>
-    </div>
-  );
+export default function PerformanceOrdersLoading() {
+  return <RouteSkeleton tiles={0} toolbar={false} body="cards" cards={2} />;
 }
