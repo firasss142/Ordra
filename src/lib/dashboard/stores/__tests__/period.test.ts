@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDashKey, resolveDashWindow } from "../period";
+import { isDashKey, isDayWindow, resolveDashWindow } from "../period";
 
 const TODAY = "2026-10-04";
 const FIRST = "2026-06-07";
@@ -21,7 +21,15 @@ describe("resolveDashWindow", () => {
     expect(w).toMatchObject({ from: "2026-09-01", to: "2026-09-30", pf: "2026-08-01", pt: "2026-08-31", lag: 31, live: false });
   });
 
+  it("« Hier » is a whole day, not live, compared with the day before", () => {
+    const w = resolveDashWindow("yesterday", null, null, TODAY, FIRST);
+    expect(w).toMatchObject({ key: "yesterday", from: "2026-10-03", to: "2026-10-03", pf: "2026-10-02", pt: "2026-10-02", len: 1, lag: 1, live: false });
+    expect(isDayWindow(w)).toBe(true);
+    expect(isDayWindow(resolveDashWindow("7d", null, null, TODAY, FIRST))).toBe(false);
+  });
+
   it("knows its keys", () => {
+    expect(isDashKey("yesterday")).toBe(true);
     expect(isDashKey("today")).toBe(true);
     expect(isDashKey("30d")).toBe(true);
     expect(isDashKey("m:2026-09")).toBe(true);

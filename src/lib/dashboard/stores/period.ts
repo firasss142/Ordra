@@ -16,9 +16,9 @@ import {
   type PrevKind,
 } from "@/lib/performance/orders/period";
 
-export type DashKey = PeriodKey | "today";
+export type DashKey = PeriodKey | "today" | "yesterday";
 
-export const DASH_PRESETS = ["today", "7d", "30d", "90d", "month"] as const;
+export const DASH_PRESETS = ["today", "yesterday", "7d", "30d", "90d", "month"] as const;
 
 export interface DashWindow {
   key: DashKey;
@@ -35,7 +35,12 @@ export interface DashWindow {
 }
 
 export function isDashKey(v: unknown): v is DashKey {
-  return v === "today" || isPeriodKey(v);
+  return v === "today" || v === "yesterday" || isPeriodKey(v);
+}
+
+/** « Aujourd'hui » and « Hier »: one day, judged against a usual day (same weekday, 4 weeks). */
+export function isDayWindow(w: Pick<DashWindow, "key">): boolean {
+  return w.key === "today" || w.key === "yesterday";
 }
 
 export function resolveDashWindow(
@@ -48,6 +53,11 @@ export function resolveDashWindow(
   if (key == null || key === "today" || !isDashKey(key)) {
     const y = shiftDays(today, -1);
     return { key: "today", from: today, to: today, len: 1, pf: y, pt: y, prev: { kind: "yesterday" }, lag: 1, live: true };
+  }
+  if (key === "yesterday") {
+    const y = shiftDays(today, -1);
+    const b = shiftDays(today, -2);
+    return { key: "yesterday", from: y, to: y, len: 1, pf: b, pt: b, prev: { kind: "yesterday" }, lag: 1, live: false };
   }
   const w = resolveWindow(key as PeriodKey, from, to, today, first);
   return { ...w, lag: daysLen(w.pf, w.from) - 1, live: w.to === today };

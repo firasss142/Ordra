@@ -50,8 +50,9 @@ describe("hueOf / platformOf", () => {
 });
 
 const base: NoteInput = {
-  live: true,
-  today: false,
+  day: false,
+  waiting: false,
+  ads: false,
   n: 120,
   del: 50,
   mkt: 50,
@@ -70,8 +71,14 @@ describe("noteFor — one footer line, the first that applies", () => {
     expect(noteFor({ ...base, stop: { since: TODAY, usual: 9, recent: 0, days: 3 }, unmapped: 4 }).kind).toBe("stopped");
     expect(noteFor({ ...base, unmapped: 4 }).kind).toBe("unmapped");
   });
-  it("today: nothing to report beyond that", () => {
-    expect(noteFor({ ...base, today: true }).kind).toBe("todayOk");
+  it("a stop says when ads stopped too", () => {
+    expect(noteFor({ ...base, ads: true, stop: { since: TODAY, usual: 9, recent: 0, days: 3 } })).toMatchObject({ kind: "stopped", ads: true });
+  });
+  it("a connected store with no order yet waits for its first", () => {
+    expect(noteFor({ ...base, n: 0, waiting: true }).kind).toBe("waiting");
+  });
+  it("a day (today or yesterday): nothing to report beyond that", () => {
+    expect(noteFor({ ...base, day: true }).kind).toBe("todayOk");
   });
   it("under 30 orders: new store or few orders", () => {
     expect(noteFor({ ...base, n: 12, isNew: true }).kind).toBe("new");
@@ -82,8 +89,11 @@ describe("noteFor — one footer line, the first that applies", () => {
     expect(noteFor({ ...base, del: 44 }).kind).toBe("below");
     expect(noteFor({ ...base, del: 47 }).kind).toBe("ok");
   });
-  it("past periods never show live problems", () => {
-    expect(noteFor({ ...base, live: false, broken: { since: "x", n: 3, msg: "" } }).kind).toBe("ok");
+  it("problems are the store's, whatever the period (a stopped store never disappears)", () => {
+    expect(noteFor({ ...base, day: true, broken: { since: "x", n: 3, msg: "" } }).kind).toBe("broken");
+  });
+  it("no delivery rate yet: calm, without a comparison", () => {
+    expect(noteFor({ ...base, del: null })).toEqual({ kind: "ok", del: null, mkt: 50 });
   });
 });
 

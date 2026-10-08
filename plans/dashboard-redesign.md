@@ -1,5 +1,8 @@
 # Accueil (/dashboard) — « vos boutiques »
 
+> **2026-10-07 — v3 in review:** `plans/accueil-v3-point-du-jour.md` + `prototypes/dashboard-v3.html`
+> (« le point du jour »: problems first with their cause, pace vs a usual day, 15 bugs of this page listed).
+
 Status: **BUILT 2026-10-04** — the owner approved v2 (« follow exactly the prototype »). Uncommitted in worktree
 `.claude/worktrees/dashboard-redesign`, branch `feat/dashboard-redesign`.
 Prototype (the spec): `prototypes/dashboard-v2.html` (v2.1 layout: big total + store list + stacked arrival, then the cards).

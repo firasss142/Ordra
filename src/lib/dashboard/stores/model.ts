@@ -86,39 +86,49 @@ export interface Broken {
 }
 
 export interface NoteInput {
-  live: boolean;
-  today: boolean;
+  /** « Aujourd'hui » or « Hier ». */
+  day: boolean;
   n: number;
-  /** Delivered per 100 (whole), this store and the market. */
-  del: number;
-  mkt: number;
+  /** Delivered ÷ (delivered + failed), whole %, this store and the market; null = no parcel ended yet. */
+  del: number | null;
+  mkt: number | null;
   unmapped: number;
   broken: Broken | null;
   stop: Stop | null;
+  /** The market's ads stopped around the day the store did. */
+  ads: boolean;
+  /** Connected, never received an order. */
+  waiting: boolean;
   isNew: boolean;
   isBest: boolean;
 }
 
 export type Note =
   | { kind: "broken"; broken: Broken }
-  | { kind: "stopped"; stop: Stop }
+  | { kind: "stopped"; stop: Stop; ads: boolean }
   | { kind: "unmapped"; n: number }
+  | { kind: "waiting" }
   | { kind: "todayOk" }
   | { kind: "new" }
   | { kind: "few" }
-  | { kind: "best"; del: number; mkt: number }
-  | { kind: "below"; del: number; mkt: number }
-  | { kind: "ok"; del: number; mkt: number };
+  | { kind: "best"; del: number | null; mkt: number | null }
+  | { kind: "below"; del: number | null; mkt: number | null }
+  | { kind: "ok"; del: number | null; mkt: number | null };
 
-/** The card's one footer line: the first that applies. */
+/**
+ * The card's one footer line: the first that applies (prototypes/dashboard-v9.html `noteFor`).
+ * Connection, stop, links and the first-order wait are the STORE's health: they show whatever
+ * the period, so a stopped or broken store never vanishes from « Aujourd'hui ».
+ */
 export function noteFor(x: NoteInput): Note {
-  if (x.live && x.broken) return { kind: "broken", broken: x.broken };
-  if (x.live && x.stop) return { kind: "stopped", stop: x.stop };
+  if (x.broken) return { kind: "broken", broken: x.broken };
+  if (x.stop) return { kind: "stopped", stop: x.stop, ads: x.ads };
   if (x.unmapped > 0) return { kind: "unmapped", n: x.unmapped };
-  if (x.today) return { kind: "todayOk" };
+  if (x.waiting) return { kind: "waiting" };
+  if (x.day) return { kind: "todayOk" };
   if (x.n < JUDGED_N) return { kind: x.isNew ? "new" : "few" };
   if (x.isBest) return { kind: "best", del: x.del, mkt: x.mkt };
-  if (x.del <= x.mkt - 5) return { kind: "below", del: x.del, mkt: x.mkt };
+  if (x.del != null && x.mkt != null && x.del <= x.mkt - 5) return { kind: "below", del: x.del, mkt: x.mkt };
   return { kind: "ok", del: x.del, mkt: x.mkt };
 }
 
