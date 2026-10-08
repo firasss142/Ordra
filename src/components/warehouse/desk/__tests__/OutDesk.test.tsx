@@ -64,6 +64,9 @@ const BASE = [
 
 let scanOk = true;
 queue = BASE;
+let labels: Record<string, unknown> = { enabled: false, toPrint: [], printed: {}, lastBatch: null };
+let labelCalls: Array<{ method: string; body: unknown }> = [];
+let labelPrintOk = true;
 function respond(url: string, init?: RequestInit) {
   const json = (b: unknown, status = 200) =>
     new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
@@ -73,6 +76,14 @@ function respond(url: string, init?: RequestInit) {
   if (url.startsWith("/api/warehouse/sites"))
     return json({ sites: [{ id: "T", code: "tripoli", name: "Tripoli", isDefault: true, marketId: "m" }], mine: null, pinned: false, unassigned: false });
   if (url.startsWith("/api/warehouse/pickup")) return json({ sites: [] });
+  if (url.startsWith("/api/warehouse/xdelivery-labels")) {
+    labelCalls.push({ method: init?.method ?? "GET", body: init?.body ? JSON.parse(String(init.body)) : null });
+    if (init?.method === "POST")
+      return labelPrintOk
+        ? new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { status: 200, headers: { "Content-Type": "application/pdf" } })
+        : json({ error: "db_error" }, 500);
+    return json(labels);
+  }
   if (url.startsWith("/api/warehouse/scan-out") && init?.method === "POST")
     return scanOk ? json({ stock_after: 49, sticker_bind_state: "confirmed" }) : json({ error: "refusé", message: "refusé" }, 409);
   return json({});
@@ -81,6 +92,9 @@ function respond(url: string, init?: RequestInit) {
 beforeEach(() => {
   scanOk = true;
   queue = BASE;
+  labels = { enabled: false, toPrint: [], printed: {}, lastBatch: null };
+  labelCalls = [];
+  labelPrintOk = true;
   vi.stubGlobal("fetch", vi.fn(async (u: string, i?: RequestInit) => respond(String(u), i)));
 });
 afterEach(() => {
@@ -165,5 +179,100 @@ describe("OutDesk", () => {
     expect(screen.getByRole("link", { name: /Tournée Rouge/ }).getAttribute("href")).toBe(
       `/fr/warehouse/scan?roll=${encodeURIComponent(RED)}`,
     );
+  });
+});
+
+describe("OutDesk — X-Delivery labels (prototypes/xdelivery-label-v1.html, screen 3)", () => {
+  const XD1 = "xxxxxxxx-0001";
+  const XD2 = "xxxxxxxx-0002";
+  const tn = (id: string, over: Partial<ToLabelRow> = {}) =>
+    row(id, { customer_city: "Sousse", zone: { branchGroup: null, colorHex: null, colourFr: null, nameFr: null, nameAr: null, source: "unknown" }, ...over });
+
+  let opened: { location: { href: string }; close: () => void } | null;
+  beforeEach(() => {
+    queue = [tn(XD1, { tracking_number: "611791217700001" }), tn(XD2, { tracking_number: "611791217700002" }), tn("navex-03")];
+    labels = {
+      enabled: true,
+      toPrint: [XD1],
+      printed: { [XD2]: "2026-10-06T08:12:00Z" },
+      lastBatch: { at: "2026-10-06T08:12:00Z", count: 14, orderIds: [XD2] },
+    };
+    opened = { location: { href: "" }, close: vi.fn() };
+    vi.stubGlobal("open", vi.fn(() => opened));
+    URL.createObjectURL = vi.fn(() => "blob:pdf");
+    try { localStorage.clear(); } catch { /* private mode */ }
+  });
+
+  function renderTn() {
+    return render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <NextIntlClientProvider locale="fr" messages={frMessages} timeZone="Africa/Tunis">
+          <OutDesk market="tn" dateLabel="mardi 6 octobre" today="2026-10-06" initialOrders={queue} initialSiteId={null} />
+        </NextIntlClientProvider>
+      </SWRConfig>,
+    );
+  }
+  const rowOf = (text: string) => screen.getAllByTestId("out-row").find((r) => r.textContent?.includes(text))!;
+
+  it("says how many labels wait, and each X-Delivery row says its own", async () => {
+    renderTn();
+    expect(await screen.findByTestId("xd-labels")).toHaveTextContent("1 étiquette à imprimer");
+    expect(within(rowOf(`client ${XD1}`)).getByText("À imprimer")).toBeInTheDocument();
+    expect(within(rowOf(`client ${XD2}`)).getByText("Imprimée 09:12")).toBeInTheDocument();
+    // Not an X-Delivery parcel: no label state of ours to show.
+    expect(within(rowOf("client navex-03")).queryByText(/imprim/i)).toBeNull();
+  });
+
+  it("names the last batch", async () => {
+    renderTn();
+    expect(await screen.findByText(/Dernière impression : 09:12 · 14 étiquettes/)).toBeInTheDocument();
+  });
+
+  it("« Imprimer » sends the waiting labels in A4 ×2 by default and opens the PDF", async () => {
+    renderTn();
+    fireEvent.click(await screen.findByRole("button", { name: "Imprimer l'étiquette" }));
+    await waitFor(() => expect(opened?.location.href).toBe("blob:pdf"));
+    expect(labelCalls.find((c) => c.method === "POST")?.body).toEqual({ format: "a4x2" });
+  });
+
+  it("the thermal choice is sent, and remembered by this computer", async () => {
+    const first = renderTn();
+    fireEvent.click(await screen.findByRole("radio", { name: "10×15" }));
+    fireEvent.click(screen.getByRole("button", { name: "Imprimer l'étiquette" }));
+    await waitFor(() => expect(labelCalls.some((c) => c.method === "POST")).toBe(true));
+    expect(labelCalls.find((c) => c.method === "POST")?.body).toEqual({ format: "thermal" });
+    first.unmount();
+    renderTn();
+    expect(await screen.findByRole("radio", { name: "10×15" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("a lost label is reprinted from its row", async () => {
+    renderTn();
+    fireEvent.click(await within(rowOf(`client ${XD2}`)).findByRole("button", { name: "Réimprimer" }));
+    await waitFor(() => expect(labelCalls.some((c) => c.method === "POST")).toBe(true));
+    expect(labelCalls.find((c) => c.method === "POST")?.body).toEqual({ format: "a4x2", order_ids: [XD2] });
+  });
+
+  it("a failed print says so and closes the empty tab", async () => {
+    labelPrintOk = false;
+    renderTn();
+    fireEvent.click(await screen.findByRole("button", { name: "Imprimer l'étiquette" }));
+    expect(await screen.findByText("Impression impossible. Réessayez.")).toBeInTheDocument();
+    expect(opened?.close).toHaveBeenCalled();
+  });
+
+  it("no X-Delivery account: no pill, no label column", async () => {
+    labels = { enabled: false, toPrint: [], printed: {}, lastBatch: null };
+    renderTn();
+    await waitFor(() => expect(labelCalls.length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("xd-labels")).toBeNull();
+    expect(screen.queryByText("Étiquette")).toBeNull();
+  });
+
+  it("Libya never asks for X-Delivery labels", async () => {
+    queue = BASE;
+    renderOut();
+    await screen.findAllByTestId("out-row");
+    expect(labelCalls).toEqual([]);
   });
 });

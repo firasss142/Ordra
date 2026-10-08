@@ -40,6 +40,11 @@ vi.mock("@/components/warehouse/pickup/XDeliveryPickupCard", () => ({
   XDeliveryPickupCard: () => <div data-testid="xd-pickup-card" />,
 }));
 
+let xdSummary: { enabled: boolean; toPrint: string[]; printed: Record<string, string>; lastBatch: null } | undefined;
+vi.mock("@/hooks/useXDeliveryLabels", () => ({
+  useXDeliveryLabels: (enabled: boolean) => ({ summary: enabled ? xdSummary : undefined }),
+}));
+
 vi.mock("@/components/warehouse/QrScanner", () => ({
   QrScanner: ({ onScan }: { onScan: (v: string) => void }) => (
     <button type="button" data-testid="qr-scanner" onClick={() => onScan("7700001")} />
@@ -84,6 +89,21 @@ describe("BenchHome — the X-Delivery pickup card (prototypes/xdelivery-v1.html
   it("is never on the Libyan bench", () => {
     renderHome();
     expect(screen.queryByTestId("xd-pickup-card")).toBeNull();
+  });
+});
+
+describe("BenchHome — X-Delivery labels on the cards", () => {
+  it("each Tunisian X-Delivery parcel says whether its label is printed", () => {
+    const a = row({ id: "aaaaaaaa-0000-4000-8000-0000000000a1", customer_name: "Client A.", zone: UNKNOWN });
+    const b = row({ id: "aaaaaaaa-0000-4000-8000-0000000000b2", customer_name: "Client B.", zone: UNKNOWN });
+    const c = row({ id: "aaaaaaaa-0000-4000-8000-0000000000c3", customer_name: "Client C.", zone: UNKNOWN });
+    xdSummary = { enabled: true, toPrint: [a.id], printed: { [b.id]: "2026-10-06T08:12:00Z" }, lastBatch: null };
+    renderHome([a, b, c], "tn", "fr");
+    const card = (name: string) => screen.getAllByTestId("wh-bench-card").find((x) => x.textContent?.includes(name))!;
+    expect(within(card("Client A.")).getByTestId("wh-bench-label")).toHaveAttribute("data-state", "toPrint");
+    expect(within(card("Client B.")).getByTestId("wh-bench-label")).toHaveAttribute("data-state", "ready");
+    expect(within(card("Client C.")).queryByTestId("wh-bench-label")).toBeNull();
+    xdSummary = undefined;
   });
 });
 

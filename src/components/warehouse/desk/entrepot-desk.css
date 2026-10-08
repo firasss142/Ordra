@@ -224,6 +224,23 @@
 .ent .pk button{height:30px;padding:0 10px;border-radius:9px;background:#fff;border:1px solid rgba(15,23,40,.1);font-size:12.5px;font-weight:700;color:var(--ink)}
 .ent .pk button:hover{border-color:var(--brand);color:var(--brand)}
 .ent .pk.ok{color:var(--good);padding-inline-end:12px}
+/* X-Delivery labels (prototypes/xdelivery-label-v1.html): the pill, its format switch, the
+   last batch, the row's label state. The carrier tag is the carrier's identity, not a status. */
+.ent .xdtag{height:18px;padding:0 6px;border-radius:5px;background:#E8EEF7;color:#0D2C54;font-size:11px;font-weight:800;letter-spacing:.02em;display:inline-flex;align-items:center}
+.ent .pk .fmt{display:inline-flex;padding:2px;border-radius:9px;background:var(--line);gap:2px}
+.ent .pk .fmt button{height:26px;padding:0 9px;border:0;border-radius:7px;background:transparent;color:var(--ink-3);font-size:12px}
+.ent .pk .fmt button[aria-checked="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(15,23,40,.12)}
+.ent .pk .go{background:var(--brand);border-color:var(--brand);color:#fff}
+.ent .pk .go:hover{color:#fff;filter:brightness(1.05)}
+.ent .pk button:disabled{opacity:.5;cursor:default}
+.ent .xdband{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.82);border:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.ent .xdband > span{flex:1;display:flex;flex-direction:column}
+.ent .xdband b{color:var(--ink)}
+.ent .xdband small{font-size:12px;color:var(--ink-3)}
+.ent .xdband .ic{width:16px;height:16px}
+.ent .xdl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ent .lnk{border:0;background:none;padding:0;font-size:12.5px;font-weight:700;color:var(--brand);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.ent .lnk:disabled{opacity:.5;cursor:default}
 .ent .pk.ok button{color:var(--ink-2)}
 
 /* drawers */

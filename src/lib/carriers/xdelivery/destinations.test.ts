@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { XDELIVERY_DELEGATIONS } from "./catalogue";
 import {
+  XDELIVERY_DEPOT,
   DEFAULT_DELEGATION,
   toXDeliveryGovernorate,
   resolveXDeliveryDestination,
@@ -104,5 +105,19 @@ describe("normalizeTunisianPhone", () => {
     expect(normalizeTunisianPhone("1234")).toBeNull();
     expect(normalizeTunisianPhone("")).toBeNull();
     expect(normalizeTunisianPhone(null)).toBeNull();
+  });
+});
+
+describe("XDELIVERY_DEPOT — the big code on our label", () => {
+  it("names a depot for each of their 24 governorates", () => {
+    expect(Object.keys(XDELIVERY_DEPOT).sort()).toEqual(Object.keys(XDELIVERY_DELEGATIONS).sort());
+  });
+
+  it("follows their catalogue: 9 depots, the Sahel together, Grand Tunis together", () => {
+    expect(new Set(Object.values(XDELIVERY_DEPOT)).size).toBe(9);
+    expect([XDELIVERY_DEPOT.Sousse, XDELIVERY_DEPOT.Monastir, XDELIVERY_DEPOT.Mahdia]).toEqual(["SH", "SH", "SH"]);
+    expect([XDELIVERY_DEPOT.Tunis, XDELIVERY_DEPOT.Ariana, XDELIVERY_DEPOT.Mannouba]).toEqual(["CE", "CE", "CE"]);
+    expect(XDELIVERY_DEPOT.Sfax).toBe("SF");
+    expect(XDELIVERY_DEPOT.Bizerte).toBe("BA");
   });
 });

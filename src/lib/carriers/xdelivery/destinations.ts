@@ -46,6 +46,38 @@ export const DEFAULT_DELEGATION: Readonly<Record<string, string>> = {
   Zaghouan: "Zaghouan",
 };
 
+/**
+ * Their destination depot per governorate: one of 9, printed big on our label so their
+ * sorters read it at a glance. From `destinationDepotCode` in their localities catalogue
+ * (2026-10-05); every locality of a governorate shares it.
+ */
+export const XDELIVERY_DEPOT: Readonly<Record<string, string>> = {
+  Ariana: "CE",
+  Beja: "NO",
+  "Ben Arous": "BA",
+  Bizerte: "BA",
+  Gabes: "MD",
+  Gafsa: "GA",
+  Jendouba: "NO",
+  Kairouan: "KA",
+  Kasserine: "GA",
+  Kebili: "GA",
+  Kef: "NO",
+  Mahdia: "SH",
+  Mannouba: "CE",
+  Medenine: "MD",
+  Monastir: "SH",
+  Nabeul: "NB",
+  Sfax: "SF",
+  "Sidi Bouzid": "GA",
+  Siliana: "NO",
+  Sousse: "SH",
+  Tataouine: "MD",
+  Tozeur: "GA",
+  Tunis: "CE",
+  Zaghouan: "NB",
+};
+
 /** Case-, accent- and punctuation-blind form of a place name, for matching. */
 export function fold(s: string): string {
   return s
