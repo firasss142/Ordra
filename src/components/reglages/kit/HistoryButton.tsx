@@ -70,7 +70,7 @@ export function HistoryButton({
         title={t("history.button")}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="grid h-[32px] w-[32px] place-items-center rounded-[6px] text-[#A0A5AA] hover:bg-surface-selected hover:text-ink-primary aria-expanded:bg-surface-selected aria-expanded:text-ink-primary"
+        className="rg-hist"
       >
         <History className="h-[16px] w-[16px]" aria-hidden />
       </button>
@@ -78,7 +78,7 @@ export function HistoryButton({
         <div
           role="dialog"
           aria-label={label}
-          className="absolute end-[16px] top-[50px] z-30 w-[340px] rounded-[10px] border border-line bg-white shadow-floating"
+          className="rg-pop absolute end-[16px] top-[50px] z-30 w-[340px]"
         >
           <div className="flex items-center gap-[8px] border-b border-line-subtle px-[12px] py-[10px] text-[13px] font-semibold">
             <History className="h-[16px] w-[16px]" aria-hidden />

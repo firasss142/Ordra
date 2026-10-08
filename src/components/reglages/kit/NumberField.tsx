@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 
 /**
- * A number with its unit inside the box (prototype `.nin`): « [ 8 | appels ] ».
- * Keeps the text while you type so an empty box is allowed mid-edit; emits
- * `null` for empty, a number otherwise.
+ * A number as a stepper: « − 8 appels + ». Keeps the text while you type so an
+ * empty box is allowed mid-edit; emits `null` for empty, a number otherwise.
+ * The buttons step by `step` and stay inside min/max.
  */
 export function NumberField({
   value,
@@ -17,7 +18,7 @@ export function NumberField({
   max,
   step = 1,
   dirty = false,
-  width = 76,
+  width = 52,
   fill = false,
 }: {
   value: number | null;
@@ -38,15 +39,21 @@ export function NumberField({
     setText((prev) => (prev === "" && value === null) || Number(prev) === value ? prev : value === null ? "" : String(value));
   }, [value]);
 
+  const clamp = (n: number) => Math.min(max ?? Infinity, Math.max(min, n));
+  const bump = (dir: 1 | -1) => {
+    const base = value ?? min;
+    // Round away float noise from fractional steps (0.5 % surcharge).
+    const next = clamp(Math.round((base + dir * step) * 1000) / 1000);
+    setText(String(next));
+    onChange(next);
+  };
+
   return (
-    <label
-      className={`inline-flex h-[36px] items-stretch overflow-hidden rounded-[6px] border bg-white focus-within:border-brand focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand ${dirty ? "border-status-warning" : "border-[#D2D5D9]"} ${fill ? "w-full" : ""}`}
-    >
-      {prefix && (
-        <span className="flex items-center whitespace-nowrap border-e border-line-subtle bg-surface-sunken px-[10px] text-[13px] text-ink-secondary">
-          {prefix}
-        </span>
-      )}
+    <span className={`rg-stp${dirty ? " dirty" : ""}${fill ? " fill" : ""}`}>
+      <button type="button" tabIndex={-1} aria-hidden onClick={() => bump(-1)} disabled={value !== null && value <= min}>
+        <Minus />
+      </button>
+      {prefix && <span className="pf">{prefix}</span>}
       <input
         type="number"
         inputMode="decimal"
@@ -61,13 +68,11 @@ export function NumberField({
           onChange(e.target.value === "" ? null : Number(e.target.value));
         }}
         style={fill ? undefined : { width }}
-        className={`border-0 bg-transparent px-[10px] text-end text-[14px] tabular-nums text-ink-primary outline-none ${fill ? "min-w-0 flex-1" : ""}`}
       />
-      {unit && (
-        <span className="flex items-center whitespace-nowrap border-s border-line-subtle bg-surface-sunken px-[10px] text-[13px] text-ink-secondary">
-          {unit}
-        </span>
-      )}
-    </label>
+      {unit && <span className="u">{unit}</span>}
+      <button type="button" tabIndex={-1} aria-hidden onClick={() => bump(1)} disabled={max !== undefined && value !== null && value >= max}>
+        <Plus />
+      </button>
+    </span>
   );
 }

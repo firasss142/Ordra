@@ -72,7 +72,7 @@ describe("ReglagesShell", () => {
 
   it("shows a manager their own market, fixed, and neither Marchés, Publicité nor Surveillance", () => {
     render(<ReglagesShell user={manager} topic="shops" />);
-    expect(screen.getByText("Votre marché")).toBeInTheDocument();
+    expect(screen.getByLabelText("Votre marché")).toHaveTextContent("Libye · LYD");
     expect(screen.queryByRole("button", { name: /Tunisie/ })).not.toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Réglages" });
     expect(within(nav).queryByRole("link", { name: "Marchés" })).not.toBeInTheDocument();
@@ -82,10 +82,12 @@ describe("ReglagesShell", () => {
     expect(within(nav).queryByRole("heading", { name: "Système" })).not.toBeInTheDocument();
   });
 
-  it("names the market in the header of a market topic", () => {
+  it("titles the page with the topic and shows the market being set in the header", () => {
     render(<ReglagesShell user={admin} topic="delivery" />);
-    expect(screen.getByText("Libye · LYD")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Livraison" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Livraison" })).toBeInTheDocument();
+    const markets = screen.getByRole("group", { name: "Marché réglé" });
+    expect(within(markets).getByRole("button", { name: /Libye/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(markets).getByRole("button", { name: /Tunisie/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("asks for a market instead of loading forever when the scope is « Tous les marchés »", async () => {

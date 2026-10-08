@@ -153,3 +153,22 @@ The default topic is Boutiques, for every role. The market switch is hidden on t
 - **Surveillance** (super_admin only): `journal_rule_settings`. See `docs/journal.md` §6.
 
 **Found, not changed (owner's call):** the two item routes apply the card surcharge to Darb card orders, but the order route does not. See the plan.
+
+## v3 — « Aurore calme » (2026-10-08)
+
+Spec: `prototypes/reglages-v4.html` (v3 kept for comparison), plan `plans/reglages-v3-aurore-calme.md`.
+The language of Prospects (/leads) and Voix du client (/feedback), one step calmer:
+
+- `src/components/reglages/reglages.css`, scoped under `.rgc`, owns the look. It also repoints the
+  older Tailwind tokens (ink-*, line-*, surface-*, status-*) inside the page, so every topic follows
+  without being rewritten.
+- The page title is the topic; the super admin's market switch (or the manager's market chip) sits
+  on the header's end; the menu is one card with a calm tint per section.
+- Numbers are steppers (− value unit +); « Enregistrer » is the dark bar floating at the bottom;
+  drawers float (ui/Sheet, given the `rg-drawer` class through its width slot).
+- « Produits et villes à associer » is a work list under Boutiques, Produits tab first. Ordra
+  proposes a match (`lib/reglages/match-suggest.ts`: `same` = identical once case/accents/punctuation
+  are ignored; `near` = article-only difference, whole product name inside the shop's title, or
+  most words shared; never one shared word, never a tie). One button accepts every `same`; a row's
+  « Associer » accepts its proposal; « Choisir… » opens the picker. City binds stay per order
+  through the existing POST, at most 6 in flight.

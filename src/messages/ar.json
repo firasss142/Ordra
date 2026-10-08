@@ -7791,6 +7791,7 @@
   },
   "reglages": {
     "title": "الإعدادات",
+    "crumb": "النظام",
     "marketLabel": {
       "admin": "السوق المعروض",
       "manager": "سوقك"
@@ -8431,8 +8432,30 @@
       "nothingFound": "لا نتائج.",
       "done": "تم الربط",
       "pick": "اختر عنصراً من القائمة أولاً.",
-      "productSubtitle": "«{name}» · {shop} · {pending}",
-      "citySubtitle": "«{name}» · {pending}"
+      "allMatchedSub": "لا طلبات تنتظر منتجاً أو مدينة.",
+      "waitProducts": "{n, plural, one {طلب ينتظر منتجاً} other {طلبات تنتظر منتجاً}}",
+      "waitCities": "{n, plural, one {طلب ينتظر مدينة} other {طلبات تنتظر مدينة}}",
+      "oldest": "أقدمها منذ",
+      "acceptSame": "{n, plural, one {ربط الاسم المطابق} other {ربط الأسماء المطابقة (#)}} · {orders, plural, one {طلب واحد} other {# طلبات}}",
+      "select": "تحديد",
+      "selectOne": "تحديد « {name} »",
+      "colReceived": "المستلم من المتجر",
+      "colOrders": "الطلبات",
+      "colSince": "ينتظر منذ",
+      "colProposal": "اقتراح أوردرا",
+      "same": "اسم مطابق",
+      "near": "قريب",
+      "noProposal": "لا اقتراح",
+      "choose": "اختيار…",
+      "selected": "{n, plural, one {# محدد} other {# محددة}}",
+      "acceptSelected": "ربط بالاقتراحات",
+      "doneMany": "{n, plural, one {تم ربط اسم واحد} other {تم ربط # أسماء}}",
+      "partial": "تم ربط {ok} من {n}. أعد المحاولة للباقي.",
+      "since": "منذ {date}",
+      "bindN": "{n, plural, one {ربط الطلب} other {ربط # طلبات}}",
+      "proposed": "مقترح",
+      "allProducts": "كل المنتجات",
+      "allDestinations": "كل الوجهات"
     },
     "whatsapp": {
       "numberTitle": "رقم واتساب",
