@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Prototype: X-Delivery (Tunisie) — le « Manifeste retour » scanné jusqu'au bout.
+     Décisions du 2026-10-08. Données fictives uniquement (dépôt public). -->
+<title>Manifestes X-Delivery</title>
+<style>
+:root{
+  --ground:#F6F6F7; --card:#FFFFFF; --edge:#E1E3E5; --ink:#1A1A1A; --ink2:#5C5F62; --ink3:#8C9196;
+  --accent:#147A47; --accent-deep:#0F6239; --accent-soft:#E6F2EA; --track:#ECEDEE;
+  --warn:#8A6100; --warn-bg:#FFF6DD; --bad:#B42318; --bad-bg:#FDECEA; --info:#0D2C54; --info-bg:#E8EEF7;
+  --studio:#EAEBEC; --studio-ink:#2B2E2B;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.studio{min-height:100vh;display:grid;grid-template-columns:1fr;gap:24px;padding:16px}
+.notes{font-size:13.5px;color:var(--studio-ink)}
+.notes h1{font-size:18px;margin:0 0 4px}
+.notes p{margin:0 0 10px;color:#4A4E4A}
+.notes .pick{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.notes button{font:inherit;text-align:left;padding:8px 12px;border:1px solid #C9CBC2;background:#F7F6F1;border-radius:8px;cursor:pointer;color:var(--studio-ink)}
+.notes button[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.notes h2{font-size:13.5px;margin:16px 0 6px}
+.notes ol,.notes ul{padding-left:18px;margin:6px 0}.notes li{margin-bottom:6px}
+.notes .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent-deep)}
+@media (min-width:1000px){
+  .studio{grid-template-columns:330px 1fr;align-items:start;padding:32px 40px;gap:40px}
+  .notes{position:sticky;top:32px}
+  .notes .pick{flex-direction:column}
+}
+.stage{display:none;min-width:0}
+.stage[data-active="true"]{display:block}
+.stage h3{margin:0 0 4px;font-size:16px}
+.stage .sub{margin:0 0 14px;color:var(--ink2);font-size:13.5px}
+
+/* ── Desk ─────────────────────────────────────────────── */
+.desk{background:var(--ground);border:1px solid #C9CBC2;border-radius:14px;overflow:hidden;max-width:1100px}
+.desk header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px;flex-wrap:wrap}
+.desk header h4{margin:0;font-size:22px}
+.desk header p{margin:0;color:var(--ink2);font-size:13px}
+.btn{height:34px;padding:0 14px;border-radius:10px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--edge);background:#fff;color:var(--ink);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{height:28px;padding:0 10px;font-size:12.5px}
+.btn.ghost{background:none;border-color:transparent;color:var(--ink2)}
+.xdtag{height:18px;padding:0 6px;border-radius:5px;background:var(--info-bg);color:var(--info);font-size:11px;font-weight:800;letter-spacing:.02em;display:inline-flex;align-items:center}
+.last[hidden]{display:none}
+.chip{justify-self:start;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block;white-space:nowrap}
+.chip.wait{background:var(--track);color:var(--ink2)}
+.chip.ok{background:var(--accent-soft);color:var(--accent-deep)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.info{background:var(--info-bg);color:var(--info)}
+.m{color:var(--ink2);font-size:12.5px}
+.mono{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+.scanbar{margin:0 22px 14px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#fff;border:2px solid var(--accent)}
+.scanbar .ico{width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent-deep);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.scanbar input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:16px;background:none}
+.scanbar .m{white-space:nowrap}
+
+.tiles{margin:0 22px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tile{background:#fff;border:1px solid var(--edge);border-radius:14px;padding:12px 14px}
+.tile .k{font-size:12px;color:var(--ink2);font-weight:600}
+.tile .v{font-size:24px;font-weight:700;line-height:1.2}
+.tile.bad .v{color:var(--bad)} .tile.warn .v{color:var(--warn)}
+
+.sect{margin:4px 22px 8px;font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em}
+.list{margin:0 22px 18px;background:#fff;border:1px solid var(--edge);border-radius:14px;overflow:hidden}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) 170px 130px 110px;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--track);font-size:14px}
+.mrow:last-child{border-bottom:0}
+.mrow b{font-weight:600}
+.bar{height:6px;background:var(--track);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+.tr{display:grid;grid-template-columns:28px minmax(0,1.6fr) 150px 120px 150px;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--track);font-size:14px}
+.tr:last-child{border-bottom:0}
+.tr.h{font-size:11.5px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;background:#FAFAFB}
+.tr .dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--edge);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+.tr.got .dot{background:var(--accent);border-color:var(--accent)}
+.tr.dmg .dot{background:var(--bad);border-color:var(--bad)}
+.tr.got,.tr.dmg{background:#FCFDFC}
+.tr.flash{animation:flash 1.2s ease-out}
+@keyframes flash{from{background:var(--accent-soft)}to{background:#FCFDFC}}
+
+.prog{margin:0 22px 14px;background:#fff;border:1px solid var(--edge);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.prog .big{font-size:28px;font-weight:700;line-height:1}
+.prog .big span{color:var(--ink3);font-weight:600}
+.prog .bar{flex:1;min-width:160px;height:10px}
+
+.last{margin:0 22px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:14px;background:var(--accent-soft);border:1px solid #CBE3D3}
+.last.off{background:var(--warn-bg);border-color:#F1DFA8}
+.last.dmg{background:var(--bad-bg);border-color:#F5C6C1}
+.last p{margin:0}
+.last .t{font-weight:700}
+
+.demo{margin:0 22px 18px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border:1px dashed #B9BCBF;border-radius:12px;font-size:12.5px;color:var(--ink2)}
+
+.sheet{position:fixed;inset:0;background:rgba(20,22,20,.35);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+.sheet[data-open="true"]{display:flex}
+.dlg{background:#fff;border-radius:16px;max-width:460px;width:100%;padding:20px 22px}
+.dlg h5{margin:0 0 6px;font-size:18px}
+.dlg p{margin:0 0 12px;color:var(--ink2);font-size:14px}
+.dlg ul{margin:0 0 16px;padding:0;list-style:none;border:1px solid var(--edge);border-radius:12px}
+.dlg li{padding:9px 12px;border-bottom:1px solid var(--track);font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.dlg li:last-child{border-bottom:0}
+.dlg .acts{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+
+/* ── Phone ────────────────────────────────────────────── */
+.phone{width:390px;max-width:100%;min-height:780px;border:10px solid #1F221F;border-radius:44px;overflow:hidden;background:var(--ground);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.phone h4{margin:0;font-size:20px}
+.cam{height:170px;border-radius:16px;background:#111;position:relative;overflow:hidden}
+.cam::after{content:"";position:absolute;left:12%;right:12%;top:50%;height:2px;background:#4ADE80;box-shadow:0 0 12px #4ADE80}
+.cam span{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#D7DAD7;font-size:12.5px}
+.pcard{background:#fff;border:1px solid var(--edge);border-radius:14px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pcard b{font-size:14.5px;font-weight:600}
+.pcard .m{font-size:12.5px}
+.seg{display:flex;background:var(--track);border-radius:999px;padding:3px}
+.seg button{flex:1;font:inherit;font-size:13px;font-weight:600;border:0;background:none;padding:6px 8px;border-radius:999px;color:var(--ink2)}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--edge)}
+
+/* ── Manager alert ────────────────────────────────────── */
+.notif{max-width:520px;background:#fff;border:1px solid var(--edge);border-radius:14px;padding:14px 16px;display:flex;gap:12px;margin-bottom:14px}
+.notif .ico{width:34px;height:34px;border-radius:10px;background:var(--bad-bg);color:var(--bad);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-weight:800}
+.notif p{margin:0}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="notes">
+    <h1>X-Delivery — les manifestes</h1>
+    <p>Les retours n'arrivent plus « au hasard » : chaque jour X-Delivery remet une liste. On l'ouvre, on scanne jusqu'au bout, et ce qui manque se voit. Données fictives.</p>
+    <div class="pick">
+      <button data-go="home" aria-current="true">1 · Bureau — Retours du jour</button>
+      <button data-go="scan">2 · Bureau — scanner le manifeste</button>
+      <button data-go="done">3 · Terminer avec des manquants</button>
+      <button data-go="phone">4 · Téléphone — même scan, caméra</button>
+      <button data-go="alert">5 · Responsable — l'alerte</button>
+      <button data-go="ask">6 · Demande d'enlèvement (bouton)</button>
+      <button data-go="lists">7 · Listes d'enlèvement — supprimer</button>
+      <button data-go="del">8 · Supprimer une liste</button>
+    </div>
+
+    <h2>Enlèvement : à la demande <span class="tag">décidé</span></h2>
+    <ul>
+      <li>Plus de demande automatique ni d'interrupteur. Un bouton « Demande d'enlèvement · N colis » : tous les colis <b>scannés</b> et pas encore demandés sont cochés, on décoche au besoin, on confirme → <b>une liste</b> chez X-Delivery.</li>
+      <li>Supprimer une liste, ou en retirer des colis — dans Ordra <b>ou</b> sur le portail X-Delivery : les commandes reviennent à <b>« uploadée »</b>, stock remis (annulation de scan). Chez X-Delivery elles reviennent « en attente ».</li>
+      <li>Le colis emballé se rescanne pour repartir dans une prochaine liste.</li>
+    </ul>
+
+    <h2>Ouvrir la liste <span class="tag">décidé</span></h2>
+    <ul>
+      <li>Ordra récupère tout seul les manifestes retour d'X-Delivery (≈ 1 par jour, 2 à 21 colis).</li>
+      <li>On l'ouvre <b>en scannant le code-barres de la feuille</b> du livreur, ou en touchant la ligne.</li>
+    </ul>
+
+    <h2>Un scan, deux codes <span class="tag">décidé</span></h2>
+    <ul>
+      <li>Le <b>code-barres X-Delivery</b> du colis (15 chiffres) <b>ou</b> notre <b>QR Ordra</b> : les deux cochent la même ligne.</li>
+      <li>Chaque scan = <b>bon état</b>, stock remis tout de suite. « Endommagé » se touche sur le dernier colis scanné.</li>
+    </ul>
+
+    <h2>Hors liste <span class="tag">décidé</span></h2>
+    <ul>
+      <li>Un colis absent du manifeste est <b>refusé</b> : « mettez-le de côté ». Ordra le note et affiche le compteur <b>De côté</b>.</li>
+      <li>Quand un manifeste suivant le contient, sa ligne dit « mis de côté le … » : on le reprend et on le scanne.</li>
+    </ul>
+
+    <h2>Manquants <span class="tag">décidé</span></h2>
+    <ul>
+      <li>« Terminer » avec des colis non scannés : on confirme, <b>le responsable est alerté</b> avec la liste.</li>
+      <li>Ils restent « à retourner » et dans le compteur <b>Manquants</b> jusqu'à leur scan.</li>
+    </ul>
+
+    <h2>Aussi</h2>
+    <ul>
+      <li>Manifestes <b>Échange</b> inclus (même écran, étiquette « Échange »).</li>
+      <li>PC avec scanner et téléphone avec caméra : même liste, même règle.</li>
+      <li>Construit une fois pour tous les transporteurs ; X-Delivery est le premier. La Libye (Darb) garde son scan actuel.</li>
+    </ul>
+  </aside>
+
+  <!-- 1 · Home -->
+  <section class="stage" data-stage="home">
+    <h3>Bureau « Retours » (PC de l'entrepôt, scanner USB)</h3>
+    <p class="sub">Le champ est déjà actif : scanner la feuille du livreur ouvre directement son manifeste.</p>
+    <div class="desk">
+      <header>
+        <div><h4>Retours</h4><p>Tunisie · Entrepôt Tunis · jeudi 8 octobre</p></div>
+      </header>
+      <label class="scanbar">
+        <span class="ico">⌁</span>
+        <input placeholder="Scannez la feuille du manifeste…" aria-label="Scanner">
+        <span class="m">ou choisissez ci-dessous</span>
+      </label>
+      <div class="tiles">
+        <div class="tile"><div class="k">À recevoir aujourd'hui</div><div class="v">10</div><div class="m">1 manifeste X-Delivery</div></div>
+        <div class="tile bad"><div class="k">Manquants</div><div class="v">2</div><div class="m">depuis le 7 oct · responsable alerté</div></div>
+        <div class="tile warn"><div class="k">De côté</div><div class="v">1</div><div class="m">hors manifeste, attend sa liste</div></div>
+      </div>
+
+      <div class="sect">Manifestes retour</div>
+      <div class="list">
+        <div class="mrow">
+          <div><span class="xdtag">X-DELIVERY</span> <b>Retour · 8 oct.</b><div class="m mono">N° 1791 4000 0001 · remis ce matin</div></div>
+          <div><div class="bar"><i style="width:0%"></i></div><div class="m">0 / 10 scannés</div></div>
+          <span class="chip info">En route</span>
+          <button class="btn primary sm" data-go="scan">Ouvrir</button>
+        </div>
+        <div class="mrow">
+          <div><span class="xdtag">X-DELIVERY</span> <b>Échange · 8 oct.</b><div class="m mono">N° 1791 4000 0002</div></div>
+          <div><div class="bar"><i style="width:0%"></i></div><div class="m">0 / 1 scanné</div></div>
+          <span class="chip info">Échange</span>
+          <button class="btn sm">Ouvrir</button>
+        </div>
+        <div class="mrow">
+          <div><span class="xdtag">X-DELIVERY</span> <b>Retour · 7 oct.</b><div class="m mono">N° 1791 3000 0001</div></div>
+          <div><div class="bar"><i style="width:80%"></i></div><div class="m">8 / 10 scannés</div></div>
+          <span class="chip bad">2 manquants</span>
+          <button class="btn sm">Voir</button>
+        </div>
+        <div class="mrow">
+          <div><span class="xdtag">X-DELIVERY</span> <b>Retour · 6 oct.</b><div class="m mono">N° 1791 2000 0001</div></div>
+          <div><div class="bar"><i style="width:100%"></i></div><div class="m">7 / 7 scannés</div></div>
+          <span class="chip ok">Complet</span>
+          <button class="btn sm">Voir</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · Scan (interactive) -->
+  <section class="stage" data-stage="scan">
+    <h3>Bureau — le manifeste ouvert, on scanne jusqu'au bout</h3>
+    <p class="sub">Essayez les boutons en pointillés : ils simulent le scanner.</p>
+    <div class="desk">
+      <header>
+        <div><h4>Retour · 8 oct.</h4><p><span class="xdtag">X-DELIVERY</span> <span class="mono">N° 1791 4000 0001</span> · Entrepôt Tunis</p></div>
+        <div style="display:flex;gap:8px"><button class="btn ghost" data-go="home">← Retours</button><button class="btn" id="finish">Terminer</button></div>
+      </header>
+      <div class="prog">
+        <div class="big" id="count">0<span> / 10</span></div>
+        <div class="bar"><i id="pbar" style="width:0%"></i></div>
+        <div class="m" id="sidecount">De côté : 1</div>
+      </div>
+      <label class="scanbar">
+        <span class="ico">⌁</span>
+        <input id="scanin" placeholder="Scannez un colis — code X-Delivery ou QR Ordra" aria-label="Scanner un colis">
+        <span class="m">bon état par défaut</span>
+      </label>
+      <div class="last" id="last" hidden><div><p class="t" id="lastT"></p><p class="m" id="lastM"></p></div><div id="lastA"></div></div>
+      <div class="demo">Simuler :
+        <button class="btn sm" id="sXd">Code-barres X-Delivery</button>
+        <button class="btn sm" id="sQr">QR Ordra</button>
+        <button class="btn sm" id="sOff">Colis hors liste</button>
+        <button class="btn sm" id="sDup">Le même deux fois</button>
+      </div>
+      <div class="list" id="rows"></div>
+    </div>
+  </section>
+
+  <!-- 3 · Done with missing -->
+  <section class="stage" data-stage="done">
+    <h3>Terminer avec des manquants</h3>
+    <p class="sub">On ne bloque pas l'agent : on lui fait confirmer, et le responsable reçoit la liste.</p>
+    <div class="desk" style="min-height:520px;position:relative">
+      <header><div><h4>Retour · 7 oct.</h4><p><span class="xdtag">X-DELIVERY</span> <span class="mono">N° 1791 3000 0001</span></p></div></header>
+      <div class="prog"><div class="big">8<span> / 10</span></div><div class="bar"><i style="width:80%"></i></div><div class="m">De côté : 0</div></div>
+      <div class="sheet" data-open="true" style="position:absolute">
+        <div class="dlg" role="dialog" aria-labelledby="dt">
+          <h5 id="dt">2 colis manquants</h5>
+          <p>Ils sont sur la liste d'X-Delivery mais n'ont pas été scannés. Ils restent « à retourner » et le responsable est alerté.</p>
+          <ul>
+            <li><span>Client F. · 1× Robe M</span><span class="m mono">6117 9130 0000 06</span></li>
+            <li><span>Client H. · 2× Chemise L</span><span class="m mono">6117 9130 0000 08</span></li>
+          </ul>
+          <div class="acts"><button class="btn">Continuer à scanner</button><button class="btn danger">Terminer avec 2 manquants</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · Phone -->
+  <section class="stage" data-stage="phone">
+    <h3>Téléphone (banc, caméra)</h3>
+    <p class="sub">Même manifeste, même règle. La caméra lit les deux codes.</p>
+    <div class="phone">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h4>Retour · 8 oct.</h4><span class="xdtag">X-DELIVERY</span></div>
+      <div class="cam"><span>Visez le code-barres ou le QR</span></div>
+      <div class="pcard" style="background:var(--accent-soft);border-color:#CBE3D3"><div><b>✓ Client B. · reçu</b><div class="m">1× Chemise L · bon état · stock +1</div></div><button class="btn sm">Endommagé</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:22px">6<span style="color:var(--ink3)"> / 10</span></b><span class="m">De côté : 1</span></div>
+      <div class="bar" style="height:8px"><i style="width:60%"></i></div>
+      <div class="seg"><button aria-pressed="true">À scanner · 4</button><button aria-pressed="false">Reçus · 6</button></div>
+      <div class="pcard"><div><b>Client E.</b><div class="m">1× Veste XL · Bizerte</div></div><span class="chip wait">Attendu</span></div>
+      <div class="pcard"><div><b>Client F.</b><div class="m">1× Robe M · Sfax</div></div><span class="chip wait">Attendu</span></div>
+      <div class="pcard"><div><b>Client G.</b><div class="m">1× Pantalon S · Nabeul</div></div><span class="chip warn">Mis de côté le 7 oct</span></div>
+      <div class="pcard"><div><b>Client H.</b><div class="m">2× Chemise L · Sousse</div></div><span class="chip wait">Attendu</span></div>
+      <button class="btn" style="margin-top:auto;justify-content:center;height:44px">Terminer</button>
+    </div>
+  </section>
+
+  <!-- 5 · Manager alert -->
+  <section class="stage" data-stage="alert">
+    <h3>Responsable — l'alerte « manquants »</h3>
+    <p class="sub">Une notification à la clôture, puis le compteur reste visible sur Retours tant que les colis ne sont pas scannés.</p>
+    <div class="notif">
+      <span class="ico">!</span>
+      <div><p><b>2 colis manquants</b> sur le manifeste retour X-Delivery du 7 oct.</p><p class="m">Clôturé par Agent T. à 11:42 · Entrepôt Tunis</p></div>
+    </div>
+    <div class="desk">
+      <header><div><h4>Manquants</h4><p>Sur une liste X-Delivery, jamais scannés à l'entrepôt</p></div></header>
+      <div class="list">
+        <div class="tr h"><span></span><span>Colis</span><span>Manifeste</span><span>Depuis</span><span>N° X-Delivery</span></div>
+        <div class="tr"><span class="dot"></span><div>Client F.<div class="m">1× Robe M · 79,000 DT</div></div><span>Retour · 7 oct.</span><span class="chip bad">1 jour</span><span class="m mono">6117 9130 0000 06</span></div>
+        <div class="tr"><span class="dot"></span><div>Client H.<div class="m">2× Chemise L · 119,000 DT</div></div><span>Retour · 7 oct.</span><span class="chip bad">1 jour</span><span class="m mono">6117 9130 0000 08</span></div>
+      </div>
+    </div>
+  </section>
+  <!-- 6 · Ask pickup -->
+  <section class="stage" data-stage="ask">
+    <h3>Bureau « Sortir » — Demande d'enlèvement, à la demande</h3>
+    <p class="sub">Le bouton remplace l'interrupteur. Il compte les colis scannés que X-Delivery n'a pas encore été prié d'enlever.</p>
+    <div class="desk" style="min-height:600px;position:relative">
+      <header>
+        <div><h4>Sortir</h4><p>Tunisie · Entrepôt Tunis · jeudi 8 octobre</p></div>
+        <button class="btn primary"><span class="xdtag" style="background:#fff">X-DELIVERY</span> Demande d'enlèvement · 6 colis</button>
+      </header>
+      <div class="sheet" data-open="true" style="position:absolute">
+        <div class="dlg" role="dialog" aria-labelledby="at" style="max-width:520px">
+          <h5 id="at">Demande d'enlèvement</h5>
+          <p>Une liste chez X-Delivery avec les colis cochés. Le livreur les enlève ensemble.</p>
+          <ul>
+            <li><label><input type="checkbox" checked> Client A. · 1× Pantalon M</label><span class="m">Sousse</span></li>
+            <li><label><input type="checkbox" checked> Client B. · 1× Chemise L</label><span class="m">Tunis</span></li>
+            <li><label><input type="checkbox" checked> Client C. · 1× Robe S + 1× Ceinture</label><span class="m">Sfax</span></li>
+            <li><label><input type="checkbox"> Client D. · 1× Veste XL</label><span class="m">Bizerte · décoché</span></li>
+            <li><label><input type="checkbox" checked> Client E. · 1× Jupe M</label><span class="m">Ariana</span></li>
+            <li><label><input type="checkbox" checked> Client F. · 1× Robe M</label><span class="m">Sfax</span></li>
+          </ul>
+          <div class="acts"><button class="btn">Annuler</button><button class="btn primary">Demander l'enlèvement de 5 colis</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · Pickup lists -->
+  <section class="stage" data-stage="lists">
+    <h3>Listes d'enlèvement — suivre, supprimer, retirer un colis</h3>
+    <p class="sub">Une liste supprimée sur le portail X-Delivery est suivie ici aussi : bandeau, commandes revenues à « uploadée ».</p>
+    <div class="desk">
+      <header><div><h4>Enlèvements</h4><p>Entrepôt Tunis · X-Delivery</p></div></header>
+      <div class="last off" style="margin-top:0"><div><p class="t">Liste du 7 oct. 16:40 supprimée sur le portail X-Delivery</p><p class="m">3 commandes revenues à « uploadée », stock remis. Rescannez les colis pour une prochaine demande.</p></div><button class="btn sm">Voir les 3</button></div>
+      <div class="list">
+        <div class="mrow">
+          <div><b>Aujourd'hui · 10:05</b><div class="m">5 colis · demandée par Agent T.</div></div>
+          <span class="m">Le livreur n'est pas passé</span>
+          <span class="chip warn">À enlever</span>
+          <span style="display:flex;gap:6px"><button class="btn sm">Ouvrir</button></span>
+        </div>
+        <div class="mrow">
+          <div><b>Hier · 16:12</b><div class="m">37 colis</div></div>
+          <span class="m">Arrivés au dépôt 16:54</span>
+          <span class="chip ok">Enlevée</span>
+          <button class="btn sm">Voir</button>
+        </div>
+      </div>
+      <div class="sect">Aujourd'hui · 10:05 — ouverte</div>
+      <div class="list">
+        <div class="tr h"><span></span><span>Colis</span><span>Destination</span><span>Chez X-Delivery</span><span></span></div>
+        <div class="tr"><span class="dot"></span><div>Client A.<div class="m">1× Pantalon M</div></div><span>Sousse</span><span class="chip warn">À enlever</span><button class="btn sm ghost" data-go="del">Retirer</button></div>
+        <div class="tr"><span class="dot"></span><div>Client B.<div class="m">1× Chemise L</div></div><span>Tunis</span><span class="chip warn">À enlever</span><button class="btn sm ghost">Retirer</button></div>
+        <div class="tr"><span class="dot"></span><div>Client C.<div class="m">1× Robe S + 1× Ceinture</div></div><span>Sfax</span><span class="chip warn">À enlever</span><button class="btn sm ghost">Retirer</button></div>
+      </div>
+      <div style="margin:0 22px 18px;display:flex;justify-content:flex-end"><button class="btn" style="color:var(--bad)" data-go="del">Supprimer la liste</button></div>
+    </div>
+  </section>
+
+  <!-- 8 · Delete confirm -->
+  <section class="stage" data-stage="del">
+    <h3>Supprimer une liste d'enlèvement</h3>
+    <p class="sub">Possible tant que le livreur n'a pas enlevé les colis. Ordra supprime chez X-Delivery puis remet les commandes à « uploadée ».</p>
+    <div class="desk" style="min-height:460px;position:relative">
+      <header><div><h4>Enlèvements</h4><p>Entrepôt Tunis · X-Delivery</p></div></header>
+      <div class="sheet" data-open="true" style="position:absolute">
+        <div class="dlg" role="dialog" aria-labelledby="xt">
+          <h5 id="xt">Supprimer la liste de 10:05 ?</h5>
+          <p>Les 5 commandes reviennent à <b>« uploadée »</b> et leur stock est remis. Chez X-Delivery elles repassent « en attente ». Les colis restent emballés : rescannez-les pour une prochaine demande.</p>
+          <div class="acts"><button class="btn">Garder la liste</button><button class="btn danger">Supprimer la liste</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const ROWS = [
+  ["Client A.", "1× Pantalon M", "Sousse", "6117 9140 0000 01"],
+  ["Client B.", "1× Chemise L", "Tunis", "6117 9140 0000 02"],
+  ["Client C.", "1× Robe S + 1× Ceinture", "Sfax", "6117 9140 0000 03"],
+  ["Client D.", "1× Veste XL", "Bizerte", "6117 9140 0000 04"],
+  ["Client E.", "1× Veste XL", "Bizerte", "6117 9140 0000 05"],
+  ["Client F.", "1× Robe M", "Sfax", "6117 9140 0000 06"],
+  ["Client G.", "1× Pantalon S", "Nabeul", "6117 9140 0000 07", "side"],
+  ["Client H.", "2× Chemise L", "Sousse", "6117 9140 0000 08"],
+  ["Client I.", "1× Robe L", "Monastir", "6117 9140 0000 09"],
+  ["Client J.", "1× Jupe M", "Ariana", "6117 9140 0000 10"],
+].map(([name, items, city, code, side]) => ({ name, items, city, code, side: !!side, state: "wait" }));
+let side = 1, lastIdx = null;
+
+const $ = (id) => document.getElementById(id);
+function render(flash) {
+  const got = ROWS.filter((r) => r.state !== "wait").length;
+  $("count").innerHTML = `${got}<span> / ${ROWS.length}</span>`;
+  $("pbar").style.width = `${(got / ROWS.length) * 100}%`;
+  $("sidecount").textContent = `De côté : ${side}`;
+  const order = [...ROWS].sort((a, b) => (a.state === "wait") - (b.state === "wait"));
+  $("rows").innerHTML =
+    `<div class="tr h"><span></span><span>Colis</span><span>Destination</span><span>État</span><span>N° X-Delivery</span></div>` +
+    ROWS.map((r, i) => ({ r, i })).sort((a, b) => (a.r.state !== "wait") - (b.r.state !== "wait")).map(({ r, i }) => {
+      const chip = r.state === "ok" ? `<span class="chip ok">Reçu · bon état</span>`
+        : r.state === "dmg" ? `<span class="chip bad">Reçu · endommagé</span>`
+        : r.side ? `<span class="chip warn">Mis de côté le 7 oct</span>` : `<span class="chip wait">Attendu</span>`;
+      const cls = r.state === "ok" ? "got" : r.state === "dmg" ? "dmg" : "";
+      return `<div class="tr ${cls} ${flash === i ? "flash" : ""}"><span class="dot">${r.state === "wait" ? "" : "✓"}</span><div>${r.name}<div class="m">${r.items}</div></div><span>${r.city}</span>${chip}<span class="m mono">${r.code}</span></div>`;
+    }).join("");
+}
+function banner(kind, t, m, action) {
+  const el = $("last");
+  el.hidden = false;
+  el.className = `last ${kind}`;
+  $("lastT").textContent = t;
+  $("lastM").textContent = m;
+  $("lastA").innerHTML = action || "";
+  const b = $("lastA").querySelector("button");
+  if (b) b.onclick = () => {
+    const r = ROWS[lastIdx];
+    r.state = r.state === "dmg" ? "ok" : "dmg";
+    banner(r.state === "dmg" ? "dmg" : "", `${r.state === "dmg" ? "✗" : "✓"} ${r.name} · reçu ${r.state === "dmg" ? "endommagé" : "bon état"}`,
+      r.state === "dmg" ? `${r.items} · ne revient pas en stock, compté endommagé` : `${r.items} · stock remis`,
+      `<button class="btn sm">${r.state === "dmg" ? "Annuler : bon état" : "Endommagé"}</button>`);
+    render();
+  };
+}
+function receive(via) {
+  const i = ROWS.findIndex((r) => r.state === "wait");
+  if (i < 0) return banner("", "Liste terminée", "Tous les colis du manifeste sont scannés.");
+  ROWS[i].state = "ok"; lastIdx = i;
+  if (ROWS[i].side) side = Math.max(0, side - 1);
+  banner("", `✓ ${ROWS[i].name} · reçu`, `${ROWS[i].items} · bon état · stock remis · lu par ${via}`, `<button class="btn sm">Endommagé</button>`);
+  render(i);
+}
+$("sXd").onclick = () => receive("code X-Delivery");
+$("sQr").onclick = () => receive("QR Ordra");
+$("sOff").onclick = () => { side++; banner("off", "Pas sur ce manifeste — mettez-le de côté", "Client Z. · 1× Robe S · noté « de côté », il sera repris sur une prochaine liste.", ""); render(); };
+$("sDup").onclick = () => {
+  if (lastIdx === null) return receive("code X-Delivery");
+  banner("", `Déjà scanné · ${ROWS[lastIdx].name}`, "Rien n'a changé : un colis ne compte qu'une fois.", "");
+};
+$("scanin").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); receive("scanner"); e.target.value = ""; } });
+$("finish").onclick = () => show("done");
+render();
+
+const show = (name) => {
+  document.querySelectorAll(".stage").forEach((s) => (s.dataset.active = String(s.dataset.stage === name)));
+  document.querySelectorAll(".notes button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.go === name)));
+};
+document.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", () => show(el.dataset.go)));
+window.addEventListener("hashchange", () => show(location.hash.slice(1) || "home"));
+show(location.hash ? location.hash.slice(1) : "home");
+</script>
+</body>
+</html>

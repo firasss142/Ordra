@@ -96,6 +96,126 @@ describe("XDeliveryPortal", () => {
     expect(JSON.parse(init.body)).toEqual({ parcels: ["id-1", "id-2"], type: "COLLECTED" });
   });
 
+  describe("manifests", () => {
+    const tokenFor = (company: string) => {
+      const payload = Buffer.from(
+        JSON.stringify({ role: "OWNER", company, exp: Math.floor(Date.now() / 1000) + 3600 }),
+      ).toString("base64url");
+      return `h.${payload}.s`;
+    };
+
+    it("lists one type of manifest for our company over a window, reduced to what Ordra uses", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(json({ accessToken: tokenFor("co-1") }, 201))
+        .mockResolvedValueOnce(
+          json({
+            totalDocuments: 1,
+            records: [
+              {
+                _id: "m-1",
+                code: "1791369888000",
+                status: "ACCEPTED",
+                type: "RETURN",
+                createdAt: "2026-10-07T10:44:48.266Z",
+                // The real answer embeds our company with the API key in clear.
+                company: { apiKey: "SECRET-KEY", taxNumber: "X" },
+                parcels: [
+                  { _id: "p-1", code: 611, status: "PENDING_RETURNS", customerName: "Client", company: { apiKey: "SECRET-KEY" } },
+                  { _id: "p-2", code: "612", status: "PENDING_RETURNS" },
+                ],
+              },
+            ],
+          }),
+        );
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      const since = new Date("2026-10-01T00:00:00.000Z");
+      const until = new Date("2026-10-08T00:00:00.000Z");
+
+      const lists = await portal.listManifests("RETURN", since, until);
+
+      expect(lists).toEqual([
+        {
+          id: "m-1",
+          code: "1791369888000",
+          status: "ACCEPTED",
+          type: "RETURN",
+          createdAt: "2026-10-07T10:44:48.266Z",
+          parcels: [
+            { barcode: "611", id: "p-1", status: "PENDING_RETURNS" },
+            { barcode: "612", id: "p-2", status: "PENDING_RETURNS" },
+          ],
+        },
+      ]);
+      expect(JSON.stringify(lists)).not.toContain("SECRET-KEY");
+      const url = new URL(fetchMock.mock.calls[1][0]);
+      expect(url.pathname).toBe("/api/manifests");
+      expect(url.searchParams.get("company")).toBe("co-1");
+      expect(url.searchParams.get("type")).toBe("RETURN");
+      expect(url.searchParams.get("startDate")).toBe(since.toISOString());
+      expect(url.searchParams.get("endDate")).toBe(until.toISOString());
+    });
+
+    it("a manifest without parcels or code still comes back, with empty values", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(json({ accessToken: tokenFor("co-1") }, 201))
+        .mockResolvedValueOnce(json({ records: [{ _id: "m-2", status: "PENDING", type: "COLLECTED" }] }));
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      const [m] = await portal.listManifests("COLLECTED", new Date(0), new Date());
+      expect(m).toMatchObject({ id: "m-2", code: null, createdAt: null, parcels: [] });
+    });
+
+    it("without a company in the token, listing is refused rather than asking for everyone's lists", async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(json({ accessToken: jwt(3600) }, 201));
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      await expect(portal.listManifests("RETURN", new Date(0), new Date())).rejects.toThrow(/company/i);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("removes parcels from a manifest with their own PATCH", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(json({ accessToken: jwt(3600) }, 201))
+        .mockResolvedValueOnce(json({ ok: true }));
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      await portal.removeParcelsFromManifest("m-1", ["p-1", "p-2"]);
+      const [url, init] = fetchMock.mock.calls[1];
+      expect(url).toBe("https://app.x-delivery.io/api/manifests/remove-parcels/m-1");
+      expect(init.method).toBe("PATCH");
+      expect(JSON.parse(init.body)).toEqual({ parcelIds: ["p-1", "p-2"] });
+    });
+
+    it("removing nothing sends nothing", async () => {
+      const fetchMock = vi.fn();
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      await portal.removeParcelsFromManifest("m-1", []);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("deletes a whole manifest", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(json({ accessToken: jwt(3600) }, 201))
+        .mockResolvedValueOnce(json({ ok: true }));
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      await portal.deleteManifest("m-1");
+      const [url, init] = fetchMock.mock.calls[1];
+      expect(url).toBe("https://app.x-delivery.io/api/manifests/m-1");
+      expect(init.method).toBe("DELETE");
+    });
+
+    it("an id is path-encoded, never spliced raw into the URL", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(json({ accessToken: jwt(3600) }, 201))
+        .mockResolvedValueOnce(json({ ok: true }));
+      const portal = new XDeliveryPortal({ email: "a@b.c", password: "pw" }, fetchMock);
+      await portal.deleteManifest("../parcels");
+      expect(fetchMock.mock.calls[1][0]).toBe("https://app.x-delivery.io/api/manifests/..%2Fparcels");
+    });
+  });
+
   it("a refused pickup request throws with the HTTP status", async () => {
     const fetchMock = vi
       .fn()

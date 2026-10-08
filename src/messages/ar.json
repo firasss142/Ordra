@@ -266,7 +266,8 @@
       "sheet_sync_stalled": "لا استيراد منذ {value}",
       "intake_silent": "لا طلبات منذ {value}",
       "agent_uncalled": "{count} بلا اتصال · {value}",
-      "agent_idle": "بلا مكالمة منذ {value}"
+      "agent_idle": "بلا مكالمة منذ {value}",
+      "return_missing": "{count, plural, other {# طرد مفقود}} · {value}"
     },
     "types": {
       "dispatch_failure": {
@@ -316,6 +317,9 @@
       },
       "agent_idle": {
         "label": "متصل بلا مكالمات"
+      },
+      "return_missing": {
+        "label": "مرتجعات مفقودة"
       }
     },
     "bell": "التنبيهات",
@@ -2915,7 +2919,7 @@
       "errCarrier": "رفضته درب السبيل",
       "errCarrierWarehouse": "يُشحن من مستودع شركة الشحن — لا حاجة للمسح.",
       "errMarket": "هذا الطلب يخص سوقًا آخر.",
-      "errNoLabel": "لم تُطبع الملصقة.",
+      "errNoLabel": "الملصق غير مطبوع. اطبعه في المكتب (إخراج)، ألصقه، ثم امسح رمز QR.",
       "errNotFound": "الطلب غير موجود.",
       "errRefused": "تم رفض المسح",
       "errShipmentUnknown": "درب السبيل لا تعرف هذه الشحنة — تعذّر ربط الملصق.",
@@ -3097,7 +3101,9 @@
       "wrongParcel": "ليس هذا الطرد",
       "noSiteTitle": "لا يوجد مستودع",
       "noSiteBody": "حسابك غير مرتبط بأي مبنى. اطلب من مسؤولك ربطك بطرابلس أو بنغازي.",
-      "movedToScanned": "غادر هذا الطرد المكتب ← تبويب «تم مسحها»"
+      "movedToScanned": "غادر هذا الطرد المكتب ← تبويب «تم مسحها»",
+      "xdLabelToPrint": "ملصق للطباعة",
+      "xdLabelReady": "الملصق جاهز"
     },
     "scanned": {
       "awaitingPickup": "{n} بانتظار الشركة",
@@ -3239,23 +3245,14 @@
     "xdeliveryPickup": {
       "brand": "X-DELIVERY",
       "title": "الاستلام",
-      "switchLabel": "طلب الاستلام",
-      "onWord": "الطلب التلقائي مفعّل",
-      "onHint": "كل طرد ممسوح يُطلب استلامه.",
-      "offWord": "متوقف منذ {time}",
-      "offWordNoTime": "متوقف",
-      "offHint": "لا يُطلب شيء. يعود للتشغيل وحده عند منتصف الليل.",
-      "nextRun": "{n, plural, one {طرد يُطلب في المرور القادم} other {طرود تُطلب في المرور القادم}}",
-      "lastRequest": "آخر طلب · {n} طرد",
-      "noRequestToday": "لا طلب اليوم",
-      "offWaiting": "{n, plural, one {# طرد ممسوح ينتظر: لن يُطلب ما دام الطلب متوقفًا.} other {# طرود ممسوحة تنتظر: لن تُطلب ما دام الطلب متوقفًا.}}",
-      "failureLogin": "رُفض الدخول إلى بوابة X-Delivery — تحقق من البريد وكلمة المرور في الاتصالات › شركات التوصيل. إعادة المحاولة تلقائيًا كل 10 دقائق.",
-      "failureOther": "فشل آخر طلب استلام. إعادة المحاولة تلقائيًا كل 10 دقائق.",
+      "request": "طلب استلام · {n} طرد",
+      "waiting": "{n, plural, =0 {لا توجد طرود ممسوحة في الانتظار} other {# طرد ممسوح في انتظار الاستلام}}",
+      "sentList": "قائمة أُرسلت {time} · {n} طرد",
+      "noLogin": "بيانات دخول بوابة X-Delivery غير موجودة — أدخلها في الاتصالات › شركات التوصيل.",
+      "failureLogin": "رُفض الدخول إلى بوابة X-Delivery — تحقق من البريد وكلمة المرور في الاتصالات › شركات التوصيل.",
       "listTitle": "ممسوحة · X-Delivery",
       "parcel": "طرد {tracking}",
       "toRequest": "للطلب",
-      "requested": "مطلوب",
-      "requestedAt": "طُلب {time}",
       "more": "+ {n} أخرى",
       "failed": "تعذّر الإجراء. أعد المحاولة."
     },
@@ -3561,7 +3558,21 @@
         "rowMenu": "إجراءات على هذا الطرد",
         "recheck": "إعادة التحقق لدى درب",
         "unscan": "إلغاء الإخراج",
-        "startRunRoll": "جولة {colour}"
+        "startRunRoll": "جولة {colour}",
+        "xdToPrint": "{n, plural, =0 {كل الملصقات مطبوعة} one {ملصق واحد للطباعة} other {# ملصقات للطباعة}}",
+        "xdPrint": "{n, plural, one {اطبع الملصق} other {اطبع الـ#}}",
+        "xdFormat": "صيغة الملصق",
+        "xdFormatA4": "A4 ×2",
+        "xdFormatThermal": "10×15",
+        "xdLastBatch": "آخر طباعة: {time} · {n, plural, one {ملصق واحد} other {# ملصقات}}",
+        "xdPdfHint": "يُفتح ملف PDF في لسان جديد؛ اطبعه كالعادة.",
+        "xdReprintBatch": "أعد طباعة هذه الدفعة",
+        "xdColLabel": "الملصق",
+        "xdLabelToPrint": "للطباعة",
+        "xdLabelPrinted": "طُبع {time}",
+        "xdReprint": "أعد الطباعة",
+        "xdPrintFailed": "تعذّرت الطباعة. أعد المحاولة.",
+        "xdPrinted": "أُرسلت الملصقات إلى الطباعة."
       },
       "returns": {
         "title": "إرجاع",

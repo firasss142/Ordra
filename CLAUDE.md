@@ -156,8 +156,11 @@ Stock changes via EXACTLY these paths — anything else is a bug:
 1. super_admin sets initial_stock on product creation (one inventory_log row, reason='initial_stock')
 2. super_admin calls adjust_product_stock RPC for manual corrections (reason='manual_adjustment' or 'damaged_writeoff')
 3. warehouse_agent / market_manager / super_admin call scan_order_out (−qty) or scan_return_in (+qty or damaged)
+   — also via scan_manifest_return (a return list scan calls scan_return_in) and
+   mark_manifest_return_damaged (appends −qty `returned` + damaged `damaged_writeoff`)
 4. record_stock_count (per SITE; the count is what creates a site row) and scan_received_in (+qty)
 5. unscan_order (+qty, reason='scan_reversal') and manual_delete_orders (+qty on a scanned order)
+   — and release_pickup_parcel (an X-Delivery pickup list undone; same core `_reverse_scan_stock`)
 6. **record_arrival** (+qty, reason='arrival'), **correct_arrival** (the DELTA,
    reason='arrival_correction') and reverse_reception (−qty, reason='reception_reversal')
    — supplier goods. `post_reception` is GONE: a reception is no longer created and then
@@ -308,6 +311,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Scan run, scanned-list filters, per-site stock, multi-product stock fix (2026-09-10): docs/warehouse-scan-run.md + plans/warehouse-scan-run.md
 - Order presence + the agent lock (who has an order open, the hard block, why the trigger is SECURITY INVOKER): docs/order-presence-and-locking.md + plans/order-presence-and-locking.md
 - Ramassage Darb du jour (« le chauffeur est passé », par site, remise à zéro à minuit sans cron): docs/darb-pickup-switch.md + plans/darb-pickup-day-switch.md
+- X-Delivery manifestes — liste retour scannée jusqu'au bout (les deux codes, « de côté »,
+  manquants → alerte `return_missing`), enlèvement à la demande par lot et annulable (retour à
+  `uploaded`, stock rendu), contrat d'API pour l'UI: docs/xdelivery-manifests.md +
+  plans/xdelivery-manifests.md
 - Réglages transporteurs, préférences de commande (défaut + verrou par option) et
   activation des sites d'entrepôt — Réglages › Livraison (transporteurs) et › Entrepôts (sites):
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md

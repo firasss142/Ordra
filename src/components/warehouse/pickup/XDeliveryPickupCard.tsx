@@ -7,15 +7,15 @@ import { jsonFetcher } from "@/lib/fetchers";
 import type { XDeliveryPickupSite, XDeliveryPickupParcel } from "@/lib/carriers/xdelivery/pickup-view";
 
 /**
- * « X-DELIVERY Enlèvement » — the bench card of prototypes/xdelivery-v1.html (screens 1–2).
+ * « X-DELIVERY Enlèvement » — the « Demande d'enlèvement » button, per building.
  *
- * X-Delivery never collects on its own: every poll tick asks for the parcels the
- * warehouse has scanned out, while this switch is ON (the default). OFF means « the
- * driver already came » or « we ask on their portal »; it comes back ON at midnight.
- * Unlike Darb's switch, the agent may turn it back ON (owner decision 6), so a press
- * is a plain toggle, not a confirmed one-way act.
+ * MINIMAL ON PURPOSE (2026-10-08): the backend moved from an automatic request with
+ * an ON/OFF switch to an on-demand batch (plans/xdelivery-manifests.md). This card
+ * only keeps the bench working — count, one button that sends every waiting parcel,
+ * the parcel list. The real screens (untick parcels, sent lists, delete a list) are
+ * built by the UI session on the contract in docs/xdelivery-manifests.md.
  *
- * Renders nothing where no site ships X-Delivery — Libya, and Tunisia until the
+ * Renders nothing where no building ships X-Delivery — Libya, and Tunisia until the
  * account is configured.
  */
 
@@ -39,7 +39,6 @@ export function XDeliveryPickupCard({
 }) {
   const { data, mutate } = useSWR<{ sites: XDeliveryPickupSite[] }>(KEY, jsonFetcher, {
     revalidateOnFocus: true,
-    // The tick runs every 10 minutes; a minute is enough to show its result.
     refreshInterval: 60_000,
   });
   const sites = data?.sites ?? [];
@@ -48,12 +47,7 @@ export function XDeliveryPickupCard({
   return (
     <div className={className}>
       {sites.map((s) => (
-        <SiteCard
-          key={s.warehouseId}
-          site={s}
-          withParcels={withParcels}
-          onChanged={(next) => mutate(next, { revalidate: false })}
-        />
+        <SiteCard key={s.warehouseId} site={s} withParcels={withParcels} onSent={() => mutate()} />
       ))}
     </div>
   );
@@ -62,40 +56,42 @@ export function XDeliveryPickupCard({
 function SiteCard({
   site,
   withParcels,
-  onChanged,
+  onSent,
 }: {
   site: XDeliveryPickupSite;
   withParcels: boolean;
-  onChanged: (next: { sites: XDeliveryPickupSite[] }) => unknown;
+  onSent: () => unknown;
 }) {
   const t = useTranslations("warehouse.xdeliveryPickup");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
-  const on = !site.disabled;
+  const [error, setError] = useState<string | null>(null);
+  const waiting = site.awaiting.length;
+  const lastList = site.lists[0] ?? null;
 
-  const toggle = useCallback(async () => {
+  const request = useCallback(async () => {
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const res = await fetch(KEY, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ warehouse_id: site.warehouseId, disabled: on }),
+        body: JSON.stringify({ warehouse_id: site.warehouseId, order_ids: site.awaiting.map((p) => p.orderId) }),
       });
       if (!res.ok) {
-        setError(true);
+        const body = (await res.json().catch(() => ({}))) as { error_code?: string };
+        setError(body.error_code === "PORTAL_LOGIN_REFUSED" ? t("failureLogin") : t("failed"));
         return;
       }
-      await onChanged(await res.json());
+      await onSent();
     } catch {
-      setError(true);
+      setError(t("failed"));
     } finally {
       setBusy(false);
     }
-  }, [site.warehouseId, on, onChanged]);
+  }, [site.warehouseId, site.awaiting, onSent, t]);
 
-  const shown = withParcels ? site.parcels.slice(0, LIST_MAX) : [];
-  const hidden = site.parcels.length - shown.length;
+  const shown = withParcels ? site.awaiting.slice(0, LIST_MAX) : [];
+  const hidden = waiting - shown.length;
 
   return (
     <>
@@ -111,60 +107,37 @@ function SiteCard({
           {t("title")}
         </h2>
 
-        <div className="mt-2.5 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[14px] font-semibold text-wm-ink">{site.name}</p>
-            <p className={`text-[13px] font-semibold ${on ? "text-wm-accent" : "text-status-warning"}`}>
-              {on ? t("onWord") : site.disabledAt ? t("offWord", { time: clock(site.disabledAt) }) : t("offWordNoTime")}
-            </p>
-            <p className="text-[12.5px] text-wm-ink-2">{on ? t("onHint") : t("offHint")}</p>
-          </div>
+        <p className="mt-2 text-[14px] font-semibold text-wm-ink">{site.name}</p>
+        <p data-testid="xd-pickup-waiting" className="text-[12.5px] text-wm-ink-2">
+          {t("waiting", { n: waiting })}
+        </p>
+        {lastList?.createdAt ? (
+          <p data-testid="xd-pickup-last" className="text-[12.5px] text-wm-ink-2">
+            {t("sentList", { time: clock(lastList.createdAt), n: lastList.open })}
+          </p>
+        ) : null}
+
+        {site.hasPortalLogin ? (
           <button
             type="button"
-            role="switch"
-            aria-checked={on}
-            aria-label={t("switchLabel")}
-            disabled={busy || !site.canToggle}
-            onClick={toggle}
-            className={`relative h-[30px] w-[52px] shrink-0 rounded-pill transition-colors disabled:opacity-60 ${
-              on ? "bg-wm-accent" : "bg-wm-track"
-            }`}
+            data-testid="xd-pickup-request"
+            disabled={busy || waiting === 0 || !site.canManage}
+            onClick={request}
+            className="mt-2.5 h-10 w-full rounded-[10px] bg-wm-accent text-[14px] font-semibold text-white disabled:opacity-50"
           >
-            <span
-              aria-hidden="true"
-              className={`absolute top-[3px] h-6 w-6 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.25)] transition-[inset-inline-start] ${
-                on ? "start-[25px]" : "start-[3px]"
-              }`}
-            />
+            {t("request", { n: waiting })}
           </button>
-        </div>
+        ) : (
+          <p role="alert" className="mt-2.5 rounded-[10px] bg-status-warningBg px-2.5 py-2 text-[12.5px] text-status-warning">
+            {t("noLogin")}
+          </p>
+        )}
 
-        {on ? (
-          <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-wm-card-edge pt-2.5">
-            <p data-testid="xd-pickup-waiting" className="text-[12px] text-wm-ink-2">
-              <b className="block text-[15px] tabular-nums text-wm-ink">{site.waiting}</b>
-              {t("nextRun", { n: site.waiting })}
-            </p>
-            <p data-testid="xd-pickup-last" className="text-[12px] text-wm-ink-2">
-              <b className="block text-[15px] tabular-nums text-wm-ink">
-                {site.lastRequest ? clock(site.lastRequest.at) : "—"}
-              </b>
-              {site.lastRequest ? t("lastRequest", { n: site.lastRequest.count }) : t("noRequestToday")}
-            </p>
-          </div>
-        ) : site.waiting > 0 ? (
-          <p role="status" className="mt-2.5 rounded-[10px] bg-status-warningBg px-2.5 py-2 text-[12.5px] text-status-warning">
-            {t("offWaiting", { n: site.waiting })}
+        {error ? (
+          <p role="alert" className="mt-2 text-[12.5px] text-status-critical">
+            {error}
           </p>
         ) : null}
-
-        {site.failure ? (
-          <p role="alert" className="mt-2.5 rounded-[10px] bg-status-criticalBg px-2.5 py-2 text-[12.5px] text-status-critical">
-            {site.failure.kind === "login" ? t("failureLogin") : t("failureOther")}
-          </p>
-        ) : null}
-
-        {error ? <p className="mt-2 text-[12.5px] text-status-critical">{t("failed")}</p> : null}
       </section>
 
       {shown.length > 0 ? (
@@ -198,17 +171,7 @@ function ParcelRow({ parcel }: { parcel: XDeliveryPickupParcel }) {
           {what}
         </p>
       </div>
-      <span
-        className={`shrink-0 rounded-pill px-2 py-0.5 text-[11.5px] font-bold ${
-          parcel.requested ? "bg-wm-accent-soft text-wm-accent-deep" : "bg-wm-track text-wm-ink-2"
-        }`}
-      >
-        {parcel.requested
-          ? parcel.requestedAt
-            ? t("requestedAt", { time: clock(parcel.requestedAt) })
-            : t("requested")
-          : t("toRequest")}
-      </span>
+      <span className="shrink-0 rounded-pill bg-wm-track px-2 py-0.5 text-[11.5px] font-bold text-wm-ink-2">{t("toRequest")}</span>
     </li>
   );
 }

@@ -3,8 +3,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { buildProductionDeps, runPollCycle } from "@/lib/carriers/polling/poller";
 import { runAllCarrierPolls } from "@/lib/carriers/polling/run-all";
 import { pollXDelivery } from "@/lib/carriers/xdelivery/sync";
-import { buildXDeliveryPollDeps, buildXDeliveryPickupDeps } from "@/lib/carriers/xdelivery/production";
-import { requestPendingPickups } from "@/lib/carriers/xdelivery/pickup";
+import { buildManifestSyncDeps, buildXDeliveryPollDeps } from "@/lib/carriers/xdelivery/production";
+import { syncXDeliveryManifests } from "@/lib/carriers/xdelivery/manifest-sync";
 import { handlePollCronRequest } from "./handler";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 import { startJobRun } from "@/lib/journal/job-run";
@@ -21,12 +21,14 @@ async function handlePOST(req: NextRequest) {
         () => runPollCycle(buildProductionDeps(admin)),
         async () => {
           const result = await pollXDelivery(buildXDeliveryPollDeps(admin));
-          // After the status poll, so parcels already PENDING at X-Delivery are
-          // known and not asked for twice. Never allowed to fail the poll.
+          // The lists (pickup, return, exchange) after the statuses. Pickup is no
+          // longer requested here — it is a button (plans/xdelivery-manifests.md);
+          // this only imports lists and follows a pickup list undone on their
+          // portal. Never allowed to fail the poll.
           try {
-            await requestPendingPickups(buildXDeliveryPickupDeps(admin));
+            await syncXDeliveryManifests(buildManifestSyncDeps(admin));
           } catch (err) {
-            console.error("[poll-carriers] xdelivery pickup request failed", err instanceof Error ? err.message : err);
+            console.error("[poll-carriers] xdelivery manifest sync failed", err instanceof Error ? err.message : err);
           }
           return result;
         },

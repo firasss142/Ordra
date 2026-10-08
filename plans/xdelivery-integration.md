@@ -1,7 +1,7 @@
 # X-Delivery integration (Tunisia) — plan
 
-Status (2026-10-06): Phases 1–4 built and tested, screens included (prototype
-`prototypes/xdelivery-v1.html` approved 2026-10-06); Phase 5 (label) not started. Migration 20261005160000 handed to the owner to paste. Source research, kept OUT of the repo because it
+Status (2026-10-06): Phases 1–5 built and tested, screens included (prototypes
+`xdelivery-v1.html` and `xdelivery-label-v1.html` approved 2026-10-06). Migration 20261005160000 handed to the owner to paste. Source research, kept OUT of the repo because it
 maps a partner's internal API and the repo is public: `delivery_company_docs/xdelivery/`
 in the main checkout (`ordra-gap-analysis.md`, `portal-api.md`, catalogue JSONs).
 Owner decisions 1–8 are in `ordra-gap-analysis.md` §0.
@@ -71,7 +71,25 @@ walking backwards. All shared status lists, labels and the worklist already know
      role after its own permission check — otherwise an agent never sees their own press.
 5. **Label**
    - Our label carries their Code-128 of the barcode; scan-out for a non-sticker carrier (G4).
-6. **Before go-live**
+   - Built 2026-10-06 from `prototypes/xdelivery-label-v1.html`. Two codes (owner): their Code-128
+     on top for their drivers, our QR at the bottom so TN scan-out is unchanged. Depot code big
+     (`XDELIVERY_DEPOT`, 9 depots, checked against all 4 936 catalogue rows). Two formats kept by the
+     owner: A4 ×2 and thermal 10×15, chosen at print time and remembered per computer.
+   - `/api/warehouse/xdelivery-labels`: GET = to print / printed / last batch; POST = the PDF. Uploaded
+     parcels only (the label needs their number). The PDF is rendered BEFORE `label_prints` is
+     written, so a failed render never unlocks scan-out. `bl_number` stays null.
+   - The Arabic notice needs a font with whole dotted glyphs: Noto Naskh renders without dots under
+     @react-pdf; Tajawal (OFL) is inlined as a data URL so the serverless bundle cannot miss it.
+   - The old `/api/warehouse/label-prints` (confirmed orders only, BL number) is untouched.
+   **Superseded 2026-10-08 by phase 6:** the automatic request and the switch are gone (owner: a
+   pickup is a batch asked on demand). The card is a minimal button until the UI session rebuilds it.
+6. **Manifests** (2026-10-08) — return lists scanned to the end, pickup on demand and undoable.
+   Plan: `plans/xdelivery-manifests.md`; contract: `docs/xdelivery-manifests.md`. Backend built
+   and proven live (read-only sync of 20 real lists into the local DB, idempotent re-run); the
+   owner confirmed « 5 parcels → one list → remove 2 → back to CREATED » on their portal.
+7. **Before go-live**
+   - Paste `20261005160000_promote_carrier_status.sql` then `20261008120000_carrier_manifests.sql`.
+   - Configure the X-Delivery carrier row WITH `portal_email` / `portal_password` (pickup and lists need them).
    - Assign a warehouse agent to the Tunis site; today none is assigned, and an unassigned agent sees nothing.
 
 ## Verified
@@ -89,10 +107,18 @@ walking backwards. All shared status lists, labels and the worklist already know
   login shows the Connexions › Transporteurs banner. An agent uploads a Sousse order: the form
   opens on Sousse, Sousse Ville PAR DÉFAUT; typing « sahloul » selects Sousse Jaouhara, which is
   what X-Delivery received and what `carrier_extra` keeps; the order lands on `uploaded`.
+- Real local DB + browser, labels (2026-10-06): scan-out refused `NO_LABEL_PRINTED` before printing;
+  the TN manager's desk showed « 2 étiquettes à imprimer », printed them as one A4 PDF in a new tab,
+  reprinted one parcel in 10×15; scan-out then passed the label gate; the agent's bench showed
+  « Étiquette prête ». Both PDFs were rendered from the database rows and read back as images.
 - Live X-Delivery, read-only or non-creating calls only: empty-body validation,
   bad-key 401, deleting an unknown barcode (404), and the status read.
 
 ## Known follow-ups (not in scope)
+- Their label shows a depot NUMBER; ours prints their 2-letter depot CODE. Ask their support which
+  one their sorters read.
+- `scan-out` reports a parcel with no linked product as `ORDER_NOT_FOUND` (prose fallback in
+  `classifyRpcError`), so the bench names the wrong refusal. Pre-existing.
 - **Darb's switch has the same RLS blind spot (pre-existing, Libya).** `/api/warehouse/pickup`
   reads `settings` with the caller's client; RLS lets only managers read it, so a warehouse
   agent who presses « Le chauffeur est passé » still sees « pas encore passé ». Display only:

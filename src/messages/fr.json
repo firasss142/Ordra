@@ -266,7 +266,8 @@
       "sheet_sync_stalled": "rien importé depuis {value}",
       "intake_silent": "aucune commande depuis {value}",
       "agent_uncalled": "{count, plural, one {# non appelée} other {# non appelées}} · {value}",
-      "agent_idle": "sans appel depuis {value}"
+      "agent_idle": "sans appel depuis {value}",
+      "return_missing": "{count, plural, one {# colis manquant} other {# colis manquants}} · {value}"
     },
     "types": {
       "dispatch_failure": {
@@ -316,6 +317,9 @@
       },
       "agent_idle": {
         "label": "En ligne sans appel"
+      },
+      "return_missing": {
+        "label": "Retours manquants"
       }
     },
     "bell": "Alertes",
@@ -2915,7 +2919,7 @@
       "errCarrier": "Refusé par Darb",
       "errCarrierWarehouse": "Expédiée depuis l'entrepôt du transporteur — aucun scan requis.",
       "errMarket": "Cette commande appartient à un autre marché.",
-      "errNoLabel": "Étiquette non imprimée.",
+      "errNoLabel": "Étiquette non imprimée. Imprimez-la au bureau (Sortir), collez-la, puis scannez son QR.",
       "errNotFound": "Commande introuvable.",
       "errRefused": "Scan refusé",
       "errShipmentUnknown": "Darb ne connaît pas cette expédition — impossible de lier le sticker.",
@@ -3097,7 +3101,9 @@
       "wrongParcel": "Ce n'est pas le bon colis",
       "noSiteTitle": "Aucun entrepôt",
       "noSiteBody": "Votre compte n'est rattaché à aucun bâtiment. Demandez à votre responsable de vous affecter à Tripoli ou à Benghazi.",
-      "movedToScanned": "Ce colis a quitté le banc → onglet « Scannés »"
+      "movedToScanned": "Ce colis a quitté le banc → onglet « Scannés »",
+      "xdLabelToPrint": "Étiquette à imprimer",
+      "xdLabelReady": "Étiquette prête"
     },
     "scanned": {
       "awaitingPickup": "{n} en attente du transporteur",
@@ -3239,23 +3245,14 @@
     "xdeliveryPickup": {
       "brand": "X-DELIVERY",
       "title": "Enlèvement",
-      "switchLabel": "Demande d'enlèvement",
-      "onWord": "Demande automatique activée",
-      "onHint": "Chaque colis scanné est demandé à l'enlèvement.",
-      "offWord": "Coupé depuis {time}",
-      "offWordNoTime": "Coupé",
-      "offHint": "Rien n'est demandé. Se rallume seul à minuit.",
-      "nextRun": "{n, plural, one {colis part au prochain passage} other {colis partent au prochain passage}}",
-      "lastRequest": "dernière demande · {n} colis",
-      "noRequestToday": "aucune demande aujourd'hui",
-      "offWaiting": "{n, plural, one {# colis scanné attend : il ne sera pas demandé tant que c'est coupé.} other {# colis scannés attendent : ils ne seront pas demandés tant que c'est coupé.}}",
-      "failureLogin": "Connexion au portail X-Delivery refusée — vérifiez l'email et le mot de passe dans Connexions › Transporteurs. Réessai automatique toutes les 10 min.",
-      "failureOther": "La dernière demande d'enlèvement a échoué. Réessai automatique toutes les 10 min.",
+      "request": "Demande d'enlèvement · {n} colis",
+      "waiting": "{n, plural, =0 {Aucun colis scanné en attente} one {# colis scanné attend l'enlèvement} other {# colis scannés attendent l'enlèvement}}",
+      "sentList": "Liste envoyée {time} · {n} colis",
+      "noLogin": "Identifiants du portail X-Delivery absents — à saisir dans Connexions › Transporteurs.",
+      "failureLogin": "Connexion au portail X-Delivery refusée — vérifiez l'email et le mot de passe dans Connexions › Transporteurs.",
       "listTitle": "Scannés · X-Delivery",
       "parcel": "Colis {tracking}",
       "toRequest": "À demander",
-      "requested": "Demandé",
-      "requestedAt": "Demandé {time}",
       "more": "+ {n} autres",
       "failed": "Action impossible. Réessayez."
     },
@@ -3561,7 +3558,21 @@
         "rowMenu": "Actions sur ce colis",
         "recheck": "Revérifier chez Darb",
         "unscan": "Annuler la sortie",
-        "startRunRoll": "Tournée {colour}"
+        "startRunRoll": "Tournée {colour}",
+        "xdToPrint": "{n, plural, =0 {Toutes les étiquettes sont imprimées} one {# étiquette à imprimer} other {# étiquettes à imprimer}}",
+        "xdPrint": "{n, plural, one {Imprimer l'étiquette} other {Imprimer les #}}",
+        "xdFormat": "Format d'étiquette",
+        "xdFormatA4": "A4 ×2",
+        "xdFormatThermal": "10×15",
+        "xdLastBatch": "Dernière impression : {time} · {n, plural, one {# étiquette} other {# étiquettes}}",
+        "xdPdfHint": "Le PDF s'ouvre dans un nouvel onglet ; imprimez-le comme d'habitude.",
+        "xdReprintBatch": "Réimprimer ce lot",
+        "xdColLabel": "Étiquette",
+        "xdLabelToPrint": "À imprimer",
+        "xdLabelPrinted": "Imprimée {time}",
+        "xdReprint": "Réimprimer",
+        "xdPrintFailed": "Impression impossible. Réessayez.",
+        "xdPrinted": "Étiquettes envoyées à l'impression."
       },
       "returns": {
         "title": "Rentrer",

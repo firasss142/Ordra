@@ -6,7 +6,8 @@ import type { XDeliveryPickupSite } from "@/lib/carriers/xdelivery/pickup-view";
 import { XDeliveryPickupCard } from "../XDeliveryPickupCard";
 
 /**
- * prototypes/xdelivery-v1.html, screens 1–2: the agent's « X-DELIVERY Enlèvement » card.
+ * The minimal « Demande d'enlèvement » card (2026-10-08): pickup is a button now, not
+ * an automatic request behind a switch. The full screens come from the UI session.
  */
 
 let payload: { sites: XDeliveryPickupSite[] } | undefined;
@@ -15,19 +16,19 @@ vi.mock("swr", () => ({
   default: () => ({ data: payload, isLoading: false, mutate }),
 }));
 
+const parcel = (orderId: string) => ({ orderId, tracking: "611791217700001", city: "Sousse", product: "Pantalon", quantity: 1 });
+
 function site(over: Partial<XDeliveryPickupSite> = {}): XDeliveryPickupSite {
   return {
     warehouseId: "w-tunis",
     code: "tunis",
     name: "Tunis",
-    disabled: false,
-    disabledAt: null,
-    canToggle: true,
-    waiting: 3,
-    // 14:20 in Tunis.
-    lastRequest: { at: "2026-10-06T13:20:00Z", count: 4 },
-    failure: null,
-    parcels: [],
+    carrierId: "xd-1",
+    canManage: true,
+    hasPortalLogin: true,
+    awaiting: [parcel("o1"), parcel("o2"), parcel("o3")],
+    lists: [],
+    undone: [],
     ...over,
   };
 }
@@ -50,133 +51,72 @@ afterEach(() => {
 });
 
 describe("XDeliveryPickupCard", () => {
-  it("renders nothing where no site ships X-Delivery", () => {
+  it("renders nothing where no building ships X-Delivery", () => {
     payload = { sites: [] };
     const { container } = renderCard();
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("ON: says so, and what the next pass will ask for", () => {
+  it("says how many scanned parcels wait, and the button sends them all as one list", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ requested: [], skipped: [], manifestId: "row-1" })));
+    vi.stubGlobal("fetch", fetchMock);
     renderCard();
     const card = screen.getByTestId("xd-pickup-tunis");
-    expect(within(card).getByText("Enlèvement")).toBeInTheDocument();
-    expect(within(card).getByText("Demande automatique activée")).toBeInTheDocument();
-    expect(within(card).getByRole("switch", { name: "Demande d'enlèvement" })).toHaveAttribute("aria-checked", "true");
-    expect(within(card).getByTestId("xd-pickup-waiting")).toHaveTextContent("3");
-    expect(within(card).getByTestId("xd-pickup-last")).toHaveTextContent("14:20");
-    expect(within(card).getByTestId("xd-pickup-last")).toHaveTextContent("4 colis");
+    expect(within(card).getByText("3 colis scannés attendent l'enlèvement")).toBeInTheDocument();
+
+    fireEvent.click(within(card).getByRole("button", { name: "Demande d'enlèvement · 3 colis" }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/warehouse/xdelivery-pickup");
+    expect(JSON.parse(init.body)).toEqual({ warehouse_id: "w-tunis", order_ids: ["o1", "o2", "o3"] });
   });
 
-  it("no request yet today says so instead of a blank", () => {
-    payload = { sites: [site({ lastRequest: null })] };
+  it("nothing waiting: the button cannot be pressed", () => {
+    payload = { sites: [site({ awaiting: [] })] };
     renderCard();
-    expect(screen.getByTestId("xd-pickup-last")).toHaveTextContent("aucune demande aujourd'hui");
+    expect(screen.getByRole("button", { name: "Demande d'enlèvement · 0 colis" })).toBeDisabled();
   });
 
-  it("OFF: the time it was cut, the midnight reset, and the parcels left waiting", () => {
-    payload = { sites: [site({ disabled: true, disabledAt: "2026-10-06T14:10:00Z" })] };
+  it("an agent of another building sees the count but cannot send", () => {
+    payload = { sites: [site({ canManage: false })] };
     renderCard();
-    expect(screen.getByText("Coupé depuis 15:10")).toBeInTheDocument();
-    expect(screen.getByText("Rien n'est demandé. Se rallume seul à minuit.")).toBeInTheDocument();
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByRole("status")).toHaveTextContent("3 colis scannés attendent");
+    expect(screen.getByRole("button", { name: /Demande d'enlèvement/ })).toBeDisabled();
   });
 
-  it("a press turns it OFF through the X-Delivery route, never Darb's", async () => {
-    const fresh = { sites: [site({ disabled: true, disabledAt: "2026-10-06T14:10:00Z" })] };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => fresh });
-    vi.stubGlobal("fetch", fetchMock);
+  it("without the portal login, says where to enter it instead of a dead button", () => {
+    payload = { sites: [site({ hasPortalLogin: false })] };
     renderCard();
-    fireEvent.click(screen.getByRole("switch"));
-    await waitFor(() => expect(mutate).toHaveBeenCalledWith(fresh, { revalidate: false }));
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/warehouse/xdelivery-pickup",
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ warehouse_id: "w-tunis", disabled: true }) }),
-    );
-  });
-
-  it("the agent turns it back ON themselves", async () => {
-    payload = { sites: [site({ disabled: true, disabledAt: "2026-10-06T14:10:00Z" })] };
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ sites: [site()] }) });
-    vi.stubGlobal("fetch", fetchMock);
-    renderCard();
-    fireEvent.click(screen.getByRole("switch"));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ warehouse_id: "w-tunis", disabled: false });
-  });
-
-  it("a refused press says so", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({}) }));
-    renderCard();
-    fireEvent.click(screen.getByRole("switch"));
-    expect(await screen.findByText("Action impossible. Réessayez.")).toBeInTheDocument();
-  });
-
-  it("someone who may not move it sees the state, not a live switch", () => {
-    payload = { sites: [site({ canToggle: false })] };
-    renderCard();
-    expect(screen.getByRole("switch")).toBeDisabled();
-  });
-
-  it("a portal sign-in failure names where to fix it", () => {
-    payload = { sites: [site({ failure: { kind: "login", at: "2026-10-06T13:20:00Z" } })] };
-    renderCard();
-    expect(screen.getByRole("alert")).toHaveTextContent("Connexion au portail X-Delivery refusée");
+    expect(screen.queryByRole("button", { name: /Demande d'enlèvement/ })).toBeNull();
     expect(screen.getByRole("alert")).toHaveTextContent("Connexions › Transporteurs");
   });
 
-  it("lists the parcels: « À demander », or « Demandé » with the time", () => {
+  it("the last list sent says when, in Tunis time", () => {
     payload = {
       sites: [
         site({
-          parcels: [
-            { orderId: "o1", tracking: "611791217700001", city: "Sousse", product: "Pantalon M", quantity: 1, requested: false, requestedAt: null },
-            { orderId: "o2", tracking: "611791200300002", city: "Bizerte", product: "Chemise", quantity: 2, requested: true, requestedAt: "2026-10-06T13:20:00Z" },
+          lists: [
+            { id: "row-1", createdAt: "2026-10-08T09:05:00Z", requestedFromOrdra: true, collected: false, carrierStatus: "PENDING", open: 5, lines: [] },
           ],
         }),
       ],
     };
     renderCard();
-    const rows = screen.getAllByTestId("xd-pickup-parcel");
-    expect(rows[0]).toHaveTextContent("Colis 6117 9121 7700 001");
-    expect(rows[0]).toHaveTextContent("Sousse · Pantalon M");
-    expect(rows[0]).toHaveTextContent("À demander");
-    expect(rows[1]).toHaveTextContent("Chemise ×2");
-    expect(rows[1]).toHaveTextContent("Demandé 14:20");
+    expect(screen.getByTestId("xd-pickup-last")).toHaveTextContent("Liste envoyée 10:05 · 5 colis");
   });
 
-  it("without the list where the day's tiles must lead (« Aujourd'hui »)", () => {
-    payload = {
-      sites: [
-        site({
-          parcels: [
-            { orderId: "o1", tracking: "611791217700001", city: "Sousse", product: "Robe", quantity: 1, requested: false, requestedAt: null },
-          ],
-        }),
-      ],
-    };
-    render(
-      <NextIntlClientProvider locale="fr" messages={frMessages} timeZone="Africa/Tunis">
-        <XDeliveryPickupCard withParcels={false} />
-      </NextIntlClientProvider>,
+  it("a refused portal login is named, other failures say to retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error_code: "PORTAL_LOGIN_REFUSED" }), { status: 502 })),
     );
-    expect(screen.getByTestId("xd-pickup-tunis")).toBeInTheDocument();
-    expect(screen.queryByTestId("xd-pickup-parcel")).toBeNull();
+    renderCard();
+    fireEvent.click(screen.getByRole("button", { name: /Demande d'enlèvement/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Connexion au portail X-Delivery refusée");
   });
 
-  it("keeps the list short on the bench", () => {
-    const many = Array.from({ length: 7 }, (_, i) => ({
-      orderId: `o${i}`,
-      tracking: `61179121770000${i}`,
-      city: "Tunis",
-      product: "Robe",
-      quantity: 1,
-      requested: false,
-      requestedAt: null,
-    }));
-    payload = { sites: [site({ parcels: many, waiting: 7 })] };
+  it("lists the waiting parcels by their X-Delivery number", () => {
     renderCard();
-    expect(screen.getAllByTestId("xd-pickup-parcel")).toHaveLength(4);
-    expect(screen.getByText("+ 3 autres")).toBeInTheDocument();
+    expect(screen.getAllByTestId("xd-pickup-parcel")).toHaveLength(3);
+    expect(screen.getAllByText("Colis 6117 9121 7700 001")).toHaveLength(3);
   });
 });
