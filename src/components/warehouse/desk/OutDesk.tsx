@@ -17,6 +17,7 @@ import {
   DeskHeader, DeskPage, Empty, Ic, LiveSub, Pager, RollDot, SearchLine, SiteSeg, Tag, Thumb, Tile, Tiles, fnum, usePaged, useToast,
 } from "./ui";
 import { useDeskSite } from "./useDeskSite";
+import { useXDeliveryLabels } from "@/hooks/useXDeliveryLabels";
 
 /**
  * Entrepôt › Sortir, on the desk (prototypes/entrepot-desk-v1.html).
@@ -71,6 +72,20 @@ export function OutDesk({
     isLy ? "/api/warehouse/pickup" : null,
     jsonFetcher,
     { refreshInterval: 60_000 },
+  );
+
+  // X-Delivery labels (prototypes/xdelivery-label-v1.html): Tunisia only, and only where a
+  // building ships X-Delivery — the column and the pill mean nothing elsewhere.
+  const xd = useXDeliveryLabels(!isLy);
+  const xdOn = !isLy && xd.summary?.enabled === true;
+  const xdToPrint = useMemo(() => new Set(xd.summary?.toPrint ?? []), [xd.summary]);
+  const xdPrinted = xd.summary?.printed ?? {};
+  const printLabels = useCallback(
+    async (orderIds?: string[]) => {
+      const ok = await xd.print(orderIds);
+      showToast(ok ? to("xdPrinted") : to("xdPrintFailed"), ok ? undefined : "bad");
+    },
+    [xd, showToast, to],
   );
 
   const [tile, setTile] = useState<TileKey>("todo");
@@ -205,7 +220,10 @@ export function OutDesk({
       : "minmax(260px,1.6fr) 130px 110px 90px 110px 130px"
     : tile === "done"
       ? "minmax(260px,1.6fr) 110px 130px 110px 40px"
-      : "minmax(260px,1.6fr) 110px 90px 110px 130px";
+      : xdOn
+        ? "minmax(260px,1.6fr) 110px 90px 110px 150px 130px"
+        : "minmax(260px,1.6fr) 110px 90px 110px 130px";
+  const xdColumn = xdOn && tile !== "done";
 
   return (
     <DeskPage overlay={toast}>
@@ -232,10 +250,41 @@ export function OutDesk({
                 </span>
               ),
             )}
+            {xdOn ? (
+              <span className="pk xdpk" data-testid="xd-labels">
+                <span className="xdtag">X-DELIVERY</span>
+                {to("xdToPrint", { n: xdToPrint.size })}
+                <span className="fmt" role="radiogroup" aria-label={to("xdFormat")}>
+                  {(["a4x2", "thermal"] as const).map((f) => (
+                    <button key={f} type="button" role="radio" aria-checked={xd.format === f} onClick={() => xd.setFormat(f)}>
+                      {f === "a4x2" ? to("xdFormatA4") : to("xdFormatThermal")}
+                    </button>
+                  ))}
+                </span>
+                {xdToPrint.size > 0 ? (
+                  <button type="button" className="go" disabled={xd.printing} onClick={() => void printLabels()}>
+                    {to("xdPrint", { n: xdToPrint.size })}
+                  </button>
+                ) : null}
+              </span>
+            ) : null}
             <SiteSeg sites={sites} value={siteId} onChange={(id) => { setSite(id); setRoll(null); setHand(null); }} />
           </>
         }
       />
+
+      {xdOn && xd.summary?.lastBatch ? (
+        <div className="xdband">
+          <Ic n="file" />
+          <span>
+            <b>{to("xdLastBatch", { time: time(xd.summary.lastBatch.at), n: xd.summary.lastBatch.count })}</b>
+            <small>{to("xdPdfHint")}</small>
+          </span>
+          <button type="button" className="btn2 sm" disabled={xd.printing} onClick={() => void printLabels(xd.summary?.lastBatch?.orderIds)}>
+            {to("xdReprintBatch")}
+          </button>
+        </div>
+      ) : null}
 
       <Tiles n={3}>
         <Tile
@@ -368,6 +417,7 @@ export function OutDesk({
           <span className="e">{to("colAmount")}</span>
           <span>{tile === "done" ? to("colOutAt") : to("colWait")}</span>
           <span>{to("colSite")}</span>
+          {xdColumn ? <span>{to("xdColLabel")}</span> : null}
           <span />
         </div>
         <div className="rows">
@@ -435,6 +485,25 @@ export function OutDesk({
                     {ageText(h)}
                   </span>
                   <span className="site">{nameOf(o.warehouse_id) ?? "—"}</span>
+                  {xdColumn ? (
+                    <span className="xdl">
+                      {xdToPrint.has(o.id) ? (
+                        <Tag hue="h-amber" icon="file">{to("xdLabelToPrint")}</Tag>
+                      ) : xdPrinted[o.id] ? (
+                        <>
+                          <Tag hue="h-green" icon="check">{to("xdLabelPrinted", { time: time(xdPrinted[o.id]) })}</Tag>
+                          <button
+                            type="button"
+                            className="lnk"
+                            disabled={xd.printing}
+                            onClick={(e) => { e.stopPropagation(); void printLabels([o.id]); }}
+                          >
+                            {to("xdReprint")}
+                          </button>
+                        </>
+                      ) : null}
+                    </span>
+                  ) : null}
                   <span style={{ justifySelf: "end" }}>
                     {gone ? (
                       <Tag hue="h-red" icon="alert">{to("gone")}</Tag>

@@ -36,7 +36,8 @@ export type AlertType =
   | "sheet_sync_stalled"
   | "intake_silent"
   | "agent_uncalled"
-  | "agent_idle";
+  | "agent_idle"
+  | "return_missing";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -197,6 +198,17 @@ export const ALERT_RULES: Record<AlertType, AlertRule> = {
     escalate: [{ afterMinutes: 90, to: "high" }],
     expireAfterMinutes: null,
   },
+  /**
+   * A closed return list still has Ordra parcels nobody scanned in
+   * (plans/xdelivery-manifests.md). One row per list, anchored on its close.
+   * Missing goods are money: critical after three days; out of the list after a
+   * month — by then it is a claim to the carrier, not a warehouse task.
+   */
+  return_missing: {
+    base: "high",
+    escalate: [{ afterMinutes: 3 * DAY, to: "critical" }],
+    expireAfterMinutes: 30 * DAY,
+  },
 };
 
 export const ALERT_TYPES = Object.keys(ALERT_RULES) as AlertType[];
@@ -236,6 +248,8 @@ const FAMILIES: Record<AlertType, AlertFamily> = {
   agent_uncalled: "progress",
   // …and she is not calling: a fact about the agent, kept on its own row.
   agent_idle: "oversight",
+  // Goods that should be back on the shelf.
+  return_missing: "stock",
 };
 
 export function familyOf(type: AlertType): AlertFamily {

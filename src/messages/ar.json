@@ -266,7 +266,8 @@
       "sheet_sync_stalled": "لا استيراد منذ {value}",
       "intake_silent": "لا طلبات منذ {value}",
       "agent_uncalled": "{count} بلا اتصال · {value}",
-      "agent_idle": "بلا مكالمة منذ {value}"
+      "agent_idle": "بلا مكالمة منذ {value}",
+      "return_missing": "{count, plural, other {# طرد مفقود}} · {value}"
     },
     "types": {
       "dispatch_failure": {
@@ -316,6 +317,9 @@
       },
       "agent_idle": {
         "label": "متصل بلا مكالمات"
+      },
+      "return_missing": {
+        "label": "مرتجعات مفقودة"
       }
     },
     "bell": "التنبيهات",
@@ -2935,7 +2939,7 @@
       "errCarrier": "رفضته درب السبيل",
       "errCarrierWarehouse": "يُشحن من مستودع شركة الشحن — لا حاجة للمسح.",
       "errMarket": "هذا الطلب يخص سوقًا آخر.",
-      "errNoLabel": "لم تُطبع الملصقة.",
+      "errNoLabel": "الملصق غير مطبوع. اطبعه في المكتب (إخراج)، ألصقه، ثم امسح رمز QR.",
       "errNotFound": "الطلب غير موجود.",
       "errRefused": "تم رفض المسح",
       "errShipmentUnknown": "درب السبيل لا تعرف هذه الشحنة — تعذّر ربط الملصق.",
@@ -3117,7 +3121,9 @@
       "wrongParcel": "ليس هذا الطرد",
       "noSiteTitle": "لا يوجد مستودع",
       "noSiteBody": "حسابك غير مرتبط بأي مبنى. اطلب من مسؤولك ربطك بطرابلس أو بنغازي.",
-      "movedToScanned": "غادر هذا الطرد المكتب ← تبويب «تم مسحها»"
+      "movedToScanned": "غادر هذا الطرد المكتب ← تبويب «تم مسحها»",
+      "xdLabelToPrint": "ملصق للطباعة",
+      "xdLabelReady": "الملصق جاهز"
     },
     "scanned": {
       "awaitingPickup": "{n} بانتظار الشركة",
@@ -3255,6 +3261,20 @@
       "confirmOn": "طلب استلام جديد لـ {site} اليوم؟",
       "failed": "تعذّر تنفيذ العملية. أعد المحاولة.",
       "noSite": "لم يتم تعيين أي مبنى لك."
+    },
+    "xdeliveryPickup": {
+      "brand": "X-DELIVERY",
+      "title": "الاستلام",
+      "request": "طلب استلام · {n} طرد",
+      "waiting": "{n, plural, =0 {لا توجد طرود ممسوحة في الانتظار} other {# طرد ممسوح في انتظار الاستلام}}",
+      "sentList": "قائمة أُرسلت {time} · {n} طرد",
+      "noLogin": "بيانات دخول بوابة X-Delivery غير موجودة — أدخلها في الاتصالات › شركات التوصيل.",
+      "failureLogin": "رُفض الدخول إلى بوابة X-Delivery — تحقق من البريد وكلمة المرور في الاتصالات › شركات التوصيل.",
+      "listTitle": "ممسوحة · X-Delivery",
+      "parcel": "طرد {tracking}",
+      "toRequest": "للطلب",
+      "more": "+ {n} أخرى",
+      "failed": "تعذّر الإجراء. أعد المحاولة."
     },
     "receptions": {
       "alreadyAdded": "مضاف إلى هذا الاستلام",
@@ -3559,7 +3579,21 @@
         "rowMenu": "إجراءات على هذا الطرد",
         "recheck": "إعادة التحقق لدى درب",
         "unscan": "إلغاء الإخراج",
-        "startRunRoll": "جولة {colour}"
+        "startRunRoll": "جولة {colour}",
+        "xdToPrint": "{n, plural, =0 {كل الملصقات مطبوعة} one {ملصق واحد للطباعة} other {# ملصقات للطباعة}}",
+        "xdPrint": "{n, plural, one {اطبع الملصق} other {اطبع الـ#}}",
+        "xdFormat": "صيغة الملصق",
+        "xdFormatA4": "A4 ×2",
+        "xdFormatThermal": "10×15",
+        "xdLastBatch": "آخر طباعة: {time} · {n, plural, one {ملصق واحد} other {# ملصقات}}",
+        "xdPdfHint": "يُفتح ملف PDF في لسان جديد؛ اطبعه كالعادة.",
+        "xdReprintBatch": "أعد طباعة هذه الدفعة",
+        "xdColLabel": "الملصق",
+        "xdLabelToPrint": "للطباعة",
+        "xdLabelPrinted": "طُبع {time}",
+        "xdReprint": "أعد الطباعة",
+        "xdPrintFailed": "تعذّرت الطباعة. أعد المحاولة.",
+        "xdPrinted": "أُرسلت الملصقات إلى الطباعة."
       },
       "returns": {
         "title": "إرجاع",
@@ -4451,6 +4485,25 @@
       "fulfilmentUnavailable": "غير متاح لهذه الطلبية",
       "fulfilmentStock": "المطلوب {requested} · المتاح {available}",
       "optionPickupDisabledToday": "الاستلام معطّل اليوم — مرّ السائق بالفعل ({site})"
+    },
+    "xdelivery": {
+      "title": "إرسال إلى X-Delivery",
+      "orderLine": "طلبية {name} · {total} · {city}",
+      "governorate": "الولاية",
+      "governorateFromOrder": "{name} (من الطلبية)",
+      "governoratePick": "اختر الولاية",
+      "governorateUnknown": "« {city} » ليست ولاية معروفة لدى X-Delivery: اخترها.",
+      "delegation": "المعتمدية",
+      "optional": "— اختيارية",
+      "search": "ابحث عن معتمدية أو منطقة…",
+      "byDefault": "افتراضي",
+      "noMatch": "لا معتمدية ولا منطقة مطابقة.",
+      "defaultNote": "دون اختيار، نرسل <b>{delegation}</b>: نفس مستودع X-Delivery، والسائق لديه العنوان.",
+      "cancel": "إلغاء",
+      "send": "إرسال",
+      "sending": "جارٍ الإرسال…",
+      "failed": "فشل الإرسال. أعد المحاولة.",
+      "close": "إغلاق"
     },
     "coverage": {
       "badge": "غير مغطّاة",

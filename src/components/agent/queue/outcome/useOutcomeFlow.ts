@@ -19,7 +19,7 @@ import { useAgentToast } from "@/components/agent/shared";
 import type { DexpressSelection } from "@/components/queue/DexpressLocationPicker";
 import { useCallOutcome } from "./useCallOutcome";
 import { useCarrierChoice } from "./useCarrierChoice";
-import { callbackSlots, groupIcon, localInputs, type OutcomeDone, type SlotKey, type Tray, type Twin } from "./outcome-model";
+import { callbackSlots, carrierFormFor, groupIcon, localInputs, type OutcomeDone, type SlotKey, type Tray, type Twin } from "./outcome-model";
 
 export interface OutcomeOrder {
   id: string;
@@ -138,7 +138,12 @@ export function useOutcomeFlow({
 
   // ── send / schedule ──
   const [darbOpen, setDarbOpen] = useState(false);
-  const carriers = useCarrierChoice({ orderId: order.id, marketId: order.marketId, enabled: tray === "send" || tray === "schedule" || darbOpen });
+  const [xdOpen, setXdOpen] = useState(false);
+  const carriers = useCarrierChoice({
+    orderId: order.id,
+    marketId: order.marketId,
+    enabled: tray === "send" || tray === "schedule" || darbOpen || xdOpen,
+  });
   const [dexState, setDexState] = useState<DexpressSelection>({ stateId: null, stateName: "" });
   const [needState, setNeedState] = useState(false);
   const [dupAsk, setDupAsk] = useState<{ externalId: string | null } | null>(null);
@@ -301,9 +306,15 @@ export function useOutcomeFlow({
         outcome.setError(tCov("notCovered", { city: carriers.order?.customer_city ?? "" }));
         return;
       }
-      // Darb asks its own questions (service, area, options) in its own form.
-      if (c.code === "darb_assabil") {
+      // Darb asks its own questions (service, area, options) in its own form; X-Delivery
+      // its governorate and optional delegation.
+      const form = carrierFormFor(c.code);
+      if (form === "darb") {
         setDarbOpen(true);
+        return;
+      }
+      if (form === "xdelivery") {
+        setXdOpen(true);
         return;
       }
       const savedState = carriers.order?.dexpress_state_id ?? null;
@@ -346,6 +357,14 @@ export function useOutcomeFlow({
     [sent, carriers.selectedCard],
   );
 
+  const onXdSuccess = useCallback(
+    (tracking: string | null) => {
+      setXdOpen(false);
+      sent(tracking, carriers.selectedCard?.name ?? "X-Delivery");
+    },
+    [sent, carriers.selectedCard],
+  );
+
   /** « Supprimer celle-ci » — held 5 s behind « Annuler » before anything is sent. */
   const deleteDup = useCallback(() => {
     const twin = order.twin;
@@ -379,7 +398,20 @@ export function useOutcomeFlow({
     error: outcome.error,
     reject: { groups, group, sub, note, chooseGroup, setSub, setNote, ready: rejectReady, offering, offer, submit: submitReject },
     callback: { slots, pick, setPick, custom, setCustom, chosenAt, submit: submitCallback },
-    send: { carriers, needState, dexState, setDexState, dupAsk, submit: submitSend, darbOpen, closeDarb: () => setDarbOpen(false), onDarbSuccess },
+    send: {
+      carriers,
+      needState,
+      dexState,
+      setDexState,
+      dupAsk,
+      submit: submitSend,
+      darbOpen,
+      closeDarb: () => setDarbOpen(false),
+      onDarbSuccess,
+      xdOpen,
+      closeXd: () => setXdOpen(false),
+      onXdSuccess,
+    },
     schedule: { date: schedDate, setDate: setSchedDate, time: schedTime, setTime: setSchedTime, auto: schedAuto, setAuto: setSchedAuto, at: scheduledAt, submit: submitSchedule },
     deleteDup,
     cbWhen,

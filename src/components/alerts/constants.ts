@@ -131,6 +131,7 @@ export const TYPE_TONE: Record<AlertType, Tone> = {
   intake_silent: RED,
   agent_uncalled: RED,
   agent_idle: AMBER,
+  return_missing: RED,
 };
 
 /** The mark on the row — which kind of problem this is. */
@@ -151,6 +152,7 @@ export const TYPE_ICONS: Record<AlertType, LucideIcon> = {
   intake_silent: Inbox,
   agent_uncalled: AlarmClock,
   agent_idle: Headset,
+  return_missing: PackageX,
 };
 
 /**
@@ -172,6 +174,7 @@ export const META_ICONS: Partial<Record<AlertType, LucideIcon>> = {
   intake_silent: Clock,
   agent_uncalled: Clock,
   agent_idle: Clock,
+  return_missing: Clock,
 };
 
 export interface AlertsAgent {

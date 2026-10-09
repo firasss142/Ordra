@@ -15,6 +15,8 @@ import { ScannedList } from "./ScannedList";
 import { BenchCard } from "./BenchCard";
 import { ScanSheet } from "./ScanSheet";
 import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
+import { XDeliveryPickupCard } from "@/components/warehouse/pickup/XDeliveryPickupCard";
+import { useXDeliveryLabels } from "@/hooks/useXDeliveryLabels";
 
 /**
  * The bench: the agent's home screen.
@@ -99,6 +101,10 @@ export function BenchHome({
   const pathname = usePathname();
   const search = useSearchParams();
   const isLy = market === "ly";
+  // An X-Delivery parcel cannot leave without our printed label: each card says where it stands.
+  const xdLabels = useXDeliveryLabels(market === "tn").summary;
+  const labelOf = (id: string) =>
+    xdLabels?.toPrint.includes(id) ? ("toPrint" as const) : xdLabels?.printed[id] ? ("ready" as const) : null;
 
   const { data: page, mutate } = useSWR<QueuePage>(QUEUE_KEY, jsonFetcher, {
     fallbackData: {
@@ -301,6 +307,11 @@ export function BenchHome({
         </span>
       </div>
 
+      {/* X-Delivery asks for its driver itself, from the scans; the agent only says
+          whether it should (prototypes/xdelivery-v1.html). Nothing renders until a
+          Tunisian site has an X-Delivery account. */}
+      {market === "tn" ? <XDeliveryPickupCard className="mt-3" /> : null}
+
       <SegmentedTabs
         className="mt-3.5"
         size="sm"
@@ -379,7 +390,7 @@ export function BenchHome({
       ) : (
         <div className="mt-3 flex flex-col gap-2">
           {shown.map((o) => (
-            <BenchCard key={o.id} row={o} isLy={false} held={o.id === handId} currency={currency} onTake={take} />
+            <BenchCard key={o.id} row={o} isLy={false} held={o.id === handId} currency={currency} onTake={take} label={labelOf(o.id)} />
           ))}
         </div>
       )}

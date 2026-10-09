@@ -4,6 +4,7 @@ import { CARRIER_LOGOS, getCarrierLogo } from "./carrier-logos";
 describe("getCarrierLogo", () => {
   test("returns the mapped asset path for a known carrier code", () => {
     expect(getCarrierLogo("navex")).toBe(CARRIER_LOGOS.navex);
+    expect(getCarrierLogo("xdelivery")).toBe("/xdelivery-logo.jpeg");
   });
 
   test("maps the darb_assabil logo so the fermé card shows the brand, not a DAR chip", () => {

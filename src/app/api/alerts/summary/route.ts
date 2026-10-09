@@ -617,6 +617,40 @@ async function handleGET(req: NextRequest) {
     });
   }
 
+  // ── Missing returns (plans/xdelivery-manifests.md) ─────────────────────
+  // A closed return list whose Ordra parcels were never scanned in. Lines that
+  // are not Ordra orders (Converty's) are the carrier's business, not stock.
+  // Its own read, after the batch: a failure here loses one rule, not the bell.
+  const manifestsRes = await scoped(
+    supabase
+      .from("carrier_manifests")
+      .select("id, market_id, code, closed_at, carrier_manifest_parcels ( state, order_id )")
+      .in("kind", ["return", "exchange"])
+      .not("closed_at", "is", null)
+      .gte("closed_at", daysAgo(30)),
+  );
+  if (manifestsRes.error) console.error("[alerts/summary] return lists failed", manifestsRes.error);
+  for (const m of (manifestsRes.error ? [] : (manifestsRes.data ?? [])) as Array<{
+    id: string;
+    market_id: string;
+    code: string | null;
+    closed_at: string;
+    carrier_manifest_parcels: Array<{ state: string; order_id: string | null }> | null;
+  }>) {
+    const missing = (m.carrier_manifest_parcels ?? []).filter((l) => l.state === "expected" && l.order_id).length;
+    if (missing === 0) continue;
+    push({
+      type: "return_missing",
+      entityId: m.id,
+      entityKind: "manifest",
+      href: `/warehouse/returns?manifest=${m.id}`,
+      primary: m.code ? `Liste retour ${m.code}` : "Liste retour",
+      anchor: m.closed_at,
+      meta: { count: missing },
+      marketId: m.market_id,
+    });
+  }
+
   // A failed team read loses three rules, not the whole bell.
   if (teamRes.error) console.error("[alerts/summary] get_team_alerts failed", teamRes.error);
   for (const a of teamAlertInputs(teamRes.error ? null : (teamRes.data as TeamAlerts | null), now)) {

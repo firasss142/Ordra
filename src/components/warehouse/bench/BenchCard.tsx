@@ -23,12 +23,15 @@ export function BenchCard({
   held,
   currency,
   onTake,
+  label = null,
 }: {
   row: PrepRow;
   isLy: boolean;
   held: boolean;
   currency: string;
   onTake: (row: PrepRow) => void;
+  /** An X-Delivery parcel's Ordra label: scan-out refuses it until printed. Absent elsewhere. */
+  label?: "toPrint" | "ready" | null;
 }) {
   const t = useTranslations("warehouse.bench");
   const tp = useTranslations("warehouse.prep2");
@@ -103,6 +106,18 @@ export function BenchCard({
           {benchAgeLabel(hours, tAge)}
         </span>
       </div>
+
+      {label ? (
+        <p
+          data-testid="wh-bench-label"
+          data-state={label}
+          className={`mt-2 inline-flex rounded-pill px-2 py-0.5 text-[12px] font-bold ${
+            label === "toPrint" ? "bg-wh-warn-bg text-wh-warn" : "bg-wm-accent-soft text-wm-accent-deep"
+          }`}
+        >
+          {label === "toPrint" ? t("xdLabelToPrint") : t("xdLabelReady")}
+        </p>
+      ) : null}
 
       {gone || unbindable ? (
         <p className={`mt-2 text-[12.5px] font-semibold ${gone ? "text-wh-bad" : "text-wh-warn"}`}>

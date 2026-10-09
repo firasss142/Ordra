@@ -266,7 +266,8 @@
       "sheet_sync_stalled": "rien importé depuis {value}",
       "intake_silent": "aucune commande depuis {value}",
       "agent_uncalled": "{count, plural, one {# non appelée} other {# non appelées}} · {value}",
-      "agent_idle": "sans appel depuis {value}"
+      "agent_idle": "sans appel depuis {value}",
+      "return_missing": "{count, plural, one {# colis manquant} other {# colis manquants}} · {value}"
     },
     "types": {
       "dispatch_failure": {
@@ -316,6 +317,9 @@
       },
       "agent_idle": {
         "label": "En ligne sans appel"
+      },
+      "return_missing": {
+        "label": "Retours manquants"
       }
     },
     "bell": "Alertes",
@@ -2935,7 +2939,7 @@
       "errCarrier": "Refusé par Darb",
       "errCarrierWarehouse": "Expédiée depuis l'entrepôt du transporteur — aucun scan requis.",
       "errMarket": "Cette commande appartient à un autre marché.",
-      "errNoLabel": "Étiquette non imprimée.",
+      "errNoLabel": "Étiquette non imprimée. Imprimez-la au bureau (Sortir), collez-la, puis scannez son QR.",
       "errNotFound": "Commande introuvable.",
       "errRefused": "Scan refusé",
       "errShipmentUnknown": "Darb ne connaît pas cette expédition — impossible de lier le sticker.",
@@ -3117,7 +3121,9 @@
       "wrongParcel": "Ce n'est pas le bon colis",
       "noSiteTitle": "Aucun entrepôt",
       "noSiteBody": "Votre compte n'est rattaché à aucun bâtiment. Demandez à votre responsable de vous affecter à Tripoli ou à Benghazi.",
-      "movedToScanned": "Ce colis a quitté le banc → onglet « Scannés »"
+      "movedToScanned": "Ce colis a quitté le banc → onglet « Scannés »",
+      "xdLabelToPrint": "Étiquette à imprimer",
+      "xdLabelReady": "Étiquette prête"
     },
     "scanned": {
       "awaitingPickup": "{n} en attente du transporteur",
@@ -3255,6 +3261,20 @@
       "confirmOn": "Redemander un ramassage pour {site} aujourd'hui ?",
       "failed": "Action impossible. Réessayez.",
       "noSite": "Aucun bâtiment ne vous est affecté."
+    },
+    "xdeliveryPickup": {
+      "brand": "X-DELIVERY",
+      "title": "Enlèvement",
+      "request": "Demande d'enlèvement · {n} colis",
+      "waiting": "{n, plural, =0 {Aucun colis scanné en attente} one {# colis scanné attend l'enlèvement} other {# colis scannés attendent l'enlèvement}}",
+      "sentList": "Liste envoyée {time} · {n} colis",
+      "noLogin": "Identifiants du portail X-Delivery absents — à saisir dans Connexions › Transporteurs.",
+      "failureLogin": "Connexion au portail X-Delivery refusée — vérifiez l'email et le mot de passe dans Connexions › Transporteurs.",
+      "listTitle": "Scannés · X-Delivery",
+      "parcel": "Colis {tracking}",
+      "toRequest": "À demander",
+      "more": "+ {n} autres",
+      "failed": "Action impossible. Réessayez."
     },
     "receptions": {
       "alreadyAdded": "déjà sur cette réception",
@@ -3559,7 +3579,21 @@
         "rowMenu": "Actions sur ce colis",
         "recheck": "Revérifier chez Darb",
         "unscan": "Annuler la sortie",
-        "startRunRoll": "Tournée {colour}"
+        "startRunRoll": "Tournée {colour}",
+        "xdToPrint": "{n, plural, =0 {Toutes les étiquettes sont imprimées} one {# étiquette à imprimer} other {# étiquettes à imprimer}}",
+        "xdPrint": "{n, plural, one {Imprimer l'étiquette} other {Imprimer les #}}",
+        "xdFormat": "Format d'étiquette",
+        "xdFormatA4": "A4 ×2",
+        "xdFormatThermal": "10×15",
+        "xdLastBatch": "Dernière impression : {time} · {n, plural, one {# étiquette} other {# étiquettes}}",
+        "xdPdfHint": "Le PDF s'ouvre dans un nouvel onglet ; imprimez-le comme d'habitude.",
+        "xdReprintBatch": "Réimprimer ce lot",
+        "xdColLabel": "Étiquette",
+        "xdLabelToPrint": "À imprimer",
+        "xdLabelPrinted": "Imprimée {time}",
+        "xdReprint": "Réimprimer",
+        "xdPrintFailed": "Impression impossible. Réessayez.",
+        "xdPrinted": "Étiquettes envoyées à l'impression."
       },
       "returns": {
         "title": "Rentrer",
@@ -4451,6 +4485,25 @@
       "fulfilmentUnavailable": "Indisponible pour cette commande",
       "fulfilmentStock": "{requested} demandé(s) · {available} disponible(s)",
       "optionPickupDisabledToday": "Ramassage désactivé aujourd'hui — le chauffeur est déjà passé ({site})"
+    },
+    "xdelivery": {
+      "title": "Envoyer à X-Delivery",
+      "orderLine": "Commande de {name} · {total} · {city}",
+      "governorate": "Gouvernorat",
+      "governorateFromOrder": "{name} (de la commande)",
+      "governoratePick": "Choisir le gouvernorat",
+      "governorateUnknown": "« {city} » n'est pas un gouvernorat connu de X-Delivery : choisissez-le.",
+      "delegation": "Délégation",
+      "optional": "— facultative",
+      "search": "Chercher une délégation ou une localité…",
+      "byDefault": "PAR DÉFAUT",
+      "noMatch": "Aucune délégation ni localité ne correspond.",
+      "defaultNote": "Sans choix, on envoie <b>{delegation}</b> : même dépôt X-Delivery, le livreur a l'adresse.",
+      "cancel": "Annuler",
+      "send": "Envoyer",
+      "sending": "Envoi…",
+      "failed": "L'envoi a échoué. Réessayez.",
+      "close": "Fermer"
     },
     "coverage": {
       "badge": "Non desservi",

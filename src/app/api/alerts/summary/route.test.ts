@@ -91,6 +91,7 @@ function setup(opts: {
   storefronts?: unknown[];
   sheetSettings?: unknown[];
   syncRuns?: unknown[];
+  manifests?: unknown[];
 }) {
   const {
     role = "market_manager",
@@ -102,6 +103,7 @@ function setup(opts: {
     storefronts = [],
     sheetSettings = [],
     syncRuns = [],
+    manifests = [],
   } = opts;
 
   const queues: Record<string, ReturnType<typeof buildChain>[]> = {
@@ -113,6 +115,7 @@ function setup(opts: {
     storefronts: [buildChain({ data: storefronts, error: null })],
     settings: [buildChain({ data: sheetSettings, error: null })],
     sheet_sync_runs: [buildChain({ data: syncRuns, error: null })],
+    carrier_manifests: [buildChain({ data: manifests, error: null })],
   };
 
   const cursors: Record<string, number> = {};
@@ -613,5 +616,41 @@ describe("GET /api/alerts/summary — sheet import stalled, one alert per connec
     });
     const { types } = await getAlerts();
     expect(types).not.toContain("sheet_sync_stalled");
+  });
+});
+
+describe("GET /api/alerts/summary — return_missing (plans/xdelivery-manifests.md)", () => {
+  const closed = (over: Record<string, unknown> = {}) => ({
+    id: "man-1",
+    market_id: "m-1",
+    code: "1791400000001",
+    closed_at: ago(2 * HOUR),
+    carrier_manifest_parcels: [
+      { state: "expected", order_id: "o-1" },
+      { state: "expected", order_id: "o-2" },
+      { state: "received", order_id: "o-3" },
+      { state: "expected", order_id: null },
+    ],
+    ...over,
+  });
+
+  test("a closed return list with Ordra parcels never scanned raises one alert per list", async () => {
+    setup({ manifests: [closed()] });
+    const { json } = await getAlerts();
+    const a = json.alerts.find((x: { type: string }) => x.type === "return_missing");
+    expect(a).toMatchObject({ entity_id: "man-1", entity_kind: "manifest", severity: "high", meta: { count: 2 } });
+    expect(a.href).toContain("man-1");
+  });
+
+  test("ignored for three days, it turns critical", async () => {
+    setup({ manifests: [closed({ closed_at: ago(4 * DAY) })] });
+    const { json } = await getAlerts();
+    expect(json.alerts.find((x: { type: string }) => x.type === "return_missing").severity).toBe("critical");
+  });
+
+  test("once every Ordra parcel is scanned, the alert is gone", async () => {
+    setup({ manifests: [closed({ carrier_manifest_parcels: [{ state: "received", order_id: "o-1" }, { state: "expected", order_id: null }] })] });
+    const { types } = await getAlerts();
+    expect(types).not.toContain("return_missing");
   });
 });

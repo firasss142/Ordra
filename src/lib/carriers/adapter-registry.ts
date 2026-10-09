@@ -2,13 +2,15 @@ import type { CarrierAdapter } from "./types";
 import { NavexAdapter } from "./navex-adapter";
 import { DexpressAdapter } from "./dexpress/adapter";
 import { DarbAssabilAdapter } from "./darb-assabil-adapter";
+import { XDeliveryAdapter, XDELIVERY_DEFAULT_ENDPOINT } from "./xdelivery/adapter";
 
-export type CarrierCode = "navex" | "dexpress" | "darb_assabil";
+export type CarrierCode = "navex" | "dexpress" | "darb_assabil" | "xdelivery";
 
 const adapters: Record<CarrierCode, () => CarrierAdapter> = {
   navex: () => new NavexAdapter(),
   dexpress: () => new DexpressAdapter(),
   darb_assabil: () => new DarbAssabilAdapter(),
+  xdelivery: () => new XDeliveryAdapter(),
 };
 
 export function getCarrierAdapter(carrierCode: string): CarrierAdapter {
@@ -99,6 +101,21 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
       },
     ],
     markets: ["ly"],
+  },
+  xdelivery: {
+    code: "xdelivery",
+    label: "X-Delivery",
+    description:
+      "Intégration X-Delivery (Tunisie). Envoi par clé API ; la demande d'enlèvement passe par le compte du portail.",
+    defaultEndpoint: XDELIVERY_DEFAULT_ENDPOINT,
+    credentialFields: [
+      { key: "api_key", label: "Clé API (x-api-key)", secret: true },
+      { key: "unique_identifier", label: "Identifiant unique expéditeur", secret: false },
+      { key: "portal_email", label: "Email du compte portail", secret: false },
+      { key: "portal_password", label: "Mot de passe du portail", secret: true },
+      { key: "is_opened", label: "Autoriser l'ouverture du colis", secret: false, type: "switch" },
+    ],
+    markets: ["tn"],
   },
 };
 

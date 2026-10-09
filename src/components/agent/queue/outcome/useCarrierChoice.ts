@@ -26,6 +26,7 @@ interface CarrierOption {
 }
 
 export interface OrderForUpload {
+  customer_name?: string | null;
   customer_address: string | null;
   customer_city: string | null;
   dexpress_state_id: number | null;

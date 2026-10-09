@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Prototype: X-Delivery (Tunisie) — Phase 5, l'étiquette Ordra et son impression.
+     Plan: plans/xdelivery-integration.md. Données fictives uniquement (dépôt public). -->
+<title>Étiquette X-Delivery</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  --ground:#F6F6F7; --card:#FFFFFF; --edge:#E1E3E5; --ink:#1A1A1A; --ink2:#5C5F62; --ink3:#8C9196;
+  --accent:#147A47; --accent-deep:#0F6239; --accent-soft:#E6F2EA; --track:#ECEDEE;
+  --warn:#8A6100; --warn-bg:#FFF6DD; --bad:#B42318; --bad-bg:#FDECEA;
+  --studio:#EAEBEC; --studio-ink:#2B2E2B; --paper:#FFFFFF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.studio{min-height:100vh;display:grid;grid-template-columns:1fr;gap:24px;padding:16px}
+.notes{font-size:13.5px;color:var(--studio-ink)}
+.notes h1{font-size:18px;margin:0 0 4px}
+.notes p{margin:0 0 10px;color:#4A4E4A}
+.notes .pick{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.notes button{font:inherit;text-align:left;padding:8px 12px;border:1px solid #C9CBC2;background:#F7F6F1;border-radius:8px;cursor:pointer;color:var(--studio-ink)}
+.notes button[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.notes h2{font-size:13.5px;margin:16px 0 6px}
+.notes ol,.notes ul{padding-left:18px;margin:6px 0}.notes li{margin-bottom:6px}
+.notes .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent-deep)}
+@media (min-width:1000px){
+  .studio{grid-template-columns:330px 1fr;align-items:start;padding:32px 40px;gap:40px}
+  .notes{position:sticky;top:32px}
+  .notes .pick{flex-direction:column}
+}
+.stage{display:none;min-width:0}
+.stage[data-active="true"]{display:block}
+.stage h3{margin:0 0 4px;font-size:16px}
+.stage .sub{margin:0 0 14px;color:var(--ink2);font-size:13.5px}
+.zoom{display:inline-flex;gap:6px;margin-bottom:12px}
+.zoom button{font:inherit;font-size:12.5px;padding:4px 10px;border:1px solid #C9CBC2;background:#fff;border-radius:999px;cursor:pointer}
+.zoom button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+
+/* ── Paper ─────────────────────────────────────────────── */
+.paperwrap{overflow:auto;max-width:100%}
+.sheet{background:var(--paper);box-shadow:0 1px 3px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.08);transform-origin:top left;position:relative}
+.sheet.a4{width:210mm;height:297mm}
+.sheet.roll{width:100mm;height:150mm;border-radius:2mm}
+.grid4{display:grid;grid-template-columns:105mm 105mm;grid-template-rows:148.5mm 148.5mm}
+.grid2{display:grid;grid-template-rows:148.5mm 148.5mm}
+.cut{outline:0.2mm dashed #B9BCBF;outline-offset:-0.1mm}
+
+/* ── The label — pure black on white: it must survive a thermal head ── */
+.lbl{font-family:Helvetica,Arial,sans-serif;color:#000;background:#fff;padding:4mm;display:flex;flex-direction:column;gap:2mm;overflow:hidden;font-size:2.9mm;line-height:1.25}
+.lbl .row{display:flex;justify-content:space-between;align-items:baseline;gap:2mm}
+.lbl .xd{font-weight:800;letter-spacing:.06em;font-size:3mm}
+.lbl .muted{font-size:2.5mm}
+.lbl .bc{display:flex;flex-direction:column;align-items:center;border:0.35mm solid #000;padding:1.5mm 2mm 1mm}
+.lbl .bars{width:100%;height:16mm;display:flex}
+.lbl .bc svg{width:100%;height:100%;display:block}
+.lbl .bcnum{font-weight:800;font-size:4.2mm;letter-spacing:.08em;margin-top:.5mm}
+.lbl .dest{display:flex;border:0.35mm solid #000}
+.lbl .depot{background:#000;color:#fff;font-weight:800;font-size:10mm;line-height:1;display:flex;align-items:center;justify-content:center;min-width:19mm;padding:1mm 2mm}
+.lbl .place{padding:1.5mm 2.5mm;display:flex;flex-direction:column;justify-content:center}
+.lbl .gov{font-weight:800;font-size:5.2mm;text-transform:uppercase;letter-spacing:.02em;line-height:1.1}
+.lbl .del{font-size:3.4mm;font-weight:700}
+.lbl .k{font-size:2.3mm;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.lbl .name{font-weight:800;font-size:4mm}
+.lbl .tel{font-weight:800;font-size:5.4mm;letter-spacing:.03em;line-height:1.1}
+.lbl .addr{font-size:3mm}
+.lbl .cod{display:flex;border:0.35mm solid #000}
+.lbl .cod > div{padding:1.2mm 2.5mm}
+.lbl .cod .amt{flex:1;border-right:0.35mm solid #000}
+.lbl .cod .money{font-weight:800;font-size:6mm;line-height:1.1}
+.lbl .cod .open{display:flex;flex-direction:column;justify-content:center;min-width:24mm}
+.lbl .cod .open b{font-size:4.2mm}
+.lbl .items{font-size:2.9mm;border-top:0.25mm solid #000;padding-top:1.2mm}
+.lbl .items div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbl .foot{display:flex;gap:2.5mm;align-items:stretch;margin-top:auto;border-top:0.25mm solid #000;padding-top:1.8mm}
+.lbl .qr{width:19mm;height:19mm;flex:0 0 auto}
+.lbl .qr svg{width:100%;height:100%;display:block}
+.lbl .ours{display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.lbl .ours b{font-size:3.2mm}
+.lbl .ar{direction:rtl;font-size:2.4mm;text-align:right}
+
+/* A4 ×2: a wide label, two columns */
+.lbl.wide{flex-direction:row;gap:4mm;padding:5mm 6mm}
+.lbl.wide{font-size:3.6mm}
+.lbl.wide .colL{flex:1.2;display:flex;flex-direction:column;justify-content:space-between;gap:2.5mm;min-width:0}
+.lbl.wide .colR{flex:1;display:flex;flex-direction:column;gap:3mm;min-width:0}
+.lbl.wide .xd{font-size:4mm}
+.lbl.wide .muted{font-size:3.2mm}
+.lbl.wide .bars{height:24mm}
+.lbl.wide .bcnum{font-size:5.6mm}
+.lbl.wide .depot{font-size:16mm;min-width:32mm}
+.lbl.wide .gov{font-size:8mm}
+.lbl.wide .del{font-size:4.6mm}
+.lbl.wide .k{font-size:2.9mm}
+.lbl.wide .name{font-size:5.6mm}
+.lbl.wide .tel{font-size:9mm}
+.lbl.wide .addr{font-size:4mm}
+.lbl.wide .cod .money{font-size:9mm}
+.lbl.wide .cod .open b{font-size:6mm}
+.lbl.wide .items{font-size:4.4mm}
+.lbl.wide .qr{width:30mm;height:30mm}
+.lbl.wide .ours b{font-size:4.2mm}
+.lbl.wide .ours span{font-size:3.4mm}
+.lbl.wide .ar{font-size:3mm}
+
+/* ── Product screens (desk + bench) ─────────────────────── */
+.desk{background:var(--ground);border:1px solid #C9CBC2;border-radius:14px;overflow:hidden;max-width:1100px}
+.desk header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px;flex-wrap:wrap}
+.desk header h4{margin:0;font-size:22px}
+.desk header p{margin:0;color:var(--ink2);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border:1px solid var(--edge);border-radius:999px;background:#fff;font-size:13px}
+.pill b{font-weight:700}
+.btn{height:34px;padding:0 14px;border-radius:10px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--edge);background:#fff;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{height:28px;padding:0 10px;font-size:12.5px}
+.xdtag{height:18px;padding:0 6px;border-radius:5px;background:#E8EEF7;color:#0D2C54;font-size:11px;font-weight:800;letter-spacing:.02em;display:inline-flex;align-items:center}
+.table{margin:0 22px 22px;background:#fff;border:1px solid var(--edge);border-radius:14px;overflow:hidden}
+.tr{display:grid;grid-template-columns:minmax(220px,1.6fr) 120px 110px 150px 120px;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--track);font-size:14px}
+.tr:last-child{border-bottom:0}
+.tr.h{font-size:11.5px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;background:#FAFAFB}
+.tr .m{color:var(--ink2);font-size:12.5px}
+.chip{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block}
+.chip.wait{background:var(--warn-bg);color:var(--warn)}
+.chip.ok{background:var(--accent-soft);color:var(--accent-deep)}
+.lnk{font:inherit;font-size:12.5px;color:var(--accent-deep);background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--edge);border-radius:999px;padding:2px;background:var(--ground)}
+.seg button{font:inherit;font-size:12px;font-weight:600;border:0;background:none;padding:3px 10px;border-radius:999px;cursor:pointer;color:var(--ink2)}
+.seg button[aria-checked="true"]{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--edge)}
+.band{margin:0 22px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:14px;background:#fff;border:1px solid var(--edge)}
+.band p{margin:0;font-size:14px}
+.band .m{color:var(--ink2);font-size:12.5px}
+
+.phone{width:390px;max-width:100%;min-height:760px;border:10px solid #1F221F;border-radius:44px;overflow:hidden;background:var(--ground);padding:14px 16px}
+.phone h4{margin:0;font-size:22px}
+.bcard{background:#fff;border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin-top:10px}
+.bcard .t{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.bcard b{font-size:15px}
+.bcard .m{color:var(--ink2);font-size:13px}
+.toast{margin-top:14px;padding:10px 12px;border-radius:12px;background:var(--bad-bg);color:var(--bad);font-size:13.5px}
+.toast b{display:block}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="notes">
+    <h1>X-Delivery — l'étiquette Ordra</h1>
+    <p>Phase 5. Quatre écrans, données fictives.</p>
+    <div class="pick">
+      <button data-go="a4" aria-current="true">1 · Format A4 — 2 par feuille</button>
+      <button data-go="th">2 · Format thermique 10×15</button>
+      <button data-go="desk">3 · Bureau « Sortir » — imprimer</button>
+      <button data-go="bench">4 · Banc — étiquette pas imprimée</button>
+    </div>
+
+    <h2>Deux codes, deux lecteurs <span class="tag">décidé</span></h2>
+    <ul>
+      <li><b>En haut, le code-barres X-Delivery</b> (Code-128 du n° de colis, 15 chiffres) : leurs livreurs et leurs dépôts le scannent, exactement comme sur leur propre étiquette.</li>
+      <li><b>En bas, notre QR</b> (l'identifiant de la commande) : le banc Ordra le scanne à la sortie, comme aujourd'hui. Rien ne change côté scan.</li>
+    </ul>
+
+    <h2>Ce qui guide le tri chez eux</h2>
+    <ul>
+      <li>Le <b>code dépôt</b> en gros (SH, CE, SF, BA…) : chaque gouvernorat va à un de leurs 9 dépôts, tiré de leur catalogue.</li>
+      <li>Gouvernorat + délégation, téléphone en gros, montant à encaisser, « Ouvrir le colis ».</li>
+      <li>La mention arabe de non-responsabilité « casse » reprend la leur.</li>
+    </ul>
+
+    <h2>Deux formats <span class="tag">décidé</span></h2>
+    <ol>
+      <li><b>A4 ×2</b> : imprimante de bureau, deux étiquettes par feuille.</li>
+      <li><b>Thermique 10×15</b> : une étiquette par passage, rouleau adhésif.</li>
+    </ol>
+    <p>Même contenu, deux agencements. Le format se choisit au moment d'imprimer et chaque poste s'en souvient : l'imprimante est branchée sur un poste, pas sur un site.</p>
+
+    <h2>Quand on imprime</h2>
+    <ul>
+      <li>Après l'envoi à X-Delivery seulement : avant, il n'y a pas de n° de colis.</li>
+      <li>Au bureau, d'un geste : « Imprimer les 6 ». Une étiquette perdue se réimprime ligne par ligne.</li>
+      <li>Le banc ne laisse pas sortir un colis sans étiquette imprimée (règle existante) et dit où l'imprimer.</li>
+    </ul>
+  </aside>
+
+  <!-- 1 · A4 ×2 -->
+  <section class="stage" data-stage="a4" data-active="true">
+    <h3>A4 — 2 étiquettes par feuille</h3>
+    <p class="sub">210 × 148 mm chacune, en largeur. Le format actuel des étiquettes Ordra.</p>
+    <div class="zoom" data-for="a4"></div>
+    <div class="paperwrap"><div class="sheet a4 grid2" id="sheet-a4"></div></div>
+  </section>
+
+  <!-- 3 · thermal -->
+  <section class="stage" data-stage="th">
+    <h3>Thermique — 10 × 15 cm, une par étiquette</h3>
+    <p class="sub">Noir seul : une tête thermique n'imprime pas de gris.</p>
+    <div class="zoom" data-for="th"></div>
+    <div class="paperwrap"><div class="sheet roll" id="sheet-th"></div></div>
+  </section>
+
+  <!-- 4 · desk -->
+  <section class="stage" data-stage="desk">
+    <h3>Bureau « Sortir » (responsable, PC de l'entrepôt)</h3>
+    <p class="sub">Les colis envoyés à X-Delivery dans la journée attendent leur étiquette ; un clic les imprime toutes.</p>
+    <div class="desk">
+      <header>
+        <div><h4>Sortir</h4><p>Tunisie · mardi 6 octobre</p></div>
+        <span class="pill"><span class="xdtag">X-DELIVERY</span> <b>6</b> étiquettes à imprimer
+          <span class="seg" role="radiogroup" aria-label="Format"><button role="radio" aria-checked="true">A4 ×2</button><button role="radio" aria-checked="false">10×15</button></span>
+          <button class="btn primary sm">Imprimer les 6</button></span>
+      </header>
+      <div class="band">
+        <div>
+          <p><b>Dernière impression : 09:12</b> · 14 étiquettes</p>
+          <p class="m">Le PDF s'ouvre dans un nouvel onglet ; imprimez-le comme d'habitude. Ce poste imprime en A4 ×2.</p>
+        </div>
+        <button class="btn sm">Réimprimer ce lot</button>
+      </div>
+      <div class="table">
+        <div class="tr h"><span>Colis</span><span>Destination</span><span>Montant</span><span>Étiquette</span><span></span></div>
+        <div class="tr"><div>Client A. <div class="m">1× Pantalon M · 6117 9121 7700 001</div></div><span>Sousse</span><span>89,900 DT</span><span><span class="chip wait">À imprimer</span></span><span></span></div>
+        <div class="tr"><div>Client B. <div class="m">2× Chemise L · 6117 9121 7700 002</div></div><span>Tunis</span><span>119,000 DT</span><span><span class="chip wait">À imprimer</span></span><span></span></div>
+        <div class="tr"><div>Client C. <div class="m">1× Robe S + 1× Ceinture · 6117 9121 7700 003</div></div><span>Sfax</span><span>74,500 DT</span><span><span class="chip ok">Imprimée 09:12</span></span><span><button class="lnk">Réimprimer</button></span></div>
+        <div class="tr"><div>Client D. <div class="m">1× Veste XL · 6117 9121 7700 004</div></div><span>Bizerte</span><span>139,000 DT</span><span><span class="chip ok">Imprimée 09:12</span></span><span><button class="lnk">Réimprimer</button></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · bench -->
+  <section class="stage" data-stage="bench">
+    <h3>Banc (agent d'entrepôt, téléphone)</h3>
+    <p class="sub">Un colis sans étiquette imprimée le dit avant le scan, et le refus du scan dit quoi faire.</p>
+    <div class="phone">
+      <h4>Sortir</h4>
+      <div class="bcard">
+        <div class="t"><div><b>Client A.</b><div class="m">1× Pantalon M · Sousse</div></div><span class="chip wait">Étiquette à imprimer</span></div>
+      </div>
+      <div class="bcard">
+        <div class="t"><div><b>Client C.</b><div class="m">1× Robe S + 1× Ceinture · Sfax</div></div><span class="chip ok">Étiquette prête</span></div>
+      </div>
+      <div class="toast"><b>Étiquette non imprimée.</b>Imprimez-la au bureau (Sortir › Imprimer), collez-la, puis scannez son QR.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const PARCELS = [
+  { code: "611791217700001", depot: "SH", gov: "Sousse", del: "Sousse Jaouhara", name: "Client A.", phone: "22 123 456",
+    addr: "Rue de la Corniche, imm. B, 2e étage", items: ["1× Pantalon M"], cod: "89,900 DT", open: "NON", ref: "#1042",
+    id: "6f1c2a9e-0000-4000-8000-000000001042" },
+  { code: "611791217700002", depot: "CE", gov: "Tunis", del: "La Marsa", name: "Client B.", phone: "98 765 432",
+    addr: "Av. Habib Bourguiba, près de la pharmacie", items: ["2× Chemise L"], cod: "119,000 DT", open: "NON", ref: "#1043",
+    id: "6f1c2a9e-0000-4000-8000-000000001043" },
+  { code: "611791217700003", depot: "SF", gov: "Sfax", del: "Sfax Ville", name: "Client C.", phone: "55 321 789",
+    addr: "Route de Tunis km 4", items: ["1× Robe S", "1× Ceinture"], cod: "74,500 DT", open: "OUI", ref: "#1044",
+    id: "6f1c2a9e-0000-4000-8000-000000001044" },
+  { code: "611791217700004", depot: "BA", gov: "Bizerte", del: "Bizerte Nord", name: "Client D.", phone: "29 456 123",
+    addr: "Cité Ennour, rue 12", items: ["1× Veste XL"], cod: "139,000 DT", open: "NON", ref: "#1045",
+    id: "6f1c2a9e-0000-4000-8000-000000001045" },
+];
+const SENDER = { name: "Boutique Exemple", phone: "71 000 000" };
+const DATE = "06/10/2026 14:20";
+const grouped = (c) => c.replace(/(\d{4})(?=\d)/g, "$1 ");
+
+function barcodeSvg(code) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  JsBarcode(svg, code, { format: "CODE128", displayValue: false, margin: 0, height: 60, width: 2 });
+  svg.removeAttribute("width"); svg.removeAttribute("height");
+  svg.setAttribute("preserveAspectRatio", "none");
+  return svg.outerHTML;
+}
+function qrSvg(text) {
+  const q = qrcode(0, "M"); q.addData(text); q.make();
+  return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+}
+
+function parts(p) {
+  return {
+    head: `<div class="row"><span class="xd">X-DELIVERY</span><span class="muted">${DATE}</span></div>`,
+    bc: `<div class="bc"><div class="bars">${barcodeSvg(p.code)}</div><div class="bcnum">${grouped(p.code)}</div></div>`,
+    dest: `<div class="dest"><div class="depot">${p.depot}</div><div class="place"><div class="gov">${p.gov}</div><div class="del">${p.del}</div></div></div>`,
+    who: `<div><div class="k">Destinataire</div><div class="name">${p.name}</div><div class="tel">${p.phone}</div><div class="addr">${p.addr}</div></div>`,
+    cod: `<div class="cod"><div class="amt"><div class="k">À encaisser</div><div class="money">${p.cod}</div></div><div class="open"><div class="k">Ouvrir le colis</div><b>${p.open}</b></div></div>`,
+    items: `<div class="items">${p.items.map((i) => `<div>${i}</div>`).join("")}</div>`,
+    foot: `<div class="foot"><div class="qr">${qrSvg(p.id)}</div><div class="ours"><b>Ordra · Commande ${p.ref}</b><span>Exp. ${SENDER.name} · ${SENDER.phone}</span><span class="ar">هذه الشركة لا تتحمل مسؤولية التكسير</span></div></div>`,
+  };
+}
+
+function portrait(p, extra = "") {
+  const x = parts(p);
+  return `<div class="lbl ${extra}">${x.head}${x.bc}${x.dest}${x.who}${x.cod}${x.items}${x.foot}</div>`;
+}
+function wide(p) {
+  const x = parts(p);
+  return `<div class="lbl wide cut"><div class="colL">${x.head}${x.bc}${x.dest}${x.who}</div><div class="colR">${x.cod}${x.items}${x.foot}</div></div>`;
+}
+
+document.getElementById("sheet-a4").innerHTML = PARCELS.slice(0, 2).map(wide).join("");
+document.getElementById("sheet-th").innerHTML = portrait(PARCELS[0]).replace('class="lbl ', 'style="height:150mm" class="lbl ');
+
+// Fit-to-screen vs real size, per stage.
+const SCALES = { fit: null, real: 1 };
+function fit(stage) {
+  const sheet = document.querySelector(`[data-stage="${stage}"] .sheet`);
+  if (!sheet) return;
+  const mode = sheet.dataset.mode || "fit";
+  const wrap = sheet.parentElement;
+  sheet.style.transform = "";
+  const w = sheet.offsetWidth, h = sheet.offsetHeight;
+  const s = mode === "real" ? 1 : Math.min(1, (wrap.clientWidth - 4) / w, (window.innerHeight - 180) / h);
+  sheet.style.transform = `scale(${s})`;
+  wrap.style.height = `${h * s + 8}px`;
+}
+document.querySelectorAll(".zoom").forEach((z) => {
+  const stage = z.dataset.for;
+  z.innerHTML = `<button aria-pressed="true" data-mode="fit">Ajusté à l'écran</button><button aria-pressed="false" data-mode="real">Taille réelle</button>`;
+  z.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    z.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    document.querySelector(`[data-stage="${stage}"] .sheet`).dataset.mode = b.dataset.mode;
+    fit(stage);
+  }));
+});
+
+const show = (name) => {
+  document.querySelectorAll(".stage").forEach((s) => (s.dataset.active = String(s.dataset.stage === name)));
+  document.querySelectorAll(".notes button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.go === name)));
+  fit(name);
+};
+document.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", () => show(el.dataset.go)));
+window.addEventListener("resize", () => show(document.querySelector('.stage[data-active="true"]').dataset.stage));
+window.addEventListener("hashchange", () => show(location.hash.slice(1) || "a4"));
+show(location.hash ? location.hash.slice(1) : "a4");
+</script>
+</body>
+</html>

@@ -81,3 +81,23 @@ describe("BenchCard", () => {
     expect(screen.getByTestId("wh-bench-thumb").querySelector("img")).toBeNull();
   });
 });
+
+describe("BenchCard — the X-Delivery label (prototypes/xdelivery-label-v1.html, screen 4)", () => {
+  const tn = () => row({ customer_city: "Sousse", zone: UNKNOWN });
+
+  it("says the label still has to be printed", () => {
+    render(<Intl locale="fr"><BenchCard row={tn()} isLy={false} held={false} currency="TND" onTake={() => {}} label="toPrint" /></Intl>);
+    expect(screen.getByTestId("wh-bench-label")).toHaveTextContent("Étiquette à imprimer");
+    expect(screen.getByTestId("wh-bench-label")).toHaveAttribute("data-state", "toPrint");
+  });
+
+  it("says it is ready once printed", () => {
+    render(<Intl locale="fr"><BenchCard row={tn()} isLy={false} held={false} currency="TND" onTake={() => {}} label="ready" /></Intl>);
+    expect(screen.getByTestId("wh-bench-label")).toHaveTextContent("Étiquette prête");
+  });
+
+  it("says nothing for a parcel with no label of ours", () => {
+    render(<Intl><BenchCard row={row()} isLy held={false} currency="LYD" onTake={() => {}} /></Intl>);
+    expect(screen.queryByTestId("wh-bench-label")).toBeNull();
+  });
+});

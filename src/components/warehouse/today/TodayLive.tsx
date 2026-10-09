@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { jsonFetcher } from "@/lib/fetchers";
 import type { TodayResponse } from "@/app/api/warehouse/today/route";
 import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
+import { XDeliveryPickupCard } from "@/components/warehouse/pickup/XDeliveryPickupCard";
 import { TodayHome } from "./TodayHome";
 import { TodayDesk } from "@/components/warehouse/desk/TodayDesk";
 
@@ -55,7 +56,9 @@ export function TodayLive({
         data={payload}
         locale={locale}
         dateLabel={dateLabel}
-        pickup={showPickup ? <PickupSwitch variant="bench" /> : undefined}
+        // Libya: Darb's « le chauffeur est passé ». Tunisia: X-Delivery's automatic
+        // pickup request, which renders nothing until a site has an account.
+        pickup={showPickup ? <PickupSwitch variant="bench" /> : marketCode === "tn" ? <XDeliveryPickupCard withParcels={false} /> : undefined}
       />
     );
   }

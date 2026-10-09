@@ -221,6 +221,19 @@ describe("OrderDetailPanel — the agent's four endings (agent-shell-v2)", () =>
     expect(document.querySelector(".tray")).toHaveTextContent("Choisir le transporteur");
   });
 
+  it("X-Delivery opens its own form on « Envoyer maintenant » — no upload without the governorate", async () => {
+    currentOrder = { ...order, status: "confirmed", customer_city: "Sousse" };
+    vi.mocked(useSWR).mockImplementation(((key: unknown) =>
+      typeof key === "string" && key.startsWith("/api/carriers?")
+        ? { error: undefined, isLoading: false, isValidating: false, mutate: vi.fn(), data: { data: [{ id: "xd-1", name: "X-Delivery", code: "xdelivery", is_active: true }] } }
+        : swrFor(key)) as unknown as typeof useSWR);
+    agentPanel({ initialTray: "send" });
+    await waitFor(() => expect(screen.getByRole("radio", { name: /X-Delivery/ })).toHaveAttribute("aria-checked", "true"));
+    fireEvent.click(screen.getByRole("button", { name: /Envoyer maintenant/ }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(posts).not.toContain("/api/orders/order-1/dispatch");
+  });
+
   it("offers « Envoyer au transporteur » and « Planifier la livraison » on a confirmed order", () => {
     currentOrder = { ...order, status: "confirmed" };
     agentPanel();
