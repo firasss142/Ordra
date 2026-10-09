@@ -1,20 +1,20 @@
 # Journaux — the journal system
 
 Système › Journaux (`/system/logs`, super_admin only, always French). Built 2026-10-03
-from `prototypes/journaux-v2.html`. Plan and investigation: `plans/journaux-redesign.md`.
+from `prototypes/journaux-v2.html`; the screen was rebuilt 2026-10-09 from
+`prototypes/journaux-v3.html` (§7). Plan and investigation: `plans/journaux-redesign.md`.
 
-Two questions, two tabs:
+Two questions, two views:
 
-- **Aperçu** — *does everything work?* A verdict, one card per open problem, and one
-  calm tile per system.
-- **Historique** — *what happened?* One stream, five chips:
-  - Tout
-  - Systèmes externes (`ext`)
+- **Aperçu** — *does everything work?* Four tiles (à régler · à surveiller · systèmes
+  en ordre · en sourdine) over one table of problems, or of systems.
+- **Historique** — *what happened?* Four family tiles over one table, grouped by day:
   - Équipe (`team`)
-  - Automatique (`auto`)
+  - Systèmes externes (`ext`)
+  - Tâches automatiques (`auto`)
   - Sécurité et erreurs (`sec`)
 
-  Plus « Problèmes seulement ».
+  Plus Période, Personne, Marché and « Problèmes seulement ».
 
 The rules that shaped it:
 - Success carries no colour.
@@ -196,3 +196,40 @@ Plan: `plans/journal-detection-and-settings-v2.md`. Three migrations, `202610061
 - Why: rewriting a 600-line function for five keys would risk the other sources.
 
 Tests: `supabase/tests/journal_v2_test.sql`, `settings_business_rules_test.sql`.
+
+## 7. v3 — the /orders skeleton in the /feedback look (2026-10-09)
+
+Prototype `prototypes/journaux-v3.html`, plan `plans/journaux-v3-aurore-calme.md`.
+Content, rules and sentences are v2's; only the form changed.
+
+**Skeleton**:
+- header (crumb, one H1, live sub line, Aperçu | Historique, « Retrouver une commande »);
+- four tiles that filter;
+- a search line;
+- one filter line;
+- ONE table with column headers.
+
+The detail opens in the floating glass drawer of /feedback. Styles live in
+`src/components/journal/journal.css` under `.jx`, in px.
+
+**Six areas.** `src/lib/journal/areas.ts` gives every problem, system and history line one of the six system families:
+
+| Area | Hue |
+|---|---|
+| Livraison | blue |
+| Commandes | green |
+| Publicité | pink |
+| Messages | teal |
+| Tâches automatiques | violet |
+| Application | neutral |
+
+They feed the Catégorie column, the filter and the row icon.
+
+**Historique tiles.**
+- `journal_family_counts(from, market)` (`20261009100000`) counts the same sources with the same family rules as `journal_feed()`.
+- `/api/admin/journal/summary` adds the routine passes.
+- Until that SQL is applied, the route answers `families: null` and the tiles say « comptage indisponible ».
+
+**Client-side filters** (Personne, search, Période) apply to the pages already loaded. « Afficher plus ancien » stops at the period start.
+
+**Formatter.** `makeFmt()` reads the live clock unless a `now` is pinned (tests). Before, every « il y a … » was measured against page load and drifted as SWR refreshed. A server stamp under a minute ahead reads « maintenant ».

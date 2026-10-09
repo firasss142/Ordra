@@ -18,7 +18,12 @@ export interface Fmt {
   status(s: unknown): string;
 }
 
-export function makeFmt(locale: string, tz: string, statusLabel: (s: string) => string, now = new Date()): Fmt {
+/**
+ * `fixedNow` pins the clock (tests). Without it, `now` and `relative` read the
+ * live clock: the screen builds its formatter once and refreshes every minute.
+ */
+export function makeFmt(locale: string, tz: string, statusLabel: (s: string) => string, fixedNow?: Date): Fmt {
+  const clock = () => (fixedNow ? fixedNow.getTime() : Date.now());
   const intl = locale === "ar" ? "ar-LY-u-nu-latn" : "fr-FR";
   const n0 = new Intl.NumberFormat(intl, { maximumFractionDigits: 2 });
   const hm = new Intl.DateTimeFormat(intl, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
@@ -30,7 +35,9 @@ export function makeFmt(locale: string, tz: string, statusLabel: (s: string) => 
   return {
     locale,
     tz,
-    now,
+    get now() {
+      return new Date(clock());
+    },
     num,
     money: (amount, currency) => (amount == null ? "—" : `${num(amount)} ${currency ?? ""}`.trim()),
     time: (iso) => hm.format(new Date(iso)),
@@ -39,7 +46,9 @@ export function makeFmt(locale: string, tz: string, statusLabel: (s: string) => 
     dayKey: (iso) => ymd.format(new Date(iso)),
     relative: (iso) => {
       if (!iso) return "—";
-      const s = Math.round((Date.parse(iso) - now.getTime()) / 1000);
+      let s = Math.round((Date.parse(iso) - clock()) / 1000);
+      // A server stamp slightly ahead of this browser's clock is « now ».
+      if (s > 0 && s < 60) s = 0;
       const a = Math.abs(s);
       if (a < 60) return rel.format(Math.round(s), "second");
       if (a < 3600) return rel.format(Math.round(s / 60), "minute");

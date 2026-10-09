@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import useSWR from "swr";
 import { useLocale } from "next-intl";
 import { ExternalLink, Search } from "lucide-react";
+import { issueArea, rowArea } from "@/lib/journal/areas";
 import { fetcher } from "@/lib/swr-config";
 import { useToast } from "@/components/ui/Toast";
 import type { FeedItem, Issue, Overview, Trace, OrderMatch } from "@/lib/journal/types";
@@ -25,7 +26,7 @@ import {
   type Tr,
 } from "./describe";
 import type { Fmt } from "./format";
-import { Btn, Callout, Code, Figures, H4, HourBars, MiniTable, P, Panel, Pill, Steps, Tech, type Sev } from "./parts";
+import { Avatar, Block, Btn, Callout, Code, FamilyIcon, Figures, HourBars, MiniTable, P, Panel, Pill, Steps, Tech, type Sev } from "./parts";
 
 export type PanelState =
   | { type: "issue"; id: string; fallback?: Issue }
@@ -78,7 +79,9 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
   if (!issue) {
     return (
       <Panel open onClose={onClose} title={t("common.notFound")}>
-        <P small>{t("common.selfHeal")}</P>
+        <Block>
+          <P>{t("common.selfHeal")}</P>
+        </Block>
       </Panel>
     );
   }
@@ -143,23 +146,26 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
   if (issue.rule === "whatsapp_down" && p.reason) tech.push(<Code key="w">{str(p.reason)}</Code>);
 
   const settingsLink = ["carrier", "shop", "meta", "whatsapp"].some((s) => issue.system.startsWith(s));
+  const area = issueArea(issue, overview?.systems ?? []);
   return (
     <Panel
       open
       onClose={onClose}
-      title={d.title}
-      sub={
+      icon={<FamilyIcon family={area} />}
+      eyebrow={
         <>
           <Pill sev={sevOf(issue)}>
             {issue.status === "muted" && issue.muted_until
               ? t("common.mutedUntil", { date: f.date(issue.muted_until) })
               : issue.severity === "critical"
-                ? t("common.toFix")
-                : t("common.toCheck")}
+                ? t("v3.state.toFix")
+                : t("v3.state.toWatch")}
           </Pill>
-          <span>{[issue.market ? marketName(issue.market, f) : null, t("common.since", { date: f.date(issue.first_seen) })].filter(Boolean).join(" · ")}</span>
+          {t(`v3.areas.${area}`)}
         </>
       }
+      title={d.title}
+      sub={<span>{[issue.market ? marketName(issue.market, f) : null, t("common.since", { date: f.date(issue.first_seen) })].filter(Boolean).join(" · ")}</span>}
       footer={
         <>
           {issue.status === "open" && (
@@ -167,7 +173,7 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
               {t("common.mute")}
             </Btn>
           )}
-          <span className="flex-1" />
+          <span className="sp" />
           {settingsLink && (
             <Btn href={`/${locale}/system/settings`}>
               <ExternalLink aria-hidden />
@@ -180,19 +186,19 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
         </>
       }
     >
-      <H4>{t("common.what")}</H4>
-      <P>{what}</P>
+      <Block title={t("common.what")}>
+        <P>{what}</P>
+      </Block>
       {why && (
-        <>
-          <H4>{t("explain.why")}</H4>
+        <Block title={t("explain.why")}>
           <P>{why.why}</P>
-        </>
+        </Block>
       )}
-      <H4>{t("common.howMuch")}</H4>
-      <Figures items={figures} />
+      <Block title={t("common.howMuch")}>
+        <Figures items={figures} />
+      </Block>
       {issue.rule === "carrier_stuck" && Array.isArray(p.causes) && (p.causes as unknown[]).length > 0 && (
-        <>
-          <H4>{t(`${k}.causes`)}</H4>
+        <Block title={t(`${k}.causes`)}>
           <MiniTable
             rows={(p.causes as { reason: string; parcels: number; amount: number | null }[]).map((c) => [
               causeLabel(c.reason, t, f),
@@ -200,14 +206,13 @@ function IssuePanel({ id, fallback, overview, onClose, onOpen, onChanged, t, f }
               c.amount != null ? f.money(c.amount, issue.currency) : "—",
             ])}
           />
-        </>
+        </Block>
       )}
       {todo.length > 0 && (
-        <>
-          <H4>{t("common.todo")}</H4>
+        <Block title={t("common.todo")}>
           <Steps items={todo} />
-          {!SAYS_IT_CLOSES.has(issue.rule) && <P small>{t("common.selfHeal")}</P>}
-        </>
+          {!SAYS_IT_CLOSES.has(issue.rule) && <p style={{ marginTop: 10 }}>{t("common.selfHeal")}</p>}
+        </Block>
       )}
       {tech.length > 0 && <Tech>{tech}</Tech>}
     </Panel>
@@ -237,17 +242,19 @@ function TilePanel({ id, overview, onClose, onOpen, t, f }: Props & { id: string
     <Panel
       open
       onClose={onClose}
-      title={d.name}
-      sub={
+      icon={<FamilyIcon family={tile.family} />}
+      eyebrow={
         <>
           <Pill sev={tile.state as Sev}>{d.state}</Pill>
-          <span>{d.where}</span>
+          {t(`v3.areas.${tile.family}`)}
         </>
       }
+      title={d.name}
+      sub={<span>{d.where}</span>}
       footer={
         tile.id !== "shops" ? (
           <>
-            <span className="flex-1" />
+            <span className="sp" />
             <Btn href={`/${locale}/system/settings`}>
               <ExternalLink aria-hidden />
               {t("common.openSettings")}
@@ -257,18 +264,28 @@ function TilePanel({ id, overview, onClose, onOpen, t, f }: Props & { id: string
       }
     >
       {tile.bars && (
-        <>
-          <H4>{t("bars.title")}</H4>
+        <Block title={t("bars.title")}>
           <HourBars bars={tile.bars} />
-        </>
+        </Block>
       )}
-      <H4>{t("common.lastActivity")}</H4>
-      <P>{d.last}</P>
-      {linked.map((i) => (
-        <p key={i.id} className="mt-[18px]">
-          <Btn onClick={() => onOpen({ type: "issue", id: i.id })}>{describeIssue(i, t, f).title}</Btn>
-        </p>
-      ))}
+      <Block title={t("common.lastActivity")}>
+        <P strong>{d.last}</P>
+      </Block>
+      {linked.length > 0 && (
+        <Block title={t("common.seeProblem")}>
+          <div className="plist">
+            {linked.map((i) => (
+              <button key={i.id} type="button" onClick={() => onOpen({ type: "issue", id: i.id })}>
+                <span>
+                  <b>{describeIssue(i, t, f).title}</b>
+                  <small>{describeIssue(i, t, f).line}</small>
+                </span>
+                <Pill sev={sevOf(i)}>{i.severity === "critical" ? t("v3.state.toFix") : t("v3.state.toWatch")}</Pill>
+              </button>
+            ))}
+          </div>
+        </Block>
+      )}
     </Panel>
   );
 }
@@ -282,6 +299,8 @@ function JobsPanel({ overview, onClose, onOpen, t, f }: Props) {
     <Panel
       open
       onClose={onClose}
+      icon={<FamilyIcon family="auto" />}
+      eyebrow={t("v3.areas.auto")}
       title={t("tiles.names.jobs")}
       sub={
         failing > 0 ? (
@@ -294,8 +313,11 @@ function JobsPanel({ overview, onClose, onOpen, t, f }: Props) {
         )
       }
     >
-      <P small>{t("jobs.intro")}</P>
-      <div>
+      <Block>
+        <P>{t("jobs.intro")}</P>
+      </Block>
+      <Block>
+      <div className="plist">
         {jobs.map((j) => {
           const changed = j.result && j.result.changed != null ? Number(j.result.changed) : null;
           const pill =
@@ -312,9 +334,9 @@ function JobsPanel({ overview, onClose, onOpen, t, f }: Props) {
             );
           const body = (
             <>
-              <span className="min-w-0 text-start">
-                <b className="block text-[14px] font-semibold text-ink-primary">{jobLabel(j.job, t)}</b>
-                <small className="text-[12.5px] text-ink-secondary">
+              <span className="min-w-0">
+                <b>{jobLabel(j.job, t)}</b>
+                <small>
                   {[scheduleLabel(j.schedule, t, f), j.last_at ? f.relative(j.last_at) : null].filter(Boolean).join(" · ")}
                 </small>
               </span>
@@ -322,21 +344,15 @@ function JobsPanel({ overview, onClose, onOpen, t, f }: Props) {
             </>
           );
           return j.issue_id ? (
-            <button
-              key={j.job}
-              type="button"
-              onClick={() => onOpen({ type: "issue", id: j.issue_id! })}
-              className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-[12px] border-b border-line-subtle py-[11px] last:border-b-0 hover:bg-[#F7F7F8]"
-            >
+            <button key={j.job} type="button" onClick={() => onOpen({ type: "issue", id: j.issue_id! })}>
               {body}
             </button>
           ) : (
-            <div key={j.job} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[12px] border-b border-line-subtle py-[11px] last:border-b-0">
-              {body}
-            </div>
+            <div key={j.job}>{body}</div>
           );
         })}
       </div>
+      </Block>
     </Panel>
   );
 }
@@ -349,15 +365,26 @@ function AppPanel({ overview, onClose, onOpen, t, f }: Props) {
   const repeated = (overview?.issues ?? []).filter((i) => i.rule === "server_error" && i.status === "open");
   const d = tile ? describeTile(tile, t, f) : null;
   return (
-    <Panel open onClose={onClose} title={t("app.title")} sub={d && tile ? <Pill sev={tile.state as Sev}>{d.state}</Pill> : undefined}>
-      <H4>{t("app.repeated")}</H4>
+    <Panel
+      open
+      onClose={onClose}
+      icon={<FamilyIcon family="app" />}
+      eyebrow={
+        <>
+          {d && tile ? <Pill sev={tile.state as Sev}>{d.state}</Pill> : null}
+          {t("v3.areas.app")}
+        </>
+      }
+      title={t("app.title")}
+    >
+      <Block title={t("app.repeated")}>
       {repeated.length === 0 ? (
-        <P small>{t("app.none")}</P>
+        <P>{t("app.none")}</P>
       ) : (
         <MiniTable
           rows={repeated.map((i) => [
             `${areaOf(i.params.route, t)} : ${verbOf(i.params.method, t)}`,
-            <span key="n" className="font-semibold text-[var(--jx-fail-ink)]">
+            <span key="n" style={{ color: "var(--bad)", fontWeight: 700 }}>
               {t("common.times", { n: Number(i.affected ?? 0) })}
             </span>,
             <Btn key="b" onClick={() => onOpen({ type: "issue", id: i.id })}>
@@ -366,7 +393,8 @@ function AppPanel({ overview, onClose, onOpen, t, f }: Props) {
           ])}
         />
       )}
-      <H4>{t("app.security")}</H4>
+      </Block>
+      <Block title={t("app.security")}>
       <MiniTable
         rows={[
           [t("app.logins"), f.num(sec?.logins ?? 0)],
@@ -376,6 +404,7 @@ function AppPanel({ overview, onClose, onOpen, t, f }: Props) {
           [t("app.errors"), f.num(sec?.errors ?? 0)],
         ]}
       />
+      </Block>
     </Panel>
   );
 }
@@ -406,9 +435,15 @@ function ItemPanel({ item, overview, onClose, onOpen, t, f }: Props & { item: Fe
   const detail = useSWR<Detail>(fetchable ? `/api/admin/journal/detail?ref=${encodeURIComponent(ref)}` : null, fetcher);
   const line = describeFeed(item, t, f);
   const sub = <span>{[f.dateTime(item.at), item.order_ref].filter(Boolean).join(" · ")}</span>;
+  const area = rowArea(item);
+  const person = item.family === "team" || (!!item.actor_name && item.family === "sec");
+  const head = {
+    icon: person ? <Avatar name={item.actor_name} seed={item.actor_id} unknown={!item.actor_id && !item.actor_name} large /> : <FamilyIcon family={area} />,
+    eyebrow: <>{t(`v3.areas.${area}`)}</>,
+  };
   const orderFooter = item.order_id ? (
     <>
-      <span className="flex-1" />
+      <span className="sp" />
       <Btn onClick={() => onOpen({ type: "trace", orderId: item.order_id! })}>{t("common.seeOrder")}</Btn>
       <Btn primary href={`/${locale}/orders/${item.order_id}`}>
         {t("common.openOrder")}
@@ -419,68 +454,75 @@ function ItemPanel({ item, overview, onClose, onOpen, t, f }: Props & { item: Fe
   // A series: list its lines, each one opening its own story.
   if (item.count > 1) {
     return (
-      <Panel open onClose={onClose} title={line.title} sub={<span>{line.sub ?? f.dateTime(item.at)}</span>}>
-        <H4>{t("detail.members")}</H4>
-        <div>
-          {item.members.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              disabled={!m.order_id}
-              onClick={() => m.order_id && onOpen({ type: "trace", orderId: m.order_id })}
-              className="grid w-full grid-cols-[56px_minmax(0,1fr)] items-center gap-[8px] border-b border-line-subtle py-[9px] text-start text-[14px] last:border-b-0 enabled:hover:bg-[#F7F7F8]"
-            >
-              <span className="tabular-nums text-ink-muted">{f.time(m.at)}</span>
-              <span>{describeFeed({ ...m, count: 1, since: m.at, members: [m] }, t, f).title}</span>
-            </button>
-          ))}
-        </div>
+      <Panel open onClose={onClose} {...head} title={line.title} sub={<span>{line.sub ?? f.dateTime(item.at)}</span>}>
+        <Block title={t("detail.members")}>
+          <div className="plist">
+            {item.members.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                disabled={!m.order_id}
+                onClick={() => m.order_id && onOpen({ type: "trace", orderId: m.order_id })}
+                style={{ gridTemplateColumns: "56px minmax(0,1fr)" }}
+              >
+                <span className="time">{f.time(m.at)}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{describeFeed({ ...m, count: 1, since: m.at, members: [m] }, t, f).title}</span>
+              </button>
+            ))}
+          </div>
+        </Block>
       </Panel>
     );
   }
 
   if (!fetchable) {
     return (
-      <Panel open onClose={onClose} title={line.title} sub={sub} footer={orderFooter}>
-        <P small>{line.sub ?? t("detail.nothing")}</P>
+      <Panel open onClose={onClose} {...head} title={line.title} sub={sub} footer={orderFooter}>
+        <Block>
+          <P>{line.sub ?? t("detail.nothing")}</P>
+        </Block>
       </Panel>
     );
   }
 
   const row = detail.data?.row ?? {};
   const s = (v: unknown) => (v == null ? "" : String(v));
-  let body: ReactNode = <P small>{detail.error ? t("common.notFound") : t("common.loading")}</P>;
+  let body: ReactNode = (
+    <Block>
+      <P>{detail.error ? t("common.notFound") : t("common.loading")}</P>
+    </Block>
+  );
   let title: string = line.title;
   let pill: ReactNode = null;
 
   if (detail.data?.type === "audit") {
     const changes = (row.changes as Record<string, [unknown, unknown]> | undefined) ?? {};
     body = (
-      <>
-        <H4>{t("detail.changes")}</H4>
+      <Block title={t("detail.changes")}>
         <ChangeTable
           head={t("detail.field")}
           rows={Object.entries(changes).map(([k, [b, a]]) => ({ label: fieldLabel(k, t), before: b, after: a }))}
           t={t}
           f={f}
         />
-        {!Object.keys(changes).length && <P small>{t("detail.nothing")}</P>}
-      </>
+        {!Object.keys(changes).length && <P>{t("detail.nothing")}</P>}
+      </Block>
     );
   } else if (detail.data?.type === "settings") {
     body = (
       <>
-        <H4>{t("detail.changes")}</H4>
+        <Block title={t("detail.changes")}>
         <ChangeTable
           head={t("detail.setting")}
           rows={(detail.data.rows ?? []).map((r) => ({ label: settingLabel(r.key, t), before: r.old_value, after: r.new_value }))}
           t={t}
           f={f}
         />
+        </Block>
         {linkedIssue(item, overview) && (
           <Callout>
             {t("detail.linked")}{" "}
-            <button type="button" className="font-semibold underline" onClick={() => onOpen({ type: "issue", id: linkedIssue(item, overview)!.id })}>
+            <button type="button" style={{ fontWeight: 700, textDecoration: "underline" }} onClick={() => onOpen({ type: "issue", id: linkedIssue(item, overview)!.id })}>
               {t("common.seeProblem")}
             </button>
           </Callout>
@@ -492,16 +534,19 @@ function ItemPanel({ item, overview, onClose, onOpen, t, f }: Props & { item: Fe
     pill = <Pill sev="fail">{t("common.failed")}</Pill>;
     body = (
       <>
-        <H4>{t("common.whatHappened")}</H4>
-        <P>{t("detail.uploadWhat")}</P>
-        <H4>{t("detail.reason")}</H4>
-        <P>{s(row.message) || "—"}</P>
-        <H4>{t("common.todo")}</H4>
-        <Steps items={[t("detail.uploadTodo")]} />
+        <Block title={t("common.whatHappened")}>
+          <P>{t("detail.uploadWhat")}</P>
+        </Block>
+        <Block title={t("detail.reason")}>
+          <P strong>{s(row.message) || "—"}</P>
+        </Block>
+        <Block title={t("common.todo")}>
+          <Steps items={[t("detail.uploadTodo")]} />
+        </Block>
         <Tech>
           <MiniTable
             rows={[
-              [t("detail.code"), <span key="c" className="font-mono" dir="ltr">{s(row.error_code) || "—"}</span>],
+              [t("detail.code"), <span key="c" style={{ fontFamily: "ui-monospace, Menlo, monospace" }} dir="ltr">{s(row.error_code) || "—"}</span>],
               [t("detail.duration"), row.duration_ms != null ? `${f.num(Number(row.duration_ms) / 1000)} s` : "—"],
               [t("detail.attempt"), s(row.attempt) || "1"],
             ]}
@@ -513,8 +558,9 @@ function ItemPanel({ item, overview, onClose, onOpen, t, f }: Props & { item: Fe
     pill = <Pill sev="fail">{t("common.failed")}</Pill>;
     body = (
       <>
-        <H4>{t("common.whatHappened")}</H4>
-        <P>{t("detail.errorWhat")}</P>
+        <Block title={t("common.whatHappened")}>
+          <P>{t("detail.errorWhat")}</P>
+        </Block>
         <Tech>
           <Code>{`${s(row.method)} ${s(row.route)}  →  ${s(row.status)}${row.error_code ? `\n${s(row.error_code)}` : ""}${row.message ? `\n${s(row.message)}` : ""}`}</Code>
         </Tech>
@@ -524,11 +570,13 @@ function ItemPanel({ item, overview, onClose, onOpen, t, f }: Props & { item: Fe
     pill = <Pill sev="fail">{t("common.failed")}</Pill>;
     body = (
       <>
-        <H4>{t("common.whatHappened")}</H4>
-        <P>{t("detail.webhookWhat")}</P>
-        <H4>{t("detail.message")}</H4>
-        <P>{s(row.error_message) || "—"}</P>
-        {row.status === "error" && <ReplayButton id={s(row.id)} t={t} onDone={onClose} />}
+        <Block title={t("common.whatHappened")}>
+          <P>{t("detail.webhookWhat")}</P>
+        </Block>
+        <Block title={t("detail.message")}>
+          <P strong>{s(row.error_message) || "—"}</P>
+          {row.status === "error" && <ReplayButton id={s(row.id)} t={t} onDone={onClose} />}
+        </Block>
       </>
     );
   }
@@ -537,23 +585,28 @@ function ItemPanel({ item, overview, onClose, onOpen, t, f }: Props & { item: Fe
     <Panel
       open
       onClose={onClose}
-      title={title}
-      sub={
+      icon={head.icon}
+      eyebrow={
         <>
           {pill}
-          {sub}
+          {head.eyebrow}
         </>
       }
-      footer={orderFooter ?? (s(row.order_id) ? undefined : undefined)}
+      title={title}
+      sub={sub}
+      footer={
+        orderFooter ??
+        (detail.data?.type === "call" && s(row.order_id) ? (
+          <>
+            <span className="sp" />
+            <Btn primary href={`/${locale}/orders/${s(row.order_id)}`}>
+              {t("common.openOrder")}
+            </Btn>
+          </>
+        ) : undefined)
+      }
     >
       {body}
-      {detail.data?.type === "call" && s(row.order_id) && !item.order_id && (
-        <p className="mt-[18px]">
-          <Btn primary href={`/${locale}/orders/${s(row.order_id)}`}>
-            {t("common.openOrder")}
-          </Btn>
-        </p>
-      )}
     </Panel>
   );
 }
@@ -570,7 +623,7 @@ function ReplayButton({ id, t, onDone }: { id: string; t: Tr; onDone: () => void
     if (res?.ok) onDone();
   };
   return (
-    <p className="mt-[18px]">
+    <p style={{ marginTop: 12 }}>
       <Btn primary onClick={replay} disabled={busy}>
         {t("detail.replay")}
       </Btn>
@@ -606,24 +659,20 @@ function ChangeTable({
   };
   if (!rows.length) return null;
   return (
-    <table className="w-full border-collapse text-[13.5px]">
+    <table className="mt ct">
       <thead>
         <tr>
-          <th className="pb-[6px] text-start text-[12px] font-semibold text-ink-secondary">{head}</th>
-          <th className="pb-[6px] ps-[14px] text-start text-[12px] font-semibold text-ink-secondary">{t("detail.before")}</th>
-          <th className="pb-[6px] ps-[14px] text-start text-[12px] font-semibold text-ink-secondary">{t("detail.after")}</th>
+          <th>{head}</th>
+          <th>{t("detail.before")}</th>
+          <th>{t("detail.after")}</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
           <tr key={i}>
-            <td className="border-t border-line-subtle py-[9px] align-top">{r.label}</td>
-            <td className="border-t border-line-subtle py-[9px] ps-[14px] align-top text-ink-secondary line-through decoration-[#C5CBD3]">
-              <span className="break-all">{show(r.before)}</span>
-            </td>
-            <td className="border-t border-line-subtle py-[9px] ps-[14px] align-top font-semibold">
-              <span className="break-all">{show(r.after)}</span>
-            </td>
+            <td>{r.label}</td>
+            <td className="bf">{show(r.before)}</td>
+            <td className="af">{show(r.after)}</td>
           </tr>
         ))}
       </tbody>
@@ -654,24 +703,47 @@ function TracePanel({ orderId, onClose, t, f }: Props & { orderId?: string }) {
   };
 
   const o = trace?.order;
+  const tone = (ev: { kind: string; params?: Record<string, unknown> | null }) => {
+    const to = String(ev.params?.to ?? "");
+    if (ev.kind === "order.received" || /delivered|confirmed|scanned/.test(to)) return "h-green";
+    if (/rejected|cancelled|returned|deleted|failed|refused/.test(to) || /failed|refused/.test(ev.kind)) return "h-red";
+    if (/uploaded|in_transit|out_for_delivery|at_carrier|dispatched|deposit/.test(to) || ev.kind.startsWith("carrier")) return "h-blue";
+    if (/attempt|callback|pending/.test(to)) return "h-amber";
+    if (ev.kind.startsWith("stock") || ev.kind.startsWith("label")) return "h-violet";
+    return "h-neutral";
+  };
   return (
     <Panel
       open
       onClose={onClose}
       wide
-      title={o ? t("trace.order", { ref: o.ref ?? "—" }) : t("trace.title")}
-      sub={
+      icon={
+        <span aria-hidden className="thumb h-neutral">
+          <Search className="ic" />
+        </span>
+      }
+      eyebrow={
         o ? (
           <>
             <Pill sev={o.status === "delivered" ? "ok" : ["rejected", "cancelled", "returned", "deleted"].includes(o.status) ? "mute" : "warn"}>{f.status(o.status)}</Pill>
-            <span>{[marketName(o.market, f), o.shop, o.amount != null ? f.money(o.amount, o.currency) : null, o.city].filter(Boolean).join(" · ")}</span>
+            {t("trace.title")}
           </>
-        ) : undefined
+        ) : (
+          t("trace.title")
+        )
+      }
+      title={o ? t("trace.order", { ref: o.ref ?? "—" }) : t("v3.traceTitle")}
+      sub={
+        o ? (
+          <span>{[marketName(o.market, f), o.shop, o.amount != null ? f.money(o.amount, o.currency) : null, o.city].filter(Boolean).join(" · ")}</span>
+        ) : (
+          <span>{t("trace.placeholder")}</span>
+        )
       }
       footer={
         o ? (
           <>
-            <span className="flex-1" />
+            <span className="sp" />
             <Btn primary href={`/${locale}/orders/${o.id}`}>
               {t("common.openOrder")}
             </Btn>
@@ -680,74 +752,68 @@ function TracePanel({ orderId, onClose, t, f }: Props & { orderId?: string }) {
       }
     >
       {!orderId && (
-        <form role="search" onSubmit={submit} className="mt-[4px] flex gap-[8px]">
-          <label className="flex h-[40px] flex-1 items-center gap-[9px] rounded-[10px] border border-[#D2D5D9] bg-white px-[12px] focus-within:border-brand">
-            <Search className="h-[16px] w-[16px] text-ink-secondary" aria-hidden />
-            <input
-              ref={input}
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("trace.placeholder")}
-              aria-label={t("trace.placeholder")}
-              className="h-full flex-1 bg-transparent text-[14px]"
-              style={{ outline: "none" }}
-            />
-          </label>
-          <Btn primary onClick={() => q.trim().length >= 3 && setKey(`/api/admin/journal/trace?q=${encodeURIComponent(q.trim())}`)}>
+        <form role="search" onSubmit={submit} className="dsrch">
+          <Search className="ic" aria-hidden />
+          <input
+            ref={input}
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("trace.placeholder")}
+            aria-label={t("trace.placeholder")}
+          />
+          <button type="submit" className="btn">
             {t("trace.search")}
-          </Btn>
+          </button>
         </form>
       )}
 
-      {key && !res.data && !res.error && <P small>{t("common.loading")}</P>}
-      {res.data && !trace && res.data.matches.length === 0 && <p className="mt-[18px] text-[14px] text-ink-secondary">{t("trace.none")}</p>}
+      {key && !res.data && !res.error && (
+        <Block>
+          <P>{t("common.loading")}</P>
+        </Block>
+      )}
+      {res.data && !trace && res.data.matches.length === 0 && (
+        <Block>
+          <P>{t("trace.none")}</P>
+        </Block>
+      )}
       {res.data && !trace && res.data.matches.length > 1 && (
-        <>
-          <H4>{t("trace.several")}</H4>
-          {res.data.matches.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setKey(`/api/admin/journal/trace?order_id=${m.id}`)}
-              className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-[12px] border-b border-line-subtle py-[10px] text-start last:border-b-0 hover:bg-[#F7F7F8]"
-            >
-              <span className="font-semibold">{t("trace.order", { ref: m.ref ?? "—" })}</span>
-              <span className="text-[13px] text-ink-secondary">{[marketName(m.market, f), f.status(m.status), f.date(m.created_at)].join(" · ")}</span>
-            </button>
-          ))}
-        </>
+        <Block title={t("trace.several")}>
+          <div className="plist">
+            {res.data.matches.map((m) => (
+              <button key={m.id} type="button" onClick={() => setKey(`/api/admin/journal/trace?order_id=${m.id}`)}>
+                <b>{t("trace.order", { ref: m.ref ?? "—" })}</b>
+                <small>{[marketName(m.market, f), f.status(m.status), f.date(m.created_at)].join(" · ")}</small>
+              </button>
+            ))}
+          </div>
+        </Block>
       )}
 
       {trace && (
         <>
-          <ul className="m-0 mt-[16px] list-none p-0">
-            {[
-              { at: trace.order.created_at, seq: 0, kind: "order.received", actor: null, actor_type: "system", params: {} },
-              ...trace.events.filter((e) => e.kind !== "order.received"),
-            ]
-              .sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || a.seq - b.seq)
-              .map((ev, i, all) => {
-              const line = describeTraceEvent(ev, trace.order, t, f);
-              const good = /delivered|confirmed|uploaded|scanned|received/.test(String(ev.params?.to ?? "")) || ev.kind === "order.received";
-              return (
-                <li key={i} className="relative grid grid-cols-[112px_18px_minmax(0,1fr)] gap-[12px] pb-[18px]">
-                  {i < all.length - 1 && <span aria-hidden className="absolute bottom-0 top-[16px] w-[2px] bg-line-subtle ltr:left-[132px] rtl:right-[132px]" />}
-                  <span className="pt-[1px] text-end text-[13px] tabular-nums text-ink-secondary">{f.dateTime(ev.at)}</span>
-                  <span
-                    aria-hidden
-                    className={`relative z-[1] ms-[2px] mt-[3px] h-[14px] w-[14px] rounded-full border-2 ${good ? "border-[var(--jx-ok)] bg-[var(--jx-ok)]" : "border-[#B6BBC1] bg-white"}`}
-                  />
-                  <div className="text-[14.5px] leading-[1.45]">
-                    {line.title}
-                    {line.sub && <small className="mt-[1px] block text-[13px] text-ink-secondary">{line.sub}</small>}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <Block>
+            <ol className="tl">
+              {[
+                { at: trace.order.created_at, seq: 0, kind: "order.received", actor: null, actor_type: "system", params: {} },
+                ...trace.events.filter((e) => e.kind !== "order.received"),
+              ]
+                .sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || a.seq - b.seq)
+                .map((ev, i) => {
+                  const line = describeTraceEvent(ev, trace.order, t, f);
+                  return (
+                    <li key={i} className={tone(ev)}>
+                      <time>{f.dateTime(ev.at)}</time>
+                      <span>{line.title}</span>
+                      {line.sub && <small>{line.sub}</small>}
+                    </li>
+                  );
+                })}
+            </ol>
+          </Block>
           <Tech>
-            <P small>{t("trace.sources")}</P>
+            <P>{t("trace.sources")}</P>
           </Tech>
         </>
       )}

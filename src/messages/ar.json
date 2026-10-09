@@ -9591,6 +9591,110 @@
       },
       "why": "لماذا",
       "fix": "ما العمل"
+    },
+    "v3": {
+      "crumb": "النظام",
+      "live": "مباشر",
+      "updated": "حُدّث {when}",
+      "toFix": "{n, plural, one {أمر واحد يجب إصلاحه} other {# أمور يجب إصلاحها}}",
+      "toWatch": "{n, plural, one {أمر واحد للمتابعة} other {# أمور للمتابعة}}",
+      "allGood": "كل شيء يعمل",
+      "tracked": "{n, plural, one {نظام واحد مُتابَع} other {# أنظمة مُتابَعة}}",
+      "clearTile": "إزالة هذا الفلتر",
+      "tiles": {
+        "now": "يجب إصلاحه الآن",
+        "nowNone": "لا شيء عاجل",
+        "watch": "للمتابعة",
+        "watchNone": "لا شيء للمتابعة",
+        "systems": "أنظمة سليمة",
+        "systemsSub": "{n, plural, one {# للتحقق} other {# للتحقق}}",
+        "systemsOk": "كلها تستجيب بشكل عادي",
+        "muted": "مكتومة",
+        "mutedUntil": "حتى {date}",
+        "mutedNone": "لا توجد مشكلة متجاهلة",
+        "team": "الفريق",
+        "teamSub": "تغييرات قام بها الفريق",
+        "ext": "الأنظمة الخارجية",
+        "extSub": "{n, plural, =0 {لا إخفاق} one {# إخفاق} other {# إخفاقات}}",
+        "auto": "المهام التلقائية",
+        "autoSub": "{routine} روتينية · {n, plural, =0 {لا إخفاق} one {# إخفاق} other {# إخفاقات}}",
+        "sec": "الأمان والأخطاء",
+        "secSub": "{n, plural, =0 {لا شيء غير عادي} one {# خطأ أو تنبيه} other {# أخطاء أو تنبيهات}}",
+        "noCount": "العدّ غير متاح",
+        "oldestLead": "الأقدم منذ"
+      },
+      "search": {
+        "overview": "ابحث عن مشكلة أو نظام أو متجر أو شركة توصيل…",
+        "history": "ابحث عن شخص أو طلبية أو إجراء…"
+      },
+      "filters": {
+        "category": "الفئة",
+        "allCategories": "الكل",
+        "market": "السوق",
+        "allMarkets": "الكل",
+        "period": "الفترة",
+        "today": "اليوم",
+        "d7": "آخر 7 أيام",
+        "d30": "آخر 30 يومًا",
+        "person": "الشخص",
+        "everyone": "الجميع"
+      },
+      "count": {
+        "problems": "{n, plural, one {مشكلة مفتوحة} other {مشاكل مفتوحة}}",
+        "muted": "{n, plural, one {مكتومة} other {مكتومة}}",
+        "systems": "{n} أنظمة معروضة من {total}",
+        "events": "{n, plural, one {حدث} other {أحداث}}",
+        "day": "{n, plural, one {حدث واحد} other {# أحداث}}"
+      },
+      "cols": {
+        "problem": "المشكلة",
+        "system": "النظام",
+        "since": "منذ",
+        "impact": "الأثر",
+        "state": "الحالة",
+        "category": "الفئة",
+        "lastActivity": "آخر نشاط",
+        "bars": "آخر 48 ساعة",
+        "time": "الساعة",
+        "who": "من",
+        "what": "ما الذي حدث",
+        "result": "النتيجة"
+      },
+      "state": {
+        "toFix": "يجب إصلاحه",
+        "toWatch": "للمتابعة",
+        "muted": "مكتومة"
+      },
+      "empty": {
+        "ok": "كل شيء يعمل",
+        "okSub": "لا شيء لإصلاحه. الأنظمة المتابَعة ({total}) تستجيب بشكل عادي.",
+        "urgent": "لا شيء عاجل",
+        "urgentSub": "{n, plural, one {الأمر المفتوح يمكنه الانتظار — هو في « للمتابعة ».} other {الأمور المفتوحة (#) يمكنها الانتظار — هي في « للمتابعة ».}}",
+        "noMuted": "لا توجد مشكلة مكتومة.",
+        "seeSystems": "عرض الأنظمة",
+        "noMatch": "لا شيء يطابق هذا البحث."
+      },
+      "folds": {
+        "moreSystems": "{n, plural, one {عرض النظام السليم الآخر} other {عرض الأنظمة السليمة الأخرى (#)}}",
+        "lessSystems": "إخفاء الأنظمة السليمة",
+        "mutedLine": "{n, plural, one {مشكلة مكتومة واحدة} other {# مشاكل مكتومة}}"
+      },
+      "who": {
+        "auto": "تلقائي",
+        "server": "الخادم",
+        "external": "اتصال خارجي",
+        "service": "خدمة خارجية",
+        "detector": "رصد Ordra"
+      },
+      "areas": {
+        "carrier": "التوصيل",
+        "intake": "الطلبيات",
+        "ads": "الإعلانات",
+        "msg": "الرسائل",
+        "auto": "المهام التلقائية",
+        "app": "التطبيق"
+      },
+      "traceTitle": "كل ما حدث لطلبية"
     }
   },
   "carrierScorecard": {
