@@ -10799,19 +10799,18 @@
       "scope": "même numéro · {n} derniers jours",
       "tiles": {
         "rep": "Répétées",
-        "repHint": "le client revient — lire son passé",
+        "repHint": "clients avec 2 commandes ou plus",
         "dup": "En double",
         "dupHint": "reçue deux fois — à nettoyer",
         "risk": "À risque",
-        "riskHint": "refus ou retours répétés",
+        "riskHint": "2 refus ou retours, ou plus",
         "ok": "Fidèles",
-        "okHint": "livrés, aucun échec"
+        "okHint": "déjà livrés, jamais d'échec"
       },
       "listHead": "{n, plural, one {# client} other {# clients}} · les plus récents d'abord",
       "nobody": "Personne ici.",
       "pick": "Choisissez un client à gauche.",
       "inSpan": "{n} commandes en {span}",
-      "summary": "{n} commandes · {d, plural, one {# livrée} other {# livrées}}",
       "rel": {
         "risk": "À risque",
         "ok": "Fiable",
@@ -10840,17 +10839,6 @@
       "shipped": "Envoyée",
       "shippedTip": "Déjà chez le transporteur — non supprimable",
       "delete": "Supprimer",
-      "trail": "Son parcours",
-      "trailHint": "de la première commande à la dernière — cliquez pour ouvrir",
-      "live": "En cours",
-      "outcome": {
-        "delivered": "Livrée",
-        "rejected": "Rejetée",
-        "returned": "Retournée",
-        "cancelled": "Annulée",
-        "road": "En route",
-        "live": "En cours"
-      },
       "clean": {
         "ticked": "{n, plural, one {copie cochée} other {copies cochées}} sur {all}",
         "keepRule": "On garde la première commande de chaque client, ou celle déjà chez le transporteur.",
@@ -10875,9 +10863,24 @@
         "deleteFailed": "{n, plural, one {# copie n'a pas pu être supprimée} other {# copies n'ont pas pu être supprimées}}",
         "dismissed": "Marqué « pas un doublon » — il ne reviendra pas ici",
         "confirm": "{n, plural, one {Supprimer # copie ? Elle reste restaurable dans Archivées › Supprimées.} other {Supprimer # copies ? Elles restent restaurables dans Archivées › Supprimées.}}",
-        "readOnly": "Lecture seule — seul un manager peut nettoyer les doublons."
+        "readOnly": "Lecture seule — seul un manager peut nettoyer les doublons.",
+        "nothingToDelete": "Rien à supprimer ici",
+        "nothingToDeleteHint": "Chaque doublon ci-dessous a déjà une commande chez le transporteur : on la garde. Vérifiez le reste, ou marquez « Pas un doublon »."
       },
-      "error": "Les commandes récurrentes n'ont pas pu être chargées."
+      "error": "Les commandes récurrentes n'ont pas pu être chargées.",
+      "tally": {
+        "orders": "{n, plural, one {# commande} other {# commandes}}",
+        "delivered": "{n, plural, one {# livrée} other {# livrées}}",
+        "lost": "{n, plural, one {# échec} other {# échecs}}",
+        "live": "{n} en cours"
+      },
+      "lastOrder": "dernière commande {when}",
+      "dupTag": "{n} commandes en double",
+      "noOutcomeYet": "Aucune commande terminée pour l'instant — rien à juger encore.",
+      "sameProductLive": "{n} commandes à appeler pour le même produit : sans doute un seul achat. Un seul appel suffit — gardez-en une.",
+      "orders": "Ses commandes",
+      "ordersHint": "la plus récente en haut — cliquez pour ouvrir",
+      "mergeTip": "Ouvre la commande gardée : « Fusionner » est dans son panneau"
     }
   },
   "photo": {

@@ -1,4 +1,5 @@
 import type { DuplicateGroup, DuplicateGroupMember } from "@/lib/duplicate-orders/groups";
+import { RECALL_STATUSES } from "@/lib/orders/list-filters";
 
 /**
  * Commandes répétées (prototypes/commandes-v4.html `cases()`): the same client,
@@ -69,6 +70,50 @@ export function reliabilityOf(orders: { status: string }[]): { rel: Reliability;
   const rel: Reliability =
     orders.length < 2 ? "new" : bad >= 2 && bad > delivered ? "risk" : delivered && !bad ? "ok" : "mid";
   return { rel, delivered, bad };
+}
+
+/** What happened to a client's orders, in three words: livrées · perdues (refus + retours) · en cours. */
+export function tallyOf(orders: { status: string }[]): { delivered: number; lost: number; live: number } {
+  let delivered = 0;
+  let lost = 0;
+  let live = 0;
+  for (const o of orders) {
+    if (o.status === "delivered") delivered++;
+    else if (LOST.has(o.status)) lost++;
+    else if (!FINAL_STATUSES.has(o.status)) live++;
+  }
+  return { delivered, lost, live };
+}
+
+/** Still in the call phase: nobody has confirmed them yet. */
+const TO_CALL = new Set<string>(["pending", ...RECALL_STATUSES]);
+
+/**
+ * The orders still to call that share a product with another one still to call
+ * — two calls for one purchase. Wider than a duplicate group (no time window),
+ * so it is a warning to read, never a pre-ticked deletion. A confirmed or
+ * shipped parcel is out: nobody calls it again.
+ */
+export function sameProductToCall<T extends { status: string; product_id: string | null; product_name: string | null }>(orders: T[]): T[] {
+  const live = orders.filter((o) => TO_CALL.has(o.status));
+  const keyOf = (o: T) => o.product_id ?? o.product_name ?? null;
+  const n = new Map<string, number>();
+  for (const o of live) {
+    const k = keyOf(o);
+    if (k) n.set(k, (n.get(k) ?? 0) + 1);
+  }
+  return live.filter((o) => {
+    const k = keyOf(o);
+    return !!k && (n.get(k) ?? 0) > 1;
+  });
+}
+
+/** « 92 422 344 » (8 digits, Tunisia) · « 091 234 5678 » (10, Libya); anything else as typed. */
+export function formatPhone(p: string): string {
+  const d = p.replace(/\s/g, "");
+  if (/^\d{8}$/.test(d)) return `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
+  if (/^\d{9,10}$/.test(d)) return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+  return d;
 }
 
 const byTime = <T extends { created_at: string }>(a: T, b: T) => Date.parse(a.created_at) - Date.parse(b.created_at);

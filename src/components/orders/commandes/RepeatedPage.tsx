@@ -8,7 +8,7 @@
 // Agents read it; only managers delete or dismiss.
 
 import "./commandes.css";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -19,8 +19,7 @@ import { useMarketScope } from "@/context/market-scope";
 import { useRejectionBadge } from "@/hooks/useRejectionBadge";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 import type { DuplicateGroup, DuplicateGroupMember } from "@/lib/duplicate-orders/groups";
-import { FINAL_STATUSES, buildCases, copiesOf, keepOf, type RepeatCase, type RepeatCustomerRow, type RepeatOrder } from "@/lib/orders/repeat-customers";
-import { SHIPPED_STATUSES } from "@/lib/orders/row-signals";
+import { FINAL_STATUSES, buildCases, copiesOf, formatPhone, keepOf, sameProductToCall, tallyOf, type RepeatCase, type RepeatCustomerRow, type RepeatOrder } from "@/lib/orders/repeat-customers";
 import { makeFmt, type Fmt } from "@/components/performance/orders/ui";
 import { Ic, StatusPill, Thumb, spanWords, useTip, useWhen, type When } from "./ui";
 
@@ -54,19 +53,28 @@ interface DupResponse {
 
 const byTime = <T extends { created_at: string }>(a: T, b: T) => Date.parse(a.created_at) - Date.parse(b.created_at);
 
-function outcome(status: string): [string, string] {
-  if (status === "delivered") return ["green", "delivered"];
-  if (status === "rejected") return ["red", "rejected"];
-  if (status === "returned") return ["red", "returned"];
-  if (status === "cancelled") return ["neutral", "cancelled"];
-  if (SHIPPED_STATUSES.has(status)) return ["teal", "road"];
-  return ["violet", "live"];
-}
+/** A row that opens an order: click, Enter or Space (the rows are role="button"). */
+const opener = (open: () => void) => ({
+  role: "button" as const,
+  tabIndex: 0,
+  onClick: open,
+  onKeyDown: (e: KeyboardEvent) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+      e.preventDefault();
+      open();
+    }
+  },
+});
 
-const phoneText = (p: string) => {
-  const d = p.replace(/\s/g, "");
-  return d.length >= 9 ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : d;
-};
+/** The order's reference, cut to its cell — storefront ids run to 24 hex characters. */
+function Ref({ o }: { o: { id: string; external_id: string | null } }) {
+  const ref = `#${o.external_id ?? o.id.slice(0, 8)}`;
+  return (
+    <span className="ref num" title={ref}>
+      {ref}
+    </span>
+  );
+}
 
 export function RepeatedPage({ role, userId, locale, userMarketId, initialMarketId, currencyCode }: RepeatedPageProps) {
   const t = useTranslations("commandes");
@@ -138,40 +146,58 @@ export function RepeatedPage({ role, userId, locale, userMarketId, initialMarket
     await Promise.all([mutateDup(), mutateCust()]);
   }, [mutateDup, mutateCust]);
 
+  // One write at a time: a second click on « Supprimer » while the first batch
+  // is in flight would send the same pairs again.
+  const [busy, setBusy] = useState(false);
+
   /** Delete the ticked copies of these groups, each against the order the group keeps. */
   const deleteCopies = useCallback(
     async (gs: DuplicateGroup[]) => {
       const pairs = gs.flatMap((g) => copiesOf(g, keep).filter((m) => dsel.has(m.id)).map((m) => ({ anchor_id: keepOf(g, keep), sibling_id: m.id })));
-      if (!pairs.length) return;
+      if (!pairs.length || busy) return;
       if (!window.confirm(tr("clean.confirm", { n: pairs.length }))) return;
+      setBusy(true);
       let ok = 0;
       let ko = 0;
-      for (let i = 0; i < pairs.length; i += 100) {
-        const res = await fetch("/api/orders/bulk-delete-duplicates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pairs: pairs.slice(i, i + 100) }) });
-        const body = await res.json().catch(() => null);
-        if (!res.ok) ko += pairs.slice(i, i + 100).length;
-        else {
-          ok += body?.data?.succeeded?.length ?? 0;
-          ko += body?.data?.failed?.length ?? 0;
+      try {
+        for (let i = 0; i < pairs.length; i += 100) {
+          const res = await fetch("/api/orders/bulk-delete-duplicates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pairs: pairs.slice(i, i + 100) }) });
+          const body = await res.json().catch(() => null);
+          if (!res.ok) ko += pairs.slice(i, i + 100).length;
+          else {
+            ok += body?.data?.succeeded?.length ?? 0;
+            ko += body?.data?.failed?.length ?? 0;
+          }
         }
+      } catch {
+        ko = pairs.length - ok;
       }
       setDsel((p) => new Set([...p].filter((id) => !pairs.some((x) => x.sibling_id === id))));
       if (ok) say(tr("clean.deleted", { n: ok }));
       if (ko) fail(tr("clean.deleteFailed", { n: ko }));
       await refresh();
+      setBusy(false);
     },
-    [keep, dsel, tr, say, fail, refresh],
+    [keep, dsel, busy, tr, say, fail, refresh],
   );
 
   const dismiss = useCallback(
     async (g: DuplicateGroup) => {
-      const res = await fetch("/api/orders/duplicates/dismiss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order_ids: g.members.map((m) => m.id) }) });
-      if (!res.ok) return fail(t("toast.error"));
-      setDsel((p) => new Set([...p].filter((id) => !g.members.some((m) => m.id === id))));
-      say(tr("clean.dismissed"));
-      await refresh();
+      if (busy) return;
+      setBusy(true);
+      try {
+        const res = await fetch("/api/orders/duplicates/dismiss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order_ids: g.members.map((m) => m.id) }) });
+        if (!res.ok) return fail(t("toast.error"));
+        setDsel((p) => new Set([...p].filter((id) => !g.members.some((m) => m.id === id))));
+        say(tr("clean.dismissed"));
+        await refresh();
+      } catch {
+        fail(t("toast.error"));
+      } finally {
+        setBusy(false);
+      }
     },
-    [fail, say, t, tr, refresh],
+    [busy, fail, say, t, tr, refresh],
   );
 
   const pickKeep = useCallback(
@@ -197,7 +223,7 @@ export function RepeatedPage({ role, userId, locale, userMarketId, initialMarket
   const daysBack = custData?.data.days_back ?? 90;
   const fallbackOpen = null;
 
-  const ctx: Ctx = { t, tr, f, when, maxAttempts, rejection, keep, dsel, canClean, tick, pickKeep, open: setOpenId, dismiss, deleteCopies, autoselectHours: dupData?.data.autoselect_window_hours ?? 1 };
+  const ctx: Ctx = { t, tr, f, when, maxAttempts, rejection, keep, dsel, canClean, busy, tick, pickKeep, open: setOpenId, dismiss, deleteCopies, autoselectHours: dupData?.data.autoselect_window_hours ?? 1 };
 
   return (
     <div className="cmd cmd-page" onMouseOver={tip.onOver} onMouseMove={tip.onMove} onMouseLeave={tip.onLeave}>
@@ -312,6 +338,8 @@ interface Ctx {
   keep: Record<string, string>;
   dsel: Set<string>;
   canClean: boolean;
+  /** a delete or dismiss is in flight — every write button waits */
+  busy: boolean;
   tick: (id: string) => void;
   pickKeep: (g: DuplicateGroup, id: string) => void;
   open: (id: string) => void;
@@ -330,29 +358,33 @@ const sameProducts = (g: DuplicateGroup) => new Set(g.members.map((m) => m.produ
 
 // ── one client in the list ──────────────────────────────────────────────────
 
+/** « 3 commandes · 1 livrée · 2 en cours » — only what happened, never « 0 livrée ». */
+function tallyWords(tr: Ctx["tr"], orders: { status: string }[]): string {
+  const { delivered, lost, live } = tallyOf(orders);
+  const parts = [tr("tally.orders", { n: orders.length })];
+  if (delivered) parts.push(tr("tally.delivered", { n: delivered }));
+  if (lost) parts.push(tr("tally.lost", { n: lost }));
+  if (live) parts.push(tr("tally.live", { n: live }));
+  return parts.join(" · ");
+}
+
 function CaseRow({ c, on, onPick, ctx }: { c: RepeatCase; on: boolean; onPick: () => void; ctx: Ctx }) {
   const { tr, when, t } = ctx;
   const [hue] = REL[c.rel];
-  const sum = c.group ? tr("inSpan", { n: c.group.members.length, span: spanWords(t, c.group.span_minutes) }) : tr("summary", { n: c.orders.length, d: c.delivered });
+  const sum = c.group ? tr("inSpan", { n: c.group.members.length, span: spanWords(t, c.group.span_minutes) }) : tallyWords(tr, c.orders);
   return (
     <button type="button" className={`cr${on ? " on" : ""}`} aria-current={on} onClick={onPick}>
-      <span className="gav">{c.name.slice(0, 1)}</span>
+      <span className="gav">{c.name.slice(0, 1).toUpperCase()}</span>
       <span className="cr-t">
         <b>
           <span dir="auto">{c.name}</span>
         </b>
-        <small>
-          {sum} · {when(c.lastAt)}
-        </small>
-        <span className="dots">
-          {c.orders.map((o) => (
-            <i key={o.id} className={`h-${outcome(o.status)[0]}${FINAL_STATUSES.has(o.status) ? "" : " now"}`} />
-          ))}
-        </span>
+        <small>{sum}</small>
+        <small className="cr-w">{tr("lastOrder", { when: when(c.lastAt) })}</small>
       </span>
       <span className="cr-b">
         {c.group && (
-          <span className={`mc h-${c.group.members.some((m) => m.already_shipped) ? "red" : "blue"}`}>
+          <span className={`mc h-${c.group.members.some((m) => m.already_shipped) ? "red" : "blue"}`} data-tip={tr("dupTag", { n: c.group.members.length })}>
             <Ic n="copy" />×{c.group.members.length}
           </span>
         )}
@@ -365,22 +397,24 @@ function CaseRow({ c, on, onPick, ctx }: { c: RepeatCase; on: boolean; onPick: (
 // ── one client, right ───────────────────────────────────────────────────────
 
 function CaseDetail({ c, ctx, onList }: { c: RepeatCase; ctx: Ctx; onList: () => void }) {
-  const { tr, f, when } = ctx;
+  const { tr, f } = ctx;
   const [hue, icon] = REL[c.rel];
   const groupIds = new Set(c.group?.members.map((m) => m.id) ?? []);
-  const live = c.orders.filter((o) => !FINAL_STATUSES.has(o.status) && !groupIds.has(o.id));
-  const done = c.orders.filter((o) => FINAL_STATUSES.has(o.status)).length;
+  // Every order once, newest first; a duplicate group's members live in its own block.
+  const history = c.orders.filter((o) => !groupIds.has(o.id)).sort((a, b) => byTime(b, a));
+  const twice = sameProductToCall(history);
+  const done = c.delivered + c.bad;
   const paid = c.orders.filter((o) => o.status === "delivered").reduce((a, o) => a + Number(o.total_price ?? 0), 0);
   return (
     <section className="cd">
       <header className="cdh">
-        <span className="gav big">{c.name.slice(0, 1)}</span>
+        <span className="gav big">{c.name.slice(0, 1).toUpperCase()}</span>
         <div className="gt">
           <h2>
             <span dir="auto">{c.name}</span>
           </h2>
           <small>
-            <span className="num">{phoneText(c.phone)}</span>
+            <span className="num">{formatPhone(c.phone)}</span>
             {c.city ? ` · ${c.city}` : ""}
             {c.address ? (
               <>
@@ -390,7 +424,7 @@ function CaseDetail({ c, ctx, onList }: { c: RepeatCase; ctx: Ctx; onList: () =>
             ) : null}
           </small>
         </div>
-        {c.rel !== "mid" && (
+        {SHOWN_REL.has(c.rel) && (
           <span className={`conf h-${hue}`}>
             <Ic n={icon} />
             {tr(`rel.${c.rel}`)}
@@ -404,7 +438,9 @@ function CaseDetail({ c, ctx, onList }: { c: RepeatCase; ctx: Ctx; onList: () =>
       </header>
       {c.rel === "new" ? (
         <p className="shh">{tr("firstTime")}</p>
-      ) : (
+      ) : done > 0 ? (
+        // The record only means something once an order has an outcome; before
+        // that it is three zeros next to orders still being called.
         <div className="kpis">
           <div>
             <b>{f.n(c.orders.length)}</b>
@@ -423,51 +459,32 @@ function CaseDetail({ c, ctx, onList }: { c: RepeatCase; ctx: Ctx; onList: () =>
             <span>{tr("kpi.paid", { ccy: f.sym })}</span>
           </div>
         </div>
+      ) : (
+        <p className="shh">{tr("noOutcomeYet")}</p>
       )}
       {c.rel === "risk" && (
-        <div className="note h-red" style={{ margin: "0 18px 6px" }}>
+        <div className="note h-red" style={{ margin: "0 18px 12px" }}>
           <Ic n="alert" />
           <span>{tr("riskNote", { bad: c.bad, done })}</span>
         </div>
       )}
+      {twice.length > 1 && (
+        <div className="note h-amber" style={{ margin: "0 18px 12px" }}>
+          <Ic n="alert" />
+          <span>{tr("sameProductLive", { n: twice.length })}</span>
+        </div>
+      )}
       {c.group && <DupBlock g={c.group} ctx={ctx} />}
-      <div className="blk">
-        <div className="sh">
-          <Ic n="route" />
-          {tr("trail")}
-          <span className="shm">{tr("trailHint")}</span>
-        </div>
-        <div className="trail">
-          {c.orders.map((o, i) => {
-            const [h, k] = outcome(o.status);
-            return (
-              <span key={o.id} style={{ display: "contents" }}>
-                {i > 0 && <span className="link" />}
-                <button
-                  type="button"
-                  className={`stop h-${h}${FINAL_STATUSES.has(o.status) ? "" : " now"}`}
-                  data-tip={`#${o.external_id ?? o.id.slice(0, 8)} · ${o.product_name ?? ""} · ${f.money(Number(o.total_price ?? 0))} · ${when(o.created_at)}`}
-                  onClick={() => ctx.open(o.id)}
-                >
-                  <i />
-                  <span>
-                    {tr(`outcome.${k}`)} · {f.day(o.created_at.slice(0, 10))}
-                  </span>
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      {live.length > 0 && (
+      {history.length > 0 && (
         <div className="blk">
           <div className="sh">
-            <Ic n="clock" />
-            {tr("live")}
+            <Ic n="bag" />
+            {tr("orders")}
+            <span className="shm">{tr("ordersHint")}</span>
           </div>
           <div className="cps">
-            {live.map((o) => (
-              <LiveRow key={o.id} o={o} ctx={ctx} />
+            {history.map((o) => (
+              <OrderLine key={o.id} o={o} ctx={ctx} />
             ))}
           </div>
         </div>
@@ -476,10 +493,10 @@ function CaseDetail({ c, ctx, onList }: { c: RepeatCase; ctx: Ctx; onList: () =>
   );
 }
 
-function LiveRow({ o, ctx }: { o: RepeatOrder; ctx: Ctx }) {
+function OrderLine({ o, ctx }: { o: RepeatOrder; ctx: Ctx }) {
   return (
-    <div className="cp" role="button" tabIndex={0} onClick={() => ctx.open(o.id)}>
-      <span className="locked">#{o.external_id ?? o.id.slice(0, 8)}</span>
+    <div className="cp" {...opener(() => ctx.open(o.id))}>
+      <Ref o={o} />
       <span className="tm">{ctx.when(o.created_at)}</span>
       <span className="pr">
         <Thumb src={o.product_image_url} seed={o.product_id ?? o.product_name ?? o.id} />
@@ -495,7 +512,9 @@ function LiveRow({ o, ctx }: { o: RepeatOrder; ctx: Ctx }) {
         {ctx.f.n(Number(o.total_price ?? 0))}
         <small>{ctx.f.sym}</small>
       </span>
-      <span />
+      <span className="go">
+        <Ic n="right" className="flip" />
+      </span>
     </div>
   );
 }
@@ -528,13 +547,17 @@ function DupBlock({ g, ctx }: { g: DuplicateGroup; ctx: Ctx }) {
       </div>
       {ctx.canClean && (
         <footer className="gf">
+          <button type="button" className="lnkb" disabled={ctx.busy} onClick={() => void ctx.dismiss(g)}>
+            {tr("clean.notDup")}
+          </button>
+          <span className="sp" />
           {!sameProducts(g) && (
-            <button type="button" className="btn2" onClick={() => ctx.open(k)}>
+            <button type="button" className="btn2" data-tip={tr("mergeTip")} onClick={() => ctx.open(k)}>
               <Ic n="merge" />
               {tr("merge")}
             </button>
           )}
-          <button type="button" className="btn2 neg" disabled={!dels} onClick={() => void ctx.deleteCopies([g])}>
+          <button type="button" className="btn2 neg" disabled={!dels || ctx.busy} onClick={() => void ctx.deleteCopies([g])}>
             <Ic n="trash" />
             {tr("deleteN", { n: dels })}
           </button>
@@ -577,7 +600,7 @@ function CopyRow({ g, m, keepId, ctx }: { g: DuplicateGroup; m: DuplicateGroupMe
   );
   const shippedGroup = g.members.some((x) => x.already_shipped);
   return (
-    <div className={`cp${isKeep ? " kept" : ""}`} role="button" tabIndex={0} onClick={() => ctx.open(m.id)}>
+    <div className={`cp${isKeep ? " kept" : ""}`} {...opener(() => ctx.open(m.id))}>
       {ctl}
       <span className="tm">{ctx.when(m.created_at)}</span>
       <span className="pr">
@@ -636,34 +659,48 @@ function CleanView({ groups, cases, ctx }: { groups: DuplicateGroup[]; cases: Re
   const nameOf = (g: DuplicateGroup) => cases.find((c) => c.group === g);
   return (
     <>
-      <section className="hero">
-        <div className="hero-n">
-          <b>{ticked.length}</b>
-          <div>
-            <strong>{tr("clean.ticked", { n: ticked.length, all: all.length })}</strong>
-            <span>
-              {tr("clean.keepRule")} {value ? tr("clean.value", { value: f.money(value) }) : ""}
-            </span>
+      {all.length === 0 ? (
+        // Every copy is already at the carrier: nothing to delete, so no red
+        // zero and no dead red button — just say why.
+        <section className="hero calm">
+          <div className="hero-n">
+            <Ic n="lock" />
+            <div>
+              <strong>{tr("clean.nothingToDelete")}</strong>
+              <span>{tr("clean.nothingToDeleteHint")}</span>
+            </div>
           </div>
-        </div>
-        {ctx.canClean && (
-          <div className="hero-a">
-            {all.length === 0 ? null : ticked.length < all.length ? (
-              <button type="button" className="btn2" onClick={() => all.forEach((m) => !ctx.dsel.has(m.id) && ctx.tick(m.id))}>
-                {tr("clean.tickAll")}
-              </button>
-            ) : (
-              <button type="button" className="btn2" onClick={() => ticked.forEach((m) => ctx.tick(m.id))}>
-                {tr("clean.untickAll")}
-              </button>
-            )}
-            <button type="button" className="btn big" disabled={!ticked.length} onClick={() => void ctx.deleteCopies(groups)}>
-              <Ic n="trash" />
-              {tr("deleteN", { n: ticked.length })}
-            </button>
+        </section>
+      ) : (
+        <section className="hero">
+          <div className="hero-n">
+            <b className={ticked.length ? "" : "zero"}>{ticked.length}</b>
+            <div>
+              <strong>{tr("clean.ticked", { n: ticked.length, all: all.length })}</strong>
+              <span>
+                {tr("clean.keepRule")} {value ? tr("clean.value", { value: f.money(value) }) : ""}
+              </span>
+            </div>
           </div>
-        )}
-      </section>
+          {ctx.canClean && (
+            <div className="hero-a">
+              {ticked.length < all.length ? (
+                <button type="button" className="btn2" onClick={() => all.forEach((m) => !ctx.dsel.has(m.id) && ctx.tick(m.id))}>
+                  {tr("clean.tickAll")}
+                </button>
+              ) : (
+                <button type="button" className="btn2" onClick={() => ticked.forEach((m) => ctx.tick(m.id))}>
+                  {tr("clean.untickAll")}
+                </button>
+              )}
+              <button type="button" className="btn big" disabled={!ticked.length || ctx.busy} onClick={() => void ctx.deleteCopies(groups)}>
+                <Ic n="trash" />
+                {tr("deleteN", { n: ticked.length })}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
       {sure.length > 0 && (
         <section className="dgs">
           <div className="sh">
@@ -709,7 +746,7 @@ function DupLine({ g, c, ctx }: { g: DuplicateGroup; c: RepeatCase | undefined; 
           <span dir="auto">{name}</span>
         </b>
         <small>
-          <span className="num">{phoneText(phone)}</span> · {tr("inSpan", { n: g.members.length, span: spanWords(t, g.span_minutes) })}
+          <span className="num">{formatPhone(phone)}</span> · {tr("inSpan", { n: g.members.length, span: spanWords(t, g.span_minutes) })}
         </small>
         {d.length > 0 && (
           <span className="diff">
@@ -732,12 +769,12 @@ function DupLine({ g, c, ctx }: { g: DuplicateGroup; c: RepeatCase | undefined; 
             </button>
           )}
           {g.confidence !== "high" && !sameProducts(g) && (
-            <button type="button" className="btn2" onClick={() => ctx.open(keepOf(g, ctx.keep))}>
+            <button type="button" className="btn2" data-tip={tr("mergeTip")} onClick={() => ctx.open(keepOf(g, ctx.keep))}>
               <Ic n="merge" />
               {tr("clean.merge")}
             </button>
           )}
-          <button type="button" className="lnkb" onClick={() => void ctx.dismiss(g)}>
+          <button type="button" className="lnkb" disabled={ctx.busy} onClick={() => void ctx.dismiss(g)}>
             {tr("clean.notDup")}
           </button>
         </div>
@@ -752,6 +789,9 @@ function CopyCard({ g, m, ctx }: { g: DuplicateGroup; m: DuplicateGroupMember; c
   const sh = !kp && (m.already_shipped || !m.deletable);
   const on = ctx.dsel.has(m.id);
   const pickable = !kp && !sh && ctx.canClean;
+  // A group with a parcel at the carrier keeps that parcel — the same rule the
+  // client view applies, so ★ never offers to keep a second order beside it.
+  const canKeep = pickable && !g.members.some((x) => x.already_shipped);
   const label = kp ? (
     <span className="cl k">
       <Ic n="star" />
@@ -792,7 +832,7 @@ function CopyCard({ g, m, ctx }: { g: DuplicateGroup; m: DuplicateGroupMember; c
       <div className="cpy-h">
         {label}
         <span className="tm">{ctx.when(m.created_at)}</span>
-        {pickable && (
+        {canKeep && (
           <button
             type="button"
             className="mk"
