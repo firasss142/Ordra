@@ -22,13 +22,16 @@ export const BUCKET_TONE: Record<Bucket, Tone> = {
   hot: "amber",
   callback: "blue",
   retry: "grey",
+  // The desk's automatic sources (2026-10-06): lists to work through, like campaign stock.
+  recover: "violet",
+  rebuy: "violet",
   campaign: "violet",
   winback: "red",
   converted: "green",
 };
 
 export type SituationKey =
-  | "hot" | "callback_due" | "callback_at" | "retry" | "campaign" | "winback" | "converted";
+  | "hot" | "callback_due" | "callback_at" | "retry" | "recover" | "rebuy" | "campaign" | "winback" | "converted";
 
 export interface Situation {
   key: SituationKey;
@@ -83,6 +86,12 @@ export function situationOf(row: ProspectRow, now: number = Date.now()): Situati
         sub: row.campaign_name ? { text: row.campaign_name } : { key: "campaign" },
       };
 
+    case "recover":
+      return { ...base, key: "recover", tone: "violet", sub: { key: "recover" } };
+
+    case "rebuy":
+      return { ...base, key: "rebuy", tone: "violet", sub: { key: "rebuy" } };
+
     case "winback":
       // The carrier's own words about why the parcel came back. Never a key:
       // Darb writes them free-form, in Arabic, one remark at a time.
@@ -116,6 +125,8 @@ const MOVE_BY_BUCKET: Record<Bucket, MoveKind> = {
   hot: "call",
   callback: "callback",
   retry: "retry",
+  recover: "call",
+  rebuy: "script",
   campaign: "script",
   winback: "resend",
   converted: "order",

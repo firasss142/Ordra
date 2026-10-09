@@ -131,4 +131,14 @@ describe("StockDesk", () => {
     fireEvent.click(screen.getByRole("button", { name: /Page précédente/ }));
     await waitFor(() => expect(screen.getByTestId("pager")).toHaveTextContent("1–25"));
   });
+
+  it("paints placeholders, never four zeros, while the stock is on its way", async () => {
+    const answered = globalThis.fetch as typeof fetch;
+    vi.stubGlobal("fetch", vi.fn((u: string, init?: RequestInit) => (String(u).startsWith("/api/warehouse/stock") ? new Promise<Response>(() => {}) : answered(u, init))));
+    const { container } = renderDesk();
+    await waitFor(() => expect(screen.getAllByRole("status").length).toBeGreaterThan(0));
+    expect(container.querySelectorAll(".empty")).toHaveLength(0);
+    expect([...container.querySelectorAll(".wt b")].map((b) => b.textContent)).not.toContain("0");
+    expect(container.querySelectorAll(".wt.wait")).toHaveLength(4);
+  });
 });

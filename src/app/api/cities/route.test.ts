@@ -143,6 +143,21 @@ describe("GET /api/cities", () => {
     expect(marketEq).toBeDefined();
   });
 
+  test("super_admin on « Tous les marchés » gets an empty list, never a 500 (720 on prod, 2026-10-06)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(superAdmin);
+      // Postgres refuses market_id = '' (22P02) — the query must not be sent at all
+      if (table === "cities") return listChain([], { code: "22P02", message: 'invalid input syntax for type uuid: ""' });
+      return listChain([]);
+    });
+
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: [] });
+    expect(mockFrom).not.toHaveBeenCalledWith("cities");
+  });
+
   test("returns 500 on db error", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
     mockFrom.mockImplementation((table: string) => {

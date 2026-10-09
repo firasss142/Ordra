@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
 /**
- * One setting (prototype `.sr`): label and help on the start side, the control
- * on the end side, the history clock last. `stack` puts the control on its own
- * full-width line (option cards, the shares table). A changed row carries an
- * amber dot after its label.
+ * One setting: label and help on the start side, the control on the end side,
+ * the history clock last. `stack` puts the control on its own full-width line
+ * (option cards, the shares table). A changed row carries an amber dot and a
+ * faint amber wash (reglages.css `.rg-sr`).
  */
 export function SettingRow({
   label,
@@ -31,18 +31,18 @@ export function SettingRow({
     <div
       data-testid={testId}
       data-dirty={dirty ? "true" : undefined}
-      className={`relative grid items-start gap-x-[20px] gap-y-[4px] border-b border-line-subtle px-[16px] py-[14px] last:border-b-0 ${stack ? "grid-cols-[minmax(0,1fr)_32px]" : "grid-cols-[minmax(0,1fr)_auto_32px]"} ${muted ? "opacity-[.55]" : ""} ${sunken ? "bg-surface-sunken" : ""}`}
+      className={`rg-sr${stack ? " stack" : ""}${muted ? " muted" : ""}${sunken ? " sunken" : ""}`}
     >
       <div className="min-w-0">
-        <div className="flex items-center gap-[8px] text-[14px] font-medium text-ink-primary">
+        <div className="lb">
           {label}
-          {dirty && <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-status-warning" />}
+          {dirty && <span aria-hidden className="dd" />}
         </div>
-        {help && <div className="mt-[3px] max-w-[60ch] text-[13px] leading-[1.5] text-ink-secondary">{help}</div>}
+        {help && <div className="hp">{help}</div>}
       </div>
-      {!stack && <div className="flex min-h-[36px] items-center justify-end gap-[8px]">{control}</div>}
-      <div className="mt-[2px]">{history}</div>
-      {stack && <div className="col-span-full mt-[10px]">{control}</div>}
+      {!stack && <div className="ctl">{control}</div>}
+      <div>{history}</div>
+      {stack && <div className="ctl">{control}</div>}
     </div>
   );
 }

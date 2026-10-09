@@ -13,7 +13,8 @@ import type { LeadSource, LeadStatus } from "@/types/lead";
 import type { RepeatKind } from "@/lib/customer-history/classify";
 
 /** The six buckets of the prototype's filter strip, in the order they are shown. */
-export type Bucket = "hot" | "callback" | "retry" | "campaign" | "winback" | "converted";
+/** `recover` / `rebuy`: the desk's automatic sources, untouched (2026-10-06). */
+export type Bucket = "hot" | "callback" | "retry" | "recover" | "rebuy" | "campaign" | "winback" | "converted";
 
 export interface ProspectRow {
   id: string;

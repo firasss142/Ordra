@@ -12,6 +12,7 @@
  */
 
 import type { CarrierConfig } from "./types";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 const TIMEOUT_MS = 15_000;
 
@@ -47,7 +48,7 @@ export async function darbFetch(
 ): Promise<DarbResponse> {
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await monitoredFetch("darb_assabil", "sync")(url, {
       method: init.method,
       headers: darbHeaders(config),
       body: init.body,

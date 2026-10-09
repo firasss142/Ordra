@@ -1,5 +1,5 @@
-import { ProductsListSkeleton } from "@/components/products/v6/skeletons";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function ProductsLoading() {
-  return <ProductsListSkeleton />;
+  return <RouteSkeleton tiles={5} />;
 }

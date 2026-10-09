@@ -67,8 +67,11 @@ src/
 ## Critical rules
 - **UI/UX & Design**: `docs/design-system.md` governs ALL product UI — since 2026-10-04 the
   « Aurore » language (reference: `/team`, from `prototypes/team-v6.html`): aurora ground,
-  frosted-glass cards, 800-weight numbers, colour that means exactly ONE thing (chrome green ·
-  status · identity · severity), dark sidebar and brand green (#15803D) unchanged. Doctrine
+  frosted-glass cards, colour that means exactly ONE thing (chrome green · status · identity ·
+  severity), dark sidebar and brand green (#15803D) unchanged. Since 2026-10-05 its register
+  is **« Aurore calme »**: calm validated outcome palette, thin marks, 700 not 800, no halos /
+  medals / entrance motion, counts first (never « /100 »), the waffle retired for one bar per
+  outcome (`components/shared/charts/OutcomeRows`) — see the note at the top of the doc. Doctrine
   only so far — existing screens are NOT migrated (§10 of the doc); don't restyle `src/`
   without the owner's go. Design work starts from the `design` skill (`.claude/skills/design`:
   one question → HTML prototype → Aurore → self-review). `marketing-design` is for public
@@ -246,10 +249,12 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Soft aurora ground (5 pastel radials over #F6F7FB) painted once by the shell; dark sidebar
   (#0E1013) stays the only dark surface
 - Frosted-glass cards (white .62, 24px radius, indigo-tinted resting shadow); inner surfaces 16px
-- Plus Jakarta Sans, headings/figures 800 with tight tracking, 14px root (write px, not rem)
+- Plus Jakarta Sans, headings/figures 700 (« Aurore calme », 2026-10-05), 14px root (write px, not rem)
 - Colour means ONE thing: brand green = chrome · status/outcome hues · identity (agent, role,
   carrier account) · severity. Never colour alone; text ≥ 4.5:1 (#667085 is the lightest text)
-- Waffles, rings, pill bars, tooltips on every mark; motion on arrival, off under reduced-motion
+- One bar per outcome (OutcomeRows) for overviews, thin 9px rings on entity cards, pill bars,
+  tooltips on every mark; no waffles, halos, medal gradients or entrance motion; each figure
+  once, count first, share small. Validated outcome hues in docs/design-system.md §2.4
 - Showcase vs workbench density (§1.1): no glass or entrance motion on list rows
 - RTL: full layout mirror for Arabic market
 - Doctrine only: §10 of docs/design-system.md lists what the code still says
@@ -278,8 +283,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Salle de contrôle v6 (/team, « Aurore » look + agent colours, §4.25) — the day, the period table, the agent panel, the four RPCs,
   the control-room settings and the bell's three alerts: docs/team-control-room.md +
   plans/team-control-room-v5.md (spec `prototypes/team-v6.html`, untracked)
-- Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
-  trigger, the columns that do not exist): docs/prospects-worklist.md
+- Prospects — the agent worklist (derived buckets, the call outcome, the columns that do
+  not exist): docs/prospects-worklist.md
+- Prospects — the manager desk « récupérer les ventes perdues » (three automatic sources,
+  the daily tick that fills agents' files, « Nouvelle liste » in 3 steps, the lead-RPC
+  security fix): docs/prospects-recovery.md + plans/prospects-recovery.md
 - Distribution des commandes — l'algorithme par pourcentages, la disponibilité
   agent (déclaration + battement de cœur), le drain du pool, la remise à zéro de
   minuit, et ce qui a remplacé `active_agents_only`: docs/order-distribution.md +
@@ -368,7 +376,8 @@ entry has not meant deleting its page — check before assuming a route is dead.
   dans la recherche partagée (migration à appliquer AVANT le déploiement):
   docs/agent-market-search.md + plans/agent-market-search.md
 - Voix du client — feedback by category and moment, the F key, courier/import feeds, the
-  manager page: docs/customer-voice.md + plans/voix-du-client.md
+  manager page (la feuille + Raisons, « Écarter », « Notre réponse », no validation queue since
+  2026-10-06): docs/customer-voice.md + plans/voix-du-client-et-messages-redesign.md
 - Journaux — the journal system (audit_events + its trigger, integration_calls, app_errors,
   job_runs, the 11 problem rules of journal_detect, the read functions, retention, how to
   add an audited table or an explicit event): docs/journal.md + plans/journaux-redesign.md

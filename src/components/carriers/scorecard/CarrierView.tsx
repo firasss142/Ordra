@@ -51,10 +51,10 @@ export function CarrierView(props: CarrierViewProps) {
       </div>
 
       <section aria-labelledby="carrier-title" style={{ "--c": color } as CSSProperties}
-        className="flex flex-wrap items-center gap-[16px] rounded-[14px] bg-[var(--c)] px-[24px] py-[22px] text-white">
+        className="tsc-band is-hero flex flex-wrap items-center gap-[16px] px-[26px] py-[24px]">
         <CarrierLogo logoUrl={card.logo_url} code={card.code} name={title} size={58} radius={15} />
         <div>
-          <h1 id="carrier-title" className="text-[28px] font-bold leading-[1.15] tracking-[-.02em]">{title}</h1>
+          <h1 id="carrier-title" className="text-[28px] font-[800] leading-[1.15] tracking-[-.028em]">{title}</h1>
           <div className="mt-[3px] text-[13px] opacity-90">
             {t("heroMeta", { sub: carrierSubtitle(card, marketCode, t), n: fmtInt(locale, card.period.sent), period: t(`periodLong.${period}`) })}
           </div>
@@ -62,7 +62,7 @@ export function CarrierView(props: CarrierViewProps) {
         {other ? (
           <div className="ms-auto flex flex-wrap gap-[8px]">
             <Link href={compareHref}
-              className="inline-flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-[9px] border border-white/40 bg-white/[.14] px-[13px] text-[13px] font-semibold text-white hover:bg-white/[.24]">
+              className="inline-flex h-[36px] items-center gap-[7px] whitespace-nowrap rounded-[11px] border border-white/40 bg-white/[.16] px-[14px] text-[13px] font-bold text-white backdrop-blur-[6px] hover:bg-white/[.26]">
               <ArrowLeftRight size={15} aria-hidden />
               {t("compareWith", { name: carrierTitle(other, locale) })}
             </Link>
@@ -82,9 +82,9 @@ export function CarrierView(props: CarrierViewProps) {
   );
 }
 
-const big = "text-[36px] font-[650] leading-[1.05] tracking-[-.035em] text-tr-ink-1";
-const body = "flex flex-1 flex-col gap-[10px] px-[20px] pb-[18px] pt-[12px]";
-const foot = "flex flex-wrap items-center gap-[8px] border-t border-tr-line-2 px-[20px] py-[12px]";
+const big = "tsc-fig text-[36px] leading-[1.05]";
+const body = "flex flex-1 flex-col gap-[10px] px-[22px] pb-[20px] pt-[12px]";
+const foot = "flex flex-wrap items-center gap-[8px] border-t border-tr-line-2 px-[22px] py-[12px]";
 const ttl = "mt-[4px] text-[12px] font-semibold text-tr-ink-3";
 
 function DeliveryCard({ card, locale, target, period, color, title }: { card: ScorecardCarrier; locale: string; target: number; period: ScorecardPeriodDays; color: string; title: string }) {
@@ -117,7 +117,7 @@ const GROUP_ORDER: ReasonGroup[] = ["client", "carrier", "us"];
 
 function WhyCard({ card, locale, color, title }: { card: ScorecardCarrier; locale: string; color: string; title: string }) {
   const t = useTranslations("carrierScorecard");
-  const groupColor: Record<ReasonGroup, string> = { client: "#5A5F66", carrier: color, us: "#B3B8BE" };
+  const groupColor: Record<ReasonGroup, string> = { client: "#475467", carrier: color, us: "#98A2B3" };
   const head = <CardHead title={t("why.title")} pill={<Pill>{t("periods.90")}</Pill>} />;
   if (!card.has_reasons) {
     return (
@@ -125,7 +125,7 @@ function WhyCard({ card, locale, color, title }: { card: ScorecardCarrier; local
         <div className="flex flex-1 flex-col">
           {head}
           <div className={body}>
-            <div className="flex flex-col items-start gap-[6px] rounded-[10px] bg-tr-sunken p-[14px] text-[13px] text-tr-ink-2">
+            <div className="tsc-quiet flex flex-col items-start gap-[6px] p-[14px] text-[13px] text-tr-ink-2">
               <Inbox size={18} aria-hidden className="text-tr-ink-3" />
               <b className="font-semibold text-tr-ink-1">{t("why.none", { carrier: title })}</b>
               <span>{t("why.noneSub")}</span>
@@ -149,10 +149,10 @@ function WhyCard({ card, locale, color, title }: { card: ScorecardCarrier; local
           ) : (
             <>
               <div className="flex flex-wrap items-baseline gap-[10px]">
-                <span className="text-[28px] font-[650] leading-[1.05] tracking-[-.035em] text-tr-ink-1"><Num>{fmtInt(locale, v.total)}</Num></span>
+                <span className="tsc-fig text-[28px] leading-[1.05]"><Num>{fmtInt(locale, v.total)}</Num></span>
                 <span className="text-[13px] text-tr-ink-2">{t("why.failures")}</span>
               </div>
-              <div className="flex h-[12px] gap-[2px] overflow-hidden rounded-full bg-white">
+              <div className="flex h-[10px] gap-[2px] overflow-hidden rounded-full">
                 {GROUP_ORDER.filter((g) => v.groups[g]).map((g) => (
                   <b key={g} className="block h-full" style={{ width: `${pct(g)}%`, background: groupColor[g] }} title={`${t(`why.groups.${g}`)} · ${fmtPct(locale, pct(g))} — ${t(`why.groupTip.${g}`)}`} />
                 ))}
@@ -161,7 +161,7 @@ function WhyCard({ card, locale, color, title }: { card: ScorecardCarrier; local
                 {GROUP_ORDER.map((g) => (
                   <span key={g} className="inline-flex items-center gap-[6px]" title={t(`why.groupTip.${g}`)}>
                     <i className="h-[9px] w-[9px] flex-none rounded-[3px]" style={{ background: groupColor[g] }} />
-                    {t(`why.groups.${g}`)} <b className="font-[650] text-tr-ink-1"><Num>{fmtPct(locale, pct(g))}</Num></b>
+                    {t(`why.groups.${g}`)} <b className="font-bold text-tr-ink-1"><Num>{fmtPct(locale, pct(g))}</Num></b>
                   </span>
                 ))}
               </div>
@@ -204,7 +204,7 @@ function HBars({ rows, labelWidth = 96 }: { rows: { label: string; n: number; co
           <div className="relative h-[12px] overflow-hidden rounded-full bg-tr-well">
             <b className="absolute inset-y-0 start-0 rounded-full" style={{ width: `${(r.n / max) * 100}%`, background: r.color }} />
           </div>
-          <div className={`text-end font-[650] tabular-nums ${r.zero && r.n === 0 ? "text-tr-bad-ink" : "text-tr-ink-1"}`}><Num>{r.n}</Num></div>
+          <div className={`text-end font-bold tabular-nums ${r.zero && r.n === 0 ? "text-tr-bad-ink" : "text-tr-ink-1"}`}><Num>{r.n}</Num></div>
         </div>
       ))}
     </div>
@@ -240,7 +240,7 @@ function LateCard({
           <div className={ttl}>{t("late.sincePick")}</div>
           <HBars rows={rows} />
           {marketCode === "ly" ? (
-            <div className="flex items-start gap-[8px] rounded-[10px] bg-tr-sunken px-[11px] py-[9px] text-[12.5px] text-tr-ink-2">
+            <div className="tsc-note flex items-start gap-[8px] px-[12px] py-[10px] text-[12.5px] font-medium text-tr-ink-2">
               <Lightbulb size={15} aria-hidden className="mt-[1px] flex-none text-tr-warn-ink" />
               <span>{t("late.drag")}</span>
             </div>
@@ -269,7 +269,7 @@ function Kv({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-[2px] border-tr-line-2 px-[16px] py-[12px]">
       <span className="text-[11.5px] leading-[1.3] text-tr-ink-3">{label}</span>
-      <b className="text-[16px] font-[650] text-tr-ink-1">{typeof value === "string" ? <Num>{value}</Num> : value}</b>
+      <b className="text-[17px] font-[800] tracking-[-.02em] text-tr-ink-1">{typeof value === "string" ? <Num>{value}</Num> : value}</b>
     </div>
   );
 }
@@ -299,14 +299,14 @@ function ReturnsCard({ card, locale, color, benchHref, onOpen }: { card: Scoreca
           {v.unscanned ? (
             <>
               <div className={ttl}>{t("ret.age")}</div>
-              <div className="flex h-[12px] gap-[2px] overflow-hidden rounded-full bg-white">
+              <div className="flex h-[10px] gap-[2px] overflow-hidden rounded-full">
                 {v.ages.map((n, i) => (n ? <b key={i} className="block h-full" style={{ width: `${(n / v.unscanned) * 100}%`, background: AGE_COLORS[i] }} title={`${t(`ret.ageBuckets.${AGE_KEYS[i]}`)} · ${n}`} /> : null))}
               </div>
               <div className="flex flex-wrap gap-x-[14px] gap-y-[6px] text-[12px] text-tr-ink-2">
                 {v.ages.map((n, i) => (
                   <span key={i} className="inline-flex items-center gap-[6px]">
                     <i className="h-[9px] w-[9px] flex-none rounded-[3px]" style={{ background: AGE_COLORS[i] }} />
-                    {t(`ret.ageBuckets.${AGE_KEYS[i]}`)} <b className="font-[650] text-tr-ink-1"><Num>{fmtInt(locale, n)}</Num></b>
+                    {t(`ret.ageBuckets.${AGE_KEYS[i]}`)} <b className="font-bold text-tr-ink-1"><Num>{fmtInt(locale, n)}</Num></b>
                   </span>
                 ))}
               </div>
@@ -348,12 +348,12 @@ function CitiesCard({ card, locale, target, onOpen }: { card: ScorecardCarrier; 
                 {rows.map((c) => (
                   <div key={c.city} className="contents">
                     <div className="truncate text-tr-ink-1" title={c.label}>{c.label}</div>
-                    <div className="relative h-[10px] rounded-full bg-tr-well"
+                    <div className="relative h-[10px] rounded-full bg-[color-mix(in_srgb,var(--c)_12%,transparent)]"
                       title={`${c.label} · ${fmtPct(locale, c.rate)} · ${t("city.colis", { n: fmtInt(locale, c.fin) })}${c.median_days != null ? ` · ${t("late.deliveredIn")} ${t("late.days", { n: fmtDays(locale, c.median_days) })}` : ""}`}>
-                      <b className="absolute inset-y-0 start-0 rounded-full bg-[var(--c)]" style={{ width: `${c.rate}%` }} />
+                      <b className="tsc-fill absolute inset-y-0 start-0 rounded-full" style={{ width: `${c.rate}%` }} />
                       <span className="absolute -bottom-[4px] -top-[4px] w-[2px] rounded-[2px] bg-tr-ink-1 opacity-75" style={{ insetInlineStart: `calc(${target}% - 1px)` }} />
                     </div>
-                    <div className="text-end font-[650] tabular-nums text-tr-ink-1"><Num>{fmtPct(locale, c.rate)}</Num></div>
+                    <div className="text-end font-bold tabular-nums text-tr-ink-1"><Num>{fmtPct(locale, c.rate)}</Num></div>
                     <div className="whitespace-nowrap text-end text-tr-ink-3">{t("city.colis", { n: fmtInt(locale, c.fin) })}</div>
                   </div>
                 ))}

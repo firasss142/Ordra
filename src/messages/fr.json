@@ -464,7 +464,8 @@
       "savedPending": "Enregistré — les montants seront recalculés à la prochaine synchronisation.",
       "saveError": "L'enregistrement a échoué : {reason}",
       "openButton": "Campagnes et produits",
-      "toMapBadge": "{count} sans produit"
+      "toMapBadge": "{count} sans produit",
+      "warningsBadge": "{count, plural, one {# alerte} other {# alertes}}"
     },
     "title": "Dépenses pub",
     "subtitle": "Gérez vos investissements publicitaires et visualisez leurs résultats réels.",
@@ -474,7 +475,7 @@
     "refreshing": "Actualisation…",
     "cancel": "Annuler",
     "deleteTitle": "Supprimer cette dépense ?",
-    "deleteDescription": "Dépense de {amount} TND — cette action est irréversible.",
+    "deleteDescription": "Dépense de {amount} {currency} — cette action est irréversible.",
     "deleteConfirm": "Supprimer",
     "modal": {
       "titleNew": "Nouvelle dépense",
@@ -518,7 +519,9 @@
       "errorEmpty": "Aucun contenu à analyser",
       "errorUnknownFormat": "Format non reconnu. Utilisez un export Meta ou TikTok.",
       "errorNoRows": "Aucune ligne valide trouvée",
-      "confirmLockedImport": "Je confirme l'import dans une période clôturée"
+      "confirmLockedImport": "Je confirme l'import dans une période clôturée",
+      "dropTitle": "Un export Meta ou TikTok",
+      "dropHint": ".csv · colonnes détectées automatiquement"
     },
     "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour gérer les dépenses publicitaires.",
     "deleteError": "La suppression a échoué — l'entrée n'a pas été supprimée.",
@@ -543,14 +546,14 @@
       "deliveredSub": "Livraisons payées",
       "collected": "Encaissé",
       "collectedSub": "CA encaissé",
-      "netProfit": "Profit net",
-      "netProfitSub": "Profit net",
+      "netProfit": "Bénéfice brut",
+      "netProfitSub": "tous coûts déduits",
       "confirmRate": "confirmés",
       "arriveRate": "livrées",
       "perDelivery": "livraison",
       "ofWhichAds": "dont {amount} de pub",
       "cplTitle": "Combien vous payez un lead — et combien il vaut",
-      "cplSubtitle": "Seuil = coût max. payable par lead pour atteindre 0 profit produit (marge = 0). Il dépend du produit, pas du marché.",
+      "cplSubtitle": "Seuil = coût max. payable par lead pour atteindre 0 bénéfice produit (marge = 0). Il dépend du produit, pas du marché.",
       "product": "Produit",
       "costPerLead": "Coût par lead ({currency})",
       "marginPerLead": "Marge / lead",
@@ -561,7 +564,7 @@
       "stackTitle": "Où partent {amount} {currency} d'une commande livrée",
       "stackSubtitle": "Sur une commande livrée moyenne (tous produits confondus).",
       "costAds": "Publicité",
-      "costProfit": "Profit net",
+      "costProfit": "Bénéfice brut",
       "adsCostRatio": "La publicité coûte {ratio}× le prix du produit lui-même.",
       "byProduct": "Par produit",
       "byProductSub": "Performance et décision par produit (agrégée sur la période sélectionnée).",
@@ -571,7 +574,7 @@
       "deliveryRate": "% livraison",
       "cplPaid": "CPL payé",
       "floorMax": "Seuil max. payable",
-      "profitCol": "Profit",
+      "profitCol": "Bénéfice brut",
       "verdict": "Verdict",
       "verdictCut": "À couper",
       "verdictFix": "Réparer",
@@ -594,7 +597,7 @@
       "tipYouPay": "Vous payez",
       "tipFloor": "Seuil du produit",
       "tipVolume": "Volume de leads",
-      "tipPeriodProfit": "Profit sur la période",
+      "tipPeriodProfit": "Bénéfice sur la période",
       "trendUp": "en hausse",
       "trendDown": "en baisse",
       "trendFlat": "stable",
@@ -625,7 +628,7 @@
       "delete": "Supprimer",
       "mapCampaigns": "Mapper les campagnes",
       "unmappedBanner": "{amount} sur {count} ligne(s) non rattachée(s) à un produit.",
-      "unmappedBannerHint": "Cette dépense compte dans le profit ci-dessous, mais on ne peut pas dire si elle est rentable.",
+      "unmappedBannerHint": "Cette dépense compte dans le bénéfice ci-dessous, mais on ne peut pas dire si elle est rentable.",
       "attach": "Rattacher",
       "syncLast": "Dernière sync",
       "syncNever": "Jamais",
@@ -667,7 +670,22 @@
       "coverageTitle": "{count} produit(s) sans dépense attribuée.",
       "coverageHint": "Leur marge est inconnue, pas excellente — soit la campagne n'est pas encore rattachée, soit la synchronisation n'est jamais remontée jusque-là.",
       "backfillFrom": "Récupérer depuis le {date}",
-      "backfilling": "Récupération…"
+      "backfilling": "Récupération…",
+      "noSpendLine": "{count, plural, one {# produit sans dépense attribuée} other {# produits sans dépense attribuée}}",
+      "canPayUpToLead": "{name} — peut payer jusqu'à {amount} le lead",
+      "verdictWhyScale": "La marge dépasse 40 % du seuil : de la place pour dépenser plus.",
+      "verdictWhyHealthy": "Rentable, avec peu de place pour payer le lead plus cher.",
+      "verdictWhyFix": "Perte petite et stable : un réglage d'enchère ou de confirmation, pas un mauvais produit.",
+      "verdictWhyCut": "La perte dépasse 15 % de ce que le produit a encaissé, ou ses leads augmentent : chaque jour coûte plus.",
+      "verdictWhyNoData": "Aucune dépense ne lui est attribuée : sa marge est inconnue, pas excellente.",
+      "verdictWhyAttach": "Cette dépense compte dans le bénéfice, mais aucun produit ne la porte : impossible de dire si elle est rentable.",
+      "tipLoss": "Perte",
+      "tipCollected": "Encaissé",
+      "maturityTip": "Part des commandes de la période dont le sort est connu. Les chiffres bougent encore tant qu'elle n'est pas à 100 %.",
+      "maturity": "mûre à {pct}",
+      "cohortRange": "Cohorte du {period}",
+      "crumb": "Finances",
+      "basisFoot": "Base : les leads reçus dans la période, suivis jusqu'à aujourd'hui (le P&L compte les ventes livrées dans le mois)."
     },
     "cohortSubtitle": "Cohorte du {period} · mûre à {maturity}"
   },
@@ -2840,6 +2858,8 @@
       "decisionNone": "Aucun colis sélectionné",
       "decisionPicked": "{ref} sélectionné",
       "failed": "Échec de l'enregistrement",
+      "errNoSite": "Votre compte n'est rattaché à aucun entrepôt. Demandez à votre responsable.",
+      "errWrongSite": "Ce colis appartient à un autre entrepôt. Ne le rentrez pas ici.",
       "hours": "{count} h",
       "kpiDepreciated": "Dépréciés",
       "kpiDepreciatedNone": "Aucune perte enregistrée sur 28 j",
@@ -3444,6 +3464,7 @@
       "hours": "{n} h",
       "days": "{n} j",
       "loadError": "Impossible de charger cette page. Réessayez dans un instant.",
+      "loading": "Chargement…",
       "today": {
         "title": "Aujourd'hui",
         "job": {
@@ -3863,6 +3884,7 @@
   },
   "users": {
     "title": "Accès",
+    "crumbLabel": "Fil d'Ariane",
     "subtitleAdmin": "Qui peut se connecter à Ordra, avec quel rôle et sur quel marché.",
     "subtitleManager": "Les comptes de l'équipe {market} : agents de confirmation et agents entrepôt.",
     "create": "Créer un utilisateur",
@@ -3933,7 +3955,8 @@
     "banner": {
       "title": "{count, plural, one {# agent entrepôt n'a pas d'entrepôt} other {# agents entrepôt n'ont pas d'entrepôt}}",
       "body": "Sans entrepôt, un agent ne voit aucun colis et ne peut rien scanner. Affectez-le avant sa prochaine prise de poste.",
-      "assign": "Affecter"
+      "assign": "Affecter",
+      "more": "{count, plural, one {+# autre} other {+# autres}}"
     },
     "empty": "Aucun compte dans cette vue.",
     "emptyQuery": "Aucun compte ne correspond à « {query} ».",
@@ -5027,7 +5050,7 @@
         "cUploadedSub": "des assignées",
         "cDelivered": "Livrées",
         "cDeliveredSub": "des colis finis",
-        "cScore": "Livrées / 100",
+        "cScore": "Taux de livraison",
         "cScoreSub": "vs période d'avant",
         "cScoreSubMonth": "vs mois d'avant",
         "cBalance": "Solde",
@@ -5129,9 +5152,6 @@
         "title": "Le travail du jour",
         "meta": "{n, plural, one {# commande} other {# commandes}} · faites ou en main",
         "metaPast": "{n, plural, one {# commande finie} other {# commandes finies}} ce jour-là",
-        "grpDone": "Fait aujourd'hui",
-        "grpDonePast": "Fait ce jour-là",
-        "grpHand": "Reste en main",
         "up": "uploadées",
         "rej": "rejetées",
         "prog": "en cours",
@@ -5146,7 +5166,21 @@
           "prog": "En cours (déjà appelée)",
           "todo": "À appeler",
           "late": "Non appelée > {h} h"
-        }
+        },
+        "rows": {
+          "up": "Uploadées",
+          "rej": "Rejetées",
+          "prog": "En cours",
+          "todo": "À appeler",
+          "late": "Non appelées > {h} h"
+        },
+        "hint": {
+          "prog": "appelées, pas finies",
+          "todo": "pas encore appelées",
+          "lateOk": "rien n'attend plus de {h} h"
+        },
+        "lede": "<b>{done} faites</b>, {hand} encore en main.",
+        "ledePast": "<b>{done} faites</b> ce jour-là."
       },
       "cards": {
         "band": "Agents · aujourd'hui",
@@ -5646,9 +5680,6 @@
   },
   "delivery": {
     "title": "Suivi livraison",
-    "sub": "{n} en cours",
-    "stat": "<b>{rate} %</b> livraison 30 j · <b>{saved}</b> sauvées",
-    "search": "Rechercher par nom, numéro ou ville…",
     "buckets": {
       "all": "Tout",
       "returning": "Retours à sauver",
@@ -5656,12 +5687,6 @@
       "waiting_customer": "En attente client",
       "waiting_carrier": "Chez le transporteur",
       "done": "Terminées"
-    },
-    "cols": {
-      "client": "Détails du colis",
-      "situation": "Situation / durée",
-      "action": "Action",
-      "amount": "Montant"
     },
     "today": "Aujourd'hui {time}",
     "yesterday": "Hier {time}",
@@ -5850,127 +5875,179 @@
       "failed": "L'action n'a pas pu être enregistrée. Réessaie.",
       "close": "Fermer"
     },
-    "empty": {
-      "title": "Rien ici",
-      "sub": "Aucun colis ne correspond.",
-      "all": "Voir tous les colis"
-    },
-    "stalledGroup": "{n, plural, one {# colis sans mouvement} other {# colis sans mouvement}}",
-    "stalledSince": "Chez le transporteur depuis {days, plural, one {# jour} other {# jours}}",
-    "stalledShow": "Afficher",
-    "stalledHide": "Masquer",
-    "pick": "Sélectionne un colis pour voir son détail.",
-    "offline": "Mise à jour automatique en pause · la liste se rafraîchit toutes les minutes",
-    "shell": {
-      "offline": "Hors ligne",
-      "offlineSub": "Les actions seront synchronisées au retour de la connexion",
-      "online": "En ligne",
-      "onlineSub": "Mises à jour en direct"
-    },
     "loadError": "Impossible de charger les colis.",
     "retry": "Réessayer",
     "selectMarket": "Choisis un marché pour voir les colis.",
-    "filters": "Filtres",
-    "sort": {
-      "label": "Trier",
-      "priority": "Priorité",
-      "amount": "Montant",
-      "oldest": "Plus ancien"
-    },
-    "filter": {
-      "label": "Filtrer",
-      "riskyOnly": "Colis à risque seulement",
-      "hideDone": "Masquer les terminées"
-    },
-    "board": {
-      "title": "Vue d'ensemble",
-      "sub": "{n} en cours · {agents} agents",
-      "search": "Rechercher par nom, numéro, ville ou agent…",
+    "manager": {
+      "crumb": "Livraison",
+      "sub": "{market} · {n} colis en route · {agents, plural, one {# agent} other {# agents}}",
+      "live": "En direct · {time}",
+      "week": "Cette semaine · {saved} sauvés · {lost} perdus",
+      "weekTip": "Sauvé = livré après une action de l’équipe",
+      "views": {
+        "parcels": "Colis",
+        "couriers": "Livreurs",
+        "label": "Vue"
+      },
+      "target": "Cible : <b>{h} h</b>",
+      "targetTip": "Délai pour la première action sur un colis — Réglages › Livraison",
+      "todo": {
+        "label": "À faire",
+        "calm": "Tout est à jour",
+        "calmTip": "{n} colis à traiter, tous pris en charge dans la cible",
+        "late": "<hl>{n} colis</hl> attendent au-delà de la cible, sans action",
+        "idle": "<hl>{name}</hl> a {n} colis à traiter et aucune action aujourd’hui",
+        "idleSub": "Absente ? Ses colis peuvent passer à une collègue.",
+        "none": "<hl>{n} colis</hl> n’ont pas d’agent",
+        "noneSub": "Personne ne les suit : attribuez-les.",
+        "courier": "Le livreur <hl>{name}</hl> a {n} clients injoignables",
+        "courierSub": "Un appel au livreur règle tout le lot.",
+        "stall": "<hl>{n} colis</hl> sans mouvement depuis plus de 21 jours",
+        "stallSub": "Mis de côté : rien à faire pour l’équipe, à régler avec le transporteur.",
+        "see": "Voir",
+        "reassignAll": "Réattribuer ses {n}",
+        "assign": "Attribuer",
+        "call": "Appeler"
+      },
+      "buckets": {
+        "title": "Où en sont les colis",
+        "returning": "Retours à sauver",
+        "act_now": "À traiter maintenant",
+        "waiting_customer": "En attente client",
+        "waiting_carrier": "Chez le transporteur"
+      },
+      "rules": {
+        "returning": "Le colis revient : un appel peut encore le sauver.",
+        "act_now": "Une action de l’équipe est attendue.",
+        "waiting_customer": "Rappel promis : on attend le client.",
+        "waiting_carrier": "Le transporteur a la main."
+      },
+      "parcels": "colis",
+      "lateN": "{n} en retard",
+      "lateTip": "{n} au-delà de {h} h",
+      "filterTag": "Filtre",
+      "team": "L’équipe aujourd’hui",
+      "verdict": {
+        "late": "En retard",
+        "idle": "Inactive",
+        "ok": "À jour"
+      },
+      "flagLate": "{n} en retard · {age}",
+      "flagIdle": "Aucune action aujourd’hui",
+      "ring": "{treated} traités aujourd’hui · sur {total}",
+      "inFlight": "{n} colis en cours",
+      "weekLine": "<b>{saved} sauvés</b> · {lost} perdus",
+      "states": {
+        "label": "État",
+        "live": "En cours",
+        "late": "En retard",
+        "stalled": "Sans mouvement",
+        "done": "Terminées"
+      },
+      "f": {
+        "bucket": "Bac",
+        "agent": "Agent",
+        "sit": "Situation",
+        "carrier": "Transporteur",
+        "sort": "Tri",
+        "all": "Tous",
+        "allF": "Toutes",
+        "nSel": "{n} choisis",
+        "noAgent": "Sans agent",
+        "clear": "Retirer ce filtre"
+      },
+      "sort": {
+        "priority": "Priorité",
+        "wait": "Attente",
+        "amount": "Montant"
+      },
+      "search": "Nom, numéro, ville, suivi…",
+      "cols": {
+        "sit": "Situation",
+        "client": "Client",
+        "prod": "Produit",
+        "agent": "Agent",
+        "trace": "Dernière trace",
+        "wait": "Attente",
+        "amt": "Montant"
+      },
+      "aline": "{n} colis en cours · {verdict}",
+      "page": "{from}–{to} sur {total}",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "empty": {
+        "list": "Aucun colis ne correspond",
+        "listSub": "Retirez un filtre pour revoir toute la liste.",
+        "clear": "Tout effacer",
+        "all": "Aucun colis en route",
+        "allSub": "Dès qu’une commande est envoyée au transporteur, elle est suivie ici jusqu’à la livraison."
+      },
+      "late": "en retard",
+      "courierSays": "Livreur",
+      "select": "Sélectionner {name}",
+      "drawer": {
+        "since": "depuis {age}",
+        "remark": "Ce que dit le livreur",
+        "todo": "À faire",
+        "outcome": "Résultat de l’appel",
+        "details": "Détails",
+        "callCourier": "Appeler le livreur",
+        "seeAll": "Tout l’historique ({n})",
+        "less": "Réduire",
+        "phones": "Téléphones",
+        "tracking": "Suivi",
+        "address": "Adresse",
+        "carrier": "Transporteur",
+        "courier": "Livreur",
+        "history": "Historique client",
+        "orders": "{n, plural, one {# commande} other {# commandes}}",
+        "delivered": "{n, plural, one {# livrée} other {# livrées}}",
+        "returned": "{n, plural, one {# retour} other {# retours}}",
+        "newCustomer": "Première commande",
+        "cod": "paiement à la livraison",
+        "timeline": "Historique",
+        "noEvents": "Aucun événement pour l’instant.",
+        "reassign": "Réattribuer",
+        "log": "Noter une action",
+        "close": "Fermer",
+        "wa": "WhatsApp"
+      },
+      "reassign": {
+        "title": "{n, plural, one {Réattribuer # colis} other {Réattribuer # colis}}",
+        "sub": "Choisissez qui les suit désormais. L’historique garde la trace du changement.",
+        "load": "{n} en cours",
+        "go": "Déplacer vers {name}",
+        "pick": "Réattribuer",
+        "cancel": "Annuler",
+        "working": "Déplacement…",
+        "moved": "{n} colis déplacés vers {name}",
+        "failed": "La réattribution a échoué. Réessayez.",
+        "locked": "Un de ces colis est ouvert par quelqu’un d’autre. Réessayez dans un instant."
+      },
+      "bulk": "{n, plural, one {# colis sélectionné} other {# colis sélectionnés}}",
+      "couriers": {
+        "carsTitle": "Transporteurs",
+        "carsHint": "Ce que chaque compte transporte maintenant",
+        "enRoute": "en route",
+        "toTreat": "à traiter",
+        "returning": "en retour",
+        "carRule": "Compte transporteur",
+        "title": "Livreurs",
+        "hint": "D’après le porteur actuel de chaque colis",
+        "c": "Livreur",
+        "car": "Compte",
+        "held": "Colis",
+        "na": "Injoignables",
+        "ret": "Retours",
+        "none": "Ce transporteur ne transmet pas le livreur.",
+        "call": "Appeler"
+      },
       "markets": {
         "ly": "Libye",
         "tn": "Tunisie"
       },
-      "tabs": {
-        "team": "Équipe",
-        "couriers": "Livreurs",
-        "carriers": "Transporteurs"
-      },
-      "agentLabel": "Agent",
-      "allAgents": "Tous les agents",
-      "select": "Sélectionner le colis de {name}",
-      "nSelected": "{n, plural, one {# colis sélectionné} other {# colis sélectionnés}}",
-      "verdict": {
-        "late": "En retard",
-        "idle": "Inactif aujourd'hui",
-        "ok": "À jour"
-      },
-      "groups": {
-        "late": "Besoin d'aide",
-        "idle": "Sans activité",
-        "ok": "À jour"
-      },
-      "nLate": "{n, plural, one {# en retard} other {# en retard}}",
-      "nIdle": "{n, plural, one {# inactif} other {# inactifs}}",
-      "nOk": "{n, plural, one {# à jour} other {# à jour}}",
-      "nSaved": "{n, plural, one {# sauvée} other {# sauvées}}",
-      "noAgents": "Aucun agent sur ce marché",
-      "marketLine": "{toTreat} colis à traiter dans le marché · {late} au-delà de la cible · cette semaine {saved} sauvées, {lost} perdues",
-      "whyLate": "<b>{n, plural, one {# colis attend} other {# colis attendent}}</b> au-delà de la cible sans action · le plus ancien {hours}",
-      "whyIdle": "<b>{n, plural, one {# colis à traiter} other {# colis à traiter}}</b> et aucune action aujourd'hui",
-      "whyOk": "{n, plural, one {# colis à traiter, pris en charge dans la cible} other {# colis à traiter, tous pris en charge dans la cible}}",
-      "noneLive": "Rien n'attend d'action",
-      "legend": {
-        "returning": "retour",
-        "act_now": "à traiter",
-        "waiting_customer": "attente client",
-        "waiting_carrier": "transporteur"
-      },
-      "inFlight": "{n, plural, one {# colis en cours} other {# colis en cours}}",
-      "now": "À faire",
-      "today": "Aujourd'hui",
-      "week": "Cette semaine",
-      "nowLate": "dont <b>{n}</b> au-delà de la cible · le plus ancien <b>{hours}</b>",
-      "nowOk": "tous dans la cible",
-      "actions": "{n, plural, one {action} other {actions}}",
-      "todayReached": "<b>{n}</b> {n, plural, one {client joint} other {clients joints}}{wa, plural, =0 {} other { · <b>#</b> WhatsApp}}",
-      "saved": "{n, plural, one {sauvée} other {sauvées}}",
-      "weekLost": "<b>{n, plural, one {# perdue} other {# perdues}}</b> · livrées après une action",
-      "weekNoLoss": "livrées après une action · 0 perdue",
-      "weekStrip": "Actions des 7 derniers jours",
-      "blocking": "Ce qui bloque",
-      "threeOf": "3 sur {n}",
-      "nothingBlocks": "Rien ne bloque : tous les colis de l'agent sont dans la cible.",
-      "waits": "attend {d}",
-      "absent": "{name} absent·e · déplacer ses {n} colis",
-      "couriers": {
-        "title": "Livreurs Darb",
-        "sub": "D'après le porteur actuel de chaque colis (Darb, toutes les 10 min).",
-        "courier": "Livreur",
-        "held": "Colis",
-        "noAnswer": "Sans rép.",
-        "returning": "Retours",
-        "call": "Appeler",
-        "none": "Ce transporteur ne transmet pas le livreur. Rien à afficher pour ce marché."
-      },
-      "carriers": {
-        "title": "Transporteurs",
-        "inFlight": "en cours",
-        "split": "{toTreat} à traiter · {returning} en retour",
-        "none": "Aucun colis en cours chez un transporteur."
-      }
-    },
-    "reassign": {
-      "action": "Réassigner",
-      "title": "Réassigner",
-      "lead": "{n, plural, one {# colis passe} other {# colis passent}} de {from} à l'agent choisi. Le transporteur n'est pas prévenu : rien ne change pour le colis, seulement qui le suit.",
-      "pick": "Nouveau responsable",
-      "noTarget": "Aucun autre agent sur ce marché.",
-      "warn": "La commission de livraison suit le nouveau responsable. Chaque réassignation est donc un événement de paie, inscrit dans l'historique de la commande.",
-      "confirm": "Réassigner",
-      "working": "Réassignation…",
-      "cancel": "Annuler",
-      "failed": "La réassignation a échoué. Réessayez.",
-      "locked": "Un agent a une de ces commandes ouverte. Réessayez dans un instant."
+      "teamMore": "+{n}",
+      "teamLess": "Réduire"
     }
   },
   "prospects": {
@@ -5999,7 +6076,9 @@
       "retry": "Sans réponse",
       "campaign": "Campagne",
       "winback": "Retours",
-      "converted": "Convertis"
+      "converted": "Convertis",
+      "recover": "Rejets",
+      "rebuy": "Anciens clients"
     },
     "cols": {
       "who": "Prospect",
@@ -6016,7 +6095,9 @@
       "winback": "Retour à récupérer",
       "converted": "Commande {ref}",
       "converted_plain": "Convertie",
-      "replied": "a répondu"
+      "replied": "a répondu",
+      "recover": "Rejet à rattraper",
+      "rebuy": "Ancien client"
     },
     "subs": {
       "hot_whatsapp": "Message WhatsApp reçu, pas encore répondu",
@@ -6030,7 +6111,9 @@
       "winback": "Le colis est revenu",
       "converted": "Dans ta file, bucket Convertis",
       "replied": "a répondu il y a {ago}",
-      "waSent": "{campaign} · envoyé {when}"
+      "waSent": "{campaign} · envoyé {when}",
+      "recover": "Commande rejetée, à rappeler",
+      "rebuy": "Livré, n'a jamais recommandé"
     },
     "moves": {
       "call": "Appeler",
@@ -6130,7 +6213,9 @@
       "tiktok_comment": "Commentaire TikTok",
       "campaign": "Campagne",
       "winback": "Colis retourné",
-      "other": "Autre"
+      "other": "Autre",
+      "rejected_order": "Rejet rattrapable",
+      "repeat_buyer": "Ancien client"
     },
     "product": {
       "title": "Produit",
@@ -6814,7 +6899,415 @@
       "yesterday": "hier",
       "days": "il y a {n} j"
     },
-    "waSquare": "WhatsApp"
+    "waSquare": "WhatsApp",
+    "desk": {
+      "crumb": "Clients",
+      "title": "Prospects",
+      "sub": "Les ventes qu'on peut encore rattraper",
+      "chipDist": "Répartis à {time}",
+      "chipNever": "Pas encore réparti",
+      "chipOff": "Sources automatiques désactivées",
+      "prevMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "rules": "Règles",
+      "newList": "Nouvelle liste",
+      "selectMarket": "Choisissez un marché pour voir ses prospects.",
+      "loadError": "Impossible de charger les prospects.",
+      "retry": "Réessayer",
+      "band": {
+        "lead": "Ramené en {month}",
+        "leadEmpty": "En {month}, rien n'a encore été ramené",
+        "delivered": "{n, plural, one {commande livrée} other {commandes livrées}}",
+        "more": "sur <b>{all}</b> ramenées · <b>{road}</b> en route · <b>{wait}</b> à expédier · <b>{ret}</b> retournées",
+        "moreEmpty": "Une commande ramenée compte ici le jour où elle est livrée.",
+        "trend": "{month} : {n}",
+        "todo": "À faire",
+        "details": "Détails",
+        "calm": "Tout tourne",
+        "calmSub": "{open} prospects chez {agents} agents",
+        "off": "Sources automatiques désactivées",
+        "offSub": "Activez-les dans Règles pour que Ordra crée et répartisse les prospects."
+      },
+      "todo": {
+        "pool": "<hl>{n, plural, one {# prospect} other {# prospects}}</hl> sans agent",
+        "poolSub": "Toutes les files sont pleines ({cap} par agent). Agrandissez la file ou répartissez maintenant.",
+        "poolShort": "{n} sans agent",
+        "stale": "<hl>{n, plural, one {# prospect intouché} other {# prospects intouchés}}</hl> depuis {days} jours chez {agent}",
+        "staleSub": "Ils repartent au pool à la prochaine répartition.",
+        "staleShort": "{n} intouchés · {agent}",
+        "late": "<hl>{n, plural, one {# rappel} other {# rappels}}</hl> en retard",
+        "lateShort": "{n} rappels en retard",
+        "distribute": "Répartir maintenant",
+        "see": "Voir",
+        "distributed": "{n, plural, =0 {Personne à répartir} one {# prospect réparti} other {# prospects répartis}}"
+      },
+      "sources": {
+        "title": "Sources",
+        "hint": "Cliquez une source pour filtrer la liste",
+        "thisMonth": "ce mois",
+        "filter": "filtre",
+        "names": {
+          "rej": "Rejets rattrapables",
+          "ret": "Colis en retour",
+          "old": "Anciens clients",
+          "camp": "Listes et saisie"
+        },
+        "rules": {
+          "rej": "Injoignables ou changés d'avis, rappelés {days} jours après",
+          "ret": "Refusés à la porte, rendus à l'agent qui a confirmé",
+          "old": "Livrés il y a {days} jours, jamais revenus",
+          "camp": "Faites à la main : produit, motif ou fichier"
+        },
+        "seg": {
+          "won": "ramenés",
+          "in_progress": "en cours",
+          "to_call": "à appeler",
+          "lost": "perdus"
+        },
+        "segTip": {
+          "won": "Ont recommandé grâce à l'appel",
+          "in_progress": "Au moins un appel, ni ramenés ni perdus",
+          "to_call": "Pas encore appelés",
+          "lost": "Fermés : injoignables, refus, ou ont recommandé seuls"
+        },
+        "delivered": "dont <b>{n}</b> déjà livrées",
+        "deliveredTip": "Sur les {won} ramenés, {n} commandes sont livrées : elles comptent dans le total en haut"
+      },
+      "team": {
+        "title": "Équipe · aujourd'hui",
+        "hint": "Cliquez une agente pour voir sa file",
+        "online": "en ligne",
+        "offline": "hors ligne",
+        "ring": "appelés · file de {cap}",
+        "stale": "{n} intouchés",
+        "late": "{n, plural, one {# rappel en retard} other {# rappels en retard}}",
+        "month": "<b>{n}</b> livrées · {amount}",
+        "monthSub": "ce mois",
+        "monthTip": "{won} ramenées, dont {n} livrées",
+        "outOfRotation": "hors distribution",
+        "empty": "Aucune agente active dans ce marché."
+      },
+      "list": {
+        "title": "La liste",
+        "open": "{n, plural, one {# ouvert} other {# ouverts}}",
+        "total": "{n, plural, one {# prospect} other {# prospects}}",
+        "source": "Source",
+        "state": "État",
+        "agent": "Agent",
+        "all": "Toutes",
+        "allM": "Tous",
+        "noAgent": "Sans agent",
+        "selected": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+        "clear": "Tout effacer",
+        "done": "OK",
+        "states": {
+          "open": "Ouverts",
+          "won": "Ramenés",
+          "lost": "Perdus",
+          "all": "Tous"
+        },
+        "search": "Nom ou numéro",
+        "export": "Exporter",
+        "cols": {
+          "client": "Client",
+          "why": "Pourquoi",
+          "product": "Produit",
+          "agent": "Agent",
+          "state": "État",
+          "age": "Depuis"
+        },
+        "pager": "{from}–{to} sur {total}",
+        "prev": "Précédent",
+        "next": "Suivant",
+        "empty": "<b>Aucun prospect pour l'instant</b>Ils arrivent tout seuls : les rejets {days} jours après, les colis dès qu'ils repartent, les anciens clients {after} jours après la livraison.",
+        "noMatch": "<b>Aucun prospect ne correspond</b>Retirez un filtre pour élargir.",
+        "why": {
+          "rej": "Rejet",
+          "ret": "Retour",
+          "old": "Ancien client",
+          "camp": "Liste"
+        },
+        "status": {
+          "to_call": "À appeler",
+          "attempt": "{n}e essai",
+          "callback": "Rappel {time}",
+          "late": "Rappel en retard",
+          "won_delivered": "Ramené · livré",
+          "won_road": "Ramené · en route",
+          "won": "Ramené",
+          "lost": "Perdu"
+        },
+        "today": "aujourd'hui",
+        "days": "{n} j",
+        "bulk": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+        "reassign": "Réassigner",
+        "close": "Fermer",
+        "clearSel": "Effacer la sélection"
+      },
+      "drawer": {
+        "call": "Appeler",
+        "whatsapp": "WhatsApp",
+        "close": "Fermer",
+        "why": "Pourquoi ce prospect",
+        "client": "Le client",
+        "order": "Commande d'origine",
+        "won": "Commande ramenée",
+        "openOrder": "Ouvrir la commande",
+        "history": "Historique",
+        "noHistory": "Pas encore appelé.",
+        "reassign": "Réassigner",
+        "closeLead": "Fermer le prospect",
+        "storyRej": "Commande rejetée : <b>{reason}</b>.",
+        "storyRet": "Le colis repart à l'entrepôt. Le livreur a écrit :",
+        "storyOld": "A reçu sa commande, n'a jamais recommandé.",
+        "storyCamp": "Dans la liste « {name} ».",
+        "storyManual": "Saisi à la main."
+      },
+      "reassign": {
+        "title": "Réassigner",
+        "sub": "{n, plural, one {# prospect · il quitte sa file actuelle.} other {# prospects · ils quittent leur file actuelle.}}",
+        "go": "Réassigner",
+        "cancel": "Annuler",
+        "fill": "{n}/{cap}",
+        "ok": "Réassigné à {agent}"
+      },
+      "close": {
+        "title": "Fermer",
+        "sub": "{n, plural, one {# prospect · il sort de la file.} other {# prospects · ils sortent de la file.}}",
+        "reason": "Motif",
+        "note": "Note (facultatif)",
+        "go": "Fermer",
+        "ok": "{n, plural, one {# prospect fermé} other {# prospects fermés}}"
+      },
+      "export": {
+        "title": "Exporter les prospects",
+        "sub": "Un fichier à ouvrir dans Excel ou Google Sheets.",
+        "scope": "Quoi ?",
+        "filtered": "La liste filtrée",
+        "filteredSub": "{n, plural, one {# prospect} other {# prospects}} · filtres actuels",
+        "selection": "La sélection",
+        "selectionSub": "{n, plural, one {# coché} other {# cochés}}",
+        "selectionNone": "Cochez des lignes d'abord",
+        "month": "Tout {month}",
+        "monthSub": "ouverts, ramenés et perdus",
+        "format": "Format",
+        "columns": "Colonnes",
+        "columnsN": "{n} colonnes",
+        "go": "Exporter",
+        "working": "Préparation…",
+        "ready": "Téléchargé",
+        "toast": "{file} est dans vos téléchargements",
+        "failed": "L'export a échoué.",
+        "cols": {
+          "name": "Nom",
+          "phone": "Téléphone",
+          "city": "Ville",
+          "source": "Source",
+          "why": "Pourquoi",
+          "product": "Produit",
+          "value": "Valeur",
+          "agent": "Agent",
+          "state": "État",
+          "age": "Depuis (jours)",
+          "order": "Commande d'origine",
+          "created": "Créé le"
+        },
+        "states": {
+          "to_call": "À appeler",
+          "in_progress": "En cours",
+          "won": "Ramené",
+          "lost": "Perdu"
+        }
+      },
+      "rulesSheet": {
+        "title": "Règles",
+        "sub": "Ce que Ordra transforme en prospects, et comment il les répartit.",
+        "enabled": "Sources automatiques",
+        "enabledSub": "Désactivées : aucun prospect créé ni réparti automatiquement dans ce marché.",
+        "rej": "Rejets rattrapables",
+        "delay": "Rappeler",
+        "delay2": "jours après le rejet",
+        "reasons": "Motifs rappelés · rejets sur 30 jours",
+        "never": "Les commandes invalides (non commandé, non sérieux, simple info, doublon) ne sont jamais rappelées.",
+        "ret": "Colis en retour",
+        "retSub": "Dès que le colis repart vers l'entrepôt. Rendu à l'agent qui a confirmé la commande, avec la remarque du livreur.",
+        "old": "Anciens clients",
+        "after": "Créer",
+        "after2": "jours après la livraison, s'il n'a pas recommandé",
+        "dist": "Répartition",
+        "hour": "Chaque matin à",
+        "cap": "File par agent :",
+        "cap2": "prospects ouverts au plus",
+        "release": "Sans appel depuis",
+        "release2": "jours : retour au pool",
+        "tries": "Après",
+        "tries2": "essais sans réponse : fermé",
+        "agents": "Agents : ceux de la distribution des commandes",
+        "note": "Jamais de prospect si le client a déjà recommandé, a un prospect ouvert, ou est classé à risque.",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "saved": "Règles enregistrées",
+        "invalid": "Valeur refusée : {field}",
+        "triesFrom": "Après <b>{n}</b> appels sans réponse, le prospect est fermé — réglé dans <a>Réglages › Prospects</a>."
+      },
+      "wizard": {
+        "title": "Nouvelle liste",
+        "sub": "Choisissez qui rappeler. La liste entre dans la répartition automatique.",
+        "step": "Étape {n} sur 3",
+        "next": "Continuer",
+        "back": "Retour",
+        "cancel": "Annuler",
+        "s1": "Qui rappeler ?",
+        "s2": "Que leur propose-t-on ?",
+        "s3": "Comment les contacter ?",
+        "s2hint": "Facultatif",
+        "pickStart": "Choisissez un point de départ",
+        "starts": {
+          "old": "Anciens clients",
+          "rej": "Rejetés",
+          "ret": "Colis retournés",
+          "csv": "Fichier CSV"
+        },
+        "startsSub": {
+          "old": "Livrés, jamais revenus",
+          "rej": "Pour un ou plusieurs motifs",
+          "ret": "Refusés à la porte",
+          "csv": "Une liste à vous"
+        },
+        "qOldProd": "Qui ont reçu",
+        "qOldWhen": "Livrés",
+        "qRejWhy": "Rejetés pour",
+        "qRejWhen": "Rejetés",
+        "qRetWhen": "Colis revenus",
+        "noReorder": "Seulement ceux qui n'ont pas recommandé depuis",
+        "noReorderSub": "On n'appelle pas quelqu'un qui vient de commander.",
+        "refine": "Affiner",
+        "refineSub": "Ville, nombre de commandes, valeur…",
+        "cities": "Ville",
+        "ordersMin": "Au moins",
+        "ordersUnit": "commandes",
+        "basketMin": "Valeur d'au moins",
+        "presets": {
+          "7": "7 j",
+          "30": "30 j",
+          "90": "90 j",
+          "month": "Ce mois",
+          "last": "Mois dernier",
+          "custom": "Personnalisé"
+        },
+        "from": "du",
+        "to": "au",
+        "picker": {
+          "pick": "Choisir des produits…",
+          "picked": "{n, plural, one {# produit sélectionné} other {# produits sélectionnés}}",
+          "of": "sur {n}",
+          "search": "Chercher un produit",
+          "none": "Aucun produit à ce nom",
+          "count": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+          "allHelp": "Aucun produit choisi : tous les produits comptent.",
+          "ownDates": "Autres dates",
+          "remove": "Retirer",
+          "clear": "Tout effacer",
+          "done": "OK"
+        },
+        "offerProducts": "Produits à proposer",
+        "offerNone": "Aucun produit choisi : l'agent propose ce qu'il veut.",
+        "offer": "Une offre ?",
+        "offerPh": "ex. livraison offerte sur le 2e livre",
+        "offerHelp": "Affichée à l'agent sur chaque fiche de la liste.",
+        "name": "Nom de la liste",
+        "csvDrop": "Déposez le fichier ici",
+        "csvOr": "ou cliquez pour le choisir",
+        "csvHelp": "Colonnes : nom, téléphone, ville (facultatif).",
+        "csvLoaded": "{file} · {n, plural, one {# ligne} other {# lignes}}",
+        "csvChange": "Changer",
+        "csvBad": "Aucune ligne lisible : il faut au moins une colonne téléphone.",
+        "howCall": "Les agents appellent",
+        "howCallSub": "La liste entre dans leurs files à la prochaine répartition, avec votre offre sur chaque fiche.",
+        "howWa": "Message WhatsApp",
+        "howWaSub": "Envoyé depuis le numéro Ordra. Les réponses « Oui » deviennent des prospects.",
+        "howWaOff": "Le numéro WhatsApp Ordra n'est pas connecté dans ce marché.",
+        "tpl": "Choisissez un message",
+        "tpls": {
+          "new_book": "Nouveau produit",
+          "changed": "Vous avez changé d'avis ?",
+          "returned": "Votre colis revient",
+          "free": "Livraison offerte"
+        },
+        "edit": "Modifier le texte",
+        "insert": "Insérer",
+        "vars": {
+          "name": "prénom",
+          "got": "produit reçu",
+          "city": "ville",
+          "offer": "offre"
+        },
+        "more": "Options",
+        "moreSub": "langue, photo, boutons",
+        "lang": "Langue du message",
+        "image": "Photo du produit en en-tête",
+        "buttons": "Boutons de réponse",
+        "btn": {
+          "yes": "Oui, je commande",
+          "call": "Appelez-moi",
+          "no": "Non merci"
+        },
+        "waHelp": "Meta valide chaque nouveau modèle avant l'envoi (quelques minutes à 24 h).",
+        "who": "Qui sera contacté",
+        "people": "{n, plural, one {personne} other {personnes}}",
+        "removed": "{n} retirées : déjà prospects, ont recommandé, ou contactées récemment",
+        "counting": "Calcul…",
+        "drill": "Comment on arrive là",
+        "sentence": {
+          "old": "Anciens clients ayant reçu {products}, livrés {range}{noReorder}.",
+          "rej": "Clients rejetés pour {reasons}, {range}.",
+          "ret": "Clients dont le colis est revenu {range}{noReorder}.",
+          "csv": "Les personnes de votre fichier.",
+          "anyProduct": "n'importe quel produit",
+          "or": " ou ",
+          "noReorder": ", sans nouvelle commande depuis",
+          "between": "entre le {from} et le {to}"
+        },
+        "previewWa": "Ce que reçoit le client",
+        "previewCall": "Ce que voit l'agent",
+        "reasonLabel": "Pourquoi l'appeler",
+        "offerLabel": "À proposer",
+        "waBiz": "Ordra",
+        "waVerified": "Compte professionnel",
+        "waFooter": "Répondez STOP pour ne plus recevoir de messages",
+        "sample": "Ahmed",
+        "create": "Créer · {n} prospects",
+        "submitWa": "Soumettre à Meta · {n} personnes",
+        "meta": "Répartis à la prochaine répartition avec les autres.",
+        "metaWa": "Envoi dès que Meta valide le modèle.",
+        "created": "Liste créée · {n, plural, one {# prospect} other {# prospects}}",
+        "submitted": "Modèle envoyé à Meta. La liste part dès qu'il est validé.",
+        "errors": {
+          "duplicate_name": "Une liste porte déjà ce nom.",
+          "wa_message_required": "Écrivez le message.",
+          "whatsapp_not_connected": "Le numéro WhatsApp n'est pas connecté.",
+          "generic": "La liste n'a pas pu être créée."
+        },
+        "drillKinds": {
+          "period": "Sur la période",
+          "product": "Produits choisis",
+          "subreason": "Motifs choisis",
+          "noOrderAfterOutcome": "Pas recommandé depuis",
+          "city": "Villes",
+          "orderCount": "Nombre de commandes",
+          "basket": "Valeur"
+        },
+        "waErrors": {
+          "empty": "Écrivez le message.",
+          "too_long": "Message trop long (1 024 caractères au plus).",
+          "starts_with_variable": "Le message doit commencer par du texte.",
+          "ends_with_variable": "Le message doit finir par du texte.",
+          "unknown_variable": "Variable inconnue.",
+          "too_many_variables": "Trop de variables.",
+          "no_text": "Il faut du texte, pas seulement des variables."
+        }
+      }
+    }
   },
   "agentAvailability": {
     "toggleLabel": "Je prends des commandes",
@@ -6953,8 +7446,6 @@
   },
   "whatsappAdmin": {
     "common": {
-      "readOnly": "Lecture seule — les identifiants et les réglages sont modifiés par un super_admin.",
-      "never": "jamais",
       "loading": "Chargement…",
       "close": "Fermer",
       "ago": {
@@ -6976,33 +7467,25 @@
       "switchLabel": "Messages WhatsApp"
     },
     "templates": {
-      "title": "Modèles WhatsApp",
-      "sub": "Ce que Meta a approuvé, et quel événement chaque modèle sert",
-      "sync": "Synchroniser depuis Meta",
+      "title": "Modèles",
+      "sub": "Les messages pré-approuvés par Meta, seuls autorisés après 24 h sans réponse du client.",
+      "sync": "Synchroniser avec Meta",
       "create": "Créer les modèles Ordra",
-      "info": "« Créer les modèles Ordra » soumet le catalogue en un clic, en arabe et en français, et associe chaque modèle à son événement. Meta approuve en général en quelques minutes, jusqu'à 24 h sur un compte neuf.",
+      "offline": "WhatsApp n'est pas connecté : ces modèles seront soumis à Meta dès que le numéro sera relié.",
       "cols": {
         "name": "Modèle",
+        "when": "Envoyé quand",
         "lang": "Langue",
-        "category": "Catégorie",
-        "status": "Statut",
-        "event": "Événement",
-        "vars": "Variables",
-        "sync": "Synchro"
-      },
-      "category": {
-        "UTILITY": "Utilitaire",
-        "MARKETING": "Marketing",
-        "AUTHENTICATION": "Authentification"
+        "state": "État"
       },
       "status": {
         "APPROVED": "Approuvé",
-        "PENDING": "En attente",
+        "PENDING": "En attente de Meta",
         "REJECTED": "Refusé",
         "PAUSED": "Suspendu",
         "DISABLED": "Désactivé",
         "DELETED": "Supprimé",
-        "DRAFT": "Brouillon",
+        "DRAFT": "Pas encore soumis",
         "UNKNOWN": "Inconnu"
       },
       "event": {
@@ -7033,8 +7516,6 @@
       "marketGroup": "Marché",
       "empty": "Aucun modèle pour ce marché.",
       "emptyHint": "« Créer les modèles Ordra » soumet le catalogue complet.",
-      "notConnected": "WhatsApp n'est pas connecté pour ce marché : Meta ne détient encore aucun modèle, rien ne peut être synchronisé ni créé.",
-      "notConnectedManager": "WhatsApp n'est pas connecté pour ce marché. Un administrateur relie le numéro dans Réglages › WhatsApp.",
       "synced": "Synchronisé · {total} modèles, {updated} mis à jour",
       "syncedNew": "{n} nouveaux",
       "syncedGone": "{n} disparus",
@@ -7055,36 +7536,107 @@
         "dialog": "Modèle {name}"
       }
     },
+    "dormant": {
+      "title": "WhatsApp n'est pas encore connecté",
+      "lead": "Quand le numéro de la boutique sera relié, les clients pourront vous écrire et leurs messages arriveront ici. Pour l'instant, aucun message ne peut arriver.",
+      "willTitle": "Ce que cette page fera",
+      "will": {
+        "write": {
+          "title": "Les clients écrivent",
+          "sub": "Chaque message arrive ici, le plus ancien en attente en premier."
+        },
+        "attach": {
+          "title": "Vous confiez la conversation",
+          "sub": "À la commande du client : l'agent qui la suit prend le relais."
+        },
+        "auto": {
+          "title": "Les messages de suivi partent seuls",
+          "sub": "Commande confirmée, colis en route, colis livré."
+        }
+      },
+      "stepsTitle": "Pour connecter",
+      "steps": {
+        "meta": {
+          "title": "Compte Meta Business vérifié",
+          "sub": "Chez Meta, avec les documents de la société."
+        },
+        "link": {
+          "title": "Numéro relié dans Ordra",
+          "sub": "Système › Connexions › WhatsApp."
+        },
+        "test": {
+          "title": "Premier message test",
+          "sub": "Ordra vérifie que l'envoi et la réception marchent."
+        }
+      },
+      "openConn": "Ouvrir Connexions",
+      "onlySa": "Seul un super admin peut relier le numéro."
+    },
     "inbox": {
       "title": "Messages",
-      "sub": "Conversations WhatsApp sans commande ni prospect rattaché",
+      "sub": "Les messages WhatsApp des clients : répondre, puis confier à la bonne commande.",
+      "pickMarket": "Choisissez un marché pour voir ses conversations.",
+      "search": "Nom ou numéro…",
       "tabs": {
-        "orphans": "À rattacher",
+        "orphans": "À confier",
+        "unread": "Non lus",
         "all": "Toutes"
       },
       "empty": {
-        "orphans": "Aucune conversation à rattacher.",
-        "all": "Aucune conversation."
+        "orphans": "Aucune conversation à confier.",
+        "unread": "Aucun message non lu.",
+        "all": "Aucune conversation.",
+        "search": "Aucune conversation ne correspond."
       },
+      "waits": "attend · {t}",
+      "dur": {
+        "m": "{n} min",
+        "h": "{n} h",
+        "d": "{n} j"
+      },
+      "tagWindowClosed": "fenêtre fermée",
+      "tagAttached": "Confiée",
+      "tagKept": "Suggestion",
       "pick": "Choisissez une conversation.",
-      "pickMarket": "Choisissez un marché pour voir ses conversations.",
-      "notConnected": "WhatsApp n'est pas connecté pour ce marché : aucun message n'arrive ici tant que le numéro n'est pas relié.",
-      "anchoredOrder": "Rattachée à une commande",
-      "anchoredLead": "Rattachée à un prospect",
-      "alreadyAnchored": "Cette conversation est déjà rattachée.",
-      "claimRefused": "Rattachement refusé.",
-      "leadRefused": "Création du prospect refusée.",
-      "placeholder": "Répondre au client…",
-      "attach": {
-        "label": "Rattacher à",
-        "placeholder": "Chercher une commande ou un prospect par nom ou numéro…",
+      "wOpen": "Réponse libre jusqu'à {time}",
+      "wOpenTomorrow": "Réponse libre jusqu'à demain {time}",
+      "wClosed": "Fenêtre fermée — modèle uniquement",
+      "closedBar": "Plus de 24 h depuis le dernier message du client.",
+      "autoBy": "Message automatique",
+      "place": "Répondre au client…",
+      "tpl": "Modèle",
+      "send": "Envoyer",
+      "sending": "Envoi…",
+      "sendTpl": "Envoyer un modèle",
+      "sendFailed": "Non envoyé · {reason}",
+      "who": {
+        "title": "Qui est-ce ?",
+        "looking": "Recherche des commandes de ce numéro…",
+        "never": "Ce numéro n'a jamais commandé ni répondu à une campagne.",
+        "ordered": "A déjà commandé avec ce numéro",
+        "attachTo": "Confier à la commande {ref}",
+        "attachHint": "L'agent qui suit cette commande la reçoit dans sa file, avec la cloche.",
+        "attached": "Confiée à la commande {ref}. Elle quitte « À confier ».",
+        "attachedLead": "Confiée au prospect. Elle quitte « À confier ».",
+        "anchoredOrder": "Confiée à une commande.",
+        "anchoredLead": "Confiée à un prospect.",
+        "openOrder": "Ouvrir la commande",
+        "openLead": "Ouvrir le prospect",
         "createLead": "Créer un prospect",
+        "leadHint": "Un agent rappellera ce client depuis Prospects.",
+        "other": "Chercher une autre commande…",
         "searching": "Recherche…",
         "none": "Aucun résultat.",
         "order": "commande",
         "lead": "prospect",
         "noName": "(sans nom)",
-        "action": "Rattacher à"
+        "keep": "Garder dans Voix du client",
+        "keepHint": "Ce message dit quelque chose sur nos produits ? Gardez-le : il apparaîtra dans les raisons.",
+        "kept": "Gardé dans Voix du client · Suggestion",
+        "keepRefused": "Le message n'a pas pu être gardé.",
+        "alreadyAnchored": "Cette conversation est déjà confiée.",
+        "claimRefused": "Le rattachement a été refusé.",
+        "leadRefused": "Création du prospect refusée."
       }
     }
   },
@@ -7197,88 +7749,146 @@
       "yesterday": "Hier",
       "error": "Impossible de charger vos retours."
     },
-    "manager": {
-      "allProducts": "Tous les produits",
-      "allAgents": "Tous les agents",
-      "presets": {
-        "today": "Aujourd'hui",
-        "yest": "Hier",
-        "d7": "7 derniers jours",
-        "d30": "30 derniers jours",
-        "month": "Ce mois-ci",
-        "last": "Mois dernier",
-        "all": "Depuis le début"
+    "voice": {
+      "crumb": "Clients",
+      "sub": "Ce que les clients disent aux agents et aux livreurs — pour savoir quoi corriger.",
+      "tabs": {
+        "sheet": "Feuille",
+        "reasons": "Raisons"
       },
-      "quick": {
-        "today": "Aujourd'hui",
-        "d7": "7 j",
-        "d30": "30 j"
-      },
-      "vsPrev": "vs période précédente",
-      "days": "{n, plural, one {# jour} other {# jours}}",
-      "apply": "Appliquer",
-      "cancel": "Annuler",
-      "pickEnd": "Choisissez la fin",
-      "prevMonth": "Mois précédent",
-      "nextMonth": "Mois suivant",
-      "weekdays": "L,M,M,J,V,S,D",
-      "openLate": "{open} ouvertes · <b>{late} > 48 h</b>",
-      "open": "{open} ouvertes",
-      "ofTotal": "{p} % des retours",
-      "topics": "Top sujets",
-      "topicsSub": "Cliquez pour filtrer",
-      "mixOf": "{n, plural, one {# retour} other {# retours}}",
-      "byAgent": "Saisies par agent",
-      "noEntry": "aucune saisie",
-      "low": "faible",
-      "lateAlert": "{n, plural, one {<b>#</b> réclamation sans réponse depuis plus de 48 h} other {<b>#</b> réclamations sans réponse depuis plus de 48 h}}",
-      "reviewAlert": "{n, plural, one {<b>#</b> retour à valider} other {<b>#</b> retours à valider}}",
-      "cols": {
-        "date": "Date",
-        "category": "Catégorie",
-        "topic": "Sujet",
-        "says": "Le client dit",
+      "filters": {
+        "period": "Période",
         "product": "Produit",
-        "agent": "Agent",
-        "status": "Statut"
+        "by": "Saisi par",
+        "all": "Tous",
+        "darb": "Livreur Darb",
+        "clear": "Retirer le filtre",
+        "presets": {
+          "today": "Aujourd'hui",
+          "yest": "Hier",
+          "d7": "7 derniers jours",
+          "d30": "30 derniers jours",
+          "month": "Ce mois-ci",
+          "last": "Le mois dernier",
+          "all": "Depuis le début"
+        },
+        "custom": "{from} → {to}"
       },
-      "more": "Voir {n} de plus",
-      "none": "Aucun retour pour ce filtre.",
-      "filters": "Filtres :",
-      "clear": "Effacer",
-      "removeFilter": "Retirer le filtre",
-      "lateChip": "Réclamations > 48 h",
-      "keep": "Garder",
-      "ignore": "Ignorer",
-      "reviewing": "À valider",
-      "back": "Retour",
+      "lede": "Sur <b>{total}</b> retours, <b>{obj}</b> expliquent pourquoi ils n'achètent pas. La 1re raison : <b>{reason}</b>.",
+      "ledeNoReason": "Sur <b>{total}</b> retours, <b>{obj}</b> expliquent pourquoi ils n'achètent pas.",
+      "ledeEmpty": "Aucun retour sur cette période.",
+      "todoOpen": "{n, plural, one {<b>#</b> réclamation ouverte} other {<b>#</b> réclamations ouvertes}}",
+      "todoCheck": "<b>{n}</b> à vérifier",
+      "compared": "{period} · comparé aux {days, plural, one {# jour} other {# jours}} d'avant",
+      "notCompared": "{period}",
+      "hLose": "Pourquoi ils n'achètent pas",
+      "hLoseSub": "{n, plural, one {# objection} other {# objections}} · cliquez une raison pour lire les clients.",
+      "hWant": "Ce qu'ils aimeraient trouver",
+      "hWantSub": "{n, plural, one {# suggestion} other {# suggestions}}.",
+      "noReasons": "Aucune raison donnée sur cette période.",
+      "said": "Ce que disent les clients",
+      "seeAll": "Voir les {n} dans la feuille",
+      "mostlyOn": "Surtout sur",
+      "ourAnswer": "Notre réponse",
+      "writeAnswer": "Écrire notre réponse",
+      "answerPlaceholder": "Ex. ne pas rejeter : programmer un rappel le 1er du mois, quand les salaires tombent.",
+      "editAnswer": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "gone": "Plus mentionné ces {days, plural, one {# jour} other {# jours}} : {list}",
+      "saidTo": "dit à {who} · {moment}",
+      "courier": "livreur Darb",
+      "someone": "un agent",
+      "momentLong": {
+        "call": "pendant l'appel",
+        "door": "à la porte",
+        "transit": "en route",
+        "after": "après la livraison"
+      },
+      "momentShort": {
+        "call": "Appel",
+        "door": "Porte",
+        "transit": "En route",
+        "after": "Après"
+      },
+      "vsPrev": "Période d'avant : {n}",
+      "new": "nouveau",
+      "minis": {
+        "noReason": "sans raison",
+        "openOne": "ouverte",
+        "openMany": "ouvertes"
+      },
+      "views": {
+        "all": "Tout",
+        "check": "À vérifier"
+      },
+      "group": {
+        "label": "Grouper par",
+        "reason": "Raison",
+        "product": "Produit",
+        "none": "Rien"
+      },
+      "cols": {
+        "select": "Sélectionner",
+        "date": "Date",
+        "says": "Le client dit",
+        "reason": "Raison",
+        "product": "Produit",
+        "moment": "Moment",
+        "by": "Saisi par",
+        "state": "État"
+      },
+      "noReason": "Sans raison",
+      "toCheck": "à vérifier",
+      "imported": "importé",
+      "noProduct": "Sans produit",
+      "more": "+ {n} autres",
+      "empty": "Rien sur cette période.",
+      "truncated": "Les {shown} plus récents sur {total}.",
+      "bulk": {
+        "selected": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+        "discard": "Écarter",
+        "changeReason": "Changer la raison",
+        "cancel": "Annuler",
+        "discarded": "{n, plural, one {# écarté — il ne compte plus.} other {# écartés — ils ne comptent plus.}}",
+        "moved": "{n, plural, =0 {Aucun retour déplacé (les réclamations gardent leur raison).} one {# retour déplacé.} other {# retours déplacés.}}",
+        "undo": "Annuler"
+      },
+      "status": {
+        "open": "Ouverte",
+        "in_progress": "En cours",
+        "resolved": "Résolue"
+      },
+      "take": "Je m'en occupe",
+      "resolve": "Résolue",
+      "reopen": "Rouvrir",
       "drawer": {
         "customer": "Client",
-        "phone": "Téléphone",
         "order": "Commande",
         "product": "Produit",
-        "agent": "Saisi par",
-        "when": "Date",
-        "status": "Statut",
-        "owner": "Responsable"
+        "moment": "Moment",
+        "by": "Saisi par",
+        "source": "Source",
+        "reason": "Raison",
+        "close": "Fermer"
       },
-      "actions": {
-        "take": "Prendre en charge",
-        "resolve": "Marquer résolue",
-        "reopen": "Rouvrir"
+      "source": {
+        "import": "Ancienne note « Autre » importée",
+        "rejection": "Note de rejet",
+        "courier": "Remarque du livreur Darb",
+        "agent": "Touche F de l'agent",
+        "delivery": "Onglet Livraison de l'agent",
+        "whatsapp": "Message WhatsApp gardé"
       },
-      "darb": "livreur Darb",
-      "newTopic": "nouveau",
-      "daysShort": "{n} j",
-      "selectMarket": "Choisissez un marché pour voir la voix de ses clients.",
+      "selectMarket": "Choisissez un marché dans la barre latérale pour voir sa voix du client.",
       "error": "Impossible de charger la voix du client.",
       "retry": "Réessayer",
-      "actionFailed": "L'action a échoué. Réessayez.",
-      "productTabs": "Produits"
+      "actionFailed": "L'action n'a pas abouti. Réessayez."
     }
   },
   "reglages": {
     "title": "Réglages",
+    "crumb": "Système",
     "marketLabel": {
       "admin": "Marché réglé",
       "manager": "Votre marché"
@@ -7332,6 +7942,14 @@
       "ads": {
         "label": "Publicité",
         "subtitle": "Les comptes publicitaires Meta dont Ordra lit les dépenses, et le taux de change utilisé."
+      },
+      "prospects": {
+        "label": "Prospects",
+        "subtitle": "Combien de fois on rappelle un prospect, et combien de temps il reste en haut de la liste."
+      },
+      "monitoring": {
+        "label": "Surveillance",
+        "subtitle": "À partir de quand Journaux signale un problème. Ces règles valent pour tous les marchés."
       }
     },
     "scope": {
@@ -7492,6 +8110,22 @@
         "label": "Colis en retard",
         "unit": "jours",
         "help": "Transporteurs : un colis en route depuis {n} jours après le ramassage est en retard."
+      },
+      "max_lead_attempts": {
+        "label": "Appels avant d’abandonner un prospect",
+        "unit": "appels",
+        "help": "Au {n}ᵉ appel sans réponse, le prospect est classé injoignable."
+      },
+      "lead_hot_window_minutes": {
+        "label": "Prospect « chaud »",
+        "unit": "min",
+        "helpMinutes": "Un nouveau prospect reste en haut de la liste pendant {n} min : c’est là qu’il répond le mieux.",
+        "helpHours": "Un nouveau prospect reste en haut de la liste pendant {n} h : c’est là qu’il répond le mieux."
+      },
+      "card_surcharge_pct": {
+        "label": "Majoration paiement par carte",
+        "unit": "%",
+        "help": "Un client qui paie par carte paie {n} % de plus sur les produits, jamais sur la livraison. Ne s’applique pas aux transporteurs qui encaissent la carte eux-mêmes (Darb)."
       }
     },
     "orders": {
@@ -7500,7 +8134,9 @@
       "dupTitle": "Doublons et fusion",
       "dupDesc": "Ce qui se passe quand un même client commande plusieurs fois.",
       "archiveTitle": "Archivage",
-      "archiveDesc": "Ranger les commandes terminées pour alléger les listes."
+      "archiveDesc": "Ranger les commandes terminées pour alléger les listes.",
+      "cardTitle": "Paiement par carte",
+      "cardDesc": "Le transporteur retient une part quand le client paie en ligne ; la majoration la compense."
     },
     "markets": {
       "colMarket": "Marché",
@@ -7854,7 +8490,7 @@
           "invalid_sheet": "Collez le lien de la feuille Google et le nom de l’onglet.",
           "no_access": "Ordra ne peut pas ouvrir cette feuille. Partagez-la avec {email}, puis réessayez.",
           "no_tab": "Aucun onglet « {tab} » dans cette feuille. Vérifiez le nom exact.",
-          "missing_columns": "Ce n’est pas un export Converty : il manque {columns}. Colonnes lues dans l’onglet : {found}. Vérifiez que l’onglet est le bon.",
+          "missing_columns": "Ce n’est pas un export Converty : il manque {columns}. Colonnes lues dans l’onglet : {found}. Vérifiez que l’onglet est le bon.",
           "already_connected": "Cette feuille et cet onglet sont déjà reliés à une boutique."
         },
         "sync": "Lecture de la feuille",
@@ -7893,8 +8529,30 @@
       "nothingFound": "Aucun résultat.",
       "done": "Associé",
       "pick": "Choisissez d’abord un élément de la liste.",
-      "productSubtitle": "« {name} » · {shop} · {pending}",
-      "citySubtitle": "« {name} » · {pending}"
+      "allMatchedSub": "Aucune commande n’attend un produit ou une ville.",
+      "waitProducts": "{n, plural, one {commande attend un produit} other {commandes attendent un produit}}",
+      "waitCities": "{n, plural, one {commande attend une ville} other {commandes attendent une ville}}",
+      "oldest": "la plus ancienne depuis le",
+      "acceptSame": "{n, plural, one {Associer le nom identique} other {Associer les # noms identiques}} · {orders, plural, one {# commande} other {# commandes}}",
+      "select": "Sélection",
+      "selectOne": "Sélectionner « {name} »",
+      "colReceived": "Reçu de la boutique",
+      "colOrders": "Commandes",
+      "colSince": "Attend depuis",
+      "colProposal": "Proposition d’Ordra",
+      "same": "Nom identique",
+      "near": "Proche",
+      "noProposal": "Aucune proposition",
+      "choose": "Choisir…",
+      "selected": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+      "acceptSelected": "Associer aux propositions",
+      "doneMany": "{n, plural, one {# nom associé} other {# noms associés}}",
+      "partial": "{ok} sur {n} associés. Réessayez pour le reste.",
+      "since": "depuis le {date}",
+      "bindN": "{n, plural, one {Associer la commande} other {Associer les # commandes}}",
+      "proposed": "Proposé",
+      "allProducts": "Tous les produits",
+      "allDestinations": "Toutes les destinations"
     },
     "whatsapp": {
       "numberTitle": "Numéro WhatsApp",
@@ -8068,6 +8726,112 @@
       "pick": "Choisir un agent",
       "add": "Ajouter",
       "remove": "Retirer {name}"
+    },
+    "menuGroups": {
+      "sales": "Ventes",
+      "shipping": "Expédition",
+      "growth": "Clients et publicité",
+      "system": "Système"
+    },
+    "prospects": {
+      "title": "Rappels des prospects",
+      "desc": "Les clients qui n’ont pas encore commandé, appelés depuis la liste Prospects."
+    },
+    "monitoring": {
+      "intro": "Ordra vérifie toutes les 5 minutes que tout fonctionne. Ici, vous choisissez à partir de quand un problème apparaît dans Journaux. Une règle éteinte ne signale plus rien.",
+      "off": "Éteinte : Ordra ne surveille plus cela, et le problème ouvert se ferme.",
+      "outOfRange": "{rule} : entre {min} et {max}, en nombre entier.",
+      "saveFailed": "« {rule} » n’a pas pu être enregistré.",
+      "notReadyTitle": "La mise à jour de la base de données manque",
+      "notReady": "Les seuils ne sont pas encore disponibles : la mise à jour qui les crée n’a pas été appliquée. Journaux continue avec les valeurs par défaut.",
+      "units": {
+        "times": "fois",
+        "minutes": "min",
+        "hours": "h",
+        "days": "jours",
+        "people": "pers.",
+        "rows": "lignes"
+      },
+      "groups": {
+        "carriers": {
+          "title": "Transporteurs et services",
+          "desc": "Darb, Navex, WhatsApp et Meta : quand ils ne répondent plus comme prévu."
+        },
+        "shops": {
+          "title": "Boutiques et publicité",
+          "desc": "Les commandes qui devraient arriver et n’arrivent pas."
+        },
+        "jobs": {
+          "title": "Tâches automatiques",
+          "desc": "Ce qu’Ordra fait seul en arrière-plan : synchronisations, archivage, envois programmés."
+        },
+        "app": {
+          "title": "Ordra lui-même",
+          "desc": "Les erreurs du serveur et les pages qui plantent chez quelqu’un."
+        },
+        "security": {
+          "title": "Sécurité",
+          "desc": "Les tentatives de connexion et les grosses sorties de données."
+        }
+      },
+      "rules": {
+        "connection_silent": {
+          "label": "Synchronisation Darb silencieuse",
+          "help": "Un problème s’ouvre quand un compte Darb actif ne s’est pas synchronisé depuis {minutes} min."
+        },
+        "carrier_stuck": {
+          "label": "Statuts refusés par Ordra",
+          "help": "Un problème s’ouvre quand un transporteur envoie un statut qu’Ordra ne connaît pas ou refuse ; il se ferme après {hours} h sans nouveau cas."
+        },
+        "carrier_inactive": {
+          "label": "Transporteur coupé avec des colis dehors",
+          "help": "Signale les colis restés chez un transporteur désactivé, et compte ceux sans nouvelles depuis {stale_days} jours."
+        },
+        "upload_failing": {
+          "label": "Envois refusés",
+          "help": "Un problème s’ouvre après {count} envois refusés en {minutes} min, pour un même transporteur et un même motif."
+        },
+        "external_failing": {
+          "label": "Service extérieur en échec",
+          "help": "Un problème s’ouvre quand Darb, Navex, Meta ou WhatsApp répond {count} fois par une erreur en {minutes} min."
+        },
+        "whatsapp_down": {
+          "label": "Numéro WhatsApp coupé",
+          "help": "Un problème s’ouvre dès que Meta met le numéro en pause ou lui retire son accès."
+        },
+        "import_rows": {
+          "label": "Lignes d’import refusées",
+          "help": "Un problème s’ouvre quand des lignes d’une feuille restent refusées plus de {hours} h."
+        },
+        "ads_no_orders": {
+          "label": "Publicité sans commandes",
+          "help": "Un problème s’ouvre quand la publicité dépense mais qu’aucune commande n’arrive depuis {hours} h."
+        },
+        "job_failing": {
+          "label": "Tâche en échec",
+          "help": "Un problème s’ouvre après {failures} échecs d’affilée d’une même tâche."
+        },
+        "job_hanging": {
+          "label": "Tâche bloquée",
+          "help": "Un problème s’ouvre quand une tâche reste bloquée {count} fois en {days} jours, même si les autres passages réussissent."
+        },
+        "server_error": {
+          "label": "Erreur du serveur Ordra",
+          "help": "Un problème s’ouvre quand la même erreur revient {count} fois en {hours} h."
+        },
+        "browser_error": {
+          "label": "Page qui plante",
+          "help": "Un problème s’ouvre quand une page plante {count} fois, ou chez {users} personnes, en {hours} h."
+        },
+        "login_failures": {
+          "label": "Mots de passe refusés",
+          "help": "Un problème s’ouvre après {count} mots de passe faux sur un même compte en {minutes} min."
+        },
+        "large_export": {
+          "label": "Gros export",
+          "help": "Signale tout export de plus de {rows} lignes."
+        }
+      }
     }
   },
   "journaux": {
@@ -8090,7 +8854,14 @@
     "sections": {
       "toFix": "À régler",
       "systems": "Systèmes",
-      "muted": "En sourdine"
+      "muted": "En sourdine",
+      "now": "À régler maintenant",
+      "watch": "À surveiller",
+      "calm": "{n, plural, one {# système sans problème} other {# systèmes sans problème}}",
+      "hideCalm": "Masquer",
+      "more": "{n, plural, one {Voir # problème de plus} other {Voir # problèmes de plus}}",
+      "mutedToggle": "{n, plural, one {# problème en sourdine} other {# problèmes en sourdine}}",
+      "warnSystems": "{n, plural, one {# système à vérifier} other {# systèmes à vérifier}}"
     },
     "common": {
       "close": "Fermer",
@@ -8133,7 +8904,8 @@
         "what": "Cette tâche tourne seule en arrière-plan. Depuis le {since}, elle s’arrête sur une erreur à chaque passage : ce qu’elle devait faire ne se fait plus.",
         "todo1": "Lire l’erreur sous « Détails techniques ».",
         "todo2": "Corriger sa cause (souvent un réglage ou un accès).",
-        "todo3": "Au premier passage réussi, le problème se ferme seul."
+        "todo3": "Au premier passage réussi, le problème se ferme seul.",
+        "fold": "{n} tâches automatiques échouent"
       },
       "connection_silent": {
         "title": "{name} ne se synchronise plus",
@@ -8141,7 +8913,8 @@
         "impact": "sans nouvelles",
         "what": "Ce compte se synchronise d’habitude toutes les 10 minutes. Rien n’est arrivé depuis {last} : les statuts des colis ne bougent plus.",
         "todo1": "Vérifier les identifiants du transporteur dans Réglages.",
-        "todo2": "Le problème se ferme seul à la prochaine synchronisation réussie."
+        "todo2": "Le problème se ferme seul à la prochaine synchronisation réussie.",
+        "fold": "{n} comptes Darb ne se synchronisent plus"
       },
       "carrier_inactive": {
         "title": "{name} est désactivé, {n, plural, one {# colis encore dehors} other {# colis encore dehors}}",
@@ -8152,7 +8925,8 @@
         "noNews": "sans aucune nouvelle depuis 7 jours",
         "value": "de valeur",
         "todo1": "Si c’était voulu : continuer de suivre les colis déjà partis.",
-        "todo2": "Sinon : réactiver le compte dans Réglages › Livraison."
+        "todo2": "Sinon : réactiver le compte dans Réglages › Livraison.",
+        "fold": "{n} transporteurs coupés ont encore des colis"
       },
       "carrier_stuck": {
         "title": "{name} : {n, plural, one {# colis bloqué} other {# colis bloqués}}",
@@ -8165,7 +8939,8 @@
         "refused": "« {to} » refusé depuis « {from} »",
         "parcels": "{n, plural, one {# colis} other {# colis}}",
         "todo1": "Faire reconnaître les statuts inconnus et accepter les transitions refusées.",
-        "todo2": "Au passage suivant, les colis se soldent et le problème se ferme."
+        "todo2": "Au passage suivant, les colis se soldent et le problème se ferme.",
+        "fold": "{n} transporteurs envoient des statuts refusés"
       },
       "import_rows": {
         "title": "{name} : {n, plural, one {# ligne refusée} other {# lignes refusées}} à l’import",
@@ -8173,7 +8948,8 @@
         "impact": "commandes jamais importées",
         "what": "Ces lignes de la feuille n’ont pas pu devenir des commandes. Ordra les a refusées une fois et ne les a jamais retentées.",
         "todo1": "Corriger les lignes dans la feuille source.",
-        "todo2": "Relancer l’import depuis Réglages › Boutiques."
+        "todo2": "Relancer l’import depuis Réglages › Boutiques.",
+        "fold": "{n} boutiques ont des lignes refusées"
       },
       "upload_failing": {
         "title": "Envois chez {system} refusés en série",
@@ -8181,14 +8957,16 @@
         "impact": "refus en 1 h",
         "what": "Le transporteur refuse les commandes qu’on lui envoie. Elles restent « Confirmées » : rien n’est perdu, mais rien ne part.",
         "todo1": "Lire le motif du refus sous « Détails techniques ».",
-        "todo2": "Corriger puis renvoyer : l’essai suivant apparaît dans l’Historique."
+        "todo2": "Corriger puis renvoyer : l’essai suivant apparaît dans l’Historique.",
+        "fold": "{n} séries d’envois refusés"
       },
       "whatsapp_down": {
         "title": "WhatsApp est {status, select, paused {en pause} other {déconnecté}}",
         "line": "Aucun message ne part tant que le numéro n’est pas rétabli.",
         "impact": "numéro",
         "what": "Meta a {status, select, paused {mis le numéro en pause} other {refusé le jeton d’accès}}. Raison donnée : {reason}",
-        "todo1": "Ouvrir Réglages › WhatsApp et refaire le test de connexion."
+        "todo1": "Ouvrir Réglages › WhatsApp et refaire le test de connexion.",
+        "fold": "{n} numéros WhatsApp coupés"
       },
       "ads_no_orders": {
         "title": "{market} : la publicité tourne, aucune commande depuis {hours} h",
@@ -8196,7 +8974,8 @@
         "impact": "dépensés depuis hier",
         "what": "Meta dépense pour ce marché, mais aucune commande n’est arrivée depuis {hours} heures.",
         "todo1": "Vérifier la tuile de la boutique et ses imports.",
-        "todo2": "Si la boutique est en pause, couper aussi la publicité."
+        "todo2": "Si la boutique est en pause, couper aussi la publicité.",
+        "fold": "{n} marchés dépensent sans commandes"
       },
       "server_error": {
         "title": "Erreur serveur répétée · {area} : {verb}",
@@ -8204,7 +8983,8 @@
         "impact": "erreurs en 24 h",
         "what": "Cette action d’Ordra échoue chez nous, pas chez l’utilisateur : le serveur répond par une erreur à chaque essai.",
         "todo1": "Transmettre les détails techniques à l’équipe technique.",
-        "todo2": "Le problème se ferme seul après 24 heures sans erreur."
+        "todo2": "Le problème se ferme seul après 24 heures sans erreur.",
+        "fold": "{n} erreurs du serveur se répètent"
       },
       "login_failures": {
         "title": "{n, plural, one {# échec de connexion} other {# échecs de connexion}} sur {account}",
@@ -8212,14 +8992,43 @@
         "impact": "essais",
         "what": "Quelqu’un essaie d’entrer sur ce compte avec un mauvais mot de passe.",
         "todo1": "Demander à la personne si c’était elle.",
-        "todo2": "Sinon, réinitialiser son mot de passe dans Accès."
+        "todo2": "Sinon, réinitialiser son mot de passe dans Accès.",
+        "fold": "{n} comptes reçoivent de mauvais mots de passe"
       },
       "large_export": {
         "title": "Export de {rows} lignes par {actor}",
         "line": "Un export de cette taille sort des données de clients d’Ordra.",
         "impact": "lignes",
         "what": "Les exports de plus de 1 000 lignes sont signalés pendant 24 heures.",
-        "todo1": "Vérifier que l’export était prévu."
+        "todo1": "Vérifier que l’export était prévu.",
+        "fold": "{n} gros exports"
+      },
+      "external_failing": {
+        "title": "{name} : {n, plural, one {# appel échoué} other {# appels échoués}} en 1 h",
+        "line": "{reason}",
+        "impact": "échecs en 1 h",
+        "what": "Ordra parle à {name} en arrière-plan. Depuis une heure, {name} répond par une erreur.",
+        "todo1": "Ouvrir la carte du service dans Aperçu pour voir depuis quand il échoue.",
+        "todo2": "Le problème se ferme seul après une heure sans échec.",
+        "fold": "{n} services extérieurs en échec"
+      },
+      "browser_error": {
+        "title": "La page {page} plante",
+        "line": "{reason}",
+        "impact": "plantages en 24 h",
+        "what": "Cette page s’est arrêtée dans le navigateur de {users, plural, one {# personne} other {# personnes}}. Elle a vu l’écran « Cette page a rencontré un problème ».",
+        "todo1": "Demander à la personne ce qu’elle faisait juste avant : c’est souvent la clé.",
+        "todo2": "Le problème se ferme seul après 24 heures sans plantage.",
+        "fold": "{n} pages plantent"
+      },
+      "job_hanging": {
+        "title": "« {job} » reste bloqué",
+        "line": "{n, plural, one {# passage abandonné} other {# passages abandonnés}} en 7 jours : il ne finit pas et s’arrête au bout de 30 minutes.",
+        "impact": "blocages en 7 jours",
+        "what": "Cette tâche démarre normalement mais ne se termine pas. Les autres passages réussissent, c’est pourquoi rien ne l’avait signalé : le travail de ces passages-là n’est pas fait.",
+        "todo1": "Regarder l’heure des blocages : s’ils tombent toujours à la même heure, une autre tâche lourde tourne en même temps.",
+        "todo2": "Le problème se ferme seul après 7 jours sans blocage.",
+        "fold": "{n} tâches automatiques restent bloquées"
       }
     },
     "tiles": {
@@ -8327,7 +9136,12 @@
         "other": "{count, plural, one {Commande {ref}} other {# commandes}} : {status}",
         "upload_failed": "Envoi chez {carrier} refusé",
         "void_failed": "Annulation chez {carrier} refusée",
-        "call_failed": "Appel à {carrier} en échec"
+        "call_failed": "Appel à {carrier} en échec",
+        "sync_failed": "Synchronisation avec {carrier} en échec",
+        "poll_failed": "Suivi chez {carrier} en échec",
+        "read_failed": "Lecture chez {carrier} en échec",
+        "send_failed": "Envoi par {carrier} en échec",
+        "stock_read_failed": "Lecture du stock chez {carrier} en échec"
       },
       "delivery": {
         "call_customer": "{actor} a appelé {count, plural, one {le client} other {# clients}}",
@@ -8480,7 +9294,8 @@
       },
       "app": {
         "error": "Erreur serveur · {area} : {verb}",
-        "sub": "{n, plural, one {# fois} other {# fois}} · code {status}"
+        "sub": "{n, plural, one {# fois} other {# fois}} · code {status}",
+        "browser": "Une page a planté · {page}"
       },
       "issue": {
         "opened": "Problème ouvert · {title}",
@@ -8730,9 +9545,108 @@
       "team_shift_overrides": "Horaires par agent",
       "carrier_delivery_target_pct": "Objectif de livraison",
       "carrier_late_days": "Colis en retard"
+    },
+    "explain": {
+      "cause": {
+        "bad_value": {
+          "why": "Ordra a envoyé à la base une valeur vide ou mal formée — le plus souvent un identifiant que l’écran n’a pas fourni (un marché, une commande).",
+          "fix": "Repérer l’écran qui déclenche l’erreur : il appelle Ordra sans choisir ce qu’il faut. C’est un correctif de code."
+        },
+        "duplicate": {
+          "why": "Ordra a voulu créer quelque chose qui existe déjà (même référence, même numéro).",
+          "fix": "Vérifier si l’élément existe déjà. Si l’action se répète seule, c’est un double envoi à corriger."
+        },
+        "missing_link": {
+          "why": "L’action pointe vers un élément qui n’existe pas ou plus : supprimé, ou d’un autre marché.",
+          "fix": "Retrouver l’élément dans « Détails techniques » et vérifier qu’il n’a pas été supprimé."
+        },
+        "missing_field": {
+          "why": "Une information obligatoire manquait au moment d’enregistrer.",
+          "fix": "Compléter l’information. Si l’écran ne la demande pas, c’est un correctif de code."
+        },
+        "rule_check": {
+          "why": "La base a refusé une valeur qui ne respecte pas une règle d’Ordra (statut, motif ou montant hors limites).",
+          "fix": "Lire la règle refusée dans « Détails techniques » : souvent un statut ou un motif que le code ne connaît pas encore."
+        },
+        "no_permission": {
+          "why": "La personne, ou le serveur, n’a pas le droit de faire cette action ici.",
+          "fix": "Vérifier le rôle et le marché de la personne dans Accès. Si son rôle devrait suffire, un droit manque côté base."
+        },
+        "schema_mismatch": {
+          "why": "Le code d’Ordra attend une colonne, une table ou une fonction que la base n’a pas encore : une mise à jour SQL n’a pas été appliquée en production.",
+          "fix": "Coller la migration SQL manquante dans Supabase (celle de la dernière mise en ligne). L’erreur s’arrête aussitôt."
+        },
+        "db_slow": {
+          "why": "La requête a pris trop de temps et la base l’a arrêtée.",
+          "fix": "Si cela se répète, la requête doit être optimisée (index manquant, ou trop de lignes lues)."
+        },
+        "conflict": {
+          "why": "Deux actions ont modifié la même chose au même instant ; la base en a annulé une.",
+          "fix": "Réessayer suffit en général. Si c’est fréquent, deux tâches se marchent dessus."
+        },
+        "no_row": {
+          "why": "Ordra cherchait exactement un élément et en a trouvé zéro, ou plusieurs.",
+          "fix": "L’élément a peut-être été supprimé ou dupliqué : vérifier dans « Détails techniques »."
+        },
+        "business_rule": {
+          "why": "Une règle métier d’Ordra a refusé l’action (par exemple stock insuffisant ou statut interdit).",
+          "fix": "Lire le message exact dans « Détails techniques » : il dit quelle règle bloque."
+        },
+        "db_unreachable": {
+          "why": "Le serveur n’a pas pu joindre la base de données (coupure réseau ou base saturée).",
+          "fix": "Vérifier l’état de Supabase. Si c’est passager, cela se règle seul."
+        },
+        "db_other": {
+          "why": "La base a renvoyé une erreur peu courante.",
+          "fix": "Transmettre le code et le message de « Détails techniques » à l’équipe technique."
+        },
+        "ext_timeout": {
+          "why": "{target} n’a pas répondu à temps.",
+          "fix": "Souvent passager chez {target}. Si cela dure plus d’une heure, contacter leur support."
+        },
+        "ext_credentials": {
+          "why": "{target} refuse nos identifiants : la clé a expiré, a été changée ou n’a plus les droits.",
+          "fix": "Renouveler la clé de {target} dans Réglages, puis tester la connexion."
+        },
+        "ext_rate_limit": {
+          "why": "Ordra envoie trop de demandes à {target}, qui le freine.",
+          "fix": "Attendre : cela repart seul. Si c’est permanent, espacer les synchronisations."
+        },
+        "ext_not_found": {
+          "why": "{target} ne trouve pas ce qu’Ordra demande (colis, compte ou adresse d’API inconnus).",
+          "fix": "Vérifier le numéro de suivi, ou l’adresse d’API configurée pour {target}."
+        },
+        "ext_refused": {
+          "why": "{target} a refusé les données envoyées (champ manquant ou format invalide).",
+          "fix": "Lire la réponse de {target} dans « Détails techniques » : elle dit quel champ corriger."
+        },
+        "ext_down": {
+          "why": "{target} est en panne ou a une erreur de son côté.",
+          "fix": "Rien à corriger chez nous. Attendre, et prévenir {target} si cela dure."
+        },
+        "ext_network": {
+          "why": "Le serveur n’a pas pu joindre {target} (adresse introuvable ou connexion coupée).",
+          "fix": "Vérifier l’adresse d’API de {target}. Si elle est bonne, c’est une coupure passagère."
+        },
+        "code_missing_data": {
+          "why": "Le code d’Ordra a lu une donnée absente : une valeur vide là où il attendait quelque chose.",
+          "fix": "Correctif de code : transmettre le fichier et la ligne de « Détails techniques » à l’équipe technique."
+        },
+        "code_bug": {
+          "why": "Une erreur dans le code d’Ordra a interrompu l’action.",
+          "fix": "Transmettre le message de « Détails techniques » à l’équipe technique."
+        },
+        "unknown": {
+          "why": "Ordra ne sait pas pourquoi : ces erreurs ont été enregistrées avant le suivi des causes.",
+          "fix": "Les prochaines occurrences diront leur cause. Revenir ici à la prochaine."
+        }
+      },
+      "why": "Pourquoi",
+      "fix": "Que faire"
     }
   },
   "carrierScorecard": {
+    "crumbLabel": "Fil d'Ariane",
     "title": "Transporteurs",
     "sync": "Synchro il y a {age}",
     "syncNever": "Pas encore synchronisé",
@@ -9062,10 +9976,6 @@
       "allOrders": "Toutes les commandes",
       "nProducts": "{n} produits",
       "nAgents": "{n} agents",
-      "chooseProducts": "Choisir des produits",
-      "chooseAgents": "Choisir des agents",
-      "edit": "Modifier",
-      "cmpNo": "Non",
       "cmpP": "Autres produits",
       "cmpA": "Autres agents",
       "cmpD": "Autres dates",
@@ -9087,7 +9997,14 @@
       "agRow": "{nf} traitées · {del} livrées sur 100",
       "agRowFew": "{nf} traitées · trop peu pour comparer",
       "clear": "Effacer",
-      "ok": "OK"
+      "ok": "OK",
+      "cmpHintP": "Mêmes dates, d’autres produits",
+      "cmpHintA": "Mêmes dates, d’autres agents",
+      "cmpHintD": "Même sélection, d’autres dates",
+      "vs": "contre",
+      "stopCmp": "Arrêter la comparaison",
+      "stop": "Arrêter",
+      "clearOne": "Retirer ce filtre : {f}"
     },
     "o": {
       "del": "Livrées",
@@ -9118,25 +10035,23 @@
       "prev": "{prev} : {v}"
     },
     "hero": {
-      "tooFew": "{n, plural, one {{nf} commande reçue} other {{nf} commandes reçues}} sur cette période — trop peu pour parler « sur 100 ». Voir « À regarder » ci-dessous.",
+      "tooFew": "{n, plural, one {{nf} commande reçue} other {{nf} commandes reçues}} sur cette période — trop peu pour juger. Voir « À regarder » ci-dessous.",
       "none": "Aucune commande reçue sur cette période. Voir « À regarder » ci-dessous.",
-      "hlAll": "Sur 100 commandes reçues{by}, <em>{del} arrivent</em> chez le client.",
-      "hlSel": "Sur 100 commandes « {p} »{by}, <em>{del} arrivent</em> chez le client.",
+      "hlAll": "Sur {n} commandes reçues{by}, <em>{del} arrivent</em> chez le client.",
+      "hlSel": "Sur {n} commandes « {p} »{by}, <em>{del} arrivent</em> chez le client.",
       "by": " traitées par {a}",
       "versus": "contre {prev}",
       "versusN": "contre {prev} ({nf} commandes)",
       "bLine": "B · {label} : {del} sur 100",
-      "subDel": "{nf} commandes",
-      "subRet": "{nf} colis · {pct} des uploadées",
-      "subRej": "{nf} · dont {autre} « Autre »",
-      "subJunk": "{nf} · pas commandé, doublon…",
-      "pend": "{n} en cours",
-      "pendWhat": "— en appel, à uploader ou en route",
-      "waffle": "Sur 100 commandes reçues : {list}",
-      "cell": "{o} · {n} sur 100",
-      "cellB": "B · {o} · {n} sur 100",
       "stTip": "{o} = {def}",
-      "bFew": "{nf} commandes — trop peu."
+      "bFew": "{nf} commandes — trop peu.",
+      "rows": "Ce que sont devenues les commandes",
+      "hDel": "arrivées chez le client",
+      "hRet": "{pct} des uploadées",
+      "hRej": "dont {autre} « Autre »",
+      "hJunk": "pas commandé, doublon…",
+      "hPend": "en appel, à uploader ou en route",
+      "bVs": "B : {n} sur 100"
     },
     "money": {
       "title": "L’argent",
@@ -9408,18 +10323,17 @@
     },
     "ov": {
       "empty": "Aucune commande attribuée sur cette période.",
-      "subDel": "{n, plural, one {{nf} commande} other {{nf} commandes}}",
-      "subRet": "{n} colis · {pct} des colis partis",
-      "subRej": "{n} · dont {autre} « Autre »",
-      "subJunk": "{n} · pas commandé, doublon…",
-      "cellTip": "{label} · {n} sur 100",
-      "aria": "Sur 100 commandes : {list}",
-      "title": "Sur 100 commandes attribuées",
+      "title": "Ce que sont devenues les commandes",
       "meta": "{n} commandes · {range}",
-      "pend": "{n} en cours",
-      "pendWhere": "— dans leur file ou en route",
       "arrows": "flèches : contre {prev}",
-      "young": "Les colis de moins de 14 jours ne sont pas tous revenus : « Retournées » va encore monter. Tendance masquée."
+      "young": "Les colis de moins de 14 jours ne sont pas tous revenus : « Retournées » va encore monter. Tendance masquée.",
+      "lede": "Sur {n} commandes attribuées, <b>{d} ont été livrées</b>.",
+      "versus": "contre {prev}",
+      "hDel": "colis remis au client",
+      "hRet": "{pct} des colis partis",
+      "hRej": "dont {autre} « Autre »",
+      "hJunk": "pas commandé, doublon…",
+      "hPend": "dans leur file ou en route"
     },
     "rank": {
       "title": "Classement",
@@ -9440,7 +10354,8 @@
       "leak": "Sa plus grosse fuite",
       "noLeak": "Rien au-dessus des autres",
       "open": "Ses 3 fuites",
-      "close": "Fermer"
+      "close": "Fermer",
+      "ringSub": "livrées · {pct}"
     },
     "leak": {
       "autre": "Motif « Autre »",
@@ -9566,38 +10481,33 @@
   "home": {
     "head": {
       "hello": "Bonjour {name}",
-      "subToday": "{market} · <b>aujourd’hui</b>, {date} · jusqu’à {time}",
-      "subRange": "{market} · commandes reçues du <b>{from}</b> au <b>{to}</b>",
-      "final": "{pct} ont leur issue finale",
-      "finalTip": "Part des commandes dont l’issue est connue (livrée, retournée, rejetée, jamais réelle). Le reste est encore en appel ou en route : ces chiffres bougeront encore.",
-      "cmpNone": "Rien à comparer avant le {first}",
-      "cmpToday": "Flèches : comparé à hier, jusqu’à {time}",
-      "cmpLine": "Flèches : comparé {prev}, au même âge · {range}",
+      "live": "À jour · {time}",
+      "stale": "Mis à jour il y a {n} min · Actualiser",
       "loading": "Chargement…",
-      "error": "Impossible de charger les chiffres. Réessayez dans un instant."
+      "error": "Impossible de charger les chiffres. Réessayez dans un instant.",
+      "doorOrders": "Commandes",
+      "doorTeam": "Équipe",
+      "doorDelivery": "Livraison",
+      "until": "jusqu’à {time}"
     },
     "period": {
       "today": "Aujourd’hui",
+      "yesterday": "Hier",
       "7d": "7 derniers jours",
       "30d": "30 derniers jours",
       "90d": "3 derniers mois",
       "month": "Ce mois-ci",
       "monthYear": "{month} {year}",
       "days": "{n, plural, one {# jour} other {# jours}}",
-      "todayRange": "{day} · jusqu’à {time}",
-      "prevDays": "aux {n} jours d’avant",
-      "prevMonth": "à {month}",
-      "prevMonthStart": "au même début de {month}",
       "nameDays": "les {n} jours d’avant",
-      "nameMonth": "{month}",
-      "nameMonthStart": "le même début de {month}",
-      "nameYesterday": "hier à la même heure",
-      "sameAge": "{prev}, au même âge (tels qu’ils étaient le {day})"
+      "nameMonth": "en {month}",
+      "nameMonthStart": "au même début de {month}"
     },
     "dp": {
       "dialog": "Choisir les dates",
       "quick": "Raccourcis",
       "months": "Mois entiers",
+      "custom": "Choisir des dates…",
       "sinceFirst": "depuis le {day}",
       "footRange": "<b>{range}</b> · {n, plural, one {# jour} other {# jours}}",
       "footArrows": "Les flèches compareront aux {n} jours d’avant",
@@ -9609,105 +10519,86 @@
       "nextMonth": "Mois suivant",
       "weekdays": "L,M,M,J,V,S,D"
     },
-    "trend": {
-      "stable": "Stable · {prev} : {v}",
-      "pts": "{prev} : {v} %",
-      "val": "{prev} : {v}"
+    "kpi": {
+      "orders": "Commandes reçues",
+      "ca": "Chiffre d’affaires",
+      "caTip": "Valeur des commandes reçues (prix de la commande). Encaissé = livré et payé.",
+      "yesterday": "Hier",
+      "before": "Avant",
+      "paid": "dont encaissé",
+      "inProgress": "en cours",
+      "tip": "{label} : {v}",
+      "sparkTip": "{label} · {v}",
+      "normal": "Rythme normal",
+      "low": "En dessous",
+      "none": "Presque rien",
+      "high": "Au-dessus",
+      "early": "Trop tôt pour juger"
     },
-    "all": {
-      "emptyToday": "Aucune commande reçue en {market} aujourd’hui",
-      "emptyRange": "Aucune commande reçue en {market} du {from} au {to}",
-      "emptyLast": "La dernière commande date du {day} ({store}) · ",
-      "emptyHint": "les boutiques sont connectées, rien n’arrive",
-      "eyebrow": "Commandes reçues",
-      "colFuture": "{label} · à venir",
-      "hour": "{h}h",
-      "doorOrders": "Commandes",
-      "doorTeam": "Équipe",
-      "doorDelivery": "Livraison",
-      "curveRange": "Commandes reçues, jour par jour",
-      "curveToday": "Commandes reçues, heure par heure",
-      "perDay": "≈ {n} par jour",
-      "pointTip": "{label} · {n, plural, one {# commande} other {# commandes}}",
-      "chartWeeks": "Commandes reçues, semaine par semaine",
-      "avg": "moy. {n}",
-      "weekTip": "Du {from} au {to} · {n, plural, one {# commande} other {# commandes}}",
-      "avgTip": "Moyenne : {n} par {unit}",
-      "unitDay": "jour",
-      "unitWeek": "semaine",
-      "unitHour": "heure"
-    },
-    "tile": {
-      "confirmed": "Confirmées",
-      "confirmedSub": "uploadées sur les décidées",
-      "toCall": "À appeler",
-      "toCallSub": "reçues aujourd’hui, pas encore décidées",
-      "rejected": "Rejetées",
-      "paid": "Chiffre d’affaires encaissé",
-      "paidSub": "pour {n} commandes livrées",
-      "profit": "Profit net",
-      "why": "Comment on arrive à ce chiffre"
-    },
-    "profit": {
-      "dialog": "Le calcul du profit",
-      "title": "Le profit net, ligne par ligne",
-      "paid": "Chiffre d’affaires encaissé",
-      "paidSub": "{n} commandes livrées",
-      "cogs": "− Coût des produits",
-      "cogsSub": "achat des articles livrés",
-      "carrier": "− Livraison",
-      "carrierFree": "à la facture, par colis livré · un colis échoué ne coûte rien",
-      "carrierRet": "à la facture, par colis livré · un retour coûte son frais de retour",
-      "packing": "− Emballage",
-      "packingSub": "{n} colis partis",
-      "processing": "− Traitement",
-      "processingSub": "par commande confirmée",
-      "ads": "− Publicité",
-      "adsSub": "toutes les campagnes du marché, jour par jour",
-      "total": "= Profit net",
-      "note": "Commandes <b>reçues</b> du {from} au {to}, suivies jusqu’à aujourd’hui — les mêmes règles que <b>Produits & marges</b>. Pas de profit par boutique : la pub est rattachée aux produits, pas encore aux boutiques.",
-      "open": "Ouvrir le P&L de la période"
+    "brk": {
+      "store": "Boutique",
+      "orders": "Commandes",
+      "ca": "CA",
+      "others": "{n} autres",
+      "none": "aucune commande",
+      "aria": "Commandes par boutique : {list}"
     },
     "stores": {
       "title": "Vos boutiques",
-      "meta": "cliquez une boutique pour voir sa performance"
-    },
-    "o": {
-      "del": "Livrées",
-      "ret": "Retournées",
-      "rej": "Rejetées",
-      "junk": "Jamais réelles",
-      "pend": "En cours"
+      "meta": "Cliquez une boutique pour voir ses commandes",
+      "metaPhone": "Touchez une boutique pour son détail",
+      "cards": "Cartes",
+      "list": "Liste",
+      "silent": "{n, plural, one {# boutique} other {# boutiques}} sans commande sur la période",
+      "show": "Voir",
+      "hide": "Masquer",
+      "silentLast": "dernière {ago}",
+      "silentNever": "aucune commande, jamais",
+      "connect": "Connecter une boutique",
+      "perf": "Voir ses commandes",
+      "close": "Fermer",
+      "open": "{name} — voir ses commandes"
     },
     "card": {
-      "aria": "{name} — ouvrir sa performance",
-      "confirmed": "Confirmées",
-      "paid": "CA encaissé",
-      "toCall": "À appeler",
-      "viaSheets": "{platform} · reçue via une feuille Google Sheets",
-      "freshTip": "Dernière commande reçue {at}",
-      "atToday": "aujourd’hui à {time}",
-      "atDay": "le {day} à {time}",
-      "agoMin": "il y a {n} min",
-      "agoH": "il y a {n} h",
-      "agoYesterday": "hier à {time}",
-      "agoD": "il y a {n} j",
-      "agoDay": "le {day}",
-      "none": "aucune commande",
       "received": "{n, plural, one {commande reçue} other {commandes reçues}}",
-      "share": "{pct} du total",
       "ringL": "livrées",
-      "ringTip": "{o} · {n} ({pct})",
-      "earlyL": "Trop tôt pour juger",
-      "earlyH": "jugée à 30 commandes",
-      "confirmedSub": "des décidées",
-      "returned": "Retournées",
-      "returnedSub": "colis revenus",
-      "rejected": "Rejetées",
-      "rejectedSub": "au téléphone",
-      "paidSub": "{n} livrées",
-      "toCallSub": "en attente",
-      "hoursL": "Heure par heure"
+      "early": "Trop tôt",
+      "earlyS": "jugée dès 30",
+      "conf": "Confirmées",
+      "ret": "Retournées",
+      "paid": "Encaissé",
+      "rej": "Rejetées",
+      "call": "À appeler",
+      "wait": "En attente",
+      "tried": "Tentatives",
+      "up": "Téléchargées",
+      "gap": "{n, plural, one {+ # confirmée, pas encore téléchargée} other {+ # confirmées, pas encore téléchargées}}",
+      "viaSheets": "via Google Sheets",
+      "freshTip": "Dernière commande reçue {at}",
+      "ringTip": "{n} {o} · {pct}"
+    },
+    "pace": {
+      "normal": "normal",
+      "low": "calme",
+      "none": "à l’arrêt",
+      "high": "en hausse"
+    },
+    "ago": {
+      "min": "il y a {n} min",
+      "h": "il y a {n} h",
+      "yesterday": "hier à {time}",
+      "d": "il y a {n} j",
+      "day": "le {day}",
+      "never": "jamais",
+      "today": "aujourd’hui à {time}"
+    },
+    "o": {
+      "del": "livrées",
+      "route": "en route",
+      "ret": "retournées",
+      "rej": "rejetées",
+      "junk": "jamais réelles",
+      "call": "en appel"
     },
     "platform": {
       "converty": "Converty",
@@ -9721,17 +10612,17 @@
       "other": "Autre"
     },
     "note": {
-      "broken": "En panne depuis {time}",
-      "brokenDay": "En panne depuis le {day}",
+      "broken": "Connexion en panne depuis {time}",
+      "brokenDay": "Connexion en panne depuis le {day}",
       "brokenNoTime": "Connexion en panne",
-      "brokenSub": "{n, plural, one {# échec} other {# échecs}} depuis la dernière réussite",
-      "brokenAct": "Voir",
+      "brokenSub": "{n, plural, one {# synchronisation échouée} other {# synchronisations échouées}}",
       "stopped": "Presque plus rien depuis le {day}",
       "stoppedSub": "{recent} en {days} j · d’habitude ≈ {usual} par jour",
       "stoppedAds": " · pub à l’arrêt",
       "unmapped": "{n, plural, one {# commande à relier} other {# commandes à relier}}",
       "unmappedSub": "produits {platform} inconnus d’Ordra",
-      "unmappedAct": "Relier",
+      "waiting": "En attente de sa première commande",
+      "waitingSub": "connectée {when}",
       "todayOk": "Rien à signaler",
       "todayOkSub": "dernière commande {ago}",
       "new": "Nouvelle boutique",
@@ -9741,18 +10632,14 @@
       "best": "Meilleure livraison des boutiques",
       "below": "Livre moins bien que les autres",
       "ok": "Rien à signaler",
-      "vsMarket": "{del} % livrées · {mkt} % pour l’ensemble"
+      "vsMarket": "{del} livrées · {mkt} pour l’ensemble",
+      "ca": "Chiffre d’affaires · {v}",
+      "caPaid": "dont encaissé {v}",
+      "caSub": "{n, plural, one {sur # commande reçue} other {sur # commandes reçues}}"
     },
-    "out": {
-      "title": "Ce que sont devenues les commandes",
-      "item": "{n} {o} ({pct})"
-    },
-    "ol": {
-      "del": "livrées",
-      "ret": "retournées",
-      "rej": "rejetées",
-      "junk": "jamais réelles",
-      "pend": "en cours"
+    "empty": {
+      "wait": "« {store} » attend sa première commande",
+      "waitSub": "connectée {when}. Les commandes apparaîtront ici dès la première."
     }
   },
   "commandes": {
@@ -10172,7 +11059,9 @@
       "retry": "Sans réponse",
       "campaign": "Campagne",
       "winback": "Retours",
-      "converted": "Convertis"
+      "converted": "Convertis",
+      "recover": "Rejets",
+      "rebuy": "Anciens clients"
     },
     "act": {
       "hot": "Appeler",
@@ -10180,7 +11069,9 @@
       "retry": "Réessayer",
       "campaign": "Appeler avec le script",
       "winback": "Proposer le renvoi",
-      "converted": "Voir la commande"
+      "converted": "Voir la commande",
+      "recover": "Rappeler",
+      "rebuy": "Proposer"
     },
     "next": {
       "hot": "Appeler maintenant",
@@ -10188,7 +11079,9 @@
       "retry": "Nouvel essai",
       "campaign": "Appeler avec le script",
       "winback": "Proposer le renvoi sans frais",
-      "converted": "Rien à faire"
+      "converted": "Rien à faire",
+      "recover": "Rappeler : la commande peut encore se faire",
+      "rebuy": "Proposer un autre produit"
     },
     "search": "Rechercher par nom, numéro ou produit…",
     "searchPhone": "Nom, numéro ou produit…",
@@ -10215,7 +11108,9 @@
       "campaign": "Campagne",
       "winback": "Retour à récupérer",
       "won": "Commande #{ref}",
-      "wonNoRef": "Convertie"
+      "wonNoRef": "Convertie",
+      "recover": "Rejet à rattraper",
+      "rebuy": "Ancien client"
     },
     "line": {
       "replied": "a répondu il y a {age}",
@@ -10225,7 +11120,9 @@
       "sentDays": "envoyé il y a {d} j",
       "winback": "retourné · {why}",
       "winbackNoWhy": "retourné",
-      "won": "convertie il y a {age}"
+      "won": "convertie il y a {age}",
+      "recover": "rejeté il y a quelques jours · à rappeler",
+      "rebuy": "livré, n'a jamais recommandé"
     },
     "risk": "Risque",
     "whatsapp": "Envoyer sur WhatsApp",
@@ -10241,7 +11138,9 @@
       "tiktok_comment": "TikTok",
       "campaign": "Campagne",
       "winback": "Retour",
-      "manual_call": "Saisi à la main"
+      "manual_call": "Saisi à la main",
+      "rejected_order": "Rejet",
+      "repeat_buyer": "Ancien client"
     },
     "detail": {
       "created": "créé {when}",
@@ -10284,7 +11183,9 @@
       "campaign": "Contact de campagne, jamais appelé — le script est plus bas.",
       "winback": "Colis retourné ({why}) — on peut le renvoyer sans frais.",
       "winbackNoWhy": "Colis retourné — on peut le renvoyer sans frais.",
-      "won": "Commande #{ref} créée — elle est dans votre file."
+      "won": "Commande #{ref} créée — elle est dans votre file.",
+      "recover": "Sa commande a été rejetée il y a quelques jours — souvent injoignable ou hésitant. Un appel la rattrape.",
+      "rebuy": "Il a reçu sa commande et n'a jamais recommandé : proposez-lui un autre produit."
     },
     "out": {
       "title": "Résultat de l'appel",
@@ -11538,5 +12439,11 @@
     },
     "claimDone": "Litige résolu",
     "writeError": "L'enregistrement a échoué : {msg}"
+  },
+  "errorScreen": {
+    "title": "Cette page a rencontré un problème",
+    "body": "L’erreur a été signalée automatiquement. Vous pouvez réessayer ; si elle revient, rien n’est perdu de ce qui était déjà enregistré.",
+    "retry": "Réessayer",
+    "home": "Retour à l’accueil"
   }
 }

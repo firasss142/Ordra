@@ -123,4 +123,16 @@ describe("ReturnsDesk", () => {
     expect(screen.getAllByTestId("return-row")).toHaveLength(15);
     expect(screen.getByTestId("pager")).toHaveTextContent("26–40 sur 40");
   });
+
+  // Until the queue arrives the desk knew nothing — it used to say « 0 » and « Aucun colis
+  // n'attend chez Darb » for a second, then 143 parcels replaced the empty state.
+  it("paints placeholders, never a zero or an empty state, while the queue is on its way", async () => {
+    const answered = globalThis.fetch as typeof fetch;
+    vi.stubGlobal("fetch", vi.fn((u: string, init?: RequestInit) => (String(u).startsWith("/api/warehouse/returns") ? new Promise<Response>(() => {}) : answered(u, init))));
+    const { container } = renderDesk();
+    await waitFor(() => expect(screen.getAllByRole("status").length).toBeGreaterThan(0));
+    expect(container.querySelectorAll(".empty")).toHaveLength(0);
+    expect([...container.querySelectorAll(".wt b")].map((b) => b.textContent)).not.toContain("0");
+    expect(container.querySelectorAll(".wt.wait")).toHaveLength(3);
+  });
 });

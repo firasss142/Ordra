@@ -66,12 +66,11 @@ export function useOpenComplaints(enabled: boolean, market?: string | null) {
   return data?.data ?? {};
 }
 
-export interface OverviewQuery {
+export interface VoiceQuery {
   from: string | null;
   to: string | null;
   family: string | null;
   agent: string | null;
-  cat: FeedbackCategory | null;
 }
 
 const qs = (o: Record<string, string | number | null | undefined>) =>
@@ -80,7 +79,7 @@ const qs = (o: Record<string, string | number | null | undefined>) =>
     .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
     .join("&");
 
-export function useFeedbackOverview(q: OverviewQuery, market: string | null | undefined, enabled = true) {
+export function useFeedbackOverview(q: VoiceQuery, market: string | null | undefined, enabled = true) {
   const key = enabled ? withMarket(`/api/feedback/overview?${qs({ ...q })}`, market) : null;
   // Switching a product or the period keeps the numbers on screen while the next ones load —
   // `stale` says they belong to the previous filter, so the page can dim them.
@@ -90,25 +89,18 @@ export function useFeedbackOverview(q: OverviewQuery, market: string | null | un
   return { overview: data?.data ?? null, error, isLoading, stale: isLoading && Boolean(data), mutate };
 }
 
-export interface RowsQuery extends OverviewQuery {
-  topic: string | null;
-  mode: "period" | "review" | "late";
-  limit: number;
-}
-
-export function useFeedbackRows(q: RowsQuery, market: string | null | undefined, enabled = true) {
+/** The sheet: every live row of the period (the page groups and filters the views itself). */
+export function useFeedbackRows(q: VoiceQuery, market: string | null | undefined, enabled = true) {
   const key = enabled ? withMarket(`/api/feedback/rows?${qs({ ...q })}`, market) : null;
-  const { data, error, isLoading, mutate } = useSWR<{ data: FeedbackRowsResponse }>(key, fetcher, {
-    // « Voir n de plus » grows the limit: keep the rows on screen while the longer page loads.
-    keepPreviousData: true,
-  });
+  const { data, error, isLoading, mutate } = useSWR<{ data: FeedbackRowsResponse }>(key, fetcher, { keepPreviousData: true });
   return { rows: data?.data?.rows ?? null, total: data?.data?.total ?? 0, error, isLoading, mutate };
 }
 
-export function useFeedbackDays(from: string | null, to: string | null, family: string | null, market: string | null | undefined) {
-  const key = from && to ? withMarket(`/api/feedback/days?${qs({ from, to, family })}`, market) : null;
-  const { data } = useSWR<{ data: string[] }>(key, fetcher, { ...FRESH, revalidateOnFocus: false });
-  return new Set(Array.isArray(data?.data) ? data.data : []);
+/** One row by id, whatever its date — for a drawer opened on a row the sheet has not loaded. */
+export function useFeedbackRow(id: string | null, market: string | null | undefined) {
+  const key = id ? withMarket(`/api/feedback/rows?id=${encodeURIComponent(id)}`, market) : null;
+  const { data, mutate } = useSWR<{ data: FeedbackRowsResponse }>(key, fetcher, FRESH);
+  return { row: data?.data?.rows?.[0] ?? null, mutate };
 }
 
 // ── writes ──────────────────────────────────────────────────────────────────
@@ -132,6 +124,8 @@ export interface CreateFeedbackInput {
   customer_id?: string | null;
   product_id?: string | null;
   market_id?: string | null;
+  /** « Garder dans Voix du client » from the Messages inbox (managers). */
+  source?: "whatsapp";
 }
 
 export const createFeedback = (input: CreateFeedbackInput) =>
@@ -139,8 +133,17 @@ export const createFeedback = (input: CreateFeedbackInput) =>
 
 export const undoFeedback = (id: string) => send<{ id: string }>(`/api/feedback/${id}`, "DELETE");
 
-export const reviewFeedback = (action: "keep" | "ignore", ids: string[]) =>
-  send<{ count: number }>("/api/feedback/review", "POST", { action, ids });
+/** « Écarter » · « Annuler » (restore) on one row or many. */
+export const discardFeedback = (ids: string[]) => send<{ count: number }>("/api/feedback/bulk", "POST", { action: "discard", ids });
+export const restoreFeedback = (ids: string[]) => send<{ count: number }>("/api/feedback/bulk", "POST", { action: "restore", ids });
+
+/** « Changer la raison » — `topicId` null is « Sans raison ». */
+export const setFeedbackTopic = (ids: string[], topicId: string | null) =>
+  send<{ count: number }>("/api/feedback/bulk", "POST", { action: "topic", ids, topic_id: topicId });
+
+/** « Notre réponse » under a reason; an empty text clears it. */
+export const setTopicResponse = (topicId: string, response: string) =>
+  send<{ id: string; response: string | null }>(`/api/feedback/topics/${topicId}`, "PATCH", { response });
 
 export const setComplaintStatus = (id: string, status: ComplaintStatus) =>
   send<{ id: string }>(`/api/feedback/${id}`, "PATCH", { status });

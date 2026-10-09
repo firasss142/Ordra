@@ -1,135 +1,75 @@
 "use client";
 
-// 1 · the result (waffle + four tiles), the money (owner only), and
+// 1 · the result (a sentence + one bar per outcome, Aurore calme), the money (owner only), and
 // « À regarder » — prototype `hero`, `money`, `watch`.
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { OUTCOMES } from "@/lib/performance/orders/facts";
-import { round100, type Summary } from "@/lib/performance/orders/model";
+import { OUTCOMES, type Outcome } from "@/lib/performance/orders/facts";
+import { OutcomeRows } from "@/components/shared/charts/OutcomeRows";
 import type { SumM, WatchCard } from "@/lib/performance/orders/view";
-import { Ic, MoneyVal, SW, Trend, Vs, glue, usePerf } from "./ui";
-
-const cA = { "--c": "var(--cA)" } as CSSProperties;
-const cB = { "--c": "var(--cB)" } as CSSProperties;
-
-function Waffle({ s, b = false, big = false }: { s: Summary; b?: boolean; big?: boolean }) {
-  const { t, openDrill } = usePerf();
-  const r = round100(s.p);
-  const cells: JSX.Element[] = [];
-  let i = 0;
-  for (const k of OUTCOMES) {
-    for (let j = 0; j < r[k]; j++) {
-      const idx = i++;
-      cells.push(
-        <i
-          key={idx}
-          className={`wc k-${k}`}
-          style={{ "--i": idx } as CSSProperties}
-          data-k={b ? undefined : k}
-          data-tip={t(b ? "hero.cellB" : "hero.cell", { o: t(`o1.${k}`), n: r[k] })}
-          onClick={b ? undefined : () => openDrill(`out:${k}`)}
-        />,
-      );
-    }
-  }
-  return (
-    <div className="waffle" role={big ? "img" : undefined} aria-label={big ? t("hero.waffle", { list: OUTCOMES.map((k) => `${r[k]} ${t(`o.${k}`).toLowerCase()}`).join(", ") }) : undefined}>
-      {cells}
-    </div>
-  );
-}
+import { Ic, MoneyVal, Trend, Vs, glue, usePerf } from "./ui";
 
 export function Hero() {
-  const { view, state, t, f, bLabel, prevName, fullName, selName, agName, openDrill } = usePerf();
+  const { view, state, t, f, prevName, selName, agName, bLabel, openDrill } = usePerf();
   const { A, P, B } = view;
   if (A.n < 30) {
     return (
       <section className="card ov" id="ov">
-        <div className="empty" style={{ gridColumn: "1/-1" }}>
-          {glue(A.n ? t("hero.tooFew", { n: A.n, nf: f.n(A.n) }) : t("hero.none"))}
-        </div>
+        <div className="empty">{glue(A.n ? t("hero.tooFew", { n: A.n, nf: f.n(A.n) }) : t("hero.none"))}</div>
       </section>
     );
   }
-  const r = round100(A.p);
   const hasP = Object.keys(state.sel).length > 0;
   const by = state.ag.length ? t("hero.by", { a: agName(state.ag) }) : "";
-  const sub: Record<"del" | "ret" | "rej" | "junk", string> = {
-    del: t("hero.subDel", { nf: f.n(A.del) }),
-    ret: t("hero.subRet", { nf: f.n(A.ret), pct: f.pct((A.ret / Math.max(1, A.up)) * 100) }),
-    rej: t("hero.subRej", { nf: f.n(A.rej), autre: f.n(view.heroAutre) }),
-    junk: t("hero.subJunk", { nf: f.n(A.junk) }),
+  const hint: Record<Outcome, string> = {
+    del: t("hero.hDel"),
+    ret: t("hero.hRet", { pct: f.pct((A.ret / Math.max(1, A.up)) * 100) }),
+    rej: t("hero.hRej", { autre: f.n(view.heroAutre) }),
+    junk: t("hero.hJunk"),
+    pend: t("hero.hPend"),
   };
-  const up = { del: true, ret: false, rej: false, junk: false };
+  const up: Record<Outcome, boolean | null> = { del: true, ret: false, rej: false, junk: false, pend: null };
+  const em = (c: React.ReactNode) => <em>{c}</em>;
+  // Aurore calme (2026-10-05): the sentence says counts, not « sur 100 ».
   const hl = hasP
-    ? t.rich("hero.hlSel", { p: selName(state.sel), by, del: r.del, em: (c) => <em>{c}</em> })
-    : t.rich("hero.hlAll", { by, del: r.del, em: (c) => <em>{c}</em> });
+    ? t.rich("hero.hlSel", { n: f.n(A.n), p: selName(state.sel), by, del: f.n(A.del), em })
+    : t.rich("hero.hlAll", { n: f.n(A.n), by, del: f.n(A.del), em });
   return (
     <section className="card ov" id="ov">
-      {B ? (
-        <div className="wafB">
-          <div>
-            <div className="wl">
-              <span className="tagAB" style={cA}>
-                A
-              </span>
-              {fullName(state.sel, state.ag)}
-            </div>
-            <Waffle s={A} big />
-          </div>
-          <div>
-            <div className="wl">
-              <span className="tagAB" style={cB}>
-                B
-              </span>
-              {bLabel}
-            </div>
-            {B.s.n < 10 ? <div className="meta">{t("hero.bFew", { nf: f.n(B.s.n) })}</div> : <Waffle s={B.s} b />}
-          </div>
-        </div>
-      ) : (
-        <Waffle s={A} big />
-      )}
-      <div>
-        <div className="hl">{hl}</div>
-        <div className="hl-s">
-          <Trend now={A.p.del} prev={P.p.del} upGood />
-          <span>{view.comparable.ok ? t("hero.versusN", { prev: prevName, nf: f.n(P.n) }) : t("hero.versus", { prev: prevName })}</span>
-          {B && !B.empty && (
-            <span className="vs">
-              <i />
-              {t("hero.bLine", { label: bLabel, del: Math.round(B.s.p.del) })}
-            </span>
-          )}
-        </div>
-        <div className="stats">
-          {(["del", "ret", "rej", "junk"] as const).map((k) => (
-            <button key={k} type="button" className={`st k-${k}`} data-k={k} data-tip={t("hero.stTip", { o: t(`o1.${k}`), def: t(`odef.${k}`) })} onClick={() => openDrill(`out:${k}`)}>
-              <div className="st-h">
-                <span className="sw" />
-                {t(`o.${k}`)}
-                <Trend now={A.p[k]} prev={P.p[k]} upGood={up[k]} />
-              </div>
-              <div className="st-n">
-                <b>{r[k]}</b>
-                <small>/100</small>
-              </div>
-              {B && (
-                <div style={{ marginTop: 6 }}>
-                  <Vs v={(s) => s.p[k]} />
-                </div>
-              )}
-              <div className="st-s">{glue(sub[k])}</div>
-            </button>
-          ))}
-        </div>
-        <div className="ov-f k-pend" data-k="pend">
-          <span className="sw" />
-          <b>{t("hero.pend", { n: r.pend })}</b>
-          <span>{t("hero.pendWhat")}</span>
-        </div>
+      <div className="hl">{hl}</div>
+      <div className="hl-s">
+        <Trend now={A.p.del} prev={P.p.del} upGood />
+        <span>{view.comparable.ok ? t("hero.versusN", { prev: prevName, nf: f.n(P.n) }) : t("hero.versus", { prev: prevName })}</span>
+        {B && !B.empty && (
+          <span className="vs">
+            <i />
+            {t("hero.bLine", { label: bLabel, del: Math.round(B.s.p.del) })}
+          </span>
+        )}
       </div>
+      <OutcomeRows
+        label={t("hero.rows")}
+        total={A.n}
+        num={f.n}
+        pct={f.pct}
+        rows={OUTCOMES.map((k) => ({
+          key: k,
+          label: t(`o.${k}`),
+          color: `var(--o-${k})`,
+          n: A[k],
+          hint: glue(hint[k]),
+          tip: t("hero.stTip", { o: t(`o1.${k}`), def: t(`odef.${k}`) }),
+          trend:
+            up[k] === null ? null : (
+              <>
+                {B && <Vs v={(x) => x.p[k]} />}
+                <Trend now={A.p[k]} prev={P.p[k]} upGood={up[k] as boolean} />
+              </>
+            ),
+          onClick: () => openDrill(`out:${k}`),
+        }))}
+      />
     </section>
   );
 }

@@ -168,6 +168,15 @@ describe("POST /api/prospects/campaigns", () => {
     );
   });
 
+  test("the products to propose are stored, keeping only valid ids (2026-10-06)", async () => {
+    as("m", "market_manager", LY);
+    const P1 = "11111111-1111-4111-8111-111111111111";
+    await POST(req(body({ offer_product_ids: [P1, "nope", P1] })));
+    expect(inserted).toMatchObject({ offer_product_ids: [P1] });
+    await POST(req(body()));
+    expect(inserted).toMatchObject({ offer_product_ids: [] });
+  });
+
   test("the creator is recorded", async () => {
     as("mgr-3", "market_manager", LY);
     await POST(req(body()));

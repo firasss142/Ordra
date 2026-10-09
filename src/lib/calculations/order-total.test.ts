@@ -39,3 +39,19 @@ describe("computeOrderTotal", () => {
     expect(computeOrderTotal(100, 7, true)).toBe(117);
   });
 });
+
+describe("computeOrderTotal — the card surcharge is the market's setting", () => {
+  it("defaults to 10 % when no rate is given (unchanged behaviour)", () => {
+    expect(computeOrderTotal(100, 10, true)).toBe(120);
+  });
+
+  it("uses the given rate on the product subtotal only", () => {
+    expect(computeOrderTotal(100, 10, true, true, 5)).toBe(115);
+    expect(computeOrderTotal(100, 10, true, true, 0)).toBe(110);
+  });
+
+  it("the rate never applies without card payment or when the carrier takes no cut", () => {
+    expect(computeOrderTotal(100, 10, false, true, 7)).toBe(110);
+    expect(computeOrderTotal(100, 10, true, false, 7)).toBe(110);
+  });
+});

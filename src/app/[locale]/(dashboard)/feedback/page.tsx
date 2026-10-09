@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canCaptureFeedback } from "@/lib/role-permissions";
 import { VocPage } from "@/components/agent/voc/VocPage";
-import { FeedbackWorkspace } from "@/components/feedback/manager/FeedbackWorkspace";
+import { VoiceWorkspace } from "@/components/feedback/voice/VoiceWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +11,9 @@ export const dynamic = "force-dynamic";
  *
  *   agent                        → their own entries, by category and moment, in the agent shell
  *                                  (prototypes/agent-shell-v2.html, « 6 · Voix du client »).
- *   market_manager / super_admin → the market's voice: volumes by category, top topics,
- *                                  entries per agent, the sheet and the « à valider » queue
- *                                  (prototypes/voix-du-client-manager-v6.html).
+ *   market_manager / super_admin → the market's voice: the sheet first, then « Raisons » —
+ *                                  why they don't buy, what they'd like, « Notre réponse »
+ *                                  (prototypes/voix-du-client-et-messages-v2.html).
  */
 export default async function FeedbackPage({ params }: { params: { locale: string } }) {
   const user = await getServerUser();
@@ -23,5 +23,5 @@ export default async function FeedbackPage({ params }: { params: { locale: strin
   }
   return user.role === "agent"
     ? <VocPage marketId={user.market_id} />
-    : <FeedbackWorkspace role={user.role} marketId={user.market_id} locale={params.locale} />;
+    : <VoiceWorkspace role={user.role} marketId={user.market_id} />;
 }

@@ -171,7 +171,7 @@
 
 /* Aujourd'hui — four job cards */
 .ent .jobs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.ent .job{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;gap:14px;padding:18px 18px 16px;border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);text-align:start;transition:transform .18s,box-shadow .18s;animation:ent-rise .35s ease-out both}
+.ent .job{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;gap:14px;padding:18px 18px 16px;border-radius:var(--r);background:var(--card);border:1px solid var(--card-bd);box-shadow:var(--card-sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);text-align:start;transition:transform .18s,box-shadow .18s}
 .ent .job::before{content:"";position:absolute;z-index:-1;inset-block-start:-120px;inset-inline-start:-100px;width:280px;height:280px;border-radius:50%;background:radial-gradient(closest-side,var(--pb),transparent)}
 .ent .job:hover{transform:translateY(-4px);box-shadow:var(--card-sh-hover)}
 .ent .job-h{display:flex;align-items:center;gap:10px}
@@ -419,6 +419,19 @@
 .ent .cam{margin-top:4px;border-radius:16px;overflow:hidden;background:#fff;border:1px solid var(--line)}
 .ent .sk{border-radius:var(--r);background:rgba(255,255,255,.55);border:1px solid var(--card-bd);animation:ent-sk 1.4s ease-in-out infinite}
 @keyframes ent-sk{50%{opacity:.55}}
+/* before the first answer: a tile with no figure yet, rows with no content yet — never a zero
+   or an empty state the desk cannot vouch for (Tile n={null}, <Waiting/>) */
+.ent .wt.wait{cursor:default}
+.ent .wt.wait:hover{transform:none;box-shadow:var(--card-sh)}
+.ent .wt .skn{display:block;width:44px;height:24px;border-radius:8px;background:var(--flat-bg);animation:ent-sk 1.4s ease-in-out infinite}
+.ent .waiting{background:#fff}
+.ent .wrow{display:flex;align-items:center;gap:12px;min-height:64px;padding:0 16px;border-top:1px solid var(--line);animation:ent-sk 1.4s ease-in-out infinite}
+.ent .stage-c .waiting{background:none}
+.ent .stage-c .wrow{min-height:56px;padding:0 4px;border-top:0}
+.ent .skb{display:block;height:11px;border-radius:99px;background:var(--flat-bg)}
+.ent .skb.th{width:36px;height:36px;border-radius:11px;flex:none}
+.ent .skb.ln{width:200px;max-width:40%}
+.ent .skb.ln.sh{width:90px;margin-inline-start:auto}
 .ent textarea.inp{height:auto;min-height:72px;padding:10px 12px;resize:vertical}
 .ent select.inp{appearance:auto}
 

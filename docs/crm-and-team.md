@@ -51,6 +51,9 @@ that belongs to the delivery engine — see `docs/delivery-worklist.md`. The sid
 > distribution (decision 33) does not exist either, so the 1 982 campaign leads have
 > no `assigned_to` and no agent sees them yet.
 
+> **2026-10-06:** the manager console is now the recovery desk — docs/prospects-recovery.md.
+> `components/crm/` (the kanban) and its dead API routes are deleted.
+
 ### Relances (follow-ups)
 
 `order_follow_ups` + `order_follow_up_entries`, enum `follow_up_status` (open →
@@ -87,7 +90,8 @@ because an agent belongs to one market and a merged list would imply otherwise.
 
 Rebuilt 2026-10-04 from `prototypes/team-performance-v3.html` (« Aurore »); the plan and
 every definition are in `plans/team-performance-redesign.md`. One question: **why do agents
-lose orders?** Five blocks — the waffle of 100, one card per agent (ring, biggest leak,
+lose orders?** Five blocks — the outcome rows (a sentence with the counts, then one bar per
+outcome; the waffle of 100 was retired on 2026-10-05, « Aurore calme »), one card per agent (thin ring with her delivered count, biggest leak,
 « À lui dire »), Débit × taux, Par produit, Présence (shift timelines).
 
 - **Data:** `get_team_performance_v2(market, from, to, tz, prev_from, prev_to)` returns

@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OrderItem } from "@/types/order-items";
 import type { CarrierConfig } from "./types";
 import type { DarbWarehouseLine } from "./darb-assabil-adapter";
+import { monitoredFetch } from "@/lib/journal/external-fetch";
 
 /** The `extra` key that switches an order into carrier-warehouse mode. */
 export const CARRIER_WAREHOUSE_FLAG = "fulfil_from_carrier_warehouse";
@@ -181,7 +182,7 @@ export async function fetchDarbWarehouseStock(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   try {
-    const res = await fetch(
+    const res = await monitoredFetch("darb_assabil", "stock_read")(
       `${base}/api/warehouse/products/stock/me?${qs.toString()}`,
       {
         headers: {

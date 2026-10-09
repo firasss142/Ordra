@@ -2,11 +2,13 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
 }));
 
@@ -25,19 +27,10 @@ function usersChain(user: { role: string; market_id: string | null }) {
   return c;
 }
 
-function historyChain(rows: unknown[]) {
-  const c: Record<string, unknown> = {};
-  const then = (onFulfilled: (v: { data: unknown; error: null }) => unknown) =>
-    Promise.resolve({ data: rows, error: null }).then(onFulfilled);
-  c.then = then;
-  c.select = vi.fn().mockReturnValue(c);
-  c.in = vi.fn().mockReturnValue(c);
-  c.gte = vi.fn().mockReturnValue(c);
-  c.eq = vi.fn().mockReturnValue(c);
-  return c;
-}
-
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockRpc.mockResolvedValue({ data: [], error: null });
+});
 
 describe("GET /api/carriers/performance", () => {
   test("401 without auth", async () => {
@@ -55,7 +48,7 @@ describe("GET /api/carriers/performance", () => {
       if (table === "users") {
         return usersChain({ role: "agent", market_id: "m-tn" });
       }
-      return historyChain([]);
+      throw new Error(`unexpected table ${table}`);
     });
     const res = await GET(req("/api/carriers/performance?market_id=m-tn"));
     expect(res.status).toBe(200);
@@ -75,70 +68,32 @@ describe("GET /api/carriers/performance", () => {
     expect(res.status).toBe(400);
   });
 
-  test("computes delivery rate + median transit for each carrier", async () => {
+  // One definition (carrier_parcel_outcome, via get_carrier_delivery_performance):
+  // a Darb parcel cancelled after pickup is a FAILURE. The old route counted only
+  // `returned`, so Darb read 92–100 % where the truth is ~52 %.
+  test("reads delivered / failed from the shared outcome RPC and derives the rate", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u-1" } }, error: null });
-    const now = Date.now();
-    const disp = (h: number) => new Date(now - h * 60 * 60 * 1000).toISOString();
-
-    const terminalRows = [
-      {
-        order_id: "o1",
-        status_to: "delivered",
-        created_at: disp(2),
-        orders: { carrier_id: "car-a", market_id: "m-tn" },
-      },
-      {
-        order_id: "o2",
-        status_to: "delivered",
-        created_at: disp(4),
-        orders: { carrier_id: "car-a", market_id: "m-tn" },
-      },
-      {
-        order_id: "o3",
-        status_to: "returned",
-        created_at: disp(5),
-        orders: { carrier_id: "car-a", market_id: "m-tn" },
-      },
-    ];
-    const dispatchedRows = [
-      { order_id: "o1", status_to: "dispatched", created_at: disp(50) },
-      { order_id: "o2", status_to: "dispatched", created_at: disp(28) },
-      { order_id: "o3", status_to: "dispatched", created_at: disp(29) },
-    ];
-
-    let call = 0;
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "users") {
-        return usersChain({ role: "market_manager", market_id: "m-tn" });
-      }
-      if (table === "order_history") {
-        call++;
-        return historyChain(call === 1 ? terminalRows : dispatchedRows);
-      }
-      return historyChain([]);
+    mockFrom.mockImplementation(() => usersChain({ role: "market_manager", market_id: "m-ly" }));
+    mockRpc.mockResolvedValue({
+      data: [{ carrier_id: "car-a", delivered: 52, failed: 48, median_transit_hours: 30.5, sample_size: 100 }],
+      error: null,
     });
 
-    const res = await GET(req("/api/carriers/performance?market_id=m-tn"));
+    const res = await GET(req("/api/carriers/performance?market_id=m-ly"));
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      data: Array<{
-        carrier_id: string;
-        delivered: number;
-        returned: number;
-        delivery_rate_30d: number;
-        median_transit_hours: number | null;
-        sample_size: number;
-      }>;
-    };
-    expect(body.data).toHaveLength(1);
-    const row = body.data[0];
-    expect(row.carrier_id).toBe("car-a");
-    expect(row.delivered).toBe(2);
-    expect(row.returned).toBe(1);
-    expect(row.sample_size).toBe(3);
-    expect(row.delivery_rate_30d).toBeCloseTo(2 / 3, 3);
-    // Median of [48, 24, 24] → 24
-    expect(row.median_transit_hours).toBe(24);
+    expect(mockRpc).toHaveBeenCalledWith("get_carrier_delivery_performance", { p_market_id: "m-ly", p_days: 30 });
+    const body = (await res.json()) as { data: Array<Record<string, unknown>> };
+    expect(body.data).toEqual([
+      { carrier_id: "car-a", delivered: 52, failed: 48, delivery_rate_30d: 0.52, median_transit_hours: 30.5, sample_size: 100 },
+    ]);
+  });
+
+  test("500 when the RPC fails", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u-1" } }, error: null });
+    mockFrom.mockImplementation(() => usersChain({ role: "market_manager", market_id: "m-ly" }));
+    mockRpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    const res = await GET(req("/api/carriers/performance?market_id=m-ly"));
+    expect(res.status).toBe(500);
   });
 
   test("returns empty data when no fulfillment rows", async () => {
@@ -147,7 +102,7 @@ describe("GET /api/carriers/performance", () => {
       if (table === "users") {
         return usersChain({ role: "market_manager", market_id: "m-tn" });
       }
-      return historyChain([]);
+      throw new Error(`unexpected table ${table}`);
     });
     const res = await GET(req("/api/carriers/performance?market_id=m-tn"));
     expect(res.status).toBe(200);

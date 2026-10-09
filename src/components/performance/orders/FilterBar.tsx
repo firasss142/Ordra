@@ -1,7 +1,9 @@
 "use client";
 
-// A = products × agents; Comparer = Non · Autres produits · Autres agents ·
-// Autres dates (prototype `filterBar`, `picker`, `agPicker`).
+// The filter bar, redesigned 2026-10-05: one button per filter that SAYS its value (no
+// dead « Tous les produits » pill beside a « Choisir » button), « Comparer » as a menu
+// of three, and — only while comparing — an « A contre B » line of its own. On phones
+// the buttons fall into a 2-column grid and every picker opens as a bottom sheet.
 
 import type { CSSProperties } from "react";
 import type { ProductSel } from "@/lib/performance/orders/facts";
@@ -9,7 +11,7 @@ import type { PerfState } from "@/lib/performance/orders/query";
 import { DatePopover, openDp, type DpState } from "./Dates";
 import { Av, Ic, Thumb, glue, usePerf } from "./ui";
 
-export type Pop = null | "a" | "ag" | "b" | "bag";
+export type Pop = null | "a" | "ag" | "b" | "bag" | "cmp";
 
 const cA = { "--c": "var(--cA)" } as CSSProperties;
 const cB = { "--c": "var(--cB)" } as CSSProperties;
@@ -32,66 +34,6 @@ function toggleSize(sel: ProductSel, id: string, v: string, all: string[]): Prod
 }
 
 const toggleAg = (ag: string[], id: string) => (ag.includes(id) ? ag.filter((x) => x !== id) : [...ag, id]);
-
-function Chips({ sel, which, onRemove }: { sel: ProductSel; which: "a" | "b"; onRemove: (id: string) => void }) {
-  const { t, product } = usePerf();
-  const ks = Object.keys(sel);
-  if (!ks.length) {
-    return (
-      <span className="allb">
-        <Ic n="layers" />
-        {t("filter.allProducts")}
-      </span>
-    );
-  }
-  return (
-    <>
-      {ks.map((id) => {
-        const p = product(id);
-        const s = sel[id];
-        return (
-          <span key={id} className="pchip" style={which === "a" ? cA : cB}>
-            <Thumb id={id} />
-            {p?.name ?? "?"}
-            {s ? (
-              <small>{s.map((v) => p?.sizes.find((z) => z.id === v)?.label ?? "?").join(" · ")}</small>
-            ) : p?.sizes.length ? (
-              <small>{t("filter.allSizes")}</small>
-            ) : null}
-            <button type="button" className="x" aria-label={t("filter.remove")} onClick={() => onRemove(id)}>
-              <Ic n="x" />
-            </button>
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
-function AgChips({ ag, which, onRemove }: { ag: string[]; which: "a" | "b"; onRemove: (id: string) => void }) {
-  const { t, agentName } = usePerf();
-  if (!ag.length) {
-    return (
-      <span className="allb">
-        <Ic n="team" />
-        {t("filter.allTeam")}
-      </span>
-    );
-  }
-  return (
-    <>
-      {ag.map((id) => (
-        <span key={id} className="pchip" style={which === "a" ? cA : cB}>
-          <Av id={id} />
-          {agentName(id)}
-          <button type="button" className="x" aria-label={t("filter.remove")} onClick={() => onRemove(id)}>
-            <Ic n="x" />
-          </button>
-        </span>
-      ))}
-    </>
-  );
-}
 
 function ProductPicker({ sel, which, onChange, onClose }: { sel: ProductSel; which: "a" | "b"; onChange: (s: ProductSel) => void; onClose: () => void }) {
   const { view, t, f, product } = usePerf();
@@ -184,22 +126,50 @@ function AgentPicker({ ag, which, onChange, onClose }: { ag: string[]; which: "a
   );
 }
 
+/** One filter = one button: its name, its value, a chevron; when set, tinted with its own ×. */
+function FilterButton({ icon, label, value, active, open, onOpen, onClear, tone }: {
+  icon: string;
+  label: string;
+  value: string;
+  active: boolean;
+  open: boolean;
+  onOpen: () => void;
+  onClear?: () => void;
+  tone?: CSSProperties;
+}) {
+  const { t } = usePerf();
+  return (
+    <span className={`fb${active ? " set" : ""}${open ? " open" : ""}`} style={tone}>
+      <button type="button" className="fb-main" aria-label={`${label} · ${value}`} aria-expanded={open} onClick={onOpen}>
+        <Ic n={icon} />
+        <span className="fb-l">{label}</span>
+        <span className="fb-v">{value}</span>
+        {!(active && onClear) && <Ic n="down" className="fb-c" />}
+      </button>
+      {active && onClear && (
+        <button type="button" className="fb-x" aria-label={t("filter.clearOne", { f: label })} onClick={onClear}>
+          <Ic n="x" />
+        </button>
+      )}
+    </span>
+  );
+}
+
 export function FilterBar({ pop, setPop, dp, setDp }: { pop: Pop; setPop: (p: Pop) => void; dp: DpState | null; setDp: (d: DpState | null) => void }) {
-  const { view, state, t, f, setState } = usePerf();
+  const { view, state, t, f, setState, selName, agName } = usePerf();
   const set = (patch: Partial<PerfState>) => setState({ ...state, ...patch });
   const nA = Object.keys(state.sel).length;
   const cmp = state.cmp;
   const bSel = cmp?.kind === "p" ? cmp.sel : {};
   const bAg = cmp?.kind === "a" ? cmp.ag : [];
   const nB = Object.keys(bSel).length;
-
-  const chooseCmp = (k: "" | "p" | "a" | "d") => {
+  const toggle = (p: Exclude<Pop, null>) => {
     setDp(null);
-    if (!k) {
-      setPop(null);
-      set({ cmp: null });
-      return;
-    }
+    setPop(pop === p ? null : p);
+  };
+
+  const chooseCmp = (k: "p" | "a" | "d") => {
+    setDp(null);
     if (k === "p") {
       const next = cmp?.kind === "p" ? cmp : { kind: "p" as const, sel: {} };
       set({ cmp: next });
@@ -215,105 +185,123 @@ export function FilterBar({ pop, setPop, dp, setDp }: { pop: Pop; setPop: (p: Po
       setDp(openDp("b", next, view.first));
     }
   };
+  const cmpLabel = cmp ? t(cmp.kind === "p" ? "filter.cmpP" : cmp.kind === "a" ? "filter.cmpA" : "filter.cmpD") : t("filter.compare");
+  const any = nA > 0 || state.ag.length > 0 || !!cmp;
+
+  // B's own button, in the « A contre B » line
+  let bBtn: JSX.Element | null = null;
+  if (cmp?.kind === "p")
+    bBtn = (
+      <span className="fgrp">
+        <FilterButton icon="layers" label={t("filter.products")} value={nB ? selName(bSel) : t("filter.chooseBp")} active={nB > 0} open={pop === "b"} tone={cB} onOpen={() => toggle("b")} />
+        {pop === "b" && <ProductPicker sel={bSel} which="b" onChange={(sel) => set({ cmp: { kind: "p", sel } })} onClose={() => setPop(null)} />}
+      </span>
+    );
+  else if (cmp?.kind === "a")
+    bBtn = (
+      <span className="fgrp">
+        <FilterButton icon="team" label={t("filter.agents")} value={bAg.length ? agName(bAg) : t("filter.chooseBa")} active={bAg.length > 0} open={pop === "bag"} tone={cB} onOpen={() => toggle("bag")} />
+        {pop === "bag" && <AgentPicker ag={bAg} which="b" onChange={(ag) => set({ cmp: { kind: "a", ag } })} onClose={() => setPop(null)} />}
+      </span>
+    );
+  else if (cmp?.kind === "d")
+    bBtn = (
+      <span className="fgrp">
+        <span className="fb set dchip" style={cB}>
+          <button type="button" className="fb-main" aria-expanded={dp?.w === "b"} onClick={() => setDp(dp?.w === "b" ? null : openDp("b", cmp, view.first))}>
+            <Ic n="cal" />
+            <span className="fb-v">{f.range(cmp.from, cmp.to)}</span>
+            <Ic n="down" className="fb-c" />
+          </button>
+        </span>
+        {dp?.w === "b" && <DatePopover dp={dp} setDp={setDp} />}
+      </span>
+    );
 
   return (
     <div className="fbar">
-      <div className="fgrp">
-        <span className="flab">
-          <span className="tagAB" style={cA}>
-            A
-          </span>
-          {t("filter.products")}
+      <div className="frow">
+        <span className="fgrp">
+          <FilterButton
+            icon="layers"
+            label={t("filter.products")}
+            value={nA ? (nA <= 2 ? selName(state.sel) : t("filter.nProducts", { n: nA })) : t("filter.allProducts")}
+            active={nA > 0}
+            open={pop === "a"}
+            onOpen={() => toggle("a")}
+            onClear={() => set({ sel: {} })}
+          />
+          {pop === "a" && <ProductPicker sel={state.sel} which="a" onChange={(sel) => set({ sel })} onClose={() => setPop(null)} />}
         </span>
-        <Chips sel={state.sel} which="a" onRemove={(id) => set({ sel: toggleProduct(state.sel, id) })} />
-        <button type="button" className="addb" style={cA} onClick={() => setPop(pop === "a" ? null : "a")}>
-          <Ic n={nA ? "layers" : "search"} />
-          {nA ? t("filter.edit") : t("filter.chooseProducts")}
-        </button>
-        {pop === "a" && <ProductPicker sel={state.sel} which="a" onChange={(sel) => set({ sel })} onClose={() => setPop(null)} />}
-      </div>
-      <div className="fgrp">
-        <span className="flab">{t("filter.agents")}</span>
-        <AgChips ag={state.ag} which="a" onRemove={(id) => set({ ag: toggleAg(state.ag, id) })} />
-        <button type="button" className="addb" style={cA} onClick={() => setPop(pop === "ag" ? null : "ag")}>
-          <Ic n={state.ag.length ? "team" : "search"} />
-          {state.ag.length ? t("filter.edit") : t("filter.chooseAgents")}
-        </button>
-        {pop === "ag" && <AgentPicker ag={state.ag} which="a" onChange={(ag) => set({ ag })} onClose={() => setPop(null)} />}
-      </div>
-      <span className="fsep" />
-      <div className="fgrp">
-        <span className="flab">{t("filter.compare")}</span>
-        <span className="cmpseg">
-          {(["", "p", "a", "d"] as const).map((k) => (
-            <button key={k || "no"} type="button" className={(cmp?.kind ?? "") === k ? "on" : ""} onClick={() => chooseCmp(k)}>
-              {t(k === "" ? "filter.cmpNo" : k === "p" ? "filter.cmpP" : k === "a" ? "filter.cmpA" : "filter.cmpD")}
+        <span className="fgrp">
+          <FilterButton
+            icon="team"
+            label={t("filter.agents")}
+            value={state.ag.length ? agName(state.ag) : t("filter.allTeam")}
+            active={state.ag.length > 0}
+            open={pop === "ag"}
+            onOpen={() => toggle("ag")}
+            onClear={() => set({ ag: [] })}
+          />
+          {pop === "ag" && <AgentPicker ag={state.ag} which="a" onChange={(ag) => set({ ag })} onClose={() => setPop(null)} />}
+        </span>
+        <span className="fsep" aria-hidden="true" />
+        <span className="fgrp">
+          <span className={`fb cmpb${cmp ? " set" : ""}${pop === "cmp" ? " open" : ""}`} style={cB}>
+            <button type="button" className="fb-main" aria-haspopup="menu" aria-expanded={pop === "cmp"} onClick={() => toggle("cmp")}>
+              <Ic n="swap" />
+              <span className="fb-v">{cmp ? `${t("filter.compare")} · ${cmpLabel}` : cmpLabel}</span>
+              <Ic n="down" className="fb-c" />
             </button>
-          ))}
-        </span>
-      </div>
-      {cmp?.kind === "p" && (
-        <div className="fgrp">
-          <span className="tagAB" style={cB}>
-            B
           </span>
-          {nB > 0 && <Chips sel={bSel} which="b" onRemove={(id) => set({ cmp: { kind: "p", sel: toggleProduct(bSel, id) } })} />}
-          <button type="button" className="addb" style={cB} onClick={() => setPop(pop === "b" ? null : "b")}>
-            <Ic n="search" />
-            {nB ? t("filter.edit") : t("filter.chooseBp")}
-          </button>
-          {pop === "b" && <ProductPicker sel={bSel} which="b" onChange={(sel) => set({ cmp: { kind: "p", sel } })} onClose={() => setPop(null)} />}
-        </div>
-      )}
-      {cmp?.kind === "a" && (
-        <div className="fgrp">
-          <span className="tagAB" style={cB}>
-            B
-          </span>
-          {bAg.length > 0 && <AgChips ag={bAg} which="b" onRemove={(id) => set({ cmp: { kind: "a", ag: toggleAg(bAg, id) } })} />}
-          <button type="button" className="addb" style={cB} onClick={() => setPop(pop === "bag" ? null : "bag")}>
-            <Ic n="search" />
-            {bAg.length ? t("filter.edit") : t("filter.chooseBa")}
-          </button>
-          {pop === "bag" && <AgentPicker ag={bAg} which="b" onChange={(ag) => set({ cmp: { kind: "a", ag } })} onClose={() => setPop(null)} />}
-        </div>
-      )}
-      {cmp?.kind === "d" && (
-        <div className="fgrp">
-          <span className="tagAB" style={cB}>
-            B
-          </span>
-          <button type="button" className="dchip" onClick={() => setDp(dp?.w === "b" ? null : openDp("b", cmp, view.first))}>
-            <Ic n="cal" />
-            {f.range(cmp.from, cmp.to)}
-            <Ic n="down" />
-          </button>
-          {dp?.w === "b" && <DatePopover dp={dp} setDp={setDp} />}
-        </div>
-      )}
-      {(nA > 0 || state.ag.length > 0 || cmp) && (
-        <button type="button" className="clr" onClick={() => { setPop(null); setState({ ...state, sel: {}, ag: [], cmp: null }); }}>
-          <Ic n="x" />
-          {t("filter.reset")}
-        </button>
-      )}
-      {view.B && (
-        <span className="cmpnote" style={{ marginInlineStart: "auto" }}>
-          <span className="tagAB" style={cA}>
-            A
-          </span>
-          <b>{f.n(view.A.n)}</b> {t("filter.cmd")}{" "}
-          <span className="tagAB" style={cB}>
-            B
-          </span>
-          <b>{f.n(view.B.s.n)}</b> {t("filter.cmd")}
-          {view.B.s.n < 30 && (
-            <>
-              {" · "}
-              <span style={{ color: "var(--bad)" }}>{glue(t("filter.bTooSmall"))}</span>
-            </>
+          {pop === "cmp" && (
+            <div className="cmpmenu" role="menu" aria-label={t("filter.compare")}>
+              {(["p", "a", "d"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="menuitem"
+                  className={cmp?.kind === k ? "on" : ""}
+                  onClick={() => chooseCmp(k)}
+                >
+                  <span className="cm-ic">
+                    <Ic n={k === "p" ? "layers" : k === "a" ? "team" : "cal"} />
+                  </span>
+                  <span>
+                    <b>{t(k === "p" ? "filter.cmpP" : k === "a" ? "filter.cmpA" : "filter.cmpD")}</b>
+                    <small>{t(k === "p" ? "filter.cmpHintP" : k === "a" ? "filter.cmpHintA" : "filter.cmpHintD")}</small>
+                  </span>
+                  {cmp?.kind === k && <Ic n="check" className="cm-on" />}
+                </button>
+              ))}
+            </div>
           )}
         </span>
+        {any && (
+          <button type="button" className="clr" onClick={() => { setPop(null); setDp(null); setState({ ...state, sel: {}, ag: [], cmp: null }); }}>
+            {t("filter.reset")}
+          </button>
+        )}
+      </div>
+      {cmp && (
+        <div className="vsline">
+          <span className="vs-side">
+            <span className="tagAB" style={cA}>A</span>
+            <b>{nA || state.ag.length ? [nA ? selName(state.sel) : "", state.ag.length ? agName(state.ag) : ""].filter(Boolean).join(" · ") : t("filter.allOrders")}</b>
+            <small>{f.n(view.A.n)} {t("filter.cmd")}</small>
+          </span>
+          <span className="vs-word">{t("filter.vs")}</span>
+          <span className="vs-side">
+            <span className="tagAB" style={cB}>B</span>
+            {bBtn}
+            {view.B && <small>{f.n(view.B.s.n)} {t("filter.cmd")}</small>}
+            {view.B && view.B.s.n < 30 && <small className="vs-warn">{glue(t("filter.bTooSmall"))}</small>}
+          </span>
+          <button type="button" className="vs-stop" aria-label={t("filter.stopCmp")} onClick={() => { setPop(null); setDp(null); set({ cmp: null }); }}>
+            <Ic n="x" />
+            {t("filter.stop")}
+          </button>
+        </div>
       )}
     </div>
   );

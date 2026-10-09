@@ -1,30 +1,22 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
 import { AgentCrmPage } from "@/components/agent/crm/AgentCrmPage";
-import { ConsoleClient } from "@/components/prospects/console/ConsoleClient";
+import { DeskClient } from "@/components/prospects/desk/DeskClient";
 
 export const dynamic = "force-dynamic";
 
 /**
- * /leads — « Prospects », rebuilt from prototypes/prospects-v3.html.
+ * /leads — « Prospects ».
  *
- *   agent                        → « Prospects » in the agent shell
- *                                  (components/agent/crm, prototypes/agent-shell-v2.html
- *                                  §3): seven tiles over the six derived buckets, the
- *                                  call result inside the prospect, « Nouveau prospect ».
- *   market_manager / super_admin → the console: four views on one route —
- *                                  Vue d'ensemble, Prospects, Campagnes,
- *                                  Équipe — with bulk distribution, the
- *                                  campaign builder and the WhatsApp channel.
+ *   agent                        → « Prospects » in the agent shell (components/agent/crm).
+ *   market_manager / super_admin → the desk: « récupérer les ventes perdues ».
+ *     One page — the band (what came back this month + À faire), one card per
+ *     source, one card per agent, the list — with « Nouvelle liste », « Règles »
+ *     and the export. prototypes/prospects-manager-v5.html, plans/prospects-recovery.md.
  *
- * The old kanban (LeadsPageClient, LeadsKanban, LeadsTable) is no longer
- * mounted here. It is untouched on disk, and the campaign builder it opened
- * still lives in components/crm/ProspectCampaignPanel — the console's
- * "Nouvelle campagne" is where that reappears once it is rebuilt.
- *
- * Model: docs/prospects-worklist.md.
+ * `?open=<lead id>` is where the old /leads/[id] page now lands for managers.
  */
-export default async function LeadsPage({ params }: { params: { locale: string } }) {
+export default async function LeadsPage({ params, searchParams }: { params: { locale: string }; searchParams?: { open?: string } }) {
   const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
   if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
@@ -34,11 +26,5 @@ export default async function LeadsPage({ params }: { params: { locale: string }
     return <AgentCrmPage marketId={user.market_id ?? null} locale={params.locale} />;
   }
 
-  return (
-    <ConsoleClient
-      role={user.role}
-      marketId={user.market_id ?? null}
-      locale={params.locale}
-    />
-  );
+  return <DeskClient role={user.role} marketId={user.market_id ?? null} locale={params.locale} openId={searchParams?.open ?? null} />;
 }

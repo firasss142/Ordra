@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { X, Upload, AlertTriangle, Check } from "lucide-react";
+import { X, Upload, AlertTriangle, Check, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseAdSpendCsv } from "@/lib/ad-spend/csv-parse";
 import { isPeriodLocked } from "@/lib/ad-spend/period-lock";
 import type { ParsedAdSpendRow } from "@/lib/ad-spend/csv-parse";
 import type { CampaignsProduct } from "@/hooks/useAdSpendCampaigns";
-import { AD_SPEND_THEME as D } from "./theme";
 
 interface MappedRow extends ParsedAdSpendRow {
   product_id: string | null;
@@ -25,16 +24,6 @@ interface AdSpendCsvImportProps {
   canConfirmLocked?: boolean;
 }
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "#FFFFFF",
-  border: "1px solid #E1E3E5",
-  borderRadius: 6,
-  color: "#1A1A1A",
-  fontSize: 12,
-  boxSizing: "border-box",
-};
 
 export function AdSpendCsvImport({
   products,
@@ -97,237 +86,88 @@ export function AdSpendCsvImport({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(16,24,40,0.40)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: 16,
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        style={{
-          background: D.cardBg,
-          border: `1px solid ${D.border}`,
-          borderRadius: 8,
-          width: 640,
-          maxWidth: "100%",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px",
-            borderBottom: `1px solid ${D.border}`,
-            flexShrink: 0,
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.ink }}>
-            {t("title")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: "none", border: "none", color: D.muted, cursor: "pointer", padding: 4, lineHeight: 0 }}
-          >
-            <X size={18} strokeWidth={1.5} />
+    <div className="mscrim" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mbox w" role="dialog" aria-modal="true" aria-labelledby="ads-import-t">
+        <div className="dr-h">
+          <div>
+            <h2 id="ads-import-t">{t("title")}</h2>
+            {!result && <p>{parsed ? t("previewDescription", { count: parsed.length }) : t("description")}</p>}
+          </div>
+          <button type="button" className="dr-x" onClick={onClose} aria-label={t("close")}>
+            <X className="ic" aria-hidden />
           </button>
         </div>
 
-        <div style={{ padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-          {result ? (
-            /* Success state */
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 12,
-                padding: "32px 0",
-              }}
-            >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "50%",
-                  background: "rgba(54,244,164,0.12)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Check size={24} strokeWidth={2} color={D.accent} />
+        {result ? (
+          /* Success state */
+          <>
+            <div className="mb">
+              <div className="done">
+                <b>
+                  <Check className="ic" aria-hidden /> {t("successTitle", { count: result.inserted })}
+                </b>
+                {result.rejected > 0 && <span>{t("successRejected", { count: result.rejected })}</span>}
               </div>
-              <p style={{ fontSize: 15, fontWeight: 600, color: D.ink, margin: 0 }}>
-                {t("successTitle", { count: result.inserted })}
-              </p>
-              {result.rejected > 0 && (
-                <p style={{ fontSize: 13, color: D.warning, margin: 0 }}>
-                  {t("successRejected", { count: result.rejected })}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  marginTop: 8,
-                  padding: "9px 24px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background: "#1A1A1A",
-                  border: "none",
-                  borderRadius: 6,
-                  color: "#FFFFFF",
-                  cursor: "pointer",
-                }}
-              >
+            </div>
+            <div className="mf">
+              <button type="button" className="btn" onClick={onClose}>
                 {t("close")}
               </button>
             </div>
-          ) : !parsed ? (
-            /* Input step */
-            <>
-              <p style={{ fontSize: 13, color: D.muted, margin: 0 }}>
-                {t("description")}
-              </p>
-              {/* File picker */}
-              <div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={handleFile}
-                  style={{ display: "none" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "9px 16px",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    background: "transparent",
-                    border: `1px solid ${D.border}`,
-                    borderRadius: 6,
-                    color: D.ink,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Upload size={14} strokeWidth={1.5} />
+          </>
+        ) : !parsed ? (
+          /* Input step */
+          <>
+            <div className="mb">
+              <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
+              <div className="drop">
+                <span className="hold"><FileText className="ic" aria-hidden /></span>
+                <span>
+                  <b>{t("dropTitle")}</b>
+                  <small>{t("dropHint")}</small>
+                </span>
+                <button type="button" className="btn2 sm" onClick={() => fileRef.current?.click()}>
+                  <Upload className="ic" aria-hidden />
                   {t("chooseFile")}
                 </button>
               </div>
 
-              <div style={{ position: "relative" }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: D.tertiary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {t("orPaste")}
-                </span>
-              </div>
+              <span className="or">{t("orPaste")}</span>
 
               <textarea
+                className="inp"
                 value={csvText}
                 onChange={(e) => { setCsvText(e.target.value); setParsed(null); }}
                 rows={8}
                 placeholder={t("pastePlaceholder")}
-                style={{
-                  ...inputStyle,
-                  resize: "vertical",
-                  fontFamily: "monospace",
-                  lineHeight: 1.5,
-                }}
               />
 
               {parseError && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 13,
-                    color: D.danger,
-                  }}
-                >
-                  <AlertTriangle size={14} strokeWidth={1.5} />
+                <p role="alert" className="ferr">
+                  <AlertTriangle className="ic" aria-hidden style={{ verticalAlign: "-3px", marginInlineEnd: 6 }} />
                   {parseError}
-                </div>
+                </p>
               )}
-
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  style={{
-                    padding: "9px 18px",
-                    fontSize: 13,
-                    background: "transparent",
-                    border: `1px solid ${D.border}`,
-                    borderRadius: 6,
-                    color: D.muted,
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("cancel")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleParse}
-                  style={{
-                    padding: "9px 18px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    background: D.ink,
-                    border: "none",
-                    borderRadius: 6,
-                    color: "#000",
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("parse")}
-                </button>
-              </div>
-            </>
-          ) : (
-            /* Preview + mapping step */
-            <>
-              <p style={{ fontSize: 13, color: D.muted, margin: 0 }}>
-                {t("previewDescription", { count: parsed.length })}
-              </p>
-
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            </div>
+            <div className="mf">
+              <button type="button" className="btn2" onClick={onClose}>
+                {t("cancel")}
+              </button>
+              <button type="button" className="btn" onClick={handleParse}>
+                {t("parse")}
+              </button>
+            </div>
+          </>
+        ) : (
+          /* Preview + mapping step */
+          <>
+            <div className="mb">
+              <div className="pv">
+                <table>
                   <thead>
                     <tr>
-                      {[t("colCampaign"), t("colStart"), t("colEnd"), t("colAmount"), t("colProduct")].map((h) => (
-                        <th
-                          key={h}
-                          style={{
-                            padding: "8px 10px",
-                            textAlign: "start",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: D.tertiary,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            borderBottom: `1px solid ${D.border}`,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                      {[t("colCampaign"), t("colStart"), t("colEnd"), t("colAmount"), t("colProduct")].map((h, i) => (
+                        <th key={h} style={i === 3 ? { textAlign: "end" } : undefined}>
                           {h}
                         </th>
                       ))}
@@ -335,22 +175,17 @@ export function AdSpendCsvImport({
                   </thead>
                   <tbody>
                     {parsed.map((row, i) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${D.border}` }}>
-                        <td style={{ padding: "8px 10px", color: D.ink, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {row.campaign_name}
-                        </td>
-                        <td style={{ padding: "8px 10px", color: D.muted, whiteSpace: "nowrap" }}>{row.period_start}</td>
-                        <td style={{ padding: "8px 10px", color: D.muted, whiteSpace: "nowrap" }}>{row.period_end}</td>
-                        <td style={{ padding: "8px 10px", color: D.ink, fontVariantNumeric: "tabular-nums", textAlign: "end" }}>
-                          {row.amount.toFixed(2)}
-                        </td>
-                        <td style={{ padding: "8px 10px" }}>
+                      <tr key={i}>
+                        <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>{row.campaign_name}</td>
+                        <td>{row.period_start}</td>
+                        <td>{row.period_end}</td>
+                        <td className="n">{row.amount.toFixed(2)}</td>
+                        <td>
                           <select
+                            className="inp sm"
                             value={mappings[row.campaign_name] ?? ""}
-                            onChange={(e) =>
-                              setMappings((m) => ({ ...m, [row.campaign_name]: e.target.value }))
-                            }
-                            style={{ ...inputStyle, width: 160 }}
+                            onChange={(e) => setMappings((m) => ({ ...m, [row.campaign_name]: e.target.value }))}
+                            style={{ width: 180 }}
                           >
                             <option value="">{t("marketWide")}</option>
                             {products.map((p) => (
@@ -371,67 +206,23 @@ export function AdSpendCsvImport({
                   explicit confirmation every such row comes back rejected as
                   `locked_period` and the UI could only call it "invalid". */}
               {canConfirmLocked && parsed.some((r) => isPeriodLocked(r.period_end)) && (
-                <label
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "flex-start",
-                    padding: "10px 12px",
-                    marginBottom: 12,
-                    background: "#FFF8E6",
-                    border: "1px solid #F0D9A8",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    color: "#8A6116",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={confirmLocked}
-                    onChange={(e) => setConfirmLocked(e.target.checked)}
-                    style={{ marginTop: 2 }}
-                  />
+                <label className="chk">
+                  <input type="checkbox" checked={confirmLocked} onChange={(e) => setConfirmLocked(e.target.checked)} />
                   <span>{t("confirmLockedImport")}</span>
                 </label>
               )}
-
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => { setParsed(null); setParseError(null); }}
-                  style={{
-                    padding: "9px 18px",
-                    fontSize: 13,
-                    background: "transparent",
-                    border: `1px solid ${D.border}`,
-                    borderRadius: 6,
-                    color: D.muted,
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("back")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImport}
-                  disabled={submitting}
-                  style={{
-                    padding: "9px 18px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    background: submitting ? "#E1E3E5" : "#1A1A1A",
-                    border: "none",
-                    borderRadius: 6,
-                    color: submitting ? D.tertiary : "#FFFFFF",
-                    cursor: submitting ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {submitting ? "…" : t("import", { count: parsed.length })}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+            <div className="mf">
+              <button type="button" className="btn2" onClick={() => { setParsed(null); setParseError(null); }}>
+                {t("back")}
+              </button>
+              <span className="grow" />
+              <button type="button" className="btn" onClick={handleImport} disabled={submitting}>
+                {submitting ? "…" : t("import", { count: parsed.length })}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

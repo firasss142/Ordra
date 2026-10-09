@@ -2,214 +2,478 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { useTranslations } from "next-intl";
-import { Check, Search } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { ArrowRight, Check, Info, Search } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import type { MarketCode } from "@/lib/markets";
-import { SettingsCard, RgBadge, Drawer, DrawerSection } from "../../kit/parts";
+import { suggestMatch, type MatchCandidate, type MatchSuggestion } from "@/lib/reglages/match-suggest";
+import { Drawer, Mark } from "../../kit/parts";
 import { RgButton } from "../../kit/RgButton";
 import type { ShopRow } from "./common";
 
 interface UnmatchedOrder {
   id: string;
+  created_at: string;
   storefront_id: string;
   product_name: string;
   external_variant_id: string | null;
   external_product_id: string | null;
   customer_city: string | null;
 }
-interface ProductGroup {
+type Kind = "products" | "cities";
+/** One received name and the orders waiting on it. */
+interface Group {
   key: string;
-  storefront_id: string;
-  external_variant_id: string;
-  external_product_id: string | null;
   name: string;
-  count: number;
-}
-interface CityGroup {
-  city: string;
   orderIds: string[];
+  oldest: string;
+  /** Products only. */
+  storefront_id?: string;
+  external_variant_id?: string;
+  external_product_id?: string | null;
 }
-type Option = { id: string; label: string; sub?: string };
+type Option = MatchCandidate & { sub?: string };
+
+/** A name waiting more than this many days is drawn in amber. */
+const OLD_DAYS = 14;
+/** Parallel binds when one click releases many orders (cities bind per order). */
+const CONCURRENCY = 6;
+
+async function runLimited<T>(items: T[], limit: number, fn: (item: T) => Promise<boolean>): Promise<number> {
+  let ok = 0;
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const item = items[next++];
+      if (await fn(item).catch(() => false)) ok += 1;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return ok;
+}
 
 /**
- * « Produits et villes à associer » — what used to be Correspondances, side by
- * side, without a nested tab. A product is matched once per shop and
- * reference; a city is set on each waiting order. A manager does it.
+ * « Produits et villes à associer » — a work list under Boutiques
+ * (prototypes/reglages-v4.html). A shop sent a product or a city Ordra did not
+ * recognise; the order waits here. Ordra proposes the matching name
+ * (lib/reglages/match-suggest); « Associer » accepts it, « Choisir… » opens the
+ * picker, and one button accepts every identical name at once. A product is
+ * matched once per shop and reference; a city is set on each waiting order.
  */
 export function MatchingCard({ marketId, marketCode, shops, editable }: { marketId: string; marketCode: MarketCode | null; shops: ShopRow[]; editable: boolean }) {
   const t = useTranslations("reglages");
+  const locale = useLocale();
   const toast = useToast();
   const { data: prodData, mutate: mutateProducts } = useSWR<{ data: UnmatchedOrder[] }>(`/api/mappings/unmatched?type=products&market_id=${marketId}`);
   const { data: cityData, mutate: mutateCities } = useSWR<{ data: UnmatchedOrder[] }>(`/api/mappings/unmatched?type=cities&market_id=${marketId}`);
-  const [binding, setBinding] = useState<{ kind: "product"; group: ProductGroup } | { kind: "city"; group: CityGroup } | null>(null);
+  const [tab, setTab] = useState<Kind | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [picking, setPicking] = useState<Group | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const products = useMemo(() => {
-    const map = new Map<string, ProductGroup>();
-    for (const o of prodData?.data ?? []) {
-      if (!o.external_variant_id) continue;
-      const key = `${o.storefront_id}:${o.external_variant_id}`;
-      const g = map.get(key) ?? { key, storefront_id: o.storefront_id, external_variant_id: o.external_variant_id, external_product_id: o.external_product_id, name: o.product_name, count: 0 };
-      g.count += 1;
-      map.set(key, g);
-    }
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [prodData]);
-  const cities = useMemo(() => {
-    const map = new Map<string, CityGroup>();
-    for (const o of cityData?.data ?? []) {
-      if (!o.customer_city) continue;
-      const g = map.get(o.customer_city) ?? { city: o.customer_city, orderIds: [] };
-      g.orderIds.push(o.id);
-      map.set(o.customer_city, g);
-    }
-    return Array.from(map.values()).sort((a, b) => b.orderIds.length - a.orderIds.length);
-  }, [cityData]);
+  const products = useMemo(() => group(prodData?.data, (o) => (o.external_variant_id ? `${o.storefront_id}:${o.external_variant_id}` : null), (o) => o.product_name), [prodData]);
+  const cities = useMemo(() => group(cityData?.data, (o) => (o.customer_city ? o.customer_city : null), (o) => o.customer_city ?? ""), [cityData]);
 
+  // Candidates are only loaded when something waits on them.
+  const { data: productList } = useSWR<{ data: { id: string; name: string; sku?: string | null }[] }>(products.length ? `/api/products?market_id=${marketId}` : null);
+  const { data: destList } = useSWR<{ data: { id: string | number; city?: string; area?: string; name?: string; name_ar?: string | null }[] }>(
+    cities.length ? `/api/mappings/cities?market_id=${marketId}` : null,
+  );
+  const productOptions: Option[] = useMemo(() => (productList?.data ?? []).map((p) => ({ id: p.id, label: p.name, sub: p.sku ?? undefined })), [productList]);
+  const cityOptions: Option[] = useMemo(
+    () =>
+      (destList?.data ?? []).map((d) => ({
+        id: String(d.id),
+        label: d.city ? (d.area ? `${d.city} — ${d.area}` : d.city) : d.name ?? "",
+        alt: d.name_ar ?? null,
+        sub: d.name_ar ?? undefined,
+      })),
+    [destList],
+  );
+
+  if (!prodData || !cityData) return null;
+
+  const kind: Kind = tab ?? (products.length || !cities.length ? "products" : "cities");
+  const rows = kind === "products" ? products : cities;
+  const options = kind === "products" ? productOptions : cityOptions;
+  const suggestion = (g: Group): (MatchSuggestion & { label: string }) | null => {
+    const s = suggestMatch(g.name, options);
+    const o = s && options.find((x) => x.id === s.id);
+    return s && o ? { ...s, label: o.label } : null;
+  };
+  const suggestions = new Map(rows.map((g) => [g.key, suggestion(g)]));
+  const same = rows.filter((g) => suggestions.get(g.key)?.confidence === "same");
+  const sameOrders = same.reduce((n, g) => n + g.orderIds.length, 0);
+  const waiting = rows.reduce((n, g) => n + g.orderIds.length, 0);
+  const oldest = rows.reduce<string | null>((m, g) => (!m || g.oldest < m ? g.oldest : m), null);
+  const most = Math.max(1, ...rows.map((g) => g.orderIds.length));
+  const shopOf = (id?: string) => shops.find((s) => s.id === id);
   const pending = (n: number) => (n === 1 ? t("matching.pendingOne") : t("matching.pendingMany", { n }));
-  const shopName = (id: string) => shops.find((s) => s.id === id)?.name ?? "—";
-  const allMatched = (text: string) => (
-    <div className="grid grid-cols-[auto_1fr] items-center gap-[10px] border-t border-line-subtle px-[16px] py-[10px]">
-      <RgBadge tone="ok" dot={false}>
-        <Check className="h-[12px] w-[12px]" aria-hidden />
-        {t("matching.allMatched")}
-      </RgBadge>
-      <small className="text-[12.5px] text-ink-secondary">{text}</small>
+
+  const now = Date.now();
+  const ageDays = (iso: string) => Math.floor((now - new Date(iso).getTime()) / 86_400_000);
+  const loc = locale === "ar" ? "ar-LY-u-nu-latn" : "fr-FR";
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat(loc, { day: "numeric", month: "short", ...(d.getFullYear() !== new Date(now).getFullYear() ? { year: "numeric" } : {}) }).format(d);
+  };
+  const fmtAgo = (iso: string) => {
+    const days = ageDays(iso);
+    const rtf = new Intl.RelativeTimeFormat(loc, { numeric: "auto" });
+    if (days < 1) return rtf.format(0, "day");
+    if (days < 30) return rtf.format(-days, "day");
+    if (days < 365) return rtf.format(-Math.floor(days / 30), "month");
+    return rtf.format(-Math.floor(days / 365), "year");
+  };
+
+  /** Bind every order of `g` to `optionId`; true when all of them took. */
+  const bindOne = async (k: Kind, g: Group, optionId: string): Promise<boolean> => {
+    if (k === "products") {
+      const res = await fetch("/api/mappings/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storefront_id: g.storefront_id, external_variant_id: g.external_variant_id, external_product_id: g.external_product_id, product_id: optionId }),
+      });
+      return res.ok;
+    }
+    const field = marketCode === "ly" ? "darb_destination_id" : "city_id";
+    const value = marketCode === "ly" ? Number(optionId) : optionId;
+    const ok = await runLimited(g.orderIds, CONCURRENCY, async (orderId) =>
+      (await fetch("/api/mappings/cities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId, [field]: value }),
+      })).ok,
+    );
+    return ok === g.orderIds.length;
+  };
+
+  /** Bind several groups, each to its own option; one toast for the lot. */
+  const bindMany = async (pairs: { g: Group; optionId: string }[]) => {
+    if (!pairs.length) return true;
+    setBusy(true);
+    try {
+      const k = kind;
+      const ok = await runLimited(pairs, k === "products" ? CONCURRENCY : 1, ({ g, optionId }) => bindOne(k, g, optionId));
+      await (k === "products" ? mutateProducts() : mutateCities());
+      setSelected(new Set());
+      if (ok === pairs.length) toast.show({ message: pairs.length === 1 ? t("matching.done") : t("matching.doneMany", { n: ok }), tone: "info" });
+      else toast.show({ message: t("matching.partial", { ok, n: pairs.length }), tone: "critical" });
+      return ok === pairs.length;
+    } finally {
+      setBusy(false);
+    }
+  };
+  const accept = (gs: Group[]) =>
+    bindMany(gs.flatMap((g) => {
+      const s = suggestions.get(g.key);
+      return s ? [{ g, optionId: s.id }] : [];
+    }));
+
+  const switchTab = (k: Kind) => {
+    setTab(k);
+    setSelected(new Set());
+  };
+  const toggle = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const tabs = (
+    <div role="tablist" aria-label={t("matching.title")} className="rg-segc">
+      {(["products", "cities"] as const).map((k) => (
+        <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => switchTab(k)}>
+          {t(`matching.${k}`)}
+          <span className="n num">{(k === "products" ? products : cities).length}</span>
+        </button>
+      ))}
     </div>
   );
 
+  if (!products.length && !cities.length) {
+    return (
+      <section className="rg-card" aria-label={t("matching.title")}>
+        <div className="rg-mdone">
+          <span className="okc">
+            <Check aria-hidden />
+          </span>
+          <div>
+            <b>{t("matching.allMatched")}</b>
+            <small>{t("matching.allMatchedSub")}</small>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <SettingsCard title={t("matching.title")} description={t("matching.desc")}>
-      <div className="grid md:grid-cols-2">
-        <div className="min-w-0">
-          <h4 className="m-0 flex items-center gap-[8px] px-[16px] pb-[4px] pt-[12px] text-[13.5px] font-semibold">
-            {t("matching.products")}
-            <RgBadge tone={products.length ? "warn" : "neutral"} dot={false}>{products.length}</RgBadge>
-          </h4>
-          {prodData && products.length === 0
-            ? allMatched(t("matching.noProduct"))
-            : products.map((g) => (
-                <div key={g.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[10px] border-t border-line-subtle px-[16px] py-[10px]">
-                  <div className="min-w-0">
-                    <b className="block truncate font-semibold">{g.name}</b>
-                    <small className="text-[12.5px] text-ink-secondary">
-                      {shopName(g.storefront_id)} · {t("matching.ref", { ref: g.external_variant_id })} · {pending(g.count)}
-                    </small>
-                  </div>
-                  {editable && (
-                    <RgButton size="sm" onClick={() => setBinding({ kind: "product", group: g })}>
-                      {t("matching.associate")}
-                    </RgButton>
-                  )}
-                </div>
-              ))}
+    <section className="rg-card rg-match" aria-label={t("matching.title")}>
+      <header>
+        <div className="min-w-0 flex-1">
+          <h3>{t("matching.title")}</h3>
+          <p>{t("matching.desc")}</p>
         </div>
-        <div className="min-w-0 border-line-subtle md:border-s">
-          <h4 className="m-0 flex items-center gap-[8px] px-[16px] pb-[4px] pt-[12px] text-[13.5px] font-semibold">
-            {t("matching.cities")}
-            <RgBadge tone={cities.length ? "warn" : "neutral"} dot={false}>{cities.length}</RgBadge>
-          </h4>
-          {cityData && cities.length === 0
-            ? allMatched(t("matching.noCity"))
-            : cities.map((g) => (
-                <div key={g.city} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[10px] border-t border-line-subtle px-[16px] py-[10px]">
-                  <div className="min-w-0">
-                    <b className="block truncate font-semibold">{g.city}</b>
-                    <small className="text-[12.5px] text-ink-secondary">{pending(g.orderIds.length)}</small>
-                  </div>
-                  {editable && (
-                    <RgButton size="sm" onClick={() => setBinding({ kind: "city", group: g })}>
-                      {t("matching.associate")}
-                    </RgButton>
-                  )}
-                </div>
-              ))}
+        <div className="flex-none">{tabs}</div>
+      </header>
+
+      {rows.length === 0 ? (
+        <div className="rg-mdone border-t border-line-subtle">
+          <span className="okc">
+            <Check aria-hidden />
+          </span>
+          <div>
+            <b>{t("matching.allMatched")}</b>
+            <small>{t(kind === "products" ? "matching.noProduct" : "matching.noCity")}</small>
+          </div>
         </div>
-      </div>
-      {binding && (
-        <BindDrawer
-          marketId={marketId}
-          kind={binding.kind}
-          title={binding.kind === "product" ? t("matching.productTitle") : t("matching.cityTitle")}
-          subtitle={
-            binding.kind === "product"
-              ? t("matching.productSubtitle", { name: binding.group.name, shop: shopName(binding.group.storefront_id), pending: pending(binding.group.count) })
-              : t("matching.citySubtitle", { name: binding.group.city, pending: pending(binding.group.orderIds.length) })
-          }
-          onClose={() => setBinding(null)}
+      ) : (
+        <>
+          <div className="rg-mhead">
+            <span className="big num">{waiting}</span>
+            <div className="txt">
+              {t(kind === "products" ? "matching.waitProducts" : "matching.waitCities", { n: waiting })}
+              {oldest && (
+                <small>
+                  {t("matching.oldest")} <span className={ageDays(oldest) > OLD_DAYS ? "old" : undefined}>{fmtDate(oldest)}</span>
+                </small>
+              )}
+            </div>
+            {editable && same.length > 0 && (
+              <RgButton variant="primary" size="sm" disabled={busy} onClick={() => void accept(same)}>
+                <Check aria-hidden />
+                {t("matching.acceptSame", { n: same.length, orders: sameOrders })}
+              </RgButton>
+            )}
+          </div>
+
+          <table>
+            <colgroup>
+              {editable && <col style={{ width: 48 }} />}
+              <col />
+              <col style={{ width: 92 }} />
+              <col className="hide-sm" style={{ width: 104 }} />
+              <col className="hide-sm" style={{ width: 210 }} />
+              {editable && <col style={{ width: 186 }} />}
+            </colgroup>
+            <thead>
+              <tr>
+                {editable && <th className="rg-th" aria-label={t("matching.select")} />}
+                <th className="rg-th">{t("matching.colReceived")}</th>
+                <th className="rg-th text-end">{t("matching.colOrders")}</th>
+                <th className="rg-th hide-sm">{t("matching.colSince")}</th>
+                <th className="rg-th hide-sm">{t("matching.colProposal")}</th>
+                {editable && <th className="rg-th" />}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((g) => {
+                const s = suggestions.get(g.key) ?? null;
+                const on = selected.has(g.key);
+                const shop = shopOf(g.storefront_id);
+                const old = ageDays(g.oldest) > OLD_DAYS;
+                return (
+                  <tr key={g.key} className={on ? "rg-sel" : undefined}>
+                    {editable && (
+                      <td className="rg-td">
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={on}
+                          aria-label={t("matching.selectOne", { name: g.name })}
+                          disabled={!s || busy}
+                          className="rg-cb"
+                          onClick={() => toggle(g.key)}
+                        >
+                          {on && <Check aria-hidden />}
+                        </button>
+                      </td>
+                    )}
+                    <td className="rg-td">
+                      <div className="rg-recv">
+                        {kind === "products" && (
+                          <Mark size={26} src={shop?.logo_url}>
+                            {(shop?.name ?? "?").slice(0, 1).toUpperCase()}
+                          </Mark>
+                        )}
+                        <div>
+                          <b title={g.name}>{g.name}</b>
+                          {kind === "products" && (
+                            <small>
+                              {shop?.name ?? "—"} · {t("matching.ref", { ref: g.external_variant_id ?? "" })}
+                            </small>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="rg-td">
+                      <div className="rg-bar">
+                        <span className="bt" aria-hidden>
+                          <i style={{ width: `${Math.max(8, (g.orderIds.length / most) * 100)}%`, ...(old ? { ["--c" as string]: "#F2B562" } : {}) }} />
+                        </span>
+                        <b>{g.orderIds.length}</b>
+                      </div>
+                    </td>
+                    <td className="rg-td hide-sm">
+                      <div className={`rg-age${old ? " old" : ""}`}>
+                        {fmtDate(g.oldest)}
+                        <small>{fmtAgo(g.oldest)}</small>
+                      </div>
+                    </td>
+                    <td className="rg-td hide-sm">
+                      {s ? (
+                        <div className="rg-prop">
+                          <ArrowRight aria-hidden />
+                          <div>
+                            <b title={s.label}>{s.label}</b>
+                            <span className={`rg-conf ${s.confidence}`}>
+                              {s.confidence === "same" && <Check aria-hidden />}
+                              {t(s.confidence === "same" ? "matching.same" : "matching.near")}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="rg-prop none">{t("matching.noProposal")}</span>
+                      )}
+                    </td>
+                    {editable && (
+                      <td className="rg-td">
+                        <div className="rg-acts">
+                          {s && (
+                            <RgButton variant="soft" size="sm" disabled={busy} onClick={() => void accept([g])}>
+                              {t("matching.associate")}
+                            </RgButton>
+                          )}
+                          <RgButton variant={s ? "quiet" : "secondary"} size="sm" disabled={busy} onClick={() => setPicking(g)}>
+                            {t("matching.choose")}
+                          </RgButton>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {selected.size > 0 && (
+        <div className="rg-bulk" role="toolbar" aria-label={t("matching.title")}>
+          <span>{t("matching.selected", { n: selected.size })}</span>
+          <RgButton variant="primary" size="sm" disabled={busy} onClick={() => void accept(rows.filter((g) => selected.has(g.key)))}>
+            <Check aria-hidden />
+            {t("matching.acceptSelected")}
+          </RgButton>
+          <RgButton variant="quiet" size="sm" onClick={() => setSelected(new Set())}>
+            {t("common.cancel")}
+          </RgButton>
+        </div>
+      )}
+
+      {picking && (
+        <PickerDrawer
+          kind={kind}
+          group={picking}
+          shopName={shopOf(picking.storefront_id)?.name}
+          since={fmtDate(picking.oldest)}
+          pending={pending(picking.orderIds.length)}
+          options={options}
+          suggestion={suggestions.get(picking.key) ?? null}
+          onClose={() => setPicking(null)}
           onBind={async (optionId) => {
-            let ok = true;
-            if (binding.kind === "product") {
-              const g = binding.group;
-              const res = await fetch("/api/mappings/products", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ storefront_id: g.storefront_id, external_variant_id: g.external_variant_id, external_product_id: g.external_product_id, product_id: optionId }),
-              });
-              ok = res.ok;
-              await mutateProducts();
-            } else {
-              const field = marketCode === "ly" ? "darb_destination_id" : "city_id";
-              const value = marketCode === "ly" ? Number(optionId) : optionId;
-              const results = await Promise.all(
-                binding.group.orderIds.map((orderId) =>
-                  fetch("/api/mappings/cities", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ order_id: orderId, [field]: value }),
-                  }),
-                ),
-              );
-              ok = results.every((r) => r.ok);
-              await mutateCities();
-            }
-            toast.show({ message: ok ? t("matching.done") : t("common.error"), tone: ok ? "info" : "critical" });
-            if (ok) setBinding(null);
+            if (await bindMany([{ g: picking, optionId }])) setPicking(null);
           }}
         />
       )}
-    </SettingsCard>
+    </section>
   );
 }
 
-function BindDrawer({
-  marketId,
+/** Group waiting orders by the name a shop sent, most orders first. */
+function group(orders: UnmatchedOrder[] | undefined, keyOf: (o: UnmatchedOrder) => string | null, nameOf: (o: UnmatchedOrder) => string): Group[] {
+  const map = new Map<string, Group>();
+  for (const o of orders ?? []) {
+    const key = keyOf(o);
+    if (!key) continue;
+    const g = map.get(key) ?? {
+      key,
+      name: nameOf(o),
+      orderIds: [],
+      oldest: o.created_at,
+      storefront_id: o.storefront_id,
+      external_variant_id: o.external_variant_id ?? undefined,
+      external_product_id: o.external_product_id,
+    };
+    g.orderIds.push(o.id);
+    if (o.created_at && o.created_at < g.oldest) g.oldest = o.created_at;
+    map.set(key, g);
+  }
+  return Array.from(map.values()).sort((a, b) => b.orderIds.length - a.orderIds.length || a.oldest.localeCompare(b.oldest));
+}
+
+function PickerDrawer({
   kind,
-  title,
-  subtitle,
+  group: g,
+  shopName,
+  since,
+  pending,
+  options,
+  suggestion,
   onClose,
   onBind,
 }: {
-  marketId: string;
-  kind: "product" | "city";
-  title: string;
-  subtitle: string;
+  kind: Kind;
+  group: Group;
+  shopName?: string;
+  since: string;
+  pending: string;
+  options: Option[];
+  suggestion: MatchSuggestion | null;
   onClose: () => void;
   onBind: (optionId: string) => Promise<void>;
 }) {
   const t = useTranslations("reglages");
-  const { data: products } = useSWR<{ data: { id: string; name: string; sku?: string | null }[] }>(kind === "product" ? `/api/products?market_id=${marketId}` : null);
-  const { data: destinations } = useSWR<{ data: { id: string | number; city?: string; area?: string; name?: string; name_ar?: string }[] }>(
-    kind === "city" ? `/api/mappings/cities?market_id=${marketId}` : null,
-  );
   const [q, setQ] = useState("");
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(suggestion?.id ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const options: Option[] =
-    kind === "product"
-      ? (products?.data ?? []).map((p) => ({ id: p.id, label: p.name, sub: p.sku ?? undefined }))
-      : (destinations?.data ?? []).map((d) => ({ id: String(d.id), label: d.city ? (d.area ? `${d.city} — ${d.area}` : d.city) : d.name ?? "", sub: d.name_ar }));
+  const proposed = suggestion ? options.find((o) => o.id === suggestion.id) ?? null : null;
   const needle = q.trim().toLowerCase();
-  const shown = (needle ? options.filter((o) => `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(needle)) : options).slice(0, 50);
+  const rest = (needle ? options.filter((o) => `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(needle)) : options).filter((o) => o.id !== proposed?.id).slice(0, 60);
+  const searchLabel = kind === "products" ? t("matching.searchProduct") : t("matching.searchCity");
+
+  const opt = (o: Option) => (
+    <button key={o.id} type="button" role="radio" aria-checked={picked === o.id} className="rg-opt" onClick={() => setPicked(o.id)}>
+      <span className="min-w-0">
+        <b>{o.label}</b>
+        {o.sub && <small dir="auto">{o.sub}</small>}
+      </span>
+      <span aria-hidden className="rad" />
+    </button>
+  );
 
   return (
     <Drawer
       open
       onClose={onClose}
-      title={title}
-      subtitle={subtitle}
+      eyebrow={kind === "products" ? t("matching.productTitle") : t("matching.cityTitle")}
+      title={`« ${g.name} »`}
+      subtitle={
+        <>
+          {kind === "products" && (
+            <span>
+              {shopName ?? "—"} · {t("matching.ref", { ref: g.external_variant_id ?? "" })} ·
+            </span>
+          )}
+          <span>
+            {pending} · {t("matching.since", { date: since })}
+          </span>
+        </>
+      }
       footer={
         <>
           {error && (
@@ -232,41 +496,31 @@ function BindDrawer({
               setBusy(false);
             }}
           >
-            {t("matching.associate")}
+            {kind === "products" ? t("matching.associate") : t("matching.bindN", { n: g.orderIds.length })}
           </RgButton>
         </>
       }
     >
-      <DrawerSection>
-        <label className="mb-[12px] flex h-[36px] items-center gap-[8px] rounded-[8px] border border-[#D2D5D9] bg-white px-[10px]">
-          <Search className="h-[16px] w-[16px] text-ink-secondary" aria-hidden />
-          <input
-            className="flex-1 border-0 bg-transparent outline-none"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={kind === "product" ? t("matching.searchProduct") : t("matching.searchCity")}
-            aria-label={kind === "product" ? t("matching.searchProduct") : t("matching.searchCity")}
-          />
-        </label>
-        <div role="radiogroup" aria-label={title}>
-          {shown.length === 0 ? (
-            <p className="m-0 text-[13px] text-ink-secondary">{t("matching.nothingFound")}</p>
-          ) : (
-            shown.map((o) => (
-              <label key={o.id} className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-[12px] border-b border-line-subtle py-[10px] last:border-b-0">
-                <span>
-                  <b className="block font-medium">{o.label}</b>
-                  {o.sub && <small className="text-[12.5px] text-ink-secondary">{o.sub}</small>}
-                </span>
-                <input type="radio" name="rg-bind" className="h-[18px] w-[18px] accent-[var(--brand)]" checked={picked === o.id} onChange={() => setPicked(o.id)} aria-label={o.label} />
-              </label>
-            ))
-          )}
+      <label className="rg-search">
+        <Search aria-hidden />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchLabel} aria-label={searchLabel} />
+      </label>
+      <div role="radiogroup" aria-label={searchLabel} className="flex flex-col gap-[12px]">
+        {proposed && !needle && (
+          <div className="rg-gl rg-opts">
+            <div className="eyebrow">{t("matching.proposed")}</div>
+            {opt(proposed)}
+          </div>
+        )}
+        <div className="rg-gl rg-opts">
+          <div className="eyebrow">{kind === "products" ? t("matching.allProducts") : t("matching.allDestinations")}</div>
+          {rest.length === 0 ? <p className="m-0 px-[8px] py-[6px] text-[13px] text-ink-secondary">{t("matching.nothingFound")}</p> : rest.map(opt)}
         </div>
-      </DrawerSection>
-      <DrawerSection>
-        <p className="m-0 text-[13px] text-ink-secondary">{kind === "product" ? t("matching.productEffect") : t("matching.cityEffect")}</p>
-      </DrawerSection>
+      </div>
+      <div className="rg-gl rg-eff">
+        <Info aria-hidden />
+        <span>{kind === "products" ? t("matching.productEffect") : t("matching.cityEffect")}</span>
+      </div>
     </Drawer>
   );
 }

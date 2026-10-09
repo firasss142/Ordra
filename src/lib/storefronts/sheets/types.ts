@@ -9,8 +9,12 @@ import type { InternalOrderData } from "@/lib/storefronts/types";
  */
 export interface SheetsRowAdapter {
   readonly platform: string;
-  /** Columns a sheet must have for mapRow to work — checked when the sheet is connected. */
-  readonly requiredHeaders: readonly string[];
+  /**
+   * Columns a sheet must have for mapRow to work — checked when the sheet is
+   * connected. A list entry is "any one of these" (one platform, two export
+   * layouts naming the same column differently).
+   */
+  readonly requiredHeaders: readonly (string | readonly string[])[];
   mapRow(row: Record<string, string>): InternalOrderData;
   /**
    * A reason to leave this row out entirely, or `null` to import it.

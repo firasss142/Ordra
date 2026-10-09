@@ -14,7 +14,7 @@ import { RgButton } from "../kit/RgButton";
 import { TopicSkeleton } from "../kit/TopicSkeleton";
 
 /**
- * Réglages › Commandes — calls, duplicates and archiving. What is left of the
+ * Réglages › Commandes — calls, duplicates, card payment and archiving. What is left of the
  * old « Opérations » once the 13 settings no code reads are hidden
  * (plans/reglages-redesign.md). A market manager edits all of it.
  */
@@ -22,7 +22,7 @@ export function OrdersTopic({ user, marketId }: TopicProps) {
   const t = useTranslations("reglages");
   const form = useMarketSettingsForm(marketId);
   const editable = canEditArea(user.role, "orders");
-  if (!form.loaded) return <TopicSkeleton cards={3} />;
+  if (!form.loaded) return <TopicSkeleton cards={4} />;
 
   const field = (key: string) => ({ label: t(`fields.${key}.label`), unit: t(`fields.${key}.unit`) });
 
@@ -85,6 +85,20 @@ export function OrdersTopic({ user, marketId }: TopicProps) {
         />
       </SettingsCard>
 
+      <SettingsCard title={t("orders.cardTitle")} description={t("orders.cardDesc")}>
+        <NumberSetting
+          form={form}
+          marketId={marketId}
+          settingKey="card_surcharge_pct"
+          {...field("card_surcharge_pct")}
+          min={0}
+          max={50}
+          step={0.5}
+          editable={canEditArea(user.role, "money")}
+          help={(n) => t("fields.card_surcharge_pct.help", { n })}
+        />
+      </SettingsCard>
+
       <SettingsCard title={t("orders.archiveTitle")} description={t("orders.archiveDesc")}>
         <NumberSetting
           form={form}
@@ -132,7 +146,7 @@ function RetrySlots({ form, marketId, editable }: { form: MarketSettingsForm; ma
             {slots.map((slot, i) => (
               <span
                 key={i}
-                className={`inline-flex h-[36px] items-center gap-[2px] rounded-[6px] border bg-white pe-[4px] ps-[8px] ${HHMM.test(slot) ? "border-[#D2D5D9]" : "border-status-critical"}`}
+                className={`rg-tchip${HHMM.test(slot) ? "" : " bad"}`}
               >
                 <input
                   type="text"
@@ -142,20 +156,20 @@ function RetrySlots({ form, marketId, editable }: { form: MarketSettingsForm; ma
                   value={slot}
                   aria-label={t("fields.attempt_retry_times.slot", { n: i + 1 })}
                   onChange={(e) => setSlots(slots.map((s, j) => (j === i ? e.target.value : s)))}
-                  className="w-[52px] border-0 bg-transparent text-center text-[14px] tabular-nums outline-none"
+                  className="w-[48px]"
                 />
                 <button
                   type="button"
                   aria-label={t("fields.attempt_retry_times.remove")}
                   onClick={() => setSlots(slots.filter((_, j) => j !== i))}
-                  className="grid h-[24px] w-[24px] place-items-center rounded-[4px] text-ink-secondary hover:bg-surface-selected"
+                  className="x"
                 >
                   <X className="h-[14px] w-[14px]" aria-hidden />
                 </button>
               </span>
             ))}
             {slots.length < 3 && (
-              <RgButton size="sm" onClick={() => setSlots([...slots, nextSlot()])}>
+              <RgButton size="sm" className="rg-tadd" onClick={() => setSlots([...slots, nextSlot()])}>
                 <Plus aria-hidden />
                 {t("fields.attempt_retry_times.add")}
               </RgButton>

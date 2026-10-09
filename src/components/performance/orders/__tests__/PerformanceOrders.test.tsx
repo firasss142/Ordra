@@ -94,6 +94,11 @@ describe("Performance › Commandes", () => {
     expect(await screen.findByRole("heading", { name: "Performance des commandes" })).toBeTruthy();
     const hl = document.querySelector(".hl")!;
     expect(norm(hl.textContent)).toBe("Sur 100 commandes reçues, 65 arrivent chez le client.");
+    // Aurore calme: one bar per outcome, counts first; each row opens its orders
+    const rows = within(screen.getByRole("list", { name: "Ce que sont devenues les commandes" })).getAllByRole("listitem");
+    expect(rows.map((r) => norm(r.querySelector("b")!.textContent))).toEqual(["Livrées", "Retournées", "Rejetées", "Jamais réelles", "En cours"]);
+    expect(norm(rows[0].querySelector(".obr-n")!.textContent)).toBe("65");
+    expect(document.querySelector(".waffle")).toBeNull();
     expect(screen.getByRole("heading", { name: "L’argent" })).toBeTruthy();
     expect(screen.getByText("Visible par vous seulement")).toBeTruthy();
     expect(norm(document.querySelector(".money .mval")!.textContent)).toBe("6 500 د.ل");
@@ -118,7 +123,53 @@ describe("Performance › Commandes", () => {
     fireEvent.click(row);
     expect(String(spy.mock.calls.at(-1)?.[2])).toContain(`ag=${SARA}`);
     await waitFor(() => expect(calls.some((c) => c.includes(`ag=${SARA}`))).toBe(true));
-    await waitFor(() => expect(norm(document.querySelector(".hl")!.textContent)).toContain("traitées par Sara"));
+    await waitFor(() => expect(norm(document.querySelector(".hl")!.textContent)).toBe("Sur 40 commandes reçues traitées par Sara, 35 arrivent chez le client."));
+  });
+
+  test("an outcome row opens the drawer on its orders", async () => {
+    mount();
+    const list = await screen.findByRole("list", { name: "Ce que sont devenues les commandes" });
+    fireEvent.click(within(list).getByRole("button", { name: /Retournées/ }));
+    await waitFor(() => expect(calls.some((c) => c.includes("/drill?") && c.includes("drill=out%3Aret"))).toBe(true));
+  });
+
+  test("the filter bar: one button per filter says its value and opens its picker; no dead pills", async () => {
+    mount();
+    await screen.findByRole("heading", { name: "Performance des commandes" });
+    const prod = screen.getByRole("button", { name: /^Produits/ });
+    expect(prod).toHaveAccessibleName("Produits · Tous les produits");
+    expect(screen.getByRole("button", { name: /^Agents/ })).toHaveAccessibleName("Agents · Toute l’équipe");
+    expect(screen.queryByText("Choisir des produits")).toBeNull();
+    expect(document.querySelector(".fbar .tagAB")).toBeNull(); // no « A » until there is a B
+    fireEvent.click(prod);
+    expect(document.querySelector(".picker")).not.toBeNull();
+  });
+
+  test("a set filter shows what is chosen and clears with its own ×", async () => {
+    nav.search = `ag=${SARA}`;
+    mount();
+    const btn = await screen.findByRole("button", { name: /^Agents/ });
+    await waitFor(() => expect(btn).toHaveAccessibleName("Agents · Sara"));
+    expect(btn.closest(".fb")).toHaveClass("set");
+    const spy = vi.spyOn(window.history, "replaceState");
+    fireEvent.click(screen.getByRole("button", { name: /^Retirer ce filtre\s:\sAgents$/ }));
+    expect(String(spy.mock.calls.at(-1)?.[2])).not.toContain("ag=");
+  });
+
+  test("Comparer is a menu of three; choosing one shows « A contre B » on its own line", async () => {
+    mount();
+    await screen.findByRole("heading", { name: "Performance des commandes" });
+    expect(document.querySelector(".vsline")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Comparer/ }));
+    const menu = screen.getByRole("menu", { name: "Comparer" });
+    expect(within(menu).getAllByRole("menuitem")).toHaveLength(3);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: /Autres agents/ }));
+    await waitFor(() => expect(document.querySelector(".vsline")).not.toBeNull());
+    const line = document.querySelector(".vsline") as HTMLElement;
+    expect(norm(line.textContent)).toContain("contre");
+    expect(within(line).getByRole("button", { name: /Choisir l’agent B/ })).toBeTruthy();
+    fireEvent.click(within(line).getByRole("button", { name: "Arrêter la comparaison" }));
+    await waitFor(() => expect(document.querySelector(".vsline")).toBeNull());
   });
 
   test("a leak opens the drawer on its exact orders", async () => {

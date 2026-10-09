@@ -1,3 +1,5 @@
+import type { Cause } from "./request-context";
+
 /**
  * Ordra's own server errors → public.app_errors (plans/journaux-redesign.md §3.2).
  *
@@ -15,6 +17,12 @@ export interface AppErrorInput {
   errorCode: string | null;
   message: string | null;
   actorId: string | null;
+  /** What really failed behind the answer (./request-context.ts). */
+  cause?: Cause | null;
+  /** 'server' (a route) or 'browser' (a crash reported by the page). */
+  source?: "server" | "browser";
+  /** For a browser crash: the page it happened on. */
+  page?: string | null;
 }
 
 const MAX = 200;
@@ -31,9 +39,38 @@ export function redact(text: string | null | undefined, max: number = MAX): stri
   return out.length > max ? out.slice(0, max - 1) + "…" : out;
 }
 
-/** One problem per route, method, status and code — never per message. */
-export function fingerprintOf(e: Pick<AppErrorInput, "route" | "method" | "status" | "errorCode">): string {
-  return [e.method, e.route, String(e.status), e.errorCode].filter(Boolean).join(" ");
+/**
+ * One problem per route, method, status and code — never per message. The
+ * cause code joins it when the answer's own code is empty, so a route that
+ * fails for two different reasons is two problems.
+ */
+export function fingerprintOf(
+  e: Pick<AppErrorInput, "route" | "method" | "status" | "errorCode"> & { causeCode?: string | null },
+): string {
+  return [e.method, e.route, String(e.status), e.errorCode ?? e.causeCode].filter(Boolean).join(" ");
+}
+
+/** The app_errors row, without the columns added on 2026-10-06 when `legacy`. */
+export function appErrorRow(e: AppErrorInput, legacy = false): Record<string, unknown> {
+  const row: Record<string, unknown> = {
+    route: e.route,
+    method: e.method,
+    status: e.status,
+    error_code: e.errorCode ? String(e.errorCode).slice(0, 40) : null,
+    message: redact(e.message),
+    actor_id: e.actorId,
+    fingerprint: fingerprintOf({ ...e, causeCode: e.cause?.code ?? null }),
+  };
+  if (legacy) return row;
+  return {
+    ...row,
+    source: e.source ?? "server",
+    page: e.page ? e.page.slice(0, 200) : null,
+    cause_kind: e.cause?.kind ?? null,
+    cause_code: e.cause?.code ? String(e.cause.code).slice(0, 40) : null,
+    cause_detail: redact(e.cause?.detail, 400),
+    cause_target: e.cause?.target ? String(e.cause.target).slice(0, 80) : null,
+  };
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -72,18 +109,15 @@ export async function recordAppError(e: AppErrorInput): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key || process.env.NODE_ENV === "test") return;
-  await fetch(`${url}/rest/v1/app_errors`, {
-    method: "POST",
-    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify({
-      route: e.route,
-      method: e.method,
-      status: e.status,
-      error_code: e.errorCode ? String(e.errorCode).slice(0, 40) : null,
-      message: redact(e.message),
-      actor_id: e.actorId,
-      fingerprint: fingerprintOf(e),
-    }),
-    signal: AbortSignal.timeout(3000),
-  });
+  const post = (row: Record<string, unknown>) =>
+    fetch(`${url}/rest/v1/app_errors`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(row),
+      signal: AbortSignal.timeout(3000),
+    });
+  const res = await post(appErrorRow(e));
+  // Before 20261006120000 is pasted the cause columns do not exist (PGRST204):
+  // keep the row, lose only the cause.
+  if (res.status === 400) await post(appErrorRow(e, true));
 }

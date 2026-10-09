@@ -49,28 +49,45 @@ beforeEach(() => {
 });
 
 describe("ReglagesShell", () => {
-  it("gives the administrator the nine topics, in the order an order travels", () => {
+  it("gives the administrator eleven topics in four named sections", () => {
     render(<ReglagesShell user={admin} topic="markets" />);
     const nav = screen.getByRole("navigation", { name: "Réglages" });
     expect(within(nav).getAllByRole("link").map((a) => a.textContent)).toEqual([
-      "Marchés", "Boutiques", "Commandes", "Motifs de rejet", "Équipe", "Entrepôts", "Livraison", "WhatsApp", "Publicité",
+      "Boutiques", "Commandes", "Motifs de rejet", "Prospects", "Équipe",
+      "Entrepôts", "Livraison",
+      "WhatsApp", "Publicité",
+      "Marchés", "Surveillance",
+    ]);
+    expect(within(nav).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Ventes", "Expédition", "Clients et publicité", "Système",
     ]);
     expect(within(nav).getByRole("link", { name: "Marchés" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows a manager their own market, fixed, and neither Marchés nor Publicité", () => {
+  it("hides the market switch on topics that cover every market", () => {
+    render(<ReglagesShell user={admin} topic="monitoring" />);
+    expect(screen.queryByRole("button", { name: /Tunisie/ })).not.toBeInTheDocument();
+    expect(screen.getByTestId("topic-body")).toHaveTextContent("monitoring");
+  });
+
+  it("shows a manager their own market, fixed, and neither Marchés, Publicité nor Surveillance", () => {
     render(<ReglagesShell user={manager} topic="shops" />);
-    expect(screen.getByText("Votre marché")).toBeInTheDocument();
+    expect(screen.getByLabelText("Votre marché")).toHaveTextContent("Libye · LYD");
     expect(screen.queryByRole("button", { name: /Tunisie/ })).not.toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Réglages" });
     expect(within(nav).queryByRole("link", { name: "Marchés" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Publicité" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Surveillance" })).not.toBeInTheDocument();
+    // a section left empty for this role is not shown
+    expect(within(nav).queryByRole("heading", { name: "Système" })).not.toBeInTheDocument();
   });
 
-  it("names the market in the header of a market topic", () => {
+  it("titles the page with the topic and shows the market being set in the header", () => {
     render(<ReglagesShell user={admin} topic="delivery" />);
-    expect(screen.getByText("Libye · LYD")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Livraison" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Livraison" })).toBeInTheDocument();
+    const markets = screen.getByRole("group", { name: "Marché réglé" });
+    expect(within(markets).getByRole("button", { name: /Libye/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(markets).getByRole("button", { name: /Tunisie/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("asks for a market instead of loading forever when the scope is « Tous les marchés »", async () => {

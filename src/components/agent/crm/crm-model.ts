@@ -13,11 +13,11 @@ import type { LeadSource } from "@/types/lead";
 export type Tile = Bucket | "all";
 
 /** The prototype's `LB_ORDER`: « Tout » then the six derived buckets. */
-export const TILE_ORDER: Tile[] = ["all", "hot", "callback", "retry", "campaign", "winback", "converted"];
+export const TILE_ORDER: Tile[] = ["all", "hot", "callback", "retry", "recover", "rebuy", "campaign", "winback", "converted"];
 
 /** The prototype's `LB[k].hue`. */
 export const BUCKET_HUE: Record<Tile, AgentHue> = {
-  all: "neutral", hot: "pink", callback: "violet", retry: "amber", campaign: "blue", winback: "red", converted: "green",
+  all: "neutral", hot: "pink", callback: "violet", retry: "amber", recover: "teal", rebuy: "gold", campaign: "blue", winback: "red", converted: "green",
 };
 
 const minutesBetween = (fromIso: string, to: number) => Math.max(0, Math.floor((to - Date.parse(fromIso)) / 60_000));
@@ -25,7 +25,7 @@ const minutesBetween = (fromIso: string, to: number) => Math.max(0, Math.floor((
 export interface Sit {
   hue: AgentHue;
   icon: string;
-  key: "replied" | "hot" | "cbLate" | "cbAt" | "retry" | "campaign" | "winback" | "won" | "wonNoRef";
+  key: "replied" | "hot" | "cbLate" | "cbAt" | "retry" | "recover" | "rebuy" | "campaign" | "winback" | "won" | "wonNoRef";
   minutes?: number;
   at?: string;
   n?: number;
@@ -46,6 +46,10 @@ export function leadSit(row: ProspectRow, now: number): Sit {
     }
     case "retry":
       return { hue: "amber", icon: "phoneoff", key: "retry", n: attemptCount(row) };
+    case "recover":
+      return { hue: "teal", icon: "phoneoff", key: "recover" };
+    case "rebuy":
+      return { hue: "gold", icon: "repeat", key: "rebuy" };
     case "campaign":
       return { hue: "blue", icon: "mega", key: "campaign" };
     case "winback":
@@ -60,7 +64,7 @@ export function leadSit(row: ProspectRow, now: number): Sit {
 export type Line =
   | { quote: string }
   | { key: "replied" | "retry" | "won"; minutes: number }
-  | { key: "callback" | "winbackNoWhy" }
+  | { key: "callback" | "winbackNoWhy" | "recover" | "rebuy" }
   | { key: "campaign"; name: string | null; days: number | null }
   | { key: "winback"; why: string }
   | null;
@@ -75,6 +79,10 @@ export function leadLine(row: ProspectRow, now: number): Line {
       return { key: "callback" };
     case "retry":
       return { key: "retry", minutes: minutesBetween(row.last_touch_at ?? row.updated_at, now) };
+    case "recover":
+      return { key: "recover" };
+    case "rebuy":
+      return { key: "rebuy" };
     case "campaign":
       return {
         key: "campaign",
@@ -89,7 +97,7 @@ export function leadLine(row: ProspectRow, now: number): Line {
 }
 
 export interface Why {
-  key: "hot" | "cbLate" | "cbAt" | "retry" | "campaign" | "winback" | "winbackNoWhy" | "won";
+  key: "hot" | "cbLate" | "cbAt" | "retry" | "recover" | "rebuy" | "campaign" | "winback" | "winbackNoWhy" | "won";
   minutes?: number;
   at?: string;
   n?: number;
@@ -106,6 +114,10 @@ export function nextWhy(row: ProspectRow, now: number): Why {
       return { key: isCallbackDue(row, now) ? "cbLate" : "cbAt", at: row.callback_scheduled_at ?? "" };
     case "retry":
       return { key: "retry", n: attemptCount(row) };
+    case "recover":
+      return { key: "recover" };
+    case "rebuy":
+      return { key: "rebuy" };
     case "campaign":
       return { key: "campaign" };
     case "winback":
@@ -120,6 +132,8 @@ export function sourceMeta(source: LeadSource): { hue: AgentHue; icon: string } 
   if (source === "whatsapp") return { hue: "green", icon: "wa" };
   if (source === "campaign") return { hue: "blue", icon: "mega" };
   if (source === "winback") return { hue: "red", icon: "back" };
+  if (source === "rejected_order") return { hue: "teal", icon: "phoneoff" };
+  if (source === "repeat_buyer") return { hue: "gold", icon: "repeat" };
   if (source === "manual_call") return { hue: "neutral", icon: "user" };
   return { hue: "blue", icon: "wa" };
 }

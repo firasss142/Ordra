@@ -25,11 +25,11 @@ function row(over: Partial<ProspectRow> = {}): ProspectRow {
   };
 }
 
-describe("the seven tiles", () => {
-  test("Tout first, then the six derived buckets in the prototype's order and hues", () => {
-    expect(TILE_ORDER).toEqual(["all", "hot", "callback", "retry", "campaign", "winback", "converted"]);
+describe("the nine tiles (two more since the recovery desk, 2026-10-06)", () => {
+  test("Tout first, then the derived buckets in order, « Rejets » and « Anciens clients » after the retries", () => {
+    expect(TILE_ORDER).toEqual(["all", "hot", "callback", "retry", "recover", "rebuy", "campaign", "winback", "converted"]);
     expect(BUCKET_HUE).toEqual({
-      all: "neutral", hot: "pink", callback: "violet", retry: "amber", campaign: "blue", winback: "red", converted: "green",
+      all: "neutral", hot: "pink", callback: "violet", retry: "amber", recover: "teal", rebuy: "gold", campaign: "blue", winback: "red", converted: "green",
     });
   });
 });

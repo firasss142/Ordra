@@ -1,5 +1,5 @@
-import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function TeamLoading() {
-  return <PageSkeleton rows={5} />;
+  return <RouteSkeleton body="cards" cards={6} />;
 }

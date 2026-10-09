@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * The one switch of Réglages (prototype `.sw`): 36×20 track, brand green when
- * on. A read-only setting never renders a disabled switch — it shows a badge
- * (see ReadOnlyState) — so `disabled` is only for "not right now".
+ * The one switch of Réglages: brand green when on (reglages.css `.rg-sw`). A
+ * read-only setting never renders a disabled switch — it shows a badge — so
+ * `disabled` is only for "not right now".
  */
 export function Switch({
   checked,
@@ -29,13 +29,7 @@ export function Switch({
       }}
       className="inline-flex items-center rounded-full p-[2px] disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <span
-        className={`relative h-[20px] w-[36px] rounded-full transition-colors ${checked ? "bg-brand" : "bg-[#C9CDD2]"}`}
-      >
-        <span
-          className={`absolute top-[2px] h-[16px] w-[16px] rounded-full bg-white transition-[inset-inline-start] ${checked ? "start-[18px]" : "start-[2px]"}`}
-        />
-      </span>
+      <span className="rg-sw" />
     </button>
   );
 }

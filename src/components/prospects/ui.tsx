@@ -11,7 +11,7 @@
  * prospect has a violet campaign tone that a parcel has no use for.
  */
 import { useTranslations } from "next-intl";
-import { Calendar, Clock, Megaphone, Phone, RotateCcw, ShoppingCart } from "lucide-react";
+import { Calendar, Clock, Megaphone, Phone, PhoneOff, Repeat, RotateCcw, ShoppingCart } from "lucide-react";
 import type { SituationKey, Tone } from "@/lib/prospects/presentation";
 
 export const TONE: Record<Tone, { chip: string; edge: string; dot: string; soft: string; border: string; icon: string }> = {
@@ -40,6 +40,8 @@ export const SIT_ICON: Record<SituationKey, IconComponent> = {
   callback_due: Clock,
   callback_at: Calendar,
   retry: Phone,
+  recover: PhoneOff,
+  rebuy: Repeat,
   campaign: Megaphone,
   winback: RotateCcw,
   converted: ShoppingCart,

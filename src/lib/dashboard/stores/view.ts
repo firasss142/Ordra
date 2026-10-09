@@ -1,38 +1,51 @@
-// What GET /api/dashboard/stores returns — every figure of Accueil, already
-// computed (prototypes/dashboard-v2.html). The page only formats and draws.
+// What GET /api/dashboard/stores returns — every figure of Accueil v9, already
+// computed (prototypes/dashboard-v9.html, `buildView`). The page only formats and draws.
 
-import type { Outcome } from "@/lib/performance/orders/facts";
-import type { StoreDashMoney } from "@/lib/calculations/store-dashboard-money";
 import type { DashWindow } from "./period";
 import type { Hue, Note, PlatformKey } from "./model";
+import type { Verdict } from "./pace";
 
-export interface Summ {
+/** One bar of a sparkline: a day, or a Monday–Sunday week beyond 45 days. */
+export interface SparkBar {
+  from: string;
+  to: string;
   n: number;
-  /** Delivered parcels. */
-  d: number;
-  /** Came back (returned + cancelled before leaving). */
-  ret: number;
-  /** Rejected, real or not. */
-  rejAll: number;
-  /** Of which never real. */
-  never: number;
-  /** Still in calls (not decided). */
-  calling: number;
-  /** Uploaded (left, or on the road). */
-  up: number;
-  /** Uploaded ÷ (uploaded + rejected), % */
-  conf: number | null;
-  /** Share with a final result, % */
-  final: number;
-  /** Each outcome as a count of orders (adds up to n). */
-  k: Record<Outcome, number>;
-  /** Each outcome per 100, whole cells adding up to 100. */
-  r100: Record<Outcome, number>;
-  /** Raw per-100 values (the arrows compare whole numbers of these). */
-  p: Record<Outcome, number>;
+  /** Σ orders.total_price of those orders — owner only (0 for a manager). */
+  val: number;
+  /** The day (or week) in progress, or a week cut short: drawn hatched, never read as a drop. */
+  part: boolean;
 }
 
-export type NaWhy = "before_first" | "too_few" | "today";
+export interface Kpi {
+  /** Orders received in the window. */
+  n: number;
+  /** Chiffre d'affaires: Σ orders.total_price of those orders. Owner only, else null. */
+  val: number | null;
+  /** Of which delivered (encaissé). Owner only, else null. */
+  paid: number | null;
+  /** The period before (multi-day windows only). */
+  prevN: number | null;
+  prevVal: number | null;
+  /** Pace against a usual day (day windows only). */
+  verdict: Verdict | null;
+  /** « Hier » beside « Aujourd'hui ». */
+  yN: number | null;
+  yVal: number | null;
+  /** The 14 days up to the day shown, or the window's own columns. */
+  spark: SparkBar[];
+}
+
+/** The four tiles of a day, in the order an order lives them; `gap` = confirmed, not yet uploaded. */
+export interface Tiles {
+  wait: number;
+  tried: number;
+  up: number;
+  rej: number;
+  gap: number;
+}
+
+export type RingKey = "del" | "route" | "ret" | "rej" | "junk" | "call";
+export const RING_KEYS: readonly RingKey[] = ["del", "route", "ret", "rej", "junk", "call"];
 
 export interface StoreCard {
   id: string;
@@ -40,47 +53,42 @@ export interface StoreCard {
   platform: PlatformKey;
   sheets: boolean;
   hue: Hue;
-  /** The shop's uploaded logo; null = its initials. */
   logo: string | null;
   n: number;
-  prevN: number;
-  /** Share of the market's orders, % */
-  share: number;
-  a: Summ;
-  prev: Pick<Summ, "p" | "conf"> | null;
-  /** « sur 100 » arrows allowed (both periods ≥ 30, not today). */
-  comparable: boolean;
+  /** The period before (multi-day windows), null otherwise. */
+  prevN: number | null;
   /** Owner only. */
-  paid?: number;
-  /** Product names, most ordered first. */
+  ca: number | null;
+  paid: number | null;
+  tiles: Tiles;
+  ring: Record<RingKey, number>;
+  /** Confirmed (incl. awaiting upload) and its rate over the decided, %. */
+  conf: number;
+  confRate: number | null;
+  /** Delivered ÷ (delivered + failed), %. */
+  delRate: number | null;
+  ret: number;
+  rejAll: number;
   products: string[];
-  dot: "live" | "quiet" | "idle" | null;
   lastAt: string | null;
-  /** The freshness chip turns amber. */
+  fresh: "live" | "bad" | "";
+  /** Broken or stopped: the card's edge and count turn red. */
   alarm: boolean;
+  /** Something to look at (broken, stopped, orders to link, waiting): shown even with 0 orders. */
+  flagged: boolean;
+  pace: Verdict | null;
+  spark: { n: number; part: boolean }[];
   note: Note;
   firstDay: string | null;
-  /** Today only: orders per market-local hour. */
-  hours?: number[];
+  /** When the store was connected (the « waiting » note says it). */
+  connectedAt: string | null;
 }
 
-export interface QuietStore {
+export interface SilentStore {
   id: string;
   name: string;
-  platform: PlatformKey;
-  lastDay: string | null;
-  /** First order after the window: not open yet. */
-  notYet: boolean;
-}
-
-export interface FlowCol {
-  /** Day (YYYY-MM-DD) or hour ("0".."23"). */
-  k: string;
-  tot: number;
-  /** [store id, orders] in the order of the store list. */
-  by: [string, number][];
-  fut: boolean;
-  now: boolean;
+  hue: Hue;
+  lastAt: string | null;
 }
 
 export interface StoreDashView {
@@ -93,20 +101,10 @@ export interface StoreDashView {
   nowMin: number;
   first: string;
   window: DashWindow;
-  /** The day the period before is read as of (equal age). */
-  asOfP: string;
-  A: Summ;
-  P: Summ;
-  /** Rate arrows allowed. */
-  comparable: boolean;
-  /** Count arrows allowed (a period before exists and is not empty). */
-  countOk: boolean;
-  why: NaWhy | null;
-  money: { cur: StoreDashMoney; prev: StoreDashMoney | null; failedFree: boolean } | null;
-  ads: { since: string; days: number; todayOrders: number } | null;
-  flow: FlowCol[];
+  kpi: Kpi;
+  /** Stores with orders in the window, or with something to look at — most orders first. */
   stores: StoreCard[];
-  quiet: QuietStore[];
-  connected: number;
-  lastOrder: { day: string; store: string | null } | null;
+  silent: SilentStore[];
+  /** No order ever: the store waiting for its first one (the empty page names it). */
+  waiting: { name: string; since: string | null } | null;
 }

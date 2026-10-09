@@ -77,12 +77,12 @@ const detail = () => screen.getByRole("complementary");
 const outcomeCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).includes("/outcome"));
 
 describe("Prospects — the agent's CRM tab", () => {
-  test("the header, the seven tiles with their counts, and the first prospect open beside the list", async () => {
+  test("the header, the nine tiles with their counts, and the first prospect open beside the list", async () => {
     mount();
     await waitFor(() => expect(within(list()).getByText("Amal Zentani")).toBeTruthy());
     expect(screen.getByRole("heading", { level: 1, name: "Prospects" })).toBeTruthy();
     const tiles = screen.getByRole("region", { name: "Seaux" });
-    expect(within(tiles).getAllByRole("button")).toHaveLength(7);
+    expect(within(tiles).getAllByRole("button")).toHaveLength(9);
     expect(within(tiles).getByRole("button", { name: /Tout\s*3/ })).toBeTruthy();
     expect(within(tiles).getByRole("button", { name: /Sans réponse\s*1/ })).toBeTruthy();
     // The card's eyebrow says what to do next — not « Résultat de l'appel ».

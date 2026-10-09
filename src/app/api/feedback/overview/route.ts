@@ -4,24 +4,26 @@ import { getActor } from "@/lib/auth/actor";
 import { canManageFeedback } from "@/lib/role-permissions";
 import { resolveFeedbackMarket } from "@/lib/feedback/api";
 import { activePreset, presetRange, prevRange } from "@/lib/feedback/date-range";
-import { computeOverview, COURIER_AGENT, type CubeRow } from "@/lib/feedback/overview";
+import { computeVoice, pickQuotes, COURIER_AGENT, type CubeRow, type QuoteRow, type VoiceReason } from "@/lib/feedback/voice";
 import { loadFamilies, readRange } from "@/lib/feedback/server-data";
-import { isFeedbackCategory, isLateComplaint, type FeedbackCategory } from "@/lib/feedback/taxonomy";
 import { marketTimezone } from "@/lib/markets";
-import { todayInMarket } from "@/lib/dates/market-day";
-import type { FeedbackOverviewResponse, FeedbackTopic } from "@/types/feedback";
+import { marketDayEndUtc, marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
+import type { FeedbackOverviewResponse, FeedbackReason, FeedbackTopic } from "@/types/feedback";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
 export const dynamic = "force-dynamic";
 
+/** « Ce que disent les clients » under an open reason. */
+const QUOTES_PER_REASON = 3;
+
 /**
- * GET /api/feedback/overview?from&to&family&agent&cat — every number above the manager's
- * sheet (prototype voix-du-client-manager-v6): the product tabs, the three category cards
- * with their trend against the previous period of the same length, the category mix, the
- * top topics, the entries per agent, the open/late complaints and the « à valider » count.
+ * GET /api/feedback/overview?from&to&family&agent — every number of « Voix du client »
+ * (prototype voix-du-client-et-messages-v2): the sentence and the to-do line, the ranked
+ * reasons with their trend, products, « Notre réponse » and three quotes, and the sheet's four
+ * minis. Nothing waits for a validation any more: everything not discarded counts.
  *
- * The counting is SQL (feedback_cube, under RLS); the arithmetic is computeOverview, which is
- * tested against the prototype's rules. Dates are market days (Africa/Tripoli for Libya).
+ * The counting is SQL (feedback_cube, under RLS); the arithmetic is computeVoice. Dates are
+ * market days (Africa/Tripoli for Libya).
  */
 async function handleGET(req: NextRequest) {
   const result = await getActor(req);
@@ -41,7 +43,6 @@ async function handleGET(req: NextRequest) {
     .from("customer_feedback")
     .select("created_at")
     .eq("market_id", marketId)
-    .eq("needs_review", false)
     .is("deleted_at", null)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -53,15 +54,14 @@ async function handleGET(req: NextRequest) {
   const [from, to] = range;
   const hasPrev = first !== null && from > first;
 
-  const familyParam = params.get("family");
-  const agentParam = params.get("agent");
-  const catParam = params.get("cat");
-  const category: FeedbackCategory | null = isFeedbackCategory(catParam) ? catParam : null;
-
   const [{ families, products }, cubeRes, topicsRes, agentsRes] = await Promise.all([
     loadFamilies(supabase, marketId),
     supabase.rpc("feedback_cube", { p_market_id: marketId, p_from: prevRange(from, to)[0], p_to: to, p_tz: tz }),
-    supabase.from("feedback_topics").select("id, category, key, label_fr, label_ar, sort_order").eq("market_id", marketId),
+    supabase
+      .from("feedback_topics")
+      .select("id, category, key, label_fr, label_ar, sort_order, response")
+      .eq("market_id", marketId)
+      .order("sort_order", { ascending: true }),
     supabase
       .from("users")
       .select("id, full_name")
@@ -75,48 +75,63 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  const cube = (cubeRes.data ?? []) as CubeRow[];
+  const topics = (topicsRes.data ?? []) as FeedbackTopic[];
   const agents = ((agentsRes.data ?? []) as { id: string; full_name: string | null }[]).map((u) => ({
     id: u.id,
     name: (u.full_name ?? "").trim() || u.id.slice(0, 6),
   }));
-  const family = families.find((f) => f.id === familyParam) ?? null;
+  const family = families.find((f) => f.id === params.get("family")) ?? null;
+  const agentParam = params.get("agent");
+  const agentId = agentParam === COURIER_AGENT || (agentParam && agents.some((a) => a.id === agentParam)) ? agentParam : null;
 
-  const o = computeOverview({
-    cube, from, to, hasPrev, families, agents,
+  const v = computeVoice({
+    cube: (cubeRes.data ?? []) as CubeRow[],
+    topics, from, to, hasPrev, families,
     familyId: family?.id ?? null,
-    agentId: agentParam === COURIER_AGENT || (agentParam && agents.some((a) => a.id === agentParam)) ? agentParam : null,
-    category,
+    agentId,
   });
 
-  // A family earns a tab while it is sold, or while it has something to show.
-  const counted = new Map(o.tabs.byFamily.map((t) => [t.id, t.count]));
-  const activeIds = new Set(products.filter((p) => p.is_active).map((p) => p.id));
-  const shownFamilies = families.filter((f) => (counted.get(f.id) ?? 0) > 0 || f.productIds.some((id) => activeIds.has(id)));
-  const shownIds = new Set(shownFamilies.map((f) => f.id));
+  // The quotes: what customers said with a reason, in the period, under the same filters.
+  let quotesQ = supabase
+    .from("customer_feedback")
+    .select("id, topic_id, created_at, body, moment, source, author:users!customer_feedback_created_by_fkey(full_name)")
+    .eq("market_id", marketId)
+    .is("deleted_at", null)
+    .not("topic_id", "is", null)
+    .gte("created_at", marketDayStartUtc(from, marketId)!)
+    .lte("created_at", marketDayEndUtc(to, marketId)!);
+  if (family) quotesQ = quotesQ.in("product_id", family.productIds);
+  if (agentId === COURIER_AGENT) quotesQ = quotesQ.eq("source", "courier");
+  else if (agentId) quotesQ = quotesQ.eq("created_by", agentId);
 
   // Waiting work is not bound to the period: an open complaint from August is still open.
   let complaintsQ = supabase
     .from("customer_feedback")
-    .select("id, category, status, created_at")
+    .select("id, created_at")
     .eq("market_id", marketId)
     .eq("category", "reclamation")
-    .eq("needs_review", false)
     .in("status", ["open", "in_progress"])
-    .is("deleted_at", null);
-  let reviewQ = supabase
-    .from("customer_feedback")
-    .select("id", { count: "exact", head: true })
-    .eq("market_id", marketId)
-    .eq("needs_review", true)
-    .is("deleted_at", null);
-  if (family) {
-    complaintsQ = complaintsQ.in("product_id", family.productIds);
-    reviewQ = reviewQ.in("product_id", family.productIds);
-  }
-  const [complaintsRes, reviewRes] = await Promise.all([complaintsQ, reviewQ]);
-  const open = (complaintsRes.data ?? []) as { category: FeedbackCategory; status: string | null; created_at: string }[];
-  const now = Date.now();
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+  if (family) complaintsQ = complaintsQ.in("product_id", family.productIds);
+
+  const [quotesRes, complaintsRes] = await Promise.all([
+    quotesQ.order("created_at", { ascending: false }).limit(1000),
+    complaintsQ,
+  ]);
+  const quoteRows = ((quotesRes.data ?? []) as unknown as (Omit<QuoteRow, "author"> & { author: { full_name: string | null } | null })[])
+    .map((r) => ({ ...r, author: r.author ? (r.author.full_name ?? "").trim() || null : null }));
+  const quotes = pickQuotes(quoteRows, QUOTES_PER_REASON);
+  const withQuotes = (x: VoiceReason): FeedbackReason => ({
+    ...x,
+    quotes: (quotes.get(x.topicId) ?? []).map((q) => ({ id: q.id, body: q.body, moment: q.moment, source: q.source, author: q.author })),
+  });
+  const open = (complaintsRes.data ?? []) as { id: string }[];
+
+  // A family earns a place in the product filter while it is sold, or while it has feedback.
+  const activeIds = new Set(products.filter((p) => p.is_active).map((p) => p.id));
+  const mentioned = new Set(((cubeRes.data ?? []) as CubeRow[]).map((r) => r.product_id));
+  const shownFamilies = families.filter((f) => f.productIds.some((id) => activeIds.has(id) || mentioned.has(id)));
 
   const body: FeedbackOverviewResponse = {
     today,
@@ -126,17 +141,16 @@ async function handleGET(req: NextRequest) {
     preset: activePreset(from, to, today, first),
     hasPrev,
     families: shownFamilies,
-    topics: (topicsRes.data ?? []) as FeedbackTopic[],
+    topics,
     agents,
-    tabs: { all: o.tabs.all, byFamily: o.tabs.byFamily.filter((t) => shownIds.has(t.id)) },
-    kpis: o.kpis,
-    total: o.total,
-    mix: o.mix,
-    ranked: o.topics,
-    byAgent: o.agents,
-    agentsTotal: o.agentsTotal,
-    complaints: { open: open.length, late: open.filter((c) => isLateComplaint(c, now)).length },
-    review: reviewRes.count ?? 0,
+    total: v.total,
+    kpis: v.kpis,
+    toCheck: v.toCheck,
+    reasons: v.reasons.map(withQuotes),
+    gone: v.gone.map(withQuotes),
+    wants: v.wants.map(withQuotes),
+    wantsGone: v.wantsGone.map(withQuotes),
+    complaints: { open: open.length, firstOpenId: open[0]?.id ?? null },
   };
   return NextResponse.json({ data: body });
 }

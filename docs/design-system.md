@@ -27,6 +27,27 @@
 > the code still says. New screens are designed and prototyped in Aurore now; existing screens
 > move only when the owner says so.
 
+> **« Aurore calme » (2026-10-05) — the current register.** The owner found the first Aurore
+> pages "very heavy on visuals, lots of colours, not easy to read". Same ground, same type,
+> same vocabularies — but **quieter marks**: the validated calm outcome palette (§2.4), cards
+> near-opaque with a hairline, one weight lighter (700 not 800), no medal
+> gradients, no entrance motion, and **every figure written once, count first, its share
+> small**. The waffle is retired; the page overview chart is **one bar per outcome on one
+> scale** (`OutcomeRows`, §4.7) and entity cards keep a **thin ring** with the count in its
+> centre — both chosen by the owner from `prototypes/performance-calm-board-v1.html`. Live on
+> Salle de contrôle, Performance › Équipe, Performance › Commandes. Where a rule below says
+> otherwise, this note wins.
+>
+> **Second pass, same evening — "the card feel on the rest".** Quiet outcome marks do not
+> mean quiet identity: entity cards carry her hue with presence (§4.2), and the rest of the
+> page follows — **the page's answer in bold deep green `#2C7F57`** (the delivered part of
+> the headline sentence; on Commandes also the money delivered; on Salle de contrôle the done
+> count in deep teal `#1E7F77`); outcome bars with a soft sheen of their hue and the share as
+> a tinted pill; every avatar as on the cards (gradient, white ring, glow); the selected table
+> row tinted with a 3px edge in her hue; « À regarder » cards wear their tone as a top
+> accent; on Débit × taux the goal quadrant is washed green and the losing one faint rose;
+> section cards get a white top highlight. Figures that answer are 800, the rest 700.
+
 ---
 
 ## 1. Principles
@@ -34,32 +55,37 @@
 Ten rules. When two collide, the earlier one wins.
 
 1. **One question per page, answered by a number.** A page opens on the number it exists
-   for, at display size (34–46px / 800). Under every big number: a status of 2–4 words with
-   a coloured dot or tag — never a sentence. Numbers, not prose.
+   for — on analytics pages as a one-line sentence that carries the counts (« Sur 1 441
+   commandes attribuées, 275 ont été livrées. », 24 / 700). **Counts first, the share small
+   after it; never « /100 » or « sur 100 »** (owner, 2026-10-05). Under a big number: a
+   status of 2–4 words with a coloured dot or tag. Each figure is written once.
 2. **Colour always means exactly one thing.** There are four vocabularies and they never
    borrow from one another (§2.4): **chrome** (brand green — where you are, what you press),
    **status / outcome** (what an order is or became), **identity** (who — an agent, a role,
    a carrier account), **severity** (good / warn / bad). Colour is never decoration and never
    the only signal: the word or the figure is always written beside it.
-3. **Colourful, not loud.** Hues are saturated in marks (bars, rings, squares, dots,
-   avatars) and *washed* in surfaces (tints at 6–15 %). Text stays near-black. A full hue
-   behind white text is reserved for one thing per area (the primary button, an alert's icon
-   holder, an avatar).
+3. **Colourful, not loud.** Colour lives on **small, thin marks** — 10px bars, 9px rings,
+   8px dots, avatars — in the calm validated steps (§2.4), never in big blocks (a waffle of
+   100 saturated squares, a 15px ring, a dark heat tile). Surfaces stay white; no identity
+   halos. Text stays near-black and never wears a data colour. A full hue behind white text
+   is reserved for one thing per area (the primary button, an avatar).
 4. **The ground is light and alive; the sidebar is the only dark surface.** Content sits on
    the aurora (§2.1). Cards float on it as frosted glass. Nothing in the content area is dark
    except the tooltip.
 5. **One entity, one card.** Overview (3–6 numbers) → one card per entity (agent, carrier,
    product) → click for the drawer → a separate table for comparison. Never mix entities in
    one chart.
-6. **Every chart answers a named question** and draws only that: a waffle for "what is today
-   made of", a ring for "how far is she", a pill bar for "where did they go", a heat tile for
-   "which is weak". Every mark has a tooltip with its exact figure. Hovering a legend item
-   highlights its marks and dims the rest.
+6. **Every chart answers a named question** and draws only that: **one bar per outcome**
+   for "what did they become / what is today made of", a thin ring for "how far is she", a
+   pill bar for "where did they go" in a row, a soft heat tile for "which is weak". Every
+   mark has a tooltip with its exact figure. Hovering a row highlights it and dims the rest.
+   The waffle is retired (2026-10-05): it made you count squares to read a number already
+   printed beside it.
 7. **Hierarchy by weight and size, never by greying below AA.** Text clears 4.5:1 on white
    (the quiet grey `#8A94A6` is for icons, axes and disabled only — §2.3).
-8. **Motion explains, once.** Things arrive (cards rise, squares pop, rings sweep, bars grow)
-   in the first second, staggered; hover lifts what you can click. Nothing loops except the
-   live dot. `prefers-reduced-motion` switches all of it off.
+8. **Calm motion.** No entrance choreography on analytics pages (no rising cards, popping
+   squares, sweeping rings) — figures are simply there. Hover changes a border or a wash,
+   never lifts. Drawers and menus still slide; the live dot still pulses. Nothing else loops.
 9. **Two densities, one language** (§1.1). Showcase pages (monitoring, analytics) use the
    full scale; workbench pages (orders, the agent queue, the warehouse bench) keep the same
    ground, glass, type, radii and colours at working density.
@@ -168,16 +194,28 @@ All ink/tint pairs ≥ 4.98:1.
 **Status / outcome.** Order status pills keep their map (`lib/orders/status-presentation`,
 §4.17 F-bis, contrast-tested). Outcome hues for charts are fixed and never borrowed:
 
+**Calm steps (2026-10-05), validated with the dataviz `validate_palette.js`** — adjacent
+order delivered · returned · rejected · never real passes every gate (CVD ΔE 8.2, normal-vision
+ΔE 17.0). Fills sit below 3:1 on white, so every row writes its figure beside the mark.
+
 | Outcome | Fill | Note |
 |---|---|---|
-| uploaded | `#0E9384` | |
-| rejected | `#E8385A` | |
-| in progress / to call | `#A3AEC2` / `#DDE2EA` | neutral greys |
-| overdue | hatch `#FFD9E1` / `#EF5A78` | hatching, not a fifth hue |
-| delivered | `#079455` | |
-| en route | `#38C0AE` | |
-| returned | `#F79009` | 2.4:1 — the figure is always written next to it |
-| not yet | `#E1E6EE` | |
+| delivered | `#4DAE7E` | |
+| en route | `#6FC29A` | the delivered hue one step lighter (ordinal ramp, light end 2.07:1) |
+| returned | `#E9A23B` | |
+| rejected | `#E46A7B` | |
+| never real (jamais réelle) | `#9D8FEF` | |
+| in progress (en cours) / pending | `#B4BDCC` / `#D0D5DD` | neutral greys |
+| to call | `#E4E7EC` | |
+| uploaded (Salle de contrôle) | `#2FA39B` | |
+| overdue | hatch `#F6C7CF` / `#DE5A72` | hatching, not another hue; its row's count is red |
+| not yet uploaded | `#E4E7EC` | |
+
+> **Rejected, and why.** The pastels shipped on Accueil the same day (`#5CB88A #F2B661
+> #EC8E98 #ABA0F2`) FAIL the validator: returned and rejected sit at ΔE 13.8 (< 15 — hard to
+> tell apart even with full colour vision) and the amber is out of the lightness band. Accueil
+> should move to the steps above. The saturated Aurore steps (`#079455 #F79009 #E8385A
+> #7A5AF8`, `#0E9384`, `#38C0AE`) are superseded.
 
 Fills only: an outcome hue never carries text; its number is written in `--au-ink-1` beside it.
 
@@ -276,14 +314,21 @@ stepper, glass buttons) on the end side, bottom-aligned. A **live chip** (`●` 
   `shadow-card`, `--au-blur`. Padding 20–30px.
 - **Inner surface** (`.au-glass`): tiles, drawer sections, mini-stat cells — `--au-glass-in`,
   16px radius (14 / 11 for smaller cells), no shadow.
-- **Entity card** (an agent, a carrier): the card plus a **halo** — a 280px radial of the
-  identity hue at 30 % behind the top-start corner (`::before`, `z-index:-1`, `isolation:
-  isolate`). The whole card is the button (`role="button"`, `tabIndex=0`, Enter/Space). Hover
-  lifts −4px with `shadow-card-hover`; selected = `0 0 0 2px var(--a5)` ring + glow in its hue.
-- **Alert / problem surface**: a gradient wash `linear-gradient(160deg, <bad-bg> .9, white .62)`
-  with an icon holder **filled** in the full hue, white icon, coloured glow. Good state: the
-  same row with a `--au-good-bg` holder and a check. Problems are tinted surfaces; healthy is
-  calm.
+- **Calm card (2026-10-05)** — analytics pages: fill `rgba(255,255,255,.86)`, 1px
+  `rgba(16,24,40,.06)` hairline, 20px radius, shadow `0 1px 2px rgba(16,24,40,.04), 0 8px 24px
+  rgba(42,52,110,.05)`, blur 16px. Inner tiles become **figures separated by hairlines**, not
+  boxes inside boxes.
+- **Entity card** (an agent, a carrier) — **her colour has presence** (owner, 2026-10-05,
+  after the first calm pass made the cards too plain): a 3px gradient accent along the top
+  (`--a5` → 25 %), a wash fading down the card (`--a5` 9 % → white at 150px), a 240px halo at
+  24 % behind the top-start corner, border `--a5` 20 %, a shadow tinted in her hue; avatar 40px
+  `linear-gradient(140deg,--a5,--a7)` with a 3px white ring and glow; her name and the ring's
+  count in `--a9`; rank chip and ring track tinted in her hue. Outcome colours inside stay fixed.
+  The whole card is the button (`role="button"`, `tabIndex=0`, Enter/Space). Hover lifts −2px
+  with a deeper tinted shadow; selected = 1px `--a5` ring. (`.tpf .ag`, `.r6-ag`.)
+- **Alert / problem line**: on calm pages a problem is **one line** — red icon + red count +
+  its detail in meta — not a tinted box with a filled icon holder. The healthy line is the
+  same with a green check. (`.r6-unc`, the « Non appelées > 2 h » row.)
 - **Empty state**: a 1.5px dashed `--au-ink-4` box, 18px radius, ink-3 centred text that says
   what is empty and why ("Aucune commande ce jour-là").
 
@@ -305,9 +350,9 @@ A WhatsApp / call action is an icon button whose hover turns the icon WhatsApp g
 
 All pills (`9999px`). **Chip** 26px, `rgba(255,255,255,.7)` + glass edge, 12.5 / 700.
 **Warn tag** 22px, `--au-warn-bg` / `--au-warn`, 11.5 / 700. **Trend pill** 22px, arrow
-icon + delta, good / bad / flat tints, tooltip "30 jours avant : 19". **Medal** for rank 1–3:
-28px circle, gold `#FEF0A6→#F2B10C`, silver `#F4F6F9→#C3C9D3`, bronze `#FBDCC2→#DD8A4E`,
-inset bottom shadow; 4+ is a plain glass circle.
+icon + delta, good / bad / flat tints, tooltip "30 jours avant : 19". **Rank**: a 26px
+neutral circle (`rgba(16,24,40,.05)`, ink-2, 700) for every place — the gold / silver / bronze
+medal gradients are retired (2026-10-05).
 
 ### 4.5 Status badges
 
@@ -325,11 +370,19 @@ row uses `Σ` on a slate gradient.
 
 ### 4.7 Data marks
 
-- **Waffle** — one rounded square per item (radius 28 % of the cell), grouped by outcome in a
-  fixed order, ~340px wide whatever the count; cells pop in staggered 6ms. Legend under it
-  with the count in 800. Hovering a legend item sets `data-hl` and dims the others to .15.
-- **Ring** — segmented donut, 15px stroke, 3.2px gaps between segments, track `--au-track`,
-  the figure in its centre (46 / 800) with an eyebrow label and a one-line sub. Sweeps in.
+- **Outcome rows** (`src/components/shared/charts/OutcomeRows.tsx`, 2026-10-05) — THE overview
+  chart. A labelled `<ul>`, one row per outcome in reading order (delivered first, pending
+  last): dot + label + one-line hint · a 10px pill bar on a `--au-track` track whose length is
+  the row's **share of the total** (every bar on the same scale, so the longest bar is the
+  biggest leak) · the count (17 / 700) · its share (13 / 600 ink-3, optional) · the page's
+  trend pill. Rows with an action are buttons (open the orders). A zero count is drawn
+  `#D0D5DD`; an alert row writes its count and hint red. Hovering a row dims the others to .4.
+  Owner's pick over a single stacked bar (2026-10-05).
+- **Waffle** — **retired** 2026-10-05 on every page (counting squares to read a printed number;
+  100 saturated squares were the loudest thing on screen; at 1 441 orders a square was 14).
+- **Ring** — segmented donut, **9px stroke**, 2.5px gaps, track `--au-track`, the **count** in
+  its centre (32–34 / 700) with « livrées · 45 % » / « faites » under it in 12 / 600. No sweep.
+  Used on entity cards only (owner's pick, 2026-10-05).
 - **Pill bar** — a flex row of rounded segments with 2px gaps, 12px tall (7–8px inside a
   drawer), `min-width: 3px`, width proportional to the row's volume; a caption line under it
   writes each figure. Grows in from the start edge.
@@ -338,10 +391,32 @@ row uses `Σ` on a slate gradient.
 - **Timeline lane** — planned shift as a dashed pill in the identity hue at 6 %, worked
   segments as solid identity pills with glow, breaks dotted, idle dashed amber with a label,
   the "now" line in ink-1 with a dot, future hatched faint.
-- **Heat tiles** — a ramp of one hue; a red ▼ badge only when the gap is meaningful.
+- **Heat tiles** — a soft ramp of the delivered hue (`#F1F9F4 → #2C7F57`, white text from
+  `#4DAE7E`), 38px tall; the weak gap is a quiet `#FEF3F2`/`#B42318` tag, not a filled red badge.
 - **Tooltip** on every mark: `#101828`, white 12.5 / 600, 10px radius, max 320px, follows the
   pointer, never the only place a figure lives.
 - Legend swatches: 11px, 4px radius.
+
+### 4.7b Filter bar (2026-10-05 — reference: Performance › Commandes, `FilterBar.tsx`)
+
+The owner found the old bar "not easy to use at all" (a dead « Tous les produits » pill beside
+a « Choisir » button per filter, an « A » tag with no B, a four-way « Non / … » switch for
+comparing). The house pattern for analytics filters is now:
+
+- **One button per filter that SAYS its value** — icon · label (ink-3) · value (700) · chevron,
+  40px, 12px radius, white with a hairline. Set = tinted (`--accent` 7 %, border 32 %) and an
+  inline × (`aria-label` « Retirer ce filtre : … ») instead of the chevron. Open = accent ring.
+  Its accessible name is « Label · valeur ».
+- **Comparing is a menu, not a mode switch**: « Comparer » opens three choices, each with a
+  one-line hint; choosing opens B's picker at once.
+- **« A contre B » gets its own line, only while comparing**: A's tag + summary + order count,
+  « CONTRE », B's tag + B's own filter button + count (+ the "too small" warning), « Arrêter ».
+  A/B tags never appear outside that line.
+- « Tout effacer » sits at the row's end, quiet, only when something is set.
+- **Responsive**: desktop one wrapping row; ≤ 760px a 2-column grid, labels hidden (the icon
+  says it), the A/B line stacked, every picker and menu a bottom sheet (fixed, 72vh, safe-area
+  padding — and the bar drops its `backdrop-filter`, which would otherwise trap fixed
+  children); ≤ 480px one filter per row so no value is truncated.
 
 ### 4.8 Tables
 
@@ -387,7 +462,27 @@ spent on meaning (a problem surface, an identity halo), not on telling sections 
 
 The shape of the page, never a spinner or "loading…": `--au-track` blocks with the real
 radii (24 card, 16 tile, 99 pill), `animate-pulse`, `aria-hidden`, the group in
-`role="status"`. One skeleton per page, shaped like that page (`PageSkeleton`).
+`role="status"`. One skeleton per page, shaped like that page.
+
+**Route-level (`loading.tsx`) — `RouteSkeleton` only, styled from `globals.css` only.**
+A route's fallback paints the instant a link is clicked, BEFORE the stylesheets that
+route imports have arrived; only the page's own commit waits for them. A fallback that
+borrows a feature stylesheet (`commandes.css`, `products-v6.css`…) paints blank or as bare
+text on a first visit — seen on a production build on 2026-10-08, along with nine routes
+still drawing the pre-Aurore grey skeleton. So every `loading.tsx` renders
+`<RouteSkeleton>` (props: `tiles`, `toolbar`, `body="list"|"cards"`, `ground="plain"`),
+whose `.rsk` block lives in `globals.css`; `src/app/__tests__/loading-boundaries.test.ts`
+fails on anything else. A page's IN-PAGE skeleton (shown while its data loads) is a
+different thing — it renders after the page's CSS and may use the page's stylesheet.
+
+**In-page: no figure and no empty state before the first answer.** `data?.rows ?? []`
+turns "not loaded yet" into "nothing there": the Entrepôt desks used to paint « 0 » tiles
+and « Aucun colis n'attend chez Darb » for a second before 143 parcels arrived. A count
+waits as a placeholder (desk `Tile n={null}`), a list as rows (`<Waiting/>`), and a card
+at the top of a screen holds its height while it loads instead of arriving and pushing
+the page down. "Answered" means arrived OR failed, so a broken endpoint never leaves a
+placeholder spinning. And a client refresh must ask for the SAME thing the server
+painted — same market scope, same language — or the first frame swaps for another.
 
 ### 4.13 Inputs, modals, toasts, popovers
 
@@ -601,10 +696,23 @@ then renders fully drawn.
 The doctrine above is the target. Nothing outside `/team` has been migrated; the owner
 decides when. This table is the checklist for that migration and must shrink, not grow.
 
+**« Aurore calme » status (2026-10-05).** In the calm register: `/team` (`.r6` block of
+`globals.css`, « Aurore calme » sub-block), `/team/performance` (`team-performance.css`, last
+block), `/performance/orders` (`performance-orders.css`, last block), and the shared
+`OutcomeRows`, and Accès (`/users`, `src/components/admin/access/acces.css`, 2026-10-05), and Performance ›
+Livraison (`/carriers`, `src/components/carriers/scorecard/carriers.css` under `.tsc`, 2026-10-06 —
+restyle only: same screens and numbers; the `--tr-*` names are repointed to the house values inside
+`.tsc`, the full colour band per account stays and gains a sheen, the card under it a wash in its
+hue). Not yet calm: Accueil (`store-dashboard.css` still ships the pastels that fail
+the validator — move it to §2.4's steps), Produits, Entrepôt, the agent shell.
+On the two Performance pages the lower blocks were restyled, not redesigned: « Les plus
+grosses fuites », « Par produit » and « Par agent » still print « /100 » figures — convert them
+to counts first when they are next touched.
+
 | Area | Code today | Aurore target |
 |---|---|---|
 | Page ground | `--bg-page` `#F6F6F7` flat, set in `DashboardChrome` (inline style); `--oms-bg` `#FAFAF8`, `--agent-bg` `#FAFAF9`, `--wh-bg` / `--wm-ground` `#F6F6F7`, investor `bg-oms-bg` | `.au-ground` painted once on the shell's `<main>` (`SidebarFrame`), the agent shell, the investor shell; phone warehouse stays opaque `#F6F7FB` |
-| Page roots | ~23 roots paint `min-h-screen bg-surface-page / bg-oms-bg / bg-fin-bg / bg-agent-bg` over the ground (carriers, dashboard, P&L, stock, ad spend, investors, messages, integrations, performance, users, réglages, products, queue, leads, purchases…) | no ground on page roots; a test forbids `min-h-screen` + an opaque ground |
+| Page roots | ~23 roots paint `min-h-screen bg-surface-page / bg-oms-bg / bg-fin-bg / bg-agent-bg` over the ground (carriers, dashboard, P&L, stock, ad spend, investors, messages, integrations, performance, réglages, products, queue, leads, purchases…) | no ground on page roots; a test forbids `min-h-screen` + an opaque ground |
 | Ink | Tailwind `ink.primary #1A1A1A`, `secondary #6D7175`, `muted #9CA3AF` (2.5:1 — fails AA as text) | `#0F1728` / `#475467` / `#667085` |
 | Lines | `line.subtle #ECEEF0`, `line #E1E3E5`, `line.strong #DADCE0` ≠ `--border-strong #C9CCCF` (open discrepancy) | one value each; strong = `#D0D5DD` in both |
 | Radius | `rounded-card` 10px (12px under `.agent-theme`) | `rounded-card` 16px inner, new `rounded-panel` 24px, `drawer` 26, `modal` 22 |
@@ -1349,11 +1457,22 @@ tokens out of `globals.css` and holds ink ≥ 4.5:1 and hue ≥ 3:1 on the tint.
 3. They may appear elsewhere only to represent a **person** (an avatar, a role chip) —
    never as decoration, never for a non-person category.
 
-**Where they show on Accès:** the role tiles (§4.19 holder, selected tile filled with
-its tint), avatars (initials or photo on the role tint, with a green or amber presence
-beat), the role chip in each row, the warehouse pill (always `tone-warehouse`), the
-creation cards, and the band at the top of a person's file. Brand green keeps the
-chrome: the primary button, the « Tous » tile, focus, the selected row.
+**Where they show on Accès:** the role cards, avatars, the role chip in each row, the
+warehouse pill (always `tone-warehouse`), the selected row, the creation cards and the
+halo of a person's file. Brand green keeps the chrome: the primary button, the « Tous »
+card, focus, a pressed filter (« Sans activité »), the step numbers.
+
+**In « Aurore calme » since 2026-10-05** (`src/components/admin/access/acces.css`, scoped
+`.acx`; the page paints its own aurora like `/team/performance`). The role hue is an
+**identity**, so it gets the entity-card treatment of §4.2: each role card has a 3px top
+accent, a wash fading down, the count in `--tone-ink`, gradient faces; the pressed card a
+1px ring in its hue. Avatars are `linear-gradient(140deg, --tone, --tone-ink)` with a white
+ring and a glow. The selected row is tinted `--tone-bg` with a 3px start edge in `--tone`.
+The person's file is the floating drawer of §4.9 with a halo of their hue; its sections are
+glass, the three account facts are figures between hairlines. The no-building alert is the
+calm problem line (§4.2) with a red top accent and **at most six people** before « +N
+autres » — a dozen red chips was a wall. « Affecter » is a soft red tag that fills on hover.
+`UsersPageAurore.test.tsx` forbids the old flat hexes and rem sizes in these files.
 
 ## 4.24 Journaux — severity only (2026-10-03)
 

@@ -1,5 +1,5 @@
-import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function UsersLoading() {
-  return <PageSkeleton rows={6} />;
+  return <RouteSkeleton rows={6} />;
 }

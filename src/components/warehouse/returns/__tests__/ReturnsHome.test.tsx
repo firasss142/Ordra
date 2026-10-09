@@ -28,7 +28,7 @@ vi.mock("@/components/warehouse/QrScanner", () => ({
 
 const stats = { queueCount: 2, doneToday: 1, currency: "LYD" };
 let statsData: typeof stats | undefined;
-let pageData: { orders: WarehouseOrderRow[]; nextCursor: string | null } | undefined;
+let pageData: { orders: WarehouseOrderRow[]; nextCursor: string | null; siteUnassigned?: boolean } | undefined;
 let pageError: Error | undefined;
 const mutate = vi.fn();
 vi.mock("swr", () => ({
@@ -80,6 +80,16 @@ describe("ReturnsHome — the list", () => {
     expect(cards[0]).toHaveTextContent("سعاد المبروك");
     expect(cards[0]).toHaveTextContent("7700888");
     expect(cards[1]).toHaveTextContent("هدى القماطي");
+  });
+
+  // The chips used to read « 0 » and « 0 » for a moment, then 87.
+  it("shows no count before anything has answered — a zero would be a claim", () => {
+    statsData = undefined;
+    pageData = undefined;
+    render(<ReturnsHome marketId="m-ly" />);
+    expect(screen.getByTestId("wh-returns-chip-queue")).not.toHaveTextContent(/\d/);
+    expect(screen.getByTestId("wh-returns-chip-done")).not.toHaveTextContent(/\d/);
+    expect(screen.getByTestId("wh-returns-skeleton")).toBeInTheDocument();
   });
 
   it("names a failed load and offers a retry, never a permanent placeholder", () => {
@@ -163,5 +173,39 @@ describe("ReturnsHome — scan, then decide", () => {
     render(<ReturnsHome marketId="m-ly" />);
     fireEvent.click(screen.getAllByTestId("wh-return-row")[1]);
     expect(screen.getByRole("dialog")).toHaveTextContent("هدى القماطي");
+  });
+});
+
+/**
+ * The building. Returns are site-scoped since 2026-10-07: an agent with no
+ * building gets an empty queue that SAYS why (not "File vide", which reads as
+ * "nothing to do"), and the RPC's two building refusals are named in the
+ * agent's language instead of surfacing the server's French prose.
+ */
+describe("ReturnsHome — the building", () => {
+  it("an agent with no building is told why, and is not offered a scan field", () => {
+    pageData = { orders: [], nextCursor: null, siteUnassigned: true };
+    render(<ReturnsHome marketId="m-ly" />);
+    expect(screen.getByTestId("wh-returns-no-site")).toHaveTextContent("Aucun entrepôt");
+    expect(screen.queryByLabelText("Scannez le colis retourné…")).toBeNull();
+    expect(screen.queryByText(/File vide/)).toBeNull();
+  });
+
+  it.each([
+    ["WRONG_SITE", "Ce colis appartient à un autre entrepôt. Ne le rentrez pas ici."],
+    ["NO_SITE_ASSIGNED", "Votre compte n'est rattaché à aucun entrepôt. Demandez à votre responsable."],
+  ])("a %s refusal is named, not echoed", async (code, text) => {
+    const f = respond({ outcome: "found", code: "7700888", order: older });
+    render(<ReturnsHome marketId="m-ly" />);
+    scan("7700888");
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: /Remettre en stock/ }));
+    f.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: "prose du serveur", error_code: code }),
+    });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Valider la décision" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(text);
   });
 });

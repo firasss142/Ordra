@@ -1,5 +1,5 @@
-import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import { RouteSkeleton } from "@/components/layout/RouteSkeleton";
 
 export default function MarketsLoading() {
-  return <PageSkeleton rows={3} />;
+  return <RouteSkeleton tiles={0} rows={3} />;
 }

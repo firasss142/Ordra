@@ -1,30 +1,36 @@
 "use client";
 
-import { useState, useCallback, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
-import { AlertTriangle, ChevronRight, Info, Lock, Pencil, Trash2 } from "lucide-react";
+import { useState, useCallback, type ReactNode, type MouseEvent as ReactMouseEvent } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { AlertTriangle, ArrowRight, ChevronRight, Info, Link2, Lock, Package, Pencil, Trash2, Zap } from "lucide-react";
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
+import { fmtDay } from "./mapping/format";
 import type { ProductEconomics, EconomicsMeta, SpendEntry, CampaignSpend } from "@/hooks/useAdSpendEconomics";
 
 /**
  * The ad-spend console, rebuilt around one question: can this product afford
  * what we are paying for its leads?
  *
- * The page used to lead with four totals — this week, this month, YTD, cost per
- * confirmation — which say how much was spent but never whether spending it was
- * a good idea. These sections answer that instead: the chain shows what the
- * money turned into, the bars show each product against its own break-even
- * floor, the stack shows where a delivered order's revenue actually goes, and
- * the table turns all of it into a per-product decision.
+ * The chain shows what the money turned into, the bars show each product
+ * against its own break-even floor, the stack shows where a delivered order's
+ * revenue actually goes, and the table turns all of it into a per-product
+ * decision.
  *
- * Layout, palette and copy follow prototypes/ad-spend-v3.html, which is the
- * approved design. Colours come from the `ads.*` tokens in globals.css.
+ * Look: prototypes/finances-pub-v5.html — the live blocks in the Finances kit,
+ * as Produits & marges (classes in ./ad-spend.css under `.fin.ads`). Money
+ * colours are the section's (`--m-*`): ad cost is orange everywhere, green is
+ * profit.
  */
 
 /* ─────────────────────────── formatting ─────────────────────────── */
 
+/**
+ * fr-FR groups with a narrow no-break space (U+202F), which Plus Jakarta Sans
+ * draws with no width — « 34707 » instead of « 34 707 ». A plain no-break
+ * space reads the same and keeps the figure on one line.
+ */
 function fmt(n: number, d = 0): string {
-  return n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/\u202f/g, "\u00a0");
 }
 function signed(n: number, d = 2): string {
   return `${n >= 0 ? "+" : "−"}${fmt(Math.abs(n), d)}`;
@@ -36,12 +42,10 @@ function pct(n: number, d = 1): string {
 /* ─────────────────────────── tooltip ─────────────────────────── */
 
 /**
- * A cursor-following tooltip, shared by the bars and the stack.
- *
- * Charts without one force the reader to hold five numbers in their head to
- * compare two bars; the dataviz rule is that an HTML chart ships a hover layer
- * by default. Kept as a single fixed node rather than one per mark so a table
- * of forty rows does not mount forty positioned elements.
+ * A cursor-following tooltip, shared by the bars, the stack and the verdicts.
+ * One fixed node rather than one per mark, so a table of forty rows does not
+ * mount forty positioned elements. Flipped to the other side of the cursor
+ * near the viewport edge.
  */
 function useTooltip() {
   const [tip, setTip] = useState<{ x: number; y: number; body: ReactNode } | null>(null);
@@ -51,15 +55,13 @@ function useTooltip() {
   }, []);
   const hide = useCallback(() => setTip(null), []);
 
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1600;
   const node = tip ? (
     <div
       role="tooltip"
-      className="fixed z-[60] pointer-events-none rounded-[8px] px-3 py-2.5 text-[12px] text-white shadow-floating max-w-[270px]"
+      className="tip"
       style={{
-        background: "#151A1F",
-        // Flipped to the other side of the cursor near the viewport edge, so a
-        // tooltip on the last column is never clipped by the window.
-        left: Math.min(tip.x + 14, (typeof window !== "undefined" ? window.innerWidth : 1600) - 286),
+        left: tip.x + 14 + 300 > vw ? tip.x - 314 : tip.x + 14,
         top: Math.max(8, tip.y - 12),
         transform: "translateY(-100%)",
       }}
@@ -70,20 +72,24 @@ function useTooltip() {
 
   return { show, hide, node };
 }
+type Show = (body: ReactNode, e: { clientX: number; clientY: number }) => void;
 
 function TipTitle({ children }: { children: ReactNode }) {
-  return <div className="font-semibold mb-1.5">{children}</div>;
+  return <div className="tt">{children}</div>;
 }
 function TipRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-4 justify-between leading-[1.75]">
-      <span className="text-[#C9CDD3]">{label}</span>
-      <b className="tabular-nums">{value}</b>
+    <div className="trw">
+      <span>{label}</span>
+      <b>{value}</b>
     </div>
   );
 }
 function TipRule() {
-  return <div className="h-px bg-white/15 my-1.5" />;
+  return <div className="hr" />;
+}
+function TipNote({ children }: { children: ReactNode }) {
+  return <p>{children}</p>;
 }
 
 /* ─────────────────────────── sparkline ─────────────────────────── */
@@ -94,7 +100,7 @@ function TipRule() {
  * volume is a different emergency from a losing product that already stopped.
  */
 function Sparkline({ values, color }: { values: number[]; color: string }) {
-  if (values.length < 2) return <span className="flex-none w-[46px] h-5" />;
+  if (values.length < 2) return <span className="spk" />;
 
   const w = 46;
   const h = 20;
@@ -110,9 +116,9 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
   const last = pts[pts.length - 1];
 
   return (
-    <svg className="flex-none w-[46px] h-5" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <path d={d} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={last[0].toFixed(1)} cy={last[1].toFixed(1)} r={2.1} fill={color} stroke="#fff" strokeWidth={1.2} />
+    <svg className="spk" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <path d={d} fill="none" stroke={color} strokeWidth={1.7} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={last[0].toFixed(1)} cy={last[1].toFixed(1)} r={2.2} fill={color} stroke="#fff" strokeWidth={1.2} />
     </svg>
   );
 }
@@ -129,8 +135,22 @@ function trendOf(values: number[]): number {
 /** Red when volume is climbing on a product that loses money on every lead. */
 function sparkColor(p: ProductEconomics): string {
   const trend = trendOf(p.daily_leads);
-  if (p.margin_per_lead < 0) return trend > 0.05 ? "var(--ads-red)" : "var(--ads-orange-ink)";
-  return trend > 0.05 ? "var(--ads-green-ink)" : "var(--ads-muted)";
+  if (p.margin_per_lead < 0) return trend > 0.05 ? "var(--bad-dot)" : "var(--warn-dot)";
+  return trend > 0.05 ? "var(--good)" : "var(--ink-q)";
+}
+
+/** The product's own picture in Produits' tile. */
+function Tile({ p, small }: { p: ProductEconomics; small?: boolean }) {
+  const size = small ? 32 : 36;
+  return (
+    <span className={`pimg${small ? " sm" : ""}`}>
+      {p.product_image_url ? (
+        <ProductAvatar imageUrl={p.product_image_url} productName={p.product_name} size={size} />
+      ) : (
+        <Package className="ic" aria-hidden />
+      )}
+    </span>
+  );
 }
 
 /* ─────────────────────────── 1. the chain ─────────────────────────── */
@@ -139,17 +159,19 @@ export function AdSpendChain({ meta, currency }: { meta: EconomicsMeta; currency
   const t = useTranslations("adSpend.economics");
 
   const steps = [
-    { head: t("spent"), value: fmt(meta.total_spend), unit: currency, sub: t("spentSub") },
-    { head: t("leadsReceived"), value: fmt(meta.total_leads), unit: "", sub: t("leadsSub") },
-    { head: t("confirmedOrders"), value: fmt(meta.total_confirmed), unit: "", sub: t("confirmedSub") },
-    { head: t("deliveredPaid"), value: fmt(meta.total_delivered), unit: "", sub: t("deliveredSub") },
-    { head: t("collected"), value: fmt(meta.total_revenue), unit: currency, sub: t("collectedSub") },
+    { head: t("spent"), k: "k-ads", value: fmt(meta.total_spend), unit: currency, sub: t("spentSub") },
+    { head: t("leadsReceived"), k: "k-lead", value: fmt(meta.total_leads), unit: "", sub: t("leadsSub") },
+    { head: t("confirmedOrders"), k: "k-conf", value: fmt(meta.total_confirmed), unit: "", sub: t("confirmedSub") },
+    { head: t("deliveredPaid"), k: "k-dlv", value: fmt(meta.total_delivered), unit: "", sub: t("deliveredSub") },
+    { head: t("collected"), k: "k-cash", value: fmt(meta.total_revenue), unit: currency, sub: t("collectedSub") },
     {
       head: t("netProfit"),
+      k: "k-profit",
       value: fmt(meta.total_profit),
       unit: currency,
       sub: t("netProfitSub"),
-      tone: meta.total_profit < 0 ? "bad" : "good",
+      last: true,
+      bad: meta.total_profit < 0,
     },
   ];
 
@@ -164,59 +186,44 @@ export function AdSpendChain({ meta, currency }: { meta: EconomicsMeta; currency
     { b: `− ${fmt(meta.total_costs)} ${currency}`, s: t("ofWhichAds", { amount: fmt(meta.total_spend) }), cost: true },
   ];
 
-  return (
-    <div className="bg-surface-card border border-ads-line rounded-card shadow-hover-row px-5 pt-4 pb-[15px] grid grid-cols-2 sm:grid-cols-3 gap-4 [@media(min-width:1400px)]:flex [@media(min-width:1400px)]:flex-wrap [@media(min-width:1400px)]:items-start [@media(min-width:1400px)]:gap-0">
-      {steps.map((s, i) => (
-        <div key={s.head} className="flex items-start">
-          <div className="flex flex-col min-w-[112px]">
-            <span className="text-[12.5px] font-semibold text-ads-ink-1 whitespace-nowrap">{s.head}</span>
-            <span
-              className={`text-[27px] font-bold tracking-[-0.022em] leading-[1.15] mt-[7px] tabular-nums ${
-                s.tone === "good" ? "text-ads-green-ink" : s.tone === "bad" ? "text-ads-red-ink" : "text-ads-ink-1"
-              }`}
-            >
-              {s.value}
-              {s.unit && <span className="text-[0.46em] font-semibold text-ads-ink-2 ms-1">{s.unit}</span>}
-            </span>
-            <span className="text-[11.5px] text-ads-ink-2 mt-[3px] whitespace-nowrap">{s.sub}</span>
-          </div>
+  const at = (x: number) => `${(x / steps.length) * 100}%`;
 
-          {/* The link between two steps is the conversion that got you there.
-              Below 1400px the row wraps to a grid and the links are dropped
-              rather than stacked — a vertical arrow between grid cells points
-              at the wrong neighbour. */}
-          {links[i] && (
-            <div className="hidden [@media(min-width:1400px)]:flex flex-col items-center justify-center px-3 mt-5 min-w-[92px]">
-              <span
-                className={`rounded-[8px] px-2.5 py-1 text-center border ${
-                  links[i].cost
-                    ? "bg-ads-red-bg border-ads-red-line text-ads-red-ink"
-                    : "bg-surface-card border-ads-line-2 text-ads-ink-1"
-                }`}
-              >
-                <span className="block text-[13.5px] font-bold tabular-nums leading-[1.2]">{links[i].b}</span>
-                <span
-                  className={`block text-[10.5px] mt-px whitespace-nowrap ${
-                    links[i].cost ? "text-ads-red-ink" : "text-ads-ink-2"
-                  }`}
-                >
-                  {links[i].s}
-                </span>
-              </span>
-              <svg
-                viewBox="0 0 34 9"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                aria-hidden="true"
-                className="w-[34px] h-[9px] mt-1.5 text-ads-ink-3 rtl:rotate-180"
-              >
-                <path d="M0 4.5h29M25 1l4 3.5-4 3.5" />
-              </svg>
-            </div>
-          )}
-        </div>
-      ))}
+  return (
+    <div className="card chain">
+      <div className="steps">
+        {steps.map((s) => (
+          <div key={s.head} className={`step${s.last ? " last" : ""}${s.bad ? " bad" : ""}`}>
+            <span className="sh">
+              <i className={`sw ${s.k}`} aria-hidden />
+              {s.head}
+            </span>
+            <span className="sv">
+              {s.value}
+              {s.unit && <span className="cur">{s.unit}</span>}
+            </span>
+            <span className="sl">{s.sub}</span>
+          </div>
+        ))}
+      </div>
+      {/* The conversion that got you from one step to the next, on a rail of
+          its own: a dot under each step, the ratio on the boundary between
+          the two it joins. Below 1280px the steps wrap and the rail goes —
+          a rail between wrapped rows would join the wrong neighbours. */}
+      <div className="rail">
+        <i className="line" aria-hidden />
+        {steps.map((s, i) => (
+          <i key={s.head} className={`node ${s.k}`} style={{ insetInlineStart: at(i + 0.5) }} aria-hidden />
+        ))}
+        {links.map((l, i) => (
+          <span key={l.s} className={`lk${l.cost ? " cost" : ""}`} style={{ insetInlineStart: at(i + 1) }}>
+            <span className="lkt">
+              <b>{l.b}</b>
+              <span>{l.s}</span>
+            </span>
+            <ArrowRight className="ic" aria-hidden />
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -245,8 +252,14 @@ export function AdSpendCplBars({
   const [showTable, setShowTable] = useState(false);
   const [showFormula, setShowFormula] = useState(false);
 
+  // No attributed spend is not a CPL of zero. Drawing it as one would paint
+  // the product's entire floor as realised margin. Those products fold into
+  // one line under the bars instead of a « Coût inconnu » bar each.
+  const paid = products.filter((p) => p.spend > 0);
+  const unpaid = products.filter((p) => p.spend <= 0);
+
   const { max: scaleMax, step } = niceScale(
-    Math.max(...products.map((p) => Math.max(p.cpl, p.break_even_cpl)), 1) * 1.08,
+    Math.max(...paid.map((p) => Math.max(p.cpl, p.break_even_cpl)), 1) * 1.08,
   );
   const toPct = (v: number) => Math.min(100, Math.max(0, (v / scaleMax) * 100));
 
@@ -256,72 +269,54 @@ export function AdSpendCplBars({
   const floors = products.map((p) => p.break_even_cpl);
 
   return (
-    <div className="bg-surface-card border border-ads-line rounded-card shadow-hover-row px-[18px] py-4">
-      <div className="flex items-start gap-2.5 flex-wrap">
+    <>
+    <div className="card">
+      <div className="chead">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-ads-ink-1">{t("cplTitle")}</h2>
-          <p className="text-[12px] text-ads-ink-2 mt-[5px] leading-[1.5] max-w-[64ch]">{t("cplSubtitle")}</p>
+          <h2>{t("cplTitle")}</h2>
+          <p className="q">{t("cplSubtitle")}</p>
         </div>
-        <span className="flex-1" />
-        <div className="relative">
+        <div className="rt popw">
           <button
             type="button"
+            className="ibtn"
             onClick={() => setShowFormula((v) => !v)}
             aria-expanded={showFormula}
             aria-label={t("formulaTitle")}
-            className="w-[29px] h-[29px] grid place-items-center border border-ads-line-2 rounded-[8px] text-ads-ink-2 bg-surface-card hover:text-ads-ink-1 hover:border-line-strong transition-colors duration-fast"
           >
-            <Info size={15} strokeWidth={2} />
+            <Info className="ic" aria-hidden />
+          </button>
+          <button type="button" className="btn2 sm" onClick={() => setShowTable((v) => !v)} aria-expanded={showTable}>
+            {showTable ? t("hideTable") : t("tableView")}
           </button>
           {showFormula && (
-            <div
-              className="absolute end-0 top-[34px] z-40 w-[300px] rounded-[8px] px-3 py-2.5 text-[12px] text-white shadow-floating"
-              style={{ background: "#151A1F" }}
-            >
-              <TipTitle>{t("formulaTitle")}</TipTitle>
-              <TipRow label={t("formulaPerLead")} value={t("formulaLine1")} />
-              <TipRow label={t("formulaMinus")} value={t("formulaLine2")} />
-              <TipRow label={t("formulaMinus")} value={t("formulaLine3")} />
-              <TipRule />
-              <TipRow
-                label={t("formulaEachProduct")}
-                value={
-                  floors.length
-                    ? `${fmt(Math.min(...floors), 2)} → ${fmt(Math.max(...floors), 2)} ${currency}`
-                    : "—"
-                }
-              />
+            <div className="pop fx">
+              <h4>{t("formulaTitle")}</h4>
+              <div className="fxr"><span>{t("formulaPerLead")}</span><b>{t("formulaLine1")}</b></div>
+              <div className="fxr"><span>{t("formulaMinus")}</span><b>{t("formulaLine2")}</b></div>
+              <div className="fxr"><span>{t("formulaMinus")}</span><b>{t("formulaLine3")}</b></div>
+              <div className="fxr hr">
+                <span>{t("formulaEachProduct")}</span>
+                <b>{floors.length ? `${fmt(Math.min(...floors), 2)} → ${fmt(Math.max(...floors), 2)} ${currency}` : "—"}</b>
+              </div>
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowTable((v) => !v)}
-          aria-expanded={showTable}
-          className="text-[12.5px] font-semibold text-ads-ink-1 border border-ads-line-2 rounded-[8px] px-3 py-1.5 bg-surface-card hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
-        >
-          {showTable ? t("hideTable") : t("tableView")}
-        </button>
       </div>
 
-      <div className="grid grid-cols-[minmax(190px,260px)_1fr_104px] gap-3.5 mt-4 pb-[7px] text-[10.5px] font-semibold uppercase tracking-[0.045em] text-ads-ink-3">
+      <div className="bhead bgrid">
         <span>{t("product")}</span>
         <span>{t("costPerLead", { currency })}</span>
-        <span className="text-end leading-[1.5]">
+        <span className="r">
           {t("marginPerLead")}
           <br />
           {periodLabel}
         </span>
       </div>
 
-      <div className="flex flex-col gap-px">
-        {products.map((p) => {
-          // No attributed spend is not a CPL of zero. Drawing it as one would
-          // paint the product's entire floor as realised margin and rank it
-          // first — telling you to scale the one product whose acquisition
-          // cost is unknown. It gets the floor marker and nothing else.
-          const unknown = p.spend <= 0;
-          const negative = !unknown && p.margin_per_lead < 0;
+      <div className="bars">
+        {paid.map((p) => {
+          const negative = p.margin_per_lead < 0;
           // Solid bar to whichever comes first, hatched band across the gap:
           // above the floor the band is the margin left, below it the overrun.
           const solid = negative ? p.break_even_cpl : p.cpl;
@@ -332,9 +327,7 @@ export function AdSpendCplBars({
           return (
             <div
               key={p.product_id}
-              className={`grid grid-cols-[minmax(190px,260px)_1fr_104px] items-center gap-3.5 py-2 rounded-[6px] ${
-                negative ? "bg-ads-red-band hover:bg-[#FDEFEF]" : "hover:bg-surface-sunken"
-              }`}
+              className={`brow bgrid${negative ? " neg" : ""}`}
               onMouseMove={(e) =>
                 show(
                   <>
@@ -355,178 +348,108 @@ export function AdSpendCplBars({
               }
               onMouseLeave={hide}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <ProductAvatar
-                  imageUrl={p.product_image_url}
-                  productName={p.product_name}
-                  size={30}
-                />
-                <span className="min-w-0">
-                  <span className="block text-[13px] font-semibold leading-[1.3] text-ads-ink-1 truncate" dir="auto">
-                    {p.product_name}
-                  </span>
-                  <span className="block text-[11.5px] text-ads-ink-2 mt-0.5 leading-[1.4] tabular-nums">
+              <span className="bname">
+                <Tile p={p} small />
+                <span className="txt">
+                  <b dir="auto">{p.product_name}</b>
+                  <small>
                     {fmt(p.leads)} {t("leads").toLowerCase()} · {pct(p.delivery_rate)} {t("deliveredSub").toLowerCase()}
-                  </span>
+                  </small>
                 </span>
                 <Sparkline values={p.daily_leads} color={sparkColor(p)} />
-              </div>
+              </span>
 
-              <div className="relative h-[26px]">
-                {unknown ? (
-                  // An empty track up to the floor: the ceiling is known, what
-                  // is being paid against it is not.
-                  <div
-                    className="absolute inset-y-[2px] start-0 rounded-[3px] border border-dashed border-ads-line-2 bg-surface-sunken"
-                    style={{ inlineSize: `${toPct(p.break_even_cpl)}%` }}
-                  />
-                ) : (
-                  <>
-                    <div
-                      className={`absolute inset-y-[2px] start-0 rounded-s-[3px] ${negative ? "bg-ads-red" : "bg-ads-green"}`}
-                      style={{ inlineSize: `${toPct(solid)}%` }}
-                    />
-                    {/* The margin is a distance you can see, not a number to
-                        hold in your head against another number. */}
-                    <div
-                      className="absolute inset-y-[2px] rounded-e-[3px] border border-s-0"
-                      style={{
-                        insetInlineStart: `${toPct(gapFrom)}%`,
-                        inlineSize: `${Math.max(0, toPct(gapTo) - toPct(gapFrom))}%`,
-                        background: negative ? "var(--ads-hatch-bad)" : "var(--ads-hatch-ok)",
-                        borderColor: negative
-                          ? "var(--ads-hatch-bad-line)"
-                          : "var(--ads-hatch-ok-line)",
-                      }}
-                    />
-                    {toPct(solid) > 12 && (
-                      <span className="absolute top-[5px] start-[9px] text-[11.5px] font-bold text-white tabular-nums z-[2]">
-                        {fmt(p.cpl, 2)}
-                      </span>
-                    )}
-                  </>
-                )}
-                <div
-                  className="absolute -inset-y-px w-[2.5px] bg-ads-ink-1 rounded-[1px] z-[3]"
-                  style={{ insetInlineStart: `${toPct(p.break_even_cpl)}%` }}
+              <span className="btrack">
+                <span className="bfill" style={{ inlineSize: `${toPct(solid)}%` }} />
+                {/* The margin is a distance you can see, not a number to hold
+                    in your head against another number. */}
+                <span
+                  className="bgap"
+                  style={{
+                    insetInlineStart: `${toPct(gapFrom)}%`,
+                    inlineSize: `${Math.max(0, toPct(gapTo) - toPct(gapFrom))}%`,
+                  }}
                 />
-              </div>
+                {toPct(solid) > 20 && <span className="bcap">{fmt(p.cpl, 2)}</span>}
+                <span className="bseuil" style={{ insetInlineStart: `${toPct(p.break_even_cpl)}%` }} />
+              </span>
 
-              {unknown ? (
-                <div className="text-end text-[13px] font-semibold text-ads-ink-2 leading-[1.2]">
-                  {t("costUnknown")}
-                  <em className="block not-italic text-[11.5px] font-medium mt-[3px] tabular-nums">
-                    {t("canPayUpTo", { amount: fmt(p.break_even_cpl, 2) })}
-                  </em>
-                </div>
-              ) : (
-                <div
-                  className={`text-end text-[15px] font-bold tabular-nums leading-[1.2] ${
-                    negative ? "text-ads-red-ink" : "text-ads-green-ink"
-                  }`}
-                >
-                  {signed(p.margin_per_lead)}
-                  <em className="block not-italic text-[11.5px] font-semibold mt-[3px]">
-                    {signed(p.profit, 0)} {currency}
-                  </em>
-                </div>
-              )}
+              <span className={`bm ${negative ? "bad" : "ok"}`}>
+                {signed(p.margin_per_lead)}
+                <em>
+                  {signed(p.profit, 0)} {currency}
+                </em>
+              </span>
             </div>
           );
         })}
       </div>
 
-      {/* The axis reuses the row's own grid template rather than a hand-tuned
-          margin, so the ticks stay under the bars at every column width. */}
-      <div className="grid grid-cols-[minmax(190px,260px)_1fr_104px] gap-3.5 mt-1">
+      {unpaid.length > 0 && (
+        <div className="nospend" data-nospend>
+          <Info className="ic" aria-hidden />
+          <span>
+            <b>{t("noSpendLine", { count: unpaid.length })}</b>
+            {" · "}
+            {unpaid
+              .map((p) => t("canPayUpToLead", { name: p.product_name, amount: `${fmt(p.break_even_cpl, 2)} ${currency}` }))
+              .join(" · ")}
+          </span>
+        </div>
+      )}
+
+      {/* The axis reuses the row's own grid template, so the ticks stay under
+          the bars at every column width. */}
+      <div className="axrow bgrid">
         <span />
-        <div className="relative h-[34px] border-t border-ads-line">
+        <div className="axis">
           {ticks.map((v) => (
-            <i
-              key={v}
-              className="absolute top-1 text-[11px] text-ads-muted not-italic tabular-nums -translate-x-1/2"
-              style={{ insetInlineStart: `${toPct(v)}%` }}
-            >
+            <i key={v} style={{ insetInlineStart: `${toPct(v)}%` }}>
               {fmt(v)}
             </i>
           ))}
-          <span className="absolute top-[19px] start-1/2 -translate-x-1/2 text-[11px] text-ads-muted whitespace-nowrap">
-            {t("axisCaption", { currency })}
-          </span>
+          <span className="cap">{t("axisCaption", { currency })}</span>
         </div>
         <span />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-[18px] gap-y-1.5 mt-2 text-[11.5px] text-ads-ink-2">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-[3px] flex-none bg-ads-green" /> {t("legendPaid")}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="w-3 h-3 rounded-[3px] border flex-none"
-            style={{ background: "var(--ads-hatch-ok)", borderColor: "var(--ads-hatch-ok-line)" }}
-          />
-          {t("legendMargin")}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-[2.5px] h-3.5 bg-ads-ink-1 rounded-[1px] flex-none" /> {t("legendFloor")}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="w-3 h-3 rounded-[3px] border flex-none"
-            style={{ background: "var(--ads-hatch-bad)", borderColor: "var(--ads-hatch-bad-line)" }}
-          />
-          {t("legendLoss")}
-        </span>
+      <div className="leg">
+        <span><i className="s paid" />{t("legendPaid")}</span>
+        <span><i className="s left" />{t("legendMargin")}</span>
+        <span><i className="t" />{t("legendFloor")}</span>
+        <span><i className="s over" />{t("legendLoss")}</span>
       </div>
 
       {/* Every chart owes a table view: colour and length are not readable to
           everyone, and a figure someone needs to quote should be selectable. */}
       {showTable && (
-        <div className="mt-3.5 max-h-[250px] overflow-auto border border-ads-line rounded-[8px]">
-          <table className="w-full border-collapse text-[12.5px]">
+        <div className="tv glass">
+          <table>
             <thead>
               <tr>
-                {[t("product"), t("cplPaid"), t("floorMax"), t("marginPerLead"), t("deliveryRate"), t("profitCol")].map(
-                  (h, i) => (
-                    <th
-                      key={h}
-                      className={`sticky top-0 bg-surface-sunken border-b border-ads-line font-semibold text-[11px] text-ads-ink-2 px-2.5 py-1.5 ${
-                        i === 0 ? "text-start" : "text-end"
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[t("product"), t("cplPaid"), t("floorMax"), t("marginPerLead"), t("deliveryRate"), t("profitCol")].map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {products.map((p) => (
-                <tr key={p.product_id} className="[&+tr>td]:border-t [&+tr>td]:border-ads-line">
-                  <td className="px-2.5 py-1.5 text-start" dir="auto">
-                    {p.product_name}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">
-                    {p.spend > 0 ? fmt(p.cpl, 2) : "—"}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">{fmt(p.break_even_cpl, 2)}</td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">
-                    {p.spend > 0 ? signed(p.margin_per_lead) : "—"}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">{pct(p.delivery_rate)}</td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">
-                    {p.spend > 0 ? signed(p.profit, 0) : "—"}
-                  </td>
+                <tr key={p.product_id}>
+                  <td dir="auto">{p.product_name}</td>
+                  <td>{p.spend > 0 ? fmt(p.cpl, 2) : "—"}</td>
+                  <td>{fmt(p.break_even_cpl, 2)}</td>
+                  <td>{p.spend > 0 ? signed(p.margin_per_lead) : "—"}</td>
+                  <td>{pct(p.delivery_rate)}</td>
+                  <td>{p.spend > 0 ? signed(p.profit, 0) : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      {node}
     </div>
+    {node}
+    </>
   );
 }
 
@@ -542,23 +465,16 @@ export function AdSpendCostStack({ meta, currency }: { meta: EconomicsMeta; curr
   const revenuePerDelivered = per(meta.total_revenue);
   if (revenuePerDelivered <= 0) return null;
 
+  // The section's money order and colours (P&L, Produits): product, delivery,
+  // returns (a tint of delivery), ads, packaging — then what is left.
   const costs = [
-    { key: "pub", label: t("costAds"), value: per(meta.total_spend), color: "var(--ads-pub)" },
-    { key: "cogs", label: t("costCogs"), value: per(meta.cost_cogs), color: "var(--ads-cogs)" },
-    { key: "delivery", label: t("costDelivery"), value: per(meta.cost_delivery), color: "var(--ads-delivery)" },
-    { key: "returns", label: t("costReturns"), value: per(meta.cost_returns), color: "var(--ads-returns)" },
-    {
-      key: "packing",
-      label: t("costPacking"),
-      value: per(meta.cost_packing + meta.cost_processing),
-      color: "var(--ads-packing)",
-    },
+    { key: "cogs", label: t("costCogs"), value: per(meta.cost_cogs), k: "k-cogs" },
+    { key: "delivery", label: t("costDelivery"), value: per(meta.cost_delivery), k: "k-ship" },
+    { key: "returns", label: t("costReturns"), value: per(meta.cost_returns), k: "k-ret" },
+    { key: "pub", label: t("costAds"), value: per(meta.total_spend), k: "k-ads" },
+    { key: "packing", label: t("costPacking"), value: per(meta.cost_packing + meta.cost_processing), k: "k-pack" },
   ];
 
-  // A losing cohort spends more than the order brought in, so the segments no
-  // longer fit inside the revenue. Rather than let the bar overflow past 100%
-  // — or quietly drop the negative profit — the overhang becomes its own red
-  // segment and the bar is scaled to total cost. The red part IS the shortfall.
   const profitPerDelivered = per(meta.total_profit);
   const inLoss = profitPerDelivered < 0;
   const costTotal = costs.reduce((s, c) => s + c.value, 0);
@@ -567,27 +483,30 @@ export function AdSpendCostStack({ meta, currency }: { meta: EconomicsMeta; curr
   const parts = [
     ...costs,
     inLoss
-      ? { key: "loss", label: t("costLoss"), value: -profitPerDelivered, color: "var(--ads-red)" }
-      : { key: "profit", label: t("costProfit"), value: profitPerDelivered, color: "var(--ads-profit)" },
+      ? { key: "loss", label: t("costLoss"), value: -profitPerDelivered, k: "k-loss" }
+      : { key: "profit", label: t("costProfit"), value: profitPerDelivered, k: "k-profit" },
   ].filter((p) => p.value > 0);
 
   const adsVsProduct = meta.cost_cogs > 0 ? meta.total_spend / meta.cost_cogs : null;
 
   return (
-    <div className="bg-surface-card border border-ads-line rounded-card shadow-hover-row px-[18px] py-4">
-      <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-ads-ink-1">
-        {t("stackTitle", { amount: fmt(revenuePerDelivered, 2), currency })}
-      </h2>
-      <p className="text-[12px] text-ads-ink-2 mt-[5px] leading-[1.5]">{t("stackSubtitle")}</p>
+    <>
+    <div className="card stack">
+      <div className="chead">
+        <div>
+          <h2>{t("stackTitle", { amount: fmt(revenuePerDelivered, 2), currency })}</h2>
+          <p className="q">{t("stackSubtitle")}</p>
+        </div>
+      </div>
 
-      <div className="flex h-[34px] rounded-[6px] overflow-hidden gap-0.5 mt-4">
+      <div className="stbar">
         {parts.map((p) => {
           const share = (p.value / total) * 100;
           return (
-            <div
+            <i
               key={p.key}
-              className="relative h-full min-w-[3px]"
-              style={{ inlineSize: `${share}%`, background: p.color }}
+              className={p.k}
+              style={{ inlineSize: `${share}%` }}
               onMouseMove={(e) =>
                 show(
                   <>
@@ -600,112 +519,114 @@ export function AdSpendCostStack({ meta, currency }: { meta: EconomicsMeta; curr
               }
               onMouseLeave={hide}
             >
-              {share > 7 && (
-                <span className="absolute inset-0 grid place-items-center text-[11.5px] font-bold text-white tabular-nums">
-                  {fmt(share, 0)} %
-                </span>
-              )}
-            </div>
+              {share > 7 && <span>{fmt(share, 0)} %</span>}
+            </i>
           );
         })}
       </div>
 
-      {inLoss && (
-        <p className="text-[11.5px] text-ads-red-ink mt-1.5">
-          {t("stackOverspend", { amount: `${fmt(costTotal, 2)} ${currency}` })}
-        </p>
-      )}
+      {inLoss && <p className="overspend">{t("stackOverspend", { amount: `${fmt(costTotal, 2)} ${currency}` })}</p>}
 
-      <div className="mt-2">
-        {parts.map((p, i) => {
+      <ul className="stls">
+        {parts.map((p) => {
           const closing = p.key === "profit" || p.key === "loss";
           return (
-            <div
-              key={p.key}
-              className={`grid grid-cols-[14px_1fr_auto_62px] items-center gap-[11px] py-2 text-[13px] ${
-                i > 0 ? "border-t border-ads-line" : ""
-              } ${closing ? "border-t-[1.5px] border-ads-line-2 font-bold" : ""}`}
-            >
-              <span className="w-3 h-3 rounded-[3px]" style={{ background: p.color }} />
-              <span className="text-ads-ink-1">{p.label}</span>
-              <span
-                className={`text-end font-bold tabular-nums whitespace-nowrap ${
-                  p.key === "profit"
-                    ? "text-ads-green-ink text-[14px]"
-                    : p.key === "loss"
-                      ? "text-ads-red-ink text-[14px]"
-                      : "text-ads-ink-1"
-                }`}
-              >
+            <li key={p.key} className={`stl${closing ? " tot" : ""}${p.key === "loss" ? " loss" : ""}`}>
+              <i className={`sw ${p.k}`} aria-hidden />
+              <span data-label>{p.label}</span>
+              <span className="v">
                 {p.key === "loss" ? `− ${fmt(p.value, 2)}` : fmt(p.value, 2)}
-                <span className="font-medium text-[11px] text-ads-ink-2 ms-[3px]">{currency}</span>
+                <span className="cur">{currency}</span>
               </span>
-              <span className="text-end text-[12px] text-ads-ink-2 tabular-nums">
-                {pct(p.value / revenuePerDelivered)}
-              </span>
-            </div>
+              <span className="p">{pct(p.value / revenuePerDelivered)}</span>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      {adsVsProduct !== null && adsVsProduct > 1 && (
-        <div className="flex items-center gap-2.5 mt-3.5 px-3 py-[11px] rounded-[10px] bg-[#FFF7ED] border border-[#FBD9A5] text-[13px] text-ads-ink-1">
-          🔥 <span>{t("adsCostRatio", { ratio: fmt(adsVsProduct, 1) })}</span>
+      {adsVsProduct !== null && adsVsProduct > 1 ? (
+        <div className="note warn">
+          <span className="nh"><Zap className="ic" aria-hidden /></span>
+          <span>{t("adsCostRatio", { ratio: fmt(adsVsProduct, 1) })}</span>
         </div>
+      ) : (
+        <div className="pad" />
       )}
-
-      {node}
     </div>
+    {node}
+    </>
   );
 }
 
 /* ─────────────────────────── 4. per-product table ─────────────────────────── */
 
-function Verdict({ p }: { p: ProductEconomics }) {
+/** The verdict, and — on hover — the reason for it. */
+function Verdict({ p, show, hide }: { p: ProductEconomics; show: Show; hide: () => void }) {
   const t = useTranslations("adSpend.economics");
-  const base = "inline-flex items-center gap-1.5 rounded-[6px] px-[11px] py-[5px] text-[12px] font-bold";
 
-  // No attributed spend means no verdict is available. Saying "Scaler" here —
-  // which the margin alone would produce, since it equals the entire floor —
-  // recommends raising budget on a product whose cost per lead is unknown.
+  let cls: string;
+  let label: string;
+  let why: string;
+  let rows: [string, string][] = [];
+  let icon: ReactNode = null;
+
   if (p.spend <= 0) {
-    return (
-      <span className={`${base} bg-surface-card border border-ads-line-2 text-ads-ink-2`}>
-        {t("verdictNoData")}
-      </span>
-    );
+    cls = "v-none";
+    label = t("verdictNoData");
+    why = t("verdictWhyNoData");
+  } else if (p.margin_per_lead < 0) {
+    const severe = Math.abs(p.profit) > 0.15 * Math.max(p.revenue, 1) || trendOf(p.daily_leads) > 0.05;
+    if (severe) {
+      cls = "v-cut";
+      label = t("verdictCut");
+      why = t("verdictWhyCut");
+      rows = [[t("tipLoss"), `${signed(p.profit, 0)}`], [t("tipCollected"), fmt(p.revenue)]];
+    } else {
+      cls = "v-fix";
+      label = t("verdictFix");
+      why = t("verdictWhyFix");
+      rows = [[t("tipLoss"), `${signed(p.profit, 0)}`]];
+      icon = <Pencil className="ic" aria-hidden />;
+    }
+  } else if (p.margin_per_lead > 0.4 * p.break_even_cpl) {
+    cls = "v-scale";
+    label = t("verdictScale");
+    why = t("verdictWhyScale");
+    rows = [[t("marginPerLead"), signed(p.margin_per_lead)], [t("tipFloor"), fmt(p.break_even_cpl, 2)]];
+  } else {
+    cls = "v-ok";
+    label = t("verdictHealthy");
+    why = t("verdictWhyHealthy");
+    rows = [[t("marginPerLead"), signed(p.margin_per_lead)], [t("tipFloor"), fmt(p.break_even_cpl, 2)]];
   }
 
-  if (p.margin_per_lead < 0) {
-    // Cut when the bleeding is large in absolute terms OR still accelerating;
-    // fix when it is small and steady, which is a bid problem, not a product
-    // problem.
-    const severe = Math.abs(p.profit) > 0.15 * Math.max(p.revenue, 1) || trendOf(p.daily_leads) > 0.05;
-    return severe ? (
-      <span className={`${base} bg-ads-red text-white`}>{t("verdictCut")}</span>
-    ) : (
-      <span className={`${base} bg-ads-orange-bg border border-ads-orange-line text-ads-orange-ink`}>
-        <Pencil size={12} strokeWidth={2} />
-        {t("verdictFix")}
-      </span>
-    );
-  }
-  // Relative rather than an absolute dinar threshold: the same page serves
-  // Tunisia and Libya, and "15 per lead" means different things in each.
-  if (p.margin_per_lead > 0.4 * p.break_even_cpl) {
-    return <span className={`${base} bg-ads-green-ink text-white`}>{t("verdictScale")}</span>;
-  }
+  const body = (
+    <>
+      <TipTitle>{label}</TipTitle>
+      {rows.map(([l, v]) => (
+        <TipRow key={l} label={l} value={v} />
+      ))}
+      <TipNote>{why}</TipNote>
+    </>
+  );
+
   return (
-    <span className={`${base} bg-surface-card border border-ads-green text-ads-green-ink`}>{t("verdictHealthy")}</span>
+    <span
+      className={`vb ${cls}`}
+      onMouseEnter={(e) => show(body, e)}
+      onMouseMove={(e) => show(body, e)}
+      onMouseLeave={hide}
+      onClick={(e: ReactMouseEvent) => e.stopPropagation()}
+    >
+      {icon}
+      {label}
+    </span>
   );
 }
 
 function BreakEvenLever({ p, currency }: { p: ProductEconomics; currency: string }) {
   const t = useTranslations("adSpend.economics");
-  if (p.margin_per_lead >= 0) return <span className="text-ads-ink-3">—</span>;
-
-  const pill =
-    "inline-flex items-center border border-ads-orange-line bg-[#FFFBF0] text-ads-orange-ink rounded-[6px] px-[9px] py-1 text-[11.5px] font-bold tabular-nums";
+  if (p.margin_per_lead >= 0 || p.spend <= 0) return <span className="dim">—</span>;
 
   // Two ways back to zero: pay less per lead, or deliver more of them. Show
   // whichever is the smaller relative move, because that is the one someone
@@ -718,13 +639,13 @@ function BreakEvenLever({ p, currency }: { p: ProductEconomics; currency: string
 
   if (drLift < cplCut) {
     return (
-      <span className={pill} title={t("leverDeliveryNow", { rate: pct(p.delivery_rate) })}>
+      <span className="tag warn lever" title={t("leverDeliveryNow", { rate: pct(p.delivery_rate) })}>
         {t("leverDelivery", { rate: pct(p.break_even_delivery_rate ?? 0) })}
       </span>
     );
   }
   return (
-    <span className={pill} title={t("leverCplNow", { cpl: fmt(p.cpl, 2) })}>
+    <span className="tag warn lever" title={t("leverCplNow", { cpl: fmt(p.cpl, 2) })}>
       {t("leverCpl", { cpl: `${fmt(p.break_even_cpl, 2)} ${currency}` })}
     </span>
   );
@@ -733,12 +654,10 @@ function BreakEvenLever({ p, currency }: { p: ProductEconomics; currency: string
 /**
  * What a product's spend is made of: campaigns → ad sets, then manual entries.
  *
- * Synced spend used to be listed one row per DAY (51 rows for one campaign),
- * each with a "CPL" that divided one day's spend by the window's leads. Leads
- * cannot be attributed below the product — no order carries a campaign — so a
- * campaign line carries what it can honestly say: the spend charged here, the
- * share of the campaign that is (when it is split), and Meta's own purchase
- * count and cost per purchase, split the same way as the money.
+ * Leads cannot be attributed below the product — no order carries a campaign —
+ * so a campaign line carries what it can honestly say: the spend charged here,
+ * the share of the campaign that is (when it is split), and Meta's own
+ * purchase count and cost per purchase, split the same way as the money.
  */
 function CampaignRows({
   campaigns,
@@ -758,139 +677,112 @@ function CampaignRows({
   onOpenCampaign?: (campaignId: string) => void;
 }) {
   const t = useTranslations("adSpend.economics");
-  const kicker = "text-[10.5px] font-bold uppercase tracking-[0.06em] text-ads-ink-3";
   const perPurchase = (amount: number, results: number) =>
     results > 0 ? t("costPerPurchase", { amount: `${fmt(amount / results, 2)} ${currency}` }) : "—";
+  const synced = (
+    <span className="ro" title={t("syncedReadOnly")}>
+      <Lock className="ic" aria-hidden />
+      {t("synced")}
+    </span>
+  );
 
   return (
-    <tr>
-      <td colSpan={colSpan} className="p-0 ps-[42px] bg-[#FBFCFD] border-b border-ads-line">
-        {campaigns.length === 0 && entries.length === 0 ? (
-          <p className="px-3 py-3 text-[12.5px] text-ads-ink-2">{t("noCampaigns")}</p>
-        ) : (
-          <table className="w-full border-collapse text-[12.5px]">
-            <tbody>
-              {campaigns.map((c) => [
-                <tr key={c.campaign_id} className="border-t border-ads-line first:border-t-0">
-                  <td className="px-3 py-2.5 text-start text-ads-ink-1">
-                    <span className="flex items-center gap-2 flex-wrap">
-                      <span className={kicker}>{t("campaignLine")}</span>
-                      <span className="font-semibold">{c.campaign_name ?? c.campaign_id}</span>
-                      <span
-                        className={`inline-flex items-center h-5 px-[7px] rounded-full border text-[11.5px] font-semibold whitespace-nowrap ${
-                          c.share !== null ? "border-ads-ink-1 text-ads-ink-1" : "border-ads-line-2 text-ads-ink-2 bg-surface-card"
-                        }`}
-                      >
-                        {c.share === null
-                          ? t("shareWhole")
-                          : t(c.split === "manual" ? "shareManual" : "shareAuto", { pct: `${fmt(c.share * 100)} %` })}
-                      </span>
-                      {onOpenCampaign && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenCampaign(c.campaign_id)}
-                          className="text-[12px] font-semibold text-brand hover:underline"
-                        >
-                          {t("openInMapping")}
-                        </button>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-1 font-semibold whitespace-nowrap">
-                    {fmt(c.amount)} {currency}
-                  </td>
-                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                    {c.results > 0 ? t("metaPurchases", { count: `${c.share !== null ? "≈ " : ""}${fmt(c.results)}` }) : "—"}
-                  </td>
-                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                    {perPurchase(c.amount, c.results)}
-                  </td>
-                  <td className="px-3 py-2.5 text-end text-ads-ink-3 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5" title={t("syncedReadOnly")}>
-                      <Lock size={12} strokeWidth={1.8} />
-                      {t("synced")}
-                    </span>
-                  </td>
-                </tr>,
-                ...c.adsets.map((a) => (
-                  <tr key={`${c.campaign_id}-${a.adset_id}`}>
-                    <td className="ps-9 pe-3 py-2 text-start text-ads-ink-1">
-                      <span className="flex items-center gap-2">
-                        <span className={kicker}>{t("adsetLine")}</span>
-                        <span>{a.adset_name ?? a.adset_id}</span>
+    <tr className="camps">
+      <td colSpan={colSpan}>
+        <div className="cbox">
+          {campaigns.length === 0 && entries.length === 0 ? (
+            <p>{t("noCampaigns")}</p>
+          ) : (
+            <table className="c">
+              <tbody>
+                {campaigns.map((c) => [
+                  <tr key={c.campaign_id}>
+                    <td>
+                      <span className="cl">
+                        <span className="kick">{t("campaignLine")}</span>
+                        <span className="cn">{c.campaign_name ?? c.campaign_id}</span>
+                        <span className={`tag${c.share !== null ? " good" : ""}`}>
+                          {c.share === null
+                            ? t("shareWhole")
+                            : t(c.split === "manual" ? "shareManual" : "shareAuto", { pct: `${fmt(c.share * 100)} %` })}
+                        </span>
+                        {onOpenCampaign && (
+                          <button type="button" className="link" onClick={() => onOpenCampaign(c.campaign_id)}>
+                            {t("openInMapping")}
+                          </button>
+                        )}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">{fmt(a.amount)}</td>
-                    <td className="px-3 py-2 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                      {a.results > 0 ? `${c.share !== null ? "≈ " : ""}${fmt(a.results)}` : "—"}
+                    <td className="amt">
+                      {fmt(c.amount)} {currency}
                     </td>
-                    <td className="px-3 py-2 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                      {perPurchase(a.amount, a.results)}
+                    <td>
+                      {c.results > 0 ? t("metaPurchases", { count: `${c.share !== null ? "≈ " : ""}${fmt(c.results)}` }) : "—"}
+                    </td>
+                    <td>{perPurchase(c.amount, c.results)}</td>
+                    <td>{synced}</td>
+                  </tr>,
+                  ...c.adsets.map((a) => (
+                    <tr key={`${c.campaign_id}-${a.adset_id}`} className="as">
+                      <td>
+                        <span className="cl">
+                          <span className="kick">{t("adsetLine")}</span>
+                          <span>{a.adset_name ?? a.adset_id}</span>
+                        </span>
+                      </td>
+                      <td>{fmt(a.amount)}</td>
+                      <td>{a.results > 0 ? `${c.share !== null ? "≈ " : ""}${fmt(a.results)}` : "—"}</td>
+                      <td>{perPurchase(a.amount, a.results)}</td>
+                      <td />
+                    </tr>
+                  )),
+                ])}
+
+                {entries.length > 0 && (
+                  <tr className="kh">
+                    <td colSpan={5}>
+                      <span className="kick">{t("manualLines")}</span>
+                    </td>
+                  </tr>
+                )}
+                {entries.map((e) => (
+                  <tr key={e.id}>
+                    <td>
+                      <span className="man">{e.label ?? t("manualEntry")}</span>
+                      <span className="ci">{e.campaign_id ?? `${e.period_start} → ${e.period_end}`}</span>
+                    </td>
+                    <td className="amt">
+                      {fmt(e.amount)} {currency}
                     </td>
                     <td />
+                    <td />
+                    <td>
+                      {e.editable ? (
+                        <>
+                          {onEdit && (
+                            <button type="button" className="mbtn" onClick={() => onEdit(e.id)} aria-label={t("edit")}>
+                              <Pencil className="ic" aria-hidden />
+                            </button>
+                          )}
+                          {onDelete && (
+                            <button type="button" className="mbtn del" onClick={() => onDelete(e.id)} aria-label={t("delete")}>
+                              <Trash2 className="ic" aria-hidden />
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        // Synced rows are rewritten by the next run, so offering
+                        // an edit button here would promise something the cron
+                        // takes back within the hour.
+                        synced
+                      )}
+                    </td>
                   </tr>
-                )),
-              ])}
-
-              {entries.length > 0 && (
-                <tr className="border-t border-ads-line">
-                  <td colSpan={5} className={`px-3 pt-2.5 pb-1 ${kicker}`}>
-                    {t("manualLines")}
-                  </td>
-                </tr>
-              )}
-              {entries.map((e) => (
-                <tr key={e.id}>
-                  <td className="px-3 py-2.5 text-start text-ads-ink-1">
-                    <span className="font-medium">{e.label ?? t("manualEntry")}</span>
-                    <span className="block text-[11px] text-ads-ink-3">
-                      {e.campaign_id ?? `${e.period_start} → ${e.period_end}`}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                    {fmt(e.amount)} {currency}
-                  </td>
-                  <td />
-                  <td />
-                  <td className="px-3 py-2.5 text-end text-ads-ink-2 whitespace-nowrap">
-                    {e.editable ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {onEdit && (
-                          <button
-                            type="button"
-                            onClick={() => onEdit(e.id)}
-                            aria-label={t("edit")}
-                            className="p-1 rounded-[4px] hover:bg-surface-selected hover:text-ads-ink-1 transition-colors duration-fast"
-                          >
-                            <Pencil size={13} strokeWidth={1.7} />
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button
-                            type="button"
-                            onClick={() => onDelete(e.id)}
-                            aria-label={t("delete")}
-                            className="p-1 rounded-[4px] hover:bg-status-criticalBg hover:text-ads-red-ink transition-colors duration-fast"
-                          >
-                            <Trash2 size={13} strokeWidth={1.7} />
-                          </button>
-                        )}
-                      </span>
-                    ) : (
-                      // Synced rows are rewritten by the next run, so offering
-                      // an edit button here would promise something the cron
-                      // takes back within the hour.
-                      <span className="inline-flex items-center gap-1.5 text-ads-ink-3" title={t("syncedReadOnly")}>
-                        <Lock size={12} strokeWidth={1.8} />
-                        {t("synced")}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -915,6 +807,7 @@ export function AdSpendProductTable({
   onOpenCampaign?: (campaignId: string) => void;
 }) {
   const t = useTranslations("adSpend.economics");
+  const { show, hide, node } = useTooltip();
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
 
@@ -933,43 +826,34 @@ export function AdSpendProductTable({
   ];
   const colSpan = columns.length;
   const hasUnmapped = meta.unmapped.spend > 0;
+  const chevron = <ChevronRight className="exp" strokeWidth={2.4} aria-hidden />;
 
   return (
-    <div className="bg-surface-card border border-ads-line rounded-card shadow-hover-row overflow-hidden">
-      <div className="flex items-center gap-3 flex-wrap px-[18px] pt-[15px] pb-[13px] border-b border-ads-line">
+    <>
+    <div className="card tcard">
+      <div className="chead">
         <div>
-          <h2 className="text-[15px] font-semibold text-ads-ink-1">{t("byProduct")}</h2>
-          <p className="text-[12px] text-ads-ink-2 mt-[3px]">{t("byProductSub")}</p>
+          <h2>{t("byProduct")}</h2>
+          <p className="q">{t("byProductSub")}</p>
         </div>
-        <span className="flex-1" />
         {onMapCampaigns && (
-          <button
-            type="button"
-            onClick={onMapCampaigns}
-            className="inline-flex items-center gap-2 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong transition-colors duration-fast"
-          >
-            {t("mapCampaigns")}
-          </button>
+          <div className="rt">
+            <button type="button" className="btn2 sm" onClick={onMapCampaigns}>
+              <Link2 className="ic" aria-hidden />
+              {t("mapCampaigns")}
+            </button>
+          </div>
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[13px] min-w-[1360px]">
+      <div className="tscroll">
+        <table className="g">
           <thead>
             <tr>
-              {columns.map((c, i) => (
-                <th
-                  key={c.label}
-                  className={`bg-surface-sunken border-b border-ads-line px-[13px] py-2.5 align-bottom text-[10.5px] font-semibold uppercase tracking-[0.04em] text-ads-ink-2 leading-[1.45] whitespace-nowrap ${
-                    i === 0 ? "text-start ps-[18px]" : "text-end"
-                  } ${i === columns.length - 1 ? "pe-[18px]" : ""}`}
-                >
+              {columns.map((c) => (
+                <th key={c.label}>
                   {c.label}
-                  {c.sub && (
-                    <small className="block text-[10px] normal-case tracking-normal text-ads-ink-3 font-medium">
-                      {c.sub}
-                    </small>
-                  )}
+                  {c.sub && <small>{c.sub}</small>}
                 </th>
               ))}
             </tr>
@@ -984,85 +868,50 @@ export function AdSpendProductTable({
                 <tr
                   key={p.product_id}
                   onClick={() => toggle(p.product_id)}
-                  className={`border-b border-ads-line cursor-pointer ${
-                    negative ? "bg-ads-red-band hover:bg-[#FDEFEF]" : "hover:bg-surface-sunken"
-                  }`}
+                  className={`prod${negative ? " neg" : ""}${isOpen ? " open" : ""}`}
                 >
-                  <td className="px-[13px] ps-[18px] py-[11px] text-start">
-                    <div className="flex items-center gap-2.5">
-                      <ChevronRight
-                        size={16}
-                        strokeWidth={2.4}
-                        aria-hidden="true"
-                        // One class or the other, never both: two `rtl:` rotate
-                        // utilities on the same element resolve by stylesheet
-                        // order, which is not something to rely on.
-                        className={`flex-none text-ads-ink-3 transition-transform duration-fast ${
-                          isOpen ? "rotate-90" : "rtl:rotate-180"
-                        }`}
-                      />
+                  <td>
+                    <div className="pcell">
+                      {chevron}
                       {/* The names are long Arabic strings that truncate to
                           near-identical prefixes — three boxing dolls differing
-                          only in the size word. The thumbnail is what makes a
+                          only in the size word. The picture is what makes a
                           row identifiable at a glance. */}
-                      <ProductAvatar
-                        imageUrl={p.product_image_url}
-                        productName={p.product_name}
-                        size={34}
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-[13px] font-semibold leading-[1.3] text-ads-ink-1" dir="auto">
-                          {p.product_name}
-                        </span>
-                        <span className="block text-[11.5px] text-ads-ink-2 mt-0.5">
+                      <Tile p={p} />
+                      <span>
+                        <b dir="auto">{p.product_name}</b>
+                        <small>
                           {p.campaigns.length > 0
                             ? t("campaignsCount", { count: p.campaigns.length })
                             : p.entries.length > 0
                               ? t("campaignCount", { count: p.entries.length })
                               : t("noCampaignsShort")}
-                        </span>
+                        </small>
                       </span>
                     </div>
                   </td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums">{fmt(p.spend)}</td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums">{fmt(p.leads)}</td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                    <b className="text-ads-ink-1 font-semibold">{p.leads}</b> →{" "}
-                    <b className="text-ads-ink-1 font-semibold">{p.confirmed}</b> →{" "}
-                    <b className="text-ads-ink-1 font-semibold">{p.delivered}</b>
+                  <td>{unknown ? <span className="dim">—</span> : fmt(p.spend)}</td>
+                  <td>{fmt(p.leads)}</td>
+                  <td className="fun">
+                    <b>{p.leads}</b> → <b>{p.confirmed}</b> → <b>{p.delivered}</b>
                   </td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums">{pct(p.delivery_rate)}</td>
+                  <td>{pct(p.delivery_rate)}</td>
                   {/* An em dash, not 0,00. A zero here is a measurement nobody
-                      took, and printing it as a number invites the reader to
-                      do arithmetic with it. */}
-                  <td
-                    className={`px-[13px] py-[11px] text-end tabular-nums ${unknown ? "text-ads-ink-3" : ""}`}
-                  >
-                    {unknown ? "—" : fmt(p.cpl, 2)}
+                      took, and printing it as a number invites arithmetic. */}
+                  <td>{unknown ? <span className="dim">—</span> : fmt(p.cpl, 2)}</td>
+                  <td>{fmt(p.break_even_cpl, 2)}</td>
+                  <td className={`big${unknown ? "" : negative ? " bad" : " ok"}`}>
+                    {unknown ? <span className="dim">—</span> : signed(p.margin_per_lead)}
                   </td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums">{fmt(p.break_even_cpl, 2)}</td>
-                  <td
-                    className={`px-[13px] py-[11px] text-end tabular-nums text-[14px] font-bold ${
-                      unknown ? "text-ads-ink-3 font-medium" : negative ? "text-ads-red-ink" : "text-ads-green-ink"
-                    }`}
-                  >
-                    {unknown ? "—" : signed(p.margin_per_lead)}
+                  <td className={`big${unknown ? "" : negative ? " bad" : " ok"}`}>
+                    {unknown ? <span className="dim">—</span> : signed(p.profit, 0)}
+                    {!unknown && p.roas !== null && <div className="sub2">ROAS {fmt(p.roas, 2)}×</div>}
                   </td>
-                  <td
-                    className={`px-[13px] py-[11px] text-end tabular-nums text-[14px] font-bold ${
-                      unknown ? "text-ads-ink-3 font-medium" : negative ? "text-ads-red-ink" : "text-ads-green-ink"
-                    }`}
-                  >
-                    {unknown ? "—" : signed(p.profit, 0)}
-                    {!unknown && p.roas !== null && (
-                      <div className="text-[11px] font-medium text-ads-ink-2 mt-0.5">ROAS {fmt(p.roas, 2)}×</div>
-                    )}
-                  </td>
-                  <td className="px-[13px] py-[11px] text-end">
+                  <td>
                     <BreakEvenLever p={p} currency={currency} />
                   </td>
-                  <td className="px-[13px] pe-[18px] py-[11px] text-end">
-                    <Verdict p={p} />
+                  <td>
+                    <Verdict p={p} show={show} hide={hide} />
                   </td>
                 </tr>,
                 isOpen ? (
@@ -1085,54 +934,39 @@ export function AdSpendProductTable({
                 derived column stays blank rather than guessing. */}
             {hasUnmapped && (
               <>
-                <tr
-                  onClick={() => toggle("__unmapped")}
-                  className="border-b border-ads-line cursor-pointer hover:bg-surface-sunken"
-                >
-                  <td className="px-[13px] ps-[18px] py-[11px] text-start">
-                    <div className="flex items-center gap-2.5">
-                      <ChevronRight
-                        size={16}
-                        strokeWidth={2.4}
-                        aria-hidden="true"
-                        className={`flex-none text-ads-ink-3 transition-transform duration-fast ${
-                          open.__unmapped ? "rotate-90" : "rtl:rotate-180"
-                        }`}
-                      />
-                      {/* Holds the thumbnail column open so this row's name
-                          starts on the same line as every product above it. */}
-                      <span
-                        aria-hidden
-                        className="flex-none grid place-items-center rounded-md border border-dashed border-ads-line-2 bg-surface-sunken text-ads-ink-3"
-                        style={{ width: 34, height: 34 }}
-                      >
-                        <AlertTriangle size={15} strokeWidth={1.8} />
+                <tr onClick={() => toggle("__unmapped")} className={`prod${open.__unmapped ? " open" : ""}`}>
+                  <td>
+                    <div className="pcell">
+                      {chevron}
+                      <span className="pimg dash" aria-hidden>
+                        <AlertTriangle className="ic" />
                       </span>
-                      <span className="min-w-0">
-                        <span className="block text-[13px] font-semibold leading-[1.3] text-ads-ink-1">
-                          {t("unmappedRow")}
-                        </span>
-                        <span className="block text-[11.5px] text-ads-ink-2 mt-0.5">
+                      <span>
+                        <b>{t("unmappedRow")}</b>
+                        <small>
                           {meta.unmapped.campaigns.length > 0
                             ? t("campaignsCount", { count: meta.unmapped.campaigns.length })
                             : t("campaignCount", { count: meta.unmapped.entries.length })}
-                        </span>
+                        </small>
                       </span>
                     </div>
                   </td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums">{fmt(meta.unmapped.spend)}</td>
+                  <td>{fmt(meta.unmapped.spend)}</td>
                   {Array.from({ length: 7 }).map((_, i) => (
-                    <td key={i} className="px-[13px] py-[11px] text-end text-ads-ink-3">
-                      —
+                    <td key={i}>
+                      <span className="dim">—</span>
                     </td>
                   ))}
-                  <td className="px-[13px] py-[11px] text-end">
-                    <span className="inline-flex items-center border border-ads-orange-line bg-[#FFFBF0] text-ads-orange-ink rounded-[6px] px-[9px] py-1 text-[11.5px] font-bold">
-                      {t("leverAttach")}
-                    </span>
+                  <td>
+                    <span className="tag warn">{t("leverAttach")}</span>
                   </td>
-                  <td className="px-[13px] pe-[18px] py-[11px] text-end">
-                    <span className="inline-flex items-center rounded-[6px] px-[11px] py-[5px] text-[12px] font-bold bg-surface-card border border-ads-orange-line text-ads-orange-ink">
+                  <td>
+                    <span
+                      className="vb v-att"
+                      onMouseEnter={(e) => show(<><TipTitle>{t("verdictAttach")}</TipTitle><TipNote>{t("verdictWhyAttach")}</TipNote></>, e)}
+                      onMouseMove={(e) => show(<><TipTitle>{t("verdictAttach")}</TipTitle><TipNote>{t("verdictWhyAttach")}</TipNote></>, e)}
+                      onMouseLeave={hide}
+                    >
                       {t("verdictAttach")}
                     </span>
                   </td>
@@ -1153,56 +987,47 @@ export function AdSpendProductTable({
           </tbody>
 
           <tfoot>
-            <tr className="bg-surface-sunken border-t-[1.5px] border-ads-line-2 font-bold">
-              <td className="px-[13px] ps-[18px] py-3 text-start">{t("total")}</td>
-              <td className="px-[13px] py-3 text-end tabular-nums">{fmt(meta.total_spend)}</td>
-              <td className="px-[13px] py-3 text-end tabular-nums">{fmt(meta.total_leads)}</td>
-              <td className="px-[13px] py-3 text-end tabular-nums text-ads-ink-2 whitespace-nowrap">
-                <b className="text-ads-ink-1">{fmt(meta.total_leads)}</b> →{" "}
-                <b className="text-ads-ink-1">{fmt(meta.total_confirmed)}</b> →{" "}
-                <b className="text-ads-ink-1">{fmt(meta.total_delivered)}</b>
+            <tr>
+              <td>{t("total")}</td>
+              <td>{fmt(meta.total_spend)}</td>
+              <td>{fmt(meta.total_leads)}</td>
+              <td className="fun">
+                <b>{fmt(meta.total_leads)}</b> → <b>{fmt(meta.total_confirmed)}</b> → <b>{fmt(meta.total_delivered)}</b>
               </td>
-              <td className="px-[13px] py-3 text-end tabular-nums">
-                {meta.total_leads > 0 ? pct(meta.total_delivered / meta.total_leads) : "—"}
-              </td>
-              <td className="px-[13px] py-3 text-end tabular-nums">
-                {meta.total_leads > 0 ? fmt(meta.total_spend / meta.total_leads, 2) : "—"}
-              </td>
-              <td className="px-[13px] py-3 text-end tabular-nums">
+              <td>{meta.total_leads > 0 ? pct(meta.total_delivered / meta.total_leads) : "—"}</td>
+              <td>{meta.total_leads > 0 ? fmt(meta.total_spend / meta.total_leads, 2) : "—"}</td>
+              <td>
                 {meta.total_leads > 0
                   ? fmt((meta.total_revenue - (meta.total_costs - meta.total_spend)) / meta.total_leads, 2)
                   : "—"}
               </td>
-              <td
-                className={`px-[13px] py-3 text-end tabular-nums text-[14px] ${
-                  meta.total_profit < 0 ? "text-ads-red-ink" : "text-ads-green-ink"
-                }`}
-              >
+              <td className={`big ${meta.total_profit < 0 ? "bad" : "ok"}`}>
                 {meta.total_leads > 0 ? signed(meta.total_profit / meta.total_leads) : "—"}
               </td>
-              <td
-                className={`px-[13px] py-3 text-end tabular-nums text-[14px] ${
-                  meta.total_profit < 0 ? "text-ads-red-ink" : "text-ads-green-ink"
-                }`}
-              >
+              <td className={`big ${meta.total_profit < 0 ? "bad" : "ok"}`}>
                 {signed(meta.total_profit, 0)}
-                {meta.total_spend > 0 && (
-                  <div className="text-[11px] font-medium text-ads-ink-2 mt-0.5">
-                    ROAS {fmt(meta.total_revenue / meta.total_spend, 2)}×
-                  </div>
-                )}
+                {meta.total_spend > 0 && <div className="sub2">ROAS {fmt(meta.total_revenue / meta.total_spend, 2)}×</div>}
               </td>
-              <td className="px-[13px] py-3" />
-              <td className="px-[13px] pe-[18px] py-3" />
+              <td />
+              <td />
             </tr>
           </tfoot>
         </table>
       </div>
     </div>
+    {node}
+    </>
   );
 }
 
-/* ─────────────────────────── unmapped banner ─────────────────────────── */
+/* ──────────────── the two warnings ──────────────── */
+
+/*
+ * Since prototypes/finances-pub-v5.html the warnings live in ONE place: the
+ * head of the « Campagnes et produits » drawer, where both are fixed. The
+ * banners below are what the page shows only when that drawer does not exist
+ * (no Meta account connected) — an alert must never simply disappear.
+ */
 
 export function AdSpendUnmappedBanner({
   meta,
@@ -1217,10 +1042,10 @@ export function AdSpendUnmappedBanner({
   if (meta.unmapped.spend <= 0) return null;
 
   return (
-    <div className="flex items-center gap-[11px] px-3.5 py-[11px] rounded-card bg-ads-orange-bg border border-ads-orange-line text-[13.5px] text-ads-ink-1">
-      <AlertTriangle size={17} strokeWidth={2} className="flex-none text-ads-orange-ink" />
+    <div className="note warn">
+      <span className="nh"><Link2 className="ic" aria-hidden /></span>
       <span>
-        <b className="font-bold">
+        <b>
           {t("unmappedBanner", {
             amount: `${fmt(meta.unmapped.spend)} ${currency}`,
             count: meta.unmapped.campaigns.length + meta.unmapped.entries.length,
@@ -1228,13 +1053,8 @@ export function AdSpendUnmappedBanner({
         </b>{" "}
         {t("unmappedBannerHint")}
       </span>
-      <span className="flex-1" />
       {onAttach && (
-        <button
-          type="button"
-          onClick={onAttach}
-          className="text-[13px] font-semibold text-ads-orange-ink underline underline-offset-2"
-        >
+        <button type="button" className="go" onClick={onAttach}>
           {t("attach")}
         </button>
       )}
@@ -1242,15 +1062,24 @@ export function AdSpendUnmappedBanner({
   );
 }
 
-/* ──────────────── products with no attributed spend ──────────────── */
-
 /**
  * Names the gap rather than leaving it to be inferred from a column of dashes.
  *
  * Two different causes look identical on the page — nobody has mapped the
  * campaign, or the sync has never reached back far enough to see it — and the
- * second one is fixable in one click, so it gets one.
+ * second one is fixable in one click, so it gets one. The date is written for
+ * a person (« 14 juil. »), not as an ISO string.
  */
+function useCoverageText(fromDate: string, backfilling?: boolean) {
+  const t = useTranslations("adSpend.economics");
+  const locale = useLocale();
+  return {
+    title: (count: number) => t("coverageTitle", { count }),
+    hint: t("coverageHint"),
+    action: backfilling ? t("backfilling") : t("backfillFrom", { date: fmtDay(fromDate, locale) }),
+  };
+}
+
 export function AdSpendCoverageBanner({
   meta,
   fromDate,
@@ -1262,25 +1091,48 @@ export function AdSpendCoverageBanner({
   onBackfill?: () => void;
   backfilling?: boolean;
 }) {
-  const t = useTranslations("adSpend.economics");
+  const text = useCoverageText(fromDate, backfilling);
   if (meta.products_without_spend <= 0) return null;
 
   return (
-    <div className="flex items-center gap-[11px] px-3.5 py-[11px] rounded-card bg-ads-orange-bg border border-ads-orange-line text-[13.5px] text-ads-ink-1">
-      <AlertTriangle size={17} strokeWidth={2} className="flex-none text-ads-orange-ink" />
+    <div className="note warn">
+      <span className="nh"><AlertTriangle className="ic" aria-hidden /></span>
       <span>
-        <b className="font-bold">{t("coverageTitle", { count: meta.products_without_spend })}</b>{" "}
-        {t("coverageHint")}
+        <b>{text.title(meta.products_without_spend)}</b> {text.hint}
       </span>
-      <span className="flex-1" />
       {onBackfill && (
-        <button
-          type="button"
-          onClick={onBackfill}
-          disabled={backfilling}
-          className="text-[13px] font-semibold text-ads-orange-ink underline underline-offset-2 disabled:opacity-60 whitespace-nowrap"
-        >
-          {backfilling ? t("backfilling") : t("backfillFrom", { date: fromDate })}
+        <button type="button" className="go" onClick={onBackfill} disabled={backfilling}>
+          {text.action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** The same warning, as a line of the drawer's head (classes under `.ads-ov`). */
+export function AdSpendCoverageNote({
+  count,
+  fromDate,
+  onBackfill,
+  backfilling,
+}: {
+  count: number;
+  fromDate: string;
+  onBackfill?: () => void;
+  backfilling?: boolean;
+}) {
+  const text = useCoverageText(fromDate, backfilling);
+  if (count <= 0) return null;
+
+  return (
+    <div className="dw">
+      <span className="nh"><AlertTriangle className="ic" aria-hidden /></span>
+      <span>
+        <b>{text.title(count)}</b> {text.hint}
+      </span>
+      {onBackfill && (
+        <button type="button" className="go" onClick={onBackfill} disabled={backfilling}>
+          {text.action}
         </button>
       )}
     </div>
@@ -1311,7 +1163,7 @@ export function AdSpendSyncStrip({ health }: { health: SyncHealth }) {
     {
       label: t("syncLast"),
       value: health.lastSyncedAt ?? t("syncNever"),
-      dot: health.lastSyncedAt ? "var(--ads-green)" : "#F59E0B",
+      dot: health.lastSyncedAt ? "var(--live)" : "var(--warn-dot)",
       muted: false,
       note:
         health.rowsWritten !== null && health.campaigns !== null
@@ -1328,39 +1180,29 @@ export function AdSpendSyncStrip({ health }: { health: SyncHealth }) {
     ...health.accounts.map((a) => ({
       label: a.label,
       value: a.detail,
-      dot: a.ok ? "var(--ads-green)" : "#F59E0B",
+      dot: a.ok ? "var(--live)" : "var(--warn-dot)",
       muted: false,
       note: a.note,
     })),
     {
       label: t("syncLastError"),
-      // "Aucune" is good news and reads muted; a real message must not.
       value: health.lastError ?? t("syncNoError"),
-      dot: health.lastError ? "var(--ads-red)" : null,
+      dot: health.lastError ? "var(--bad-dot)" : null,
       muted: !health.lastError,
       note: t("syncErrorWindow"),
     },
   ];
 
   return (
-    <div className="bg-surface-card border border-ads-line rounded-card shadow-hover-row flex flex-wrap">
+    <div className="card sync">
       {cells.map((c, i) => (
-        <div
-          key={`${c.label}-${i}`}
-          className={`flex-1 min-w-[166px] px-[18px] py-3 flex flex-col gap-0.5 ${
-            i > 0 ? "border-s border-ads-line" : ""
-          }`}
-        >
-          <span className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-ads-ink-2">{c.label}</span>
-          <span
-            className={`text-[13.5px] flex items-center gap-1.5 tabular-nums ${
-              c.muted ? "font-medium text-ads-ink-2" : "font-semibold text-ads-ink-1"
-            }`}
-          >
-            {c.dot && <span className="w-[7px] h-[7px] rounded-full flex-none" style={{ background: c.dot }} />}
+        <div key={`${c.label}-${i}`} className="sy">
+          <span className="eyebrow">{c.label}</span>
+          <span className={`sv${c.muted ? " mut" : ""}`}>
+            {c.dot && <i style={{ background: c.dot }} />}
             {c.value}
           </span>
-          <span className="text-[11.5px] text-ads-ink-2">{c.note}</span>
+          <span className="sn">{c.note}</span>
         </div>
       ))}
     </div>

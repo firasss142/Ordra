@@ -8,6 +8,8 @@ export interface FeedbackTopic {
   label_fr: string;
   label_ar: string;
   sort_order: number;
+  /** « Notre réponse » — what the team does when a customer gives this reason. */
+  response?: string | null;
 }
 
 export interface FeedbackProductRef {
@@ -86,7 +88,6 @@ export interface FeedbackSheetRow {
   moment: FeedbackMoment;
   source: FeedbackSource;
   status: ComplaintStatus | null;
-  needs_review: boolean;
   product: FeedbackProductRef | null;
   customer_name: string | null;
   customer_phone: string | null;
@@ -108,10 +109,22 @@ export interface FeedbackFamily {
   productIds: string[];
 }
 
-/** GET /api/feedback/overview — every number above the sheet. */
+/** One reason of the « Raisons » tab (src/lib/feedback/voice.ts). */
+export interface FeedbackReason {
+  topicId: string;
+  category: FeedbackCategory;
+  count: number;
+  prev: number | null;
+  response: string | null;
+  products: { id: string; label: string; imageUrl: string | null; count: number }[];
+  /** The newest three things customers said with this reason. */
+  quotes: { id: string; body: string; moment: FeedbackMoment; source: FeedbackSource; author: string | null }[];
+}
+
+/** GET /api/feedback/overview — every number of « Voix du client » (Raisons + the sheet's minis). */
 export interface FeedbackOverviewResponse {
   today: string;
-  /** The market's first validated feedback, for « Depuis le début ». */
+  /** The market's first feedback, for « Depuis le début ». */
   first: string | null;
   from: string;
   to: string;
@@ -120,14 +133,13 @@ export interface FeedbackOverviewResponse {
   families: FeedbackFamily[];
   topics: FeedbackTopic[];
   agents: { id: string; name: string }[];
-  tabs: { all: number; byFamily: { id: string; count: number }[] };
-  kpis: { category: FeedbackCategory; count: number; prev: number | null; series: number[] }[];
   total: number;
-  mix: { category: FeedbackCategory; count: number }[];
-  ranked: { category: FeedbackCategory; topicId: string | null; count: number; prev: number | null; share: number }[];
-  byAgent: { id: string; name: string; count: number; byCategory: Record<FeedbackCategory, number> }[];
-  agentsTotal: number;
+  kpis: { category: FeedbackCategory; count: number; prev: number | null }[];
+  toCheck: number;
+  reasons: FeedbackReason[];
+  gone: FeedbackReason[];
+  wants: FeedbackReason[];
+  wantsGone: FeedbackReason[];
   /** Not bound to the period: what is waiting, under the product filter. */
-  complaints: { open: number; late: number };
-  review: number;
+  complaints: { open: number; firstOpenId: string | null };
 }

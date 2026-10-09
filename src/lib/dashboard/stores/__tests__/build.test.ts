@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildStoreDash, summ, type BuildInput, type StoreRow } from "../build";
+import { buildStoreDash, type BuildInput, type StoreRow } from "../build";
 import { resolveDashWindow } from "../period";
+import { shiftDays } from "@/lib/performance/orders/period";
 import type { StoreOrder } from "../facts";
 
-const TODAY = "2026-10-04";
-const NOW = new Date("2026-10-04T15:20:00Z"); // 17:20 in Tripoli
+const TODAY = "2026-10-07"; // a Wednesday
+const NOW = new Date("2026-10-07T07:41:00Z"); // 09:41 in Tripoli
+const NOW_MIN = 9 * 60 + 41;
 
 const store = (id: string, o: Partial<StoreRow> = {}): StoreRow => ({
   id,
@@ -20,7 +22,7 @@ const store = (id: string, o: Partial<StoreRow> = {}): StoreRow => ({
   sheet_failing_since: null,
   sheet_error: null,
   first_order_at: "2026-06-10T10:00:00Z",
-  last_order_at: "2026-10-04T15:00:00Z",
+  last_order_at: "2026-10-07T07:30:00Z",
   ...o,
 });
 
@@ -29,7 +31,7 @@ const ord = (o: Partial<StoreOrder>): StoreOrder => ({
   id: `o${seq++}`,
   at: "",
   day: TODAY,
-  min: 600,
+  min: 300,
   store: "a",
   bk: "c",
   doneAt: null,
@@ -38,9 +40,11 @@ const ord = (o: Partial<StoreOrder>): StoreOrder => ({
   deliveryCost: 25,
   returnCost: 0,
   unmapped: false,
+  tried: false,
   products: [],
   ...o,
 });
+const many = (n: number, o: Partial<StoreOrder>) => Array.from({ length: n }, () => ord(o));
 
 const input = (o: Partial<BuildInput>): BuildInput => ({
   role: "owner",
@@ -48,81 +52,115 @@ const input = (o: Partial<BuildInput>): BuildInput => ({
   tz: "Africa/Tripoli",
   now: NOW,
   today: TODAY,
-  nowMin: 17 * 60 + 20,
+  nowMin: NOW_MIN,
   first: "2026-06-07",
   window: resolveDashWindow("today", null, null, TODAY, "2026-06-07"),
   A: [],
   P: [],
+  H: [],
   stores: [store("a"), store("b")],
   daily: new Map(),
   ads: {},
   productNames: new Map(),
-  money: null,
   firstDayOf: (iso) => iso.slice(0, 10),
   ...o,
 });
 
-describe("buildStoreDash", () => {
-  it("today compares with yesterday up to the same hour, and has no rate arrows", () => {
+describe("buildStoreDash — a day", () => {
+  // The 4 Wednesdays before: 10 orders each by 09:41.
+  const usual = [7, 14, 21, 28].flatMap((k) => many(10, { day: shiftDays(TODAY, -k), min: 200 }));
+  const yesterday = many(6, { day: shiftDays(TODAY, -1), min: 900, price: 50 });
+
+  it("judges today's pace against the same weekday, and shows yesterday's total beside it", () => {
+    const v = buildStoreDash(input({ A: many(9, {}), H: [...usual, ...yesterday] }));
+    expect(v.kpi).toMatchObject({ n: 9, val: 900, verdict: "normal", yN: 6, yVal: 300, prevN: null });
+  });
+
+  it("the sparkline is the 14 days up to today, today hatched", () => {
+    const v = buildStoreDash(input({ A: many(9, {}), H: [...usual, ...yesterday] }));
+    expect(v.kpi.spark).toHaveLength(14);
+    expect(v.kpi.spark[13]).toMatchObject({ from: TODAY, n: 9, part: true });
+    expect(v.kpi.spark[12]).toMatchObject({ n: 6, val: 300, part: false });
+    expect(v.kpi.spark[6]).toMatchObject({ from: shiftDays(TODAY, -7), n: 10, part: false });
+  });
+
+  it("a manager never receives a price", () => {
+    const v = buildStoreDash(input({ role: "manager", A: many(3, {}), H: yesterday }));
+    expect(v.kpi.val).toBeNull();
+    expect(v.kpi.yVal).toBeNull();
+    expect(v.kpi.spark.every((b) => b.val === 0)).toBe(true);
+    expect(v.stores[0].ca).toBeNull();
+  });
+
+  it("the four tiles and the gap always add up to the store's count", () => {
+    const A = [
+      ...many(2, { bk: "c" }),
+      ...many(3, { bk: "c", tried: true }),
+      ord({ bk: "u" }),
+      ...many(2, { bk: "r" }),
+      ord({ bk: "d" }),
+      ord({ bk: "x" }),
+      ord({ bk: "j" }),
+      ord({ bk: "s" }),
+    ];
+    const v = buildStoreDash(input({ A }));
+    const t = v.stores[0].tiles;
+    expect(t).toEqual({ wait: 2, tried: 3, up: 3, rej: 3, gap: 1 });
+    expect(t.wait + t.tried + t.up + t.rej + t.gap).toBe(v.stores[0].n);
+  });
+
+  it("a stopped store with no order today keeps its card (bug 1), with its cause", () => {
+    const daily = new Map([["b", new Map(Array.from({ length: 14 }, (_, i) => [shiftDays(TODAY, -7 - i), 40] as [string, number]))]]);
+    // ads paid until 7 days ago, at zero since — the day the store stopped
+    const ads = Object.fromEntries(Array.from({ length: 15 }, (_, i) => [shiftDays(TODAY, -7 - i), 900]));
+    const v = buildStoreDash(input({ A: many(4, {}), daily, ads }));
+    const b = v.stores.find((s) => s.id === "b")!;
+    expect(b).toMatchObject({ n: 0, alarm: true, flagged: true });
+    expect(b.note).toMatchObject({ kind: "stopped", ads: true });
+    expect(v.silent).toHaveLength(0);
+  });
+
+  it("a quiet store with nothing wrong folds into the silent line; a never-ordered one waits", () => {
     const v = buildStoreDash(
       input({
-        A: [ord({}), ord({})],
-        P: [ord({ day: "2026-10-03", min: 600 }), ord({ day: "2026-10-03", min: 23 * 60 })],
+        A: many(2, {}),
+        stores: [store("a"), store("b"), store("c", { first_order_at: null, last_order_at: null, created_at: "2026-10-06T16:40:00Z" })],
       }),
     );
-    expect(v.A.n).toBe(2);
-    expect(v.P.n).toBe(1);
-    expect(v.comparable).toBe(false);
-    expect(v.why).toBe("today");
-    expect(v.flow).toHaveLength(24);
-    expect(v.flow[10].tot).toBe(2);
-    expect(v.flow[17].now).toBe(true);
-    expect(v.flow[18].fut).toBe(true);
+    expect(v.silent.map((s) => s.id)).toEqual(["b"]);
+    expect(v.stores.find((s) => s.id === "c")).toMatchObject({ note: { kind: "waiting" }, connectedAt: "2026-10-06T16:40:00Z" });
   });
 
-  it("a store with no order is folded on the quiet line; an inactive one is not shown", () => {
-    const v = buildStoreDash(input({ A: [ord({})], stores: [store("a"), store("b", { last_order_at: "2026-09-01T10:00:00Z" }), store("c", { is_active: false })] }));
-    expect(v.stores.map((s) => s.id)).toEqual(["a"]);
-    expect(v.quiet).toEqual([{ id: "b", name: "B", platform: "shopify", lastDay: "2026-09-01", notYet: false }]);
-    expect(v.connected).toBe(2);
-  });
-
-  it("the period before is read at equal age: a parcel delivered after that moment was still on the road", () => {
-    const w = resolveDashWindow("30d", null, null, TODAY, "2026-06-07");
-    const asOf = NOW.getTime() - 30 * 86_400_000;
-    const A = Array.from({ length: 40 }, () => ord({ day: "2026-09-20", bk: "d", doneAt: NOW.getTime() - 86_400_000 }));
-    const P = Array.from({ length: 40 }, () => ord({ day: "2026-08-20", bk: "d", doneAt: asOf + 3_600_000, upAt: asOf - 1 }));
-    const v = buildStoreDash(input({ window: w, A, P }));
-    expect(v.comparable).toBe(true);
-    expect(v.A.r100.del).toBe(100);
-    expect(v.P.r100.del).toBe(0);
-    expect(v.P.r100.pend).toBe(100);
-  });
-
-  it("a manager gets no money, not even a store's paid amount", () => {
-    const v = buildStoreDash(input({ role: "manager", A: [ord({ bk: "d" })] }));
-    expect(v.money).toBeNull();
-    expect(v.stores[0].paid).toBeUndefined();
-  });
-
-  it("the owner gets each store's paid amount", () => {
-    const v = buildStoreDash(input({ A: [ord({ bk: "d", price: 210 }), ord({ bk: "f", price: 90 })] }));
-    expect(v.stores[0].paid).toBe(210);
-  });
-
-  it("a store card carries the shop's uploaded logo, or null for its initials", () => {
-    const v = buildStoreDash(
-      input({ stores: [store("a", { logo_url: "https://x/a.png" }), store("b")], A: [ord({}), ord({ store: "b" })] }),
-    );
-    expect(v.stores.find((s) => s.id === "a")?.logo).toBe("https://x/a.png");
-    expect(v.stores.find((s) => s.id === "b")?.logo).toBeNull();
+  it("store pace is judged on its own usual day", () => {
+    const v = buildStoreDash(input({ A: many(2, {}), H: usual }));
+    expect(v.stores[0].pace).toBe("none");
   });
 });
 
-describe("summ", () => {
-  it("counts each outcome as parcels, beside its share — the page leads with the count", () => {
-    const s = summ(["d", "d", "f", "x", "j", "c", "u"]);
-    expect(s.k).toEqual({ del: 2, ret: 1, rej: 1, junk: 1, pend: 2 });
-    expect(Object.values(s.k).reduce((a, b) => a + b, 0)).toBe(s.n);
+describe("buildStoreDash — a period", () => {
+  const w = resolveDashWindow("7d", null, null, TODAY, "2026-06-07");
+
+  it("compares with the period before, and sums its CA", () => {
+    const v = buildStoreDash(input({ window: w, A: many(10, { bk: "d", price: 80 }), P: many(8, { day: shiftDays(TODAY, -9), price: 50 }) }));
+    expect(v.kpi).toMatchObject({ n: 10, val: 800, paid: 800, prevN: 8, prevVal: 400, verdict: null, yN: null });
+    expect(v.kpi.spark).toHaveLength(7);
+    expect(v.kpi.spark[6]).toMatchObject({ from: TODAY, n: 10, part: true });
+  });
+
+  it("beyond 45 days the bars are Monday–Sunday weeks, a cut week hatched", () => {
+    const v = buildStoreDash(input({ window: resolveDashWindow("90d", null, null, TODAY, "2026-01-01"), A: many(3, {}) }));
+    const sp = v.kpi.spark;
+    expect(new Date(`${sp[1].from}T12:00:00Z`).getUTCDay()).toBe(1);
+    expect(sp[0].part).toBe(true);
+    expect(sp[sp.length - 1]).toMatchObject({ to: TODAY, part: true, n: 3 });
+  });
+
+  it("confirmed counts orders awaiting upload; delivered is over parcels that ended", () => {
+    const A = [ord({ bk: "u" }), ord({ bk: "r" }), ...many(3, { bk: "d" }), ord({ bk: "f" }), ord({ bk: "x" }), ord({ bk: "c" })];
+    const s = buildStoreDash(input({ window: w, A })).stores[0];
+    expect(s.conf).toBe(6);
+    expect(s.confRate).toBeCloseTo((6 / 7) * 100);
+    expect(s.delRate).toBe(75);
+    expect(s.ring).toEqual({ del: 3, route: 2, ret: 1, rej: 1, junk: 0, call: 1 });
   });
 });

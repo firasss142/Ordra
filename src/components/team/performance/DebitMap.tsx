@@ -67,21 +67,21 @@ function MapSvg({ width }: { width: number }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={t("map.aria")}>
       <defs>
-        <clipPath id="tpf-plot">
-          <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx="16" />
-        </clipPath>
         {pts.map((p) => (
           <linearGradient key={p.id} id={`tpf-gb-${p.id}`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" style={{ stopColor: `var(--agent-${key(p)}-5)` }} />
             <stop offset="1" style={{ stopColor: `var(--agent-${key(p)}-7)` }} />
           </linearGradient>
         ))}
+        <clipPath id="tpf-plot">
+          <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx="16" />
+        </clipPath>
       </defs>
       <g clipPath="url(#tpf-plot)">
-        <rect className="zone" x={x0} y={y0} width={tx - x0} height={ty - y0} fill="#E9EAFF" opacity=".75" />
-        <rect className="zone" x={tx} y={y0} width={x1 - tx} height={ty - y0} fill="#DDF6EA" opacity=".85" />
-        <rect className="zone" x={x0} y={ty} width={tx - x0} height={y1 - ty} fill="#FFF0DB" opacity=".8" />
-        <rect className="zone" x={tx} y={ty} width={x1 - tx} height={y1 - ty} fill="#FFE4EA" opacity=".85" />
+        <rect className="zone z-tl" x={x0} y={y0} width={tx - x0} height={ty - y0} fill="#E9EAFF" opacity=".75" />
+        <rect className="zone z-tr" x={tx} y={y0} width={x1 - tx} height={ty - y0} fill="#DDF6EA" opacity=".85" />
+        <rect className="zone z-bl" x={x0} y={ty} width={tx - x0} height={y1 - ty} fill="#FFF0DB" opacity=".8" />
+        <rect className="zone z-br" x={tx} y={ty} width={x1 - tx} height={y1 - ty} fill="#FFE4EA" opacity=".85" />
       </g>
       <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx="16" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.5" />
       {xTicks.map((v) => (
@@ -108,9 +108,9 @@ function MapSvg({ width }: { width: number }) {
       </text>
       {/* zone names, quietly in the corners */}
       <text className="zone-l" x={x0 + 14} y={y0 + 20} textAnchor="start" fill="#5B5FC7">{t("map.quad.tl")}</text>
-      <text className="zone-l" x={x1 - 14} y={y0 + 20} textAnchor="end" fill="#067647">{t("map.quad.tr")}</text>
+      <text className="zone-l good" x={x1 - 14} y={y0 + 20} textAnchor="end" fill="#067647">{t("map.quad.tr")}</text>
       <text className="zone-l" x={x0 + 14} y={y1 - 12} textAnchor="start" fill="#B54708">{t("map.quad.bl")}</text>
-      <text className="zone-l" x={x1 - 14} y={y1 - 12} textAnchor="end" fill="#C01048">{t("map.quad.br")}</text>
+      <text className="zone-l bad" x={x1 - 14} y={y1 - 12} textAnchor="end" fill="#C01048">{t("map.quad.br")}</text>
       {/* team cross */}
       <line x1={tx} y1={y0} x2={tx} y2={y1} stroke="var(--ink-3)" strokeDasharray="4 5" strokeWidth="1.3" />
       <line x1={x0} y1={ty} x2={x1} y2={ty} stroke="var(--ink-3)" strokeDasharray="4 5" strokeWidth="1.3" />
@@ -139,12 +139,12 @@ function MapSvg({ width }: { width: number }) {
             (p.px != null && p.py != null ? t("map.tipPrev", { x: f.n(p.px, 1), y: f.pct(p.py) }) : "");
           return (
             <g key={p.id} className={`bub${dimIf(p.id)}`} data-focus={p.id} data-tip={tip}>
-              <circle cx={bx} cy={by} r={r + 3} fill="#fff" style={{ filter: `drop-shadow(0 8px 14px color-mix(in srgb, var(--agent-${a.color}-5) 45%, transparent))` }} />
-              <circle cx={bx} cy={by} r={r} fill={`url(#tpf-gb-${p.id})`} />
+              <circle cx={bx} cy={by} r={r + 3} fill="#fff" style={{ filter: `drop-shadow(0 6px 12px color-mix(in srgb, var(--agent-${a.color}-5) 35%, transparent))` }} />
+              <circle cx={bx} cy={by} r={r} style={{ fill: `url(#tpf-gb-${p.id})` }} />
               <text className="ini" x={bx} y={by} style={{ fontSize: Math.round(r * 0.78) }}>
                 {a.name.charAt(0).toUpperCase()}
               </text>
-              <text className="lbl-n" x={l.x} y={l.y + 13} textAnchor={l.anchor}>
+              <text className="lbl-n" x={l.x} y={l.y + 13} textAnchor={l.anchor} style={{ fill: `var(--agent-${a.color}-9)` }}>
                 {a.name}
               </text>
               <text className="lbl-v" x={l.x} y={l.y + 28} textAnchor={l.anchor}>

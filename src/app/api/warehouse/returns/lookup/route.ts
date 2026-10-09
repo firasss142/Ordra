@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { withRouteErrors } from "@/lib/journal/route-errors";
 
@@ -18,6 +19,11 @@ export const dynamic = "force-dynamic";
  *
  * The search runs server-side across the whole market for the same reason — a
  * parcel deep in the queue is exactly the one an operator cannot find by eye.
+ *
+ * A warehouse agent, though, finds only their own building's parcels: a
+ * return goes back on one building's shelf, and the other building's — or a
+ * parcel with no building, which Darb holds — is "not found" here. An agent
+ * with no building finds nothing. Managers search the whole market.
  */
 
 export type ReturnLookupOutcome =
@@ -36,6 +42,8 @@ export interface ReturnLookupResult {
   status?: string;
   /** Present for `ambiguous`: how many orders the prefix hit. */
   matches?: number;
+  /** A warehouse agent with no building: nothing can be found, and this says why. */
+  siteUnassigned?: boolean;
 }
 
 interface Verdict {
@@ -62,6 +70,14 @@ async function handleGET(req: NextRequest) {
 
   const supabase = await createClient();
   const { marketId } = resolveWarehouseScope(req, actor);
+  const site = await resolveSiteFilter(supabase, { actor, requested: null });
+  if (site.unassigned) {
+    return NextResponse.json({
+      outcome: "not_found",
+      code,
+      siteUnassigned: true,
+    } satisfies ReturnLookupResult);
+  }
 
   const { data, error } = await supabase.rpc("find_return_by_code", {
     p_market_id: marketId,
@@ -86,10 +102,14 @@ async function handleGET(req: NextRequest) {
     const { data: order } = await supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug",
+        "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, tracking_number, carrier_sticker_ref, carrier_status_slug, warehouse_id",
       )
       .eq("id", verdict.order_id)
-      .maybeSingle();
+      .maybeSingle<WarehouseOrderRow & { warehouse_id: string | null }>();
+    // Not this agent's building: say nothing about it, not even its status.
+    if (site.pinned && order?.warehouse_id !== site.warehouseId) {
+      return NextResponse.json({ outcome: "not_found", code: result.code } satisfies ReturnLookupResult);
+    }
     if (order) result.order = order as unknown as WarehouseOrderRow;
   }
 

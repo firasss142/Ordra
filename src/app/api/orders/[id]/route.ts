@@ -12,6 +12,7 @@ import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { marketIdToCode } from "@/lib/markets";
 import { lockedResponse } from "@/lib/orders/order-lock-response";
 import { withRouteErrors } from "@/lib/journal/route-errors";
+import { getCardSurchargePct, DEFAULT_CARD_SURCHARGE_PCT } from "@/lib/calculations/card-surcharge";
 
 export const dynamic = "force-dynamic";
 
@@ -238,6 +239,10 @@ async function handlePATCH(
   const cardPayment = ("card_payment" in updates
     ? updates.card_payment
     : order.card_payment) as boolean;
+  // Read only for a card order: every other total ignores the rate.
+  const surchargePct = cardPayment
+    ? await getCardSurchargePct(supabase, order.market_id as string)
+    : DEFAULT_CARD_SURCHARGE_PCT;
 
   // The +10% online-card surcharge is for the legacy COD cash flow (Dexpress).
   // Darb Assabil has NATIVE online payment (no 10% cut on settlement), so the
@@ -284,7 +289,7 @@ async function handlePATCH(
       return NextResponse.json({ error: "delivery_fee must be >= 0" }, { status: 400 });
     }
     updates.delivery_fee = fee;
-    updates.total_price = computeOrderTotal(await resolveSubtotal(), fee, cardPayment, applyCardSurcharge());
+    updates.total_price = computeOrderTotal(await resolveSubtotal(), fee, cardPayment, applyCardSurcharge(), surchargePct);
   }
 
   // unit_price → validate ≥ 0. This is the legacy single-item price path (no
@@ -307,7 +312,7 @@ async function handlePATCH(
     if (typeof newQty !== "number" || newQty < 1 || !Number.isInteger(newQty)) {
       return NextResponse.json({ error: "quantity must be a positive integer" }, { status: 400 });
     }
-    updates.total_price = computeOrderTotal(effectiveUnitPrice * newQty, 0, cardPayment, applyCardSurcharge());
+    updates.total_price = computeOrderTotal(effectiveUnitPrice * newQty, 0, cardPayment, applyCardSurcharge(), surchargePct);
   }
 
   // Product swap
@@ -336,7 +341,7 @@ async function handlePATCH(
     updates.product_id = product.id;
     updates.product_name = product.name;
     updates.unit_price = productPrice;
-    updates.total_price = computeOrderTotal(productPrice * qty, 0, cardPayment, applyCardSurcharge());
+    updates.total_price = computeOrderTotal(productPrice * qty, 0, cardPayment, applyCardSurcharge(), surchargePct);
     // Clear variant when product changes (unless variant_id is also being set)
     if (!("variant_id" in body)) {
       updates.variant_label = null;
@@ -456,7 +461,7 @@ async function handlePATCH(
   // recompute total_price from the product subtotal + current delivery_fee so the
   // +10% is applied/removed immediately.
   if ("card_payment" in updates && !("total_price" in updates)) {
-    updates.total_price = computeOrderTotal(await resolveSubtotal(), Number(order.delivery_fee ?? 0), cardPayment, applyCardSurcharge());
+    updates.total_price = computeOrderTotal(await resolveSubtotal(), Number(order.delivery_fee ?? 0), cardPayment, applyCardSurcharge(), surchargePct);
   }
 
   if (Object.keys(updates).length === 0) {

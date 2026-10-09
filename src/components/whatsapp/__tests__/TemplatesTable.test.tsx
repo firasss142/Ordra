@@ -82,14 +82,14 @@ beforeEach(() => {
 });
 
 describe("TemplatesTable", () => {
-  it("lists the market's templates with language, category, status, event, variables", () => {
+  it("lists the market's templates in the prototype's four columns: code, sent when, language, state", () => {
     mount();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Modèle", "Envoyé quand", "Langue", "État"]);
     const row = screen.getByText("ordra_shipped_v1").closest("tr")!;
     expect(within(row).getByText("Français")).toBeInTheDocument();
-    expect(within(row).getByText("Utilitaire")).toBeInTheDocument();
     expect(within(row).getByText("Approuvé")).toBeInTheDocument();
     expect(within(row).getByRole("combobox")).toHaveValue("shipped");
-    expect(within(row).getByText("nom, transporteur, suivi, montant")).toBeInTheDocument();
+    expect(screen.getByText("ordra_product_share_v1").closest("tr")!).toHaveTextContent("En attente de Meta");
     const rej = screen.getByText("ordra_delivered_v1").closest("tr")!;
     expect(within(rej).getByText("Refusé")).toBeInTheDocument();
   });
@@ -178,7 +178,7 @@ describe("TemplatesTable", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { total: 15, inserted: 2, updated: 13, deleted: 0 } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { created: ["ordra_shipped_v1/ar", "ordra_delivered_v1/ar"], skipped: ["ordra_shipped_v1/fr"], failed: [] } }), { status: 200 }));
     mount();
-    await userEvent.click(screen.getByRole("button", { name: /Synchroniser depuis Meta/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Synchroniser avec Meta/ }));
     expect(global.fetch).toHaveBeenCalledWith("/api/whatsapp/templates/sync", expect.objectContaining({ method: "POST", body: JSON.stringify({ market_id: TN }) }));
     expect(await screen.findByText("Synchronisé · 15 modèles, 13 mis à jour, 2 nouveaux")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Créer les modèles Ordra/ }));
@@ -186,21 +186,21 @@ describe("TemplatesTable", () => {
     expect(await screen.findByText("2 modèles soumis à Meta · approbation en attente")).toBeInTheDocument();
   });
 
-  it("puts the actions in the page's top bar when the page asks for them", () => {
-    render(
-      <ToastProvider>
-        <TemplatesTable markets={MARKETS} initialMarketId={TN} renderHeader={(actions) => <header data-testid="top">{actions}</header>} />
-      </ToastProvider>,
-    );
-    expect(within(screen.getByTestId("top")).getByRole("button", { name: /Synchroniser depuis Meta/ })).toBeInTheDocument();
-    expect(within(screen.getByTestId("top")).getByRole("button", { name: /Créer les modèles Ordra/ })).toBeInTheDocument();
+  it("the card says what templates are, with sync and create beside the title", () => {
+    mount();
+    expect(screen.getByText("Modèles")).toBeInTheDocument();
+    expect(screen.getByText(/seuls autorisés après 24 h sans réponse du client/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Synchroniser avec Meta/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Créer les modèles Ordra/ })).toBeEnabled();
   });
 
-  it("read-only (market_manager): event selects disabled, no fix, no delete — sync and create stay, as in the prototype", async () => {
+  it("read-only (market_manager): the event in words, no select, no fix, no delete — sync and create stay", async () => {
     mount({ markets: [MARKETS[0]], readOnly: true, canDelete: false });
     const row = screen.getByText("ordra_shipped_v1").closest("tr")!;
-    expect(within(row).getByRole("combobox")).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Synchroniser depuis Meta/ })).toBeInTheDocument();
+    expect(within(row).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(row).getByText("Expédié")).toBeInTheDocument();
+    expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: /Synchroniser avec Meta/ })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Marché" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByText("ordra_delivered_v1"));
     const drawer = screen.getByRole("dialog");
@@ -213,9 +213,9 @@ describe("TemplatesTable", () => {
     mockRows({ [TN]: [], [LY]: LY_ROWS });
     mount();
     expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getByText(/WhatsApp n'est pas connecté pour ce marché/)).toBeInTheDocument();
+    expect(screen.getByText(/ces modèles seront soumis à Meta dès que le numéro sera relié/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ouvrir Réglages › WhatsApp" })).toHaveAttribute("href", "/fr/system/settings/whatsapp");
-    expect(screen.getByRole("button", { name: /Synchroniser depuis Meta/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Synchroniser avec Meta/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Créer les modèles Ordra/ })).toBeDisabled();
   });
 
@@ -223,7 +223,7 @@ describe("TemplatesTable", () => {
     connected = { [TN]: false };
     mockRows({ [TN]: [] });
     mount({ markets: [MARKETS[0]], readOnly: true, canDelete: false, connectionsHref: null });
-    expect(screen.getByText(/Un administrateur relie le numéro/)).toBeInTheDocument();
+    expect(screen.getByText(/ces modèles seront soumis à Meta/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Connexions/ })).not.toBeInTheDocument();
   });
 
@@ -240,7 +240,6 @@ describe("TemplatesTable", () => {
     expect(screen.getByRole("columnheader", { name: "القالب" })).toBeInTheDocument();
     const row = screen.getByText("ordra_shipped_v1").closest("tr")!;
     expect(within(row).getByText("معتمد")).toBeInTheDocument();
-    expect(within(row).getByText("خدمي")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /مزامنة من Meta/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /مزامنة مع Meta/ })).toBeInTheDocument();
   });
 });

@@ -24,7 +24,7 @@ import { shouldRefreshWorklist } from "@/lib/delivery/worklist";
 import { DEFAULT_TARGET_HOURS } from "@/lib/delivery/board";
 import type { DeliveryBoardResponse, WorklistResponse } from "@/lib/delivery/types";
 import type { Role } from "@/types";
-import { DeliveryBoardView } from "./DeliveryBoardView";
+import { DeliveryBoardView } from "./board/BoardView";
 
 const COALESCE_MS = 400;
 
@@ -95,7 +95,7 @@ export function DeliveryBoardClient({
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new Error(body?.error === "locked" ? t("reassign.locked") : t("reassign.failed"));
+      throw new Error(body?.error === "locked" ? t("manager.reassign.locked") : t("manager.reassign.failed"));
     }
     await Promise.all([mutate(), mutateBoard()]);
   }, [mutate, mutateBoard, t]);
@@ -117,7 +117,7 @@ export function DeliveryBoardClient({
       marketId={market}
       whatsappActive={whatsappActive}
       whatsappKnown={whatsappKnown}
-      marketLabel={t(`board.markets.${code}`)}
+      marketLabel={t(`manager.markets.${code}`)}
       tz={marketTimezone(market)}
       locale={locale}
       now={now}

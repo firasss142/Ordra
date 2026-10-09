@@ -9,6 +9,7 @@ export const ICON_PATHS: Record<string, string> = {
   lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   right: '<polyline points="9 18 15 12 9 6"/>',
   down: '<polyline points="6 9 12 15 18 9"/>',
+  swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   ext: '<path d="M7 17 17 7"/><path d="M7 7h10v10"/>',
   up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',

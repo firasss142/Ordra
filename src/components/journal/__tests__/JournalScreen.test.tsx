@@ -191,7 +191,7 @@ describe("Aperçu — « est-ce que tout marche ? »", () => {
   test("a verdict counts the problems, and each problem is one card with its figure", async () => {
     renderScreen();
     expect(await screen.findByRole("heading", { name: "2 choses à régler" })).toBeInTheDocument();
-    const cards = screen.getByRole("region", { name: "À régler" });
+    const cards = screen.getByRole("region", { name: "À régler maintenant" });
     expect(within(cards).getAllByRole("button")).toHaveLength(2);
     expect(norm(within(cards).getAllByRole("button")[0].textContent)).toContain("Navex : 139 colis bloqués");
     expect(within(cards).getByText(byText("8 211 TND"))).toBeInTheDocument();
@@ -208,8 +208,11 @@ describe("Aperçu — « est-ce que tout marche ? »", () => {
     issues = [];
     renderScreen();
     expect(await screen.findByRole("heading", { name: "Tout fonctionne" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "À régler" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "À régler maintenant" })).not.toBeInTheDocument();
     const systems = screen.getByRole("region", { name: "Systèmes" });
+    // everything healthy is one line until asked
+    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
+    fireEvent.click(within(systems).getByRole("button", { name: /5 systèmes sans problème/ }));
     expect(within(systems).getByText("Darb Tripoli")).toBeInTheDocument();
     expect(within(systems).getByText("Non connecté")).toBeInTheDocument();
     expect(within(systems).getByText("Toutes réussies")).toBeInTheDocument();
@@ -246,9 +249,99 @@ describe("Aperçu — « est-ce que tout marche ? »", () => {
 
   test("a carrier tile shows its 48 hours", async () => {
     renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: /systèmes sans problème/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Darb Tripoli/ }));
     const panel = await screen.findByRole("dialog");
     expect(within(panel).getByRole("img", { name: "Les 48 dernières heures" })).toBeInTheDocument();
+  });
+});
+
+describe("Aperçu v2 — clear at a glance (2026-10-06)", () => {
+  const inactive = (n: number): Issue => ({
+    ...ARCHIVE,
+    id: `33333333-3333-4333-8333-33333333333${n}`,
+    rule: "carrier_inactive",
+    severity: "warning",
+    system: `carrier:c-old-${n}`,
+    params: { name: `Ancien compte ${n}`, off_at: "2026-10-01T10:00:00Z", no_news: 1 },
+    affected: 2,
+    amount: 100,
+    currency: "LYD",
+    market: "ly",
+  });
+  const CITIES: Issue = {
+    ...ARCHIVE,
+    id: "44444444-4444-4444-8444-444444444444",
+    rule: "server_error",
+    system: "app",
+    params: {
+      route: "/api/cities", method: "GET", status: 500, message: "Internal server error", last: "2026-10-03T14:30:00Z",
+      cause_kind: "db", cause_code: "22P02", cause_target: "cities", cause_detail: 'invalid input syntax for type uuid: ""',
+    },
+    affected: 720,
+    amount: null,
+    currency: null,
+    market: null,
+  };
+
+  test("urgent and « à surveiller » problems are two separate lists", async () => {
+    issues = [NAVEX, inactive(1)];
+    renderScreen();
+    const now = await screen.findByRole("region", { name: "À régler maintenant" });
+    const watch = screen.getByRole("region", { name: "À surveiller" });
+    expect(norm(now.textContent)).toContain("Navex");
+    expect(norm(watch.textContent)).toContain("Ancien compte 1");
+    expect(norm(now.textContent)).not.toContain("Ancien compte");
+  });
+
+  test("three problems of the same kind fold into one card that opens to the list", async () => {
+    issues = [inactive(1), inactive(2), inactive(3)];
+    renderScreen();
+    const watch = await screen.findByRole("region", { name: "À surveiller" });
+    expect(within(watch).getAllByRole("button")).toHaveLength(1);
+    const fold = within(watch).getByRole("button", { name: /3 transporteurs coupés ont encore des colis/ });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute("aria-expanded", "true");
+    // the fold and, under it, one card per problem
+    expect(within(watch).getAllByRole("button")).toHaveLength(4);
+    expect(within(watch).getByRole("button", { name: /^Ancien compte 2/ })).toBeInTheDocument();
+  });
+
+  test("a server error says WHY on its card, not « Internal server error »", async () => {
+    issues = [CITIES];
+    renderScreen();
+    const now = await screen.findByRole("region", { name: "À régler maintenant" });
+    expect(norm(now.textContent)).toContain("Ordra a envoyé à la base une valeur vide ou mal formée");
+    expect(norm(now.textContent)).not.toContain("Internal server error");
+  });
+
+  test("its panel answers « Pourquoi » and « Que faire », the technical detail last", async () => {
+    issues = [CITIES];
+    renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: /Erreur serveur répétée/ }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByRole("heading", { name: "Pourquoi" })).toBeInTheDocument();
+    expect(norm(within(panel).getByText(/valeur vide ou mal formée/).textContent)).toContain("un identifiant");
+    expect(norm(panel.textContent)).toContain("Repérer l’écran qui déclenche l’erreur");
+    expect(norm(panel.textContent)).toContain("22P02");
+    expect(norm(panel.textContent)).toContain("cities");
+  });
+
+  test("systems only « à vérifier » fold into one line too: the problem list already names them", async () => {
+    renderScreen();
+    const systems = await screen.findByRole("region", { name: "Systèmes" });
+    await waitFor(() => expect(within(systems).getByText("Navex")).toBeInTheDocument());
+    // fixture: no amber tile → no amber line
+    expect(within(systems).queryByRole("button", { name: /à vérifier/ })).not.toBeInTheDocument();
+  });
+
+  test("failing systems stay visible; the healthy ones are one line", async () => {
+    renderScreen();
+    const systems = await screen.findByRole("region", { name: "Systèmes" });
+    await waitFor(() => expect(within(systems).getByText("Navex")).toBeInTheDocument());
+    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
+    expect(within(systems).getByRole("button", { name: /3 systèmes sans problème/ })).toBeInTheDocument();
   });
 });
 

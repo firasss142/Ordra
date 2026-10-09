@@ -87,7 +87,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="inline-grid h-[34px] w-[34px] place-items-center rounded-[10px] text-[#656B72] hover:bg-[#F3F4F6] hover:text-[#15171A] aria-expanded:bg-[#F3F4F6] aria-expanded:text-[#15171A]"
+        className="acx-kebab"
       >
         <MoreHorizontal size={16} aria-hidden="true" />
       </button>
@@ -98,11 +98,11 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
           aria-label={label}
           onKeyDown={onKeyDown}
           style={pos ? { top: pos.top, left: pos.left } : { visibility: "hidden" }}
-          className="fixed z-[70] min-w-[244px] rounded-[12px] border border-[#E3E5E8] bg-white p-[5px] shadow-[0_12px_32px_rgba(16,24,40,.14)]"
+          className="acx-menu"
         >
           {items.map(({ key, label: text, icon: Icon, critical, separated, onSelect }) => (
             <Fragment key={key}>
-              {separated && <hr className="mx-[4px] my-[5px] border-0 border-t border-[#ECEEF0]" />}
+              {separated && <hr />}
               <button
                 type="button"
                 role="menuitem"
@@ -111,11 +111,9 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
                   close(false);
                   onSelect();
                 }}
-                className={`flex h-[38px] w-full items-center gap-[10px] rounded-[8px] px-[10px] text-start text-[13.5px] font-medium outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--brand)] ${
-                  critical ? "text-[#C0362C] hover:bg-[#FDECEA] focus:bg-[#FDECEA]" : "text-[#15171A] hover:bg-[#F3F4F6] focus:bg-[#F3F4F6]"
-                }`}
+                className={`acx-menu-i${critical ? " bad" : ""}`}
               >
-                <Icon size={16} aria-hidden="true" className={critical ? "text-[#C0362C]" : "text-[#656B72]"} />
+                <Icon size={16} aria-hidden="true" />
                 {text}
               </button>
             </Fragment>

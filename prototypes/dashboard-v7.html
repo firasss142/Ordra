@@ -1,0 +1,2137 @@
+<!doctype html>
+<!--
+  Accueil (/dashboard) — prototype v3 (2026-10-07) : « le point du jour ».
+
+  Demande du propriétaire (7 oct.) : refaire l'accueil — la page qu'il ouvre chaque jour en premier ;
+  téléphone ET bureau ; garder l'idée (le total des commandes, et les commandes de chaque boutique) ;
+  calme, élégant, moderne ; corriger les bugs introduits au fil des versions (v2 → calme → passes 2 et 3).
+
+  Recommandation (détail dans le panneau « Ce qui change » du studio) :
+  1. une question chaque matin — « est-ce que tout tourne, et d'où viennent mes commandes ? » ;
+  2. les problèmes d'abord, une ligne chacun AVEC leur cause (pub coupée, boutique à l'arrêt, panne,
+     commandes à relier, import ancien, file en retard) — rien à signaler = une ligne verte ;
+  3. « Aujourd'hui » jugé contre une journée habituelle à la même heure, pas contre hier ; « Hier » ajouté ;
+  4. le total et chaque boutique dans le même regard (barres empilées par boutique + légende chiffrée) ;
+  5. l'argent en trois chiffres : encaissé, en route, bénéfice brut (« provisoire » tant que des colis roulent) ;
+  6. téléphone d'abord : période collée en haut, boutiques en lignes, détail en feuille du bas, rien au seul survol.
+
+  Formes tirées de la prod (lue le 7 oct., agrégats seulement) : Libye — pub à 0 depuis le 30 sept., commandes
+  arrêtées le 29 à 17:30, connexion saine (960 synchros, 0 échec) ; Tunisie — 5 boutiques Converty connectées le
+  5 oct., 698 anciennes commandes importées d'un coup (passées en juil.–sept.), toutes « pending », sans agent.
+
+  DONNÉES FICTIVES (graine fixe) : boutiques, produits, montants inventés — le dépôt est public.
+  Habillage « Aurore calme » (docs/design-system.md, palette des issues validée §2.4, couleurs boutique du plan).
+
+  URL : ?set=normal|alerte|import|vide &role=owner|manager &lang=fr|ar &device=desktop|phone
+        &period=today|yesterday|7d|30d|90d|month|m:2026-09|custom&from=&to= &view=cards|list &stale=1
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Accueil v7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --f:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --fa:"IBM Plex Sans Arabic","Plus Jakarta Sans",system-ui,sans-serif;
+  --brand:#15803D; --brand-bg:#E9F6EE;
+  --ground:#F6F7FB;
+  --aurora:radial-gradient(58% 40% at 2% 0%,#D3DBFF 0%,transparent 72%),radial-gradient(48% 36% at 100% 0%,#FAD3EC 0%,transparent 72%),
+           radial-gradient(56% 46% at 98% 100%,#C6F2DA 0%,transparent 72%),radial-gradient(52% 46% at 0% 100%,#FFE6B3 0%,transparent 72%),
+           radial-gradient(40% 30% at 50% 50%,#EDE7FF 0%,transparent 80%),var(--ground);
+  --card:rgba(255,255,255,.86); --card-edge:rgba(16,24,40,.06);
+  --card-sh:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(42,52,110,.05);
+  --card-sh-h:0 1px 2px rgba(16,24,40,.05),0 14px 36px rgba(42,52,110,.11);
+  --ink:#0F1728; --ink-2:#475467; --ink-3:#667085; --ink-q:#8A94A6; --ink-4:#C9CED7;
+  --line:rgba(15,23,40,.07); --track:rgba(15,23,40,.06);
+  --good:#067647; --good-bg:#DCFAE6; --live:#12B76A;
+  --warn:#B54708; --warn-bg:#FFF4E0; --warn-dot:#F79009;
+  --bad:#C01048; --bad-bg:#FFE4E8; --bad-dot:#E8385A;
+  --o-del:#4DAE7E; --o-route:#6FC29A; --o-ret:#E9A23B; --o-rej:#E46A7B; --o-junk:#9D8FEF; --o-call:#D0D5DD;
+  --answer:#2C7F57; --tip:#101828; --studio-h:46px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#E9ECF3;color:var(--ink);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+h1,h2,h3,h4,p{margin:0}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── studio (prototype only, always LTR) ─────────────────────────────── */
+.studio{position:sticky;top:0;z-index:300;height:var(--studio-h);display:flex;align-items:center;gap:16px;padding:0 14px;background:#101828;color:#E6E8EB;font-size:12.5px;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+.studio .brand{font-weight:800;letter-spacing:-.01em}
+.studio .brand small{color:#98A2B3;font-weight:600;margin-inline-start:6px}
+.st-g{display:inline-flex;align-items:center;gap:7px}
+.st-g > span{color:#98A2B3;font-weight:600}
+.st-seg{display:inline-flex;background:#1D2939;border-radius:8px;padding:2px}
+.st-seg button{height:26px;padding:0 9px;border-radius:6px;color:#D0D5DD;font-weight:700;font-size:12px}
+.st-seg button.on{background:#fff;color:#101828}
+.st-chk{display:inline-flex;align-items:center;gap:6px;color:#D0D5DD;font-weight:600;cursor:pointer}
+.st-notes{margin-inline-start:auto;height:30px;padding:0 13px;border-radius:8px;background:#15803D;color:#fff;font-weight:800;font-size:12.5px;flex:none}
+
+/* ── device frames ───────────────────────────────────────────────────── */
+.stagewrap{min-height:calc(100vh - var(--studio-h))}
+.device{background:var(--ground)}
+.device[data-device=phone]{width:390px;height:844px;margin:26px auto 40px;border-radius:46px;overflow:hidden;box-shadow:0 0 0 11px #0B0D10,0 0 0 12px #2A2F37,0 36px 90px rgba(20,25,60,.35);transform:translateZ(0)}
+.app{display:flex;min-height:calc(100vh - var(--studio-h));background:var(--aurora);background-attachment:fixed}
+.device[data-device=phone] .app{height:100%;min-height:0;overflow-y:auto;background-attachment:local;scrollbar-width:none}
+.app[dir=rtl]{font-family:var(--fa)}
+.mainwrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.main{flex:1;min-width:0;container:main/inline-size}
+
+/* ── sidebar (dark — the only dark surface) ──────────────────────────── */
+.sb{position:sticky;top:var(--studio-h);height:calc(100vh - var(--studio-h));width:240px;flex:none;background:#0E1013;color:#E6E8EB;display:flex;flex-direction:column;gap:10px;padding:14px 12px 12px;overflow:hidden}
+.sb-brand{display:flex;align-items:center;gap:10px;height:34px;padding:0 6px;font-weight:800;font-size:17px;letter-spacing:-.02em}
+.sb-logo{width:26px;height:26px;border-radius:8px;background:#15803D;display:grid;place-items:center}
+.sb-mkt{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:12px;background:#14171C;border:1px solid rgba(255,255,255,.08);text-align:start}
+.sb-mkt span{display:grid;line-height:1.25;flex:1;min-width:0}
+.sb-mkt b{font-size:13.5px;font-weight:700}
+.sb-mkt small{font-size:11.5px;color:#7F858F;font-weight:600}
+.flag{width:24px;height:16px;border-radius:3px;overflow:hidden;flex:none;display:block}
+.sb-search{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.04);color:#7F858F;font-size:12.5px;font-weight:600}
+.sb-search kbd{margin-inline-start:auto;font:inherit;font-size:11px;color:#5A616B;border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:0 5px}
+.sb-nav{display:grid;gap:2px;margin-top:4px;overflow:auto;scrollbar-width:none}
+.sb-nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:9px;color:#B5BAC2;font-size:13.5px;font-weight:600;text-decoration:none;cursor:pointer}
+.sb-nav a:hover{background:rgba(255,255,255,.07);color:#E6E8EB}
+.sb-nav a.on{background:#15803D;color:#fff}
+.sb-nav a .ic{width:17px;height:17px}
+.sb-nav a .chev{margin-inline-start:auto;width:14px;height:14px;opacity:.5}
+[dir=rtl] .sb-nav a .chev{transform:scaleX(-1)}
+.sb-foot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 6px 2px;border-top:1px solid rgba(255,255,255,.08)}
+.sb-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(140deg,#6172F3,#3538CD);display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff}
+.sb-foot span:last-child{display:grid;line-height:1.25}
+.sb-foot b{font-size:13px}
+.sb-foot small{font-size:11.5px;color:#7F858F}
+.pbar{display:none;position:sticky;top:0;z-index:30;height:52px;align-items:center;gap:6px;padding:0 10px 0 6px;background:#0E1013;color:#E6E8EB}
+.pbar .ib{width:40px;height:40px;display:grid;place-items:center;border-radius:10px}
+.pbar .ib .ic{width:20px;height:20px}
+.pbar .word{font-weight:800;font-size:16px;letter-spacing:-.02em}
+.pbar .grow{flex:1}
+.pbar .chip{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 10px;border-radius:99px;background:#14171C;border:1px solid rgba(255,255,255,.1);font-size:12.5px;font-weight:700}
+.pbar .bell{position:relative}
+.pbar .bell i{position:absolute;top:8px;inset-inline-end:8px;width:8px;height:8px;border-radius:50%;background:#EF4444;box-shadow:0 0 0 2px #0E1013}
+.device[data-device=phone] .sb{display:none}
+.device[data-device=phone] .pbar{display:flex}
+@media (max-width:767px){.sb{display:none}.pbar{display:flex}}
+
+/* ── page ────────────────────────────────────────────────────────────── */
+.page{max-width:1240px;margin:0 auto;padding:30px 40px 80px;display:flex;flex-direction:column;gap:20px}
+.card{position:relative;background:var(--card);border:1px solid var(--card-edge);border-radius:20px;box-shadow:var(--card-sh);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);min-width:0}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.meta{font-size:13px;color:var(--ink-3);font-weight:500}
+.eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+[dir=rtl] .eyebrow{letter-spacing:0;text-transform:none;font-size:12px}
+.ccy{font-size:.5em;font-weight:700;color:var(--ink-3);letter-spacing:0;margin-inline-start:.18em;unicode-bidi:isolate}
+.lnk{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#3538CD;cursor:pointer}
+.lnk:hover{text-decoration:underline}
+.lnk .ic{width:14px;height:14px}
+[dir=rtl] .lnk .ic.flipx{transform:scaleX(-1)}
+
+/* header */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px 24px;flex-wrap:wrap}
+.ph h1{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.ph .sub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px;font-size:13.5px;color:var(--ink-3);font-weight:500}
+.live{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:99px;background:rgba(255,255,255,.75);border:1px solid var(--card-edge);font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 2.4s ease-out infinite}
+.live.stale{background:var(--warn-bg);color:var(--warn);border-color:#FBE0B5;cursor:pointer}
+.live.stale .ic{width:13px;height:13px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(18,183,106,.55)}70%{box-shadow:0 0 0 7px rgba(18,183,106,0)}100%{box-shadow:0 0 0 0 rgba(18,183,106,0)}}
+.periods{position:relative;z-index:70}
+.raise{z-index:70}
+.seg{display:inline-flex;padding:3px;border-radius:13px;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.95);box-shadow:var(--card-sh)}
+.seg button{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:34px;padding:0 13px;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-selected=true]{background:#fff;color:var(--ink);box-shadow:0 4px 14px rgba(42,52,110,.10)}
+.seg button .ic{width:14px;height:14px}
+
+/* À regarder */
+.watch{padding:8px 10px;overflow:hidden}
+.watch::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--acc,transparent)}
+.watch.bad{--acc:linear-gradient(90deg,var(--bad-dot),rgba(232,56,90,.25))}
+.watch.warn{--acc:linear-gradient(90deg,var(--warn-dot),rgba(247,144,9,.25))}
+.w-h{display:flex;align-items:center;gap:8px;padding:8px 10px 2px}
+.w-h b{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+[dir=rtl] .w-h b{letter-spacing:0;text-transform:none;font-size:12.5px}
+.w-h i{font-style:normal;font-size:11px;font-weight:800;color:#fff;background:var(--bad-dot);border-radius:99px;padding:0 6px;line-height:17px}
+.watch.warn .w-h i{background:var(--warn-dot)}
+.wl{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 10px}
+.wl + .wl{border-top:1px solid var(--line)}
+.wi{width:34px;height:34px;border-radius:11px;display:grid;place-items:center}
+.wi .ic{width:17px;height:17px}
+.wl.bad .wi{background:var(--bad-bg);color:var(--bad)}
+.wl.warn .wi{background:var(--warn-bg);color:var(--warn)}
+.wl.ok .wi{background:var(--good-bg);color:var(--good)}
+.wl b{display:block;font-size:14px;font-weight:700;line-height:1.35}
+.wl.bad b{color:#A8323F}
+.wl small{display:block;margin-top:2px;font-size:12.5px;color:var(--ink-3);font-weight:500;line-height:1.45}
+.wa{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;background:#fff;border:1px solid rgba(15,23,40,.1);font-size:12.5px;font-weight:700;white-space:nowrap}
+.wa:hover{border-color:var(--ink-4);box-shadow:0 4px 14px rgba(42,52,110,.08)}
+.wa .ic{width:13px;height:13px}
+[dir=rtl] .wa .ic{transform:scaleX(-1)}
+.watch.ok{padding:4px 10px}
+.watch.ok .wl b{color:var(--ink)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:292px minmax(0,1fr);gap:36px;padding:24px 28px 20px}
+.h-eye{font-size:13px;font-weight:700;color:var(--ink-2)}
+.h-eye span{color:var(--ink-3);font-weight:600}
+.h-num{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+.h-num > b{font-size:54px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.h-cmp{margin-top:9px;font-size:13px;color:var(--ink-3);font-weight:500;line-height:1.5}
+.h-cmp b{color:var(--ink-2);font-weight:700}
+.tr{display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 9px 0 7px;border-radius:99px;font-size:12.5px;font-weight:700;white-space:nowrap;cursor:default}
+.tr .ic{width:12px;height:12px;stroke-width:2.6}
+.tr.good{background:var(--good-bg);color:var(--good)}
+.tr.bad{background:var(--bad-bg);color:var(--bad)}
+.tr.eq{background:rgba(15,23,40,.05);color:var(--ink-3);padding:0 9px}
+.tr.sm{height:21px;font-size:11.5px}
+.verdict{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:99px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.verdict i{width:7px;height:7px;border-radius:50%}
+.verdict.ok{background:rgba(255,255,255,.8);border:1px solid var(--card-edge);color:var(--ink-2)}
+.verdict.ok i,.verdict.good i{background:var(--live)}
+.verdict.good{background:var(--good-bg);color:var(--good)}
+.verdict.warn{background:var(--warn-bg);color:var(--warn)} .verdict.warn i{background:var(--warn-dot)}
+.verdict.bad{background:var(--bad-bg);color:var(--bad)} .verdict.bad i{background:var(--bad-dot)}
+.verdict.flat{background:rgba(15,23,40,.05);color:var(--ink-3)} .verdict.flat i{background:var(--ink-4)}
+.legend{display:grid;gap:1px;margin-top:16px}
+.lg{display:grid;grid-template-columns:24px minmax(0,1fr) auto 42px;align-items:center;gap:10px;width:100%;padding:6px 8px;margin-inline:-8px;width:calc(100% + 16px);border-radius:10px;text-align:start;transition:background .15s}
+.lg:hover,.lg.on{background:rgba(255,255,255,.85)}
+.lg .nm{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg .nm small{display:none}
+.lg .ct{font-size:14px;font-weight:800}
+.lg .sh{font-size:12px;font-weight:600;color:var(--ink-3);text-align:end}
+.lg.zero .ct{color:var(--bad)}
+.lg.fold{cursor:default}
+.lg.fold:hover{background:none}
+.sw{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(140deg,var(--a5),var(--a7));box-shadow:0 3px 8px color-mix(in srgb,var(--a5) 30%,transparent)}
+.sw.slate{--a5:#98A2B3;--a7:#667085}
+.h-chart{min-width:0;display:flex;flex-direction:column;justify-content:flex-end}
+
+/* bars (multi-day) */
+.bchart{display:grid;gap:8px}
+.plot{position:relative;height:236px}
+.bars{position:absolute;inset:22px 0 0;display:grid;align-items:end;border-bottom:1px solid var(--line)}
+.col{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.col::before{content:"";position:absolute;inset:-22px 0 0;border-radius:8px;transition:background .12s}
+.col:hover::before,.col.hot::before{background:rgba(255,255,255,.55)}
+.stk{position:relative;width:min(var(--bw,22px),62%);display:flex;flex-direction:column-reverse;gap:2px}
+.sg{display:block;min-height:2px;border-radius:2px;background:color-mix(in srgb,var(--a5) 40%,#fff);transition:opacity .15s,background .15s}
+.stk .sg:last-child{border-radius:5px 5px 2px 2px}
+.col.last .sg{background:color-mix(in srgb,var(--a5) 66%,#fff)}
+.col.part .sg{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.75) 0 2px,transparent 2px 5px);opacity:.6}
+.hero.focus .sg{opacity:.16}
+.hero.focus .sg.lit{opacity:1;background:var(--a5)}
+.col em{position:absolute;bottom:calc(var(--h) + 5px);font-style:normal;font-size:12px;font-weight:800;color:var(--ink-2);white-space:nowrap;pointer-events:none}
+.avg{position:absolute;inset-inline:0;height:0;border-top:1.5px dashed rgba(15,23,40,.24);z-index:1;pointer-events:none}
+.avg span{position:absolute;inset-inline-start:0;bottom:4px;font-size:11px;font-weight:700;color:var(--ink-3);background:rgba(255,255,255,.9);padding:1px 7px;border-radius:99px;white-space:nowrap}
+.xl{display:grid;font-size:11.5px;color:var(--ink-q);font-weight:600}
+.xl span{display:flex;justify-content:center;white-space:nowrap;min-width:0;visibility:hidden}
+.xl span.x-edge,.xl span.x-wk{visibility:visible}
+@container main (max-width:480px){.xl span.x-wk{visibility:hidden}.xl span.x-mid{visibility:visible}}
+.xl span:first-child{justify-content:flex-start}
+.xl span:last-child{justify-content:flex-end}
+.ckey{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:11.5px;color:var(--ink-3);font-weight:600}
+.ckey span{display:inline-flex;align-items:center;gap:6px}
+.ckey .k-part{width:12px;height:10px;border-radius:2px;background:repeating-linear-gradient(135deg,var(--ink-4) 0 2px,transparent 2px 5px)}
+.ckey .k-avg{width:16px;border-top:1.5px dashed rgba(15,23,40,.35)}
+.ckey .k-line{width:16px;height:2px;border-radius:2px;background:#1D2939}
+
+/* pace (today / yesterday) */
+.pchart{display:grid;gap:8px}
+.pplot{position:relative;height:236px;cursor:crosshair}
+.pplot svg{position:absolute;inset:22px 0 0;width:100%;height:calc(100% - 22px);overflow:visible}
+[dir=rtl] .pplot svg{transform:scaleX(-1)}
+.p-base{stroke:var(--line);stroke-width:1}
+.p-usual{fill:none;stroke:#98A2B3;stroke-width:1.75;stroke-dasharray:5 5}
+.p-line{fill:none;stroke:#1D2939;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}
+.p-area{fill:url(#pg)}
+.p-now{stroke:var(--ink-4);stroke-width:1}
+.p-in{position:absolute;inset:22px 0 0}
+.p-dot{position:absolute;width:11px;height:11px;margin:-5.5px;border-radius:50%;background:#1D2939;box-shadow:0 0 0 2.5px #fff,0 2px 8px rgba(16,24,40,.25);inset-inline-start:var(--x);top:var(--y)}
+.p-lab{position:absolute;inset-inline-start:var(--x);top:var(--y);transform:translate(-50%,-150%);font-size:12px;font-weight:800;color:var(--ink);white-space:nowrap;background:rgba(255,255,255,.9);padding:1px 7px;border-radius:99px}
+[dir=rtl] .p-lab{transform:translate(50%,-150%)}
+.p-lab.u{font-weight:700;color:var(--ink-3);transform:translate(-100%,-140%)}
+[dir=rtl] .p-lab.u{transform:translate(100%,-140%)}
+.p-cross{position:absolute;top:0;bottom:0;width:0;border-inline-start:1px solid rgba(15,23,40,.22);display:none;pointer-events:none}
+.pxl{position:relative;height:16px;font-size:11.5px;color:var(--ink-q);font-weight:600}
+.pxl span{position:absolute;inset-inline-start:var(--x);transform:translateX(-50%);white-space:nowrap}
+[dir=rtl] .pxl span{transform:translateX(50%)}
+.pxl span:first-child{transform:none}
+.pxl span:last-child{transform:translateX(-100%)}
+[dir=rtl] .pxl span:last-child{transform:translateX(100%)}
+
+/* row B */
+.rowb{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:18px}
+.rowb.one{grid-template-columns:1fr}
+.box{padding:22px 26px}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap}
+.card-h h3{font-size:16px;font-weight:800;letter-spacing:-.01em}
+.mat{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.mat i{width:7px;height:7px;border-radius:50%;background:var(--live)}
+.mat.warn i{background:var(--warn-dot)}
+.obar{display:flex;gap:2px;height:12px;margin-top:16px}
+.obar i{display:block;height:100%;border-radius:3px;min-width:4px;background:var(--k)}
+.oleg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:11px;font-size:12.5px;color:var(--ink-3);font-weight:500}
+.oleg span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.oleg i{width:8px;height:8px;border-radius:50%;background:var(--k)}
+.oleg b{color:var(--ink);font-weight:700}
+.oleg small{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.k-del{--k:var(--o-del)} .k-route{--k:var(--o-route)} .k-ret{--k:var(--o-ret)} .k-rej{--k:var(--o-rej)} .k-junk{--k:var(--o-junk)} .k-call{--k:var(--o-call)}
+.tiles{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));margin-top:18px;border-top:1px solid var(--line)}
+.tile{min-width:0;padding:16px 18px 4px 0}
+.tile + .tile{padding-inline-start:18px;border-inline-start:1px solid var(--line)}
+.tile:last-child{padding-inline-end:0}
+.tile .l{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.tile .v{margin-top:6px;font-size:28px;font-weight:800;letter-spacing:-.035em;line-height:1.1;white-space:nowrap}
+.tile .v small{font-size:14px;font-weight:700;color:var(--ink-3);letter-spacing:0;margin-inline-start:4px}
+.tile .v.z{color:var(--ink-4)}
+.tile .s{margin-top:5px;font-size:12px;color:var(--ink-3);font-weight:500;line-height:1.4}
+.tile .s.bad{color:var(--bad);font-weight:600}
+.box .lnk{margin-top:16px}
+.m-paid{margin-top:14px}
+.m-paid .l,.m-row .l{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.m-paid b{display:block;margin-top:6px;font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1.05;color:var(--answer)}
+.m-paid small,.m-row small{display:block;margin-top:5px;font-size:12px;color:var(--ink-3);font-weight:500}
+.m-row{display:grid;grid-template-columns:1fr 1fr;margin-top:18px;border-top:1px solid var(--line)}
+.m-row > div{padding:16px 16px 0 0;min-width:0}
+.m-row > div + div{padding-inline-start:18px;border-inline-start:1px solid var(--line)}
+.m-row b{display:block;margin-top:6px;font-size:24px;font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.m-row b.neg{color:var(--bad)}
+.prov{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;background:var(--warn-bg);color:var(--warn);font-size:11px;font-weight:800;cursor:default}
+.why{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;font-weight:700;color:#3538CD}
+.why .ic{width:13px;height:13px}
+.why:hover{text-decoration:underline}
+
+/* stores */
+.sec-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 2px 0}
+.sec-h h2{font-size:22px;font-weight:800;letter-spacing:-.025em}
+.sec-h .meta{margin-top:3px}
+.vt{display:inline-flex;padding:3px;border-radius:11px;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.95)}
+.vt button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.vt button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 4px 14px rgba(42,52,110,.10)}
+.vt .ic{width:14px;height:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(318px,1fr));gap:18px}
+.sc{position:relative;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;padding:20px 20px 16px;border-radius:20px;background:var(--card);border:1px solid color-mix(in srgb,var(--a5) 18%,transparent);box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px color-mix(in srgb,var(--a5) 8%,transparent);cursor:pointer;text-align:start;transition:transform .2s,box-shadow .2s}
+.sc::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--a5),color-mix(in srgb,var(--a5) 25%,transparent))}
+[dir=rtl] .sc::before{background:linear-gradient(270deg,var(--a5),color-mix(in srgb,var(--a5) 25%,transparent))}
+.sc::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--a5) 7%,#fff),rgba(255,255,255,0) 150px)}
+.sc:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 40px color-mix(in srgb,var(--a5) 16%,transparent)}
+.sc.alarm{border-color:#F6CDD2}
+.sc-h{display:flex;align-items:center;gap:12px}
+.av{width:44px;height:44px;border-radius:14px;flex:none;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(140deg,var(--a5),var(--a7));box-shadow:0 0 0 3px #fff,0 8px 20px color-mix(in srgb,var(--a5) 35%,transparent)}
+.sc-n{min-width:0;flex:1}
+.sc-n b{display:block;font-size:16px;font-weight:800;letter-spacing:-.01em;color:color-mix(in srgb,var(--a7) 70%,var(--ink));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-n small{display:block;margin-top:1px;font-size:12.5px;color:var(--ink-3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fresh{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-3);white-space:nowrap;flex:none;align-self:flex-start;margin-top:3px}
+.fresh i{width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.fresh.live i{background:var(--live)}
+.fresh.bad{color:var(--bad)} .fresh.bad i{background:var(--bad-dot)}
+.sc-c{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:16px}
+.sc-c .cnt{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sc-c .cnt > b{font-size:38px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.sc-c .cnt > b.zero{color:var(--bad)}
+.sc-sub{margin-top:5px;font-size:12.5px;color:var(--ink-3);font-weight:500}
+.spark{display:flex;align-items:flex-end;gap:2px;width:118px;height:38px;flex:none}
+.spark i{flex:1;min-height:2px;border-radius:2px 2px 1px 1px;background:color-mix(in srgb,var(--a5) 45%,#fff)}
+.spark i.last{background:var(--a5)}
+.spark i.part{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--a5) 55%,#fff) 0 2px,transparent 2px 4px)}
+.spark i.z{background:var(--track)}
+.prods{display:flex;align-items:center;gap:6px;margin-top:12px;min-width:0}
+.pc{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:99px;background:rgba(255,255,255,.85);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink-2);min-width:0;max-width:48%}
+.pc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc .ic{width:12px;height:12px;color:var(--ink-q)}
+.pc.more{flex:none;color:var(--ink-3)}
+.sc-q{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.sc-q.flat{grid-template-columns:1fr}
+.ring{position:relative;width:104px;height:104px}
+.ring svg{width:100%;height:100%;display:block;overflow:visible}
+[dir=rtl] .ring svg{transform:scaleX(-1)}
+.ring .tk{fill:none;stroke:var(--track);stroke-width:9}
+.ring .tk.dash{stroke:var(--ink-4);stroke-width:2;stroke-dasharray:3 6;stroke-linecap:round}
+.ring .sgr{fill:none;stroke:var(--k);stroke-width:9}
+.ring .rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.ring .rc b{font-size:26px;font-weight:800;letter-spacing:-.04em;line-height:1;color:color-mix(in srgb,var(--a7) 70%,var(--ink))}
+.ring .rc small{font-size:11px;font-weight:600;color:var(--ink-3);margin-top:3px}
+.ring .rc.early small{max-width:80px;line-height:1.25}
+.minis{display:grid;gap:9px}
+.mi{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--ink-3);font-weight:600}
+.mi b{font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap}
+.mi b small{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-inline-start:4px}
+.mi b.z{color:var(--ink-4)}
+.minis.row{grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
+.minis.row .mi{display:grid;gap:2px;justify-items:start;padding-inline:12px;border-inline-start:1px solid var(--line)}
+.minis.row .mi:first-child{padding-inline-start:0;border:0}
+.minis.row .mi b{font-size:19px}
+.note{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);min-width:0}
+.note .ni{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--good-bg);color:var(--good)}
+.note .ni .ic{width:14px;height:14px}
+.note div{min-width:0;flex:1}
+.note b{display:block;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note small{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note.bad .ni{background:var(--bad-bg);color:var(--bad)} .note.bad b{color:#A8323F}
+.note.warn .ni{background:var(--warn-bg);color:var(--warn)} .note.warn b{color:#9A5B07}
+.note.new .ni{background:#EEF2FF;color:#4F5BD5}
+.note.flat .ni{background:rgba(15,23,40,.05);color:var(--ink-3)}
+
+/* list view (desktop) */
+.slist{padding:6px 12px}
+.sr{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1.5fr) 74px 96px 118px minmax(0,1.9fr) 16px;align-items:center;gap:14px;padding:12px 8px;border-radius:12px;cursor:pointer}
+.sr + .sr{border-top:1px solid var(--line)}
+.sr:hover{background:linear-gradient(90deg,color-mix(in srgb,var(--a5) 9%,transparent),transparent 70%)}
+[dir=rtl] .sr:hover{background:linear-gradient(270deg,color-mix(in srgb,var(--a5) 9%,transparent),transparent 70%)}
+.sr.hd{cursor:default;padding-block:8px}
+.sr.hd:hover{background:none}
+.sr.hd span{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+[dir=rtl] .sr.hd span{letter-spacing:0;text-transform:none;font-size:12px}
+.sr .who{display:flex;align-items:center;gap:11px;min-width:0}
+.sr .who .av{width:36px;height:36px;border-radius:11px;font-size:13px;box-shadow:0 0 0 2px #fff,0 5px 12px color-mix(in srgb,var(--a5) 30%,transparent)}
+.sr .who span{display:grid;min-width:0}
+.sr .who b{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr .who small{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.sr .vol{display:grid;gap:5px}
+.sr .vol b{font-size:15px;font-weight:800}
+.sr .vol b small{font-size:11.5px;color:var(--ink-3);font-weight:600;margin-inline-start:5px}
+.bar5{height:5px;border-radius:99px;background:var(--track);overflow:hidden}
+.bar5 i{display:block;height:100%;border-radius:99px;background:var(--a5)}
+.sr .num-c{font-size:14px;font-weight:800;white-space:nowrap}
+.sr .num-c small{display:block;font-size:11.5px;color:var(--ink-3);font-weight:600}
+.sr .st{display:flex;align-items:center;gap:8px;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.sr .st span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr .st .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--live)}
+.sr .st.bad{color:var(--bad)} .sr .st.bad .dot{background:var(--bad-dot)}
+.sr .st.warn{color:var(--warn)} .sr .st.warn .dot{background:var(--warn-dot)}
+.sr .st.flat .dot{background:var(--ink-4)}
+.sr .go{color:var(--ink-q)}
+[dir=rtl] .sr .go{transform:scaleX(-1)}
+
+/* phone rows */
+.srows{display:none;padding:4px 14px}
+.prow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0;cursor:pointer}
+.prow + .prow{border-top:1px solid var(--line)}
+.prow .av{width:40px;height:40px;border-radius:12px;font-size:13.5px;box-shadow:0 0 0 2px #fff,0 5px 12px color-mix(in srgb,var(--a5) 30%,transparent)}
+.prow .tx{min-width:0}
+.prow .tx b{display:block;font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .tx small{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);font-weight:500;white-space:nowrap;overflow:hidden}
+.prow .tx small i{width:6px;height:6px;border-radius:50%;background:var(--ink-4);flex:none}
+.prow .tx small i.on{background:var(--live)}
+.prow .tx .al{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12px;font-weight:700}
+.prow .tx .al.bad{color:var(--bad)} .prow .tx .al.warn{color:var(--warn)}
+.prow .tx .al .ic{width:13px;height:13px}
+.prow .rt{display:grid;justify-items:end;gap:3px}
+.prow .rt b{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.prow .rt b.zero{color:var(--bad)}
+
+/* silent stores + footer */
+.silent{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin-top:2px;padding:0 4px}
+.sil-t{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--ink-3)}
+.sil-t b{color:#3538CD;font-weight:700}
+.sil-l{display:none;flex-wrap:wrap;gap:6px;width:100%}
+.silent.open .sil-l{display:flex}
+.sil-c{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:99px;background:rgba(255,255,255,.75);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink-2)}
+.sil-c small{color:var(--ink-3);font-weight:500}
+.connect{margin-inline-start:auto;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;border:1px dashed var(--ink-4);font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.connect .ic{width:14px;height:14px}
+.foot{font-size:12.5px;color:var(--ink-3);font-weight:500;padding:4px 4px 0;line-height:1.55}
+
+/* empty */
+.empty{grid-column:1/-1;display:grid;justify-items:center;text-align:center;gap:8px;padding:34px 20px;border-radius:18px;border:1.5px dashed var(--ink-4)}
+.empty .ei{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:#EEF2FF;color:#4F5BD5}
+.empty .ei .ic{width:22px;height:22px}
+.empty b{font-size:16px;font-weight:800}
+.empty small{font-size:13px;color:var(--ink-3);max-width:460px;line-height:1.5}
+.btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;font-size:13.5px}
+.btn:hover{background:#12692F}
+.btn.ghost{background:rgba(255,255,255,.85);color:var(--ink);border:1px solid rgba(15,23,40,.1)}
+
+/* popover, sheet, toast, tooltip */
+.pop{position:absolute;z-index:80;top:calc(100% + 8px);inset-inline-end:0;width:300px;padding:10px;border-radius:16px;background:#fff;border:1px solid rgba(255,255,255,.9);box-shadow:0 24px 60px rgba(20,25,60,.20);text-align:start}
+.pop.wide{width:420px}
+.pop h6,.sheet h6{margin:6px 8px 6px;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+[dir=rtl] .pop h6,[dir=rtl] .sheet h6{letter-spacing:0;text-transform:none;font-size:12px}
+.pi{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:9px 10px;border-radius:10px;font-size:13.5px;font-weight:700;text-align:start}
+.pi small{font-size:12px;color:var(--ink-3);font-weight:600}
+.pi:hover{background:#F2F4F7}
+.pi.on{background:var(--brand-bg);color:var(--brand)}
+.pi.on small{color:var(--brand)}
+.pi .ic{width:15px;height:15px}
+.sep{height:1px;background:var(--line);margin:6px 4px}
+.cal{padding:4px 6px 2px}
+.cal-h{display:grid;grid-template-columns:32px 1fr 32px;align-items:center;text-align:center;margin-bottom:6px}
+.cal-h b{font-size:13.5px;font-weight:800}
+.cal-nav{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--ink-2)}
+.cal-nav:hover{background:rgba(15,23,40,.05)}
+.cal-nav:disabled{opacity:.25;cursor:default}
+[dir=rtl] .cal-nav .ic{transform:scaleX(-1)}
+.cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:2px}
+.cal-w{height:24px;display:grid;place-items:center;font-size:10.5px;font-weight:800;color:var(--ink-3)}
+.cal-d{height:36px;font-size:13px;font-weight:700;border-radius:9px;font-variant-numeric:tabular-nums}
+.cal-d:hover{background:rgba(15,23,40,.05)}
+.cal-d.in{background:color-mix(in srgb,var(--brand) 11%,transparent);border-radius:0}
+.cal-d.st,.cal-d.en{background:var(--brand);color:#fff}
+.cal-d.st{border-start-start-radius:9px;border-end-start-radius:9px;border-start-end-radius:0;border-end-end-radius:0}
+.cal-d.en{border-start-end-radius:9px;border-end-end-radius:9px;border-start-start-radius:0;border-end-start-radius:0}
+.cal-d.st.en{border-radius:9px}
+.cal-d.td{box-shadow:inset 0 0 0 1.5px var(--brand)}
+.cal-d:disabled{color:var(--ink-4);cursor:default;background:none}
+.cal-f{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:10px 4px 2px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);font-weight:600}
+.cal-f .btns{display:flex;gap:8px}
+.cal-f .btn{height:34px;font-size:13px}
+.cal-f .btn:disabled{opacity:.45;cursor:default}
+.calc{display:grid;grid-template-columns:1fr auto;gap:8px 16px;font-size:13px;align-items:baseline;padding:4px 8px}
+.calc span{color:var(--ink-2);font-weight:600}
+.calc span small{display:block;font-size:11.5px;color:var(--ink-3);font-weight:500}
+.calc b{text-align:end;font-weight:700;white-space:nowrap}
+.calc .tot{border-top:1px solid var(--line);padding-top:9px;font-weight:800;color:var(--ink)}
+.calc-n{margin:10px 8px 4px;font-size:12px;color:var(--ink-3);line-height:1.5}
+.scrim{position:fixed;inset:0;z-index:90;background:rgba(15,23,40,.32);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:fade .2s ease both}
+.sheet{position:fixed;inset-inline:0;bottom:0;z-index:91;max-height:86%;overflow:auto;border-radius:24px 24px 0 0;background:rgba(250,251,255,.98);padding:8px 14px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -20px 60px rgba(20,25,60,.25);animation:up .3s cubic-bezier(.2,.8,.2,1) both}
+.sheet .grab{width:40px;height:5px;border-radius:99px;background:var(--ink-4);margin:4px auto 10px}
+.sheet .sh-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 4px 10px}
+.sheet .sh-h b{font-size:16px;font-weight:800}
+.sheet .x{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:rgba(15,23,40,.05)}
+.sheet .sc{cursor:default;box-shadow:none}
+.sheet .sc:hover{transform:none}
+.sheet .btn{width:100%;justify-content:center;margin-top:12px;height:44px}
+@keyframes fade{from{opacity:0}}
+@keyframes up{from{transform:translateY(100%)}}
+.toast{position:fixed;z-index:120;bottom:22px;left:50%;transform:translateX(-50%);max-width:min(560px,calc(100% - 32px));padding:11px 16px;border-radius:12px;background:var(--tip);color:#fff;font-size:13px;font-weight:600;box-shadow:0 14px 40px rgba(0,0,0,.25);animation:fade .2s ease both}
+.tip{position:fixed;z-index:400;pointer-events:none;max-width:320px;padding:9px 12px;border-radius:10px;background:var(--tip);color:#fff;font:600 12.5px/1.45 var(--f);box-shadow:0 12px 30px rgba(0,0,0,.22);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
+.tip.on{opacity:1;transform:none}
+.tip[dir=rtl]{font-family:var(--fa)}
+.tip b{font-weight:800}
+.tip .tl{display:flex;align-items:center;gap:8px;margin-top:3px;color:#D0D5DD;font-weight:600}
+.tip .tl i{width:12px;height:2.5px;border-radius:2px;background:var(--a5)}
+.tip .tl b{margin-inline-start:auto;color:#fff}
+.tip .tn{margin-top:5px;color:#98A2B3;font-weight:600;font-size:11.5px}
+
+/* notes panel (prototype only) */
+.notes{position:fixed;z-index:350;top:var(--studio-h);bottom:0;right:0;width:min(480px,100%);overflow:auto;background:#fff;border-left:1px solid #EAECF0;box-shadow:-24px 0 60px rgba(16,24,40,.14);padding:22px 24px 40px;transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);font-size:13px;line-height:1.55;color:#344054}
+.notes.open{transform:none}
+.notes h2{font-size:19px;font-weight:800;color:#101828;letter-spacing:-.02em}
+.notes h3{margin:20px 0 8px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#667085}
+.notes ol,.notes ul{margin:0;padding-inline-start:20px;display:grid;gap:7px}
+.notes b{color:#101828}
+.notes code{font-size:11.5px;background:#F2F4F7;border-radius:5px;padding:1px 5px}
+.notes .lead{margin-top:4px;color:#667085}
+.notes .x{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#F2F4F7}
+.notes i.where{display:block;font-style:normal;color:#667085;font-size:12px;margin-top:2px}
+
+/* ── responsive: container queries on the content area ──────────────── */
+@container main (max-width:980px){
+  .rowb{grid-template-columns:1fr}
+}
+@container main (max-width:900px){
+  .hero{grid-template-columns:1fr;gap:18px}
+  .legend{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}
+}
+@container main (max-width:820px){
+  .sr{grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) 74px 96px minmax(0,1.6fr) 16px}
+  .sr > :nth-child(5){display:none}
+}
+@container main (max-width:640px){
+  .page{padding:14px 16px 40px;gap:14px}
+  .ph{display:block}
+  .ph h1{font-size:24px}
+  .ph .sub{margin-top:6px;font-size:13px}
+  .periods{position:sticky;top:52px;z-index:25;margin:12px -16px 0;padding:8px 16px;background:rgba(246,247,251,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .seg{display:flex;width:100%;box-shadow:none}
+  .seg button{flex:1;padding:0 6px;font-size:12.5px;height:36px}
+  .pop{display:none}
+  .watch{padding:4px 6px}
+  .wl{grid-template-columns:32px minmax(0,1fr);gap:10px;padding:11px 6px}
+  .wl b{font-size:13.5px}
+  .wa{grid-column:2;justify-self:start}
+  .hero{padding:18px 16px 14px;gap:14px}
+  .h-num > b{font-size:44px}
+  .legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .lg{width:auto;margin:0;grid-template-columns:auto auto auto;gap:6px;padding:4px 10px 4px 4px;border-radius:99px;background:rgba(255,255,255,.7);border:1px solid var(--line)}
+  .lg .sw{width:20px;height:20px;border-radius:99px;font-size:0}
+  .lg .nm{font-size:12.5px;max-width:120px}
+  .lg .ct{font-size:12.5px}
+  .lg .sh{display:none}
+  .plot,.pplot{height:176px}
+  .ckey{font-size:11px}
+  .box{padding:18px 16px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile{padding:14px 12px 10px 0}
+  .tile + .tile{padding-inline-start:12px}
+  .tile:nth-child(3){padding-inline-start:0;border-inline-start:0;border-top:1px solid var(--line)}
+  .tile:nth-child(4){border-top:1px solid var(--line)}
+  .tile .v{font-size:24px}
+  .m-paid b{font-size:34px}
+  .m-row b{font-size:20px}
+  .sec-h h2{font-size:19px}
+  .vt{display:none}
+  .cards,.slist{display:none}
+  .srows{display:block}
+  .connect{margin-inline-start:0}
+}
+/* ── v4: deployed date button + doors, the total as the hero ─────────── */
+.ph-r{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.doors{display:flex;gap:2px}
+.door{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:600;color:var(--ink-2)}
+.door:hover{background:rgba(255,255,255,.7);color:var(--ink)}
+.door .ic{width:16px;height:16px;color:var(--ink-q)}
+.dbtn{display:inline-flex;align-items:center;gap:12px;height:54px;padding:0 14px 0 16px;border-radius:16px;background:rgba(255,255,255,.78);border:1px solid rgba(255,255,255,.95);box-shadow:var(--card-sh);text-align:start}
+.dbtn > span{display:grid;line-height:1.25}
+.dbtn b{font-size:15px;font-weight:800}
+.dbtn small{font-size:12.5px;color:var(--ink-3);font-weight:600}
+.dbtn .ic{width:18px;height:18px}
+.dbtn:hover,.dbtn.on{border-color:#3538CD}
+.hero{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(238,240,255,.86));padding:30px 32px 24px}
+.h-num > b{font-size:72px;background:linear-gradient(135deg,#1D2939 30%,#3538CD);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:4px}
+.plot,.pplot{height:260px}
+.hero:not(.focus) .stk{background:linear-gradient(180deg,#6172F3,#B4BCFF);border-radius:7px 7px 3px 3px;gap:0}
+.hero:not(.focus) .col.part .stk{background:repeating-linear-gradient(135deg,#C7CCFF 0 2px,transparent 2px 5px)}
+.hero:not(.focus) .col:hover .stk{background:linear-gradient(180deg,#444CE7,#8E98FB)}
+.hero:not(.focus) .sg{opacity:0}
+.p-line{stroke:#444CE7;stroke-width:2.75}
+.p-dot{background:#444CE7;box-shadow:0 0 0 3px #fff,0 0 0 9px rgba(68,76,231,.15),0 4px 12px rgba(68,76,231,.4)}
+.ckey .k-line{background:#444CE7}
+.lg .sh{display:none}
+.lg{grid-template-columns:24px minmax(0,1fr) auto}
+@container main (max-width:640px){.doors{display:none}.ph-r{display:block}.dbtn{width:100%;height:50px}.periods{margin-top:12px}.h-num > b{font-size:56px}.plot,.pplot{height:190px}}
+.sstrip{grid-column:1/-1;display:grid;gap:14px;padding-top:20px;border-top:1px solid var(--line)}
+.ribbon{display:flex;gap:3px;height:10px}
+.ribbon i{border-radius:99px;background:linear-gradient(90deg,var(--a5),color-mix(in srgb,var(--a5) 60%,#fff));min-width:6px}
+.ribbon i.slate{--a5:#98A2B3}
+.stiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.stile{display:grid;gap:8px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.75);border:1px solid color-mix(in srgb,var(--a5) 16%,transparent);text-align:start;transition:transform .15s,box-shadow .15s}
+.stile:hover,.stile.on{transform:translateY(-2px);box-shadow:0 10px 26px color-mix(in srgb,var(--a5) 18%,transparent);border-color:color-mix(in srgb,var(--a5) 40%,transparent)}
+.stile.fold{cursor:default}
+.st-top{display:flex;align-items:center;gap:9px;min-width:0}
+.st-top .nm{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-num{display:flex;align-items:baseline;gap:8px}
+.st-num b{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.st-num small{font-size:12.5px;font-weight:700;color:var(--ink-3)}
+.stile.zero .st-num b{color:var(--bad)}
+.st-bar{height:4px;border-radius:99px;background:var(--track);overflow:hidden}
+.st-bar i{display:block;height:100%;border-radius:99px;background:var(--a5)}
+.mchip{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:99px;background:rgba(255,255,255,.8);border:1px solid var(--card-edge);font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.mchip b{font-size:14px;font-weight:800;color:var(--ink)}
+.hero{grid-template-columns:260px minmax(0,1fr);row-gap:22px}
+@container main (max-width:640px){.stiles{grid-template-columns:1fr 1fr;gap:8px}.stile{padding:12px}.st-num b{font-size:22px}}
+.h-ca{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.h-ca > span:first-child{width:100%;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.h-ca b{font-size:30px;font-weight:800;letter-spacing:-.035em;color:var(--answer)}
+.h-ca small{width:100%;font-size:12px;color:var(--ink-3);font-weight:500}
+.st-ca{font-size:13px;font-weight:700;color:var(--answer)}
+.h-chart{position:relative}
+/* ── calmer pass: near-white card, soft bars, muted money, quiet tiles ── */
+.hero{background:rgba(255,255,255,.88)}
+.h-num > b{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#1F2A44;font-size:64px}
+.hero:not(.focus) .stk{background:linear-gradient(180deg,#A5AEF7,#E0E4FF);border-radius:6px 6px 2px 2px}
+.hero:not(.focus) .col.last .stk{background:linear-gradient(180deg,#7F8AF2,#C9CEFD)}
+.hero:not(.focus) .col:hover .stk{background:linear-gradient(180deg,#6E7AEE,#BBC2FC)}
+.hero:not(.focus) .col.part .stk{background:repeating-linear-gradient(135deg,#D9DDFE 0 2px,transparent 2px 5px)}
+.col em{font-weight:700;color:var(--ink-3)}
+.avg{border-top-color:rgba(15,23,40,.14)}
+.p-line{stroke:#7F8AF2;stroke-width:2.25}
+.p-area{opacity:.6}
+.p-dot{background:#6E7AEE;box-shadow:0 0 0 3px #fff,0 0 0 8px rgba(110,122,238,.12)}
+.ckey .k-line{background:#7F8AF2}
+.h-ca b{font-size:28px;color:#2F7A55}
+.h-ca .ccy{color:#6B9E84}
+.st-ca{color:#2F7A55;font-weight:600}
+.ribbon{height:6px;opacity:.75}
+.stile{background:#fff;border-color:var(--line)}
+.stile:hover,.stile.on{transform:none;box-shadow:0 6px 18px rgba(16,24,40,.06);border-color:color-mix(in srgb,var(--a5) 28%,transparent)}
+.mchip{background:#fff}
+.csw{background:rgba(242,244,247,.7);border-color:transparent}
+.csw button[aria-pressed=true]{box-shadow:0 1px 3px rgba(16,24,40,.08)}
+/* v7 · the pie */
+.pie{display:grid;place-items:center;height:100%;min-height:280px}
+@container main (max-width:640px){.pie{min-height:0;padding:4px 0}}
+.pie svg{width:100%;max-width:520px;height:auto;overflow:visible}
+.slice{stroke:#fff;stroke-width:2.5;stroke-linejoin:round;cursor:pointer;transition:opacity .15s,transform .15s;transform-origin:230px 150px}
+.slice:hover{transform:scale(1.025)}
+.hero.focus .slice{opacity:.28}
+.hero.focus .slice.lit{opacity:1}
+.pie text{font-family:inherit}
+.pl-n{font-size:13px;font-weight:700;fill:var(--ink)}
+.pl-v{font-size:12.5px;font-weight:600;fill:var(--ink-3)}
+.pl-in{font-size:13px;font-weight:800;fill:#fff;pointer-events:none}
+.hero .h-chart{align-self:center}
+/* phone: one column (the 260px column above used to squeeze the chart), switch visible */
+@container main (max-width:640px){.hero{grid-template-columns:minmax(0,1fr);padding:22px 18px 18px}.h-num > b{font-size:52px}.h-chart .csw{display:inline-flex;position:static;margin-bottom:12px}}
+.csw{position:absolute;top:-6px;inset-inline-end:0;z-index:3}
+[dir=rtl] .bars svg{transform:scaleX(-1)}
+</style>
+</head>
+<body>
+<header class="studio" id="studio"></header>
+<div class="stagewrap">
+  <div class="device" id="device">
+    <div class="app" id="app">
+      <aside class="sb" id="sb"></aside>
+      <div class="mainwrap">
+        <header class="pbar" id="pbar"></header>
+        <main class="main" id="main"><div class="page" id="page"></div></main>
+      </div>
+      <div id="layer"></div>
+    </div>
+  </div>
+</div>
+<aside class="notes" id="notes" aria-label="Ce qui change"></aside>
+<div class="tip" id="tip" role="tooltip"></div>
+<script>
+"use strict";
+// ═════════════════════════════════════════════════════════════════════════
+// 1 · utilities, icons, formats
+// ═════════════════════════════════════════════════════════════════════════
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const NB = " ", LRI = "⁦", PDI = "⁩";
+
+const ICON = {
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  right: '<path d="m9 18 6-6-6-6"/>',
+  left: '<path d="m15 18-6-6 6-6"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  spark: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+  star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  dn: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  home: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  wh: '<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><rect width="12" height="12" x="6" y="10"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  act: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  headset: '<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  refresh: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+  grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+  list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  tag: '<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  funnel: '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+  store: '<path d="M3 9 4.5 4h15L21 9"/><path d="M3 9v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>',
+};
+const ic = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ""}</svg>`;
+
+const D0 = Date.UTC(2026, 0, 1);
+const Dms = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10));
+const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+const shift = (d, k) => iso(Dms(d) + k * 864e5);
+const daysLen = (a, b) => Math.round((Dms(b) - Dms(a)) / 864e5) + 1;
+const dow = (d) => (new Date(Dms(d)).getUTCDay() + 6) % 7; // 0 = lundi
+const lastDay = (m) => iso(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0));
+const addMonths = (m, k) => iso(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1 + k, 1)).slice(0, 7);
+const tmOf = (d, min) => (Dms(d) - D0) / 60000 + min; // minutes since 1 Jan 2026, market time
+const median = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const sum = (a) => a.reduce((s, x) => s + x, 0);
+
+const TODAY = "2026-10-07";
+const NOWMIN = 9 * 60 + 41;
+const NOW_TM = tmOf(TODAY, NOWMIN);
+const YDAY = shift(TODAY, -1);
+
+// Figures as the app prints them (lib/products/format.ts): space thousands, comma decimals,
+// Western digits in both languages, a figure isolated LTR in Arabic, Arabic % without a space.
+function grp(v, d = 0) {
+  const [i, f] = Math.abs(v).toFixed(d).split(".");
+  const g = i.replace(/\B(?=(\d{3})+(?!\d))/g, NB);
+  return f ? `${g},${f}` : g;
+}
+const sign = (v, d = 0) => (Number(v.toFixed(d)) < 0 ? "−" : "");
+const iso8 = (s) => (S.lang === "ar" ? LRI + s + PDI : s);
+const N = (v, d = 0) => iso8(sign(v, d) + grp(v, d));
+const P = (v, d = 0) => iso8(sign(v, d) + grp(v, d) + (S.lang === "ar" ? "%" : NB + "%"));
+const SYM = () => ({ LYD: "د.ل", TND: "DT" })[SC().currency];
+const M = (v) => N(Math.round(v)) + NB + SYM();
+const MH = (v) => `${N(Math.round(v))}<span class="ccy">${SYM()}</span>`; // money with a small symbol
+
+const dtfCache = new Map();
+function dtf(o) {
+  const k = S.lang + JSON.stringify(o);
+  if (!dtfCache.has(k)) dtfCache.set(k, new Intl.DateTimeFormat(S.lang === "ar" ? "ar-LY-u-nu-latn" : "fr-FR", { ...o, timeZone: "UTC" }));
+  return dtfCache.get(k);
+}
+const noon = (d) => new Date(Dms(d) + 12 * 36e5);
+const dayL = (d) => dtf({ day: "numeric", month: "short" }).format(noon(d));
+const dayLong = (d) => dtf({ weekday: "long", day: "numeric", month: "long" }).format(noon(d));
+const monthL = (m, cap) => { const s = dtf({ month: "long" }).format(noon(m + "-15")); return cap && S.lang === "fr" ? s[0].toUpperCase() + s.slice(1) : s; };
+const monthY = (m) => `${monthL(m, true)} ${m.slice(0, 4)}`;
+const wdName = (d) => dtf({ weekday: "long" }).format(noon(d));
+const rangeL = (a, b) => (a === b ? dayL(a) : `${dayL(a)} → ${dayL(b)}`);
+const hm = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+const hh = (h) => (S.lang === "ar" ? `${h}س` : `${h}${NB}h`);
+function dur(min) {
+  min = Math.max(1, Math.round(min));
+  if (min < 60) return S.lang === "ar" ? `${min}${NB}د` : `${min}${NB}min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h >= 48) return S.lang === "ar" ? `${Math.floor(h / 24)}${NB}أيام` : `${Math.floor(h / 24)}${NB}jours`;
+  return S.lang === "ar" ? (m ? `${h}${NB}س ${m}${NB}د` : `${h}${NB}س`) : m ? `${h}${NB}h${NB}${String(m).padStart(2, "0")}` : `${h}${NB}h`;
+}
+function ago(tm) {
+  if (tm == null) return t("never");
+  const mins = NOW_TM - tm;
+  const d = iso(D0 + Math.floor(tm / 1440) * 864e5), min = Math.round(tm - Math.floor(tm / 1440) * 1440);
+  const days = daysLen(d, TODAY) - 1;
+  if (mins < 60) return t("agoMin", { n: N(Math.max(1, Math.round(mins))) });
+  if (days === 0) return t("agoH", { n: N(Math.floor(mins / 60)) });
+  if (days === 1) return t("agoY", { time: hm(min) });
+  if (days < 7) return t("agoD", { n: N(days) });
+  return t("agoDay", { day: dayL(d) });
+}
+
+// Arabic plurals: 1 · 2 · 3–10 · 11–99 · other
+function plAr(n, f) {
+  n = Math.abs(n);
+  if (n === 1) return f[0];
+  if (n === 2) return f[1];
+  const r = n % 100;
+  if (r >= 3 && r <= 10) return f[2];
+  if (r >= 11) return f[3];
+  return f[4] ?? f[0];
+}
+const arOrders = (n) => plAr(n, ["طلب", "طلبان", "طلبات", "طلباً", "طلب"]);
+const arDays = (n) => plAr(n, ["يوم", "يومان", "أيام", "يوماً", "يوم"]);
+
+// ═════════════════════════════════════════════════════════════════════════
+// 2 · words (FR — the owner's language; AR for the Libyan manager)
+// ═════════════════════════════════════════════════════════════════════════
+const L = { fr: {}, ar: {} };
+function t(k, p = {}) {
+  let v = L[S.lang][k];
+  if (v === undefined) v = L.fr[k];
+  if (v === undefined) return k;
+  return typeof v === "function" ? v(p) : v.replace(/\{(\w+)\}/g, (_, x) => (p[x] ?? ""));
+}
+const s = (n, one, many) => (Math.abs(n) >= 2 ? many : one);
+
+Object.assign(L.fr, {
+  hello: "Bonjour {name}",
+  live: "À jour · {time}",
+  stale: (p) => `Mis à jour il y a ${p.n} min · Actualiser`,
+  refreshed: "Chiffres actualisés",
+  p_today: "Aujourd’hui", p_yesterday: "Hier", p_7d: "7 jours", p_30d: "30 jours", p_more: "Plus",
+  p_90d: "3 derniers mois", p_month: "Ce mois-ci", p_custom: "Choisir des dates…",
+  pl_7d: "7 derniers jours", pl_30d: "30 derniers jours",
+  p_daysN: (p) => `${p.n} jours`,
+  moreTitle: "Autres périodes", monthsH: "Mois entiers", quickH: "Raccourcis",
+  watch: "À regarder",
+  okTitle: "Tout tourne",
+  okSub: (p) => `${p.n} ${s(p.n, "boutique reçoit", "boutiques reçoivent")} normalement · dernière commande ${p.ago}`,
+  heroL: "Commandes reçues",
+  vsNow: (p) => `à ${p.time} · d’habitude <b>≈${NB}${p.n}</b> à cette heure`,
+  vsDay: (p) => `d’habitude <b>≈${NB}${p.n}</b> par jour`,
+  vsPrev: (p) => `contre <b>${p.n}</b> ${p.prev}`,
+  yTotal: (p) => `hier ${p.n} au total`,
+  perDay: (p) => `≈${NB}${p.n} par jour`,
+  excl: (p) => `hors ${p.n} importées`,
+  exclTip: "Commandes passées avant la connexion de la boutique : importées, pas reçues. Elles sont signalées dans « À regarder ».",
+  v_normal: "Rythme normal", v_low: "En dessous", v_none: "Presque rien", v_high: "Au-dessus", v_early: "Trop tôt pour juger",
+  prevDays: (p) => `les ${p.n} jours d’avant`,
+  prevMonth: (p) => `en ${p.m}`,
+  prevMonthStart: (p) => `au même début de ${p.m}`,
+  others: (p) => `${p.n} autres`,
+  avg: (p) => `moy. ${p.n}`,
+  tipDay: (p) => `${p.day} · ${p.n} ${s(p.raw, "commande", "commandes")}`,
+  tipWeek: (p) => `Du ${p.from} au ${p.to} · ${p.n} ${s(p.raw, "commande", "commandes")}`,
+  tipPartDay: (p) => `Journée en cours, jusqu’à ${p.time} — hors moyenne`,
+  tipPartWeek: (p) => `Semaine incomplète : ${p.d} ${s(p.d, "jour", "jours")} — hors moyenne`,
+  tipPace: (p) => `${p.h} · ${p.n} reçues · d’habitude ${p.u}`,
+  usual: (p) => `d’habitude ≈${NB}${p.n}`,
+  k_part: "en cours ou incomplète", k_avg: "moyenne des jours complets", k_avgW: "moyenne des semaines complètes",
+  k_today: "aujourd’hui", k_yday: "hier", k_usual: (p) => `journée habituelle (médiane des 4 derniers ${p.wd}s)`,
+  a11yBars: "Commandes reçues par jour, empilées par boutique",
+  a11yWeeks: "Commandes reçues par semaine, empilées par boutique",
+  a11yPace: "Commandes reçues depuis minuit, comparées à une journée habituelle",
+  resT: "Ce que sont devenues ces commandes",
+  final: (p) => `${p.pct} ont leur issue finale`,
+  finalMove: "les chiffres bougeront encore",
+  finalTip: "Part des commandes dont l’issue est connue (livrée, retournée, rejetée, jamais réelle). Le reste est en appel ou en route.",
+  conf: "Confirmées", confSub: (p) => `${p.pct} des commandes décidées`,
+  onDecided: (p) => `sur ${p.n} commandes décidées`,
+  onFinished: (p) => `sur ${p.n} colis arrivés au bout`,
+  del: "Livrées", delSub: (p) => `${p.pct} des colis arrivés au bout`, delRoute: (p) => ` · ${p.n} en route`,
+  ret: "Retournées", retSub: "revenues ou annulées avant le départ",
+  rej: "Rejetées", rejSub: (p) => `dont ${p.n} jamais réelles`,
+  o_del: "livrées", o_route: "en route", o_ret: "retournées", o_rej: "rejetées", o_junk: "jamais réelles", o_call: "en appel",
+  leaks: "Où se perdent les commandes",
+  moneyT: "L’argent",
+  paid: "Encaissé", paidSub: (p) => `${p.n} ${s(p.raw, "commande livrée", "commandes livrées")}`,
+  route: "En route", routeSub: (p) => `${p.n} ${s(p.raw, "colis", "colis")} sur la route`,
+  profit: "Bénéfice brut", prov: "provisoire", calc: "Le calcul",
+  provTip: "Des colis roulent encore : le bénéfice montera à mesure qu’ils sont livrés, ou baissera s’ils reviennent.",
+  calcT: "Le bénéfice brut, ligne par ligne",
+  c_paid: "Encaissé", c_cogs: "− Produits", c_cogsS: "coût d’achat des articles livrés",
+  c_car: "− Livraison", c_carS: "facture par colis livré, frais de retour",
+  c_pack: "− Emballage", c_packS: (p) => `${p.n} colis partis`,
+  c_proc: "− Traitement", c_procS: "par commande confirmée",
+  c_ads: "− Publicité", c_adsS: "toutes les campagnes du marché, jour par jour",
+  c_tot: "= Bénéfice brut",
+  calcNote: (p) => `Commandes reçues ${p.range}, suivies jusqu’à aujourd’hui. « Brut » : ni commissions ni frais fixes — les lignes de Finances › P&L, qui compte, lui, ce qui est livré dans le mois.`,
+  openPnl: "Ouvrir le P&L",
+  treatT: "Le traitement", treatToday: "commandes reçues aujourd’hui", treatY: "commandes reçues hier",
+  toCall: "À appeler", toCallOld: (p) => `la plus ancienne attend depuis ${p.d}`, toCallNone: "personne n’attend",
+  shipped: "Expédiées", shippedOwner: (p) => `${p.v} en route`, shippedMgr: "prêtes ou en route",
+  room: "Salle de contrôle",
+  storesT: "Vos boutiques", storesMeta: "Cliquez une boutique pour ouvrir sa performance", storesMetaP: "Touchez une boutique pour son détail",
+  vCards: "Cartes", vList: "Liste",
+  received: (p) => s(p.n, "commande reçue", "commandes reçues"),
+  share: (p) => `${p.pct} du total`,
+  ringL: "livrées",
+  mConf: "Confirmées", mRet: "Retournées", mPaid: "Encaissé", mRej: "Rejetées", mCall: "À appeler",
+  early: "Trop tôt", earlyS: "jugée dès 30",
+  n_ok: "Rien à signaler", n_okS: (p) => `${p.del} livrées · ${p.mkt} pour l’ensemble`,
+  n_okT: (p) => `dernière commande ${p.ago}`,
+  n_best: "Meilleure livraison des boutiques", n_below: "Livre moins bien que les autres",
+  n_few: "Peu de commandes", n_fewS: "jugée à partir de 30 commandes",
+  n_new: "Nouvelle boutique", n_newS: (p) => `ouverte le ${p.day} · jugée à partir de 30 commandes`,
+  n_stop: (p) => `Presque plus rien depuis le ${p.day}`,
+  n_stopS: (p) => `${p.recent} en ${p.days} j · d’habitude ≈${NB}${p.usual} par jour${p.ads ? " · pub à l’arrêt" : ""}`,
+  n_broken: (p) => `Connexion en panne depuis ${p.time}`, n_brokenS: (p) => `${p.n} synchronisations échouées`,
+  n_unm: (p) => `${p.n} commandes à relier`, n_unmS: "produits inconnus d’Ordra",
+  n_imp: (p) => `${p.n} anciennes commandes importées`, n_impS: (p) => `à la connexion, le ${p.day} · hors de ces chiffres`,
+  n_wait: "En attente de sa première commande", n_waitS: (p) => `connectée ${p.when} · synchro il y a ${p.sync} min`,
+  ps_normal: "normal", ps_low: "calme", ps_none: "à l’arrêt", ps_high: "en hausse",
+  agoMin: (p) => `il y a ${p.n} min`, agoH: (p) => `il y a ${p.n} h`, agoY: (p) => `hier à ${p.time}`,
+  agoD: (p) => `il y a ${p.n} j`, agoDay: (p) => `le ${p.day}`, never: "jamais",
+  fresh: (p) => `Dernière commande reçue ${p.at}`,
+  silent: (p) => `${p.n} ${s(p.n, "boutique", "boutiques")} sans commande sur la période`,
+  silentShow: "Voir", silentHide: "Masquer", silentLast: (p) => `dernière ${p.ago}`, silentNever: "aucune commande, jamais",
+  connect: "Connecter une boutique",
+  foot: (p) => `Commandes reçues ${p.range}, suivies jusqu’à aujourd’hui · ${p.cmp}.`,
+  footPrev: (p) => `flèches : contre ${p.prev}, au même âge`,
+  footUsual: (p) => `comparées à une journée habituelle (médiane des 4 derniers ${p.wd}s)`,
+  a_ads: (p) => `Pub à l’arrêt depuis le ${p.day} — les commandes ont suivi`,
+  a_adsS: (p) => `${p.recent} commandes en ${p.days} jours, d’habitude ≈${NB}${p.usual} par jour${p.spend ? ` · ≈${NB}${p.spend} de pub par jour avant` : ""} · la connexion va bien (synchro il y a ${p.sync} min)`,
+  a_adsOnly: (p) => `Pub à l’arrêt depuis le ${p.day}`, a_adsOnlyS: "les commandes arrivent encore — elles vont baisser",
+  a_stop: (p) => `${p.store} ne reçoit presque plus rien depuis le ${p.day}`,
+  a_stopS: (p) => `${p.recent} en ${p.days} jours, d’habitude ≈${NB}${p.usual} par jour · la connexion va bien et la pub tourne : regardez la boutique`,
+  a_broken: (p) => `${p.store} : connexion en panne depuis ${p.time}`,
+  a_brokenS: (p) => `${p.n} synchronisations échouées · ${p.msg} · les commandes ne rentrent plus`,
+  a_unm: (p) => `${p.n} commandes à relier · ${p.store}`,
+  a_unmS: (p) => `produits ${p.pf} inconnus d’Ordra — elles ne peuvent pas partir`,
+  a_imp: (p) => `${p.n} anciennes commandes importées · ${p.store}`,
+  a_impS: (p) => `à la connexion, le ${p.day} · passées entre ${p.from} et ${p.to} · hors de ces chiffres · elles attendent dans la file, sans agent`,
+  a_queue: (p) => `${p.n} commandes d’hier ou d’avant attendent encore un appel`,
+  a_queueS: (p) => `la plus ancienne depuis ${p.d}`,
+  act_ads: "Dépenses pub", act_see: "Voir", act_conn: "Connexions", act_link: "Relier", act_room: "Salle de contrôle", act_imp: "Les voir",
+  e_title: "Aucune commande pour l’instant",
+  e_wait: (p) => `« ${p.store} » attend sa première commande`,
+  e_waitS: (p) => `connectée ${p.when} · la connexion fonctionne (synchro il y a ${p.sync} min). Les commandes apparaîtront ici dès la première.`,
+  e_none: "Aucune commande reçue sur la période",
+  perfBtn: "Voir sa performance", close: "Fermer", apply: "Appliquer", cancel: "Annuler",
+  calStart: "Choisissez le premier jour", calEnd: "puis le dernier",
+  weekdays: "L,M,M,J,V,S,D",
+  go: (p) => `→ ${p.where}`,
+  goPerfStore: (p) => `Performance › Commandes · ${p.store} · ${p.period}`,
+  goTo: "Aller à…", toAssign: (p) => `${p.n} à assigner`,
+  roleOwner: "Super admin", roleMgr: "Manager",
+  whenY: (p) => `hier à ${p.time}`,
+  nav: { pulse: "Accueil", commandes: "Commandes", logistique: "Entrepôt", livraison: "Livraison", performance: "Performance", finances: "Finances", clients: "Clients", equipe: "Équipe", systeme: "Système" },
+  mk: { tn: "Tunisie", ly: "Libye" },
+  pf: { converty: "Converty", shopify: "Shopify", lightfunnels: "LightFunnels", youcan: "YouCan", easyorders: "EasyOrders", woocommerce: "WooCommerce" },
+  viaSheets: "via Google Sheets",
+});
+Object.assign(L.ar, {
+  hello: "مرحباً {name}",
+  live: "محدَّث · {time}",
+  stale: (p) => `آخر تحديث منذ ${p.n} د · تحديث`,
+  refreshed: "تم تحديث الأرقام",
+  p_today: "اليوم", p_yesterday: "أمس", p_7d: "7 أيام", p_30d: "30 يوماً", p_more: "المزيد",
+  p_90d: "آخر 3 أشهر", p_month: "هذا الشهر", p_custom: "اختيار التواريخ…",
+  pl_7d: "آخر 7 أيام", pl_30d: "آخر 30 يوماً",
+  p_daysN: (p) => `${p.n} ${arDays(p.raw ?? 0)}`,
+  moreTitle: "فترات أخرى", monthsH: "أشهر كاملة", quickH: "اختصارات",
+  watch: "للمتابعة",
+  okTitle: "كل شيء يعمل",
+  okSub: (p) => `${p.n} من المتاجر تستقبل بشكل طبيعي · آخر طلب ${p.ago}`,
+  heroL: "الطلبات المستلمة",
+  vsNow: (p) => `حتى ${p.time} · عادةً <b>≈${NB}${p.n}</b> في هذه الساعة`,
+  vsDay: (p) => `عادةً <b>≈${NB}${p.n}</b> يومياً`,
+  vsPrev: (p) => `مقابل <b>${p.n}</b> ${p.prev}`,
+  yTotal: (p) => `أمس ${p.n} في المجموع`,
+  perDay: (p) => `≈${NB}${p.n} يومياً`,
+  excl: (p) => `دون ${p.n} طلباً مستورداً`,
+  exclTip: "طلبات أُنشئت قبل ربط المتجر: مستوردة وليست مستلمة. تظهر في «للمتابعة».",
+  v_normal: "وتيرة عادية", v_low: "أقل من المعتاد", v_none: "شبه لا شيء", v_high: "أعلى من المعتاد", v_early: "من المبكر الحكم",
+  prevDays: (p) => (p.raw <= 10 ? `في الأيام الـ ${p.n} السابقة` : `في الـ ${p.n} يوماً السابقة`),
+  prevMonth: (p) => `في ${p.m}`,
+  prevMonthStart: (p) => `في نفس بداية ${p.m}`,
+  others: (p) => `${p.n} أخرى`,
+  avg: (p) => `المعدّل ${p.n}`,
+  tipDay: (p) => `${p.day} · ${p.n} ${arOrders(p.raw)}`,
+  tipWeek: (p) => `من ${p.from} إلى ${p.to} · ${p.n} ${arOrders(p.raw)}`,
+  tipPartDay: (p) => `يوم جارٍ حتى ${p.time} — خارج المعدّل`,
+  tipPartWeek: (p) => `أسبوع غير مكتمل: ${p.d} ${arDays(p.d)} — خارج المعدّل`,
+  tipPace: (p) => `${p.h} · ${p.n} مستلمة · عادةً ${p.u}`,
+  usual: (p) => `عادةً ≈${NB}${p.n}`,
+  k_part: "جارٍ أو غير مكتمل", k_avg: "معدّل الأيام الكاملة", k_avgW: "معدّل الأسابيع الكاملة",
+  k_today: "اليوم", k_yday: "أمس", k_usual: (p) => `يوم عادي (وسيط آخر 4 أيام ${p.wd})`,
+  a11yBars: "الطلبات المستلمة يومياً، مكدّسة حسب المتجر",
+  a11yWeeks: "الطلبات المستلمة أسبوعياً، مكدّسة حسب المتجر",
+  a11yPace: "الطلبات المستلمة منذ منتصف الليل مقارنةً بيوم عادي",
+  resT: "ماذا أصبحت هذه الطلبات",
+  final: (p) => `${p.pct} وصلت إلى نتيجتها النهائية`,
+  finalMove: "الأرقام ستتغير بعد",
+  finalTip: "نسبة الطلبات التي عُرفت نتيجتها (مُسلَّمة، مُرتجعة، مرفوضة، غير حقيقية). الباقي قيد الاتصال أو في الطريق.",
+  conf: "المؤكَّدة", confSub: (p) => `${p.pct} من الطلبات المحسومة`,
+  onDecided: (p) => `من ${p.n} طلباً محسوماً`,
+  onFinished: (p) => `من ${p.n} طرداً انتهت رحلته`,
+  del: "المُسلَّمة", delSub: (p) => `${p.pct} من الطرود التي انتهت رحلتها`, delRoute: (p) => ` · ${p.n} في الطريق`,
+  ret: "المُرتجعة", retSub: "عادت أو أُلغيت قبل الانطلاق",
+  rej: "المرفوضة", rejSub: (p) => `منها ${p.n} غير حقيقية`,
+  o_del: "مُسلَّمة", o_route: "في الطريق", o_ret: "مُرتجعة", o_rej: "مرفوضة", o_junk: "غير حقيقية", o_call: "قيد الاتصال",
+  leaks: "أين تضيع الطلبات",
+  moneyT: "المال",
+  paid: "المُحصَّل", paidSub: (p) => `${p.n} ${arOrders(p.raw)} مُسلَّمة`,
+  route: "في الطريق", routeSub: (p) => `${p.n} طرد في الطريق`,
+  profit: "الربح الإجمالي", prov: "مؤقت", calc: "طريقة الحساب",
+  provTip: "ما زالت طرود في الطريق: سيرتفع الربح كلما سُلِّمت، أو ينخفض إن عادت.",
+  calcT: "الربح الإجمالي، سطراً بسطر",
+  c_paid: "المُحصَّل", c_cogs: "− المنتجات", c_cogsS: "تكلفة شراء القطع المُسلَّمة",
+  c_car: "− التوصيل", c_carS: "فاتورة كل طرد مُسلَّم ورسوم الإرجاع",
+  c_pack: "− التغليف", c_packS: (p) => `${p.n} طرد غادر`,
+  c_proc: "− المعالجة", c_procS: "لكل طلب مؤكَّد",
+  c_ads: "− الإعلانات", c_adsS: "كل حملات السوق، يوماً بيوم",
+  c_tot: "= الربح الإجمالي",
+  calcNote: (p) => `الطلبات المستلمة ${p.range}، متابَعة حتى اليوم. «إجمالي»: دون العمولات والمصاريف الثابتة — سطور المالية › الأرباح والخسائر، التي تحسب ما سُلِّم خلال الشهر.`,
+  openPnl: "فتح الأرباح والخسائر",
+  treatT: "المعالجة", treatToday: "الطلبات المستلمة اليوم", treatY: "الطلبات المستلمة أمس",
+  toCall: "للاتصال", toCallOld: (p) => `أقدمها ينتظر منذ ${p.d}`, toCallNone: "لا أحد ينتظر",
+  shipped: "المُرسلة", shippedOwner: (p) => `${p.v} في الطريق`, shippedMgr: "جاهزة أو في الطريق",
+  room: "غرفة التحكم",
+  storesT: "متاجرك", storesMeta: "انقر على متجر لفتح أدائه", storesMetaP: "المس متجراً لرؤية التفاصيل",
+  vCards: "بطاقات", vList: "قائمة",
+  received: (p) => plAr(p.n, ["طلب مستلم", "طلبان مستلمان", "طلبات مستلمة", "طلباً مستلماً", "طلب مستلم"]),
+  share: (p) => `${p.pct} من المجموع`,
+  ringL: "مُسلَّمة",
+  mConf: "المؤكَّدة", mRet: "المُرتجعة", mPaid: "المُحصَّل", mRej: "المرفوضة", mCall: "للاتصال",
+  early: "مبكر جداً", earlyS: "من 30 طلباً",
+  n_ok: "لا شيء يُذكر", n_okS: (p) => `${p.del} مُسلَّمة · ${p.mkt} للمجموع`,
+  n_okT: (p) => `آخر طلب ${p.ago}`,
+  n_best: "أفضل توصيل بين المتاجر", n_below: "يوصل أقل من الآخرين",
+  n_few: "طلبات قليلة", n_fewS: "يُحكم عليه من 30 طلباً",
+  n_new: "متجر جديد", n_newS: (p) => `فُتح في ${p.day} · يُحكم عليه من 30 طلباً`,
+  n_stop: (p) => `شبه لا شيء منذ ${p.day}`,
+  n_stopS: (p) => `${p.recent} في ${p.days} أيام · عادةً ≈${NB}${p.usual} يومياً${p.ads ? " · الإعلانات متوقفة" : ""}`,
+  n_broken: (p) => `الاتصال معطّل منذ ${p.time}`, n_brokenS: (p) => `${p.n} مزامنات فاشلة`,
+  n_unm: (p) => `${p.n} طلبات للربط`, n_unmS: "منتجات غير معروفة في Ordra",
+  n_imp: (p) => `${p.n} طلباً قديماً مستورداً`, n_impS: (p) => `عند الربط في ${p.day} · خارج هذه الأرقام`,
+  n_wait: "في انتظار أول طلب", n_waitS: (p) => `متصل ${p.when} · مزامنة منذ ${p.sync} د`,
+  ps_normal: "عادي", ps_low: "هادئ", ps_none: "متوقف", ps_high: "في ارتفاع",
+  agoMin: (p) => `منذ ${p.n} د`, agoH: (p) => `منذ ${p.n} س`, agoY: (p) => `أمس على ${p.time}`,
+  agoD: (p) => `منذ ${p.n} ي`, agoDay: (p) => `في ${p.day}`, never: "أبداً",
+  fresh: (p) => `آخر طلب مستلم ${p.at}`,
+  silent: (p) => `${p.n} من المتاجر بدون طلبات في هذه الفترة`,
+  silentShow: "عرض", silentHide: "إخفاء", silentLast: (p) => `آخر طلب ${p.ago}`, silentNever: "لا طلبات أبداً",
+  connect: "ربط متجر",
+  foot: (p) => `الطلبات المستلمة ${p.range}، متابَعة حتى اليوم · ${p.cmp}.`,
+  footPrev: (p) => `الأسهم: مقابل ${p.prev}، بنفس العمر`,
+  footUsual: (p) => `مقارنةً بيوم عادي (وسيط آخر 4 أيام ${p.wd})`,
+  a_ads: (p) => `الإعلانات متوقفة منذ ${p.day} — والطلبات تبعتها`,
+  a_adsS: (p) => `${p.recent} طلبات في ${p.days} أيام، عادةً ≈${NB}${p.usual} يومياً${p.spend ? ` · ≈${NB}${p.spend} إعلانات يومياً قبل ذلك` : ""} · الاتصال سليم (مزامنة منذ ${p.sync} د)`,
+  a_adsOnly: (p) => `الإعلانات متوقفة منذ ${p.day}`, a_adsOnlyS: "الطلبات ما زالت تصل — ستنخفض",
+  a_stop: (p) => `${p.store} لا يستقبل شيئاً تقريباً منذ ${p.day}`,
+  a_stopS: (p) => `${p.recent} في ${p.days} أيام، عادةً ≈${NB}${p.usual} يومياً · الاتصال سليم والإعلانات تعمل: افحص المتجر`,
+  a_broken: (p) => `${p.store}: الاتصال معطّل منذ ${p.time}`,
+  a_brokenS: (p) => `${p.n} مزامنات فاشلة · ${p.msg} · الطلبات لم تعد تدخل`,
+  a_unm: (p) => `${p.n} طلبات للربط · ${p.store}`,
+  a_unmS: (p) => `منتجات ${p.pf} غير معروفة في Ordra — لا يمكن إرسالها`,
+  a_imp: (p) => `${p.n} طلباً قديماً مستورداً · ${p.store}`,
+  a_impS: (p) => `عند الربط في ${p.day} · أُنشئت بين ${p.from} و${p.to} · خارج هذه الأرقام · تنتظر في الطابور دون وكيل`,
+  a_queue: (p) => `${p.n} طلبات من أمس أو قبله ما زالت تنتظر اتصالاً`,
+  a_queueS: (p) => `أقدمها منذ ${p.d}`,
+  act_ads: "مصاريف الإعلانات", act_see: "عرض", act_conn: "الاتصالات", act_link: "ربط", act_room: "غرفة التحكم", act_imp: "عرضها",
+  e_title: "لا طلبات حتى الآن",
+  e_wait: (p) => `«${p.store}» ينتظر أول طلب`,
+  e_waitS: (p) => `متصل ${p.when} · الاتصال يعمل (مزامنة منذ ${p.sync} د). ستظهر الطلبات هنا من أول طلب.`,
+  e_none: "لم يُستلم أي طلب في هذه الفترة",
+  perfBtn: "عرض أدائه", close: "إغلاق", apply: "تطبيق", cancel: "إلغاء",
+  calStart: "اختر اليوم الأول", calEnd: "ثم اليوم الأخير",
+  weekdays: "ن,ث,ر,خ,ج,س,ح",
+  go: (p) => `← ${p.where}`,
+  goPerfStore: (p) => `الأداء › الطلبات · ${p.store} · ${p.period}`,
+  goTo: "انتقال إلى…", toAssign: (p) => `${p.n} للإسناد`,
+  roleOwner: "مشرف عام", roleMgr: "مدير السوق",
+  whenY: (p) => `أمس على ${p.time}`,
+  nav: { pulse: "الرئيسية", commandes: "الطلبات", logistique: "المستودع", livraison: "التوصيل", performance: "الأداء", finances: "المالية", clients: "العملاء", equipe: "الفريق", systeme: "النظام" },
+  mk: { tn: "تونس", ly: "ليبيا" },
+  pf: { converty: "Converty", shopify: "Shopify", lightfunnels: "LightFunnels", youcan: "YouCan", easyorders: "EasyOrders", woocommerce: "WooCommerce" },
+  viaSheets: "عبر Google Sheets",
+});
+const tg = (group, key) => (L[S.lang][group] || L.fr[group])[key] ?? key;
+// ═════════════════════════════════════════════════════════════════════════
+// 3 · state (in the URL) and the four scenarios
+// ═════════════════════════════════════════════════════════════════════════
+const Q = new URLSearchParams(location.search);
+const DEF = { set: "normal", role: "owner", lang: "fr", device: "desktop", period: "today", view: "cards" };
+const S = {
+  set: Q.get("set") || DEF.set, role: Q.get("role") || DEF.role, lang: Q.get("lang") || DEF.lang,
+  device: Q.get("device") || DEF.device, period: Q.get("period") || DEF.period,
+  from: Q.get("from"), to: Q.get("to"), view: Q.get("view") || DEF.view, chart: Q.get("chart") || "bars", stale: Q.get("stale") === "1",
+  ui: Q.get("ui"), focus: null, silentOpen: false, cal: null, notes: Q.get("notes") === "1",
+};
+// Review helpers (not part of the product): ?h=2600 makes the phone frame tall enough to see the whole page.
+const PHONE_H = Number(Q.get("h")) || 0;
+
+const HUE = {
+  indigo: ["#444CE7", "#3538CD"], pink: ["#DD2590", "#C11574"], cyan: ["#088AB2", "#0E7090"],
+  gold: ["#A15C07", "#854A0E"], lime: ["#4CA30D", "#3B7C0F"], slate: ["#98A2B3", "#667085"],
+};
+const hueVars = (h) => `--a5:${HUE[h][0]};--a7:${HUE[h][1]}`;
+
+// Shapes from prod (7 Oct, aggregates only); every name and amount is invented.
+const SCEN = {
+  normal: {
+    market: "tn", currency: "TND", owner: "Firas", manager: "Amine", adsDaily: 640,
+    fee: { del: 8, ret: 4, pack: 1.2, proc: 0.4 }, unassigned: 3,
+    stores: [
+      { id: "a", name: "Lumière Beauté", pf: "converty", sheets: true, hue: "indigo", base: 31, junk: 0.14, rej: 0.27, wd: 0.03, del: 0.6, basket: 96, since: "2026-03-02", prods: ["Sérum éclat", "Crème de nuit", "Huile capillaire", "Masque argile"], sync: 4 },
+      { id: "b", name: "Atlas Maison", pf: "shopify", hue: "pink", base: 21, junk: 0.12, rej: 0.3, wd: 0.04, del: 0.55, basket: 139, since: "2026-04-10", prods: ["Organiseur cuisine", "Lampe LED", "Tapis de bain"] },
+      { id: "c", name: "Nova Sport", pf: "lightfunnels", hue: "cyan", base: 12, junk: 0.16, rej: 0.31, wd: 0.03, del: 0.47, basket: 118, since: "2026-05-18", prods: ["Ceinture abdos", "Corde à sauter"] },
+      { id: "d", name: "Jasmin Kids", pf: "converty", sheets: true, hue: "gold", base: 5, junk: 0.15, rej: 0.28, wd: 0.03, del: 0.58, basket: 74, since: "2026-09-24", ramp: 6, prods: ["Veilleuse étoiles"], sync: 3 },
+      { id: "e", name: "Medina Store", pf: "youcan", hue: "lime", base: 0, lastDay: "2026-09-02" },
+      { id: "f", name: "Boutique test", pf: "shopify", hue: "slate", base: 0, lastDay: null },
+    ],
+  },
+  alerte: {
+    market: "ly", currency: "LYD", owner: "Firas", manager: "Salem", adsDaily: 950, adsStop: "2026-09-30", adsTrickle: { "2026-10-05": 89 },
+    fee: { del: 25, ret: 0, pack: 3, proc: 1 }, unassigned: 0,
+    stores: [
+      { id: "a", name: "Souk Libya", pf: "converty", sheets: true, hue: "indigo", base: 58, junk: 0.24, rej: 0.4, wd: 0.05, del: 0.48, basket: 186, since: "2026-03-02", stop: "2026-09-30", stopCut: 17 * 60 + 30, trickle: { "2026-10-04": 1, "2026-10-05": 10 }, prods: ["Sérum argan", "Montre Classic", "Parfum Oud", "Brosse lissante"], sync: 6, spikes: { "2026-09-27": 2.3, "2026-09-28": 2 } },
+      { id: "b", name: "Nova Market", pf: "easyorders", hue: "pink", base: 5, junk: 0.2, rej: 0.36, wd: 0.04, del: 0.5, basket: 150, since: "2026-06-01", prods: ["Mixeur portable", "Gourde isotherme"], broken: { min: 6 * 60 + 15, n: 4, msg: { fr: "la boutique répond « 401 non autorisé »", ar: "المتجر يرد «401 غير مصرح»" } }, unmapped: 12 },
+      { id: "c", name: "Dar Al Kitab", pf: "shopify", hue: "cyan", base: 1.6, junk: 0.18, rej: 0.3, wd: 0.04, del: 0.55, basket: 95, since: "2026-07-01", prods: ["Coffret coran", "Lampe veilleuse"] },
+      { id: "d", name: "Test Shopify", pf: "shopify", hue: "slate", base: 0, lastDay: "2026-09-23" },
+      { id: "e", name: "EasyOrders dev", pf: "easyorders", hue: "slate", base: 0, lastDay: "2026-05-20" },
+      { id: "f", name: "MyStore", pf: "shopify", hue: "slate", base: 0, lastDay: null },
+    ],
+  },
+  import: {
+    market: "tn", currency: "TND", owner: "Firas", manager: "Amine", adsDaily: 520,
+    fee: { del: 8, ret: 4, pack: 1.2, proc: 0.4 }, unassigned: 701,
+    stores: [
+      { id: "a", name: "Lumière Beauté", pf: "converty", sheets: true, hue: "indigo", base: 26, junk: 0.14, rej: 0.27, wd: 0.03, del: 0.6, basket: 96, since: "2026-03-02", prods: ["Sérum éclat", "Crème de nuit", "Huile capillaire"], sync: 4 },
+      { id: "b", name: "Atlas Maison", pf: "shopify", hue: "pink", base: 17, junk: 0.12, rej: 0.3, wd: 0.04, del: 0.55, basket: 139, since: "2026-04-10", prods: ["Organiseur cuisine", "Lampe LED"] },
+      { id: "c", name: "Belle Peau", pf: "converty", sheets: true, hue: "cyan", base: 13, junk: 0.15, rej: 0.29, wd: 0.03, del: 0.57, basket: 88, since: "2026-10-05", connectedMin: 19 * 60 + 30, prods: ["Crème anti-taches", "Gel nettoyant", "Écran solaire"], sync: 5, imported: { n: 698, day: "2026-10-05", from: "2026-07-03", to: "2026-09-30" } },
+    ],
+  },
+  vide: {
+    market: "tn", currency: "TND", owner: "Firas", manager: "Amine", adsDaily: 0,
+    fee: { del: 8, ret: 4, pack: 1.2, proc: 0.4 }, unassigned: 0,
+    stores: [{ id: "a", name: "Jasmin Kids", pf: "converty", sheets: true, hue: "indigo", base: 0, connected: { day: YDAY, min: 18 * 60 + 40 }, sync: 4 }],
+  },
+};
+const SC = () => SCEN[S.set];
+const owner = () => S.role === "owner";
+
+// ═════════════════════════════════════════════════════════════════════════
+// 4 · data — seeded, generated in the page
+// ═════════════════════════════════════════════════════════════════════════
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+}
+const hash = (str) => [...str].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
+const WK = [1.04, 1.0, 0.97, 0.98, 1.03, 1.08, 0.93];
+// Libya's real hour-of-day profile over 40 days (orders arrive all night too).
+const HOURS = [108, 104, 73, 51, 35, 30, 51, 80, 74, 74, 98, 92, 84, 99, 86, 74, 68, 66, 70, 72, 74, 81, 72, 110];
+const HC = HOURS.reduce((a, x, i) => (a.push((a[i - 1] || 0) + x), a), []);
+const HT = HC[23];
+const sampleMin = (r) => { const x = r() * HT; let h = 0; while (x > HC[h]) h++; return h * 60 + Math.floor(r() * 60); };
+const pois = (l, r) => (l <= 0 ? 0 : Math.max(0, Math.round(l + (r() + r() + r() - 1.5) * Math.sqrt(l) * 1.15)));
+
+function makeOrder(st, d, min, r) {
+  const at = tmOf(d, min);
+  const price = Math.max(25, Math.round(st.basket * (0.7 + r() * 0.75)));
+  const o = { s: st.id, day: d, min, at, price, cogs: price * 0.3 };
+  const dec = at + 15 + Math.floor(r() * r() * (st.callDelay || 900));
+  const q = r();
+  if (q < st.junk) { o.fin = "j"; o.decAt = dec; }
+  else if (q < st.junk + st.rej) { o.fin = "x"; o.decAt = dec; }
+  else {
+    o.confAt = dec;
+    o.upAt = dec + 5 + Math.floor(r() * 200);
+    const z = r();
+    if (z < st.wd) { o.fin = "b"; o.doneAt = o.upAt + Math.floor(1440 * (0.3 + r() * 1.5)); }
+    else if (z < st.wd + (1 - st.wd) * st.del) { o.fin = "d"; o.doneAt = o.upAt + Math.floor(1440 * (1.2 + r() * 3.5 + (r() < 0.15 ? r() * 6 : 0))); }
+    else { o.fin = "f"; o.doneAt = o.upAt + Math.floor(1440 * (2.5 + r() * 6 + (r() < 0.25 ? r() * 9 : 0))); }
+  }
+  return o;
+}
+/** Where an order stood at `asOf` — the equal-age rule of lib/dashboard/stores/facts.ts. */
+function bkAt(o, asOf) {
+  if (o.hold) return "c";
+  if (o.fin === "j" || o.fin === "x") return o.decAt <= asOf ? o.fin : "c";
+  if (o.confAt > asOf) return "c";
+  if (o.upAt > asOf) return "u";
+  if (o.doneAt > asOf) return "r";
+  return o.fin;
+}
+
+const CACHE = {};
+function getData(key) {
+  if (CACHE[key]) return CACHE[key];
+  const sc = SCEN[key], r = rng(hash(key));
+  const start = shift(TODAY, -200); // covers « 3 derniers mois » AND the 90 days before it
+  const orders = [];
+  for (const st of sc.stores) {
+    if (!st.base) continue;
+    for (let d = st.since && st.since > start ? st.since : start; d <= TODAY; d = shift(d, 1)) {
+      let n;
+      if (st.stop && d >= st.stop) n = (st.trickle && st.trickle[d]) || 0;
+      else {
+        let lam = st.base * WK[dow(d)] * (1 + (r() - 0.5) * 0.3);
+        if (st.spikes && st.spikes[d]) lam *= st.spikes[d];
+        if (st.ramp) lam *= Math.min(1, daysLen(st.since, d) / st.ramp);
+        n = pois(lam, r);
+      }
+      for (let i = 0; i < n; i++) {
+        const min = sampleMin(r);
+        if (st.stopCut && d === shift(st.stop, -1) && min > st.stopCut) continue;
+        if (st.broken && d === TODAY && min > st.broken.min) continue;
+        if (st.connectedMin && d === st.since && min < st.connectedMin) continue;
+        if (d === TODAY && min > NOWMIN) continue;
+        orders.push(makeOrder(st, d, min, r));
+      }
+    }
+    if (st.unmapped) { // the last N orders of that store wait for a product link
+      const mine = orders.filter((o) => o.s === st.id).sort((a, b) => b.at - a.at).slice(0, st.unmapped);
+      mine.forEach((o) => (o.hold = true));
+    }
+  }
+  const daily = {}, lastAt = {};
+  for (const o of orders) {
+    (daily[o.s] ||= {})[o.day] = (daily[o.s][o.day] || 0) + 1;
+    if (!(lastAt[o.s] > o.at)) lastAt[o.s] = o.at;
+  }
+  for (const st of sc.stores) if (!st.base && st.lastDay) lastAt[st.id] = tmOf(st.lastDay, 14 * 60 + 12);
+  const ads = {};
+  for (let d = start; d <= TODAY; d = shift(d, 1)) {
+    ads[d] = sc.adsStop && d >= sc.adsStop ? (sc.adsTrickle && sc.adsTrickle[d]) || 0 : sc.adsDaily * (0.85 + r() * 0.3);
+  }
+  return (CACHE[key] = { orders, daily, lastAt, ads });
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// 5 · rules
+// ═════════════════════════════════════════════════════════════════════════
+/** What a list of orders became, as of `asOf`, plus its money (owner only reads it). */
+function summ(list, asOf, fee) {
+  const k = { d: 0, f: 0, b: 0, r: 0, u: 0, c: 0, x: 0, j: 0 };
+  const m = { paid: 0, route: 0, cogs: 0, car: 0, pack: 0, proc: 0, val: 0 };
+  let oldestC = null;
+  for (const o of list) {
+    const b = bkAt(o, asOf);
+    k[b]++;
+    if (b === "c" && (oldestC === null || o.at < oldestC)) oldestC = o.at;
+    m.val += o.price; // CA des commandes reçues = Σ orders.total_price (the only revenue field)
+    if (b === "d") { m.paid += o.price; m.cogs += o.cogs; m.car += fee.del; }
+    if (b === "f") m.car += fee.ret;
+    if (b === "r" || b === "u") m.route += o.price;
+    if ("rdfb".includes(b)) m.pack += fee.pack;
+    if ("urdfb".includes(b)) m.proc += fee.proc;
+  }
+  const n = list.length, conf = k.u + k.r + k.d + k.f + k.b, decided = conf + k.x + k.j, fin = k.d + k.f;
+  return {
+    n, k, conf, decided, fin,
+    confRate: decided ? (conf / decided) * 100 : null,
+    delRate: fin ? (k.d / fin) * 100 : null,
+    final: n ? ((k.d + k.f + k.b + k.x + k.j) / n) * 100 : 0,
+    ret: k.f + k.b, rejAll: k.x + k.j, shipped: k.r + k.d + k.f + k.b, onRoad: k.r + k.u,
+    money: m, oldestC,
+  };
+}
+const JUDGED = 30;
+
+/** Health is a property of the STORE, computed whatever the period (bug 1). */
+function healthOf(st, data, sc) {
+  const day = (d) => (data.daily[st.id] || {})[d] || 0;
+  let stop = null;
+  if (st.base) {
+    let us = 0;
+    for (let k = 7; k <= 20; k++) us += day(shift(TODAY, -k));
+    const usual = us / 14;
+    if (usual >= 5) {
+      let since = null;
+      for (let k = 0; k <= 10; k++) { const d = shift(TODAY, -k); if (day(d) < usual * 0.25) since = d; else break; }
+      if (since && daysLen(since, TODAY) >= 3) {
+        const days = daysLen(since, TODAY);
+        let recent = 0;
+        for (let k = 0; k < days; k++) recent += day(shift(TODAY, -k));
+        stop = { since, usual: Math.round(usual), recent, days, ads: !!sc.adsStop && Math.abs(daysLen(sc.adsStop, since) - 1) <= 1 };
+      }
+    }
+  }
+  const waiting = st.connected && !data.lastAt[st.id] ? st.connected : null;
+  return { stop, broken: st.broken || null, unmapped: st.unmapped || 0, imported: st.imported || null, waiting };
+}
+
+function resolveWin(period, from, to) {
+  if (period === "today") return { key: "today", from: TODAY, to: TODAY, len: 1, day: true, live: true };
+  if (period === "yesterday") return { key: "yesterday", from: YDAY, to: YDAY, len: 1, day: true, live: false };
+  let f, tt, kind = "days";
+  if (period === "7d") { f = shift(TODAY, -6); tt = TODAY; }
+  else if (period === "30d") { f = shift(TODAY, -29); tt = TODAY; }
+  else if (period === "90d") { f = shift(TODAY, -89); tt = TODAY; }
+  else if (period === "month") { f = TODAY.slice(0, 8) + "01"; tt = TODAY; kind = "monthStart"; }
+  else if (/^m:\d{4}-\d{2}$/.test(period || "")) { const m = period.slice(2); f = m + "-01"; tt = lastDay(m) > TODAY ? TODAY : lastDay(m); kind = "month"; }
+  else if (period === "custom" && from && to && from <= to) { f = from; tt = to > TODAY ? TODAY : to; }
+  else return resolveWin("today");
+  const len = daysLen(f, tt);
+  let pf, pt, m = null;
+  if (kind === "month") { m = addMonths(f.slice(0, 7), -1); pf = m + "-01"; pt = lastDay(m); }
+  else if (kind === "monthStart") { m = addMonths(f.slice(0, 7), -1); pf = m + "-01"; pt = shift(pf, len - 1); }
+  else { pt = shift(f, -1); pf = shift(pt, -(len - 1)); }
+  return { key: period, from: f, to: tt, len, pf, pt, kind, m, lag: daysLen(pf, f) - 1, live: tt === TODAY, day: false };
+}
+const prevName = (w) => (w.kind === "month" ? t("prevMonth", { m: monthL(w.m) }) : w.kind === "monthStart" ? t("prevMonthStart", { m: monthL(w.m) }) : t("prevDays", { n: N(w.len), raw: w.len }));
+function periodLong(w) {
+  if (w.key === "today") return t("p_today");
+  if (w.key === "yesterday") return t("p_yesterday");
+  if (w.key === "7d") return t("pl_7d");
+  if (w.key === "30d") return t("pl_30d");
+  if (w.key === "90d") return t("p_90d");
+  if (w.key === "month") return t("p_month");
+  if (w.key.startsWith("m:")) return monthY(w.key.slice(2));
+  return rangeL(w.from, w.to);
+}
+
+/** A change between two counts, the way the arrows word it (×N from +200 %). */
+function change(now, prev) {
+  if (!prev) return null;
+  const pct = Math.round(((now - prev) / Math.abs(prev)) * 100);
+  return { dir: Math.sign(pct), pct: Math.abs(pct), times: pct >= 200 ? Math.round(now / prev) : null };
+}
+/** Pace against a usual day: −25…+25 % normal, down to −60 % low, beyond = almost nothing. */
+function verdictOf(now, usual) {
+  if (usual < 6) return { k: "early", cls: "flat" };
+  const q = now / usual;
+  if (q >= 1.25) return { k: "high", cls: "good" };
+  if (q >= 0.75) return { k: "normal", cls: "ok" };
+  if (q >= 0.4) return { k: "low", cls: "warn" };
+  return { k: "none", cls: "bad" };
+}
+/** Cumulative orders by 15-minute step for one day (97 points, 00:00 → 24:00). */
+function cumDay(list, upto = 1440) {
+  const out = new Array(97).fill(0);
+  for (const o of list) { if (o.min > upto) continue; const i = Math.floor(o.min / 15) + 1; for (let j = i; j < 97; j++) out[j]++; }
+  return out;
+}
+// ═════════════════════════════════════════════════════════════════════════
+// 6 · the view — every figure of the page, computed once (the API's job in React)
+// ═════════════════════════════════════════════════════════════════════════
+function buildView() {
+  const sc = SC(), data = getData(S.set), w = resolveWin(S.period, S.from, S.to), fee = sc.fee;
+  const inW = (o) => o.day >= w.from && o.day <= w.to;
+  const A = data.orders.filter(inW);
+  const P = w.day ? [] : data.orders.filter((o) => o.day >= w.pf && o.day <= w.pt);
+  const asP = w.day ? null : NOW_TM - w.lag * 1440;
+  const sA = summ(A, NOW_TM, fee);
+  const sP = w.day ? null : summ(P, asP, fee);
+  const comparable = !w.day && sA.n >= JUDGED && sP.n >= JUDGED;
+
+  // ── usual day (today / yesterday): median of the SAME WEEKDAY over the 4 weeks before.
+  //    Not « the last 7 days »: after a week of ads off, that median is itself ~0 and the
+  //    page would call an outage normal (found on the Libya scenario). ──
+  let pace = null;
+  if (w.day) {
+    const ref = w.from, upto = w.live ? NOWMIN : 1440;
+    const curves = [], atNow = [], totals = [];
+    for (let k = 7; k <= 28; k += 7) {
+      const d = shift(ref, -k), list = data.orders.filter((o) => o.day === d);
+      curves.push(cumDay(list));
+      atNow.push(list.filter((o) => o.min <= upto).length);
+      totals.push(list.length);
+    }
+    const usualCurve = curves[0].map((_, i) => median(curves.map((c) => c[i])));
+    const usualNow = Math.round(median(atNow));
+    pace = {
+      cur: cumDay(A, upto), usual: usualCurve, upto, usualNow, usualDay: Math.round(median(totals)),
+      verdict: verdictOf(A.length, median(atNow)),
+      yTotal: w.live ? data.orders.filter((o) => o.day === YDAY).length : null,
+    };
+  }
+
+  // ── stores ──
+  const by = (list) => list.reduce((m, o) => ((m[o.s] ||= []).push(o), m), {});
+  const aBy = by(A), pBy = by(P);
+  const health = Object.fromEntries(sc.stores.map((st) => [st.id, healthOf(st, data, sc)]));
+  const mkt = sA.delRate;
+  const stores = sc.stores.map((st) => {
+    const list = aBy[st.id] || [], a = summ(list, NOW_TM, fee), p = w.day ? null : summ(pBy[st.id] || [], asP, fee);
+    const h = health[st.id];
+    const alarm = !!(h.stop || h.broken || h.imported || h.unmapped || h.waiting);
+    let spark;
+    if (w.day || w.len < 7) {
+      spark = []; for (let k = 13; k >= 0; k--) { const d = shift(TODAY, -k); spark.push({ n: (data.daily[st.id] || {})[d] || 0, part: d === TODAY }); }
+    } else spark = null; // filled from the columns below
+    let storePace = null;
+    if (w.day && st.base) {
+      const ref = w.from, upto = w.live ? NOWMIN : 1440, at = [];
+      for (let k = 7; k <= 28; k += 7) { const d = shift(ref, -k); at.push(data.orders.filter((o) => o.s === st.id && o.day === d && o.min <= upto).length); }
+      storePace = verdictOf(list.length, median(at));
+    }
+    return { st, list, a, p, h, alarm, spark, storePace, lastAt: data.lastAt[st.id] ?? null, share: sA.n ? (a.n / sA.n) * 100 : 0, judged: !w.day && a.n >= JUDGED && a.final >= 80 };
+  });
+  const judged = stores.filter((x) => x.judged && x.a.delRate != null);
+  const best = judged.length >= 2 ? judged.reduce((b, x) => (x.a.delRate > b.a.delRate ? x : b)).st.id : null;
+  for (const x of stores) x.note = noteFor(x, w, best, mkt);
+  const shown = stores.filter((x) => x.a.n > 0 || x.alarm).sort((x, y) => y.a.n - x.a.n || (y.alarm ? 1 : 0) - (x.alarm ? 1 : 0));
+  const silent = stores.filter((x) => !(x.a.n > 0 || x.alarm));
+
+  // ── chart columns: days, or Monday–Sunday weeks beyond 45 days (bugs 5 and 6) ──
+  let cols = [];
+  if (!w.day) {
+    if (w.len <= 45) for (let d = w.from; d <= w.to; d = shift(d, 1)) cols.push({ from: d, to: d, days: 1, part: d === TODAY });
+    else {
+      let d = w.from;
+      while (d <= w.to) {
+        let e = shift(d, 6 - dow(d)); if (e > w.to) e = w.to;
+        const days = daysLen(d, e);
+        cols.push({ from: d, to: e, days, part: days < 7 || e === TODAY });
+        d = shift(e, 1);
+      }
+    }
+    for (const c of cols) { c.by = {}; c.n = 0; }
+    const idx = (day) => cols.findIndex((c) => day >= c.from && day <= c.to);
+    for (const o of A) { const c = cols[idx(o.day)]; if (c) { c.by[o.s] = (c.by[o.s] || 0) + 1; c.n++; } }
+    for (const x of stores) if (!x.spark) x.spark = cols.map((c) => ({ n: c.by[x.st.id] || 0, part: c.part }));
+  }
+  const prevDaily = !w.day && w.len <= 45 ? Array.from({ length: w.len }, (_, i) => P.filter((o) => o.day === shift(w.pf, i)).length) : null;
+  const full = cols.filter((c) => !c.part);
+  const avg = full.length ? sum(full.map((c) => c.n)) / full.length : 0;
+
+  // ── alerts, worst first (bugs 1, 3, 4) ──
+  const alerts = [];
+  const stoppedAds = shown.find((x) => x.h.stop && x.h.stop.ads);
+  for (const x of stores) {
+    const h = x.h, st = x.st;
+    if (h.stop) {
+      const base = { recent: N(h.stop.recent), days: N(h.stop.days), usual: N(h.stop.usual), day: dayL(h.stop.since) };
+      if (h.stop.ads) alerts.push({ sev: "bad", icon: "mega", title: t("a_ads", base), sub: t("a_adsS", { ...base, spend: owner() ? M(sc.adsDaily) : null, sync: N(st.sync || 5) }), act: t("act_ads"), go: "Finances › Dépenses pub" });
+      else alerts.push({ sev: "bad", icon: "moon", title: t("a_stop", { ...base, store: esc(st.name) }), sub: t("a_stopS", base), act: t("act_see"), go: `store:${st.id}` });
+    }
+    if (h.broken) alerts.push({ sev: "bad", icon: "plug", title: t("a_broken", { store: esc(st.name), time: hm(h.broken.min) }), sub: t("a_brokenS", { n: N(h.broken.n), msg: h.broken.msg[S.lang] }), act: t("act_conn"), go: "Système › Connexions" });
+    if (h.imported) alerts.push({ sev: "warn", icon: "download", title: t("a_imp", { n: N(h.imported.n), store: esc(st.name) }), sub: t("a_impS", { day: dayL(h.imported.day), from: dayL(h.imported.from), to: dayL(h.imported.to) }), act: t("act_imp"), go: "Commandes" });
+    if (h.unmapped) alerts.push({ sev: "warn", icon: "link", title: t("a_unm", { n: N(h.unmapped), store: esc(st.name) }), sub: t("a_unmS", { pf: tg("pf", st.pf) }), act: t("act_link"), go: "Commandes › Produits à relier" });
+  }
+  if (sc.adsStop && !stoppedAds) alerts.push({ sev: "warn", icon: "mega", title: t("a_adsOnly", { day: dayL(sc.adsStop) }), sub: t("a_adsOnlyS"), act: t("act_ads"), go: "Finances › Dépenses pub" });
+  const waitingOld = data.orders.filter((o) => o.day < TODAY && bkAt(o, NOW_TM) === "c" && !o.hold);
+  if (waitingOld.length >= 5) {
+    const oldest = Math.min(...waitingOld.map((o) => o.at));
+    alerts.push({ sev: "warn", icon: "phone", title: t("a_queue", { n: N(waitingOld.length) }), sub: t("a_queueS", { d: dur(NOW_TM - oldest) }), act: t("act_room"), go: "Équipe › Salle de contrôle" });
+  }
+  alerts.sort((x, y) => (x.sev === "bad" ? 0 : 1) - (y.sev === "bad" ? 0 : 1));
+
+  // ── money (owner) ──
+  const adsIn = (f, tt) => { let v = 0; for (let d = f; d <= tt; d = shift(d, 1)) v += data.ads[d] || 0; return v; };
+  const money = (s2, f, tt) => { const m = s2.money, ads = adsIn(f, tt); return { ...m, ads, profit: m.paid - m.cogs - m.car - m.pack - m.proc - ads }; };
+  const mA = w.day ? null : money(sA, w.from, w.to);
+  const mP = w.day ? null : money(sP, w.pf, w.pt);
+  const imported = stores.reduce((v, x) => v + (x.h.imported ? x.h.imported.n : 0), 0);
+  const lastAny = Math.max(...stores.map((x) => x.lastAt ?? -Infinity));
+
+  return { prevDaily, sc, data, w, A, sA, sP, comparable, pace, stores, shown, silent, cols, avg, alerts, mA, mP, mkt, imported, lastAny, health };
+}
+
+/** A card's one line — the first that applies (connection, stop, import, links, …). */
+function noteFor(x, w, best, mkt) {
+  const h = x.h, a = x.a;
+  if (h.broken) return { cls: "bad", icon: "plug", b: t("n_broken", { time: hm(h.broken.min) }), s: t("n_brokenS", { n: N(h.broken.n) }) };
+  if (h.stop) return { cls: "bad", icon: "moon", b: t("n_stop", { day: dayL(h.stop.since) }), s: t("n_stopS", { recent: N(h.stop.recent), days: N(h.stop.days), usual: N(h.stop.usual), ads: h.stop.ads }) };
+  if (h.imported) return { cls: "warn", icon: "download", b: t("n_imp", { n: N(h.imported.n) }), s: t("n_impS", { day: dayL(h.imported.day) }) };
+  if (h.unmapped) return { cls: "warn", icon: "link", b: t("n_unm", { n: N(h.unmapped) }), s: t("n_unmS") };
+  if (h.waiting) return { cls: "new", icon: "clock", b: t("n_wait"), s: t("n_waitS", { when: t("whenY", { time: hm(h.waiting.min) }), sync: N(x.st.sync || 4) }) };
+  if (w.day) return { cls: "ok", icon: "check", b: t("n_ok"), s: t("n_okT", { ago: ago(x.lastAt) }) };
+  if (x.st.since && x.st.since >= w.from && daysLen(x.st.since, w.to) <= 21 && a.n < JUDGED) return { cls: "new", icon: "spark", b: t("n_new"), s: t("n_newS", { day: dayL(x.st.since) }) };
+  if (a.n < JUDGED) return { cls: "flat", icon: "clock", b: t("n_few"), s: t("n_fewS") };
+  const del = a.delRate == null ? null : Math.round(a.delRate), m = mkt == null ? null : Math.round(mkt);
+  const vs = del == null || m == null ? "" : t("n_okS", { del: P(del), mkt: P(m) });
+  if (best === x.st.id) return { cls: "good", icon: "star", b: t("n_best"), s: vs };
+  if (del != null && m != null && del <= m - 5) return { cls: "warn", icon: "alert", b: t("n_below"), s: vs };
+  return { cls: "ok", icon: "check", b: t("n_ok"), s: vs };
+}
+// ═════════════════════════════════════════════════════════════════════════
+// 7 · render — header, « À regarder », the hero and its two charts
+// ═════════════════════════════════════════════════════════════════════════
+const initials = (name) => (name.split(/\s+/).filter((x) => /^[\p{L}\p{N}]/u.test(x)).slice(0, 2).map((x) => x[0]).join("") || "?").toUpperCase();
+const pfLabel = (st) => tg("pf", st.pf) + (st.sheets ? ` · ${t("viaSheets")}` : "");
+
+// A dead band: under ±5 % (or ±2 pts) a change is noise — grey, never a red or green verdict.
+function trendPct(now, prev, ok = true, tip = "") {
+  if (!ok) return "";
+  const c = change(now, prev);
+  if (!c) return "";
+  if (!c.dir) return `<span class="tr eq" data-tip="${esc(tip)}">=</span>`;
+  const cls = c.pct < 5 ? "eq" : c.dir > 0 ? "good" : "bad";
+  return `<span class="tr ${cls}" data-tip="${esc(tip)}">${ic(c.dir > 0 ? "up" : "dn")}${c.times ? `×${N(c.times)}` : P(c.pct)}</span>`;
+}
+function trendPts(now, prev, ok, tip = "", sm = false) {
+  if (!ok || now == null || prev == null) return "";
+  const d = Math.round(now) - Math.round(prev);
+  if (!d) return `<span class="tr eq${sm ? " sm" : ""}" data-tip="${esc(tip)}">=</span>`;
+  const cls = Math.abs(d) < 2 ? "eq" : d > 0 ? "good" : "bad";
+  const unit = S.lang === "ar" ? plAr(Math.abs(d), ["نقطة", "نقطتان", "نقاط", "نقطة", "نقطة"]) : Math.abs(d) > 1 ? "pts" : "pt";
+  return `<span class="tr ${cls}${sm ? " sm" : ""}" data-tip="${esc(tip)}">${ic(d > 0 ? "up" : "dn")}${N(Math.abs(d))}${NB}${unit}</span>`;
+}
+
+function headerHTML(V) {
+  const sc = V.sc, name = owner() ? sc.owner : sc.manager;
+  const live = S.stale
+    ? `<button class="live stale" data-act="refresh">${ic("refresh")}${t("stale", { n: N(14) })}</button>`
+    : `<span class="live"><i></i>${t("live", { time: hm(NOWMIN) })}</span>`;
+  // The deployed date button (owner, 2026-10-07): label + range, one popover with every period.
+  const w = V.w;
+  const sub = w.key === "today" ? `${dayL(TODAY)} · ${S.lang === "ar" ? "حتى" : "jusqu’à"} ${hm(NOWMIN)}` : rangeL(w.from, w.to);
+  const doors = [["funnel", "Commandes", "الطلبات", "Performance › Commandes"], ["users", "Équipe", "الفريق", "Performance › Équipe"], ["route", "Livraison", "التوصيل", "Performance › Livraison"]]
+    .map(([i, fr, ar, go]) => `<button class="door" data-go="${go}">${ic(i)}<span>${S.lang === "ar" ? ar : fr}</span></button>`).join("");
+  return `<header class="ph">
+    <div><h1>${t("hello", { name: esc(name) })}</h1>
+      <div class="sub"><span>${tg("mk", sc.market)} · ${dayLong(TODAY)}</span>${live}</div></div>
+    <div class="ph-r"><nav class="doors">${doors}</nav>
+    <div class="periods"><button class="dbtn${S.ui === "more" ? " on" : ""}" aria-haspopup="dialog" data-act="more">${ic("cal")}<span><b>${esc(periodLong(w))}</b><small>${sub}</small></span>${ic("down")}</button>${S.ui === "more" && !isPhone() ? morePop(V) : ""}</div></div>
+  </header>`;
+}
+
+function alertsHTML(V) {
+  if (S.set === "vide") return "";
+  if (!V.alerts.length) {
+    const live = V.stores.filter((x) => x.a.n > 0 || (x.st.base && !x.alarm)).length;
+    return `<section class="card watch ok"><div class="wl ok"><span class="wi">${ic("check")}</span>
+      <div><b>${t("okTitle")}</b><small>${t("okSub", { n: N(live), ago: ago(V.lastAny) })}</small></div></div></section>`;
+  }
+  const worst = V.alerts.some((a) => a.sev === "bad") ? "bad" : "warn";
+  return `<section class="card watch ${worst}" aria-label="${t("watch")}">
+    <div class="w-h"><b>${t("watch")}</b><i>${N(V.alerts.length)}</i></div>
+    ${V.alerts.map((a) => `<div class="wl ${a.sev}"><span class="wi">${ic(a.icon)}</span>
+      <div><b>${a.title}</b><small>${a.sub}</small></div>
+      <button class="wa" data-go="${esc(a.go)}">${a.act}${ic("right")}</button></div>`).join("")}
+  </section>`;
+}
+
+function legendHTML(V) {
+  // v5: one share ribbon + one tile per store — every store on the same footing, its colour, its count.
+  const list = V.shown.filter((x) => x.a.n > 0 || x.alarm);
+  const top = list.slice(0, 6), rest = list.slice(6);
+  const tot = V.sA.n || 1;
+  const rib = top.filter((x) => x.a.n).map((x) => `<i data-store="${x.st.id}" style="flex:${x.a.n} 0 0;${hueVars(x.st.hue)}"></i>`).join("")
+    + (rest.length ? `<i class="slate" style="flex:${sum(rest.map((x) => x.a.n))} 0 0"></i>` : "");
+  const tile = (x) => `<button class="stile${S.focus === x.st.id ? " on" : ""}${x.a.n === 0 && (x.h.stop || x.h.broken) ? " zero" : ""}" data-store="${x.st.id}" style="${hueVars(x.st.hue)}">
+      <span class="st-top"><span class="sw">${esc(initials(x.st.name))}</span><span class="nm">${esc(x.st.name)}</span></span>
+      <span class="st-num"><b class="num">${N(x.a.n)}</b><small>${P(Math.round((x.a.n / tot) * 100))}</small></span>
+      ${owner() ? `<span class="st-ca">${MH(x.a.money.val)}</span>` : ""}
+      <span class="st-bar"><i style="width:${Math.max(2, (x.a.n / tot) * 100).toFixed(1)}%"></i></span></button>`;
+  let tiles = top.map(tile).join("");
+  if (rest.length) { const n = sum(rest.map((x) => x.a.n)); tiles += `<div class="stile fold"><span class="st-top"><span class="sw slate">+</span><span class="nm">${t("others", { n: N(rest.length) })}</span></span><span class="st-num"><b class="num">${N(n)}</b><small>${P(Math.round((n / tot) * 100))}</small></span></div>`; }
+  return `<div class="sstrip"><div class="stiles">${tiles}</div></div>`;
+}
+
+function heroHTML(V) {
+  const w = V.w, n = V.sA.n;
+  if (S.set === "vide") {
+    const st = V.sc.stores[0];
+    return `<section class="card hero"><div class="empty"><span class="ei">${ic("store")}</span>
+      <b>${t("e_wait", { store: esc(st.name) })}</b>
+      <small>${t("e_waitS", { when: t("whenY", { time: hm(st.connected.min) }), sync: N(st.sync) })}</small>
+      ${owner() ? `<button class="btn ghost" data-go="Système › Connexions">${ic("plus")}${t("connect")}</button>` : ""}</div></section>`;
+  }
+  let badge, cmp;
+  if (w.day) {
+    const pc = V.pace, v = pc.verdict;
+    badge = `<span class="verdict ${v.cls}"><i></i>${t("v_" + v.k)}</span>`;
+    cmp = w.live ? `<span class="mchip">${t("p_yesterday")}<b class="num">${N(pc.yTotal)}</b></span>` : "";
+  } else {
+    const prevN = V.sP.n;
+    badge = trendPct(n, prevN, prevN > 0, `${prevName(w)} : ${N(prevN)}`);
+    cmp = `<span class="mchip" data-tip="${esc(prevName(w))}">${S.lang === "ar" ? "قبلها" : "Avant"}<b class="num">${N(prevN)}</b></span>`;
+  }
+  if (V.imported) cmp += ` · <span data-tip="${esc(t("exclTip"))}" style="text-decoration:underline dotted;cursor:help">${t("excl", { n: N(V.imported) })}</span>`;
+  return `<section class="card hero${S.focus ? " focus" : ""}" id="hero">
+    <div class="h-side">
+      <div class="h-eye">${t("heroL")} <span>· ${esc(periodLong(w))}</span></div>
+      <div class="h-num"><b>${N(n)}</b>${badge}</div>
+      <div class="h-cmp">${cmp}</div>
+      ${owner() ? `<div class="h-ca"><span>${S.lang === "ar" ? "رقم الأعمال" : "Chiffre d’affaires"}</span><b class="num">${MH(V.sA.money.val)}</b>${!w.day && V.sP.money.val ? trendPct(V.sA.money.val, V.sP.money.val, true, `${prevName(w)} : ${M(V.sP.money.val)}`) : ""}<small>${S.lang === "ar" ? "قيمة الطلبات المستلمة · المُحصَّل " : "valeur des commandes reçues · encaissé "}${M(V.sA.money.paid)}</small></div>` : ""}
+    </div>
+    <div class="h-chart">${pieHTML(V)}</div>
+    ${legendHTML(V)}
+  </section>`;
+}
+
+/** v7 · « Commandes reçues » as a pie: each storefront's slice of the period, labelled outside.
+ *  6 stores max, the rest folded into one slate slice — more slices than that stop being readable. */
+function pieHTML(V) {
+  const ar = S.lang === "ar", tot = V.sA.n;
+  const list = V.shown.filter((x) => x.a.n > 0);
+  const top = list.slice(0, 6), rest = list.slice(6);
+  const slices = top.map((x) => ({ id: x.st.id, name: x.st.name, n: x.a.n, c: HUE[x.st.hue][0] }));
+  if (rest.length) slices.push({ id: "", name: t("others", { n: N(rest.length) }), n: sum(rest.map((x) => x.a.n)), c: HUE.slate[0] });
+  const cx = 230, cy = 150, R = 112;
+  if (!tot) return `<div class="pie" role="img" aria-label="0"><svg viewBox="0 0 460 300"><circle cx="${cx}" cy="${cy}" r="${R}" fill="#F2F4F7"/></svg></div>`;
+  const pt = (a, r) => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  let a0 = 0;
+  const paths = [], labels = [];
+  for (const s of slices) {
+    const f = s.n / tot, a1 = a0 + f * 2 * Math.PI, mid = (a0 + a1) / 2;
+    const tip = esc(`${s.name} · ${N(s.n)} · ${P(Math.round(f * 100))}`);
+    const style = `fill:color-mix(in srgb,${s.c} 72%,#fff)`;
+    if (f >= 0.9999) paths.push(`<circle class="slice" data-s="${s.id}" data-store="${s.id}" data-tip="${tip}" cx="${cx}" cy="${cy}" r="${R}" style="${style}"/>`);
+    else {
+      const [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R);
+      paths.push(`<path class="slice" data-s="${s.id}" ${s.id ? `data-store="${s.id}"` : ""} data-tip="${tip}" d="M${cx} ${cy} L${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${f > 0.5 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" style="${style}"/>`);
+    }
+    if (f >= 0.04 && !isPhone()) {
+      const [lx, ly] = pt(mid, R + 20), right = Math.sin(mid) >= 0;
+      const anchor = Math.abs(Math.sin(mid)) < 0.2 ? "middle" : right ? "start" : "end";
+      const dy = Math.cos(mid) > 0.8 ? -12 : Math.cos(mid) < -0.8 ? 10 : 0;
+      labels.push(`<text x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}"><tspan class="pl-n">${esc(s.name)}</tspan><tspan class="pl-v" x="${lx.toFixed(1)}" dy="16">${N(s.n)} · ${P(Math.round(f * 100))}</tspan></text>`);
+    }
+    if (f >= 0.08) {
+      const [ix, iy] = pt(mid, R * 0.62);
+      labels.push(`<text class="pl-in" x="${ix.toFixed(1)}" y="${(iy + 5).toFixed(1)}" text-anchor="middle">${P(Math.round(f * 100))}</text>`);
+    }
+    a0 = a1;
+  }
+  return `<div class="pie" role="img" aria-label="${esc((ar ? "الطلبات حسب المتجر: " : "Commandes par boutique : ") + slices.map((s) => `${s.name} ${s.n}`).join(", "))}">
+    <svg viewBox="${isPhone() ? `${cx - R - 6} ${cy - R - 6} ${2 * R + 12} ${2 * R + 12}` : "0 0 460 300"}" style="${isPhone() ? "max-width:230px" : ""}">${paths.join("")}${labels.join("")}</svg>
+  </div>`;
+}
+
+/** Days (or weeks), stacked by store in their soft hues; the day in progress hatched, outside the average. */
+function barsHTML(V) {
+  const cols = V.cols, max = Math.max(1, ...cols.map((c) => c.n));
+  const order = V.shown.map((x) => x.st);
+  const lastFull = cols.map((c) => !c.part).lastIndexOf(true);
+  const maxI = cols.reduce((b, c, i) => (c.n > cols[b].n ? i : b), 0);
+  const weekly = cols.length && cols[0].days > 1 || V.w.len > 45;
+  const bars = cols.map((c, i) => {
+    const h = c.n ? Math.max(1.2, (c.n / max) * 100) : 0;
+    const segs = order.filter((st) => c.by[st.id]).map((st) => `<i class="sg${S.focus === st.id ? " lit" : ""}" data-s="${st.id}" style="flex:${c.by[st.id]} 0 0;${hueVars(st.hue)}"></i>`).join("");
+    const lab = (i === lastFull || i === maxI) && c.n && !c.part ? `<em>${N(c.n)}</em>` : "";
+    return `<div class="col${c.part ? " part" : ""}${i === lastFull ? " last" : ""}" data-i="${i}" style="--h:${h.toFixed(2)}%">${lab}<div class="stk" style="height:${h.toFixed(2)}%">${segs}</div></div>`;
+  }).join("");
+  const grid = `grid-template-columns:repeat(${cols.length},minmax(0,1fr));column-gap:${cols.length <= 10 ? 14 : cols.length <= 31 ? 4 : 3}px;--bw:${cols.length > 20 ? 16 : 22}px`;
+  // Edges always; Mondays (or every other week) in between, never within 3 columns of an edge.
+  const labs = cols.map((c, i) => {
+    const edge = i === 0 || i === cols.length - 1;
+    const wk = !edge && (weekly ? i % 2 === 0 : dow(c.from) === 0) && i > 2 && i < cols.length - 3;
+    const mid = cols.length > 6 && i === Math.floor((cols.length - 1) / 2);
+    return `<span class="${[edge && "x-edge", wk && "x-wk", mid && "x-mid"].filter(Boolean).join(" ")}">${dayL(c.from)}</span>`;
+  }).join("");
+  const avgLine = V.avg > 0 ? `<div class="avg" style="bottom:${((V.avg / max) * 100).toFixed(2)}%"><span>${t("avg", { n: N(V.avg, V.avg < 10 ? 1 : 0) })}</span></div>` : "";
+  const hasPart = cols.some((c) => c.part);
+  return `<div class="bchart" role="img" aria-label="${weekly ? t("a11yWeeks") : t("a11yBars")}">
+    <div class="plot"><div class="bars" style="${grid}">${avgLine}${bars}</div></div>
+    <div class="xl" style="${grid}">${labs}</div>
+    <div class="ckey">${hasPart ? `<span><i class="k-part"></i>${t("k_part")}</span>` : ""}<span><i class="k-avg"></i>${weekly ? t("k_avgW") : t("k_avg")}</span></div>
+  </div>`;
+}
+
+/** Expert suggestion: one smooth curve of the total, the previous period as a ghost line behind it —
+ *  « am I above or below last month, day by day? » answered without reading a single number. */
+function areaHTML(V) {
+  const cols = V.cols, prev = V.prevDaily, n = cols.length;
+  const max = Math.max(1, ...cols.map((c) => c.n), ...prev) * 1.12;
+  const X = (i) => ((i + 0.5) / n) * 1000, Y = (v) => 200 - (v / max) * 200;
+  const curve = (pts) => pts.reduce((d, p, i) => { if (!i) return `M${p[0].toFixed(1)} ${p[1].toFixed(1)}`; const q = pts[i - 1], mx = (q[0] + p[0]) / 2; return `${d} C${mx.toFixed(1)} ${q[1].toFixed(1)} ${mx.toFixed(1)} ${p[1].toFixed(1)} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`; }, "");
+  const full = cols.map((c, i) => [X(i), Y(c.n), c.part]).filter((p) => !p[2]);
+  const cur = curve(full), last = full[full.length - 1];
+  const area = `${cur} L${last[0].toFixed(1)} 200 L${full[0][0].toFixed(1)} 200 Z`;
+  const ghost = curve(prev.map((v, i) => [X(i), Y(v)]));
+  const li = cols.map((c) => !c.part).lastIndexOf(true);
+  const labs = cols.map((c, i) => `<span class="${i === 0 || i === n - 1 ? "x-edge" : dow(c.from) === 0 && i > 2 && i < n - 3 ? "x-wk" : ""}">${dayL(c.from)}</span>`).join("");
+  return `<div class="bchart" role="img" aria-label="${S.lang === "ar" ? "منحنى الطلبات مقابل الفترة السابقة" : "Commandes reçues par jour, comparées à la période d’avant"}">
+    <div class="plot"><div class="bars" style="display:block">
+      <svg viewBox="0 0 1000 200" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible" aria-hidden="true">
+        <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8B95F5" stop-opacity=".2"/><stop offset="1" stop-color="#8B95F5" stop-opacity="0"/></linearGradient></defs>
+        <path d="${ghost}" fill="none" stroke="#98A2B3" stroke-width="1.75" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"/>
+        <path d="${area}" fill="url(#ag)"/>
+        <path d="${cur}" fill="none" stroke="#7F8AF2" stroke-width="2.25" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <span class="p-dot" style="--x:${(last[0] / 10).toFixed(2)}%;--y:${(last[1] / 2).toFixed(1)}%"></span>
+      <span class="p-lab" style="--x:${(last[0] / 10).toFixed(2)}%;--y:${(last[1] / 2).toFixed(1)}%">${N(cols[li].n)}</span>
+    </div></div>
+    <div class="xl" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${labs}</div>
+    <div class="ckey"><span><i class="k-line"></i>${periodLong(V.w)}</span><span><i class="k-avg"></i>${prevName(V.w)}</span></div>
+  </div>`;
+}
+
+/** Today (or yesterday) since midnight against a usual day, both cumulative. */
+function paceHTML(V) {
+  const pc = V.pace, live = V.w.live;
+  const lastI = live ? Math.floor(pc.upto / 15) : 96;
+  const nowVal = V.sA.n;
+  const ymax = Math.max(6, pc.usual[96], nowVal) * 1.12;
+  const X = (i) => (i / 96) * 1000, Y = (v) => 200 - (v / ymax) * 200;
+  const pts = [];
+  for (let i = 0; i <= lastI; i++) pts.push([X(i), Y(pc.cur[i])]);
+  if (live) pts.push([(pc.upto / 1440) * 1000, Y(nowVal)]);
+  const line = "M" + pts.map((p) => p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" L");
+  const area = `${line} L${pts[pts.length - 1][0].toFixed(1)} 200 L0 200 Z`;
+  const usual = "M" + pc.usual.map((v, i) => X(i).toFixed(1) + " " + Y(v).toFixed(1)).join(" L");
+  const nx = live ? (pc.upto / 1440) * 100 : 100;
+  const ny = (Y(nowVal) / 200) * 100;
+  const uy = (Y(pc.usual[96]) / 200) * 100;
+  return `<div class="pchart" role="img" aria-label="${t("a11yPace")}">
+    <div class="pplot" id="pplot" data-upto="${pc.upto}">
+      <svg viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6172F3" stop-opacity=".32"/><stop offset="1" stop-color="#6172F3" stop-opacity="0"/></linearGradient></defs>
+        <line class="p-base" x1="0" y1="200" x2="1000" y2="200" vector-effect="non-scaling-stroke"/>
+        <path class="p-usual" d="${usual}" vector-effect="non-scaling-stroke"/>
+        <path class="p-area" d="${area}"/>
+        <path class="p-line" d="${line}" vector-effect="non-scaling-stroke"/>
+        ${live ? `<line class="p-now" x1="${(nx * 10).toFixed(1)}" y1="0" x2="${(nx * 10).toFixed(1)}" y2="200" vector-effect="non-scaling-stroke"/>` : ""}
+      </svg>
+      <div class="p-in">
+        <span class="p-lab u" style="--x:100%;--y:${uy.toFixed(1)}%">${t("usual", { n: N(pc.usual[96]) })}</span>
+        <span class="p-dot" style="--x:${nx.toFixed(2)}%;--y:${ny.toFixed(1)}%"></span>
+        <span class="p-lab" style="--x:${nx.toFixed(2)}%;--y:${ny.toFixed(1)}%">${N(nowVal)}</span>
+        <div class="p-cross" id="pcross"></div>
+      </div>
+    </div>
+    <div class="pxl">${[0, 6, 12, 18, 24].map((h) => `<span style="--x:${(h / 24) * 100}%">${hh(h)}</span>`).join("")}</div>
+    <div class="ckey"><span><i class="k-line"></i>${live ? t("k_today") : t("k_yday")}</span><span><i class="k-avg"></i>${t("k_usual", { wd: wdName(V.w.from) })}</span></div>
+  </div>`;
+}
+// ═════════════════════════════════════════════════════════════════════════
+// 8 · render — what the orders became, the money, the treatment, the stores
+// ═════════════════════════════════════════════════════════════════════════
+const OUT = [["del", (k) => k.d], ["route", (k) => k.r + k.u], ["ret", (k) => k.f + k.b], ["rej", (k) => k.x], ["junk", (k) => k.j], ["call", (k) => k.c]];
+const tile = (l, v, s, extra = "", zero = false, sCls = "") => `<div class="tile"><div class="l">${l}${extra}</div><div class="v${zero ? " z" : ""}">${v}</div>${s ? `<div class="s ${sCls}">${s}</div>` : ""}</div>`;
+
+function rowBHTML(V) {
+  if (S.set === "vide" || !V.sA.n) return "";
+  return V.w.day ? `<div class="rowb one">${treatHTML(V)}</div>` : `<div class="rowb${owner() ? "" : " one"}">${resultHTML(V)}${owner() ? moneyHTML(V) : ""}</div>`;
+}
+
+function treatHTML(V) {
+  const a = V.sA, w = V.w;
+  // The oldest wait is information, not an alarm: night orders always wait for the morning shift.
+  // Orders left from yesterday are the alarm, and they live in « À regarder ».
+  const oldest = a.oldestC != null ? t("toCallOld", { d: dur(NOW_TM - a.oldestC) }) : t("toCallNone");
+  return `<section class="card box">
+    <div class="card-h"><h3>${t("treatT")}</h3><span class="meta">${w.live ? t("treatToday") : t("treatY")}</span></div>
+    <div class="tiles" style="--n:4">
+      ${tile(t("toCall"), N(a.k.c), oldest, "", !a.k.c)}
+      ${tile(t("conf"), `${N(a.conf)}${a.confRate != null ? `<small>${P(Math.round(a.confRate))}</small>` : ""}`, a.decided ? t("onDecided", { n: N(a.decided) }) : "", "", !a.conf)}
+      ${tile(t("rej"), N(a.rejAll), t("rejSub", { n: N(a.k.j) }), "", !a.rejAll)}
+      ${tile(t("shipped"), N(a.shipped + a.k.u), owner() ? t("shippedOwner", { v: M(a.money.route) }) : t("shippedMgr"), "", !(a.shipped + a.k.u))}
+    </div>
+    <button class="lnk" data-go="Équipe › Salle de contrôle">${t("room")}${ic("arrow", "flipx")}</button>
+  </section>`;
+}
+
+function resultHTML(V) {
+  const a = V.sA, p = V.sP, k = a.k, total = a.n;
+  const cmpTip = (v) => `${prevName(V.w)} : ${v}`;
+  const seg = OUT.map(([key, f]) => { const v = f(k); return v ? `<i class="k-${key}" style="flex:${v} 0 0" data-tip="${esc(`${N(v)} ${t("o_" + key)} · ${P(Math.round((v / total) * 100))}`)}"></i>` : ""; }).join("");
+  const leg = OUT.map(([key, f]) => { const v = f(k); return v ? `<span class="k-${key}"><i></i><b>${N(v)}</b>${t("o_" + key)}<small>${P(Math.round((v / total) * 100))}</small></span>` : ""; }).join("");
+  const fin = Math.round(a.final);
+  const confOk = V.comparable && a.decided >= JUDGED && p.decided >= JUDGED;
+  const delOk = V.comparable && a.fin >= JUDGED && p.fin >= JUDGED;
+  const tiles = [
+    tile(t("conf"), `${N(a.conf)}${a.confRate != null ? `<small>${P(Math.round(a.confRate))}</small>` : ""}`, a.decided ? t("onDecided", { n: N(a.decided) }) : "", trendPts(a.confRate, p.confRate, confOk, cmpTip(p.confRate != null ? P(Math.round(p.confRate)) : "—"), true)),
+    tile(t("del"), `${N(k.d)}${a.delRate != null ? `<small>${P(Math.round(a.delRate))}</small>` : ""}`, (a.fin ? t("onFinished", { n: N(a.fin) }) : "") + (a.onRoad ? t("delRoute", { n: N(a.onRoad) }) : ""), trendPts(a.delRate, p.delRate, delOk, cmpTip(p.delRate != null ? P(Math.round(p.delRate)) : "—"), true)),
+    tile(t("ret"), N(a.ret), t("retSub"), "", !a.ret),
+  ];
+  if (!owner()) tiles.push(tile(t("rej"), N(a.rejAll), t("rejSub", { n: N(k.j) }), "", !a.rejAll));
+  return `<section class="card box">
+    <div class="card-h"><h3>${t("resT")}</h3><span class="mat${fin < 90 ? " warn" : ""}" data-tip="${esc(t("finalTip"))}"><i></i>${t("final", { pct: P(fin) })}${fin < 90 ? ` · ${t("finalMove")}` : ""}</span></div>
+    <div class="obar" role="img" aria-label="${esc(OUT.map(([key, f]) => `${f(k)} ${t("o_" + key)}`).join(", "))}">${seg}</div>
+    <div class="oleg">${leg}</div>
+    <div class="tiles" style="--n:${tiles.length}">${tiles.join("")}</div>
+    <button class="lnk" data-go="Performance › Commandes">${t("leaks")}${ic("arrow", "flipx")}</button>
+  </section>`;
+}
+
+function moneyHTML(V) {
+  const m = V.mA, mp = V.mP, prov = Math.round(V.sA.final) < 90; // the same rounding as the « n % ont leur issue finale » chip
+  const tipP = `${prevName(V.w)} : ${M(mp.paid)}`;
+  const open = S.ui === "calc" && !isPhone();
+  return `<section class="card box${open ? " raise" : ""}">
+    <div class="card-h"><h3>${t("moneyT")}</h3></div>
+    <div class="m-paid"><div class="l">${t("paid")}${trendPct(m.paid, mp.paid, V.comparable && mp.paid > 0, tipP)}</div>
+      <b>${MH(m.paid)}</b><small>${t("paidSub", { n: N(V.sA.k.d), raw: V.sA.k.d })}</small></div>
+    <div class="m-row">
+      <div><div class="l">${t("route")}</div><b>${MH(m.route)}</b><small>${t("routeSub", { n: N(V.sA.onRoad), raw: V.sA.onRoad })}</small></div>
+      <div><div class="l">${t("profit")}${prov ? `<span class="prov" data-tip="${esc(t("provTip"))}">${t("prov")}</span>` : trendPct(m.profit, mp.profit, V.comparable && mp.profit > 0, `${prevName(V.w)} : ${M(mp.profit)}`)}</div>
+        <b class="${m.profit < 0 ? "neg" : ""}">${MH(m.profit)}</b>
+        <button class="why" data-act="calc">${ic("info")}${t("calc")}</button></div>
+    </div>
+    ${open ? `<div class="pop wide" style="top:calc(100% - 22px);inset-inline-end:18px">${calcBody(V)}</div>` : ""}
+  </section>`;
+}
+
+function calcBody(V) {
+  const m = V.mA, a = V.sA;
+  const line = (l, sub, v) => `<span>${l}${sub ? `<small>${sub}</small>` : ""}</span><b>${M(v)}</b>`;
+  return `<h6>${t("calcT")}</h6>
+    <div class="calc">
+      ${line(t("c_paid"), t("paidSub", { n: N(a.k.d), raw: a.k.d }), m.paid)}
+      ${line(t("c_cogs"), t("c_cogsS"), -m.cogs)}
+      ${line(t("c_car"), t("c_carS"), -m.car)}
+      ${line(t("c_pack"), t("c_packS", { n: N(a.shipped) }), -m.pack)}
+      ${line(t("c_proc"), t("c_procS"), -m.proc)}
+      ${line(t("c_ads"), t("c_adsS"), -m.ads)}
+      <span class="tot">${t("c_tot")}</span><b class="tot">${M(m.profit)}</b>
+    </div>
+    <p class="calc-n">${t("calcNote", { range: rangeL(V.w.from, V.w.to) })}</p>
+    <button class="lnk" style="margin:2px 8px 6px" data-go="Finances › P&amp;L global">${t("openPnl")}${ic("arrow", "flipx")}</button>`;
+}
+
+// ── stores ──────────────────────────────────────────────────────────────
+function sparkHTML(x) {
+  const sp = x.spark || [], max = Math.max(1, ...sp.map((b) => b.n));
+  const lastFull = sp.map((b) => !b.part).lastIndexOf(true);
+  return `<div class="spark" aria-hidden="true">${sp.map((b, i) => `<i class="${b.part ? "part" : !b.n ? "z" : i === lastFull ? "last" : ""}" style="height:${b.n ? Math.max(8, (b.n / max) * 100).toFixed(1) : 6}%"></i>`).join("")}</div>`;
+}
+function ringHTML(a) {
+  const R = 50, C = 2 * Math.PI * R, gap = 2.5;
+  const segs = [["del", a.k.d], ["route", a.k.r + a.k.u], ["ret", a.k.f + a.k.b], ["rej", a.k.x], ["junk", a.k.j], ["call", a.k.c]].filter(([, v]) => v);
+  let acc = 0;
+  const arcs = segs.map(([key, v]) => {
+    const len = (v / a.n) * C, whole = v === a.n, vis = whole ? C : Math.max(len - gap, 1.2), off = -acc - (whole ? 0 : gap / 2);
+    acc += len;
+    return `<circle class="sgr k-${key}" cx="60" cy="60" r="${R}" stroke-dasharray="${vis.toFixed(2)} ${(C + 10).toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" data-tip="${esc(`${N(v)} ${t("o_" + key)} · ${P(Math.round((v / a.n) * 100))}`)}"/>`;
+  }).join("");
+  return `<div class="ring"><svg viewBox="0 0 120 120" role="img" aria-label="${esc(segs.map(([k, v]) => `${v} ${t("o_" + k)}`).join(", "))}"><circle class="tk" cx="60" cy="60" r="${R}"/><g transform="rotate(-90 60 60)">${arcs}</g></svg>
+    <div class="rc"><b class="num">${N(a.k.d)}</b><small>${t("ringL")}${a.delRate != null ? ` · ${P(Math.round(a.delRate))}` : ""}</small></div></div>`;
+}
+function freshHTML(x) {
+  if (x.lastAt == null) return "";
+  const mins = NOW_TM - x.lastAt, cls = x.h.broken || x.h.stop ? "bad" : mins <= 120 ? "live" : "";
+  return `<span class="fresh ${cls}" data-tip="${esc(t("fresh", { at: ago(x.lastAt) }))}"><i></i>${ago(x.lastAt)}</span>`;
+}
+function cardBody(V, x) {
+  const a = x.a, st = x.st, w = V.w;
+  const pace = x.storePace && !x.alarm && x.storePace.k !== "early" ? `<span class="verdict ${x.storePace.cls}" style="height:24px;font-size:12px"><i></i>${t("ps_" + (x.storePace.k === "early" ? "normal" : x.storePace.k))}</span>` : "";
+  const trend = !w.day && x.p ? trendPct(a.n, x.p.n, x.p.n > 0, `${prevName(w)} : ${N(x.p.n)}`) : "";
+  const prods = st.prods && st.prods.length ? `<div class="prods">${st.prods.slice(0, 2).map((p) => `<span class="pc" data-tip="${esc(p)}">${ic("tag")}<span>${esc(p)}</span></span>`).join("")}${st.prods.length > 2 ? `<span class="pc more" data-tip="${esc(st.prods.slice(2).join(" · "))}">+${N(st.prods.length - 2)}</span>` : ""}</div>` : "";
+  let q;
+  if (w.day || !a.n) {
+    q = `<div class="sc-q flat"><div class="minis row">
+      <div class="mi">${t("mCall")}<b class="${a.k.c ? "" : "z"}">${N(a.k.c)}</b></div>
+      <div class="mi">${t("mConf")}<b class="${a.conf ? "" : "z"}">${N(a.conf)}</b></div>
+      <div class="mi">${t("mRej")}<b class="${a.rejAll ? "" : "z"}">${N(a.rejAll)}</b></div></div></div>`;
+  } else {
+    const ring = a.n >= JUDGED ? ringHTML(a) : `<div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="tk dash" cx="60" cy="60" r="50"/></svg><div class="rc early"><small>${t("early")}<br>${t("earlyS")}</small></div></div>`;
+    q = `<div class="sc-q">${ring}<div class="minis">
+      <div class="mi">${t("mConf")}<b>${a.confRate != null ? P(Math.round(a.confRate)) : "—"}<small>${N(a.conf)}</small></b></div>
+      <div class="mi">${t("mRet")}<b class="${a.ret ? "" : "z"}">${N(a.ret)}</b></div>
+      ${owner() ? `<div class="mi">${t("mPaid")}<b class="${a.money.paid ? "" : "z"}">${MH(a.money.paid)}</b></div>` : `<div class="mi">${t("mRej")}<b class="${a.rejAll ? "" : "z"}">${N(a.rejAll)}</b></div>`}
+    </div></div>`;
+  }
+  const n = x.note;
+  return `<div class="sc-h"><span class="av">${esc(initials(st.name))}</span>
+      <div class="sc-n"><b>${esc(st.name)}</b><small>${esc(pfLabel(st))}</small></div>${freshHTML(x)}</div>
+    <div class="sc-c"><div><div class="cnt"><b class="num${!a.n && (x.h.stop || x.h.broken) ? " zero" : ""}">${N(a.n)}</b>${trend}${pace}</div>
+      <div class="sc-sub">${t("received", { n: a.n })}${V.sA.n ? `<br>${t("share", { pct: P(Math.round(x.share)) })}` : ""}</div></div>${sparkHTML(x)}</div>
+    ${q}
+    <div class="note ${n.cls}"><span class="ni">${ic(n.icon)}</span><div><b>${n.b}</b><small>${n.s}</small></div></div>`;
+}
+function storesHTML(V) {
+  if (!V.shown.length && !V.silent.length) return "";
+  const cards = V.shown.map((x) => `<article class="card sc${x.h.broken || x.h.stop ? " alarm" : ""}" role="button" tabindex="0" data-open="${x.st.id}" style="${hueVars(x.st.hue)}" aria-label="${esc(x.st.name)}">${cardBody(V, x)}</article>`).join("");
+  const own = owner();
+  const list = `<div class="card slist" role="table">
+    <div class="sr hd" role="row"><span>${t("storesT")}</span><span>${t("heroL")}</span><span></span><span>${t("mConf")}</span><span>${V.w.day ? t("mCall") : own ? t("mPaid") : t("mRet")}</span><span></span><span></span></div>
+    ${V.shown.map((x) => { const a = x.a, n = x.note; return `<div class="sr" role="row" tabindex="0" data-open="${x.st.id}" style="${hueVars(x.st.hue)}">
+      <span class="who"><span class="av">${esc(initials(x.st.name))}</span><span><b>${esc(x.st.name)}</b><small>${esc(tg("pf", x.st.pf))}</small></span></span>
+      <span class="vol"><b class="num">${N(a.n)}<small>${V.sA.n ? P(Math.round(x.share)) : ""}</small></b><span class="bar5"><i style="width:${Math.max(1.5, x.share).toFixed(1)}%"></i></span></span>
+      <span>${!V.w.day && x.p ? trendPct(a.n, x.p.n, x.p.n > 0) : ""}</span>
+      <span class="num-c">${a.confRate != null ? P(Math.round(a.confRate)) : "—"}<small>${N(a.conf)}</small></span>
+      <span class="num-c">${V.w.day ? N(a.k.c) : own ? MH(a.money.paid) : N(a.ret)}</span>
+      <span class="st ${n.cls === "bad" ? "bad" : n.cls === "warn" ? "warn" : n.cls === "flat" || n.cls === "new" ? "flat" : ""}"><i class="dot"></i><span>${n.b}</span></span>
+      <span class="go">${ic("right")}</span></div>`; }).join("")}</div>`;
+  const rows = `<div class="card srows">${V.shown.map((x) => { const a = x.a, n = x.note, alarm = n.cls === "bad" || n.cls === "warn";
+    return `<div class="prow" role="button" tabindex="0" data-open="${x.st.id}" style="${hueVars(x.st.hue)}"><span class="av">${esc(initials(x.st.name))}</span>
+      <div class="tx"><b>${esc(x.st.name)}</b><small><i class="${x.lastAt != null && NOW_TM - x.lastAt <= 120 && !alarm ? "on" : ""}"></i>${esc(tg("pf", x.st.pf))} · ${ago(x.lastAt)}</small>
+        ${alarm ? `<div class="al ${n.cls}">${ic(n.icon)}<span>${n.b}</span></div>` : ""}</div>
+      <div class="rt"><b class="num${!a.n && (x.h.stop || x.h.broken) ? " zero" : ""}">${N(a.n)}</b>${!V.w.day && x.p ? trendPct(a.n, x.p.n, x.p.n > 0) : x.storePace && !x.alarm ? `<span class="meta" style="font-size:12px">${t("ps_" + (x.storePace.k === "early" ? "normal" : x.storePace.k))}</span>` : ""}</div></div>`; }).join("")}</div>`;
+  const sil = V.silent.length ? `<div class="silent${S.silentOpen ? " open" : ""}">
+      <button class="sil-t" data-act="silent">${ic("moon")}${t("silent", { n: N(V.silent.length) })} · <b>${S.silentOpen ? t("silentHide") : t("silentShow")}</b></button>
+      ${own ? `<button class="connect" data-go="Système › Connexions">${ic("plus")}${t("connect")}</button>` : ""}
+      <div class="sil-l">${V.silent.map((x) => `<span class="sil-c" style="${hueVars(x.st.hue)}"><span class="sw" style="width:18px;height:18px;border-radius:6px;font-size:8px">${esc(initials(x.st.name))}</span>${esc(x.st.name)} <small>${x.lastAt != null ? t("silentLast", { ago: ago(x.lastAt) }) : t("silentNever")}</small></span>`).join("")}</div>
+    </div>` : own && S.set !== "vide" ? `<div class="silent"><button class="connect" data-go="Système › Connexions">${ic("plus")}${t("connect")}</button></div>` : "";
+  const vt = `<div class="vt" role="group"><button aria-pressed="${S.view === "cards"}" data-view="cards">${ic("grid")}${t("vCards")}</button><button aria-pressed="${S.view === "list"}" data-view="list">${ic("list")}${t("vList")}</button></div>`;
+  return `<section class="stores" style="display:grid;gap:14px">
+    <div class="sec-h"><div><h2>${t("storesT")}</h2><div class="meta">${isPhone() ? t("storesMetaP") : t("storesMeta")}</div></div>${V.shown.length ? vt : ""}</div>
+    ${V.shown.length ? (S.view === "list" ? list : `<div class="cards">${cards}</div>`) + rows : ""}
+    ${sil}
+  </section>`;
+}
+
+function footHTML(V) {
+  if (S.set === "vide") return "";
+  const w = V.w;
+  return `<p class="foot">${t("foot", { range: rangeL(w.from, w.to), cmp: w.day ? t("footUsual", { wd: wdName(w.from) }) : t("footPrev", { prev: prevName(w) }) })}</p>`;
+}
+// ═════════════════════════════════════════════════════════════════════════
+// 9 · chrome, sheets, popovers
+// ═════════════════════════════════════════════════════════════════════════
+const FLAG = {
+  tn: '<svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#E70013"/><circle cx="15" cy="10" r="5.2" fill="#fff"/><circle cx="15.6" cy="10" r="3.6" fill="#E70013"/><circle cx="16.6" cy="10" r="2.9" fill="#fff"/></svg>',
+  ly: '<svg class="flag" viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#000"/><rect width="30" height="5" fill="#E70013"/><rect y="15" width="30" height="5" fill="#239E46"/><circle cx="14" cy="10" r="3" fill="#fff"/><circle cx="14.9" cy="10" r="2.4" fill="#000"/></svg>',
+};
+const isPhone = () => S.device === "phone" || ($("#main") && $("#main").clientWidth > 0 && $("#main").clientWidth <= 640);
+
+function sidebarHTML(V) {
+  const items = [["home", "pulse", 1], ["bag", "commandes"], ["wh", "logistique"], ["truck", "livraison"], ["act", "performance"], ...(owner() ? [["wallet", "finances"]] : []), ["users", "clients"], ["headset", "equipe"], ...(owner() ? [["gear", "systeme"]] : [])];
+  return `<div class="sb-brand"><span class="sb-logo"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#fff" stroke-width="2.6"><circle cx="12" cy="12" r="7"/></svg></span>Ordra</div>
+    <button class="sb-mkt">${FLAG[V.sc.market]}<span><b>${tg("mk", V.sc.market)}</b><small>${t("toAssign", { n: N(V.sc.unassigned) })}</small></span>${ic("down")}</button>
+    <div class="sb-search">${ic("search")}<span>${t("goTo")}</span><kbd>⌘K</kbd></div>
+    <nav class="sb-nav">${items.map(([i, k, on]) => `<a class="${on ? "on" : ""}">${ic(i)}<span>${tg("nav", k)}</span>${on ? "" : ic("right", "chev")}</a>`).join("")}</nav>
+    <div class="sb-foot"><span class="sb-av">${owner() ? "F" : esc(V.sc.manager[0])}</span><span><b>${esc(owner() ? V.sc.owner : V.sc.manager)}</b><small>${owner() ? t("roleOwner") : t("roleMgr")}</small></span></div>`;
+}
+function phonebarHTML(V) {
+  return `<button class="ib" aria-label="Menu">${ic("menu")}</button><span class="word">Ordra</span><span class="grow"></span>
+    <span class="chip">${FLAG[V.sc.market]}${tg("mk", V.sc.market)}${ic("down")}</span>
+    <button class="ib bell" aria-label="Alertes">${ic("bell")}${V.alerts.length ? "<i></i>" : ""}</button>`;
+}
+
+function moreItems(V) {
+  const it = (k, label, hint) => `<button class="pi${V.w.key === k ? " on" : ""}" data-period="${k}"><span>${label}</span><small>${hint}</small></button>`;
+  const months = [0, 1, 2, 3].map((k) => addMonths(TODAY.slice(0, 7), -1 - k));
+  return `<h6>${t("quickH")}</h6>
+    ${it("today", t("p_today"), dayL(TODAY))}
+    ${it("yesterday", t("p_yesterday"), dayL(YDAY))}
+    ${it("7d", t("pl_7d"), rangeL(shift(TODAY, -6), TODAY))}
+    ${it("30d", t("pl_30d"), rangeL(shift(TODAY, -29), TODAY))}
+    ${it("90d", t("p_90d"), rangeL(shift(TODAY, -89), TODAY))}
+    ${it("month", t("p_month"), rangeL(TODAY.slice(0, 8) + "01", TODAY))}
+    <div class="sep"></div><h6>${t("monthsH")}</h6>
+    ${months.map((m) => it("m:" + m, monthY(m), rangeL(m + "-01", lastDay(m)))).join("")}
+    <div class="sep"></div>
+    <button class="pi" data-act="cal"><span>${t("p_custom")}</span>${ic("cal")}</button>`;
+}
+function calHTML() {
+  const c = S.cal, m = c.m, first = m + "-01", last = lastDay(m);
+  const lead = dow(first), wd = t("weekdays").split(",");
+  let cells = "";
+  for (let d = first; d <= last; d = shift(d, 1)) {
+    const dis = d > TODAY || d < "2026-03-02";
+    const cls = [d === TODAY && "td", c.s === d && "st", c.e === d && "en", c.s && c.e && d > c.s && d < c.e && "in"].filter(Boolean).join(" ");
+    cells += `<button class="cal-d ${cls}" data-day="${d}" ${dis ? "disabled" : ""}>${+d.slice(8)}</button>`;
+  }
+  return `<div class="cal"><div class="cal-h"><button class="cal-nav" data-cal="-1" aria-label="‹">${ic("left")}</button><b>${monthY(m)}</b><button class="cal-nav" data-cal="1" ${m >= TODAY.slice(0, 7) ? "disabled" : ""} aria-label="›">${ic("right")}</button></div>
+    <div class="cal-g">${wd.map((x) => `<span class="cal-w">${x}</span>`).join("")}${"<span></span>".repeat(lead)}${cells}</div>
+    <div class="cal-f"><span>${c.s && c.e ? `<b>${rangeL(c.s, c.e)}</b> · ${t("p_daysN", { n: N(daysLen(c.s, c.e)), raw: daysLen(c.s, c.e) })}` : c.s ? `${dayL(c.s)} → … ${t("calEnd")}` : t("calStart")}</span>
+      <span class="btns"><button class="btn ghost" data-act="close">${t("cancel")}</button><button class="btn" data-act="applyCal" ${c.s && c.e ? "" : "disabled"}>${t("apply")}</button></span></div></div>`;
+}
+function morePop(V) { return `<div class="pop">${S.cal ? calHTML() : moreItems(V)}</div>`; }
+
+function layerHTML(V) {
+  if (!S.ui || !isPhone()) return S.toast ? `<div class="toast" role="status">${S.toast}</div>` : "";
+  let title = "", body = "";
+  if (S.ui === "more") { title = t("moreTitle"); body = S.cal ? calHTML() : moreItems(V); }
+  else if (S.ui === "calc") { title = t("profit"); body = calcBody(V); }
+  else if (S.ui.startsWith("store:")) {
+    const x = V.stores.find((y) => y.st.id === S.ui.slice(6));
+    if (!x) return "";
+    title = esc(x.st.name);
+    body = `<div class="sc card" style="${hueVars(x.st.hue)}">${cardBody(V, x)}</div><button class="btn" data-go="${esc(t("goPerfStore", { store: x.st.name, period: periodLong(V.w) }))}">${t("perfBtn")}${ic("arrow", "flipx")}</button>`;
+  }
+  return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="${title}"><div class="grab"></div>
+    <div class="sh-h"><b>${title}</b><button class="x" data-act="close" aria-label="${t("close")}">${ic("x")}</button></div>${body}</div>
+    ${S.toast ? `<div class="toast" role="status">${S.toast}</div>` : ""}`;
+}
+
+// ── studio + notes (prototype only, French) ─────────────────────────────
+function studioHTML() {
+  const seg = (key, opts) => `<span class="st-seg">${opts.map(([v, l]) => `<button class="${S[key] === v ? "on" : ""}" data-st="${key}" data-v="${v}">${l}</button>`).join("")}</span>`;
+  return `<span class="brand">Ordra · Accueil v7<small>prototype — données fictives</small></span>
+    <span class="st-g"><span>Scénario</span>${seg("set", [["normal", "Tout va bien"], ["alerte", "Alerte (Libye)"], ["import", "Import (Tunisie)"], ["vide", "Vide"]])}</span>
+    <span class="st-g"><span>Vu par</span>${seg("role", [["owner", "Propriétaire"], ["manager", "Manager"]])}</span>
+    <span class="st-g"><span>Langue</span>${seg("lang", [["fr", "FR"], ["ar", "AR"]])}</span>
+    <span class="st-g"><span>Écran</span>${seg("device", [["desktop", "Bureau"], ["phone", "Téléphone"]])}</span>
+    <label class="st-chk"><input type="checkbox" data-st="stale" ${S.stale ? "checked" : ""}> onglet resté ouvert</label>
+    <button class="st-notes" data-act="notes">Ce qui change · 15</button>`;
+}
+const NOTES = `<button class="x" data-act="notes" aria-label="Fermer">✕</button>
+<h2>Accueil v3 — le point du jour</h2>
+<p class="lead">Ce que je recommande, ce que la v3 corrige, ce qui reste à trancher.</p>
+<h3>Ma recommandation</h3>
+<ol>
+<li><b>Une question chaque matin :</b> « est-ce que tout tourne, et d’où viennent mes commandes ? ». Le détail (où se perdent les commandes, l’équipe, les transporteurs) reste dans Performance, à un clic, depuis la carte où la question naît.</li>
+<li><b>Les problèmes d’abord, avec leur cause.</b> Une ligne par problème, en haut : pub coupée, boutique à l’arrêt, connexion en panne, commandes à relier, import ancien, file en retard. Rien à signaler = une ligne verte. Aujourd’hui en Libye, la page dirait : « Pub à l’arrêt depuis le 30 sept. — les commandes ont suivi ».</li>
+<li><b>Le rythme, pas la veille.</b> « Aujourd’hui » se juge contre une journée habituelle à la même heure : la médiane des 4 mêmes jours de la semaine d’avant (les 4 derniers mercredis). Pas « hier » — hier peut lui-même être anormal ; pas « les 7 derniers jours » — après une semaine de pub coupée, leur médiane est déjà proche de 0 et la page dirait que tout est normal (vu sur le scénario Libye). « Hier » rejoint les raccourcis — le matin, on juge la journée complète.</li>
+<li><b>Le total et chaque boutique dans le même regard :</b> le chiffre, les barres empilées par boutique, la légende chiffrée. Survolez ou touchez une boutique : sa part s’allume.</li>
+<li><b>L’argent en trois chiffres :</b> encaissé, en route, bénéfice brut — « provisoire » tant que des colis roulent.</li>
+<li><b>Le téléphone n’est pas un bureau rétréci :</b> période collée en haut, boutiques en lignes, carte complète en feuille du bas, aucune valeur réservée au survol.</li>
+</ol>
+<h3>Ce que la v3 corrige (bugs du parcours v2 → calme)</h3>
+<ol>
+<li><b>Une boutique à l’arrêt ou en panne disparaît.</b> Sans commande sur la période, elle passe dans <code>quiet</code>, que plus rien n’affiche, et la panne / l’arrêt ne sont évalués que sur les cartes qui ont des commandes. En prod, la boutique principale de Libye n’a plus de carte sur « Aujourd’hui ». <i class="where">lib/dashboard/stores/build.ts · components/dashboard/home/Blocks.tsx</i></li>
+<li><b>L’état vide dit « les boutiques sont connectées, rien n’arrive »</b> quoi qu’il arrive — même connexion en panne. <i class="where">home.all.emptyHint, imprimé sans condition</i></li>
+<li><b>La cause « pub à l’arrêt » a disparu.</b> Le bandeau a été retiré à la passe calme ; <code>ads</code> ne suffixe plus qu’une carte… qui n’est plus affichée. Libye : pub à 0 depuis le 30 sept., commandes arrêtées le même soir. <i class="where">build.ts (ads) · Blocks.tsx (Note « stopped »)</i></li>
+<li><b>Les imports en masse comptent comme des commandes reçues.</b> En connectant 5 boutiques Converty le 5 oct., 698 anciennes commandes (passées en juil.–sept., la plupart déjà livrées ou rejetées dans Converty) ont pris la date d’import : 811 « reçues » le 5 oct. (vraies : 15). Toutes <code>pending</code>, sans agent. <i class="where">orders.created_at = date d’import ; la vraie date est dans raw_payload → « Created At »</i></li>
+<li><b>La barre du jour ressemble à une chute chaque matin.</b> La journée en cours est en couleur pleine, avec son chiffre, à l’échelle des jours complets, et comptée dans la moyenne. <i class="where">lib/dashboard/stores/bars.ts (hot = dernière barre)</i></li>
+<li><b>La dernière semaine de « 3 derniers mois » n’a que 6 jours</b> et les semaines ne commencent pas le lundi : fausse baisse à droite. <i class="where">bars.ts (paquets de 7 depuis le 1er jour)</i></li>
+<li><b>Le téléphone déborde et cache les détails.</b> Marge de 40 px partout + cartes de 330 px minimum = défilement horizontal sous 410 px ; l’explication du profit fait 400 px ; barres, anneau, base de comparaison : au survol seulement. <i class="where">store-dashboard.css (.sdb padding, .cards minmax(330px), .pop 400px)</i></li>
+<li><b>Les couleurs des issues échouent au contrôle</b> (retournées ↔ rejetées ΔE 13,8 &lt; 15, ambre hors bande — validateur : FAILED). Palette calme validée de la doctrine §2.4. <i class="where">store-dashboard.css (--o-*)</i></li>
+<li><b>Les chiffres vieillissent sans prévenir.</b> Pas de rafraîchissement hors « Aujourd’hui », pas au retour sur l’onglet, et cache navigateur 5 min : un onglet ouvert la veille montre la veille. Cochez « onglet resté ouvert ». <i class="where">StoreDashboard.tsx (revalidateOnFocus:false) · route.ts (stale-while-revalidate=300)</i></li>
+<li><b>Une boutique cliquée sur « Aujourd’hui » ouvre 30 jours.</b> La période n’est pas transmise (Performance ne connaît pas « aujourd’hui »). <i class="where">StoreDashboard.tsx (openStore)</i></li>
+<li><b>Deux noms pour un calcul :</b> « Profit net » ici, « Bénéfice brut » dans Finances › P&amp;L depuis le 4 oct.</li>
+<li><b>Le bénéfice d’une période jeune s’affiche comme définitif</b> : toute la pub est comptée, la plupart des colis roulent encore. « Provisoire » + la valeur en route.</li>
+<li><b>« Confirmées » oublie les commandes confirmées pas encore expédiées</b> — sur « Aujourd’hui », elles ne sont comptées nulle part. <i class="where">build.ts summ() — conf = uploadées ÷ décidées</i></li>
+<li><b>Restes RTL :</b> popover des dates ancré par <code>right:0</code>, arrondis du calendrier physiques. <i class="where">store-dashboard.css (.dp, .cal-d.c-st)</i></li>
+<li><b>Liens dans un bouton :</b> la carte (<code>role="button"</code>) contient « Voir » / « Relier » — deux contrôles imbriqués, mal lus au clavier. Les actions vivent maintenant dans « À regarder ». <i class="where">Blocks.tsx (Note)</i></li>
+</ol>
+<h3>Décisions prises en expert</h3>
+<ul>
+<li>Défaut « Aujourd’hui ». Rythme « normal » entre −25 % et +25 % ; « en dessous » jusqu’à −60 % ; « presque rien » au-delà ; « trop tôt » tant qu’une journée habituelle n’a pas 6 commandes à cette heure.</li>
+<li>Une flèche sous ±5 % (ou ±2 pts) reste grise : c’est du bruit, pas une nouvelle. Le rouge et le vert sont gardés pour ce qui a bougé pour de vrai.</li>
+<li>Les portes vers Performance quittent l’en-tête : « Où se perdent les commandes », « Salle de contrôle », et la boutique elle-même.</li>
+<li>Barres empilées dans les couleurs des boutiques, adoucies ; la courbe du jour en encre (pas une couleur de boutique).</li>
+<li>Les cartes restent (votre choix du 4 oct.) mais compactes : chiffre + petite courbe, anneau + 3 chiffres côte à côte, une ligne d’état. Une vue « Liste » en plus pour comparer.</li>
+<li>File en retard = au moins 5 commandes d’hier ou d’avant encore en appel.</li>
+<li>Importées = hors des chiffres et signalées (leur issue vit dans Converty, pas dans Ordra).</li>
+<li>Managers : même page, sans argent ; en arabe pour la Libye.</li>
+</ul>
+<h3>À trancher par vous</h3>
+<ol>
+<li>Les 698 anciennes commandes importées en Tunisie : les sortir de la file (archiver) — recommandé — ou les faire rappeler ?</li>
+<li>Vue par défaut : « Aujourd’hui » — recommandé — ou « Hier » ?</li>
+<li>Bénéfice brut sur l’accueil : le garder (provisoire) — recommandé — ou le laisser au seul P&amp;L ?</li>
+</ol>`;
+
+// ═════════════════════════════════════════════════════════════════════════
+// 10 · render + events
+// ═════════════════════════════════════════════════════════════════════════
+let V = null, toastTimer = null;
+function render() {
+  const app = $("#app");
+  app.dir = S.lang === "ar" ? "rtl" : "ltr";
+  app.lang = S.lang;
+  $("#device").dataset.device = S.device;
+  $("#device").style.height = S.device === "phone" && PHONE_H ? `${PHONE_H}px` : "";
+  V = buildView();
+  $("#studio").innerHTML = studioHTML();
+  $("#sb").innerHTML = sidebarHTML(V);
+  $("#pbar").innerHTML = phonebarHTML(V);
+  $("#page").innerHTML = headerHTML(V) + heroHTML(V) + storesHTML(V);
+  $("#layer").innerHTML = layerHTML(V);
+  $("#notes").innerHTML = NOTES;
+  $("#notes").classList.toggle("open", S.notes);
+}
+function writeUrl() {
+  const q = new URLSearchParams();
+  for (const k of ["set", "role", "lang", "device", "period", "view"]) if (S[k] !== DEF[k]) q.set(k, S[k]);
+  if (S.chart === "area") q.set("chart", "area");
+  if (S.period === "custom" && S.from && S.to) { q.set("from", S.from); q.set("to", S.to); }
+  if (S.stale) q.set("stale", "1");
+  history.replaceState(null, "", `${location.pathname}${q.toString() ? "?" + q : ""}`);
+}
+function set(p) { Object.assign(S, p); writeUrl(); render(); }
+function toast(msg) { S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 2400); }
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-st],[data-period],[data-act],[data-go],[data-open],[data-view],[data-chart],[data-store],[data-day],[data-cal]");
+  if (!el) { if (S.ui && !e.target.closest(".pop,.sheet")) set({ ui: null, cal: null }); return; }
+  const d = el.dataset;
+  if (d.st && d.st !== "stale") return set({ [d.st]: d.v, ui: null, cal: null, focus: null });
+  if (d.period) return set({ period: d.period, from: null, to: null, ui: null, cal: null, focus: null });
+  if (d.chart) return set({ chart: d.chart });
+  if (d.view) return set({ view: d.view });
+  if (d.store) return set({ focus: S.focus === d.store ? null : d.store });
+  if (d.day) { const c = S.cal; if (!c.s || c.e) c.s = d.day, c.e = null; else if (d.day < c.s) { c.e = c.s; c.s = d.day; } else c.e = d.day; return render(); }
+  if (d.cal) { S.cal.m = addMonths(S.cal.m, +d.cal); return render(); }
+  if (d.open) { if (isPhone()) return set({ ui: "store:" + d.open }); const x = V.stores.find((y) => y.st.id === d.open); return toast(t("go", { where: esc(t("goPerfStore", { store: x.st.name, period: periodLong(V.w) })) })); }
+  if (d.go) { if (d.go.startsWith("store:")) return isPhone() ? set({ ui: d.go }) : document.querySelector(`.sc[data-open="${d.go.slice(6)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }); S.ui = null; return toast(t("go", { where: d.go })); }
+  const a = d.act;
+  if (a === "more") return set({ ui: S.ui === "more" ? null : "more", cal: null });
+  if (a === "cal") return set({ cal: { m: TODAY.slice(0, 7), s: null, e: null } });
+  if (a === "applyCal") { const c = S.cal; return set({ period: "custom", from: c.s, to: c.e, ui: null, cal: null }); }
+  if (a === "calc") return set({ ui: S.ui === "calc" ? null : "calc" });
+  if (a === "close") return set({ ui: null, cal: null });
+  if (a === "silent") return set({ silentOpen: !S.silentOpen });
+  if (a === "notes") return set({ notes: !S.notes });
+  if (a === "refresh") { S.stale = false; writeUrl(); return toast(t("refreshed")); }
+});
+document.addEventListener("change", (e) => { if (e.target.dataset.st === "stale") set({ stale: e.target.checked }); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") return set({ ui: null, cal: null, notes: false, focus: null });
+  if ((e.key === "Enter" || e.key === " ") && e.target.dataset && e.target.dataset.open) { e.preventDefault(); e.target.click(); }
+});
+
+// ── hover: tooltips, the store under the pointer lights up in the bars ──
+const tip = $("#tip");
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.dir = S.lang === "ar" ? "rtl" : "ltr"; tip.classList.add("on");
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 14, top = y - h - 12;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (top < 8) top = y + 18;
+  tip.style.left = `${Math.max(8, left)}px`; tip.style.top = `${top}px`;
+}
+const hideTip = () => tip.classList.remove("on");
+function colTip(i) {
+  const c = V.cols[i];
+  if (!c) return "";
+  const head = c.days > 1 || V.w.len > 45 ? t("tipWeek", { from: dayL(c.from), to: dayL(c.to), n: N(c.n), raw: c.n }) : t("tipDay", { day: dayLong(c.from), n: N(c.n), raw: c.n });
+  const lines = V.shown.filter((x) => c.by[x.st.id]).map((x) => `<div class="tl" style="${hueVars(x.st.hue)}"><i></i>${esc(x.st.name)}<b>${N(c.by[x.st.id])}</b></div>`).join("");
+  const note = c.part ? `<div class="tn">${c.from === TODAY || c.to === TODAY ? t("tipPartDay", { time: hm(NOWMIN) }) : t("tipPartWeek", { d: c.days })}</div>` : "";
+  return `<b>${head}</b>${lines}${note}`;
+}
+function paceTip(ev) {
+  const plot = $("#pplot"); if (!plot) return;
+  const r = plot.getBoundingClientRect();
+  let fx = (ev.clientX - r.left) / r.width; if (S.lang === "ar") fx = 1 - fx;
+  fx = Math.min(1, Math.max(0, fx));
+  const i = Math.round(fx * 96), upto = +plot.dataset.upto, min = i * 15;
+  const cross = $("#pcross"); cross.style.display = "block"; cross.style.insetInlineStart = `${(i / 96) * 100}%`;
+  const cur = min <= upto ? N(V.pace.cur[i]) : "—";
+  showTip(t("tipPace", { h: hm(Math.min(min, 1440)), n: cur, u: N(V.pace.usual[i]) }), ev.clientX, ev.clientY);
+}
+document.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "touch") return;
+  const col = e.target.closest(".col");
+  if (col) return showTip(colTip(+col.dataset.i), e.clientX, e.clientY);
+  if (e.target.closest("#pplot")) return paceTip(e);
+  const cross = $("#pcross"); if (cross) cross.style.display = "none";
+  const el = e.target.closest("[data-tip]");
+  if (el && el.dataset.tip) return showTip(esc(el.dataset.tip), e.clientX, e.clientY);
+  hideTip();
+});
+document.addEventListener("pointerdown", (e) => {
+  if (e.pointerType !== "touch") return;
+  const col = e.target.closest(".col");
+  if (col) return showTip(colTip(+col.dataset.i), e.clientX, e.clientY);
+  if (e.target.closest("#pplot")) return paceTip(e);
+  const el = e.target.closest("[data-tip]");
+  if (el && el.dataset.tip) return showTip(esc(el.dataset.tip), e.clientX, e.clientY);
+  hideTip();
+});
+document.addEventListener("pointerover", (e) => {
+  if (e.pointerType === "touch") return;
+  const lg = e.target.closest("[data-store]");
+  const hero = $("#hero"); if (!hero) return;
+  const id = lg ? lg.dataset.store : S.focus;
+  hero.classList.toggle("focus", !!id);
+  $$(".sg,.slice", hero).forEach((sg) => sg.classList.toggle("lit", sg.dataset.s === id));
+});
+addEventListener("resize", () => { if (S.ui) render(); });
+render();
+
+</script>
+</body>
+</html>

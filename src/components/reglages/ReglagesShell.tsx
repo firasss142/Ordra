@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import "./reglages.css";
+import { useState, type CSSProperties, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -14,12 +15,14 @@ import {
   Truck,
   MessageCircle,
   Megaphone,
+  UserSearch,
+  Activity,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { useMarketScope } from "@/context/market-scope";
 import { marketIdToCode, type MarketCode } from "@/lib/markets";
-import { isMarketScoped, topicsFor, type TopicId } from "@/lib/reglages/topics";
+import { isMarketScoped, MENU_GROUPS, topicsFor, type TopicId } from "@/lib/reglages/topics";
 import type { AuthUser } from "@/types";
 import { ReglagesFormProvider, useReglagesForm } from "./form-context";
 import { SaveBar } from "./kit/SaveBar";
@@ -38,11 +41,23 @@ const ICONS: Record<TopicId, LucideIcon> = {
   delivery: Truck,
   whatsapp: MessageCircle,
   ads: Megaphone,
+  prospects: UserSearch,
+  monitoring: Activity,
+};
+
+/** The menu's four sections, one calm tint each (reglages.css `--g-*`). */
+const GROUP_TINT: Record<(typeof MENU_GROUPS)[number]["id"], CSSProperties> = {
+  sales: { "--tc": "var(--g-sales)", "--tb": "var(--g-sales-bg)" } as CSSProperties,
+  shipping: { "--tc": "var(--g-shipping)", "--tb": "var(--g-shipping-bg)" } as CSSProperties,
+  growth: { "--tc": "var(--g-growth)", "--tb": "var(--g-growth-bg)" } as CSSProperties,
+  system: { "--tc": "var(--g-system)", "--tb": "var(--g-system-bg)" } as CSSProperties,
 };
 
 /**
  * Réglages — one page, a menu of topics on the start side, the topic on the
- * other (prototypes/reglages-v2.html). No tabs: the menu is the only
+ * other. « Aurore calme » in the language of Prospects and Voix du client
+ * (prototypes/reglages-v4.html): the topic is the page title, the market sits
+ * on the header's end, the menu is one card. No tabs: the menu is the only
  * navigation. One save bar for the page.
  */
 export function ReglagesShell({ user, topic }: { user: AuthUser; topic: TopicId }) {
@@ -52,12 +67,10 @@ export function ReglagesShell({ user, topic }: { user: AuthUser; topic: TopicId 
   const marketId = isSA ? scopeMarketId : user.market_id;
 
   return (
-    <div dir={locale === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-surface-page">
-      <div className="mx-auto max-w-[1180px] px-[16px] pb-[48px] pt-[24px] md:px-[24px]">
-        <ReglagesFormProvider key={`${topic}:${marketId ?? "all"}`}>
-          <Layout user={user} topic={topic} marketId={marketId} scopeIsAll={isSA && scope === "all"} />
-        </ReglagesFormProvider>
-      </div>
+    <div dir={locale === "ar" ? "rtl" : "ltr"} className="rgc">
+      <ReglagesFormProvider key={`${topic}:${marketId ?? "all"}`}>
+        <Layout user={user} topic={topic} marketId={marketId} scopeIsAll={isSA && scope === "all"} />
+      </ReglagesFormProvider>
     </div>
   );
 }
@@ -81,7 +94,8 @@ function Layout({
   const [pending, setPending] = useState<null | (() => void)>(null);
   const isSA = user.role === "super_admin";
   const marketCode = marketIdToCode(marketId);
-  const needsMarket = isMarketScoped(topic) && !marketId;
+  const scoped = isMarketScoped(topic);
+  const needsMarket = scoped && !marketId;
 
   /** Run `go` now, or after « Quitter sans enregistrer » when something is unsaved. */
   const guard = (go: () => void) => {
@@ -98,71 +112,79 @@ function Layout({
 
   return (
     <>
-      <div className="grid items-start gap-[24px] lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-[32px]">
-        <aside className="flex flex-col gap-[2px] pt-[2px] lg:sticky lg:top-[12px]">
-          <h1 className="m-0 mb-[14px] text-[20px] font-semibold tracking-[-.01em] text-ink-primary">{t("title")}</h1>
-          <div className="mb-[16px]">
-            <div className="mb-[6px] text-[12px] font-medium text-ink-secondary">{t(isSA ? "marketLabel.admin" : "marketLabel.manager")}</div>
-            {isSA ? (
-              <>
-                <div role="group" aria-label={t(isSA ? "marketLabel.admin" : "marketLabel.manager")} className="flex gap-[2px] rounded-[9px] bg-[#E9EAEC] p-[3px]">
+      <div className="rg-page">
+        <header className="rg-ph">
+          <div className="min-w-0">
+            <div className="rg-crumb">
+              {t("crumb")}
+              <ChevronRight aria-hidden />
+              {t("title")}
+            </div>
+            <h1>{t(`topics.${topic}.label`)}</h1>
+            <p>{t(`topics.${topic}.subtitle`)}</p>
+          </div>
+          {scoped && (
+            <div>
+              {isSA ? (
+                <div role="group" aria-label={t("marketLabel.admin")} className="rg-segc">
                   {(["tn", "ly"] as const).map((code) => {
                     const on = marketCode === code;
                     return (
-                      <button
-                        key={code}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => !on && pickMarket(code)}
-                        className={`inline-flex flex-1 items-center justify-center gap-[6px] whitespace-nowrap rounded-[7px] px-[8px] py-[6px] text-[13px] ${on ? "bg-white font-semibold text-ink-primary shadow-[0_0_0_1px_#E1E3E5]" : "font-medium text-ink-secondary"}`}
-                      >
+                      <button key={code} type="button" aria-pressed={on} onClick={() => !on && pickMarket(code)}>
                         <CodeChip code={code.toUpperCase()} active={on} />
                         {t(`market.${code}`)}
                       </button>
                     );
                   })}
                 </div>
-                {scopeIsAll && <div className="mt-[6px] text-[12px] text-status-warning">{t("allMarketsHint")}</div>}
-              </>
+              ) : (
+                <span className="rg-mchip" aria-label={t("marketLabel.manager")}>
+                  {marketCode && <CodeChip code={marketCode.toUpperCase()} />}
+                  {marketCode ? `${t(`market.${marketCode}`)} · ${CURRENCY[marketCode]}` : "—"}
+                </span>
+              )}
+              {scopeIsAll && <div className="rg-hint">{t("allMarketsHint")}</div>}
+            </div>
+          )}
+        </header>
+
+        <div className="rg-body">
+          <aside className="rg-menu">
+            <nav aria-label={t("title")}>
+              {MENU_GROUPS.map((group) => {
+                const visible = group.topics.filter((id) => topicsFor(user.role).includes(id));
+                if (visible.length === 0) return null;
+                return (
+                  <div key={group.id} className="rg-grp" style={GROUP_TINT[group.id]}>
+                    <h3>{t(`menuGroups.${group.id}`)}</h3>
+                    {visible.map((id) => {
+                      const Icon = ICONS[id];
+                      return (
+                        <Link key={id} href={href(id)} onClick={onNav(id)} aria-current={id === topic ? "page" : undefined} className="rg-link">
+                          <span className="ti">
+                            <Icon aria-hidden />
+                          </span>
+                          {t(`topics.${id}.label`)}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </nav>
+            <p className="rg-foot">{t(isSA ? "menuFoot.admin" : "menuFoot.manager")}</p>
+          </aside>
+
+          <div className="rg-content">
+            {needsMarket ? (
+              <ScopePrompt onPick={pickMarket} />
             ) : (
-              <div className="flex items-center gap-[8px] rounded-[8px] border border-line-subtle bg-white px-[10px] py-[8px] font-semibold">
-                {marketCode && <CodeChip code={marketCode.toUpperCase()} />}
-                {marketCode ? t(`market.${marketCode}`) : "—"}
-              </div>
+              <TopicBody topic={topic} user={user} marketId={marketId ?? ""} marketCode={marketCode} />
             )}
           </div>
-          <nav aria-label={t("title")} className="-mx-[16px] flex gap-[2px] overflow-x-auto px-[16px] lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
-            {topicsFor(user.role).map((id) => {
-              const Icon = ICONS[id];
-              const on = id === topic;
-              return (
-                <Link
-                  key={id}
-                  href={href(id)}
-                  onClick={onNav(id)}
-                  aria-current={on ? "page" : undefined}
-                  className={`flex flex-none items-center gap-[10px] whitespace-nowrap rounded-[8px] border px-[10px] py-[8px] text-[14px] lg:w-full ${on ? "border-line-subtle bg-white font-semibold text-ink-primary" : "border-transparent font-medium text-ink-primary hover:bg-[#EDEEF0]"}`}
-                >
-                  <Icon className={`h-[16px] w-[16px] ${on ? "text-brand" : "text-ink-secondary"}`} aria-hidden />
-                  {t(`topics.${id}.label`)}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="mx-[4px] my-[10px] hidden h-px bg-line lg:block" />
-          <p className="m-0 hidden px-[10px] text-[12px] leading-[1.5] text-ink-secondary lg:block">{t(isSA ? "menuFoot.admin" : "menuFoot.manager")}</p>
-        </aside>
-
-        <div className="min-w-0">
-          <SaveBar />
-          <TopicHeader topic={topic} marketCode={isMarketScoped(topic) ? marketCode : null} />
-          {needsMarket ? (
-            <ScopePrompt onPick={pickMarket} />
-          ) : (
-            <TopicBody topic={topic} user={user} marketId={marketId ?? ""} marketCode={marketCode} />
-          )}
         </div>
       </div>
+      <SaveBar />
 
       {pending && (
         <LeaveDialog
@@ -179,34 +201,7 @@ function Layout({
   );
 }
 
-function TopicHeader({ topic, marketCode }: { topic: TopicId; marketCode: MarketCode | null }) {
-  const t = useTranslations("reglages");
-  return (
-    <div className="mb-[20px] flex items-start gap-[16px]">
-      <div className="min-w-0">
-        <div className="flex items-center gap-[4px] text-[13px] text-ink-secondary">
-          {t("title")}
-          <ChevronRight className="h-[13px] w-[13px] rtl:-scale-x-100" aria-hidden />
-        </div>
-        <h2 className="m-0 mb-[4px] mt-[2px] text-[20px] font-semibold tracking-[-.01em] text-ink-primary">{t(`topics.${topic}.label`)}</h2>
-        <p className="m-0 max-w-[64ch] text-[14px] text-ink-secondary">{t(`topics.${topic}.subtitle`)}</p>
-      </div>
-      {marketCode && <MarketChip code={marketCode} />}
-    </div>
-  );
-}
-
 const CURRENCY: Record<MarketCode, string> = { tn: "TND", ly: "LYD" };
-
-function MarketChip({ code }: { code: MarketCode }) {
-  const t = useTranslations("reglages");
-  return (
-    <span className="ms-auto inline-flex flex-none items-center gap-[7px] whitespace-nowrap rounded-full border border-line bg-white py-[5px] pe-[11px] ps-[6px] text-[13px] font-semibold text-ink-primary">
-      <CodeChip code={code.toUpperCase()} />
-      {t(`market.${code}`)} · {CURRENCY[code]}
-    </span>
-  );
-}
 
 function ScopePrompt({ onPick }: { onPick: (code: MarketCode) => void }) {
   const t = useTranslations("reglages");
