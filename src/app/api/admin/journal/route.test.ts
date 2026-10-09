@@ -15,6 +15,7 @@ import { GET as feed } from "./feed/route";
 import { GET as trace } from "./trace/route";
 import { GET as counts } from "./counts/route";
 import { GET as detail } from "./detail/route";
+import { GET as summary } from "./summary/route";
 import { POST as mute } from "./issues/[id]/mute/route";
 
 const url = (path: string) => new NextRequest(new URL(`http://localhost/api/admin/journal${path}`));
@@ -138,6 +139,59 @@ describe("GET /trace", () => {
 
   test("nothing to look for is a 400", async () => {
     expect((await trace(url("/trace"))).status).toBe(400);
+  });
+});
+
+describe("GET /summary — the four Historique tiles", () => {
+  const FROM = "2026-10-02T00:00:00.000Z";
+
+  test("counts per family since the period start, plus the routine passes", async () => {
+    const calls: Record<string, unknown>[] = [];
+    db.rpcs.journal_family_counts = (a) => (
+      calls.push(a),
+      [
+        { family: "team", events: 113, problems: 0 },
+        { family: "ext", events: 10, problems: 2 },
+        { family: "sec", events: 38, problems: 37 },
+      ]
+    );
+    db.rpcs.journal_routine = () => [{ day: "2026-10-08", passes: 431 }, { day: "2026-10-07", passes: 452 }];
+    const res = await summary(url(`/summary?from=${FROM}&market=00000000-0000-0000-0000-000000000002&tz=Africa/Tripoli`));
+    expect(res.status).toBe(200);
+    expect(calls[0]).toEqual({ p_from: FROM, p_market: "00000000-0000-0000-0000-000000000002" });
+    expect(await res.json()).toEqual({
+      families: {
+        team: { events: 113, problems: 0 },
+        ext: { events: 10, problems: 2 },
+        auto: { events: 0, problems: 0 },
+        sec: { events: 38, problems: 37 },
+      },
+      routine: 883,
+    });
+  });
+
+  test("before its SQL is pasted, the tiles have no numbers but the page still answers", async () => {
+    db.rpcs.journal_family_counts = () => {
+      throw Object.assign(new Error("Could not find the function public.journal_family_counts"), { code: "PGRST202" });
+    };
+    db.rpcs.journal_routine = () => [];
+    const res = await summary(url(`/summary?from=${FROM}`));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ families: null, routine: 0 });
+  });
+
+  test("a missing or malformed period start never reaches SQL", async () => {
+    const spy = vi.fn(() => []);
+    db.rpcs.journal_family_counts = spy;
+    expect((await summary(url("/summary"))).status).toBe(400);
+    expect((await summary(url("/summary?from=yesterday"))).status).toBe(400);
+    expect((await summary(url(`/summary?from=${FROM}&market=ly`))).status).toBe(400);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  test("a market manager gets 403", async () => {
+    setTestActor({ role: "market_manager", market_id: "m-1" });
+    expect((await summary(url(`/summary?from=${FROM}`))).status).toBe(403);
   });
 });
 

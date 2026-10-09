@@ -9523,6 +9523,110 @@
       },
       "why": "Pourquoi",
       "fix": "Que faire"
+    },
+    "v3": {
+      "crumb": "Système",
+      "live": "En direct",
+      "updated": "mis à jour {when}",
+      "toFix": "{n, plural, one {# chose à régler} other {# choses à régler}}",
+      "toWatch": "{n, plural, one {# chose à surveiller} other {# choses à surveiller}}",
+      "allGood": "Tout fonctionne",
+      "tracked": "{n, plural, one {# système suivi} other {# systèmes suivis}}",
+      "clearTile": "Retirer ce filtre",
+      "tiles": {
+        "now": "À régler maintenant",
+        "nowNone": "Rien d’urgent",
+        "watch": "À surveiller",
+        "watchNone": "Rien à surveiller",
+        "systems": "Systèmes en ordre",
+        "systemsSub": "{n, plural, one {# à vérifier} other {# à vérifier}}",
+        "systemsOk": "tous répondent normalement",
+        "muted": "En sourdine",
+        "mutedUntil": "jusqu’au {date}",
+        "mutedNone": "Aucun problème ignoré",
+        "team": "Équipe",
+        "teamSub": "changements faits par l’équipe",
+        "ext": "Systèmes externes",
+        "extSub": "{n, plural, =0 {aucun échec} one {# en échec} other {# en échec}}",
+        "auto": "Tâches automatiques",
+        "autoSub": "{routine} de routine · {n, plural, =0 {aucun échec} one {# en échec} other {# en échec}}",
+        "sec": "Sécurité et erreurs",
+        "secSub": "{n, plural, =0 {rien d’anormal} one {# erreur ou alerte} other {# erreurs ou alertes}}",
+        "noCount": "comptage indisponible",
+        "oldestLead": "le plus ancien depuis le"
+      },
+      "search": {
+        "overview": "Chercher un problème, un système, une boutique, un transporteur…",
+        "history": "Chercher une personne, une commande, une action…"
+      },
+      "filters": {
+        "category": "Catégorie",
+        "allCategories": "Toutes",
+        "market": "Marché",
+        "allMarkets": "Tous",
+        "period": "Période",
+        "today": "Aujourd’hui",
+        "d7": "7 derniers jours",
+        "d30": "30 derniers jours",
+        "person": "Personne",
+        "everyone": "Tout le monde"
+      },
+      "count": {
+        "problems": "{n, plural, one {problème ouvert} other {problèmes ouverts}}",
+        "muted": "{n, plural, one {en sourdine} other {en sourdine}}",
+        "systems": "{n} systèmes affichés sur {total}",
+        "events": "{n, plural, one {événement} other {événements}}",
+        "day": "{n, plural, one {# événement} other {# événements}}"
+      },
+      "cols": {
+        "problem": "Problème",
+        "system": "Système",
+        "since": "Depuis",
+        "impact": "Impact",
+        "state": "État",
+        "category": "Catégorie",
+        "lastActivity": "Dernière activité",
+        "bars": "48 dernières heures",
+        "time": "Heure",
+        "who": "Qui",
+        "what": "Ce qui s’est passé",
+        "result": "Résultat"
+      },
+      "state": {
+        "toFix": "À régler",
+        "toWatch": "À surveiller",
+        "muted": "En sourdine"
+      },
+      "empty": {
+        "ok": "Tout fonctionne",
+        "okSub": "Rien à régler. Les {total} systèmes suivis répondent normalement.",
+        "urgent": "Rien d’urgent",
+        "urgentSub": "{n, plural, one {La chose ouverte peut attendre — elle est dans « À surveiller ».} other {Les # choses ouvertes peuvent attendre — elles sont dans « À surveiller ».}}",
+        "noMuted": "Aucun problème en sourdine.",
+        "seeSystems": "Voir les systèmes",
+        "noMatch": "Rien ne correspond à cette recherche."
+      },
+      "folds": {
+        "moreSystems": "{n, plural, one {Afficher l’autre système en ordre} other {Afficher les # autres systèmes en ordre}}",
+        "lessSystems": "Masquer les systèmes en ordre",
+        "mutedLine": "{n, plural, one {# problème en sourdine} other {# problèmes en sourdine}}"
+      },
+      "who": {
+        "auto": "automatique",
+        "server": "serveur",
+        "external": "appel externe",
+        "service": "Service externe",
+        "detector": "surveillance d’Ordra"
+      },
+      "areas": {
+        "carrier": "Livraison",
+        "intake": "Commandes",
+        "ads": "Publicité",
+        "msg": "Messages",
+        "auto": "Tâches automatiques",
+        "app": "Application"
+      },
+      "traceTitle": "Tout ce qui est arrivé à une commande"
     }
   },
   "carrierScorecard": {

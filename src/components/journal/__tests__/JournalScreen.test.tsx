@@ -9,10 +9,10 @@ import { JournalScreen } from "../JournalScreen";
 import type { Overview, FeedRow, Issue, SystemTile } from "@/lib/journal/types";
 
 /**
- * Journaux against a fake of its six routes, with the real intl, toast and SWR
- * providers. What the owner approved in prototypes/journaux-v2.html: a verdict,
- * one card per problem, calm tiles; one stream with five chips; panels that say
- * « Ce qui se passe · Combien · Que faire ».
+ * Journaux against a fake of its routes, with the real intl, toast and SWR
+ * providers. What the owner approved in prototypes/journaux-v3.html: the /orders
+ * skeleton — four tiles that filter, a search, one filter line, ONE table — and
+ * the /feedback drawer that says « Ce qui se passe · Combien · Que faire ».
  */
 
 const NOW = new Date("2026-10-03T14:40:00Z");
@@ -118,6 +118,7 @@ interface Call {
 }
 let calls: Call[];
 let issues: Issue[];
+let summary: { families: Record<string, { events: number; problems: number }> | null; routine: number };
 
 function installApi() {
   calls = [];
@@ -132,6 +133,9 @@ function installApi() {
       const json = (d: unknown, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
 
       if (path === "/api/admin/journal/overview") return json(overview(issues));
+      if (path === "/api/markets")
+        return json({ data: [{ id: "00000000-0000-4000-8000-0000000000aa", code: "tn", name: "Tunisie" }, { id: "00000000-0000-4000-8000-0000000000bb", code: "ly", name: "Libye" }] });
+      if (path === "/api/admin/journal/summary") return json(summary);
       if (path === "/api/admin/journal/feed") {
         let rows = FEED;
         const fam = q.get("family");
@@ -179,6 +183,10 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   // the API sends them sorted by what they cost (journal_overview)
   issues = [NAVEX, ARCHIVE];
+  summary = {
+    families: { team: { events: 113, problems: 0 }, ext: { events: 10, problems: 2 }, auto: { events: 11, problems: 3 }, sec: { events: 38, problems: 37 } },
+    routine: 2050,
+  };
   installApi();
   window.history.replaceState(null, "", "/fr/system/logs");
 });
@@ -187,35 +195,96 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Aperçu — « est-ce que tout marche ? »", () => {
-  test("a verdict counts the problems, and each problem is one card with its figure", async () => {
+const table = () => screen.getByRole("table");
+const tileBtn = (name: RegExp) => screen.getByRole("button", { name });
+
+describe("Aperçu — the /orders skeleton", () => {
+  test("one H1, a live sub line that counts what is open, and the tab carries the number", async () => {
     renderScreen();
-    expect(await screen.findByRole("heading", { name: "2 choses à régler" })).toBeInTheDocument();
-    const cards = screen.getByRole("region", { name: "À régler maintenant" });
-    expect(within(cards).getAllByRole("button")).toHaveLength(2);
-    expect(norm(within(cards).getAllByRole("button")[0].textContent)).toContain("Navex : 139 colis bloqués");
-    expect(within(cards).getByText(byText("8 211 TND"))).toBeInTheDocument();
-    expect(norm(within(cards).getAllByRole("button")[1].textContent)).toContain("« Archivage des commandes terminées » échoue depuis 43 passages");
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    await waitFor(() => expect(norm(document.body.textContent)).toContain("2 choses à régler"));
+    const tab = screen.getByRole("tab", { name: /Aperçu/ });
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    expect(norm(tab.textContent)).toContain("2");
   });
 
-  test("the tab carries the number of problems", async () => {
+  test("four tiles count the problems, the systems and the muted", async () => {
     renderScreen();
-    const tab = await screen.findByRole("tab", { name: /Aperçu/ });
-    await waitFor(() => expect(norm(tab.textContent)).toContain("2"));
+    await waitFor(() => expect(norm(tileBtn(/À régler maintenant/).textContent)).toContain("2"));
+    expect(norm(tileBtn(/^\s*0\s*À surveiller/).textContent)).toContain("Rien à surveiller");
+    // 5 systems; Navex and the jobs are failing → 3 in order
+    expect(norm(tileBtn(/Systèmes en ordre/).textContent)).toContain("3 / 5");
+    expect(norm(tileBtn(/En sourdine/).textContent)).toContain("Aucun problème ignoré");
   });
 
-  test("with no problem, it says so, and the tiles are calm", async () => {
+  test("one table lists each problem with its system and its figure", async () => {
+    renderScreen();
+    const rows = await within(await screen.findByRole("table")).findAllByRole("row");
+    const body = rows.filter((r) => !within(r).queryAllByRole("columnheader").length);
+    expect(body).toHaveLength(2);
+    expect(norm(body[0].textContent)).toContain("Navex : 139 colis bloqués");
+    expect(within(body[0]).getByText(byText("8 211 TND"))).toBeInTheDocument();
+    expect(norm(body[0].textContent)).toContain("Livraison");
+    expect(norm(body[1].textContent)).toContain("« Archivage des commandes terminées » échoue depuis 43 passages");
+    for (const h of ["Problème", "Système", "Depuis", "Impact", "État"]) expect(within(table()).getByRole("columnheader", { name: h })).toBeInTheDocument();
+  });
+
+  test("with no problem, the table says Tout fonctionne and links to the systems", async () => {
     issues = [];
     renderScreen();
-    expect(await screen.findByRole("heading", { name: "Tout fonctionne" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "À régler maintenant" })).not.toBeInTheDocument();
-    const systems = screen.getByRole("region", { name: "Systèmes" });
-    // everything healthy is one line until asked
-    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
-    fireEvent.click(within(systems).getByRole("button", { name: /5 systèmes sans problème/ }));
-    expect(within(systems).getByText("Darb Tripoli")).toBeInTheDocument();
-    expect(within(systems).getByText("Non connecté")).toBeInTheDocument();
-    expect(within(systems).getByText("Toutes réussies")).toBeInTheDocument();
+    expect(await screen.findByText("Tout fonctionne", { selector: "b" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir les systèmes/ }));
+    expect(tileBtn(/Systèmes en ordre/)).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("the Systèmes tile turns the table into the systems; the healthy ones fold behind one line", async () => {
+    renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: /Systèmes en ordre/ }));
+    await waitFor(() => expect(within(table()).getByText("Navex")).toBeInTheDocument());
+    expect(within(table()).getByRole("columnheader", { name: "48 dernières heures" })).toBeInTheDocument();
+    expect(within(table()).queryByText("Darb Tripoli")).not.toBeInTheDocument();
+    fireEvent.click(within(table()).getByRole("button", { name: /Afficher les 3 autres systèmes en ordre/ }));
+    expect(within(table()).getByText("Darb Tripoli")).toBeInTheDocument();
+    expect(within(table()).getByText("Non connecté")).toBeInTheDocument();
+  });
+
+  test("a tile filters, and a second click clears it", async () => {
+    const watch: Issue = { ...NAVEX, id: "33333333-3333-4333-8333-333333333331", rule: "carrier_inactive", severity: "warning", system: "carrier:c-old", params: { name: "Ancien compte", off_at: "2026-10-01T10:00:00Z", no_news: 1 }, affected: 2 };
+    issues = [NAVEX, watch];
+    renderScreen();
+    const tile = await screen.findByRole("button", { name: /À surveiller/ });
+    await waitFor(() => expect(norm(table().textContent)).toContain("Navex"));
+    fireEvent.click(tile);
+    expect(tile).toHaveAttribute("aria-pressed", "true");
+    expect(norm(table().textContent)).toContain("Ancien compte");
+    expect(norm(table().textContent)).not.toContain("Navex");
+    fireEvent.click(tile);
+    expect(norm(table().textContent)).toContain("Navex");
+  });
+
+  test("the search and the Catégorie filter narrow the table", async () => {
+    renderScreen();
+    await waitFor(() => expect(norm(table().textContent)).toContain("Navex"));
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "archivage" } });
+    expect(norm(table().textContent)).not.toContain("Navex");
+    expect(norm(table().textContent)).toContain("Archivage");
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: /Catégorie/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Livraison/ }));
+    expect(norm(table().textContent)).toContain("Navex");
+    expect(norm(table().textContent)).not.toContain("Archivage");
+  });
+
+  test("three problems of the same kind fold into one row that opens to the list", async () => {
+    const inactive = (n: number): Issue => ({ ...NAVEX, id: `33333333-3333-4333-8333-33333333333${n}`, rule: "carrier_inactive", severity: "warning", system: `carrier:c-old-${n}`, params: { name: `Ancien compte ${n}`, off_at: "2026-10-01T10:00:00Z", no_news: 1 }, affected: 2 });
+    issues = [inactive(1), inactive(2), inactive(3)];
+    renderScreen();
+    const fold = await screen.findByRole("button", { name: /3 transporteurs coupés ont encore des colis/ });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    expect(within(table()).queryByRole("button", { name: /^Ancien compte 2/ })).not.toBeInTheDocument();
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute("aria-expanded", "true");
+    expect(within(table()).getByRole("button", { name: /^Ancien compte 2/ })).toBeInTheDocument();
   });
 
   test("a problem opens « Ce qui se passe · Combien · Que faire », with its causes", async () => {
@@ -229,6 +298,14 @@ describe("Aperçu — « est-ce que tout marche ? »", () => {
     expect(within(panel).getByText(byText("« Retourné » refusé depuis « Déposé »"))).toBeInTheDocument();
   });
 
+  test("Échap closes the drawer", async () => {
+    renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: /Navex\s:\s139 colis bloqués/ }));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
   test("« Ignorer 7 jours » mutes the problem through the API", async () => {
     renderScreen();
     fireEvent.click(await screen.findByRole("button", { name: /Archivage des commandes terminées/ }));
@@ -238,110 +315,47 @@ describe("Aperçu — « est-ce que tout marche ? »", () => {
     );
   });
 
-  test("the jobs tile opens the list of jobs, with what each did", async () => {
+  test("the jobs row opens the list of jobs, with what each did", async () => {
     renderScreen();
-    fireEvent.click(await screen.findByRole("button", { name: /Tâches automatiques/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Systèmes en ordre/ }));
+    fireEvent.click(await within(table()).findByRole("button", { name: /Tâches automatiques/ }));
     const panel = await screen.findByRole("dialog");
     expect(within(panel).getByText("Archivage des commandes terminées")).toBeInTheDocument();
     expect(within(panel).getByText("En échec")).toBeInTheDocument();
     expect(within(panel).getByText("2 changements")).toBeInTheDocument();
   });
 
-  test("a carrier tile shows its 48 hours", async () => {
+  test("a carrier opens on its 48 hours", async () => {
     renderScreen();
-    fireEvent.click(await screen.findByRole("button", { name: /systèmes sans problème/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Darb Tripoli/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Systèmes en ordre/ }));
+    fireEvent.click(await within(table()).findByRole("button", { name: /Afficher les 3 autres/ }));
+    fireEvent.click(within(table()).getByRole("button", { name: /Darb Tripoli/ }));
     const panel = await screen.findByRole("dialog");
     expect(within(panel).getByRole("img", { name: "Les 48 dernières heures" })).toBeInTheDocument();
   });
-});
 
-describe("Aperçu v2 — clear at a glance (2026-10-06)", () => {
-  const inactive = (n: number): Issue => ({
-    ...ARCHIVE,
-    id: `33333333-3333-4333-8333-33333333333${n}`,
-    rule: "carrier_inactive",
-    severity: "warning",
-    system: `carrier:c-old-${n}`,
-    params: { name: `Ancien compte ${n}`, off_at: "2026-10-01T10:00:00Z", no_news: 1 },
-    affected: 2,
-    amount: 100,
-    currency: "LYD",
-    market: "ly",
-  });
-  const CITIES: Issue = {
-    ...ARCHIVE,
-    id: "44444444-4444-4444-8444-444444444444",
-    rule: "server_error",
-    system: "app",
-    params: {
-      route: "/api/cities", method: "GET", status: 500, message: "Internal server error", last: "2026-10-03T14:30:00Z",
-      cause_kind: "db", cause_code: "22P02", cause_target: "cities", cause_detail: 'invalid input syntax for type uuid: ""',
-    },
-    affected: 720,
-    amount: null,
-    currency: null,
-    market: null,
-  };
-
-  test("urgent and « à surveiller » problems are two separate lists", async () => {
-    issues = [NAVEX, inactive(1)];
+  test("a server error says WHY on its row, and its panel answers « Pourquoi », the technical detail last", async () => {
+    issues = [
+      {
+        ...ARCHIVE,
+        id: "44444444-4444-4444-8444-444444444444",
+        rule: "server_error",
+        system: "app",
+        params: {
+          route: "/api/cities", method: "GET", status: 500, message: "Internal server error", last: "2026-10-03T14:30:00Z",
+          cause_kind: "db", cause_code: "22P02", cause_target: "cities", cause_detail: 'invalid input syntax for type uuid: ""',
+        },
+        affected: 720,
+      },
+    ];
     renderScreen();
-    const now = await screen.findByRole("region", { name: "À régler maintenant" });
-    const watch = screen.getByRole("region", { name: "À surveiller" });
-    expect(norm(now.textContent)).toContain("Navex");
-    expect(norm(watch.textContent)).toContain("Ancien compte 1");
-    expect(norm(now.textContent)).not.toContain("Ancien compte");
-  });
-
-  test("three problems of the same kind fold into one card that opens to the list", async () => {
-    issues = [inactive(1), inactive(2), inactive(3)];
-    renderScreen();
-    const watch = await screen.findByRole("region", { name: "À surveiller" });
-    expect(within(watch).getAllByRole("button")).toHaveLength(1);
-    const fold = within(watch).getByRole("button", { name: /3 transporteurs coupés ont encore des colis/ });
-    expect(fold).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(fold);
-    expect(fold).toHaveAttribute("aria-expanded", "true");
-    // the fold and, under it, one card per problem
-    expect(within(watch).getAllByRole("button")).toHaveLength(4);
-    expect(within(watch).getByRole("button", { name: /^Ancien compte 2/ })).toBeInTheDocument();
-  });
-
-  test("a server error says WHY on its card, not « Internal server error »", async () => {
-    issues = [CITIES];
-    renderScreen();
-    const now = await screen.findByRole("region", { name: "À régler maintenant" });
-    expect(norm(now.textContent)).toContain("Ordra a envoyé à la base une valeur vide ou mal formée");
-    expect(norm(now.textContent)).not.toContain("Internal server error");
-  });
-
-  test("its panel answers « Pourquoi » and « Que faire », the technical detail last", async () => {
-    issues = [CITIES];
-    renderScreen();
-    fireEvent.click(await screen.findByRole("button", { name: /Erreur serveur répétée/ }));
+    await waitFor(() => expect(norm(table().textContent)).toContain("Ordra a envoyé à la base une valeur vide ou mal formée"));
+    expect(norm(table().textContent)).not.toContain("Internal server error");
+    fireEvent.click(screen.getByRole("button", { name: /Erreur serveur répétée/ }));
     const panel = await screen.findByRole("dialog");
     expect(within(panel).getByRole("heading", { name: "Pourquoi" })).toBeInTheDocument();
-    expect(norm(within(panel).getByText(/valeur vide ou mal formée/).textContent)).toContain("un identifiant");
     expect(norm(panel.textContent)).toContain("Repérer l’écran qui déclenche l’erreur");
     expect(norm(panel.textContent)).toContain("22P02");
-    expect(norm(panel.textContent)).toContain("cities");
-  });
-
-  test("systems only « à vérifier » fold into one line too: the problem list already names them", async () => {
-    renderScreen();
-    const systems = await screen.findByRole("region", { name: "Systèmes" });
-    await waitFor(() => expect(within(systems).getByText("Navex")).toBeInTheDocument());
-    // fixture: no amber tile → no amber line
-    expect(within(systems).queryByRole("button", { name: /à vérifier/ })).not.toBeInTheDocument();
-  });
-
-  test("failing systems stay visible; the healthy ones are one line", async () => {
-    renderScreen();
-    const systems = await screen.findByRole("region", { name: "Systèmes" });
-    await waitFor(() => expect(within(systems).getByText("Navex")).toBeInTheDocument());
-    expect(within(systems).queryByText("Darb Tripoli")).not.toBeInTheDocument();
-    expect(within(systems).getByRole("button", { name: /3 systèmes sans problème/ })).toBeInTheDocument();
   });
 });
 
@@ -351,25 +365,41 @@ describe("Historique — « que s'est-il passé ? »", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Historique" }));
   }
 
-  test("one stream by day, series merged, routine counted not listed", async () => {
+  test("four family tiles count the period, from the summary route", async () => {
+    await openHistory();
+    await waitFor(() => expect(norm(tileBtn(/Équipe/).textContent)).toContain("113"));
+    expect(norm(tileBtn(/Systèmes externes/).textContent)).toContain("2 en échec");
+    expect(norm(tileBtn(/Tâches automatiques/).textContent)).toContain("2 061");
+    expect(norm(tileBtn(/Sécurité et erreurs/).textContent)).toContain("37 erreurs ou alertes");
+    expect(calls.some((c) => c.url.startsWith("/api/admin/journal/summary?from="))).toBe(true);
+  });
+
+  test("before the SQL is pasted, the tiles say the count is unavailable", async () => {
+    summary = { families: null, routine: 0 };
+    await openHistory();
+    await waitFor(() => expect(norm(tileBtn(/Équipe/).textContent)).toContain("comptage indisponible"));
+  });
+
+  test("one table by day, series merged, routine counted not listed", async () => {
     await openHistory();
     expect(await screen.findByText(byText("tasnim a confirmé 2 commandes"))).toBeInTheDocument();
-    expect(screen.getByText("Aujourd’hui")).toBeInTheDocument();
-    expect(screen.getByText(byText("312 passages de routine sans changement (synchronisations, imports vides)"))).toBeInTheDocument();
-    expect(screen.getByText(/Hier/)).toBeInTheDocument();
+    for (const h of ["Heure", "Qui", "Ce qui s’est passé", "Catégorie", "Résultat"]) expect(within(table()).getByRole("columnheader", { name: h })).toBeInTheDocument();
+    expect(within(table()).getByText(/^Aujourd’hui/)).toBeInTheDocument();
+    expect(within(table()).getByText(/^Hier/)).toBeInTheDocument();
+    expect(within(table()).getByText(byText("312 passages de routine sans changement (synchronisations, imports vides)"))).toBeInTheDocument();
   });
 
-  test("a failure carries its flag; success carries none", async () => {
+  test("a failure carries « Échec »; success carries none", async () => {
     await openHistory();
-    const failure = (await screen.findByText(byText("Envoi chez Darb Tripoli refusé"))).closest("[data-row]")!;
-    expect(within(failure as HTMLElement).getByText("Échec")).toBeInTheDocument();
-    const ok = screen.getByText(byText("tasnim a confirmé 2 commandes")).closest("[data-row]")!;
-    expect(within(ok as HTMLElement).queryByText("Échec")).not.toBeInTheDocument();
+    const failure = (await screen.findByText(byText("Envoi chez Darb Tripoli refusé"))).closest("[data-row]") as HTMLElement;
+    expect(within(failure).getByText("Échec")).toBeInTheDocument();
+    const ok = screen.getByText(byText("tasnim a confirmé 2 commandes")).closest("[data-row]") as HTMLElement;
+    expect(within(ok).queryByText("Échec")).not.toBeInTheDocument();
   });
 
-  test("a chip asks the server for its family only", async () => {
+  test("a family tile asks the server for that family only", async () => {
     await openHistory();
-    fireEvent.click(await screen.findByRole("button", { name: "Sécurité et erreurs" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Sécurité et erreurs/ }));
     await waitFor(() => expect(calls.some((c) => c.url.includes("/api/admin/journal/feed") && c.url.includes("family=sec"))).toBe(true));
   });
 
@@ -379,6 +409,31 @@ describe("Historique — « que s'est-il passé ? »", () => {
     await waitFor(() => expect(calls.some((c) => c.url.includes("only_issues=1"))).toBe(true));
     await waitFor(() => expect(screen.queryByText(byText("tasnim a confirmé 2 commandes"))).not.toBeInTheDocument());
     expect(screen.getByText(byText("Envoi chez Darb Tripoli refusé"))).toBeInTheDocument();
+  });
+
+  test("the Marché filter asks the server for one market", async () => {
+    await openHistory();
+    fireEvent.click(await screen.findByRole("button", { name: /Marché/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Libye" }));
+    await waitFor(() => expect(calls.some((c) => c.url.includes("/api/admin/journal/feed") && c.url.includes("market=00000000-0000-4000-8000-0000000000bb"))).toBe(true));
+  });
+
+  test("the Personne filter keeps one person's lines", async () => {
+    await openHistory();
+    await screen.findByText(byText("tasnim a confirmé 2 commandes"));
+    fireEvent.click(screen.getByRole("button", { name: /Personne/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Super Admin" }));
+    expect(screen.queryByText(byText("tasnim a confirmé 2 commandes"))).not.toBeInTheDocument();
+    expect(screen.getByText(byText("Super Admin a changé le prix de Gel X : 199 → 179"))).toBeInTheDocument();
+  });
+
+  test("the period « Aujourd’hui » drops yesterday's lines", async () => {
+    await openHistory();
+    await screen.findByText(byText("Super Admin a changé le prix de Gel X : 199 → 179"));
+    fireEvent.click(screen.getByRole("button", { name: /Période/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Aujourd’hui" }));
+    expect(screen.queryByText(byText("Super Admin a changé le prix de Gel X : 199 → 179"))).not.toBeInTheDocument();
+    expect(screen.getByText(byText("tasnim a confirmé 2 commandes"))).toBeInTheDocument();
   });
 
   test("a change opens before → after", async () => {
@@ -403,7 +458,7 @@ describe("Historique — « que s'est-il passé ? »", () => {
 describe("Retrouver une commande", () => {
   test("« / » opens the search; one match shows its whole story", async () => {
     renderScreen();
-    await screen.findByRole("heading", { name: "2 choses à régler" });
+    await waitFor(() => expect(norm(document.body.textContent)).toContain("2 choses à régler"));
     fireEvent.keyDown(document, { key: "/" });
     const panel = await screen.findByRole("dialog");
     fireEvent.change(within(panel).getByRole("searchbox"), { target: { value: "2165688" } });
@@ -413,3 +468,4 @@ describe("Retrouver une commande", () => {
     expect(calls.some((c) => c.url === "/api/admin/journal/trace?q=2165688")).toBe(true);
   });
 });
+
