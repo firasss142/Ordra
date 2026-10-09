@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight, Check, Info, Search } from "lucide-react";
+import { ArrowRight, Check, Info, Package, Search } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import type { MarketCode } from "@/lib/markets";
 import { suggestMatch, type MatchCandidate, type MatchSuggestion } from "@/lib/reglages/match-suggest";
@@ -32,7 +32,17 @@ interface Group {
   external_variant_id?: string;
   external_product_id?: string | null;
 }
-type Option = MatchCandidate & { sub?: string };
+type Option = MatchCandidate & { sub?: string; /** Products only: Ordra's product photo. */ image?: string | null };
+
+/** A product photo, or a neutral parcel when it has none. */
+function Thumb({ src, large = false }: { src?: string | null; large?: boolean }) {
+  return (
+    <span className={`rg-thumb${large ? " lg" : ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- no images.remotePatterns configured */}
+      {src ? <img src={src} alt="" loading="lazy" /> : <Package aria-hidden />}
+    </span>
+  );
+}
 
 /** A name waiting more than this many days is drawn in amber. */
 const OLD_DAYS = 14;
@@ -75,11 +85,11 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
   const cities = useMemo(() => group(cityData?.data, (o) => (o.customer_city ? o.customer_city : null), (o) => o.customer_city ?? ""), [cityData]);
 
   // Candidates are only loaded when something waits on them.
-  const { data: productList } = useSWR<{ data: { id: string; name: string; sku?: string | null }[] }>(products.length ? `/api/products?market_id=${marketId}` : null);
+  const { data: productList } = useSWR<{ data: { id: string; name: string; sku?: string | null; image_url?: string | null }[] }>(products.length ? `/api/products?market_id=${marketId}` : null);
   const { data: destList } = useSWR<{ data: { id: string | number; city?: string; area?: string; name?: string; name_ar?: string | null }[] }>(
     cities.length ? `/api/mappings/cities?market_id=${marketId}` : null,
   );
-  const productOptions: Option[] = useMemo(() => (productList?.data ?? []).map((p) => ({ id: p.id, label: p.name, sub: p.sku ?? undefined })), [productList]);
+  const productOptions: Option[] = useMemo(() => (productList?.data ?? []).map((p) => ({ id: p.id, label: p.name, sub: p.sku ?? undefined, image: p.image_url ?? null })), [productList]);
   const cityOptions: Option[] = useMemo(
     () =>
       (destList?.data ?? []).map((d) => ({
@@ -96,10 +106,10 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
   const kind: Kind = tab ?? (products.length || !cities.length ? "products" : "cities");
   const rows = kind === "products" ? products : cities;
   const options = kind === "products" ? productOptions : cityOptions;
-  const suggestion = (g: Group): (MatchSuggestion & { label: string }) | null => {
+  const suggestion = (g: Group): (MatchSuggestion & { label: string; image?: string | null }) | null => {
     const s = suggestMatch(g.name, options);
     const o = s && options.find((x) => x.id === s.id);
-    return s && o ? { ...s, label: o.label } : null;
+    return s && o ? { ...s, label: o.label, image: o.image } : null;
   };
   const suggestions = new Map(rows.map((g) => [g.key, suggestion(g)]));
   const same = rows.filter((g) => suggestions.get(g.key)?.confidence === "same");
@@ -255,7 +265,7 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
               <col />
               <col style={{ width: 92 }} />
               <col className="hide-sm" style={{ width: 104 }} />
-              <col className="hide-sm" style={{ width: 210 }} />
+              <col className="hide-sm" style={{ width: 236 }} />
               {editable && <col style={{ width: 186 }} />}
             </colgroup>
             <thead>
@@ -326,6 +336,7 @@ export function MatchingCard({ marketId, marketCode, shops, editable }: { market
                       {s ? (
                         <div className="rg-prop">
                           <ArrowRight aria-hidden />
+                          {kind === "products" && <Thumb src={s.image} />}
                           <div>
                             <b title={s.label}>{s.label}</b>
                             <span className={`rg-conf ${s.confidence}`}>
@@ -447,7 +458,8 @@ function PickerDrawer({
   const searchLabel = kind === "products" ? t("matching.searchProduct") : t("matching.searchCity");
 
   const opt = (o: Option) => (
-    <button key={o.id} type="button" role="radio" aria-checked={picked === o.id} className="rg-opt" onClick={() => setPicked(o.id)}>
+    <button key={o.id} type="button" role="radio" aria-checked={picked === o.id} className={`rg-opt${kind === "products" ? " img" : ""}`} onClick={() => setPicked(o.id)}>
+      {kind === "products" && <Thumb src={o.image} large />}
       <span className="min-w-0">
         <b>{o.label}</b>
         {o.sub && <small dir="auto">{o.sub}</small>}

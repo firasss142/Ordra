@@ -193,6 +193,35 @@
 .rgc .rg-views .n{font-size:12px;font-weight:600;color:var(--ink-3)}
 .rgc .rg-views button[aria-pressed=true] .n{color:#C9CED7}
 
+/* the shop list (Boutiques) */
+.rgc .rg-shopbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 24px;border-top:1px solid var(--line)}
+.rgc .rg-search.sm{height:36px;width:260px;max-width:100%;border-radius:11px}
+.rgc .rg-shops{table-layout:fixed}
+.rgc .rg-shops .rg-td{padding-block:14px}
+.rgc .rg-shops .rg-st{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.rgc .rg-shop > span{overflow:hidden}
+.rgc .rg-shop{display:flex;align-items:center;gap:12px;width:100%;min-width:0;padding-inline-end:12px;text-align:start}
+.rgc .rg-shop .rg-mark{border-radius:11px;font-size:12px}
+.rgc .rg-shop b{display:block;font-size:14.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rgc .rg-shop small{display:block;margin-top:1px;font-size:12.5px;font-weight:500;color:var(--ink-3)}
+.rgc .rg-vol{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.rgc .rg-vol .bt{width:44px;height:6px;border-radius:99px;background:var(--track);overflow:hidden;flex:none}
+.rgc .rg-vol .bt i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8FCBA8,#3F9A68)}
+.rgc .rg-vol b{min-width:42px;text-align:end;font-size:14.5px;font-weight:800;color:var(--ink)}
+.rgc .rg-when{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap}
+.rgc .rg-when small{display:block;font-size:12px;font-weight:500;color:var(--ink-3)}
+.rgc .rg-chev{width:16px;height:16px;color:var(--ink-4);transition:transform .15s,color .15s}
+[dir=rtl] .rgc .rg-chev,.rgc[dir=rtl] .rg-chev{transform:scaleX(-1)}
+.rgc tr.rg-click:hover .rg-chev{color:var(--ink-2);transform:translateX(2px)}
+[dir=rtl] .rgc tr.rg-click:hover .rg-chev,.rgc[dir=rtl] tr.rg-click:hover .rg-chev{transform:scaleX(-1) translateX(2px)}
+.rgc tr.rg-off .rg-shop b,.rgc tr.rg-off .rg-vol b,.rgc tr.rg-off .rg-when{color:var(--ink-3)}
+.rgc tr.rg-off .rg-mark{opacity:.55}
+.rgc .rg-thumb{width:32px;height:32px;border-radius:9px;flex:none;overflow:hidden;display:grid;place-items:center;background:rgba(15,23,40,.04);border:1px solid var(--line);color:var(--quiet)}
+.rgc .rg-thumb img{width:100%;height:100%;object-fit:cover}
+.rgc .rg-thumb svg{width:15px;height:15px}
+.rgc .rg-thumb.lg{width:40px;height:40px;border-radius:11px}
+.rgc .rg-opt.img{grid-template-columns:auto minmax(0,1fr) auto}
+
 /* tables */
 .rgc .rg-th{white-space:nowrap;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.5);text-align:start;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 [dir=rtl] .rgc .rg-th,.rgc[dir=rtl] .rg-th{letter-spacing:0;text-transform:none;font-size:12px}
