@@ -32,6 +32,12 @@ const AuthContext = createContext<AuthContextValue>({
   patchUser: () => {},
 });
 
+const AUTH_USER_FIELDS = ["id", "email", "full_name", "avatar_url", "role", "market_id", "locale", "direction"] as const;
+
+function sameAuthUser(a: AuthUser, b: AuthUser): boolean {
+  return AUTH_USER_FIELDS.every((k) => a[k] === b[k]);
+}
+
 export function AuthProvider({
   children,
   initialUser = null,
@@ -75,7 +81,7 @@ export function AuthProvider({
       const locale = getLocaleForMarket(marketCode);
       const direction = getDirectionForLocale(locale);
 
-      setUser({
+      const next: AuthUser = {
         id: authUser.id,
         email: authUser.email ?? "",
         full_name: data.full_name,
@@ -84,7 +90,12 @@ export function AuthProvider({
         market_id: data.market_id,
         locale,
         direction,
-      });
+      };
+      // Supabase repeats itself after a load (SIGNED_IN, TOKEN_REFRESHED) for the same person.
+      // A new object with the same fields re-rendered every reader; on a hard load the warehouse
+      // layout did so while its page was still hydrating, and React discarded the page and showed
+      // its loading skeleton again. Same person, same fields → same object.
+      setUser((prev) => (prev && sameAuthUser(prev, next) ? prev : next));
       setLoading(false);
     }
 

@@ -125,4 +125,14 @@ describe("GET /api/warehouse/today", () => {
     await GET(req("?market_id=00000000-0000-0000-0000-000000000001"));
     expect(fetchRows.mock.calls[0][1]).toMatchObject({ marketId: actor.market_id });
   });
+
+  // The desk paints its first frame in the READER's language and SWR refreshes it from here:
+  // a French super-admin on Libya saw « Tripoli » turn into « طرابلس » a moment after load.
+  it("names the buildings in the language the page was painted in, when told", async () => {
+    currentActor = { ...actor, id: "m", role: "market_manager" };
+    const fr = await (await GET(req("?locale=fr"))).json();
+    expect(fr.sites.map((s: { name: string }) => s.name)).toEqual(expect.arrayContaining(["Tripoli", "Benghazi"]));
+    const plain = await (await GET(req())).json();
+    expect(plain.sites.map((s: { name: string }) => s.name)).toEqual(expect.arrayContaining(["طرابلس", "بنغازي"]));
+  });
 });

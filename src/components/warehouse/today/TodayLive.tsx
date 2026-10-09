@@ -36,7 +36,12 @@ export function TodayLive({
   /** The market's local date, YYYY-MM-DD. */
   today?: string;
 }) {
-  const key = `/api/warehouse/today${warehouseId && variant === "desk" ? `?warehouse_id=${warehouseId}` : ""}`;
+  // The desk names buildings in the reader's language (as the server painted them); the agent's
+  // key stays bare, shared with the shell's badge, and its market language is the reader's anyway.
+  const key =
+    variant === "desk"
+      ? `/api/warehouse/today?locale=${locale === "ar" ? "ar" : "fr"}${warehouseId ? `&warehouse_id=${warehouseId}` : ""}`
+      : "/api/warehouse/today";
   const { data } = useSWR<TodayResponse>(key, jsonFetcher, {
     fallbackData: initial,
     revalidateOnFocus: true,

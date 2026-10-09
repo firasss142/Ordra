@@ -176,4 +176,14 @@ describe("ReceiveDesk", () => {
     const body = posts.find((p) => p.url.endsWith("/settle"))!.body;
     expect(body).toMatchObject({ supplier_id: "s1", invoice_total: 2040, discrepancy_reason: "damaged_billed", claim_amount: 34 });
   });
+
+  it("paints placeholders, never « 0 » or « tout est soldé », while the receptions are on their way", async () => {
+    const answered = globalThis.fetch as typeof fetch;
+    const held = (u: string) => u.startsWith("/api/warehouse/receptions") || u.startsWith("/api/purchases/orders");
+    vi.stubGlobal("fetch", vi.fn((u: string, init?: RequestInit) => (held(String(u)) ? new Promise<Response>(() => {}) : answered(u, init))));
+    const { container } = renderDesk();
+    await waitFor(() => expect(screen.getAllByRole("status").length).toBeGreaterThanOrEqual(3));
+    expect(container.querySelectorAll(".empty")).toHaveLength(0);
+    expect([...container.querySelectorAll(".sh .n")].map((n) => n.textContent)).not.toContain("0");
+  });
 });

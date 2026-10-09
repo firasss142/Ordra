@@ -475,6 +475,15 @@ whose `.rsk` block lives in `globals.css`; `src/app/__tests__/loading-boundaries
 fails on anything else. A page's IN-PAGE skeleton (shown while its data loads) is a
 different thing — it renders after the page's CSS and may use the page's stylesheet.
 
+**In-page: no figure and no empty state before the first answer.** `data?.rows ?? []`
+turns "not loaded yet" into "nothing there": the Entrepôt desks used to paint « 0 » tiles
+and « Aucun colis n'attend chez Darb » for a second before 143 parcels arrived. A count
+waits as a placeholder (desk `Tile n={null}`), a list as rows (`<Waiting/>`), and a card
+at the top of a screen holds its height while it loads instead of arriving and pushing
+the page down. "Answered" means arrived OR failed, so a broken endpoint never leaves a
+placeholder spinning. And a client refresh must ask for the SAME thing the server
+painted — same market scope, same language — or the first frame swaps for another.
+
 ### 4.13 Inputs, modals, toasts, popovers
 
 - **Inputs**: 36–40px, white (`--au-solid`), `1px rgba(15,23,40,.12)`, 10–11px radius,

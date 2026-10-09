@@ -3444,6 +3444,7 @@
       "hours": "{n} h",
       "days": "{n} j",
       "loadError": "Impossible de charger cette page. Réessayez dans un instant.",
+      "loading": "Chargement…",
       "today": {
         "title": "Aujourd'hui",
         "job": {

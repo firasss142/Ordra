@@ -82,6 +82,16 @@ describe("ReturnsHome — the list", () => {
     expect(cards[1]).toHaveTextContent("هدى القماطي");
   });
 
+  // The chips used to read « 0 » and « 0 » for a moment, then 87.
+  it("shows no count before anything has answered — a zero would be a claim", () => {
+    statsData = undefined;
+    pageData = undefined;
+    render(<ReturnsHome marketId="m-ly" />);
+    expect(screen.getByTestId("wh-returns-chip-queue")).not.toHaveTextContent(/\d/);
+    expect(screen.getByTestId("wh-returns-chip-done")).not.toHaveTextContent(/\d/);
+    expect(screen.getByTestId("wh-returns-skeleton")).toBeInTheDocument();
+  });
+
   it("names a failed load and offers a retry, never a permanent placeholder", () => {
     pageData = undefined;
     pageError = new Error("500");
