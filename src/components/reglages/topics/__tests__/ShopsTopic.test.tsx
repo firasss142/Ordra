@@ -59,7 +59,7 @@ beforeEach(() => {
       ],
     },
     [`/api/mappings/unmatched?type=cities&market_id=${LY}`]: { data: [] },
-    [`/api/products?market_id=${LY}`]: { data: [{ id: "prod-1", name: "Crème Biovera — 50 ml", sku: "BIO-50" }, { id: "prod-2", name: "Sérum Vitamine C", sku: "SER-C" }] },
+    [`/api/products?market_id=${LY}`]: { data: [{ id: "prod-1", name: "Crème Biovera — 50 ml", sku: "BIO-50", image_url: "https://cdn/products/prod-1.jpg" }, { id: "prod-2", name: "Sérum Vitamine C", sku: "SER-C" }] },
   };
   swr.mutate.mockReset().mockResolvedValue(undefined);
   toast.mockReset();
@@ -73,8 +73,19 @@ const shopsCard = () => screen.getByRole("heading", { name: "Boutiques" }).close
 const matchCard = () => screen.getByRole("region", { name: "Produits et villes à associer" });
 
 describe("Réglages › Boutiques", () => {
-  it("dates each shop from its orders and says which ones fell silent", () => {
+  it("opens on the active shops; « Toutes » brings back the disabled one", async () => {
     mount(admin);
+    const names = () => within(shopsCard()).getAllByRole("row").slice(1).map((r) => r.textContent);
+    expect(within(shopsCard()).getByRole("button", { name: /Actives/ })).toHaveAttribute("aria-pressed", "true");
+    expect(names()).toHaveLength(3);
+    expect(names().join()).not.toContain("Easy Orders LY");
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: /Toutes/ }));
+    expect(names()).toHaveLength(4);
+  });
+
+  it("dates each shop from its orders and says which ones fell silent", async () => {
+    mount(admin);
+    await userEvent.click(within(shopsCard()).getByRole("button", { name: /Toutes/ }));
     const rows = within(shopsCard()).getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("Converty Libya (Sheets)");
     expect(rows[0]).toHaveTextContent("1 656");
@@ -234,6 +245,7 @@ describe("Réglages › Boutiques", () => {
     const row = within(card).getByText("Crème Biovera 50 ml").closest("tr") as HTMLElement;
     expect(row).toHaveTextContent("Crème Biovera — 50 ml");
     expect(row).toHaveTextContent("Nom identique");
+    expect(row.querySelector('img[src="https://cdn/products/prod-1.jpg"]')).not.toBeNull();
     await userEvent.click(within(row).getByRole("button", { name: "Associer" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/mappings/products", expect.objectContaining({ method: "POST" })));
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ storefront_id: "s1", external_variant_id: "4471", external_product_id: "p9", product_id: "prod-1" });
@@ -243,7 +255,9 @@ describe("Réglages › Boutiques", () => {
     mount(manager);
     await userEvent.click(within(matchCard()).getByRole("button", { name: "Choisir…" }));
     const panel = screen.getByRole("dialog");
-    expect(within(panel).getByRole("radio", { name: /Crème Biovera — 50 ml/ })).toHaveAttribute("aria-checked", "true");
+    const proposed = within(panel).getByRole("radio", { name: /Crème Biovera — 50 ml/ });
+    expect(proposed).toHaveAttribute("aria-checked", "true");
+    expect(proposed.querySelector("img")).toHaveAttribute("src", "https://cdn/products/prod-1.jpg");
     await userEvent.click(within(panel).getByRole("radio", { name: /Sérum Vitamine C/ }));
     await userEvent.click(within(panel).getByRole("button", { name: "Associer" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/mappings/products", expect.objectContaining({ method: "POST" })));
