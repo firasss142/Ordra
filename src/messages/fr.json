@@ -5627,9 +5627,6 @@
   },
   "delivery": {
     "title": "Suivi livraison",
-    "sub": "{n} en cours",
-    "stat": "<b>{rate} %</b> livraison 30 j · <b>{saved}</b> sauvées",
-    "search": "Rechercher par nom, numéro ou ville…",
     "buckets": {
       "all": "Tout",
       "returning": "Retours à sauver",
@@ -5637,12 +5634,6 @@
       "waiting_customer": "En attente client",
       "waiting_carrier": "Chez le transporteur",
       "done": "Terminées"
-    },
-    "cols": {
-      "client": "Détails du colis",
-      "situation": "Situation / durée",
-      "action": "Action",
-      "amount": "Montant"
     },
     "today": "Aujourd'hui {time}",
     "yesterday": "Hier {time}",
@@ -5831,127 +5822,179 @@
       "failed": "L'action n'a pas pu être enregistrée. Réessaie.",
       "close": "Fermer"
     },
-    "empty": {
-      "title": "Rien ici",
-      "sub": "Aucun colis ne correspond.",
-      "all": "Voir tous les colis"
-    },
-    "stalledGroup": "{n, plural, one {# colis sans mouvement} other {# colis sans mouvement}}",
-    "stalledSince": "Chez le transporteur depuis {days, plural, one {# jour} other {# jours}}",
-    "stalledShow": "Afficher",
-    "stalledHide": "Masquer",
-    "pick": "Sélectionne un colis pour voir son détail.",
-    "offline": "Mise à jour automatique en pause · la liste se rafraîchit toutes les minutes",
-    "shell": {
-      "offline": "Hors ligne",
-      "offlineSub": "Les actions seront synchronisées au retour de la connexion",
-      "online": "En ligne",
-      "onlineSub": "Mises à jour en direct"
-    },
     "loadError": "Impossible de charger les colis.",
     "retry": "Réessayer",
     "selectMarket": "Choisis un marché pour voir les colis.",
-    "filters": "Filtres",
-    "sort": {
-      "label": "Trier",
-      "priority": "Priorité",
-      "amount": "Montant",
-      "oldest": "Plus ancien"
-    },
-    "filter": {
-      "label": "Filtrer",
-      "riskyOnly": "Colis à risque seulement",
-      "hideDone": "Masquer les terminées"
-    },
-    "board": {
-      "title": "Vue d'ensemble",
-      "sub": "{n} en cours · {agents} agents",
-      "search": "Rechercher par nom, numéro, ville ou agent…",
+    "manager": {
+      "crumb": "Livraison",
+      "sub": "{market} · {n} colis en route · {agents, plural, one {# agent} other {# agents}}",
+      "live": "En direct · {time}",
+      "week": "Cette semaine · {saved} sauvés · {lost} perdus",
+      "weekTip": "Sauvé = livré après une action de l’équipe",
+      "views": {
+        "parcels": "Colis",
+        "couriers": "Livreurs",
+        "label": "Vue"
+      },
+      "target": "Cible : <b>{h} h</b>",
+      "targetTip": "Délai pour la première action sur un colis — Réglages › Livraison",
+      "todo": {
+        "label": "À faire",
+        "calm": "Tout est à jour",
+        "calmTip": "{n} colis à traiter, tous pris en charge dans la cible",
+        "late": "<hl>{n} colis</hl> attendent au-delà de la cible, sans action",
+        "idle": "<hl>{name}</hl> a {n} colis à traiter et aucune action aujourd’hui",
+        "idleSub": "Absente ? Ses colis peuvent passer à une collègue.",
+        "none": "<hl>{n} colis</hl> n’ont pas d’agent",
+        "noneSub": "Personne ne les suit : attribuez-les.",
+        "courier": "Le livreur <hl>{name}</hl> a {n} clients injoignables",
+        "courierSub": "Un appel au livreur règle tout le lot.",
+        "stall": "<hl>{n} colis</hl> sans mouvement depuis plus de 21 jours",
+        "stallSub": "Mis de côté : rien à faire pour l’équipe, à régler avec le transporteur.",
+        "see": "Voir",
+        "reassignAll": "Réattribuer ses {n}",
+        "assign": "Attribuer",
+        "call": "Appeler"
+      },
+      "buckets": {
+        "title": "Où en sont les colis",
+        "returning": "Retours à sauver",
+        "act_now": "À traiter maintenant",
+        "waiting_customer": "En attente client",
+        "waiting_carrier": "Chez le transporteur"
+      },
+      "rules": {
+        "returning": "Le colis revient : un appel peut encore le sauver.",
+        "act_now": "Une action de l’équipe est attendue.",
+        "waiting_customer": "Rappel promis : on attend le client.",
+        "waiting_carrier": "Le transporteur a la main."
+      },
+      "parcels": "colis",
+      "lateN": "{n} en retard",
+      "lateTip": "{n} au-delà de {h} h",
+      "filterTag": "Filtre",
+      "team": "L’équipe aujourd’hui",
+      "verdict": {
+        "late": "En retard",
+        "idle": "Inactive",
+        "ok": "À jour"
+      },
+      "flagLate": "{n} en retard · {age}",
+      "flagIdle": "Aucune action aujourd’hui",
+      "ring": "{treated} traités aujourd’hui · sur {total}",
+      "inFlight": "{n} colis en cours",
+      "weekLine": "<b>{saved} sauvés</b> · {lost} perdus",
+      "states": {
+        "label": "État",
+        "live": "En cours",
+        "late": "En retard",
+        "stalled": "Sans mouvement",
+        "done": "Terminées"
+      },
+      "f": {
+        "bucket": "Bac",
+        "agent": "Agent",
+        "sit": "Situation",
+        "carrier": "Transporteur",
+        "sort": "Tri",
+        "all": "Tous",
+        "allF": "Toutes",
+        "nSel": "{n} choisis",
+        "noAgent": "Sans agent",
+        "clear": "Retirer ce filtre"
+      },
+      "sort": {
+        "priority": "Priorité",
+        "wait": "Attente",
+        "amount": "Montant"
+      },
+      "search": "Nom, numéro, ville, suivi…",
+      "cols": {
+        "sit": "Situation",
+        "client": "Client",
+        "prod": "Produit",
+        "agent": "Agent",
+        "trace": "Dernière trace",
+        "wait": "Attente",
+        "amt": "Montant"
+      },
+      "aline": "{n} colis en cours · {verdict}",
+      "page": "{from}–{to} sur {total}",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "empty": {
+        "list": "Aucun colis ne correspond",
+        "listSub": "Retirez un filtre pour revoir toute la liste.",
+        "clear": "Tout effacer",
+        "all": "Aucun colis en route",
+        "allSub": "Dès qu’une commande est envoyée au transporteur, elle est suivie ici jusqu’à la livraison."
+      },
+      "late": "en retard",
+      "courierSays": "Livreur",
+      "select": "Sélectionner {name}",
+      "drawer": {
+        "since": "depuis {age}",
+        "remark": "Ce que dit le livreur",
+        "todo": "À faire",
+        "outcome": "Résultat de l’appel",
+        "details": "Détails",
+        "callCourier": "Appeler le livreur",
+        "seeAll": "Tout l’historique ({n})",
+        "less": "Réduire",
+        "phones": "Téléphones",
+        "tracking": "Suivi",
+        "address": "Adresse",
+        "carrier": "Transporteur",
+        "courier": "Livreur",
+        "history": "Historique client",
+        "orders": "{n, plural, one {# commande} other {# commandes}}",
+        "delivered": "{n, plural, one {# livrée} other {# livrées}}",
+        "returned": "{n, plural, one {# retour} other {# retours}}",
+        "newCustomer": "Première commande",
+        "cod": "paiement à la livraison",
+        "timeline": "Historique",
+        "noEvents": "Aucun événement pour l’instant.",
+        "reassign": "Réattribuer",
+        "log": "Noter une action",
+        "close": "Fermer",
+        "wa": "WhatsApp"
+      },
+      "reassign": {
+        "title": "{n, plural, one {Réattribuer # colis} other {Réattribuer # colis}}",
+        "sub": "Choisissez qui les suit désormais. L’historique garde la trace du changement.",
+        "load": "{n} en cours",
+        "go": "Déplacer vers {name}",
+        "pick": "Réattribuer",
+        "cancel": "Annuler",
+        "working": "Déplacement…",
+        "moved": "{n} colis déplacés vers {name}",
+        "failed": "La réattribution a échoué. Réessayez.",
+        "locked": "Un de ces colis est ouvert par quelqu’un d’autre. Réessayez dans un instant."
+      },
+      "bulk": "{n, plural, one {# colis sélectionné} other {# colis sélectionnés}}",
+      "couriers": {
+        "carsTitle": "Transporteurs",
+        "carsHint": "Ce que chaque compte transporte maintenant",
+        "enRoute": "en route",
+        "toTreat": "à traiter",
+        "returning": "en retour",
+        "carRule": "Compte transporteur",
+        "title": "Livreurs",
+        "hint": "D’après le porteur actuel de chaque colis",
+        "c": "Livreur",
+        "car": "Compte",
+        "held": "Colis",
+        "na": "Injoignables",
+        "ret": "Retours",
+        "none": "Ce transporteur ne transmet pas le livreur.",
+        "call": "Appeler"
+      },
       "markets": {
         "ly": "Libye",
         "tn": "Tunisie"
       },
-      "tabs": {
-        "team": "Équipe",
-        "couriers": "Livreurs",
-        "carriers": "Transporteurs"
-      },
-      "agentLabel": "Agent",
-      "allAgents": "Tous les agents",
-      "select": "Sélectionner le colis de {name}",
-      "nSelected": "{n, plural, one {# colis sélectionné} other {# colis sélectionnés}}",
-      "verdict": {
-        "late": "En retard",
-        "idle": "Inactif aujourd'hui",
-        "ok": "À jour"
-      },
-      "groups": {
-        "late": "Besoin d'aide",
-        "idle": "Sans activité",
-        "ok": "À jour"
-      },
-      "nLate": "{n, plural, one {# en retard} other {# en retard}}",
-      "nIdle": "{n, plural, one {# inactif} other {# inactifs}}",
-      "nOk": "{n, plural, one {# à jour} other {# à jour}}",
-      "nSaved": "{n, plural, one {# sauvée} other {# sauvées}}",
-      "noAgents": "Aucun agent sur ce marché",
-      "marketLine": "{toTreat} colis à traiter dans le marché · {late} au-delà de la cible · cette semaine {saved} sauvées, {lost} perdues",
-      "whyLate": "<b>{n, plural, one {# colis attend} other {# colis attendent}}</b> au-delà de la cible sans action · le plus ancien {hours}",
-      "whyIdle": "<b>{n, plural, one {# colis à traiter} other {# colis à traiter}}</b> et aucune action aujourd'hui",
-      "whyOk": "{n, plural, one {# colis à traiter, pris en charge dans la cible} other {# colis à traiter, tous pris en charge dans la cible}}",
-      "noneLive": "Rien n'attend d'action",
-      "legend": {
-        "returning": "retour",
-        "act_now": "à traiter",
-        "waiting_customer": "attente client",
-        "waiting_carrier": "transporteur"
-      },
-      "inFlight": "{n, plural, one {# colis en cours} other {# colis en cours}}",
-      "now": "À faire",
-      "today": "Aujourd'hui",
-      "week": "Cette semaine",
-      "nowLate": "dont <b>{n}</b> au-delà de la cible · le plus ancien <b>{hours}</b>",
-      "nowOk": "tous dans la cible",
-      "actions": "{n, plural, one {action} other {actions}}",
-      "todayReached": "<b>{n}</b> {n, plural, one {client joint} other {clients joints}}{wa, plural, =0 {} other { · <b>#</b> WhatsApp}}",
-      "saved": "{n, plural, one {sauvée} other {sauvées}}",
-      "weekLost": "<b>{n, plural, one {# perdue} other {# perdues}}</b> · livrées après une action",
-      "weekNoLoss": "livrées après une action · 0 perdue",
-      "weekStrip": "Actions des 7 derniers jours",
-      "blocking": "Ce qui bloque",
-      "threeOf": "3 sur {n}",
-      "nothingBlocks": "Rien ne bloque : tous les colis de l'agent sont dans la cible.",
-      "waits": "attend {d}",
-      "absent": "{name} absent·e · déplacer ses {n} colis",
-      "couriers": {
-        "title": "Livreurs Darb",
-        "sub": "D'après le porteur actuel de chaque colis (Darb, toutes les 10 min).",
-        "courier": "Livreur",
-        "held": "Colis",
-        "noAnswer": "Sans rép.",
-        "returning": "Retours",
-        "call": "Appeler",
-        "none": "Ce transporteur ne transmet pas le livreur. Rien à afficher pour ce marché."
-      },
-      "carriers": {
-        "title": "Transporteurs",
-        "inFlight": "en cours",
-        "split": "{toTreat} à traiter · {returning} en retour",
-        "none": "Aucun colis en cours chez un transporteur."
-      }
-    },
-    "reassign": {
-      "action": "Réassigner",
-      "title": "Réassigner",
-      "lead": "{n, plural, one {# colis passe} other {# colis passent}} de {from} à l'agent choisi. Le transporteur n'est pas prévenu : rien ne change pour le colis, seulement qui le suit.",
-      "pick": "Nouveau responsable",
-      "noTarget": "Aucun autre agent sur ce marché.",
-      "warn": "La commission de livraison suit le nouveau responsable. Chaque réassignation est donc un événement de paie, inscrit dans l'historique de la commande.",
-      "confirm": "Réassigner",
-      "working": "Réassignation…",
-      "cancel": "Annuler",
-      "failed": "La réassignation a échoué. Réessayez.",
-      "locked": "Un agent a une de ces commandes ouverte. Réessayez dans un instant."
+      "teamMore": "+{n}",
+      "teamLess": "Réduire"
     }
   },
   "prospects": {

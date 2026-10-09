@@ -117,6 +117,8 @@ export interface DeliveryBoardAgent {
   lost_week: number;
   /** Actions per day over the last 7 days, today last. */
   week: number[];
+  /** users.color — her identity hue key; null before the trigger gave her one. */
+  color?: string | null;
 }
 
 export interface DeliveryBoardResponse {
